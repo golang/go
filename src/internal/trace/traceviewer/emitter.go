@@ -317,6 +317,7 @@ type Emitter struct {
 	resources                    map[uint64]string
 	focusResource                uint64
 	tasks                        map[uint64]task
+	asyncSliceSeq                uint64
 }
 
 type task struct {
@@ -376,7 +377,6 @@ func (e *Emitter) slice(s SliceEvent, sectionID uint64, cname string) {
 		Arg:      s.Arg,
 		Cname:    cname,
 	})
-
 }
 
 type SliceEvent struct {
@@ -387,6 +387,50 @@ type SliceEvent struct {
 	Stack    int
 	EndStack int
 	Arg      any
+}
+
+func (e *Emitter) AsyncSlice(s AsyncSliceEvent) {
+	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
+		return
+	}
+	if e.filter != nil && !e.filter(s.Resource) {
+		return
+	}
+	cname := ""
+	if s.TaskColorIndex != 0 {
+		cname = pickTaskColor(s.TaskColorIndex)
+	}
+	e.asyncSliceSeq++
+	e.OptionalEvent(&format.Event{
+		Category: s.Category,
+		Name:     s.Name,
+		Phase:    "b",
+		Time:     viewerTime(s.Ts),
+		TID:      s.Resource,
+		ID:       e.asyncSliceSeq,
+		Scope:    s.Scope,
+		Stack:    s.Stack,
+		Cname:    cname,
+	})
+	e.OptionalEvent(&format.Event{
+		Category: s.Category,
+		Name:     s.Name,
+		Phase:    "e",
+		Time:     viewerTime(s.Ts + s.Dur),
+		TID:      s.Resource,
+		ID:       e.asyncSliceSeq,
+		Scope:    s.Scope,
+		Stack:    s.EndStack,
+		Arg:      s.Arg,
+		Cname:    cname,
+	})
+}
+
+type AsyncSliceEvent struct {
+	SliceEvent
+	Category       string
+	Scope          string
+	TaskColorIndex uint64 // Take on the same color as the task with this ID.
 }
 
 func (e *Emitter) Instant(i InstantEvent) {

@@ -73,6 +73,11 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 	}
 	for i, task := range opts.tasks {
 		emitTask(ctx, task, i)
+		if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
+			for _, region := range task.Regions {
+				emitRegion(ctx, region)
+			}
+		}
 	}
 	g.Finish(ctx)
 }
@@ -128,6 +133,54 @@ func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
 			FromStack:    ctx.Stack(viewerFrames(task.Start.Stack())),
 		})
 	}
+}
+
+// emitRegion emits goroutine-based slice events to the UI. The caller
+// must be emitting for a goroutine-oriented trace.
+//
+// TODO(mknyszek): Make regions part of the regular generator loop and
+// treat them like ranges so that we can emit regions in traces oriented
+// by proc or thread.
+func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
+	if region.Name == "" {
+		return
+	}
+	// Collect information about the region.
+	var startStack, endStack tracev2.Stack
+	goroutine := tracev2.NoGoroutine
+	startTime, endTime := ctx.startTime, ctx.endTime
+	if region.Start != nil {
+		startStack = region.Start.Stack()
+		startTime = region.Start.Time()
+		goroutine = region.Start.Goroutine()
+	}
+	if region.End != nil {
+		endStack = region.End.Stack()
+		endTime = region.End.Time()
+		goroutine = region.End.Goroutine()
+	}
+	if goroutine == tracev2.NoGoroutine {
+		return
+	}
+	arg := struct {
+		TaskID uint64 `json:"taskid"`
+	}{
+		TaskID: uint64(region.TaskID),
+	}
+	ctx.AsyncSlice(traceviewer.AsyncSliceEvent{
+		SliceEvent: traceviewer.SliceEvent{
+			Name:     region.Name,
+			Ts:       ctx.elapsed(startTime),
+			Dur:      endTime.Sub(startTime),
+			Resource: uint64(goroutine),
+			Stack:    ctx.Stack(viewerFrames(startStack)),
+			EndStack: ctx.Stack(viewerFrames(endStack)),
+			Arg:      arg,
+		},
+		Category:       "Region",
+		Scope:          fmt.Sprintf("%x", region.TaskID),
+		TaskColorIndex: uint64(region.TaskID),
+	})
 }
 
 // Building blocks for generators.
