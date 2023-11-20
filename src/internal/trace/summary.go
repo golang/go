@@ -50,7 +50,7 @@ type UserTaskSummary struct {
 	// Task begin event. An EventTaskBegin event or nil.
 	Start *tracev2.Event
 
-	// End end event. Normally EventTaskEnd event or nil,
+	// End end event. Normally EventTaskEnd event or nil.
 	End *tracev2.Event
 
 	// Logs is a list of tracev2.EventLog events associated with the task.
@@ -67,6 +67,16 @@ type UserTaskSummary struct {
 // from the trace: both a start and an end.
 func (s *UserTaskSummary) Complete() bool {
 	return s.Start != nil && s.End != nil
+}
+
+// Descendents returns a slice consisting of itself (always the first task returned),
+// and the transitive closure of all of its children.
+func (s *UserTaskSummary) Descendents() []*UserTaskSummary {
+	descendents := []*UserTaskSummary{s}
+	for _, child := range s.Children {
+		descendents = append(descendents, child.Descendents()...)
+	}
+	return descendents
 }
 
 // UserRegionSummary represents a region and goroutine execution stats

@@ -143,15 +143,15 @@ func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event
 	// Not needed. All relevant information for goroutines can be derived from goroutine transitions.
 }
 
-func (g *goroutineGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
+func (g *goroutineGenerator) Finish(ctx *traceContext) {
 	ctx.SetResourceType("G")
 
 	// Finish off global ranges.
-	g.globalRangeGenerator.Finish(ctx, endTime)
+	g.globalRangeGenerator.Finish(ctx)
 
 	// Finish off all the goroutine slices.
 	for id, gs := range g.gStates {
-		gs.finish(endTime, ctx)
+		gs.finish(ctx)
 
 		// Tell the emitter about the goroutines we want to render.
 		ctx.Resource(uint64(id), gs.name())

@@ -188,18 +188,18 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
 	}
 }
 
-func (g *procGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
+func (g *procGenerator) Finish(ctx *traceContext) {
 	ctx.SetResourceType("PROCS")
 
 	// Finish off ranges first. It doesn't really matter for the global ranges,
 	// but the proc ranges need to either be a subset of a goroutine slice or
 	// their own slice entirely. If the former, it needs to end first.
-	g.procRangeGenerator.Finish(ctx, endTime)
-	g.globalRangeGenerator.Finish(ctx, endTime)
+	g.procRangeGenerator.Finish(ctx)
+	g.globalRangeGenerator.Finish(ctx)
 
 	// Finish off all the goroutine slices.
 	for _, gs := range g.gStates {
-		gs.finish(endTime, ctx)
+		gs.finish(ctx)
 	}
 
 	// Name all the procs to the emitter.

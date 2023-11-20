@@ -286,22 +286,21 @@ const (
 
 // NewEmitter returns a new Emitter that writes to c. The rangeStart and
 // rangeEnd args are used for splitting large traces.
-func NewEmitter(c TraceConsumer, mode Mode, rangeStart, rangeEnd time.Duration) *Emitter {
+func NewEmitter(c TraceConsumer, rangeStart, rangeEnd time.Duration) *Emitter {
 	c.ConsumeTimeUnit("ns")
 
 	return &Emitter{
 		c:          c,
-		mode:       mode,
 		rangeStart: rangeStart,
 		rangeEnd:   rangeEnd,
 		frameTree:  frameNode{children: make(map[uint64]frameNode)},
 		resources:  make(map[uint64]string),
+		tasks:      make(map[uint64]task),
 	}
 }
 
 type Emitter struct {
 	c          TraceConsumer
-	mode       Mode
 	rangeStart time.Duration
 	rangeEnd   time.Duration
 
@@ -316,6 +315,12 @@ type Emitter struct {
 	resourceType                 string
 	resources                    map[uint64]string
 	focusResource                uint64
+	tasks                        map[uint64]task
+}
+
+type task struct {
+	name      string
+	sortIndex int
 }
 
 func (e *Emitter) Gomaxprocs(v uint64) {
@@ -339,11 +344,23 @@ func (e *Emitter) SetResourceFilter(filter func(uint64) bool) {
 	e.filter = filter
 }
 
+func (e *Emitter) Task(id uint64, name string, sortIndex int) {
+	e.tasks[id] = task{name, sortIndex}
+}
+
 func (e *Emitter) Slice(s SliceEvent) {
-	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
+	if e.filter != nil && !e.filter(s.Resource) {
 		return
 	}
-	if e.filter != nil && !e.filter(s.Resource) {
+	e.slice(s, format.ProcsSection, "")
+}
+
+func (e *Emitter) TaskSlice(s SliceEvent) {
+	e.slice(s, format.TasksSection, pickTaskColor(s.Resource))
+}
+
+func (e *Emitter) slice(s SliceEvent, sectionID uint64, cname string) {
+	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
 		return
 	}
 	e.OptionalEvent(&format.Event{
@@ -351,11 +368,14 @@ func (e *Emitter) Slice(s SliceEvent) {
 		Phase:    "X",
 		Time:     viewerTime(s.Ts),
 		Dur:      viewerTime(s.Dur),
+		PID:      sectionID,
 		TID:      s.Resource,
 		Stack:    s.Stack,
 		EndStack: s.EndStack,
 		Arg:      s.Arg,
+		Cname:    cname,
 	})
+
 }
 
 type SliceEvent struct {
@@ -375,7 +395,6 @@ func (e *Emitter) Instant(i InstantEvent) {
 	if e.filter != nil && !e.filter(i.Resource) {
 		return
 	}
-	// TODO(mknyszek): Handle ModeTaskOriented here. See cmd/trace.(*traceContext).emitInstant.
 	cname := ""
 	e.OptionalEvent(&format.Event{
 		Name:     i.Name,
@@ -383,6 +402,7 @@ func (e *Emitter) Instant(i InstantEvent) {
 		Phase:    "I",
 		Scope:    "t",
 		Time:     viewerTime(i.Ts),
+		PID:      format.ProcsSection,
 		TID:      i.Resource,
 		Stack:    i.Stack,
 		Cname:    cname,
@@ -400,18 +420,26 @@ type InstantEvent struct {
 }
 
 func (e *Emitter) Arrow(a ArrowEvent) {
-	if !e.tsWithinRange(a.Start) || !e.tsWithinRange(a.End) {
-		return
-	}
 	if e.filter != nil && (!e.filter(a.FromResource) || !e.filter(a.ToResource)) {
 		return
 	}
-	// TODO(mknyszek): Handle ModeTaskOriented here. See cmd/trace.(*traceContext).emitArrow.
+	e.arrow(a, format.ProcsSection)
+}
+
+func (e *Emitter) TaskArrow(a ArrowEvent) {
+	e.arrow(a, format.TasksSection)
+}
+
+func (e *Emitter) arrow(a ArrowEvent, sectionID uint64) {
+	if !e.tsWithinRange(a.Start) || !e.tsWithinRange(a.End) {
+		return
+	}
 	e.arrowSeq++
 	e.OptionalEvent(&format.Event{
 		Name:  a.Name,
 		Phase: "s",
 		TID:   a.FromResource,
+		PID:   sectionID,
 		ID:    e.arrowSeq,
 		Time:  viewerTime(a.Start),
 		Stack: a.FromStack,
@@ -420,6 +448,7 @@ func (e *Emitter) Arrow(a ArrowEvent) {
 		Name:  a.Name,
 		Phase: "t",
 		TID:   a.ToResource,
+		PID:   sectionID,
 		ID:    e.arrowSeq,
 		Time:  viewerTime(a.End),
 	})
@@ -548,8 +577,12 @@ func (e *Emitter) OptionalEvent(ev *format.Event) {
 
 func (e *Emitter) Flush() {
 	e.processMeta(format.StatsSection, "STATS", 0)
-	if e.mode&ModeTaskOriented != 0 {
+
+	if len(e.tasks) != 0 {
 		e.processMeta(format.TasksSection, "TASKS", 1)
+	}
+	for id, task := range e.tasks {
+		e.threadMeta(format.TasksSection, id, task.name, task.sortIndex)
 	}
 
 	e.processMeta(format.ProcsSection, e.resourceType, 2)
@@ -663,4 +696,73 @@ const (
 type frameNode struct {
 	id       int
 	children map[uint64]frameNode
+}
+
+// Mapping from more reasonable color names to the reserved color names in
+// https://github.com/catapult-project/catapult/blob/master/tracing/tracing/base/color_scheme.html#L50
+// The chrome trace viewer allows only those as cname values.
+const (
+	colorLightMauve     = "thread_state_uninterruptible" // 182, 125, 143
+	colorOrange         = "thread_state_iowait"          // 255, 140, 0
+	colorSeafoamGreen   = "thread_state_running"         // 126, 200, 148
+	colorVistaBlue      = "thread_state_runnable"        // 133, 160, 210
+	colorTan            = "thread_state_unknown"         // 199, 155, 125
+	colorIrisBlue       = "background_memory_dump"       // 0, 180, 180
+	colorMidnightBlue   = "light_memory_dump"            // 0, 0, 180
+	colorDeepMagenta    = "detailed_memory_dump"         // 180, 0, 180
+	colorBlue           = "vsync_highlight_color"        // 0, 0, 255
+	colorGrey           = "generic_work"                 // 125, 125, 125
+	colorGreen          = "good"                         // 0, 125, 0
+	colorDarkGoldenrod  = "bad"                          // 180, 125, 0
+	colorPeach          = "terrible"                     // 180, 0, 0
+	colorBlack          = "black"                        // 0, 0, 0
+	colorLightGrey      = "grey"                         // 221, 221, 221
+	colorWhite          = "white"                        // 255, 255, 255
+	colorYellow         = "yellow"                       // 255, 255, 0
+	colorOlive          = "olive"                        // 100, 100, 0
+	colorCornflowerBlue = "rail_response"                // 67, 135, 253
+	colorSunsetOrange   = "rail_animation"               // 244, 74, 63
+	colorTangerine      = "rail_idle"                    // 238, 142, 0
+	colorShamrockGreen  = "rail_load"                    // 13, 168, 97
+	colorGreenishYellow = "startup"                      // 230, 230, 0
+	colorDarkGrey       = "heap_dump_stack_frame"        // 128, 128, 128
+	colorTawny          = "heap_dump_child_node_arrow"   // 204, 102, 0
+	colorLemon          = "cq_build_running"             // 255, 255, 119
+	colorLime           = "cq_build_passed"              // 153, 238, 102
+	colorPink           = "cq_build_failed"              // 238, 136, 136
+	colorSilver         = "cq_build_abandoned"           // 187, 187, 187
+	colorManzGreen      = "cq_build_attempt_runnig"      // 222, 222, 75
+	colorKellyGreen     = "cq_build_attempt_passed"      // 108, 218, 35
+	colorAnotherGrey    = "cq_build_attempt_failed"      // 187, 187, 187
+)
+
+var colorForTask = []string{
+	colorLightMauve,
+	colorOrange,
+	colorSeafoamGreen,
+	colorVistaBlue,
+	colorTan,
+	colorMidnightBlue,
+	colorIrisBlue,
+	colorDeepMagenta,
+	colorGreen,
+	colorDarkGoldenrod,
+	colorPeach,
+	colorOlive,
+	colorCornflowerBlue,
+	colorSunsetOrange,
+	colorTangerine,
+	colorShamrockGreen,
+	colorTawny,
+	colorLemon,
+	colorLime,
+	colorPink,
+	colorSilver,
+	colorManzGreen,
+	colorKellyGreen,
+}
+
+func pickTaskColor(id uint64) string {
+	idx := id % uint64(len(colorForTask))
+	return colorForTask[idx]
 }

@@ -305,10 +305,10 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
 // This must only be used once the trace has been fully processed and no
 // further events will be processed. This method may leave the gState in
 // an inconsistent state.
-func (gs *gState[R]) finish(ts tracev2.Time, ctx *traceContext) {
+func (gs *gState[R]) finish(ctx *traceContext) {
 	if gs.executing != R(noResource) {
-		gs.syscallEnd(ts, false, ctx)
-		gs.stop(ts, tracev2.NoStack, ctx)
+		gs.syscallEnd(ctx.endTime, false, ctx)
+		gs.stop(ctx.endTime, tracev2.NoStack, ctx)
 	}
 }
 

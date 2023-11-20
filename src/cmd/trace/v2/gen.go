@@ -5,6 +5,7 @@
 package trace
 
 import (
+	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
 	tracev2 "internal/trace/v2"
@@ -31,11 +32,11 @@ type generator interface {
 	ProcTransition(ctx *traceContext, ev *tracev2.Event)
 
 	// Finish indicates the end of the trace and finalizes generation.
-	Finish(ctx *traceContext, endTime tracev2.Time)
+	Finish(ctx *traceContext)
 }
 
 // runGenerator produces a trace into ctx by running the generator over the parsed trace.
-func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace) {
+func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *genOpts) {
 	for i := range parsed.events {
 		ev := &parsed.events[i]
 
@@ -70,7 +71,63 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace) {
 			}
 		}
 	}
-	g.Finish(ctx, parsed.events[len(parsed.events)-1].Time())
+	for i, task := range opts.tasks {
+		emitTask(ctx, task, i)
+	}
+	g.Finish(ctx)
+}
+
+// emitTask emits information about a task into the trace viewer's event stream.
+//
+// sortIndex sets the order in which this task will appear related to other tasks,
+// lowest first.
+func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
+	// Collect information about the task.
+	var startStack, endStack tracev2.Stack
+	var startG, endG tracev2.GoID
+	startTime, endTime := ctx.startTime, ctx.endTime
+	if task.Start != nil {
+		startStack = task.Start.Stack()
+		startG = task.Start.Goroutine()
+		startTime = task.Start.Time()
+	}
+	if task.End != nil {
+		endStack = task.End.Stack()
+		endG = task.End.Goroutine()
+		endTime = task.End.Time()
+	}
+	arg := struct {
+		ID     uint64 `json:"id"`
+		StartG uint64 `json:"start_g,omitempty"`
+		EndG   uint64 `json:"end_g,omitempty"`
+	}{
+		ID:     uint64(task.ID),
+		StartG: uint64(startG),
+		EndG:   uint64(endG),
+	}
+
+	// Emit the task slice and notify the emitter of the task.
+	ctx.Task(uint64(task.ID), fmt.Sprintf("T%d %s", task.ID, task.Name), sortIndex)
+	ctx.TaskSlice(traceviewer.SliceEvent{
+		Name:     task.Name,
+		Ts:       ctx.elapsed(startTime),
+		Dur:      endTime.Sub(startTime),
+		Resource: uint64(task.ID),
+		Stack:    ctx.Stack(viewerFrames(startStack)),
+		EndStack: ctx.Stack(viewerFrames(endStack)),
+		Arg:      arg,
+	})
+	// Emit an arrow from the parent to the child.
+	if task.Parent != nil && task.Start != nil && task.Start.Kind() == tracev2.EventTaskBegin {
+		ctx.TaskArrow(traceviewer.ArrowEvent{
+			Name:         "newTask",
+			Start:        ctx.elapsed(task.Start.Time()),
+			End:          ctx.elapsed(task.Start.Time()),
+			FromResource: uint64(task.Parent.ID),
+			ToResource:   uint64(task.ID),
+			FromStack:    ctx.Stack(viewerFrames(task.Start.Stack())),
+		})
+	}
 }
 
 // Building blocks for generators.
@@ -144,7 +201,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *tracev2.Event)
 }
 
 // Finish flushes any outstanding ranges at the end of the trace.
-func (g *globalRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
+func (g *globalRangeGenerator) Finish(ctx *traceContext) {
 	for name, ar := range g.ranges {
 		if !strings.Contains(name, "GC") {
 			continue
@@ -152,7 +209,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
 		ctx.Slice(traceviewer.SliceEvent{
 			Name:     name,
 			Ts:       ctx.elapsed(ar.time),
-			Dur:      endTime.Sub(ar.time),
+			Dur:      ctx.endTime.Sub(ar.time),
 			Resource: trace.GCP,
 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
 		})
@@ -220,12 +277,12 @@ func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
 }
 
 // Finish flushes any outstanding ranges at the end of the trace.
-func (g *procRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
+func (g *procRangeGenerator) Finish(ctx *traceContext) {
 	for r, ar := range g.ranges {
 		ctx.Slice(traceviewer.SliceEvent{
 			Name:     r.Name,
 			Ts:       ctx.elapsed(ar.time),
-			Dur:      endTime.Sub(ar.time),
+			Dur:      ctx.endTime.Sub(ar.time),
 			Resource: uint64(r.Scope.Proc()),
 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
 		})

@@ -210,7 +210,6 @@ type SortIndexArg struct {
 func generateTrace(params *traceParams, consumer traceviewer.TraceConsumer) error {
 	emitter := traceviewer.NewEmitter(
 		consumer,
-		params.mode,
 		time.Duration(params.startTime),
 		time.Duration(params.endTime),
 	)
@@ -565,8 +564,7 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
 	taskName := task.name
 	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
 
-	ctx.emitFooter(&format.Event{Name: "thread_name", Phase: "M", PID: format.TasksSection, TID: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
-	ctx.emit(&format.Event{Name: "thread_sort_index", Phase: "M", PID: format.TasksSection, TID: taskRow, Arg: &SortIndexArg{sortIndex}})
+	ctx.emitter.Task(taskRow, taskName, sortIndex)
 	ts := float64(task.firstTimestamp()) / 1e3
 	sl := &format.Event{
 		Name:  taskName,

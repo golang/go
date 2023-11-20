@@ -5,9 +5,11 @@
 package trace
 
 import (
+	"cmp"
 	"log"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -47,6 +49,50 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 			}
 			opts.focusGoroutine = goid
 			opts.goroutines = trace.RelatedGoroutinesV2(parsed.events, goid)
+		} else if taskids := r.FormValue("focustask"); taskids != "" {
+			taskid, err := strconv.ParseUint(taskids, 10, 64)
+			if err != nil {
+				log.Printf("failed to parse focustask parameter %q: %v", taskids, err)
+				return
+			}
+			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
+			if !ok || (task.Start == nil && task.End == nil) {
+				log.Printf("failed to find task with id %d", taskid)
+				return
+			}
+			opts.mode = traceviewer.ModeTaskOriented
+			if task.Start != nil {
+				opts.startTime = task.Start.Time().Sub(parsed.startTime())
+			} else { // The task started before the trace did.
+				opts.startTime = 0
+			}
+			if task.End != nil {
+				opts.endTime = task.End.Time().Sub(parsed.startTime())
+			} else { // The task didn't end.
+				opts.endTime = parsed.endTime().Sub(parsed.startTime())
+			}
+			opts.tasks = task.Descendents()
+			slices.SortStableFunc(opts.tasks, func(a, b *trace.UserTaskSummary) int {
+				aStart, bStart := parsed.startTime(), parsed.startTime()
+				if a.Start != nil {
+					aStart = a.Start.Time()
+				}
+				if b.Start != nil {
+					bStart = b.Start.Time()
+				}
+				if a.Start != b.Start {
+					return cmp.Compare(aStart, bStart)
+				}
+				// Break ties with the end time.
+				aEnd, bEnd := parsed.endTime(), parsed.endTime()
+				if a.End != nil {
+					aEnd = a.End.Time()
+				}
+				if b.End != nil {
+					bEnd = b.End.Time()
+				}
+				return cmp.Compare(aEnd, bEnd)
+			})
 		}
 
 		// Parse start and end options. Both or none must be present.
@@ -79,6 +125,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 type traceContext struct {
 	*traceviewer.Emitter
 	startTime tracev2.Time
+	endTime   tracev2.Time
 }
 
 // elapsed returns the elapsed time between the trace time and the start time
@@ -95,6 +142,7 @@ type genOpts struct {
 	// Used if mode != 0.
 	focusGoroutine tracev2.GoID
 	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
+	tasks          []*trace.UserTaskSummary
 }
 
 func defaultGenOpts() *genOpts {
@@ -106,8 +154,9 @@ func defaultGenOpts() *genOpts {
 
 func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsumer) error {
 	ctx := &traceContext{
-		Emitter:   traceviewer.NewEmitter(c, 0, opts.startTime, opts.endTime),
+		Emitter:   traceviewer.NewEmitter(c, opts.startTime, opts.endTime),
 		startTime: parsed.events[0].Time(),
+		endTime:   parsed.events[len(parsed.events)-1].Time(),
 	}
 	defer ctx.Flush()
 
@@ -117,6 +166,6 @@ func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsum
 	} else {
 		g = newProcGenerator()
 	}
-	runGenerator(ctx, g, parsed)
+	runGenerator(ctx, g, parsed, opts)
 	return nil
 }
