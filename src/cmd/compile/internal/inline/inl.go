@@ -845,15 +845,6 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 	}
 
 	switch n.Op() {
-	case ir.ODEFER, ir.OGO:
-		n := n.(*ir.GoDeferStmt)
-		switch call := n.Call; call.Op() {
-		case ir.OCALLMETH:
-			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
-		case ir.OCALLFUNC:
-			call := call.(*ir.CallExpr)
-			call.NoInline = true
-		}
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
 		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
@@ -862,8 +853,6 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 	// so escape analysis can avoid more heapmoves.
 	case ir.OCLOSURE:
 		return n
-	case ir.OCALLMETH:
-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
 		if n.Fun.Op() == ir.OMETHEXPR {
@@ -889,12 +878,9 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 	// transmogrify this node itself unless inhibited by the
 	// switch at the top of this function.
 	switch n.Op() {
-	case ir.OCALLMETH:
-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
-
 	case ir.OCALLFUNC:
 		call := n.(*ir.CallExpr)
-		if call.NoInline {
+		if call.GoDefer || call.NoInline {
 			break
 		}
 		if base.Flag.LowerM > 3 {
