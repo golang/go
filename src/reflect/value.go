@@ -1610,7 +1610,8 @@ func (v Value) IsZero() bool {
 			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
-			// For types of all bits are 0, optimize it.
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
 			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
 		}
 		n := int(typ.Len)
@@ -1635,7 +1636,8 @@ func (v Value) IsZero() bool {
 			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
-			// For types of all bits are 0, optimize it.
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
 			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
 		}
 
@@ -1653,7 +1655,7 @@ func (v Value) IsZero() bool {
 	}
 }
 
-// For all zeros, isZero's performance is not as good as
+// isZero For all zeros, performance is not as good as
 // returning bytealg.Count(b, byte(0)) == len(b).
 func isZero(b []byte) bool {
 	if len(b) == 0 {
