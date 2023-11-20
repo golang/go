@@ -863,7 +863,7 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 				if base.Debug.Checkptr != 0 {
 					switch types.ReflectSymName(s) {
 					case "Value.UnsafeAddr", "Value.Pointer":
-						return n
+						n.NoInline = true
 					}
 				}
 			}
