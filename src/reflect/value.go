@@ -1653,7 +1653,7 @@ func (v Value) IsZero() bool {
 	}
 }
 
-// For all zeros, performance is not as good as
+// For all zeros, isZero's performance is not as good as
 // returning bytealg.Count(b, byte(0)) == len(b).
 func isZero(b []byte) bool {
 	if len(b) == 0 {
