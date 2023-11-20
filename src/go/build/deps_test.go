@@ -55,17 +55,10 @@ var depsRules = `
 
 	unsafe < maps;
 
-	unsafe < internal/chacha8rand;
-
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/abi,
-	internal/chacha8rand,
-	internal/coverage/rtcov,
-	internal/cpu,
-	internal/goarch,
-	internal/godebugs,
-	internal/goexperiment,
-	internal/goos
+	internal/abi, internal/cpu, internal/goarch,
+	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
+	internal/goos, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
