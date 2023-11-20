@@ -593,8 +593,6 @@ type m struct {
 	lockedInt     uint32      // tracking for internal lockOSThread
 	nextwaitm     muintptr    // next m waiting for lock
 
-	mLockProfile mLockProfile // fields relating to runtime.lock contention
-
 	// wait* are used to carry arguments from gopark into park_m, because
 	// there's no stack to put them on. That is their sole purpose.
 	waitunlockf          func(*g, unsafe.Pointer) bool
@@ -902,12 +900,6 @@ type schedt struct {
 	// stwTotalTimeOther covers the others.
 	stwTotalTimeGC    timeHistogram
 	stwTotalTimeOther timeHistogram
-
-	// totalRuntimeLockWaitTime (plus the value of lockWaitTime on each M in
-	// allm) is the sum of time goroutines have spent in _Grunnable and with an
-	// M, but waiting for locks within the runtime. This field stores the value
-	// for Ms that have exited.
-	totalRuntimeLockWaitTime atomic.Int64
 }
 
 // Values for the flags field of a sigTabT.
