@@ -576,7 +576,10 @@ func switchToCrashStack(fn func()) {
 	abort()
 }
 
-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm"
+// Disable crash stack on Windows for now. Apparently, throwing an exception
+// on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
+// hangs the process (see issue 63938).
+const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm") && GOOS != "windows"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
