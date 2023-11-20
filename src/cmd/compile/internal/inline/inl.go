@@ -848,11 +848,6 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
 		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
-
-	// TODO do them here (or earlier),
-	// so escape analysis can avoid more heapmoves.
-	case ir.OCLOSURE:
-		return n
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
 		if n.Fun.Op() == ir.OMETHEXPR {
