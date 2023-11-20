@@ -1892,12 +1892,12 @@ const Pi = 3.1415
 type T struct{}
 var Y, _ = lib.X, X
 
-func F(){
+func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, res2 int) /*param1=var:12*/ /*res1=var:12*/ /*U=typename:12*/ {
 	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
 	type /*t=undef*/ t /*t=typename:14*/ *t
 	print(Y) /*Y=var:10*/
 	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
-	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
+	var F = /*F=func:12*/ F[*int, int] /*F=var:17*/ ; _ = F
 
 	var a []int
 	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
@@ -1916,6 +1916,10 @@ func F(){
         	println(int)
         default /*int=var:31*/ :
         }
+
+	_ = param1
+	_ = res1
+	return
 }
 /*main=undef*/
 `
@@ -1981,7 +1985,29 @@ func F(){
 
 		_, gotObj := inner.LookupParent(id.Value, id.Pos())
 		if gotObj != wantObj {
-			t.Errorf("%s: got %v, want %v", id.Pos(), gotObj, wantObj)
+			// Print the scope tree of mainScope in case of error.
+			var printScopeTree func(indent string, s *Scope)
+			printScopeTree = func(indent string, s *Scope) {
+				t.Logf("%sscope %s %v-%v = %v",
+					indent,
+					ScopeComment(s),
+					s.Pos(),
+					s.End(),
+					s.Names())
+				for i := range s.NumChildren() {
+					printScopeTree(indent+"  ", s.Child(i))
+				}
+			}
+			printScopeTree("", mainScope)
+
+			t.Errorf("%s: Scope(%s).LookupParent(%s@%v) got %v, want %v [scopePos=%v]",
+				id.Pos(),
+				ScopeComment(inner),
+				id.Value,
+				id.Pos(),
+				gotObj,
+				wantObj,
+				ObjectScopePos(wantObj))
 			continue
 		}
 	}

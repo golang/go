@@ -486,6 +486,18 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- os/exec -->
 
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/64295, CL 544035 -->
+      The start position (<a href="/pkg/go/types#Scope.Pos">Pos</a>)
+      of the lexical environment block (<a href="/pkg/go/types#Scope">Scope</a>)
+      that represents a function body has changed:
+      it used to start at the opening curly brace of the function body,
+      but now starts at the function's <code>func</code> token.
+    </p>
+  </dd>
+</dl>
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/61827, CL 517777 -->

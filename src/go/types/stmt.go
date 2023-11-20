@@ -24,10 +24,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 
-	// set function scope extent
-	sig.scope.pos = body.Pos()
-	sig.scope.end = body.End()
-
 	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
 	defer func(env environment, indent int) {
