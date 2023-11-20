@@ -483,6 +483,7 @@ type g struct {
 	// inMarkAssist indicates whether the goroutine is in mark assist.
 	// Used by the execution tracer.
 	inMarkAssist bool
+	coroexit     bool // argument to coroswitch_m
 
 	raceignore    int8  // ignore race detection events
 	nocgocallback bool  // whether disable callback from C
@@ -506,6 +507,8 @@ type g struct {
 	labels        unsafe.Pointer // profiler labels
 	timer         *timer         // cached timer for time.Sleep
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
+
+	coroarg *coro // argument during coroutine transfers
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
@@ -1124,6 +1127,7 @@ const (
 	waitReasonFlushProcCaches                         // "flushing proc caches"
 	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
 	waitReasonTraceProcStatus                         // "trace proc status"
+	waitReasonCoroutine                               // "coroutine"
 )
 
 var waitReasonStrings = [...]string{
@@ -1162,6 +1166,7 @@ var waitReasonStrings = [...]string{
 	waitReasonFlushProcCaches:       "flushing proc caches",
 	waitReasonTraceGoroutineStatus:  "trace goroutine status",
 	waitReasonTraceProcStatus:       "trace proc status",
+	waitReasonCoroutine:             "coroutine",
 }
 
 func (w waitReason) String() string {

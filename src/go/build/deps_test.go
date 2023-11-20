@@ -83,6 +83,9 @@ var depsRules = `
 	< internal/oserror, math/bits
 	< RUNTIME;
 
+	internal/race
+	< iter;
+
 	# slices depends on unsafe for overlapping check, cmp for comparison
 	# semantics, and math/bits for # calculating bitlength of numbers.
 	unsafe, cmp, math/bits
