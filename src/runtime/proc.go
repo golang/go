@@ -2428,8 +2428,20 @@ func dropm() {
 	// Flush all the M's buffers. This is necessary because the M might
 	// be used on a different thread with a different procid, so we have
 	// to make sure we don't write into the same buffer.
-	if traceEnabled() || traceShuttingDown() {
+	//
+	// N.B. traceThreadDestroy is a no-op in the old tracer, so avoid the
+	// unnecessary acquire/release of the lock.
+	if goexperiment.ExecTracer2 && (traceEnabled() || traceShuttingDown()) {
+		// Acquire sched.lock across thread destruction. One of the invariants of the tracer
+		// is that a thread cannot disappear from the tracer's view (allm or freem) without
+		// it noticing, so it requires that sched.lock be held over traceThreadDestroy.
+		//
+		// This isn't strictly necessary in this case, because this thread never leaves allm,
+		// but the critical section is short and dropm is rare on pthread platforms, so just
+		// take the lock and play it safe. traceThreadDestroy also asserts that the lock is held.
+		lock(&sched.lock)
 		traceThreadDestroy(mp)
+		unlock(&sched.lock)
 	}
 	mp.isExtraInSig = false
 
