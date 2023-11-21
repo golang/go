@@ -318,10 +318,12 @@ func (b *goroutineStatsBuilder) event(ev tracev2.Event) {
 				}
 			}
 
-			// The goroutine hasn't been identified yet. Take any stack we
-			// can get and identify it by the bottom-most frame of that stack.
+			// The goroutine hasn't been identified yet. Take the transition stack
+			// and identify the goroutine by the bottom-most frame of that stack.
+			// This bottom-most frame will be identical for all transitions on this
+			// goroutine, because it represents its immutable start point.
 			if g.PC == 0 {
-				stk := ev.Stack()
+				stk := st.Stack
 				if stk != tracev2.NoStack {
 					var frame tracev2.StackFrame
 					var ok bool
