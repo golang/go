@@ -169,7 +169,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	a := n.Lhs[0]
 
 	var call *ir.CallExpr
-	if w := t.Elem().Size(); w <= abi.MaxZero {
+	if w := t.Elem().Size(); w <= abi.ZeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
 		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
 	} else {

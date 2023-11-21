@@ -826,7 +826,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > abi.MaxZero:
+	case t.Elem().Size() > abi.ZeroValSize:
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:

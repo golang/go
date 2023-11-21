@@ -1436,7 +1436,7 @@ func reflectlite_maplen(h *hmap) int {
 	return h.count
 }
 
-var zeroVal [abi.MaxZero]byte
+var zeroVal [abi.ZeroValSize]byte
 
 // mapinitnoop is a no-op function known the Go linker; if a given global
 // map (of the right size) is determined to be dead, the linker will

@@ -13,4 +13,5 @@ const (
 	MapMaxElemBytes    = 128 // Must fit in a uint8.
 )
 
-const MaxZero = 1024
+// ZeroValSize is the size in bytes of runtime.zeroVal.
+const ZeroValSize = 1024
