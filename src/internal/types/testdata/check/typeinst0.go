@@ -42,7 +42,7 @@ type _ myInt /* ERROR "not a generic type" */ [] // ERROR "expected type argumen
 // TODO(gri) better error messages
 type _ T1[] // ERROR "expected type argument list"
 type _ T1[x /* ERROR "not a type" */ ]
-type _ T1 /* ERROR "got 2 arguments but 1 type parameters" */ [int, float32]
+type _ T1 /* ERROR "too many type arguments for type T1: have 2, want 1" */ [int, float32]
 
 var _ T2[int] = T2[int]{}
 
