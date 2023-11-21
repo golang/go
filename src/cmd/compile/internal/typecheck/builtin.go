@@ -102,6 +102,7 @@ var runtimeDecls = [...]struct {
 	{"interfaceSwitch", funcTag, 70},
 	{"ifaceeq", funcTag, 72},
 	{"efaceeq", funcTag, 72},
+	{"panicrangeexit", funcTag, 9},
 	{"deferrangefunc", funcTag, 73},
 	{"fastrand", funcTag, 74},
 	{"makemap64", funcTag, 76},

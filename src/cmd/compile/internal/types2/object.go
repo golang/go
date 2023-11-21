@@ -285,7 +285,7 @@ func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
 	case nil:
 		return false
-	// case *_Alias:
+	// case *Alias:
 	//	handled by default case
 	case *Basic:
 		// unsafe.Pointer is not an alias.

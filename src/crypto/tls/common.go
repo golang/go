@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"net"
 	"strings"
@@ -669,7 +670,9 @@ type Config struct {
 	// the list is ignored. Note that TLS 1.3 ciphersuites are not configurable.
 	//
 	// If CipherSuites is nil, a safe default list is used. The default cipher
-	// suites might change over time.
+	// suites might change over time. In Go 1.22 RSA key exchange based cipher
+	// suites were removed from the default list, but can be re-added with the
+	// GODEBUG setting tlsrsakex=1.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites is a legacy field and has no effect.
@@ -732,14 +735,11 @@ type Config struct {
 
 	// MinVersion contains the minimum TLS version that is acceptable.
 	//
-	// By default, TLS 1.2 is currently used as the minimum when acting as a
-	// client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
-	// supported by this package, both as a client and as a server.
+	// By default, TLS 1.2 is currently used as the minimum. TLS 1.0 is the
+	// minimum supported by this package.
 	//
-	// The client-side default can temporarily be reverted to TLS 1.0 by
-	// including the value "x509sha1=1" in the GODEBUG environment variable.
-	// Note that this option will be removed in Go 1.19 (but it will still be
-	// possible to set this field to VersionTLS10 explicitly).
+	// The server-side default can be reverted to TLS 1.0 by including the value
+	// "tls10server=1" in the GODEBUG environment variable.
 	MinVersion uint16
 
 	// MaxVersion contains the maximum TLS version that is acceptable.
@@ -1028,15 +1028,20 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
+var tls10godebug = godebug.New("tls10server")
+
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
 			continue
 		}
-		if (c == nil || c.MinVersion == 0) &&
-			isClient && v < VersionTLS12 {
-			continue
+		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+			if !isClient && tls10godebug.Value() == "1" {
+				tls10godebug.IncNonDefault()
+			} else {
+				continue
+			}
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue

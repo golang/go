@@ -50,11 +50,12 @@ func Main(f func(*Trace)) {
 // Otherwise, it performs no validation on the trace at all.
 type Trace struct {
 	// Trace data state.
-	ver    version.Version
-	names  map[string]event.Type
-	specs  []event.Spec
-	events []raw.Event
-	gens   []*Generation
+	ver             version.Version
+	names           map[string]event.Type
+	specs           []event.Spec
+	events          []raw.Event
+	gens            []*Generation
+	validTimestamps bool
 
 	// Expectation state.
 	bad      bool
@@ -65,8 +66,9 @@ type Trace struct {
 func NewTrace() *Trace {
 	ver := version.Go122
 	return &Trace{
-		names: event.Names(ver.Specs()),
-		specs: ver.Specs(),
+		names:           event.Names(ver.Specs()),
+		specs:           ver.Specs(),
+		validTimestamps: true,
 	}
 }
 
@@ -87,6 +89,13 @@ func (t *Trace) ExpectSuccess() {
 // this trace.
 func (t *Trace) RawEvent(typ event.Type, data []byte, args ...uint64) {
 	t.events = append(t.events, t.createEvent(typ, data, args...))
+}
+
+// DisableTimestamps makes the timestamps for all events generated after
+// this call zero. Raw events are exempted from this because the caller
+// has to pass their own timestamp into those events anyway.
+func (t *Trace) DisableTimestamps() {
+	t.validTimestamps = false
 }
 
 // Generation creates a new trace generation.
@@ -180,6 +189,9 @@ type Generation struct {
 //
 // This is convenience function for generating correct batches.
 func (g *Generation) Batch(thread trace.ThreadID, time Time) *Batch {
+	if !g.trace.validTimestamps {
+		time = 0
+	}
 	b := &Batch{
 		gen:       g,
 		thread:    thread,
@@ -297,7 +309,11 @@ func (b *Batch) Event(name string, args ...any) {
 	var uintArgs []uint64
 	argOff := 0
 	if b.gen.trace.specs[ev].IsTimedEvent {
-		uintArgs = []uint64{1}
+		if b.gen.trace.validTimestamps {
+			uintArgs = []uint64{1}
+		} else {
+			uintArgs = []uint64{0}
+		}
 		argOff = 1
 	}
 	spec := b.gen.trace.specs[ev]

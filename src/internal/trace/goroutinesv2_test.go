@@ -211,8 +211,9 @@ func TestRelatedGoroutinesV2Trace(t *testing.T) {
 	}
 	want := map[tracev2.GoID]struct{}{
 		tracev2.GoID(86):  struct{}{}, // N.B. Result includes target.
-		tracev2.GoID(85):  struct{}{},
-		tracev2.GoID(111): struct{}{},
+		tracev2.GoID(71):  struct{}{},
+		tracev2.GoID(25):  struct{}{},
+		tracev2.GoID(122): struct{}{},
 	}
 	for goid := range got {
 		if _, ok := want[goid]; ok {

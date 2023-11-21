@@ -2106,10 +2106,13 @@ const (
 	OpMIPS64LoweredPanicBoundsC
 
 	OpPPC64ADD
+	OpPPC64ADDCC
 	OpPPC64ADDconst
+	OpPPC64ADDCCconst
 	OpPPC64FADD
 	OpPPC64FADDS
 	OpPPC64SUB
+	OpPPC64SUBCC
 	OpPPC64SUBFCconst
 	OpPPC64FSUB
 	OpPPC64FSUBS
@@ -2161,6 +2164,7 @@ const (
 	OpPPC64RLDICL
 	OpPPC64RLDICR
 	OpPPC64CNTLZD
+	OpPPC64CNTLZDCC
 	OpPPC64CNTLZW
 	OpPPC64CNTTZD
 	OpPPC64CNTTZW
@@ -2186,15 +2190,18 @@ const (
 	OpPPC64MTVSRD
 	OpPPC64AND
 	OpPPC64ANDN
+	OpPPC64ANDNCC
 	OpPPC64ANDCC
 	OpPPC64OR
 	OpPPC64ORN
 	OpPPC64ORCC
 	OpPPC64NOR
+	OpPPC64NORCC
 	OpPPC64XOR
 	OpPPC64XORCC
 	OpPPC64EQV
 	OpPPC64NEG
+	OpPPC64NEGCC
 	OpPPC64BRD
 	OpPPC64BRW
 	OpPPC64BRH
@@ -28233,6 +28240,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "ADDCC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AADDCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:    "ADDconst",
 		auxType: auxInt64,
 		argLen:  1,
@@ -28241,6 +28263,21 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:    "ADDCCconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AADDCCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
 			outputs: []outputInfo{
 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -28280,6 +28317,20 @@ var opcodeTable = [...]opInfo{
 		name:   "SUB",
 		argLen: 2,
 		asm:    ppc64.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "SUBCC",
+		argLen: 2,
+		asm:    ppc64.ASUBCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29026,10 +29077,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CNTLZD",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          ppc64.ACNTLZD,
+		name:   "CNTLZD",
+		argLen: 1,
+		asm:    ppc64.ACNTLZD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29040,10 +29090,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "CNTLZW",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          ppc64.ACNTLZW,
+		name:   "CNTLZDCC",
+		argLen: 1,
+		asm:    ppc64.ACNTLZDCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "CNTLZW",
+		argLen: 1,
+		asm:    ppc64.ACNTLZW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29379,11 +29441,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ANDCC",
-		argLen:       2,
-		commutative:  true,
-		clobberFlags: true,
-		asm:          ppc64.AANDCC,
+		name:   "ANDNCC",
+		argLen: 2,
+		asm:    ppc64.AANDNCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:        "ANDCC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AANDCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29424,11 +29499,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ORCC",
-		argLen:       2,
-		commutative:  true,
-		clobberFlags: true,
-		asm:          ppc64.AORCC,
+		name:        "ORCC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AORCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29455,6 +29529,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "NORCC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.ANORCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:        "XOR",
 		argLen:      2,
 		commutative: true,
@@ -29470,11 +29559,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "XORCC",
-		argLen:       2,
-		commutative:  true,
-		clobberFlags: true,
-		asm:          ppc64.AXORCC,
+		name:        "XORCC",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AXORCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29504,6 +29592,19 @@ var opcodeTable = [...]opInfo{
 		name:   "NEG",
 		argLen: 1,
 		asm:    ppc64.ANEG,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "NEGCC",
+		argLen: 1,
+		asm:    ppc64.ANEGCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -29712,11 +29813,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ANDCCconst",
-		auxType:      auxInt64,
-		argLen:       1,
-		clobberFlags: true,
-		asm:          ppc64.AANDCC,
+		name:    "ANDCCconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AANDCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29

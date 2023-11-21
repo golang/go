@@ -251,7 +251,7 @@ loop:
 			// the syntactic information. We should consider storing
 			// this information explicitly in the object.
 			var alias bool
-			if check.conf._EnableAlias {
+			if check.enableAlias {
 				alias = obj.IsAlias()
 			} else {
 				if d := check.objMap[obj]; d != nil {
@@ -328,7 +328,7 @@ func (check *Checker) cycleError(cycle []Object) {
 	if tname != nil && tname.IsAlias() {
 		// If we use Alias nodes, it is initialized with Typ[Invalid].
 		// TODO(gri) Adjust this code if we initialize with nil.
-		if !check.conf._EnableAlias {
+		if !check.enableAlias {
 			check.validAlias(tname, Typ[Invalid])
 		}
 	}
@@ -514,7 +514,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 	// alias declaration
 	if aliasDecl {
 		check.verifyVersionf(tdecl, go1_9, "type aliases")
-		if check.conf._EnableAlias {
+		if check.enableAlias {
 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
 			//           the alias as incomplete. Currently this causes problems
 			//           with certain cycles. Investigate.
@@ -523,7 +523,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 			rhs = check.definedType(tdecl.Type, obj)
 			assert(rhs != nil)
 			alias.fromRHS = rhs
-			_Unalias(alias) // resolve alias.actual
+			Unalias(alias) // resolve alias.actual
 		} else {
 			check.brokenAlias(obj)
 			rhs = check.typ(tdecl.Type)

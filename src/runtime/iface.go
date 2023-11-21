@@ -225,13 +225,11 @@ imethods:
 					pkgPath = rtyp.nameOff(x.PkgPath).Name()
 				}
 				if tname.IsExported() || pkgPath == ipkg {
-					if m != nil {
-						ifn := rtyp.textOff(t.Ifn)
-						if k == 0 {
-							fun0 = ifn // we'll set m.fun[0] at the end
-						} else {
-							methods[k] = ifn
-						}
+					ifn := rtyp.textOff(t.Ifn)
+					if k == 0 {
+						fun0 = ifn // we'll set m.fun[0] at the end
+					} else {
+						methods[k] = ifn
 					}
 					continue imethods
 				}
@@ -569,7 +567,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 	return case_, tab
 }
 
-// buildInterfaceSwitchCache constructs a interface switch cache
+// buildInterfaceSwitchCache constructs an interface switch cache
 // containing all the entries from oldC plus the new entry
 // (typ,case_,tab).
 func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {

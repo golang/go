@@ -465,8 +465,9 @@ func (tl traceLocker) GoSysCall() {
 		skip = 4
 	}
 	// Scribble down the M that the P is currently attached to.
-	tl.mp.p.ptr().trace.mSyscallID = int64(tl.mp.procid)
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, tl.stack(skip))
+	pp := tl.mp.p.ptr()
+	pp.trace.mSyscallID = int64(tl.mp.procid)
+	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(skip))
 }
 
 // GoSysExit emits a GoSyscallEnd event, possibly along with a GoSyscallBlocked event

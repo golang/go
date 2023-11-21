@@ -538,6 +538,7 @@ func TestInsertOverlap(t *testing.T) {
 
 func TestInsertPanics(t *testing.T) {
 	a := [3]int{}
+	b := [1]int{}
 	for _, test := range []struct {
 		name string
 		s    []int
@@ -549,6 +550,12 @@ func TestInsertPanics(t *testing.T) {
 		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
 		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
 		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+
+		// There are values.
+		{"with negative index", a[:1:1], -1, b[:]},
+		{"with out-of-bounds index and > cap", a[:1:1], 2, b[:]},
+		{"with out-of-bounds index and = cap", a[:1:2], 2, b[:]},
+		{"with out-of-bounds index and < cap", a[:1:3], 2, b[:]},
 	} {
 		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
 			t.Errorf("Insert %s: got no panic, want panic", test.name)
@@ -672,12 +679,47 @@ func TestDeletePanics(t *testing.T) {
 		{"with negative second index", []int{42}, 1, -1},
 		{"with out-of-bounds first index", []int{42}, 2, 3},
 		{"with out-of-bounds second index", []int{42}, 0, 2},
+		{"with out-of-bounds both indexes", []int{42}, 2, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
+		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
 	} {
 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
 		}
+	}
+}
+
+func TestDeleteClearTail(t *testing.T) {
+	mem := []*int{new(int), new(int), new(int), new(int), new(int), new(int)}
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+
+	s = Delete(s, 2, 4)
+
+	if mem[3] != nil || mem[4] != nil {
+		// Check that potential memory leak is avoided
+		t.Errorf("Delete: want nil discarded elements, got %v, %v", mem[3], mem[4])
+	}
+	if mem[5] == nil {
+		t.Errorf("Delete: want unchanged elements beyond original len, got nil")
+	}
+}
+
+func TestDeleteFuncClearTail(t *testing.T) {
+	mem := []*int{new(int), new(int), new(int), new(int), new(int), new(int)}
+	*mem[2], *mem[3] = 42, 42
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+
+	s = DeleteFunc(s, func(i *int) bool {
+		return i != nil && *i == 42
+	})
+
+	if mem[3] != nil || mem[4] != nil {
+		// Check that potential memory leak is avoided
+		t.Errorf("DeleteFunc: want nil discarded elements, got %v, %v", mem[3], mem[4])
+	}
+	if mem[5] == nil {
+		t.Errorf("DeleteFunc: want unchanged elements beyond original len, got nil")
 	}
 }
 
@@ -781,6 +823,53 @@ func TestCompactFunc(t *testing.T) {
 	want := []string{"a", "B"}
 	if got := CompactFunc(copy, strings.EqualFold); !Equal(got, want) {
 		t.Errorf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
+	}
+}
+
+func TestCompactClearTail(t *testing.T) {
+	one, two, three, four := 1, 2, 3, 4
+	mem := []*int{&one, &one, &two, &two, &three, &four}
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+	copy := Clone(s)
+
+	s = Compact(s)
+
+	if want := []*int{&one, &two, &three}; !Equal(s, want) {
+		t.Errorf("Compact(%v) = %v, want %v", copy, s, want)
+	}
+
+	if mem[3] != nil || mem[4] != nil {
+		// Check that potential memory leak is avoided
+		t.Errorf("Compact: want nil discarded elements, got %v, %v", mem[3], mem[4])
+	}
+	if mem[5] != &four {
+		t.Errorf("Compact: want unchanged element beyond original len, got %v", mem[5])
+	}
+}
+
+func TestCompactFuncClearTail(t *testing.T) {
+	a, b, c, d, e, f := 1, 1, 2, 2, 3, 4
+	mem := []*int{&a, &b, &c, &d, &e, &f}
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+	copy := Clone(s)
+
+	s = CompactFunc(s, func(x, y *int) bool {
+		if x == nil || y == nil {
+			return x == y
+		}
+		return *x == *y
+	})
+
+	if want := []*int{&a, &c, &e}; !Equal(s, want) {
+		t.Errorf("CompactFunc(%v) = %v, want %v", copy, s, want)
+	}
+
+	if mem[3] != nil || mem[4] != nil {
+		// Check that potential memory leak is avoided
+		t.Errorf("CompactFunc: want nil discarded elements, got %v, %v", mem[3], mem[4])
+	}
+	if mem[5] != &f {
+		t.Errorf("CompactFunc: want unchanged elements beyond original len, got %v", mem[5])
 	}
 }
 
@@ -951,6 +1040,56 @@ func TestReplacePanics(t *testing.T) {
 		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {
 			t.Errorf("Replace %s: should have panicked", test.name)
 		}
+	}
+}
+
+func TestReplaceGrow(t *testing.T) {
+	// When Replace needs to allocate a new slice, we want the original slice
+	// to not be changed.
+	a, b, c, d, e, f := 1, 2, 3, 4, 5, 6
+	mem := []*int{&a, &b, &c, &d, &e, &f}
+	memcopy := Clone(mem)
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+	copy := Clone(s)
+	original := s
+
+	// The new elements don't fit within cap(s), so Replace will allocate.
+	z := 99
+	s = Replace(s, 1, 3, &z, &z, &z, &z)
+
+	if want := []*int{&a, &z, &z, &z, &z, &d, &e}; !Equal(s, want) {
+		t.Errorf("Replace(%v, 1, 3, %v, %v, %v, %v) = %v, want %v", copy, &z, &z, &z, &z, s, want)
+	}
+
+	if !Equal(original, copy) {
+		t.Errorf("original slice has changed, got %v, want %v", original, copy)
+	}
+
+	if !Equal(mem, memcopy) {
+		// Changing the original tail s[len(s):cap(s)] is unwanted
+		t.Errorf("original backing memory has changed, got %v, want %v", mem, memcopy)
+	}
+}
+
+func TestReplaceClearTail(t *testing.T) {
+	a, b, c, d, e, f := 1, 2, 3, 4, 5, 6
+	mem := []*int{&a, &b, &c, &d, &e, &f}
+	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
+	copy := Clone(s)
+
+	y, z := 8, 9
+	s = Replace(s, 1, 4, &y, &z)
+
+	if want := []*int{&a, &y, &z, &e}; !Equal(s, want) {
+		t.Errorf("Replace(%v) = %v, want %v", copy, s, want)
+	}
+
+	if mem[4] != nil {
+		// Check that potential memory leak is avoided
+		t.Errorf("Replace: want nil discarded element, got %v", mem[4])
+	}
+	if mem[5] != &f {
+		t.Errorf("Replace: want unchanged elements beyond original len, got %v", mem[5])
 	}
 }
 

@@ -453,8 +453,8 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-// TODO(gri) Investigate if _Unalias can be moved to where underlying is set.
-func (t *Named) Underlying() Type { return _Unalias(t.resolve().underlying) }
+// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------

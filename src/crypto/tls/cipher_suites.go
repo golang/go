@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"hash"
 	"internal/cpu"
+	"internal/godebug"
 	"runtime"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -335,9 +336,34 @@ var disabledCipherSuites = []uint16{
 }
 
 var (
-	defaultCipherSuitesLen = len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
-	defaultCipherSuites    = cipherSuitesPreferenceOrder[:defaultCipherSuitesLen]
+	defaultCipherSuitesLen int
+	defaultCipherSuites    []uint16
 )
+
+// rsaKexCiphers contains the ciphers which use RSA based key exchange,
+// which we disable by default.
+var rsaKexCiphers = map[uint16]bool{
+	TLS_RSA_WITH_RC4_128_SHA:        true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:   true,
+	TLS_RSA_WITH_AES_128_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_256_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_128_CBC_SHA256: true,
+	TLS_RSA_WITH_AES_128_GCM_SHA256: true,
+	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
+}
+
+var rsaKEXgodebug = godebug.New("tlsrsakex")
+
+func init() {
+	rsaKexEnabled := rsaKEXgodebug.Value() == "1"
+	for _, c := range cipherSuitesPreferenceOrder[:len(cipherSuitesPreferenceOrder)-len(disabledCipherSuites)] {
+		if !rsaKexEnabled && rsaKexCiphers[c] {
+			continue
+		}
+		defaultCipherSuites = append(defaultCipherSuites, c)
+	}
+	defaultCipherSuitesLen = len(defaultCipherSuites)
+}
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no
 // disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as

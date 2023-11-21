@@ -374,6 +374,11 @@ func getcallersp() uintptr // implemented as an intrinsic on all platforms
 //
 // The compiler rewrites calls to this function into instructions that fetch the
 // pointer from a well-known register (DX on x86 architecture, etc.) directly.
+//
+// WARNING: PGO-based devirtualization cannot detect that caller of
+// getclosureptr require closure context, and thus must maintain a list of
+// these functions, which is in
+// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
 func getclosureptr() uintptr
 
 //go:noescape

@@ -524,10 +524,6 @@ func TestTraceManyStartStop(t *testing.T) {
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
 	testenv.MustHaveGoRun(t)
 
-	if runtime.GOOS == "windows" {
-		t.Skip("temporarily disabled on Windows for #64061")
-	}
-
 	// Check if we're on a builder.
 	onBuilder := testenv.Builder() != ""
 

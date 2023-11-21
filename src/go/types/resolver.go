@@ -659,13 +659,13 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.conf._EnableAlias {
-		// With _Alias nodes we can process declarations in any order.
+	if check.enableAlias {
+		// With Alias nodes we can process declarations in any order.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)
 		}
 	} else {
-		// Without _Alias nodes, we process non-alias type declarations first, followed by
+		// Without Alias nodes, we process non-alias type declarations first, followed by
 		// alias declarations, and then everything else. This appears to avoid most situations
 		// where the type of an alias is needed before it is available.
 		// There may still be cases where this is not good enough (see also go.dev/issue/25838).

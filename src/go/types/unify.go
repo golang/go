@@ -293,8 +293,8 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		u.depth--
 	}()
 
-	x = _Unalias(x)
-	y = _Unalias(y)
+	x = Unalias(x)
+	y = Unalias(y)
 
 	// nothing to do if x == y
 	if x == y {

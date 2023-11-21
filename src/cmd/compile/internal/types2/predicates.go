@@ -7,7 +7,7 @@
 package types2
 
 // isValid reports whether t is a valid type.
-func isValid(t Type) bool { return _Unalias(t) != Typ[Invalid] }
+func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
 
 // The isX predicates below report whether t is an X.
 // If t is a type parameter the result is false; i.e.,
@@ -50,7 +50,7 @@ func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
 // for all specific types of the type parameter's type set.
 // allBasic(t, info) is an optimized version of isBasic(coreType(t), info).
 func allBasic(t Type, info BasicInfo) bool {
-	if tpar, _ := _Unalias(t).(*TypeParam); tpar != nil {
+	if tpar, _ := Unalias(t).(*TypeParam); tpar != nil {
 		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
 	}
 	return isBasic(t, info)
@@ -60,7 +60,7 @@ func allBasic(t Type, info BasicInfo) bool {
 // predeclared types, defined types, and type parameters.
 // hasName may be called with types that are not fully set up.
 func hasName(t Type) bool {
-	switch _Unalias(t).(type) {
+	switch Unalias(t).(type) {
 	case *Basic, *Named, *TypeParam:
 		return true
 	}
@@ -71,7 +71,7 @@ func hasName(t Type) bool {
 // This includes all non-defined types, but also basic types.
 // isTypeLit may be called with types that are not fully set up.
 func isTypeLit(t Type) bool {
-	switch _Unalias(t).(type) {
+	switch Unalias(t).(type) {
 	case *Named, *TypeParam:
 		return false
 	}
@@ -83,7 +83,7 @@ func isTypeLit(t Type) bool {
 // are not fully set up.
 func isTyped(t Type) bool {
 	// Alias or Named types cannot denote untyped types,
-	// thus we don't need to call _Unalias or under
+	// thus we don't need to call Unalias or under
 	// (which would be unsafe to do for types that are
 	// not fully set up).
 	b, _ := t.(*Basic)
@@ -108,7 +108,7 @@ func isNonTypeParamInterface(t Type) bool {
 
 // isTypeParam reports whether t is a type parameter.
 func isTypeParam(t Type) bool {
-	_, ok := _Unalias(t).(*TypeParam)
+	_, ok := Unalias(t).(*TypeParam)
 	return ok
 }
 
@@ -117,7 +117,7 @@ func isTypeParam(t Type) bool {
 // use anywhere, but it may report a false negative if the type set has not been
 // computed yet.
 func hasEmptyTypeset(t Type) bool {
-	if tpar, _ := _Unalias(t).(*TypeParam); tpar != nil && tpar.bound != nil {
+	if tpar, _ := Unalias(t).(*TypeParam); tpar != nil && tpar.bound != nil {
 		iface, _ := safeUnderlying(tpar.bound).(*Interface)
 		return iface != nil && iface.tset != nil && iface.tset.IsEmpty()
 	}
@@ -223,8 +223,8 @@ type comparer struct {
 
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func (c *comparer) identical(x, y Type, p *ifacePair) bool {
-	x = _Unalias(x)
-	y = _Unalias(y)
+	x = Unalias(x)
+	y = Unalias(y)
 
 	if x == y {
 		return true
@@ -500,7 +500,7 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool 
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
 func Default(t Type) Type {
-	if t, ok := _Unalias(t).(*Basic); ok {
+	if t, ok := Unalias(t).(*Basic); ok {
 		switch t.kind {
 		case UntypedBool:
 			return Typ[Bool]

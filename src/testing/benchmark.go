@@ -727,16 +727,16 @@ func (b *B) trimOutput() {
 
 // A PB is used by RunParallel for running parallel benchmarks.
 type PB struct {
-	globalN *uint64 // shared between all worker goroutines iteration counter
-	grain   uint64  // acquire that many iterations from globalN at once
-	cache   uint64  // local cache of acquired iterations
-	bN      uint64  // total number of iterations to execute (b.N)
+	globalN *atomic.Uint64 // shared between all worker goroutines iteration counter
+	grain   uint64         // acquire that many iterations from globalN at once
+	cache   uint64         // local cache of acquired iterations
+	bN      uint64         // total number of iterations to execute (b.N)
 }
 
 // Next reports whether there are more iterations to execute.
 func (pb *PB) Next() bool {
 	if pb.cache == 0 {
-		n := atomic.AddUint64(pb.globalN, pb.grain)
+		n := pb.globalN.Add(pb.grain)
 		if n <= pb.bN {
 			pb.cache = pb.grain
 		} else if n < pb.bN+pb.grain {
@@ -782,7 +782,7 @@ func (b *B) RunParallel(body func(*PB)) {
 		grain = 1e4
 	}
 
-	n := uint64(0)
+	var n atomic.Uint64
 	numProcs := b.parallelism * runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
 	wg.Add(numProcs)
@@ -798,7 +798,7 @@ func (b *B) RunParallel(body func(*PB)) {
 		}()
 	}
 	wg.Wait()
-	if n <= uint64(b.N) && !b.Failed() {
+	if n.Load() <= uint64(b.N) && !b.Failed() {
 		b.Fatal("RunParallel: body exited without pb.Next() == false")
 	}
 }

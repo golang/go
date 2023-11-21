@@ -24,6 +24,7 @@ const (
 	lockRankAllg
 	lockRankAllp
 	lockRankTimers
+	lockRankWakeableSleep
 	lockRankNetpollInit
 	lockRankHchan
 	lockRankNotifyList
@@ -84,6 +85,7 @@ var lockNames = []string{
 	lockRankAllg:           "allg",
 	lockRankAllp:           "allp",
 	lockRankTimers:         "timers",
+	lockRankWakeableSleep:  "wakeableSleep",
 	lockRankNetpollInit:    "netpollInit",
 	lockRankHchan:          "hchan",
 	lockRankNotifyList:     "notifyList",
@@ -151,6 +153,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankAllg:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched},
 	lockRankAllp:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched},
 	lockRankTimers:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllp, lockRankTimers},
+	lockRankWakeableSleep:  {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllp, lockRankTimers},
 	lockRankNetpollInit:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllp, lockRankTimers},
 	lockRankHchan:          {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankHchan},
 	lockRankNotifyList:     {},
