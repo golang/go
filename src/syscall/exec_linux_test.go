@@ -582,6 +582,9 @@ func TestPidFD(t *testing.T) {
 
 func TestPidFDWithUserNS(t *testing.T) {
 	if err := testPidFD(t, true); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("userns not supported:", err)
+		}
 		t.Fatal("can't start a process:", err)
 	}
 }
