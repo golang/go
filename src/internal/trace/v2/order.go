@@ -206,6 +206,17 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 
 		// Validate that the M we're stealing from is what we expect.
 		mid := ThreadID(ev.args[2]) // The M we're stealing from.
+
+		if mid == curCtx.M {
+			// We're stealing from ourselves. This behaves like a ProcStop.
+			if curCtx.P != pid {
+				return curCtx, false, fmt.Errorf("tried to self-steal proc %d (thread %d), but got proc %d instead", pid, mid, curCtx.P)
+			}
+			newCtx.P = NoProc
+			return curCtx, true, nil
+		}
+
+		// We're stealing from some other M.
 		mState, ok := o.mStates[mid]
 		if !ok {
 			return curCtx, false, fmt.Errorf("stole proc from non-existent thread %d", mid)

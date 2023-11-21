@@ -4407,10 +4407,21 @@ func entersyscall_gcwait() {
 	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
 		trace := traceAcquire()
 		if trace.ok() {
-			trace.GoSysBlock(pp)
-			// N.B. ProcSteal not necessary because if we succeed we're
-			// always stopping the P we just put into the syscall status.
-			trace.ProcStop(pp)
+			if goexperiment.ExecTracer2 {
+				// This is a steal in the new tracer. While it's very likely
+				// that we were the ones to put this P into _Psyscall, between
+				// then and now it's totally possible it had been stolen and
+				// then put back into _Psyscall for us to acquire here. In such
+				// case ProcStop would be incorrect.
+				//
+				// TODO(mknyszek): Consider emitting a ProcStop instead when
+				// gp.m.syscalltick == pp.syscalltick, since then we know we never
+				// lost the P.
+				trace.ProcSteal(pp, true)
+			} else {
+				trace.GoSysBlock(pp)
+				trace.ProcStop(pp)
+			}
 			traceRelease(trace)
 		}
 		pp.syscalltick++
