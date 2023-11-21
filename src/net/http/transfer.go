@@ -410,9 +410,8 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 //
 // This function is only intended for use in writeBody.
 func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
-	bufp := copyBufPool.Get().(*[]byte)
-	buf := *bufp
-	defer copyBufPool.Put(bufp)
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
 
 	n, err = io.CopyBuffer(dst, src, buf)
 	if err != nil && err != io.EOF {
