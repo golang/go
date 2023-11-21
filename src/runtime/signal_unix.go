@@ -753,10 +753,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 
 	if docrash {
 		isCrashThread := false
-		if crashing.Load() == 0 {
+		if crashing.CompareAndSwap(0, 1) {
 			isCrashThread = true
+		} else {
+			crashing.Add(1)
 		}
-		crashing.Add(1)
 		if crashing.Load() < mcount()-int32(extraMLength.Load()) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.

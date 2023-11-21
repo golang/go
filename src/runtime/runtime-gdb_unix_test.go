@@ -361,7 +361,7 @@ func TestGdbCoreCrashThreadBacktrace(t *testing.T) {
 	err = cmd.Wait()
 	t.Logf("child output:\n%s", output.String())
 	if err == nil {
-		t.Fatalf("Wait succeeded, want SIGSEGV")
+		t.Fatalf("Wait succeeded, want SIGABRT")
 	}
 	ee, ok := err.(*exec.ExitError)
 	if !ok {
