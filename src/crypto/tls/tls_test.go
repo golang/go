@@ -1490,16 +1490,21 @@ func TestCipherSuites(t *testing.T) {
 	if len(cipherSuitesPreferenceOrderNoAES) != len(cipherSuitesPreferenceOrder) {
 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
 	}
+	if len(defaultCipherSuites) >= len(defaultCipherSuitesWithRSAKex) {
+		t.Errorf("defaultCipherSuitesWithRSAKex should be longer than defaultCipherSuites")
+	}
 
 	// Check that disabled suites are marked insecure.
-	for id := range disabledCipherSuites {
-		c := CipherSuiteByID(id)
-		if c == nil {
-			t.Errorf("%#04x: no CipherSuite entry", id)
-			continue
-		}
-		if !c.Insecure {
-			t.Errorf("%#04x: disabled by default but not marked insecure", id)
+	for _, badSuites := range []map[uint16]bool{disabledCipherSuites, rsaKexCiphers} {
+		for id := range badSuites {
+			c := CipherSuiteByID(id)
+			if c == nil {
+				t.Errorf("%#04x: no CipherSuite entry", id)
+				continue
+			}
+			if !c.Insecure {
+				t.Errorf("%#04x: disabled by default but not marked insecure", id)
+			}
 		}
 	}
 
