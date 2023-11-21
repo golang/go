@@ -464,6 +464,32 @@ Function is the outermost frame of the call stack. Traceback should stop at this
 </li>
 </ul>
 
+<p>
+The <code>PCALIGN</code> pseudo-instruction is used to indicate that the next instruction should be aligned
+to a specified boundary by padding with NOOP instruction.
+</p>
+
+<p>
+It is currently supported in: ppc64, arm64, amd64 and loong64.
+	
+For example, <code>MOVD</code> below is aligned to 32 bytes:
+<pre>
+PCALIGN $32
+MOVD $2, R0
+</pre>
+</p>
+
+<p>
+By default, functions in Go are aligned to 16 bytes, but if a function has one or more PCALIGN directives,
+its address will be aligned to the same or coarser boundary, which is the maximum of all the
+alignment values.
+</p>
+
+<p>
+Preferred alignment values change depending on the architecture, but they are generally multiples of two. The values $8, $16, $32 and $64 are widely used.
+The performance benefits of code alignment is most noticiable in subroutine entries, hot loops and critical sections. Be careful since a bad or misplaced <code>PCALIGN</code> can cause spurious alignment issues. Some cache space is also lost to empty spaces before the aligned instructions.
+</p>
+
 <h3 id="data-offsets">Interacting with Go types and constants</h3>
 
 <p>
