@@ -169,6 +169,11 @@ func (v *Validator) Event(ev trace.Event) error {
 					state.binding = ctx
 				}
 			} else if old.Executing() && !new.Executing() {
+				if tr.Stack != ev.Stack() {
+					// This is a case where the transition is happening to a goroutine that is also executing, so
+					// these two stacks should always match.
+					e.Errorf("StateTransition.Stack doesn't match Event.Stack")
+				}
 				ctx := state.binding
 				if ctx != nil {
 					if ctx.G != id {
