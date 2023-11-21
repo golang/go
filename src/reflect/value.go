@@ -1603,7 +1603,7 @@ func (v Value) IsZero() bool {
 		}
 		typ := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if typ.Equal != nil && typ.Size() <= maxZero {
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
@@ -1631,7 +1631,7 @@ func (v Value) IsZero() bool {
 		}
 		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if typ.Equal != nil && typ.Size() <= maxZero {
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// See noescape justification above.
 			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
@@ -3277,7 +3277,7 @@ func Zero(typ Type) Value {
 	fl := flag(t.Kind())
 	if t.IfaceIndir() {
 		var p unsafe.Pointer
-		if t.Size() <= maxZero {
+		if t.Size() <= abi.ZeroValSize {
 			p = unsafe.Pointer(&zeroVal[0])
 		} else {
 			p = unsafe_New(t)
@@ -3287,11 +3287,8 @@ func Zero(typ Type) Value {
 	return Value{t, nil, fl}
 }
 
-// must match declarations in runtime/map.go.
-const maxZero = 1024
-
 //go:linkname zeroVal runtime.zeroVal
-var zeroVal [maxZero]byte
+var zeroVal [abi.ZeroValSize]byte
 
 // New returns a Value representing a pointer to a new zero value
 // for the specified type. That is, the returned Value's Type is PointerTo(typ).
