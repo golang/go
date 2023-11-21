@@ -443,6 +443,7 @@ func traceAdvance(stopTrace bool) {
 	// held, we can be certain that when there are no writers there are
 	// also no stale generation values left. Therefore, it's safe to flush
 	// any buffers that remain in that generation's slot.
+	const debugDeadlock = false
 	systemstack(func() {
 		// Track iterations for some rudimentary deadlock detection.
 		i := 0
@@ -479,16 +480,18 @@ func traceAdvance(stopTrace bool) {
 				osyield()
 			}
 
-			// Try to detect a deadlock. We probably shouldn't loop here
-			// this many times.
-			if i > 100000 && !detectedDeadlock {
-				detectedDeadlock = true
-				println("runtime: failing to flush")
-				for mp := mToFlush; mp != nil; mp = mp.trace.link {
-					print("runtime: m=", mp.id, "\n")
+			if debugDeadlock {
+				// Try to detect a deadlock. We probably shouldn't loop here
+				// this many times.
+				if i > 100000 && !detectedDeadlock {
+					detectedDeadlock = true
+					println("runtime: failing to flush")
+					for mp := mToFlush; mp != nil; mp = mp.trace.link {
+						print("runtime: m=", mp.id, "\n")
+					}
 				}
+				i++
 			}
-			i++
 		}
 	})
 
