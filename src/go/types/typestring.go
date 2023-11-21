@@ -329,13 +329,13 @@ func (w *typeWriter) typ(typ Type) {
 			}
 		}
 
-	case *_Alias:
+	case *Alias:
 		w.typeName(t.obj)
 		if w.ctxt != nil {
 			// TODO(gri) do we need to print the alias type name, too?
-			w.typ(_Unalias(t.obj.typ))
+			w.typ(Unalias(t.obj.typ))
 		} else {
-			w.string(fmt.Sprintf(" /* = %s */", _Unalias(t.obj.typ)))
+			w.string(fmt.Sprintf(" /* = %s */", Unalias(t.obj.typ)))
 		}
 
 	default:

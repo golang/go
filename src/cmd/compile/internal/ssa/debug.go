@@ -42,7 +42,10 @@ type FuncDebug struct {
 	OptDcl []*ir.Name
 
 	// Filled in by the user. Translates Block and Value ID to PC.
-	GetPC func(ID, ID) int64
+	//
+	// NOTE: block is only used if value is BlockStart.ID or BlockEnd.ID.
+	// Otherwise, it is ignored.
+	GetPC func(block, value ID) int64
 }
 
 type BlockDebug struct {
@@ -1368,7 +1371,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 	// Flush any leftover entries live at the end of the last block.
 	for varID := range state.lists {
-		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
+		state.writePendingEntry(VarID(varID), -1, FuncEnd.ID)
 		list := state.lists[varID]
 		if state.loggingLevel > 0 {
 			if len(list) == 0 {

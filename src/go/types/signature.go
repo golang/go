@@ -211,7 +211,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			atyp := _Unalias(rtyp)
+			atyp := Unalias(rtyp)
 			if !isValid(atyp) {
 				return // error was reported before
 			}

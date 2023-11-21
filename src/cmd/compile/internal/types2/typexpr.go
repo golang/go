@@ -94,7 +94,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = constant_
 
 	case *TypeName:
-		if !check.conf._EnableAlias && check.isBrokenAlias(obj) {
+		if !check.enableAlias && check.isBrokenAlias(obj) {
 			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
 			return
 		}
@@ -403,7 +403,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 func setDefType(def *TypeName, typ Type) {
 	if def != nil {
 		switch t := def.typ.(type) {
-		case *_Alias:
+		case *Alias:
 			// t.fromRHS should always be set, either to an invalid type
 			// in the beginning, or to typ in certain cyclic declarations.
 			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {

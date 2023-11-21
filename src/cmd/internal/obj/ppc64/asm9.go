@@ -607,32 +607,6 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 	return 0
 }
 
-// Get the implied register of an operand which doesn't specify one.  These show up
-// in handwritten asm like "MOVD R5, foosymbol" where a base register is not supplied,
-// or "MOVD R5, foo+10(SP) or pseudo-register is used.  The other common case is when
-// generating constants in register like "MOVD $constant, Rx".
-func (c *ctxt9) getimpliedreg(a *obj.Addr, p *obj.Prog) int {
-	class := oclass(a)
-	if class >= C_ZCON && class <= C_64CON {
-		return REGZERO
-	}
-	switch class {
-	case C_SACON, C_LACON:
-		return REGSP
-	case C_LOREG, C_SOREG, C_ZOREG, C_XOREG:
-		switch a.Name {
-		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			return REGSB
-		case obj.NAME_AUTO, obj.NAME_PARAM:
-			return REGSP
-		case obj.NAME_NONE:
-			return REGZERO
-		}
-	}
-	c.ctxt.Diag("failed to determine implied reg for class %v (%v)", DRconv(oclass(a)), p)
-	return 0
-}
-
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
@@ -892,9 +866,6 @@ func (c *ctxt9) aclassreg(reg int16) int {
 		case REG_LR:
 			return C_LR
 
-		case REG_XER:
-			return C_XER
-
 		case REG_CTR:
 			return C_CTR
 		}
@@ -947,14 +918,15 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			}
 
 		case obj.NAME_AUTO:
+			a.Reg = REGSP
 			c.instoffset = int64(c.autosize) + a.Offset
-
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SOREG
 			}
 			return C_LOREG
 
 		case obj.NAME_PARAM:
+			a.Reg = REGSP
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SOREG
@@ -1014,6 +986,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_AUTO:
+			a.Reg = REGSP
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
@@ -1021,6 +994,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_PARAM:
+			a.Reg = REGSP
 			c.instoffset = int64(c.autosize) + a.Offset + c.ctxt.Arch.FixedFrameSize
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SACON
@@ -1153,7 +1127,7 @@ func cmp(a int, b int) bool {
 	switch a {
 
 	case C_SPR:
-		if b == C_LR || b == C_XER || b == C_CTR {
+		if b == C_LR || b == C_CTR {
 			return true
 		}
 
@@ -2572,9 +2546,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		v := int32(d)
 		r := int(p.From.Reg)
-		if r == 0 {
-			r = c.getimpliedreg(&p.From, p)
-		}
+		// p.From may be a constant value or an offset(reg) type argument.
+		isZeroOrR0 := r&0x1f == 0
+
 		if r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0 && (r != 0 || v != 0) {
 			c.ctxt.Diag("literal operation on R0\n%v", p)
 		}
@@ -2583,7 +2557,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			// Operand is 16 bit value with sign bit set
 			if o.a1 == C_ANDCON {
 				// Needs unsigned 16 bit so use ORI
-				if r == 0 || r == REGZERO {
+				if isZeroOrR0 {
 					o1 = LOP_IRR(uint32(OP_ORI), uint32(p.To.Reg), uint32(0), uint32(v))
 					break
 				}
@@ -2637,10 +2611,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	case 7: /* mov r, soreg ==> stw o(r) */
 		r := int(p.To.Reg)
-
-		if r == 0 {
-			r = c.getimpliedreg(&p.To, p)
-		}
 		v := c.regoff(&p.To)
 		if int32(int16(v)) != v {
 			log.Fatalf("mishandled instruction %v", p)
@@ -2654,10 +2624,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	case 8: /* mov soreg, r ==> lbz/lhz/lwz o(r), lbz o(r) + extsb r,r */
 		r := int(p.From.Reg)
-
-		if r == 0 {
-			r = c.getimpliedreg(&p.From, p)
-		}
 		v := c.regoff(&p.From)
 		if int32(int16(v)) != v {
 			log.Fatalf("mishandled instruction %v", p)
@@ -3031,9 +2997,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			// Load a 32 bit constant, or relocation depending on if a symbol is attached
 			o1, o2, rel = c.symbolAccess(p.From.Sym, v, p.To.Reg, OP_ADDI, true)
 		default:
-			if r == 0 {
-				r = c.getimpliedreg(&p.From, p)
-			}
 			// Add a 32 bit offset to a register.
 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(int32(v))))
 			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
@@ -3157,11 +3120,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	case 35: /* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */
 		v := c.regoff(&p.To)
-
 		r := int(p.To.Reg)
-		if r == 0 {
-			r = c.getimpliedreg(&p.To, p)
-		}
 		// Offsets in DS form stores must be a multiple of 4
 		if o.ispfx {
 			o1, o2 = pfxstore(p.As, p.From.Reg, int16(r), PFX_R_ABS)
@@ -3178,11 +3137,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 	case 36: /* mov b/bz/h/hz lext/lauto/lreg,r ==> lbz+extsb/lbz/lha/lhz etc */
 		v := c.regoff(&p.From)
-
 		r := int(p.From.Reg)
-		if r == 0 {
-			r = c.getimpliedreg(&p.From, p)
-		}
 
 		if o.ispfx {
 			o1, o2 = pfxload(p.As, p.To.Reg, int16(r), PFX_R_ABS)

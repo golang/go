@@ -14,7 +14,7 @@ func Field(v Value, i int) Value {
 	if v.kind() != Struct {
 		panic(&ValueError{"reflect.Value.Field", v.kind()})
 	}
-	tt := (*structType)(unsafe.Pointer(v.typ))
+	tt := (*structType)(unsafe.Pointer(v.typ()))
 	if uint(i) >= uint(len(tt.Fields)) {
 		panic("reflect: Field index out of range")
 	}

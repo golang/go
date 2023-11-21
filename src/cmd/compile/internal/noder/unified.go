@@ -30,8 +30,8 @@ var localPkgReader *pkgReader
 // LookupMethodFunc returns the ir.Func for an arbitrary full symbol name if
 // that function exists in the set of available export data.
 //
-// This allows lookup of arbitrary methods that aren't otherwise referenced by
-// the local package and thus haven't been read yet.
+// This allows lookup of arbitrary functions and methods that aren't otherwise
+// referenced by the local package and thus haven't been read yet.
 //
 // TODO(prattmic): Does not handle instantiation of generic types. Currently
 // profiles don't contain the original type arguments, so we won't be able to
@@ -40,7 +40,7 @@ var localPkgReader *pkgReader
 // TODO(prattmic): Hit rate of this function is usually fairly low, and errors
 // are only used when debug logging is enabled. Consider constructing cheaper
 // errors by default.
-func LookupMethodFunc(fullName string) (*ir.Func, error) {
+func LookupFunc(fullName string) (*ir.Func, error) {
 	pkgPath, symName, err := ir.ParseLinkFuncName(fullName)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing symbol name %q: %v", fullName, err)
@@ -51,6 +51,43 @@ func LookupMethodFunc(fullName string) (*ir.Func, error) {
 		return nil, fmt.Errorf("pkg %s doesn't exist in %v", pkgPath, types.PkgMap())
 	}
 
+	// Symbol naming is ambiguous. We can't necessarily distinguish between
+	// a method and a closure. e.g., is foo.Bar.func1 a closure defined in
+	// function Bar, or a method on type Bar? Thus we must simply attempt
+	// to lookup both.
+
+	fn, err := lookupFunction(pkg, symName)
+	if err == nil {
+		return fn, nil
+	}
+
+	fn, mErr := lookupMethod(pkg, symName)
+	if mErr == nil {
+		return fn, nil
+	}
+
+	return nil, fmt.Errorf("%s is not a function (%v) or method (%v)", fullName, err, mErr)
+}
+
+func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
+	sym := pkg.Lookup(symName)
+
+	// TODO(prattmic): Enclosed functions (e.g., foo.Bar.func1) are not
+	// present in objReader, only as OCLOSURE nodes in the enclosing
+	// function.
+	pri, ok := objReader[sym]
+	if !ok {
+		return nil, fmt.Errorf("func sym %v missing objReader", sym)
+	}
+
+	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
+	if name.Op() != ir.ONAME || name.Class != ir.PFUNC {
+		return nil, fmt.Errorf("func sym %v refers to non-function name: %v", sym, name)
+	}
+	return name.Func, nil
+}
+
+func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 	// N.B. readPackage creates a Sym for every object in the package to
 	// initialize objReader and importBodyReader, even if the object isn't
 	// read.
@@ -130,7 +167,7 @@ func LookupMethodFunc(fullName string) (*ir.Func, error) {
 func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
-	pgo.LookupMethodFunc = LookupMethodFunc
+	pgo.LookupFunc = LookupFunc
 
 	data := writePkgStub(m, noders)
 
@@ -243,7 +280,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.InlineDecls(nil, inlDecls, false)
+		inline.CanInlineFuncs(inlDecls, nil)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {

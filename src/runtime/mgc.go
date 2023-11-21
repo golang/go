@@ -418,8 +418,7 @@ type workType struct {
 	stwprocs, maxprocs                 int32
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
 
-	pauseNS    int64 // total STW time this cycle
-	pauseStart int64 // nanotime() of last STW
+	pauseNS int64 // total STW time this cycle
 
 	// debug.gctrace heap sizes for this cycle.
 	heap0, heap1, heap2 uint64
@@ -677,8 +676,10 @@ func gcStart(trigger gcTrigger) {
 
 	now := nanotime()
 	work.tSweepTerm = now
-	work.pauseStart = now
-	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
+	var stw worldStop
+	systemstack(func() {
+		stw = stopTheWorldWithSema(stwGCSweepTerm)
+	})
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
 		finishsweep_m()
@@ -743,10 +744,9 @@ func gcStart(trigger gcTrigger) {
 
 	// Concurrent mark.
 	systemstack(func() {
-		now = startTheWorldWithSema()
-		work.pauseNS += now - work.pauseStart
+		now = startTheWorldWithSema(0, stw)
+		work.pauseNS += now - stw.start
 		work.tMark = now
-		memstats.gcPauseDist.record(now - work.pauseStart)
 
 		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
 		work.cpuStats.gcPauseTime += sweepTermCpu
@@ -858,9 +858,11 @@ top:
 	// shaded. Transition to mark termination.
 	now := nanotime()
 	work.tMarkTerm = now
-	work.pauseStart = now
 	getg().m.preemptoff = "gcing"
-	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
+	var stw worldStop
+	systemstack(func() {
+		stw = stopTheWorldWithSema(stwGCMarkTerm)
+	})
 	// The gcphase is _GCmark, it will transition to _GCmarktermination
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
@@ -887,9 +889,8 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema()
-			work.pauseNS += now - work.pauseStart
-			memstats.gcPauseDist.record(now - work.pauseStart)
+			now := startTheWorldWithSema(0, stw)
+			work.pauseNS += now - stw.start
 		})
 		semrelease(&worldsema)
 		goto top
@@ -923,12 +924,12 @@ top:
 	gcController.endCycle(now, int(gomaxprocs), work.userForced)
 
 	// Perform mark termination. This will restart the world.
-	gcMarkTermination()
+	gcMarkTermination(stw)
 }
 
 // World must be stopped and mark assists and background workers must be
 // disabled.
-func gcMarkTermination() {
+func gcMarkTermination(stw worldStop) {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
@@ -1009,9 +1010,8 @@ func gcMarkTermination() {
 	now := nanotime()
 	sec, nsec, _ := time_now()
 	unixNow := sec*1e9 + int64(nsec)
-	work.pauseNS += now - work.pauseStart
+	work.pauseNS += now - stw.start
 	work.tEnd = now
-	memstats.gcPauseDist.record(now - work.pauseStart)
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
@@ -1084,7 +1084,18 @@ func gcMarkTermination() {
 		throw("non-concurrent sweep failed to drain all sweep queues")
 	}
 
-	systemstack(func() { startTheWorldWithSema() })
+	systemstack(func() {
+		// The memstats updated above must be updated with the world
+		// stopped to ensure consistency of some values, such as
+		// sched.idleTime and sched.totaltime. memstats also include
+		// the pause time (work,pauseNS), forcing computation of the
+		// total pause time before the pause actually ends.
+		//
+		// Here we reuse the same now for start the world so that the
+		// time added to /sched/pauses/total/gc:seconds will be
+		// consistent with the value in memstats.
+		startTheWorldWithSema(now, stw)
+	})
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the

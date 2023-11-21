@@ -132,20 +132,23 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
+// We copied this function because we can not import "encoding/binary" here.
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
+	return append(b,
+		byte(x>>56),
+		byte(x>>48),
+		byte(x>>40),
+		byte(x>>32),
+		byte(x>>24),
+		byte(x>>16),
+		byte(x>>8),
 		byte(x),
-	}
-	return append(b, a[:]...)
+	)
 }
 
+// readUint64 is semantically the same as [binary.BigEndian.Uint64]
+// We copied this function because we can not import "encoding/binary" here.
 func readUint64(b []byte) uint64 {
 	_ = b[7]
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |

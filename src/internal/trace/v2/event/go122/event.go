@@ -38,7 +38,7 @@ const (
 	EvGoStop              // goroutine yields its time, but is runnable [timestamp, reason, stack ID]
 	EvGoBlock             // goroutine blocks [timestamp, reason, stack ID]
 	EvGoUnblock           // goroutine is unblocked [timestamp, goroutine ID, goroutine seq, stack ID]
-	EvGoSyscallBegin      // syscall enter [timestamp, stack ID]
+	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
 	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, status]
@@ -193,9 +193,9 @@ var specs = [...]event.Spec{
 	},
 	EvGoSyscallBegin: event.Spec{
 		Name:         "GoSyscallBegin",
-		Args:         []string{"dt", "stack"},
+		Args:         []string{"dt", "p_seq", "stack"},
 		IsTimedEvent: true,
-		StackIDs:     []int{1},
+		StackIDs:     []int{2},
 	},
 	EvGoSyscallEnd: event.Spec{
 		Name:         "GoSyscallEnd",

@@ -5298,11 +5298,11 @@ func (s *state) callAddr(n *ir.CallExpr, k callKind) *ssa.Value {
 // Returns the address of the return value (or nil if none).
 func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExtra ir.Expr) *ssa.Value {
 	s.prevCall = nil
-	var callee *ir.Name    // target function (if static)
-	var closure *ssa.Value // ptr to closure to run (if dynamic)
-	var codeptr *ssa.Value // ptr to target code (if dynamic)
-	var dextra *ssa.Value  // defer extra arg
-	var rcvr *ssa.Value    // receiver to set
+	var calleeLSym *obj.LSym // target function (if static)
+	var closure *ssa.Value   // ptr to closure to run (if dynamic)
+	var codeptr *ssa.Value   // ptr to target code (if dynamic)
+	var dextra *ssa.Value    // defer extra arg
+	var rcvr *ssa.Value      // receiver to set
 	fn := n.Fun
 	var ACArgs []*types.Type    // AuxCall args
 	var ACResults []*types.Type // AuxCall results
@@ -5318,7 +5318,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 	case ir.OCALLFUNC:
 		if (k == callNormal || k == callTail) && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
-			callee = fn
+			calleeLSym = callTargetLSym(fn)
 			if buildcfg.Experiment.RegabiArgs {
 				// This is a static call, so it may be
 				// a direct call to a non-ABIInternal
@@ -5466,8 +5466,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
-		case callee != nil:
-			aux := ssa.StaticAuxCall(callTargetLSym(callee), params)
+		case calleeLSym != nil:
+			aux := ssa.StaticAuxCall(calleeLSym, params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 			if k == callTail {
 				call.Op = ssa.OpTailLECall
@@ -7578,9 +7578,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		for i, b := range f.Blocks {
 			idToIdx[b.ID] = i
 		}
-		// Note that at this moment, Prog.Pc is a sequence number; it's
-		// not a real PC until after assembly, so this mapping has to
-		// be done later.
+		// Register a callback that will be used later to fill in PCs into location
+		// lists. At the moment, Prog.Pc is a sequence number; it's not a real PC
+		// until after assembly, so the translation needs to be deferred.
 		debugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:

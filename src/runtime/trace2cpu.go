@@ -37,7 +37,7 @@ func traceStartReadCPU() {
 		throw("traceStartReadCPU called with trace disabled")
 	}
 	// Spin up the logger goroutine.
-	trace.cpuSleep.init()
+	trace.cpuSleep = newWakeableSleep()
 	done := make(chan struct{}, 1)
 	go func() {
 		for traceEnabled() {

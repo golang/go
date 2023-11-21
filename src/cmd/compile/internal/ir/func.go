@@ -126,7 +126,7 @@ type Func struct {
 	NumDefers  int32 // number of defer calls in the function
 	NumReturns int32 // number of explicit returns in the function
 
-	// nwbrCalls records the LSyms of functions called by this
+	// NWBRCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos

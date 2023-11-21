@@ -52,7 +52,7 @@ const (
 	traceEvGoStop              // goroutine yields its time, but is runnable [timestamp, reason, stack ID]
 	traceEvGoBlock             // goroutine blocks [timestamp, reason, stack ID]
 	traceEvGoUnblock           // goroutine is unblocked [timestamp, goroutine ID, goroutine seq, stack ID]
-	traceEvGoSyscallBegin      // syscall enter [timestamp, stack ID]
+	traceEvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	traceEvGoSyscallEnd        // syscall exit [timestamp]
 	traceEvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
 	traceEvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, M ID, status]

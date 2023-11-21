@@ -233,11 +233,15 @@ func pkgPath(n abi.Name) string {
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 
 // resolveTypeOff resolves an *rtype offset from a base type.
 // The (*rtype).typeOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
 func (t rtype) nameOff(off nameOff) abi.Name {
@@ -395,7 +399,9 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	return toType(eface.typ)
+	// Noescape so this doesn't make i to escape. See the comment
+	// at Value.typ for why this is safe.
+	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
 }
 
 func (t rtype) Implements(u Type) bool {

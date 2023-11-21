@@ -23,6 +23,7 @@ func TestSplice(t *testing.T) {
 		t.Skip("skipping unix-to-tcp tests")
 	}
 	t.Run("unix-to-tcp", func(t *testing.T) { testSplice(t, "unix", "tcp") })
+	t.Run("tcp-to-unix", func(t *testing.T) { testSplice(t, "tcp", "unix") })
 	t.Run("tcp-to-file", func(t *testing.T) { testSpliceToFile(t, "tcp", "file") })
 	t.Run("unix-to-file", func(t *testing.T) { testSpliceToFile(t, "unix", "file") })
 	t.Run("no-unixpacket", testSpliceNoUnixpacket)
@@ -159,6 +160,13 @@ func (tc spliceTestCase) testFile(t *testing.T) {
 }
 
 func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
+	// UnixConn doesn't implement io.ReaderFrom, which will fail
+	// the following test in asserting a UnixConn to be an io.ReaderFrom,
+	// so skip this test.
+	if upNet == "unix" || downNet == "unix" {
+		t.Skip("skipping test on unix socket")
+	}
+
 	clientUp, serverUp := spliceTestSocketPair(t, upNet)
 	defer clientUp.Close()
 	clientDown, serverDown := spliceTestSocketPair(t, downNet)
@@ -166,16 +174,16 @@ func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
 
 	serverUp.Close()
 
-	// We'd like to call net.splice here and check the handled return
+	// We'd like to call net.spliceFrom here and check the handled return
 	// value, but we disable splice on old Linux kernels.
 	//
-	// In that case, poll.Splice and net.splice return a non-nil error
+	// In that case, poll.Splice and net.spliceFrom return a non-nil error
 	// and handled == false. We'd ideally like to see handled == true
 	// because the source reader is at EOF, but if we're running on an old
-	// kernel, and splice is disabled, we won't see EOF from net.splice,
+	// kernel, and splice is disabled, we won't see EOF from net.spliceFrom,
 	// because we won't touch the reader at all.
 	//
-	// Trying to untangle the errors from net.splice and match them
+	// Trying to untangle the errors from net.spliceFrom and match them
 	// against the errors created by the poll package would be brittle,
 	// so this is a higher level test.
 	//
@@ -268,7 +276,7 @@ func testSpliceNoUnixpacket(t *testing.T) {
 	//
 	// What we want is err == nil and handled == false, i.e. we never
 	// called poll.Splice, because we know the unix socket's network.
-	_, err, handled := splice(serverDown.(*TCPConn).fd, serverUp)
+	_, err, handled := spliceFrom(serverDown.(*TCPConn).fd, serverUp)
 	if err != nil || handled != false {
 		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
 	}
@@ -289,7 +297,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// Analogous to testSpliceNoUnixpacket.
-	_, err, handled := splice(serverDown.(*TCPConn).fd, up)
+	_, err, handled := spliceFrom(serverDown.(*TCPConn).fd, up)
 	if err != nil || handled != false {
 		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
 	}
@@ -300,6 +308,7 @@ func BenchmarkSplice(b *testing.B) {
 
 	b.Run("tcp-to-tcp", func(b *testing.B) { benchSplice(b, "tcp", "tcp") })
 	b.Run("unix-to-tcp", func(b *testing.B) { benchSplice(b, "unix", "tcp") })
+	b.Run("tcp-to-unix", func(b *testing.B) { benchSplice(b, "tcp", "unix") })
 }
 
 func benchSplice(b *testing.B, upNet, downNet string) {

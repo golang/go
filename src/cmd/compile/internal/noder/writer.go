@@ -1715,6 +1715,15 @@ func (w *writer) expr(expr syntax.Expr) {
 	targs := inst.TypeArgs
 
 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
+		if tv.IsRuntimeHelper() {
+			if pkg := obj.Pkg(); pkg != nil && pkg.Name() == "runtime" {
+				objName := obj.Name()
+				w.Code(exprRuntimeBuiltin)
+				w.String(objName)
+				return
+			}
+		}
+
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
@@ -2484,7 +2493,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 	case *syntax.ImportDecl:
 		pw.checkPragmas(n.Pragma, 0, false)
 
-		switch pkgNameOf(pw.info, n).Imported().Path() {
+		switch pw.info.PkgNameOf(n).Imported().Path() {
 		case "embed":
 			c.file.importedEmbed = true
 		case "unsafe":

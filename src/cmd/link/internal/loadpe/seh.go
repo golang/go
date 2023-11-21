@@ -90,16 +90,17 @@ func findHandlerInXDataAMD64(ldr *loader.Loader, xsym sym.LoaderSym, add int64) 
 	// unless it is chained, but we will handle this case later.
 	targetOff := add + unwStaticDataSize*(1+int64(codes))
 	xrels := ldr.Relocs(xsym)
-	idx := sort.Search(xrels.Count(), func(i int) bool {
+	xrelsCount := xrels.Count()
+	idx := sort.Search(xrelsCount, func(i int) bool {
 		return int64(xrels.At(i).Off()) >= targetOff
 	})
-	if idx == 0 {
+	if idx == xrelsCount {
 		return 0
 	}
 	if isChained {
 		// The third relocations references the next .xdata entry in the chain, recurse.
 		idx += 2
-		if idx >= xrels.Count() {
+		if idx >= xrelsCount {
 			return 0
 		}
 		r := xrels.At(idx)

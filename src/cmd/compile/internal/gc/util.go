@@ -5,17 +5,34 @@
 package gc
 
 import (
+	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	tracepkg "runtime/trace"
+	"strings"
 
 	"cmd/compile/internal/base"
 )
 
+func profileName(fn, suffix string) string {
+	if strings.HasSuffix(fn, string(os.PathSeparator)) {
+		err := os.MkdirAll(fn, 0755)
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+	}
+	if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+		fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+suffix)
+	}
+	return fn
+}
+
 func startProfile() {
 	if base.Flag.CPUProfile != "" {
-		f, err := os.Create(base.Flag.CPUProfile)
+		fn := profileName(base.Flag.CPUProfile, ".cpuprof")
+		f, err := os.Create(fn)
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -28,18 +45,36 @@ func startProfile() {
 		if base.Flag.MemProfileRate != 0 {
 			runtime.MemProfileRate = base.Flag.MemProfileRate
 		}
-		f, err := os.Create(base.Flag.MemProfile)
+		const (
+			gzipFormat = 0
+			textFormat = 1
+		)
+		// compilebench parses the memory profile to extract memstats,
+		// which are only written in the legacy (text) pprof format.
+		// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+		// gzipFormat is what most people want, otherwise
+		var format = textFormat
+		fn := base.Flag.MemProfile
+		if strings.HasSuffix(fn, string(os.PathSeparator)) {
+			err := os.MkdirAll(fn, 0755)
+			if err != nil {
+				base.Fatalf("%v", err)
+			}
+		}
+		if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+			fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+".memprof")
+			format = gzipFormat
+		}
+
+		f, err := os.Create(fn)
+
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
 		base.AtExit(func() {
 			// Profile all outstanding allocations.
 			runtime.GC()
-			// compilebench parses the memory profile to extract memstats,
-			// which are only written in the legacy pprof format.
-			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
-			const writeLegacyFormat = 1
-			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
+			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
 				base.Fatalf("%v", err)
 			}
 		})
@@ -48,7 +83,7 @@ func startProfile() {
 		runtime.MemProfileRate = 0
 	}
 	if base.Flag.BlockProfile != "" {
-		f, err := os.Create(base.Flag.BlockProfile)
+		f, err := os.Create(profileName(base.Flag.BlockProfile, ".blockprof"))
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -59,7 +94,7 @@ func startProfile() {
 		})
 	}
 	if base.Flag.MutexProfile != "" {
-		f, err := os.Create(base.Flag.MutexProfile)
+		f, err := os.Create(profileName(base.Flag.MutexProfile, ".mutexprof"))
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -70,7 +105,7 @@ func startProfile() {
 		})
 	}
 	if base.Flag.TraceProfile != "" {
-		f, err := os.Create(base.Flag.TraceProfile)
+		f, err := os.Create(profileName(base.Flag.TraceProfile, ".trace"))
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
