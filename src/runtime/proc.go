@@ -922,7 +922,7 @@ func mcommoninit(mp *m, id int64) {
 	// when it is just in a register or thread-local storage.
 	mp.alllink = allm
 
-	// NumCgoCall() iterates over allm w/o schedlock,
+	// NumCgoCall() and others iterate over allm w/o schedlock,
 	// so we need to publish it safely.
 	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
 	unlock(&sched.lock)
@@ -1855,6 +1855,7 @@ found:
 	unlock(&sched.lock)
 
 	atomic.Xadd64(&ncgocall, int64(mp.ncgocall))
+	sched.totalRuntimeLockWaitTime.Add(mp.mLockProfile.waitTime.Load())
 
 	// Release the P.
 	handoffp(releasep())
@@ -5273,6 +5274,7 @@ func _ExternalCode()              { _ExternalCode() }
 func _LostExternalCode()          { _LostExternalCode() }
 func _GC()                        { _GC() }
 func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
+func _LostContendedLock()         { _LostContendedLock() }
 func _VDSO()                      { _VDSO() }
 
 // Called if we receive a SIGPROF signal.

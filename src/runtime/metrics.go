@@ -470,7 +470,7 @@ func initMetrics() {
 		"/sync/mutex/wait/total:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(sched.totalMutexWaitTime.Load()))
+				out.scalar = float64bits(nsToSec(totalMutexWaitTimeNanos()))
 			},
 		},
 	}
