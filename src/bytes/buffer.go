@@ -8,6 +8,7 @@ package bytes
 
 import (
 	"errors"
+	"internal/bytealg"
 	"io"
 	"unicode/utf8"
 )
@@ -246,9 +247,9 @@ func growSlice(b []byte, n int) []byte {
 		// we could rely purely on append to determine the growth rate.
 		c = 2 * cap(b)
 	}
-	b2 := append([]byte(nil), make([]byte, c)...)
+	b2 := bytealg.MakeNoZero(c)[:len(b)+n]
 	copy(b2, b)
-	return b2[:len(b)]
+	return b2
 }
 
 // WriteTo writes data to w until the buffer is drained or an error occurs.
