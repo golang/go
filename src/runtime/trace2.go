@@ -764,6 +764,8 @@ func readTrace0() (buf []byte, park bool) {
 		// can continue to advance.
 		if trace.flushedGen.Load() == gen {
 			if trace.shutdown.Load() {
+				unlock(&trace.lock)
+
 				// Wake up anyone waiting for us to be done with this generation.
 				//
 				// Do this after reading trace.shutdown, because the thread we're
@@ -778,13 +780,13 @@ func readTrace0() (buf []byte, park bool) {
 
 				// We're shutting down, and the last generation is fully
 				// read. We're done.
-				unlock(&trace.lock)
 				return nil, false
 			}
 			// The previous gen has had all of its buffers flushed, and
 			// there's nothing else for us to read. Advance the generation
 			// we're reading from and try again.
 			trace.readerGen.Store(trace.gen.Load())
+			unlock(&trace.lock)
 
 			// Wake up anyone waiting for us to be done with this generation.
 			//
@@ -795,6 +797,9 @@ func readTrace0() (buf []byte, park bool) {
 				racerelease(unsafe.Pointer(&trace.doneSema[gen%2]))
 			}
 			semrelease(&trace.doneSema[gen%2])
+
+			// Reacquire the lock and go back to the top of the loop.
+			lock(&trace.lock)
 			continue
 		}
 		// Wait for new data.
