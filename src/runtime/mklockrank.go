@@ -68,7 +68,7 @@ timers < wakeableSleep;
 timers < netpollInit;
 
 # Channels
-scavenge, sweep < hchan;
+scavenge, sweep, wakeableSleep < hchan;
 NONE < notifyList;
 hchan, notifyList < sudog;
 
