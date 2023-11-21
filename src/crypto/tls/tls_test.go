@@ -1491,16 +1491,8 @@ func TestCipherSuites(t *testing.T) {
 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
 	}
 
-	// Check that disabled suites are at the end of the preference lists, and
-	// that they are marked insecure.
-	for i, id := range disabledCipherSuites {
-		offset := len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
-		if cipherSuitesPreferenceOrder[offset+i] != id {
-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrder", i)
-		}
-		if cipherSuitesPreferenceOrderNoAES[offset+i] != id {
-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrderNoAES", i)
-		}
+	// Check that disabled suites are marked insecure.
+	for id := range disabledCipherSuites {
 		c := CipherSuiteByID(id)
 		if c == nil {
 			t.Errorf("%#04x: no CipherSuite entry", id)

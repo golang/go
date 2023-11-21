@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"hash"
 	"internal/cpu"
-	"internal/godebug"
 	"runtime"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -323,25 +322,21 @@ var cipherSuitesPreferenceOrderNoAES = []uint16{
 	TLS_RSA_WITH_RC4_128_SHA,
 }
 
-// disabledCipherSuites are not used unless explicitly listed in
-// Config.CipherSuites. They MUST be at the end of cipherSuitesPreferenceOrder.
-var disabledCipherSuites = []uint16{
+// disabledCipherSuites are not used unless explicitly listed in Config.CipherSuites.
+var disabledCipherSuites = map[uint16]bool{
 	// CBC_SHA256
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-	TLS_RSA_WITH_AES_128_CBC_SHA256,
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256: true,
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:   true,
+	TLS_RSA_WITH_AES_128_CBC_SHA256:         true,
 
 	// RC4
-	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-	TLS_RSA_WITH_RC4_128_SHA,
+	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA: true,
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA:   true,
+	TLS_RSA_WITH_RC4_128_SHA:         true,
 }
 
-var (
-	defaultCipherSuitesLen int
-	defaultCipherSuites    []uint16
-)
-
 // rsaKexCiphers contains the ciphers which use RSA based key exchange,
-// which we disable by default.
+// which we also disable by default unless a GODEBUG is set.
 var rsaKexCiphers = map[uint16]bool{
 	TLS_RSA_WITH_RC4_128_SHA:        true,
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA:   true,
@@ -352,17 +347,21 @@ var rsaKexCiphers = map[uint16]bool{
 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
 }
 
-var rsaKEXgodebug = godebug.New("tlsrsakex")
+var defaultCipherSuites []uint16
+var defaultCipherSuitesWithRSAKex []uint16
 
 func init() {
-	rsaKexEnabled := rsaKEXgodebug.Value() == "1"
-	for _, c := range cipherSuitesPreferenceOrder[:len(cipherSuitesPreferenceOrder)-len(disabledCipherSuites)] {
-		if !rsaKexEnabled && rsaKexCiphers[c] {
+	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
+	defaultCipherSuitesWithRSAKex = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
+	for _, c := range cipherSuitesPreferenceOrder {
+		if disabledCipherSuites[c] {
 			continue
 		}
-		defaultCipherSuites = append(defaultCipherSuites, c)
+		if !rsaKexCiphers[c] {
+			defaultCipherSuites = append(defaultCipherSuites, c)
+		}
+		defaultCipherSuitesWithRSAKex = append(defaultCipherSuitesWithRSAKex, c)
 	}
-	defaultCipherSuitesLen = len(defaultCipherSuites)
 }
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no
