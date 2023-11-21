@@ -11,11 +11,9 @@ import (
 )
 
 func maxListenerBacklog() int {
-	// Windows does not offer a way to peek at the current backlog length.
-	// In a practical case scenario this does not matter since if set to
-	// SOMAXCONN the OS will adjust the backlog to a maximum reasonable
-	// value.
-	// See https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
+	// When the socket backlog is SOMAXCONN, Windows will set the backlog to
+	// "a reasonable maximum value".
+	// See: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
 	return syscall.SOMAXCONN
 }
 
