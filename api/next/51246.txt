@@ -1,6 +1,0 @@
-pkg syscall (linux-386), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-386-cgo), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-amd64), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-amd64-cgo), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-arm), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-arm-cgo), type SysProcAttr struct, PidFD *int #51246

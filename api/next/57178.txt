@@ -1,1 +1,0 @@
-pkg crypto/x509, method (*CertPool) AddCertWithConstraint(*Certificate, func([]*Certificate) error) #57178

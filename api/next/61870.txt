@@ -1,1 +1,0 @@
-pkg io, method (*SectionReader) Outer() (ReaderAt, int64, int64) #61870
