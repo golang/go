@@ -1,6 +1,6 @@
 name: Gopls bugs or feature requests
 description: Issues or feature requests for the Go language server (gopls)
-title: "x/tools/gopls: "
+title: "x/tools/gopls: issue title"
 labels: ["gopls", "Tools"]
 body:
   - type: markdown

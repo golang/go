@@ -1,6 +1,6 @@
 name: Pkg.go.dev bugs or feature requests
 description: Issues or feature requests for the documentation site
-title: "x/pkgsite: "
+title: "x/pkgsite: issue title"
 labels: ["pkgsite"]
 body:
   - type: markdown

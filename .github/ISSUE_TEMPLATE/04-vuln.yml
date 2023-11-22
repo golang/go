@@ -1,6 +1,6 @@
 name: Go vulnerability management - bugs and feature requests
 description: Issues or feature requests about Go vulnerability management
-title: "x/vuln: "
+title: "x/vuln: issue title"
 labels: ["vulncheck", "vulndb"]
 body:
   - type: markdown

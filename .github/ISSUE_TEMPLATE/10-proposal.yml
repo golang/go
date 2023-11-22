@@ -1,6 +1,6 @@
 name: Proposals
 description: New external API or other notable changes
-title: "proposal: affected/package: "
+title: "proposal: import/path: proposal title"
 labels: ["Proposal"]
 body:
   - type: markdown

@@ -3,7 +3,7 @@
 name: Bugs
 description: The go command, standard library, or anything else
 labels: [ 'kind/bug', 'bug' ]
-title: "affected/package: "
+title: "import/path: issue title"
 
 body:
   - type: markdown
