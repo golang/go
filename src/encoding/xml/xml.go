@@ -2045,16 +2045,27 @@ func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
 	param = param + "="
-	_, v, _ := strings.Cut(s, param)
-	if v == "" {
+	lenp := len(param)
+	i := 0
+	var sep byte
+	for i < len(s) {
+		sub := s[i:]
+		k := strings.Index(sub, param)
+		if k < 0 || lenp+k >= len(sub) {
+			return ""
+		}
+		i += lenp + k + 1
+		if c := sub[lenp+k]; c == '\'' || c == '"' {
+			sep = c
+			break
+		}
+	}
+	if sep == 0 {
 		return ""
 	}
-	if v[0] != '\'' && v[0] != '"' {
+	j := strings.IndexByte(s[i:], sep)
+	if j < 0 {
 		return ""
 	}
-	unquote, _, ok := strings.Cut(v[1:], v[:1])
-	if !ok {
-		return ""
-	}
-	return unquote
+	return s[i : i+j]
 }
