@@ -198,32 +198,36 @@ func tcFor(n *ir.ForStmt) ir.Node {
 	return n
 }
 
-// tcGoDefer typechecks an OGO/ODEFER statement.
+// tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
+func tcGoDefer(n *ir.GoDeferStmt) {
+	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())
+	call.GoDefer = true
+	n.Call = call
+}
+
+// normalizeGoDeferCall normalizes call into a normal function call
+// with no arguments and no results, suitable for use in an OGO/ODEFER
+// statement.
 //
-// Really, this means normalizing the statement to always use a simple
-// function call with no arguments and no results. For example, it
-// rewrites:
+// For example, it normalizes:
 //
-//	defer f(x, y)
+//	f(x, y)
 //
 // into:
 //
-//	x1, y1 := x, y
-//	defer func() { f(x1, y1) }()
-func tcGoDefer(n *ir.GoDeferStmt) {
-	call := n.Call
-
-	init := n.PtrInit()
+//	x1, y1 := x, y          // added to init
+//	func() { f(x1, y1) }()  // result
+func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) *ir.CallExpr {
 	init.Append(ir.TakeInit(call)...)
 
-	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
-			return // already in normal form
+			return call // already in normal form
 		}
 	}
 
 	// Create a new wrapper function without parameters or results.
-	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
+	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
 	wrapperFn.DeclareParams(true)
 	wrapperFn.SetWrapper(true)
 
@@ -372,8 +376,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 	// evaluate there.
 	wrapperFn.Body = []ir.Node{call}
 
-	// Finally, rewrite the go/defer statement to call the wrapper.
-	n.Call = Call(call.Pos(), wrapperFn.OClosure, nil, false)
+	// Finally, construct a call to the wrapper.
+	return Call(call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
 }
 
 // tcIf typechecks an OIF node.

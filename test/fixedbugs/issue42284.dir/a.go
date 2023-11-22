@@ -20,7 +20,7 @@ func F(i I) I { // ERROR "can inline F" "leaking param: i to result ~r0 level=0"
 
 func g() {
 	h := E() // ERROR "inlining call to E" "T\(0\) does not escape"
-	h.M()    // ERROR "devirtualizing h.M to T"
+	h.M()    // ERROR "devirtualizing h.M to T" "inlining call to T.M"
 
 	// BAD: T(0) could be stack allocated.
 	i := F(T(0)) // ERROR "inlining call to F" "T\(0\) escapes to heap"

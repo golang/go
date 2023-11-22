@@ -91,10 +91,17 @@ func TestGCInfo(t *testing.T) {
 
 func verifyGCInfo(t *testing.T, name string, p any, mask0 []byte) {
 	mask := runtime.GCMask(p)
-	if !bytes.Equal(mask, mask0) {
-		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
+	if bytes.HasPrefix(mask, mask0) {
+		// Just the prefix matching is OK.
+		//
+		// The Go runtime's pointer/scalar iterator generates pointers beyond
+		// the size of the type, up to the size of the size class. This space
+		// is safe for the GC to scan since it's zero, and GCBits checks to
+		// make sure that's true. But we need to handle the fact that the bitmap
+		// may be larger than we expect.
 		return
 	}
+	t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
 }
 
 func trimDead(mask []byte) []byte {

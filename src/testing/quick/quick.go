@@ -54,7 +54,7 @@ func randInt64(rand *rand.Rand) int64 {
 const complexSize = 50
 
 // Value returns an arbitrary value of the given type.
-// If the type implements the Generator interface, that will be used.
+// If the type implements the [Generator] interface, that will be used.
 // Note: To create arbitrary values for structs, all the fields must be exported.
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	return sizedValue(t, rand, complexSize)
@@ -234,7 +234,7 @@ func (s *CheckError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
 }
 
-// A CheckEqualError is the result CheckEqual finding an error.
+// A CheckEqualError is the result [CheckEqual] finding an error.
 type CheckEqualError struct {
 	CheckError
 	Out1 []any
@@ -248,7 +248,7 @@ func (s *CheckEqualError) Error() string {
 // Check looks for an input to f, any function that returns bool,
 // such that f returns false. It calls f repeatedly, with arbitrary
 // values for each argument. If f returns false on a given input,
-// Check returns that input as a *CheckError.
+// Check returns that input as a *[CheckError].
 // For example:
 //
 //	func TestOddMultipleOfThree(t *testing.T) {
@@ -297,7 +297,7 @@ func Check(f any, config *Config) error {
 
 // CheckEqual looks for an input on which f and g return different results.
 // It calls f and g repeatedly with arbitrary values for each argument.
-// If f and g return different answers, CheckEqual returns a *CheckEqualError
+// If f and g return different answers, CheckEqual returns a *[CheckEqualError]
 // describing the input and the outputs.
 func CheckEqual(f, g any, config *Config) error {
 	if config == nil {

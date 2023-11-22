@@ -354,7 +354,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// used with this value of b.
 		nbuckets += bucketShift(b - 4)
 		sz := t.Bucket.Size_ * nbuckets
-		up := roundupsize(sz)
+		up := roundupsize(sz, t.Bucket.PtrBytes == 0)
 		if up != sz {
 			nbuckets = up / t.Bucket.Size_
 		}
@@ -1436,8 +1436,7 @@ func reflectlite_maplen(h *hmap) int {
 	return h.count
 }
 
-const maxZero = 1024 // must match value in reflect/value.go:maxZero cmd/compile/internal/gc/walk.go:zeroValSize
-var zeroVal [maxZero]byte
+var zeroVal [abi.ZeroValSize]byte
 
 // mapinitnoop is a no-op function known the Go linker; if a given global
 // map (of the right size) is determined to be dead, the linker will

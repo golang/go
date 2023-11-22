@@ -979,7 +979,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if immrot(^uint32(c.instoffset)) != 0 {
 				return C_NCON
 			}
-			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM == 7 {
+			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM.Version == 7 {
 				return C_SCON
 			}
 			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
@@ -3044,16 +3044,16 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 }
 
 func (c *ctxt5) chipzero5(e float64) int {
-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if buildcfg.GOARM < 7 || math.Float64bits(e) != 0 {
+	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
+	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat || math.Float64bits(e) != 0 {
 		return -1
 	}
 	return 0
 }
 
 func (c *ctxt5) chipfloat5(e float64) int {
-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if buildcfg.GOARM < 7 {
+	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
+	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat {
 		return -1
 	}
 

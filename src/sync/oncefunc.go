@@ -25,7 +25,8 @@ func OnceFunc(f func()) func() {
 			}
 		}()
 		f()
-		valid = true // Set only if f does not panic
+		f = nil      // Do not keep f alive after invoking it.
+		valid = true // Set only if f does not panic.
 	}
 	return func() {
 		once.Do(g)
@@ -54,6 +55,7 @@ func OnceValue[T any](f func() T) func() T {
 			}
 		}()
 		result = f()
+		f = nil
 		valid = true
 	}
 	return func() T {
@@ -85,6 +87,7 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
 			}
 		}()
 		r1, r2 = f()
+		f = nil
 		valid = true
 	}
 	return func() (T1, T2) {

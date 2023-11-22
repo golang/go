@@ -1458,7 +1458,7 @@ var (
 	archVariants = map[string][]string{
 		"386":     {"GO386", "sse2", "softfloat"},
 		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
-		"arm":     {"GOARM", "5", "6", "7"},
+		"arm":     {"GOARM", "5", "6", "7", "7,softfloat"},
 		"arm64":   {},
 		"loong64": {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},

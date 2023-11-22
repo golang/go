@@ -234,18 +234,18 @@ func (dr *dumpReader) readObjBlob(delim string) (string, error) {
 // returns the resulting properties and function name. EOF is
 // signaled by a nil FuncProps return (with no error
 func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
-	var fih fnInlHeur
+	var funcInlHeur fnInlHeur
 	var callsites encodedCallSiteTab
 	if !dr.scan() {
-		return fih, callsites, nil
+		return funcInlHeur, callsites, nil
 	}
 	// first line contains info about function: file/name/line
 	info := dr.curLine()
 	chunks := strings.Fields(info)
-	fih.file = chunks[0]
-	fih.fname = chunks[1]
-	if _, err := fmt.Sscanf(chunks[2], "%d", &fih.line); err != nil {
-		return fih, callsites, fmt.Errorf("scanning line %q: %v", info, err)
+	funcInlHeur.file = chunks[0]
+	funcInlHeur.fname = chunks[1]
+	if _, err := fmt.Sscanf(chunks[2], "%d", &funcInlHeur.line); err != nil {
+		return funcInlHeur, callsites, fmt.Errorf("scanning line %q: %v", info, err)
 	}
 	// consume comments until and including delimiter
 	for {
@@ -262,9 +262,9 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 	line := dr.curLine()
 	fp := &FuncProps{}
 	if err := json.Unmarshal([]byte(line), fp); err != nil {
-		return fih, callsites, err
+		return funcInlHeur, callsites, err
 	}
-	fih.props = fp
+	funcInlHeur.props = fp
 
 	// Consume callsites.
 	callsites = make(encodedCallSiteTab)
@@ -276,29 +276,29 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags> score <score> mask <scoremask> maskstr <scoremaskstring>"
 		fields := strings.Fields(line)
 		if len(fields) != 12 {
-			return fih, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
+			return funcInlHeur, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
 		}
 		if fields[2] != "flagstr" || fields[4] != "flagval" || fields[6] != "score" || fields[8] != "mask" || fields[10] != "maskstr" {
-			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
+			return funcInlHeur, nil, fmt.Errorf("malformed callsite %s line %d: %s",
 				dr.p, dr.ln, line)
 		}
 		tag := fields[1]
 		flagstr := fields[5]
 		flags, err := strconv.Atoi(flagstr)
 		if err != nil {
-			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
+			return funcInlHeur, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
 				dr.p, dr.ln, line, err)
 		}
 		scorestr := fields[7]
 		score, err2 := strconv.Atoi(scorestr)
 		if err2 != nil {
-			return fih, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
+			return funcInlHeur, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
 				dr.p, dr.ln, line, err2)
 		}
 		maskstr := fields[9]
 		mask, err3 := strconv.Atoi(maskstr)
 		if err3 != nil {
-			return fih, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
+			return funcInlHeur, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
 				dr.p, dr.ln, line, err3)
 		}
 		callsites[tag] = propsAndScore{
@@ -312,10 +312,10 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
 	dr.scan()
 	line = dr.curLine()
 	if line != fnDelimiter {
-		return fih, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
+		return funcInlHeur, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
 	}
 
-	return fih, callsites, nil
+	return funcInlHeur, callsites, nil
 }
 
 // gatherPropsDumpForFile builds the specified testcase 'testcase' from
@@ -346,6 +346,9 @@ func gatherPropsDumpForFile(t *testing.T, testcase string, td string) (string, e
 	run := []string{testenv.GoToolPath(t), "build",
 		"-gcflags=-d=dumpinlfuncprops=" + dumpfile, "-o", outpath, gopath}
 	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
+	if err != nil {
+		t.Logf("compile command: %+v", run)
+	}
 	if strings.TrimSpace(string(out)) != "" {
 		t.Logf("%s", out)
 	}

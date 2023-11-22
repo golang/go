@@ -980,3 +980,26 @@ func f[I *T, T any]() {
 		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
 	}
 }
+
+func TestIssue44410(t *testing.T) {
+	const src = `
+package p
+
+type A = []int
+type S struct{ A }
+`
+
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	pkg := mustTypecheck(src, nil, nil)
+
+	S := pkg.Scope().Lookup("S")
+	if S == nil {
+		t.Fatal("object S not found")
+	}
+
+	got := S.String()
+	const want = "type p.S struct{p.A /* = []int */}"
+	if got != want {
+		t.Fatalf("got %q; want %q", got, want)
+	}
+}

@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"net"
 	"strings"
@@ -303,11 +304,13 @@ type ConnectionState struct {
 // ExportKeyingMaterial returns length bytes of exported key material in a new
 // slice as defined in RFC 5705. If context is nil, it is not used as part of
 // the seed. If the connection was set to allow renegotiation via
-// Config.Renegotiation, this function will return an error.
+// Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
+// Extended Master Secret, this function will return an error.
 //
-// There are conditions in which the returned values might not be unique to a
-// connection. See the Security Considerations sections of RFC 5705 and RFC 7627,
-// and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
+// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
+// in Go 1.22 due to security issues (see the Security Considerations sections
+// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
+// tlsunsafeekm=1.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
@@ -669,7 +672,9 @@ type Config struct {
 	// the list is ignored. Note that TLS 1.3 ciphersuites are not configurable.
 	//
 	// If CipherSuites is nil, a safe default list is used. The default cipher
-	// suites might change over time.
+	// suites might change over time. In Go 1.22 RSA key exchange based cipher
+	// suites were removed from the default list, but can be re-added with the
+	// GODEBUG setting tlsrsakex=1.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites is a legacy field and has no effect.
@@ -732,14 +737,11 @@ type Config struct {
 
 	// MinVersion contains the minimum TLS version that is acceptable.
 	//
-	// By default, TLS 1.2 is currently used as the minimum when acting as a
-	// client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
-	// supported by this package, both as a client and as a server.
+	// By default, TLS 1.2 is currently used as the minimum. TLS 1.0 is the
+	// minimum supported by this package.
 	//
-	// The client-side default can temporarily be reverted to TLS 1.0 by
-	// including the value "x509sha1=1" in the GODEBUG environment variable.
-	// Note that this option will be removed in Go 1.19 (but it will still be
-	// possible to set this field to VersionTLS10 explicitly).
+	// The server-side default can be reverted to TLS 1.0 by including the value
+	// "tls10server=1" in the GODEBUG environment variable.
 	MinVersion uint16
 
 	// MaxVersion contains the maximum TLS version that is acceptable.
@@ -1006,12 +1008,17 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
+var tlsrsakex = godebug.New("tlsrsakex")
+
 func (c *Config) cipherSuites() []uint16 {
 	if needFIPS() {
 		return fipsCipherSuites(c)
 	}
 	if c.CipherSuites != nil {
 		return c.CipherSuites
+	}
+	if tlsrsakex.Value() == "1" {
+		return defaultCipherSuitesWithRSAKex
 	}
 	return defaultCipherSuites
 }
@@ -1028,15 +1035,18 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
+var tls10server = godebug.New("tls10server")
+
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
 			continue
 		}
-		if (c == nil || c.MinVersion == 0) &&
-			isClient && v < VersionTLS12 {
-			continue
+		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+			if isClient || tls10server.Value() != "1" {
+				continue
+			}
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue

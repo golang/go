@@ -140,6 +140,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	I64Ne
 	If
 		CALLNORESUME runtime·badsystemstack(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// switch:
@@ -181,6 +182,9 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+	UNDEF
+
 // AES hashing not implemented for wasm
 TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
 	JMP	runtime·memhashFallback(SB)
@@ -208,6 +212,33 @@ TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
 TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
 	UNDEF
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+	MOVD fn+0(FP), CTXT	// context register
+	MOVD	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	MOVD	R2, g_m(g)	// g.m = curm
+	MOVD	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	I64Load (g_stack+stack_hi)(g)
+	I64Const $(-4*8)
+	I64Add
+	I32WrapI64
+	Set SP
+
+	// call target function
+	Get CTXT
+	I32WrapI64
+	I64Load $0
+	CALL
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 // Called during function prolog when more stack is needed.
 //
 // The traceback routines see morestack on a g0 as being
@@ -221,12 +252,19 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	// R2 = g0
 	MOVD m_g0(R1), R2
 
+	// Set g->sched to context in f.
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVD 0(SP), g_sched+gobuf_pc(g)
+	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
+	MOVD CTXT, g_sched+gobuf_ctxt(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	Get g
 	Get R2
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackg0(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Cannot grow signal stack (m->gsignal).
@@ -235,19 +273,14 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackgsignal(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
-
-	// Set g->sched to context in f.
-	MOVD 0(SP), g_sched+gobuf_pc(g)
-	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
-	MOVD CTXT, g_sched+gobuf_ctxt(g)
 
 	// Call newstack on m->g0's stack.
 	MOVD R2, g
