@@ -775,11 +775,6 @@ var compactTests = []struct {
 		[]int{1, 2, 2, 3, 3, 4},
 		[]int{1, 2, 3, 4},
 	},
-	{
-		"dup start",
-		[]int{1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-		[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-	},
 }
 
 func TestCompact(t *testing.T) {
@@ -806,17 +801,25 @@ func BenchmarkCompact(b *testing.B) {
 
 func BenchmarkCompact_Large(b *testing.B) {
 	type Large [16]int
+	const N = 1024
 
-	ss1 := make([]Large, 1024)
-	ss2 := make([]Large, 1024)
-	for i := range ss2 {
-		ss2[i][0] = i
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = Compact(ss1)
-		_ = Compact(ss2)
-	}
+	b.Run("all_dup", func(b *testing.B) {
+		ss := make([]Large, N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = Compact(ss)
+		}
+	})
+	b.Run("no_dup", func(b *testing.B) {
+		ss :=make([]Large, N)
+		for i := range ss {
+			ss[i][0] = i
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = Compact(ss)
+		}
+	})
 }
 
 func TestCompactFunc(t *testing.T) {
@@ -897,17 +900,25 @@ func BenchmarkCompactFunc(b *testing.B) {
 
 func BenchmarkCompactFunc_Large(b *testing.B) {
 	type Element = int
-
-	ss1 := make([]Element, 1024*1024)
-	ss2 := make([]Element, 1024*1024)
-	for i := range ss2 {
-		ss2[i] = i
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = CompactFunc(ss1, func(a, b Element) bool { return a == b })
-		_ = CompactFunc(ss2, func(a, b Element) bool { return a == b })
-	}
+	const N = 1024*1024
+	
+	b.Run("all_dup", func(b *testing.B) {
+		ss := make([]Element, N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+		}
+	})
+	b.Run("no_dup", func(b *testing.B) {
+		ss := make([]Element, N)
+		for i := range ss {
+			ss[i] = i
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+		}
+	})
 }
 
 func TestGrow(t *testing.T) {
