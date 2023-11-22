@@ -14,7 +14,7 @@ body:
   - type: input
     id: go-version
     attributes:
-      label: go version
+      label: Go version
       description: What version of Go are you using (`go version`)?
       placeholder: ex. go version go1.20.7 darwin/arm64
     validations:
