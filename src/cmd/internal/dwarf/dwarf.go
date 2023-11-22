@@ -1197,11 +1197,21 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 	}
 	scopes := make([]Scope, len(s.Scopes), len(s.Scopes))
 	pvars := inlinedVarTable(&s.InlCalls)
+	dedupvars := make(map[string]bool)
 	for k, s := range s.Scopes {
 		var pruned Scope = Scope{Parent: s.Parent, Ranges: s.Ranges}
 		for i := 0; i < len(s.Vars); i++ {
+			// FIXME: This map was added to deduplicate the list of variables.
+			// When generating the formal parameters from the symbols some variables
+			// were added to the scope more than once.
+			_, dup := dedupvars[s.Vars[i].Name]
+			if dup {
+				continue
+			}
+
 			_, found := pvars[s.Vars[i]]
 			if !found {
+				dedupvars[s.Vars[i].Name] = true
 				pruned.Vars = append(pruned.Vars, s.Vars[i])
 			}
 		}
