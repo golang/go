@@ -33,13 +33,53 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<!-- https://go.dev/issue/60056 -->
 <p>
-  TODO: complete this section, or delete if not needed
+  <!-- support vendoring in workspace mode -->
+</p>
+
+<!-- CL 518775 -->
+<p>
+  <!-- cmd/go: delete GOPATH-mode get -->
+</p>
+
+<!-- https://go.dev/issue/60915 -->
+<p>
+  <!-- preserve basic GOPATH mode indefinitely -->
+</p>
+
+<!-- CL 518776 -->
+<p>
+  <!-- cmd/go: remove conversion of legacy pre-module dependency configs -->
 </p>
 
 <h3 id="cgo">Cgo</h3>
 
-<!-- CL 497837 reverted -->
+<!-- https://go.dev/issue/56378 -->
+<p>
+  <!-- add #cgo noescape/nocallback annotations -->
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- CL 539016 -->
+  TODO: <a href="https://go.dev/cl/539016">https://go.dev/cl/539016</a>: go/analysis/passes/loopclosure: disable checker after go1.22.; loopclosure was modified to only not report in files with GoVersion after 1.22.
+</p>
+
+<!-- CL 527095 -->
+<p>
+  <!-- cmd/vet: add defers analysis pass; Add a release note that there is a new defers checker in cmd/vet. -->
+</p>
+
+<!-- https://go.dev/issue/60048 -->
+<p>
+  <!-- time.Since should not be used in defer statement -->
+</p>
+
+<!-- https://go.dev/issue/60448 -->
+<p>
+  <!-- add a new analyzer  for check missing values after append -->
+</p>
 
 <h2 id="runtime">Runtime</h2>
 
@@ -55,11 +95,58 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
+<p><!-- https://go.dev/issue/62577 -->
+  TODO: <a href="https://go.dev/issue/62577">https://go.dev/issue/62577</a>: cmd/link, cmd/go: emit split DWARF on darwin
+</p>
+
+<!-- CL 461697 -->
+<p>
+  <!-- cmd/go: default to PIE linking on darwin/amd64 -->
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
 
 <h2 id="library">Core library</h2>
+
+<h3 id="minor_library_changes">New math/rand/v2 package</h3>
+
+<p><!-- CL 502495 -->
+  TODO: <a href="https://go.dev/cl/502495">https://go.dev/cl/502495</a>: math/rand/v2: start of new API; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502497 -->
+  TODO: <a href="https://go.dev/cl/502497">https://go.dev/cl/502497</a>: math/rand/v2: remove Read; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502498 -->
+  TODO: <a href="https://go.dev/cl/502498">https://go.dev/cl/502498</a>: math/rand/v2: remove Rand.Seed; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502499 -->
+  TODO: <a href="https://go.dev/cl/502499">https://go.dev/cl/502499</a>: math/rand/v2: change Source to use uint64; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502500 -->
+  TODO: <a href="https://go.dev/cl/502500">https://go.dev/cl/502500</a>: math/rand/v2: add, optimize N, UintN, Uint32N, Uint64N; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502505 -->
+  TODO: <a href="https://go.dev/cl/502505">https://go.dev/cl/502505</a>: math/rand/v2: add PCG-DXSM; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502506 -->
+  TODO: <a href="https://go.dev/cl/502506">https://go.dev/cl/502506</a>: math/rand/v2: delete Mitchell/Reeds source; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 516857 -->
+  TODO: <a href="https://go.dev/cl/516857">https://go.dev/cl/516857</a>: math/rand/v2: rename various functions; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 516859 -->
+  TODO: <a href="https://go.dev/cl/516859">https://go.dev/cl/516859</a>: math/rand/v2: add ChaCha8; modified api/next/61716.txt
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -74,6 +161,114 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50102 -->
+      TODO: <a href="https://go.dev/issue/50102">https://go.dev/issue/50102</a>: add FileInfoNames interface
+    </p>
+
+    <p><!-- https://go.dev/issue/58000 -->
+      TODO: <a href="https://go.dev/issue/58000">https://go.dev/issue/58000</a>: add (*Writer).AddFS
+    </p>
+
+    <p><!-- CL 513316 -->
+      TODO: <a href="https://go.dev/cl/513316">https://go.dev/cl/513316</a>: archive/tar: add AddFS method to Writer; modified api/next/58000.txt
+    </p>
+
+    <p><!-- CL 514235 -->
+      TODO: <a href="https://go.dev/cl/514235">https://go.dev/cl/514235</a>: archive/tar: add FileInfoNames interface; modified api/next/50102.txt
+    </p>
+  </dd>
+</dl><!-- archive/tar -->
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56381 -->
+      TODO: <a href="https://go.dev/issue/56381">https://go.dev/issue/56381</a>: allow terminating Scanner early cleanly without a final token or an error
+    </p>
+  </dd>
+</dl><!-- bufio -->
+
+<dl id="cmd"><dt><a href="/pkg/cmd/">cmd</a></dt>
+  <dd>
+    <p><!-- CL 498416 -->
+      TODO: <a href="https://go.dev/cl/498416">https://go.dev/cl/498416</a>: cmd: add a new analyzer for check missing values after append
+    </p>
+  </dd>
+</dl><!-- cmd -->
+
+<dl id="cmp"><dt><a href="/pkg/cmp/">cmp</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60204 -->
+      TODO: <a href="https://go.dev/issue/60204">https://go.dev/issue/60204</a>: add Or
+    </p>
+
+    <p><!-- CL 504883 -->
+      TODO: <a href="https://go.dev/cl/504883">https://go.dev/cl/504883</a>: cmp: add Or; modified api/next/60204.txt
+    </p>
+  </dd>
+</dl><!-- cmp -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/43922 -->
+      TODO: <a href="https://go.dev/issue/43922">https://go.dev/issue/43922</a>: implement RFC7627
+    </p>
+
+    <p><!-- https://go.dev/issue/60107 -->
+      TODO: <a href="https://go.dev/issue/60107">https://go.dev/issue/60107</a>: QUIC 0-RTT APIs
+    </p>
+
+    <p><!-- https://go.dev/issue/62459 -->
+      TODO: <a href="https://go.dev/issue/62459">https://go.dev/issue/62459</a>: make default minimum version for servers TLS 1.2
+    </p>
+
+    <p><!-- https://go.dev/issue/63413 -->
+      TODO: <a href="https://go.dev/issue/63413">https://go.dev/issue/63413</a>: disable RSA key exchange cipher suites by default
+    </p>
+
+    <p><!-- CL 514997 -->
+      TODO: <a href="https://go.dev/cl/514997">https://go.dev/cl/514997</a>: crypto/tls: change SendSessionTicket to take an options struct; modified api/go1.21.txt
+    </p>
+
+    <p><!-- CL 541516 -->
+      TODO: <a href="https://go.dev/cl/541516">https://go.dev/cl/541516</a>: crypto/tls: change default minimum version to 1.2
+    </p>
+
+    <p><!-- CL 541517 -->
+      TODO: <a href="https://go.dev/cl/541517">https://go.dev/cl/541517</a>: crypto/tls: remove RSA KEX ciphers from the default list
+    </p>
+
+    <p><!-- CL 544155 -->
+      TODO: <a href="https://go.dev/cl/544155">https://go.dev/cl/544155</a>: crypto/tls: disable ExportKeyingMaterial without EMS
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57178 -->
+      TODO: <a href="https://go.dev/issue/57178">https://go.dev/issue/57178</a>: support code-constrained roots
+    </p>
+
+    <p><!-- https://go.dev/issue/58922 -->
+      TODO: <a href="https://go.dev/issue/58922">https://go.dev/issue/58922</a>: add android user trusted CA folder as a possible source for certificate retrieval
+    </p>
+
+    <p><!-- https://go.dev/issue/60665 -->
+      TODO: <a href="https://go.dev/issue/60665">https://go.dev/issue/60665</a>: introduce new robust OID type &amp; use it for certificate policies
+    </p>
+
+    <p><!-- CL 519315 -->
+      TODO: <a href="https://go.dev/cl/519315">https://go.dev/cl/519315</a>: crypto/x509: implement AddCertWithConstraint; modified api/next/57178.txt
+    </p>
+
+    <p><!-- CL 520535 -->
+      TODO: <a href="https://go.dev/cl/520535">https://go.dev/cl/520535</a>: crypto/x509: add new OID type and use it in Certificate; modified api/next/60665.txt
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/60370, CL 501700 -->
@@ -81,7 +276,215 @@ Do not send CLs removing the interior tags from such phrases.
       provide a way to scan nullable columns for any column types.
     </p>
   </dd>
-</dl>
+</dl><!-- database/sql -->
+
+<dl id="encoding"><dt><a href="/pkg/encoding/">encoding</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53693 -->
+      TODO: <a href="https://go.dev/issue/53693">https://go.dev/issue/53693</a>: provide append-like variants
+    </p>
+
+    <p><!-- CL 504884 -->
+      TODO: <a href="https://go.dev/cl/504884">https://go.dev/cl/504884</a>: encoding: add AppendEncode and AppendDecode; modified api/next/53693.txt
+    </p>
+
+    <p><!-- CL 505236 -->
+      TODO: <a href="https://go.dev/cl/505236">https://go.dev/cl/505236</a>: encoding: reject negative runes in Encoding.WithPadding; Providing a negative rune to Encoding.WithPadding other than NoPadding made no semantic sense, and will now panic.
+    </p>
+  </dd>
+</dl><!-- encoding -->
+
+<dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57237 -->
+      TODO: <a href="https://go.dev/issue/57237">https://go.dev/issue/57237</a>: add var NativeEndian; also x/sys/cpu.IsBigEndian
+    </p>
+  </dd>
+</dl><!-- encoding/binary -->
+
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/52463 -->
+      TODO: <a href="https://go.dev/issue/52463">https://go.dev/issue/52463</a>: formally deprecate Object
+    </p>
+
+    <p><!-- CL 504915 -->
+      TODO: <a href="https://go.dev/cl/504915">https://go.dev/cl/504915</a>: go/ast: deprecate Object; modified api/go1.21.txt
+    </p>
+  </dd>
+</dl><!-- go/ast -->
+
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/62037 -->
+      TODO: <a href="https://go.dev/issue/62037">https://go.dev/issue/62037</a>: add Info.PkgName method
+    </p>
+
+    <p><!-- https://go.dev/issue/62605 -->
+      TODO: <a href="https://go.dev/issue/62605">https://go.dev/issue/62605</a>: Export Info.FileVersions for access to file-specific version information
+    </p>
+
+    <p><!-- https://go.dev/issue/63223 -->
+      TODO: <a href="https://go.dev/issue/63223">https://go.dev/issue/63223</a>: API changes to support explicit Alias nodes
+    </p>
+
+    <p><!-- CL 540056 -->
+      TODO: <a href="https://go.dev/cl/540056">https://go.dev/cl/540056</a>: go/types: export Info.FileVersions; modified api/next/62605.txt
+    </p>
+
+    <p><!-- https://go.dev/issue/61035 -->
+      TODO: <a href="https://go.dev/issue/61035">https://go.dev/issue/61035</a>: go/types, types2: fix SizesFor(&#34;gc&#34;, ...) to match actual gc behavior
+    </p>
+
+    <p><!-- CL 541575 -->
+      TODO: <a href="https://go.dev/cl/541575">https://go.dev/cl/541575</a>: go/types, types2: implement Info.PkgNameOf; modified api/next/62037.txt
+    </p>
+
+    <p><!-- CL 541737 -->
+      TODO: <a href="https://go.dev/cl/541737">https://go.dev/cl/541737</a>: go/types, types2: implement Alias proposal (export API); modified api/next/63223.txt
+    </p>
+  </dd>
+</dl><!-- go/types -->
+
+<dl id="go/version"><dt><a href="/pkg/go/version/">go/version</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/62039 -->
+      TODO: <a href="https://go.dev/issue/62039">https://go.dev/issue/62039</a>: package for handling Go version strings
+    </p>
+
+    <p><!-- CL 538895 -->
+      TODO: <a href="https://go.dev/cl/538895">https://go.dev/cl/538895</a>: go/version: add new package; modified api/next/62039.txt
+    </p>
+  </dd>
+</dl><!-- go/version -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61619 -->
+      TODO: <a href="https://go.dev/issue/61619">https://go.dev/issue/61619</a>: allow actions in JS template literals
+    </p>
+
+    <p><!-- CL 507995 -->
+      TODO: <a href="https://go.dev/cl/507995">https://go.dev/cl/507995</a>: html/template: support parsing complex JS template literals; modified api/next/61619.txt
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61870 -->
+      TODO: <a href="https://go.dev/issue/61870">https://go.dev/issue/61870</a>: add SectionReader.Outer method
+    </p>
+
+    <p><!-- CL 526855 -->
+      TODO: <a href="https://go.dev/cl/526855">https://go.dev/cl/526855</a>: io: add (*SectionReader).Outer(); modified api/next/61870.txt
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/62418 -->
+      TODO: <a href="https://go.dev/issue/62418">https://go.dev/issue/62418</a>: enable setting level on default log.Logger
+    </p>
+
+    <p><!-- CL 525096 -->
+      TODO: <a href="https://go.dev/cl/525096">https://go.dev/cl/525096</a>: log/slog: add LogLoggerLevel to enable setting level on the default logger; modified api/next/62418.txt
+    </p>
+  </dd>
+</dl><!-- log/slog -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50489 -->
+      TODO: <a href="https://go.dev/issue/50489">https://go.dev/issue/50489</a>: Rat: add FloatPrec() (int, bool)
+    </p>
+
+    <p><!-- CL 539299 -->
+      TODO: <a href="https://go.dev/cl/539299">https://go.dev/cl/539299</a>: math/big: implement Rat.FloatPrec; modified api/next/50489.txt
+    </p>
+  </dd>
+</dl><!-- math/big -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/58808 -->
+      TODO: <a href="https://go.dev/issue/58808">https://go.dev/issue/58808</a>: arrange zero-copy of os.File and TCPConn to UnixConn
+    </p>
+
+    <p><!-- CL 467335 -->
+      TODO: <a href="https://go.dev/cl/467335">https://go.dev/cl/467335</a>: net: respect hosts file when resolving names for Windows
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51971 -->
+      TODO: <a href="https://go.dev/issue/51971">https://go.dev/issue/51971</a>: add ServeFileFS, FileServerFS, NewFileTransportFS
+    </p>
+
+    <p><!-- https://go.dev/issue/61410 -->
+      TODO: <a href="https://go.dev/issue/61410">https://go.dev/issue/61410</a>: enhanced ServeMux routing
+    </p>
+
+    <p><!-- CL 513956 -->
+      TODO: <a href="https://go.dev/cl/513956">https://go.dev/cl/513956</a>: net/http: add ServeFileFS, FileServerFS, NewFileTransportFS; modified api/next/51971.txt
+    </p>
+
+    <p><!-- CL 517336 -->
+      TODO: <a href="https://go.dev/cl/517336">https://go.dev/cl/517336</a>: net/http: disallow empty Content-Length header
+    </p>
+
+    <p><!-- CL 528355 -->
+      TODO: <a href="https://go.dev/cl/528355">https://go.dev/cl/528355</a>: net/http: implement path value methods on Request; modified api/next/61410.txt
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt>
+  <dd>
+    <p><!-- CL 539615 -->
+      TODO: <a href="https://go.dev/cl/539615">https://go.dev/cl/539615</a>: net/http/cgi: the PATH_INFO should be empty or start with a slash
+    </p>
+  </dd>
+</dl><!-- net/http/cgi -->
+
+<dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61642 -->
+      TODO: <a href="https://go.dev/issue/61642">https://go.dev/issue/61642</a>: add Prefix.Compare and AddrPort.Compare
+    </p>
+
+    <p><!-- CL 524616 -->
+      TODO: <a href="https://go.dev/cl/524616">https://go.dev/cl/524616</a>: net/netip: add AddrPort.Compare and Prefix.Compare; modified api/next/61642.txt
+    </p>
+  </dd>
+</dl><!-- net/netip -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 516555 -->
+      TODO: <a href="https://go.dev/cl/516555">https://go.dev/cl/516555</a>: os: follow all name surrogate reparse points in Stat on Windows
+    </p>
+
+    <p><!-- https://go.dev/issue/58808 -->
+      TODO: <a href="https://go.dev/issue/58808">https://go.dev/issue/58808</a>: arrange zero-copy of os.File and TCPConn to UnixConn
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd>
+    <p><!-- CL 528037 -->
+      TODO: <a href="https://go.dev/cl/528037">https://go.dev/cl/528037</a>: os/exec: fix edge cases in Windows PATH resolution
+    </p>
+
+    <p><!-- CL 528038 -->
+      TODO: <a href="https://go.dev/cl/528038">https://go.dev/cl/528038</a>: os/exec: avoid calling LookPath in cmd.Start for resolved paths
+    </p>
+  </dd>
+</dl><!-- os/exec -->
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
@@ -95,11 +498,94 @@ Do not send CLs removing the interior tags from such phrases.
       a value to zero using the language <code>==</code> operator.
     </p>
   </dd>
-</dl>
+</dl><!-- reflect -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61015 -->
+      TODO: <a href="https://go.dev/issue/61015">https://go.dev/issue/61015</a>: change mutex profile to scale contention by number of blocked goroutines
+    </p>
+
+    <p><!-- CL 543255 -->
+      TODO: <a href="https://go.dev/cl/543255">https://go.dev/cl/543255</a>: runtime: put allocation headers back at the start the object
+    </p>
+  </dd>
+</dl><!-- runtime -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/63340 -->
+      TODO: <a href="https://go.dev/issue/63340">https://go.dev/issue/63340</a>: provide histogram of all STW events
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
+
+<dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56353 -->
+      TODO: <a href="https://go.dev/issue/56353">https://go.dev/issue/56353</a>: add Concat
+    </p>
+
+    <p><!-- https://go.dev/issue/63393 -->
+      TODO: <a href="https://go.dev/issue/63393">https://go.dev/issue/63393</a>: have Delete and others clear the tail
+    </p>
+
+    <p><!-- CL 504882 -->
+      TODO: <a href="https://go.dev/cl/504882">https://go.dev/cl/504882</a>: slices: add Concat
+    </p>
+
+    <p><!-- CL 540155 -->
+      TODO: <a href="https://go.dev/cl/540155">https://go.dev/cl/540155</a>: slices: make Insert panic if index is out of range and there are no values
+    </p>
+  </dd>
+</dl><!-- slices -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60797 -->
+      TODO: <a href="https://go.dev/issue/60797">https://go.dev/issue/60797</a>: undeprecate
+    </p>
+
+    <p><!-- CL 520266 -->
+      TODO: <a href="https://go.dev/cl/520266">https://go.dev/cl/520266</a>: syscall: add support to get pidfd from ForkExec on Linux
+    </p>
+
+    <p><!-- CL 541015 -->
+      TODO: <a href="https://go.dev/cl/541015">https://go.dev/cl/541015</a>: syscall: support O_SYNC flag for os.OpenFile on windows
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61758 -->
+      TODO: <a href="https://go.dev/issue/61758">https://go.dev/issue/61758</a>: support sub-tests
+    </p>
+
+    <p><!-- CL 516076 -->
+      TODO: <a href="https://go.dev/cl/516076">https://go.dev/cl/516076</a>: testing/slogtest: add Run to run cases as subtests; modified api/next/61758.txt
+    </p>
+  </dd>
+</dl><!-- testing/slogtest -->
 
 <h2 id="ports">Ports</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 514907 -->
+  TODO: <a href="https://go.dev/cl/514907">https://go.dev/cl/514907</a>: all: add floating point option for ARM targets
 </p>
 
+<p><!-- CL 481315 -->
+  TODO: <a href="https://go.dev/cl/481315">https://go.dev/cl/481315</a>: runtime, cmd/go: enable memory sanitizer on linux/loong64
+</p>
+
+<p><!-- CL 517935 -->
+  TODO: <a href="https://go.dev/cl/517935">https://go.dev/cl/517935</a>: cmd/dist,internal/platform: enable openbsd/ppc64 port
+</p>
+
+<p><!-- CL 537615 -->
+  TODO: <a href="https://go.dev/cl/537615">https://go.dev/cl/537615</a>: debug/elf,cmd/link: add additional relocations for loong64; modified api/next/63725.txt
+</p>
+
+<p><!-- CL 469395 -->
+  TODO: <a href="https://go.dev/cl/469395">https://go.dev/cl/469395</a>: debug/elf,cmd/link: add additional MIPS64 relocation type; modified api/next/61974.txt
+</p>
