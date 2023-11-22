@@ -101,9 +101,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = ctxt.Lookup("runtime.duffzero")
+			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = ctxt.Lookup("runtime.duffcopy")
+			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = AMOVV
