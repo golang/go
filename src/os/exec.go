@@ -20,13 +20,14 @@ var ErrProcessDone = errors.New("os: process already finished")
 // Process stores the information about a process created by StartProcess.
 type Process struct {
 	Pid    int
-	handle uintptr      // handle is accessed atomically on Windows
+	handle atomic.Uintptr
 	isdone atomic.Bool  // process has been successfully waited on
 	sigMu  sync.RWMutex // avoid race between wait and signal
 }
 
 func newProcess(pid int, handle uintptr) *Process {
-	p := &Process{Pid: pid, handle: handle}
+	p := &Process{Pid: pid}
+	p.handle.Store(handle)
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
