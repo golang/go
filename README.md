@@ -32,7 +32,7 @@ for source installation instructions.
 
 Go is the work of thousands of contributors. We appreciate your help!
 
-To contribute, read the [Contribution Guide][contribution-guide-url].
+To contribute, please read the [Contribution Guide][contribution-guide-url].
 
 > Note that the Go project restricts the [Github issue tracker](https://github.com/golang/go/issues) for bug reports and
 proposals only. See https://go.dev/wiki/Questions for a list of
