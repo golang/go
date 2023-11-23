@@ -114,9 +114,14 @@ func sleep(r *http.Request, d time.Duration) {
 	}
 }
 
-func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
+func configureWriteDeadline(w http.ResponseWriter, r *http.Request, seconds float64) {
 	srv, ok := r.Context().Value(http.ServerContextKey).(*http.Server)
-	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
+	if ok && srv.WriteTimeout > 0 {
+		timeout := srv.WriteTimeout + time.Duration(seconds*float64(time.Second))
+
+		rc := http.NewResponseController(w)
+		rc.SetWriteDeadline(time.Now().Add(timeout))
+	}
 }
 
 func serveError(w http.ResponseWriter, status int, txt string) {
@@ -137,10 +142,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		sec = 30
 	}
 
-	if durationExceedsWriteTimeout(r, float64(sec)) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+	configureWriteDeadline(w, r, float64(sec))
 
 	// Set Content Type assuming StartCPUProfile will work,
 	// because if it does it starts writing.
@@ -166,10 +168,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		sec = 1
 	}
 
-	if durationExceedsWriteTimeout(r, sec) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+	configureWriteDeadline(w, r, sec)
 
 	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
@@ -273,15 +272,14 @@ func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p 
 		serveError(w, http.StatusBadRequest, `invalid value for "seconds" - must be a positive integer`)
 		return
 	}
+	// 'name' should be a key in profileSupportsDelta.
 	if !profileSupportsDelta[name] {
 		serveError(w, http.StatusBadRequest, `"seconds" parameter is not supported for this profile type`)
 		return
 	}
-	// 'name' should be a key in profileSupportsDelta.
-	if durationExceedsWriteTimeout(r, float64(sec)) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+
+	configureWriteDeadline(w, r, float64(sec))
+
 	debug, _ := strconv.Atoi(r.FormValue("debug"))
 	if debug != 0 {
 		serveError(w, http.StatusBadRequest, "seconds and debug params are incompatible")
