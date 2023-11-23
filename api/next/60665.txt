@@ -1,6 +1,0 @@
-pkg crypto/x509, type Certificate struct, Policies []OID #60665
-pkg crypto/x509, type OID struct #60665
-pkg crypto/x509, method (OID) Equal(OID) bool #60665
-pkg crypto/x509, method (OID) EqualASN1OID(asn1.ObjectIdentifier) bool #60665
-pkg crypto/x509, method (OID) String() string #60665
-pkg crypto/x509, func OIDFromInts([]uint64) (OID, error) #60665

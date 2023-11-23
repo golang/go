@@ -97,7 +97,8 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
 }
 
 // dump writes all previously cached stacks to trace buffers,
-// releases all memory and resets state.
+// releases all memory and resets state. It must only be called once the caller
+// can guarantee that there are no more writers to the table.
 //
 // This must run on the system stack because it flushes buffers and thus
 // may acquire trace.lock.
@@ -107,7 +108,15 @@ func (t *traceStackTable) dump(gen uintptr) {
 	w := unsafeTraceWriter(gen, nil)
 
 	// Iterate over the table.
-	lock(&t.tab.lock)
+	//
+	// Do not acquire t.tab.lock. There's a conceptual lock cycle between acquiring this lock
+	// here and allocation-related locks. Specifically, this lock may be acquired when an event
+	// is emitted in allocation paths. Simultaneously, we might allocate here with the lock held,
+	// creating a cycle. In practice, this cycle is never exercised. Because the table is only
+	// dumped once there are no more writers, it's not possible for the cycle to occur. However
+	// the lockrank mode is not sophisticated enough to identify this, and if it's not possible
+	// for that cycle to happen, then it's also not possible for this to race with writers to
+	// the table.
 	for i := range t.tab.tab {
 		stk := t.tab.bucket(i)
 		for ; stk != nil; stk = stk.next() {
@@ -144,6 +153,9 @@ func (t *traceStackTable) dump(gen uintptr) {
 			}
 		}
 	}
+	// Still, hold the lock over reset. The callee expects it, even though it's
+	// not strictly necessary.
+	lock(&t.tab.lock)
 	t.tab.reset()
 	unlock(&t.tab.lock)
 

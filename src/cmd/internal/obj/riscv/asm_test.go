@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -275,5 +277,35 @@ func TestBranch(t *testing.T) {
 	cmd.Dir = "testdata/testbranch"
 	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
 		t.Errorf("Branch test failed: %v\n%s", err, out)
+	}
+}
+
+func TestPCAlign(t *testing.T) {
+	dir := t.TempDir()
+	tmpfile := filepath.Join(dir, "x.s")
+	asm := `
+TEXT _stub(SB),$0-0
+	FENCE
+	PCALIGN	$8
+	FENCE
+	RET
+`
+	if err := os.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("Failed to assemble: %v\n%s", err, out)
+	}
+	// The expected instruction sequence after alignment:
+	//	FENCE
+	//	NOP
+	//	FENCE
+	//	RET
+	want := "0f 00 f0 0f 13 00 00 00 0f 00 f0 0f 67 80 00 00"
+	if !strings.Contains(string(out), want) {
+		t.Errorf("PCALIGN test failed - got %s\nwant %s", out, want)
 	}
 }

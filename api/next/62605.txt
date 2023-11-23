@@ -1,1 +1,0 @@
-pkg go/types, type Info struct, FileVersions map[*ast.File]string #62605

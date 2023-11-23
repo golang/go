@@ -1,1 +1,0 @@
-pkg math/big, method (*Rat) FloatPrec() (int, bool) #50489

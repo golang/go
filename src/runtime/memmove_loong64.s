@@ -7,10 +7,12 @@
 // See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
-TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
+#ifndef GOEXPERIMENT_regabiargs
 	MOVV	to+0(FP), R4
 	MOVV	from+8(FP), R5
 	MOVV	n+16(FP), R6
+#endif
 	BNE	R6, check
 	RET
 
