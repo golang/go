@@ -811,7 +811,7 @@ func BenchmarkCompact_Large(b *testing.B) {
 		}
 	})
 	b.Run("no_dup", func(b *testing.B) {
-		ss :=make([]Large, N)
+		ss := make([]Large, N)
 		for i := range ss {
 			ss[i][0] = i
 		}
@@ -900,8 +900,8 @@ func BenchmarkCompactFunc(b *testing.B) {
 
 func BenchmarkCompactFunc_Large(b *testing.B) {
 	type Element = int
-	const N = 1024*1024
-	
+	const N = 1024 * 1024
+
 	b.Run("all_dup", func(b *testing.B) {
 		ss := make([]Element, N)
 		b.ResetTimer()
