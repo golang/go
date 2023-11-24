@@ -29,7 +29,7 @@ USHORT backtrace(ULONG FramesToCapture, PVOID *BackTrace) {
 		}
 
 		ControlPc = context.Rip;
-		// Check if we left the user range.
+        // Check if we left the user range.
 		if (ControlPc < 0x10000) {
 			break;
 		}
@@ -89,7 +89,7 @@ func testCallbackCallersSEH(t *testing.T) {
 		"test.testCallbackCallersSEH",
 		"test.TestCallbackCallersSEH",
 		"testing.tRunner",
-		"testing.(*T).Run.gowrap3",
+		"testing.(*T).Run.gowrap1",
 		"runtime.goexit",
 	}
 	pc := make([]uintptr, 100)
