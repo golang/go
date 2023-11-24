@@ -690,7 +690,15 @@ func (dir dirFS) ReadFile(name string) ([]byte, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readfile", Path: name, Err: err}
 	}
-	return ReadFile(fullname)
+	b, err := ReadFile(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return b, nil
 }
 
 // ReadDir reads the named directory, returning all its directory entries sorted
@@ -700,7 +708,15 @@ func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readdir", Path: name, Err: err}
 	}
-	return ReadDir(fullname)
+	entries, err := ReadDir(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return entries, nil
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
