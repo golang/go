@@ -5,7 +5,9 @@
 package fs_test
 
 import (
+	"errors"
 	. "io/fs"
+	"os"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -55,5 +57,21 @@ func TestReadFile(t *testing.T) {
 	data, err = ReadFile(sub, "hello.txt")
 	if string(data) != "hello, world" || err != nil {
 		t.Fatalf(`ReadFile(sub(.), "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
+	}
+}
+
+func TestReadFilePath(t *testing.T) {
+	errorPath := func(err error) string {
+		var perr *PathError
+		if !errors.As(err, &perr) {
+			return ""
+		}
+		return perr.Path
+	}
+	fsys := os.DirFS(t.TempDir())
+	_, err1 := ReadFile(fsys, "non-existent")
+	_, err2 := ReadFile(struct{ FS }{fsys}, "non-existent")
+	if s1, s2 := errorPath(err1), errorPath(err2); s1 != s2 {
+		t.Fatalf("s1: %s != s2: %s", s1, s2)
 	}
 }
