@@ -692,8 +692,10 @@ func (dir dirFS) ReadFile(name string) ([]byte, error) {
 	}
 	b, err := ReadFile(fullname)
 	if err != nil {
-		// See comment in dirFS.Open.
-		err.(*PathError).Path = name
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
 		return nil, err
 	}
 	return b, nil
@@ -708,8 +710,10 @@ func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
 	}
 	entries, err := ReadDir(fullname)
 	if err != nil {
-		// See comment in dirFS.Open.
-		err.(*PathError).Path = name
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
 		return nil, err
 	}
 	return entries, nil

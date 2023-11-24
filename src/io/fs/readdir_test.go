@@ -93,14 +93,15 @@ func TestFileInfoToDirEntry(t *testing.T) {
 	}
 }
 
-func TestReadDirPath(t *testing.T) {
-	errorPath := func(err error) string {
-		var perr *PathError
-		if !errors.As(err, &perr) {
-			return ""
-		}
-		return perr.Path
+func errorPath(err error) string {
+	var perr *PathError
+	if !errors.As(err, &perr) {
+		return ""
 	}
+	return perr.Path
+}
+
+func TestReadDirPath(t *testing.T) {
 	fsys := os.DirFS(t.TempDir())
 	_, err1 := ReadDir(fsys, "non-existent")
 	_, err2 := ReadDir(struct{ FS }{fsys}, "non-existent")

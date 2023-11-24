@@ -5,7 +5,6 @@
 package fs_test
 
 import (
-	"errors"
 	. "io/fs"
 	"os"
 	"testing"
@@ -61,13 +60,6 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestReadFilePath(t *testing.T) {
-	errorPath := func(err error) string {
-		var perr *PathError
-		if !errors.As(err, &perr) {
-			return ""
-		}
-		return perr.Path
-	}
 	fsys := os.DirFS(t.TempDir())
 	_, err1 := ReadFile(fsys, "non-existent")
 	_, err2 := ReadFile(struct{ FS }{fsys}, "non-existent")
