@@ -252,6 +252,20 @@ func findGOROOT() (string, error) {
 		}
 	})
 
+	info, err := os.Lstat(gorootPath)
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		gorootPath, err = os.Readlink(gorootPath)
+		if err != nil {
+			return "", err
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	os.Setenv("GOROOT", gorootPath)
 	return gorootPath, gorootErr
 }
 
