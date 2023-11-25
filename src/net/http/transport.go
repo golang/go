@@ -2560,10 +2560,11 @@ type httpError struct {
 	timeout bool
 }
 
-func (e *httpError) Error() string   { return e.err.Error() }
-func (e *httpError) Timeout() bool   { return e.timeout }
-func (e *httpError) Temporary() bool { return true }
+func (e *httpError) Error() string        { return e.err.Error() }
+func (e *httpError) Timeout() bool        { return e.timeout }
+func (e *httpError) Temporary() bool      { return true }
 func (e *httpError) Is(target error) bool { return errors.Is(e.err, target) }
+func (e *httpError) Unwrap() error        { return e.err }
 
 var errTimeout error = &httpError{err: errors.New("net/http: timeout awaiting response headers"), timeout: true}
 
