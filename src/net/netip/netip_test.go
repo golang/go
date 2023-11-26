@@ -218,7 +218,7 @@ func TestParseAddr(t *testing.T) {
 		"bad",
 		// Single number. Some parsers accept this as an IPv4 address in
 		// big-endian uint32 form, but we don't.
-		"1234",
+		// "1234",
 		// IPv4 with a zone specifier
 		"1.2.3.4%eth0",
 		// IPv4 field must have at least one digit
@@ -232,15 +232,12 @@ func TestParseAddr(t *testing.T) {
 		// IPv4 in dotted hex form
 		"0xc0.0xa8.0x8c.0xff",
 		// IPv4 in class B form
-		"192.168.12345",
+		// "192.168.12345",
 		// IPv4 in class B form, with a small enough number to be
 		// parseable as a regular dotted decimal field.
-		"127.0.1",
 		// IPv4 in class A form
-		"192.1234567",
 		// IPv4 in class A form, with a small enough number to be
 		// parseable as a regular dotted decimal field.
-		"127.1",
 		// IPv4 field has value >255
 		"192.168.300.1",
 		// IPv4 with too many fields
@@ -297,6 +294,67 @@ func TestParseAddr(t *testing.T) {
 			js := []byte(`"` + s + `"`)
 			if err := json.Unmarshal(js, &jsgot); err == nil {
 				t.Errorf("json.Unmarshal(%q) = %#v, want error", s, jsgot)
+			}
+		})
+	}
+}
+
+type shortIPCase struct {
+	in  string
+	out string
+}
+
+func genShortIP(count, a, b, c, d int) shortIPCase {
+	test := shortIPCase{
+		out: fmt.Sprintf("%d.%d.%d.%d", a, b, c, d),
+	}
+
+	switch count {
+	case 3:
+		test.in = fmt.Sprintf("%d.%d.%d", a, b, (c<<8)|d)
+	case 2:
+		test.in = fmt.Sprintf("%d.%d", a, (b<<16)|(c<<8)|d)
+	case 1:
+		v := (a << 24) | (b << 16) | (c << 8) | d
+		test.in = fmt.Sprintf("%d", v)
+	}
+
+	return test
+}
+
+func TestParseIPV4Short(t *testing.T) {
+
+	var shortIPCases = []shortIPCase{
+		genShortIP(3, 10, 20, 30, 40),
+		genShortIP(2, 10, 20, 30, 40),
+		genShortIP(1, 10, 20, 30, 40),
+	}
+
+	for _, test := range shortIPCases {
+		t.Run(test.in, func(t *testing.T) {
+			ip, err := ParseAddr(test.in)
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+				return
+			}
+
+			if got := ip.String(); got != test.out {
+				t.Errorf("ParseAddr(%q): got %s, expected %s", test.in, got, test.out)
+			}
+		})
+	}
+
+	var badIPCases = []string{
+		"10.20.65536",
+		"10.16777216",
+		"4294967296",
+	}
+
+	for _, s := range badIPCases {
+		t.Run(s, func(t *testing.T) {
+			ip, err := ParseAddr(s)
+			if err == nil {
+				t.Errorf("ParseAddr(%q): expected error, got %v", s, ip)
 			}
 		})
 	}

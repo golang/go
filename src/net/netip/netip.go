@@ -125,6 +125,13 @@ func ParseAddr(s string) (Addr, error) {
 			return Addr{}, parseAddrError{in: s, msg: "missing IPv6 address"}
 		}
 	}
+
+	// Single number IP
+	addr, err := parseIPv4(s)
+	if err == nil {
+		return addr, nil
+	}
+
 	return Addr{}, parseAddrError{in: s, msg: "unable to parse IP"}
 }
 
@@ -154,19 +161,20 @@ func (err parseAddrError) Error() string {
 
 // parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
 func parseIPv4(s string) (ip Addr, err error) {
-	var fields [4]uint8
-	var val, pos int
+	if len(s) == 0 {
+		return Addr{}, parseAddrError{in: s, msg: "unable to parse IP"}
+	}
+
+	var fields [4]uint
+	var val, pos uint
 	var digLen int // number of digits in current octet
 	for i := 0; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' {
 			if digLen == 1 && val == 0 {
 				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
 			}
-			val = val*10 + int(s[i]) - '0'
+			val = val*10 + uint(s[i]) - '0'
 			digLen++
-			if val > 255 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
-			}
 		} else if s[i] == '.' {
 			// .1.2.3
 			// 1.2.3.
@@ -178,7 +186,7 @@ func parseIPv4(s string) (ip Addr, err error) {
 			if pos == 3 {
 				return Addr{}, parseAddrError{in: s, msg: "IPv4 address too long"}
 			}
-			fields[pos] = uint8(val)
+			fields[pos] = val
 			pos++
 			val = 0
 			digLen = 0
@@ -186,11 +194,44 @@ func parseIPv4(s string) (ip Addr, err error) {
 			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
 		}
 	}
-	if pos < 3 {
-		return Addr{}, parseAddrError{in: s, msg: "IPv4 address too short"}
+	fields[pos] = val
+
+	switch pos {
+	// a.b.c.d  Each of the four numeric parts specifies a byte of the address
+	case 3:
+		// NOP
+	// a.b.c Parts a and b specify the first two bytes of the binary address.
+	// Part c is interpreted as a 16-bit value that defines the rightmost two bytes of the binary address
+	case 2:
+		c := fields[2]
+		fields[3] = c & 0xFF
+		fields[2] = (c >> 8)
+	// a.b  Part a specifies the first byte of the binary address.
+	// Part b is interpreted as a 24-bit value that defines the rightmost three bytes of the binary address.
+	case 1:
+		b := fields[1]
+		fields[3] = b & 0xFF
+		fields[2] = (b >> 8) & 0xFF
+		fields[1] = b >> 16
+	// a  The value a is interpreted as a 32-bit value that is stored directly into the binary address
+	// without any byte rearrangement.
+	case 0:
+		a := fields[0]
+		fields[3] = a & 0xFF
+		fields[2] = (a >> 8) & 0xFF
+		fields[1] = (a >> 16) & 0xFF
+		fields[0] = a >> 24
 	}
-	fields[3] = uint8(val)
-	return AddrFrom4(fields), nil
+
+	var bFields [4]uint8
+	for i, f := range fields {
+		if f > 0xFF {
+			return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
+		}
+		bFields[i] = uint8(f)
+	}
+
+	return AddrFrom4(bFields), nil
 }
 
 // parseIPv6 parses s as an IPv6 address (in form "2001:db8::68").
