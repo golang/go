@@ -216,9 +216,6 @@ func TestParseAddr(t *testing.T) {
 		"",
 		// Garbage non-IP
 		"bad",
-		// Single number. Some parsers accept this as an IPv4 address in
-		// big-endian uint32 form, but we don't.
-		// "1234",
 		// IPv4 with a zone specifier
 		"1.2.3.4%eth0",
 		// IPv4 field must have at least one digit
@@ -231,13 +228,6 @@ func TestParseAddr(t *testing.T) {
 		"0300.0250.0214.0377",
 		// IPv4 in dotted hex form
 		"0xc0.0xa8.0x8c.0xff",
-		// IPv4 in class B form
-		// "192.168.12345",
-		// IPv4 in class B form, with a small enough number to be
-		// parseable as a regular dotted decimal field.
-		// IPv4 in class A form
-		// IPv4 in class A form, with a small enough number to be
-		// parseable as a regular dotted decimal field.
 		// IPv4 field has value >255
 		"192.168.300.1",
 		// IPv4 with too many fields
