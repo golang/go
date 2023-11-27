@@ -156,6 +156,8 @@ var optabBase = []Optab{
 	{as: AOR, a1: C_U16CON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
 	{as: AOR, a1: C_S16CON, a6: C_REG, type_: 23, size: 8},
 	{as: AOR, a1: C_S16CON, a2: C_REG, a6: C_REG, type_: 23, size: 8},
+	{as: AOR, a1: C_U32CON, a2: C_REG, a6: C_REG, type_: 21, size: 8},
+	{as: AOR, a1: C_U32CON, a6: C_REG, type_: 21, size: 8},
 	{as: AOR, a1: C_32CON, a6: C_REG, type_: 23, size: 12},
 	{as: AOR, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 23, size: 12},
 	{as: AORIS, a1: C_U16CON, a6: C_REG, type_: 58, size: 4},
@@ -2284,6 +2286,8 @@ const (
 	OP_OR       = 31<<26 | 444<<1 | 0<<10 | 0
 	OP_ORI      = 24<<26 | 0<<1 | 0<<10 | 0
 	OP_ORIS     = 25<<26 | 0<<1 | 0<<10 | 0
+	OP_XORI     = 26<<26 | 0<<1 | 0<<10 | 0
+	OP_XORIS    = 27<<26 | 0<<1 | 0<<10 | 0
 	OP_RLWINM   = 21<<26 | 0<<1 | 0<<10 | 0
 	OP_RLWNM    = 23<<26 | 0<<1 | 0<<10 | 0
 	OP_SUBF     = 31<<26 | 40<<1 | 0<<10 | 0
@@ -2865,6 +2869,23 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 			r = int(p.To.Reg)
 		}
 		o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+
+	case 21: /* or $u32con,rx[,ry] => oris + ori (similar for xor) */
+		var opu, opl uint32
+		r := uint32(p.Reg)
+		if r == 0 {
+			r = uint32(p.To.Reg)
+		}
+		switch p.As {
+		case AOR:
+			opu, opl = OP_ORIS, OP_ORI
+		case AXOR:
+			opu, opl = OP_XORIS, OP_XORI
+		default:
+			c.ctxt.Diag("unhandled opcode.\n%v", p)
+		}
+		o1 = LOP_IRR(opu, uint32(p.To.Reg), r, uint32(p.From.Offset>>16))
+		o2 = LOP_IRR(opl, uint32(p.To.Reg), uint32(p.To.Reg), uint32(p.From.Offset)&0xFFFF)
 
 	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add, add $s34con,r1 ==> addis+ori+slw+ori+add */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
