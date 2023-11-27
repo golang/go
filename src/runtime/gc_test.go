@@ -573,6 +573,11 @@ func TestPageAccounting(t *testing.T) {
 	}
 }
 
+func init() {
+	// Enable ReadMemStats' double-check mode.
+	*runtime.DoubleCheckReadMemStats = true
+}
+
 func TestReadMemStats(t *testing.T) {
 	base, slow := runtime.ReadMemStatsSlow()
 	if base != slow {
