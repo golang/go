@@ -159,6 +159,12 @@ Go 1.22 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing the cipher suites which used RSA based key
 exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
 
+Go 1.22 disabled
+[`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
+when the connection supports neither TLS 1.3 nor Extended Master Secret
+(implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
+setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
+
 ### Go 1.21
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,

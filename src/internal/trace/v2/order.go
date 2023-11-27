@@ -206,6 +206,17 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 
 		// Validate that the M we're stealing from is what we expect.
 		mid := ThreadID(ev.args[2]) // The M we're stealing from.
+
+		if mid == curCtx.M {
+			// We're stealing from ourselves. This behaves like a ProcStop.
+			if curCtx.P != pid {
+				return curCtx, false, fmt.Errorf("tried to self-steal proc %d (thread %d), but got proc %d instead", pid, mid, curCtx.P)
+			}
+			newCtx.P = NoProc
+			return curCtx, true, nil
+		}
+
+		// We're stealing from some other M.
 		mState, ok := o.mStates[mid]
 		if !ok {
 			return curCtx, false, fmt.Errorf("stole proc from non-existent thread %d", mid)
@@ -525,6 +536,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// Get the parent ID, but don't validate it. There's no guarantee
 		// we actually have information on whether it's active.
 		parentID := TaskID(ev.args[1])
+		if parentID == BackgroundTask {
+			// Note: a value of 0 here actually means no parent, *not* the
+			// background task. Automatic background task attachment only
+			// applies to regions.
+			parentID = NoTask
+			ev.args[1] = uint64(NoTask)
+		}
 
 		// Validate the name and record it. We'll need to pass it through to
 		// EvUserTaskEnd.

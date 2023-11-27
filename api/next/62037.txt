@@ -1,2 +1,0 @@
-pkg go/types, method (*Info) PkgNameOf(*ast.ImportSpec) *PkgName #62037
-pkg go/types, method (Checker) PkgNameOf(*ast.ImportSpec) *PkgName #62037

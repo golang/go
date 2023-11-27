@@ -170,7 +170,7 @@ func smagicOK(n uint, c int64) bool {
 	return c&(c-1) != 0
 }
 
-// smagicOKn reports whether we should strength reduce an signed n-bit divide by c.
+// smagicOKn reports whether we should strength reduce a signed n-bit divide by c.
 func smagicOK8(c int8) bool   { return smagicOK(8, int64(c)) }
 func smagicOK16(c int16) bool { return smagicOK(16, int64(c)) }
 func smagicOK32(c int32) bool { return smagicOK(32, int64(c)) }

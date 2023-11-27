@@ -46,7 +46,7 @@ func TestReadMetrics(t *testing.T) {
 	oldLimit := debug.SetMemoryLimit(limit)
 	defer debug.SetMemoryLimit(oldLimit)
 
-	// Set an GC percent to check the metric for it
+	// Set a GC percent to check the metric for it
 	gcPercent := 99
 	oldGCPercent := debug.SetGCPercent(gcPercent)
 	defer debug.SetGCPercent(oldGCPercent)
@@ -964,6 +964,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		os.Setenv("GODEBUG", fmt.Sprintf("%s,profileruntimelocks=1", before))
 	}
 
+	t.Logf("NumCPU %d", runtime.NumCPU())
+	t.Logf("GOMAXPROCS %d", runtime.GOMAXPROCS(0))
+	if minCPU := 2; runtime.NumCPU() < minCPU {
+		t.Skipf("creating and observing contention on runtime-internal locks requires NumCPU >= %d", minCPU)
+	}
+
 	loadProfile := func(t *testing.T) *profile.Profile {
 		var w bytes.Buffer
 		pprof.Lookup("mutex").WriteTo(&w, 0)
@@ -1012,7 +1018,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		return metricGrowth, profileGrowth, p
 	}
 
-	testcase := func(stk []string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
+	testcase := func(strictTiming bool, stk []string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
 		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
 			metricGrowth, profileGrowth, p := measureDelta(t, func() {
 				var started, stopped sync.WaitGroup
@@ -1037,7 +1043,9 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			if profileGrowth == 0 {
 				t.Errorf("no increase in mutex profile")
 			}
-			if metricGrowth == 0 {
+			if metricGrowth == 0 && strictTiming {
+				// If the critical section is very short, systems with low timer
+				// resolution may be unable to measure it via nanotime.
 				t.Errorf("no increase in /sync/mutex/wait/total:seconds metric")
 			}
 			// This comparison is possible because the time measurements in support of
@@ -1092,7 +1100,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	t.Run("runtime.lock", func(t *testing.T) {
 		mus := make([]runtime.Mutex, 100)
 		var needContention atomic.Int64
-		delay := 10 * time.Microsecond
+		delay := 100 * time.Microsecond // large relative to system noise, for comparison between clocks
 		delayMicros := delay.Microseconds()
 
 		// The goroutine that acquires the lock will only proceed when it
@@ -1143,7 +1151,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(stk, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _ := testcase(true, stk, workers, fn)(t)
 
 			if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); have < want {
 				// The test imposes a delay with usleep, verified with calls to
@@ -1167,7 +1175,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(stk, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _ := testcase(true, stk, workers, fn)(t)
 
 			// With 100 trials and profile fraction of 2, we expect to capture
 			// 50 samples. Allow the test to pass if we get at least 20 samples;
@@ -1203,12 +1211,18 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		}
 
 		var sem uint32 = 1
+		var tries atomic.Int32
+		tries.Store(10_000_000) // prefer controlled failure to timeout
 		var sawContention atomic.Int32
-		var need int32 = 1000 // counteract low timer resolution by requiring more samples
+		var need int32 = 1
 		fn := func() bool {
 			if sawContention.Load() >= need {
 				return false
 			}
+			if tries.Add(-1) < 0 {
+				return false
+			}
+
 			runtime.Semacquire(&sem)
 			runtime.Semrelease1(&sem, false, 0)
 			if runtime.MutexContended(runtime.SemRootLock(&sem)) {
@@ -1225,11 +1239,11 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		}
 
 		// Verify that we get call stack we expect, with anything more than zero
-		// nanoseconds / zero samples. The duration of each contention event is
-		// too small relative to the expected overhead for us to verify its
-		// value more directly. Leave that to the explicit lock/unlock test.
+		// cycles / zero samples. The duration of each contention event is too
+		// small relative to the expected overhead for us to verify its value
+		// more directly. Leave that to the explicit lock/unlock test.
 
-		testcase(stk, workers, fn)(t)
+		testcase(false, stk, workers, fn)(t)
 	})
 }
 

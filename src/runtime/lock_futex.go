@@ -44,6 +44,10 @@ func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))
 }
 
+func mutexContended(l *mutex) bool {
+	return atomic.Load(key32(&l.key)) > mutex_locked
+}
+
 func lock(l *mutex) {
 	lockWithRank(l, getLockRank(l))
 }

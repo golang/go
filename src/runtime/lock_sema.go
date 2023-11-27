@@ -31,6 +31,10 @@ const (
 	passive_spin    = 1
 )
 
+func mutexContended(l *mutex) bool {
+	return atomic.Loaduintptr(&l.key) > locked
+}
+
 func lock(l *mutex) {
 	lockWithRank(l, getLockRank(l))
 }

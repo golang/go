@@ -307,7 +307,7 @@ type scavengerState struct {
 	// See sleepRatio for more details.
 	sleepController piController
 
-	// cooldown is the time left in nanoseconds during which we avoid
+	// controllerCooldown is the time left in nanoseconds during which we avoid
 	// using the controller and we hold sleepRatio at a conservative
 	// value. Used if the controller's assumptions fail to hold.
 	controllerCooldown int64

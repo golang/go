@@ -567,7 +567,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 	return case_, tab
 }
 
-// buildInterfaceSwitchCache constructs a interface switch cache
+// buildInterfaceSwitchCache constructs an interface switch cache
 // containing all the entries from oldC plus the new entry
 // (typ,case_,tab).
 func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {
