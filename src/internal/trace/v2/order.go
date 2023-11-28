@@ -485,7 +485,7 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// This event indicates that a goroutine is effectively
 		// being created out of a cgo callback. Such a goroutine
 		// is 'created' in the syscall state.
-		if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MustNotHave, Goroutine: event.MustNotHave}); err != nil {
+		if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MustNotHave}); err != nil {
 			return curCtx, false, err
 		}
 		// This goroutine is effectively being created. Add a state for it.

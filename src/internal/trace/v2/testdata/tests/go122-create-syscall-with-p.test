@@ -1,0 +1,22 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=34
+GoCreateSyscall dt=0 new_g=4
+ProcStatus dt=0 p=0 pstatus=2
+ProcStart dt=0 p=0 p_seq=1
+GoSyscallEndBlocked dt=0
+GoStart dt=0 g=4 g_seq=1
+GoSyscallBegin dt=0 p_seq=2 stack=0
+GoDestroySyscall dt=0
+GoCreateSyscall dt=0 new_g=4
+GoSyscallEnd dt=0
+GoSyscallBegin dt=0 p_seq=3 stack=0
+GoDestroySyscall dt=0
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Strings
