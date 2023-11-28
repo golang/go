@@ -629,6 +629,11 @@ func BenchmarkEqual(b *testing.B) {
 	})
 
 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
+
+	b.Run("same", func(b *testing.B) {
+		benchBytes(b, sizes, bmEqual(func(a, b []byte) bool { return Equal(a, a) }))
+	})
+
 	benchBytes(b, sizes, bmEqual(Equal))
 }
 
