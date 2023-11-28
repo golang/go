@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
-  - type: input
+  - type: textarea
     id: govulncheck-version
     attributes:
       label: govulncheck version
@@ -16,6 +16,7 @@ body:
         Scanner: govulncheck@v1.0.1
         DB: https://vuln.go.dev
         DB updated: 2023-11-27 18:53:31 +0000 UTC
+      render: shell
 
     validations:
       required: true
