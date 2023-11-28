@@ -570,8 +570,15 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="arm">Arm</h3>
 <p><!-- CL 514907 -->
-  TODO: <a href="https://go.dev/cl/514907">https://go.dev/cl/514907</a>: all: add floating point option for ARM targets
+  The <code>GOARM</code> environment variable now allows you to select whether to use software or hardware floating point.
+  Previously, valid <code>GOARM</code> values were <code>5</code>, <code>6</code>, or <code>7</code>. Now those same values can
+  be optionally followed by <code>,softfloat</code> or <code>,hardfloat</code> to select the floating-point implementation.
+</p>
+<p>
+  This new option defaults to <code>softfloat</code> for version <code>5</code> and <code>hardfloat</code> for versions
+  <code>6</code> and <code>7</code>.
 </p>
 
 <p><!-- CL 481315 -->
