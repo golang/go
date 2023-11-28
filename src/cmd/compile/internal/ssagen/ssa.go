@@ -7133,7 +7133,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
-	// Write one non-aggrgate arg/field/element.
+	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
 		if offset >= _special {
 			writebyte(_offsetTooLarge)
