@@ -18,12 +18,12 @@ body:
         What version of Go are you using (`go version`)?
 
         Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent major releases.
-      placeholder: ex. go version go1.20.7 darwin/arm64
+      placeholder: ex. go version go1.21.4 darwin/arm64
     validations:
       required: true
 
   - type: textarea
-    id: os-and-processor
+    id: go-env
     attributes:
       label: "What operating system and processor architecture are you using (`go env`)?"
       placeholder: |
@@ -50,7 +50,7 @@ body:
         GOTMPDIR=""
         GOTOOLDIR="/usr/local/go/pkg/tool/darwin_arm64"
         GOVCS=""
-        GOVERSION="go1.20.7"
+        GOVERSION="go1.21.4"
         GCCGO="gccgo"
         AR="ar"
         CC="clang"
@@ -81,6 +81,7 @@ body:
     id: expected-behavior
     attributes:
       label: "What did you expect to see?"
+      render: shell
     validations:
       required: true
 
