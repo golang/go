@@ -5,7 +5,7 @@ labels: ["vulncheck or vulndb"]
 body:
   - type: markdown
     attributes:
-      value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
+      value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the [Go vulnerability database](https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
   - type: textarea
     id: govulncheck-version
     attributes:
