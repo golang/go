@@ -23,7 +23,7 @@ body:
       required: true
 
   - type: textarea
-    id: go-env
+    id: os-and-processor
     attributes:
       label: "What operating system and processor architecture are you using (`go env`)?"
       placeholder: |
