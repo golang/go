@@ -90,6 +90,6 @@ body:
     id: logs
     attributes:
       label: "Logs"
-      description: "If possible please include gopls logs. Instructions for capturing them can be found [here](https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs)"
+      description: "If possible please include gopls logs. Instructions for capturing them can be found [here](https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs)."
     validations:
       required: false
