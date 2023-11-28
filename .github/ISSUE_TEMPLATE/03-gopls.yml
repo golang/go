@@ -64,7 +64,7 @@ body:
     id: what-did-you-do
     attributes:
       label: "What did you do?"
-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is better. A failing unit test is the best."
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is better. A failing unit test is the best."
     validations:
       required: true
   - type: textarea
@@ -90,6 +90,6 @@ body:
     id: logs
     attributes:
       label: "Logs"
-      description: "If possible please include gopls logs. Instructions for capturing them can be found here: https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs"
+      description: "If possible please include gopls logs. Instructions for capturing them can be found [here](https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs)"
     validations:
       required: false
