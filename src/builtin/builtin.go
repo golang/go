@@ -287,8 +287,8 @@ func panic(v any)
 // panicking, recover returns nil. Prior to Go 1.21, if the argument
 // supplied to panic was nil, recover would also return nil. Starting from
 // Go 1.21, if panic is called with a nil argument, recover resolves with a
-// PanicNilError. Thus the return value from recover reports whether the
-// goroutine is panicking.
+// [runtime.PanicNilError]. Thus the return value from recover reports
+// whether the goroutine is panicking.
 func recover() any
 
 // The print built-in function formats its arguments in an
