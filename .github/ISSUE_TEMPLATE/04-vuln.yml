@@ -12,10 +12,11 @@ body:
       label: govulncheck version
       description: What version of govulncheck are you using (`govulncheck -version`)?
       placeholder: |
-        Go: devel go1.22-0262ea1ff9 Thu Oct 26 18:46:50 2023 +0000
-        Scanner: govulncheck@v1.0.2-0.20231108200754-fcf7dff7b242
+        Go: go1.21.4
+        Scanner: govulncheck@v1.0.1
         DB: https://vuln.go.dev
-        DB updated: 2023-11-21 15:39:17 +0000 UTC
+        DB updated: 2023-11-27 18:53:31 +0000 UTC
+
     validations:
       required: true
   - type: textarea
@@ -25,9 +26,10 @@ body:
     validations:
       required: true
   - type: textarea
-    id: os-and-processor
+    id: go-env
     attributes:
-      label: "What operating system and processor architecture are you using (`go env`)?"
+      label: "go env"
+      description: "Output of `go env` on the command line in your workspace directory"
       placeholder: |
         GO111MODULE=""
         GOARCH="arm64"
