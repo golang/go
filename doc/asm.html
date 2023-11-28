@@ -468,11 +468,11 @@ Function is the outermost frame of the call stack. Traceback should stop at this
 
 <p>
 The <code>PCALIGN</code> pseudo-instruction is used to indicate that the next instruction should be aligned
-to a specified boundary by padding with NOOP instructions.
+to a specified boundary by padding with no-op instructions.
 </p>
 
 <p>
-It is currently supported in: arm64, amd64, ppc64, loong64 and riscv64.
+It is currently supported on arm64, amd64, ppc64, loong64 and riscv64.
 
 For example, the start of the <code>MOVD</code> instruction below is aligned to 32 bytes:
 <pre>
@@ -483,7 +483,7 @@ MOVD $2, R0
 
 <p>
 If a function has one or more PCALIGN directives,
-its address will be aligned to the same or coarser boundary, which is the maximum of all the
+its start address will be aligned to the same or coarser boundary, which is the maximum of all the
 alignment values.
 </p>
 
