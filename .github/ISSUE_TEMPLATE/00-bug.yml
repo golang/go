@@ -23,9 +23,10 @@ body:
       required: true
 
   - type: textarea
-    id: os-and-processor
+    id: go-env
     attributes:
-      label: "What operating system and processor architecture are you using (`go env`)?"
+      label: "go env"
+      description: "Output of `go env` on the command line in your workspace directory"
       placeholder: |
         GO111MODULE=""
         GOARCH="arm64"
