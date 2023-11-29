@@ -1656,17 +1656,17 @@ func (f *File) DynValue(tag DynTag) ([]uint64, error) {
 		return nil, err
 	}
 
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
+	}
+
 	// Parse the .dynamic section as a string of bytes.
 	var vals []uint64
 	for len(d) > 0 {
-		dynSize := 8
-		if f.Class == ELFCLASS64 {
-			dynSize = 16
-		}
-		if len(d)%dynSize != 0 {
-			return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
-		}
-
 		var t DynTag
 		var v uint64
 		switch f.Class {
