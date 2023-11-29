@@ -8,11 +8,9 @@
 // thread is calling into Go, creating a goroutine in
 // a syscall (in the tracer's model). Because the actual
 // m can be reused, it's possible for that m to have never
-// had its P (in _Psyscall) stolen.
-//
-// This is a regression test. The trace parser once required
-// GoCreateSyscall to not have a P, but it can in the scenario
-// described above.
+// had its P (in _Psyscall) stolen if the runtime doesn't
+// model the scenario correctly. Make sure we reject such
+// traces.
 
 package main
 
@@ -27,7 +25,7 @@ func main() {
 }
 
 func gen(t *testgen.Trace) {
-	t.DisableTimestamps()
+	t.ExpectFailure(".*expected a proc but didn't have one.*")
 
 	g := t.Generation(1)
 

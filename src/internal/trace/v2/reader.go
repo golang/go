@@ -85,6 +85,11 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		r.lastTs = e.base.time
 	}()
 
+	// Consume any extra events produced during parsing.
+	if ev := r.order.consumeExtraEvent(); ev.Kind() != EventBad {
+		return ev, nil
+	}
+
 	// Check if we need to refresh the generation.
 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
 		if !r.emittedSync {
