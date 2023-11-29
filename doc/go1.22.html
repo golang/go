@@ -26,7 +26,39 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  TODO: complete this section
+<!-- loop variable scope --><!-- range over int -->
+Go 1.22 makes two changes to "for" loops.
+<ul>
+  <li>
+    Previously, the variables declared by a "for" loop were created once and updated by each iteration. In Go 1.22, each iteration of the loop creates new variables, to avoid accidental sharing bugs.
+    The <a href="https://go.dev/wiki/LoopvarExperiment#my-test-fails-with-the-change-how-can-i-debug-it">transition support tooling</a>
+    described in the proposal continues to work in the same way it did in Go 1.21.
+  </li>
+  <li>
+    "For" loops may now range over integers.
+    For <a href="https://go.dev/play/p/ky02zZxgk_r?v=gotip">example</a>:
+<pre>
+package main
+
+import "fmt"
+
+func main() {
+  for i := range 10 {
+    fmt.Println(10 - i)
+  }
+  fmt.Println("go1.22 has lift-off!")
+}
+</pre>
+    See the spec for <a href="/ref/spec#For_range">details</a>.
+  </li>
+</ul>
+
+<!-- range over func GOEXPERIMENT; https://go.dev/issue/61405, https://go.dev/issue/61897, CLs 510541,539277,540263,543319 -->
+</p>
+<p>
+  Go 1.22 includes a preview of a language change we are considering
+  for a future version of Go: <a href="https://go.dev/wiki/RangefuncExperiment">range-over-function iterators</a>.
+  Building with <code>GOEXPERIMENT=rangefunc</code> enables this feature.
 </p>
 
 <h2 id="tools">Tools</h2>
