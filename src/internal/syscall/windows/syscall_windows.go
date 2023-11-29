@@ -36,7 +36,10 @@ const (
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+const (
+	GAA_FLAG_INCLUDE_PREFIX   = 0x00000010
+	GAA_FLAG_INCLUDE_GATEWAYS = 0x0080
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -96,6 +99,20 @@ type IpAdapterPrefix struct {
 	Next         *IpAdapterPrefix
 	Address      SocketAddress
 	PrefixLength uint32
+}
+
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
 }
 
 type IpAdapterAddresses struct {

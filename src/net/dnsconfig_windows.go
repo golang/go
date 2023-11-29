@@ -25,15 +25,18 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 	if err != nil {
 		return
 	}
-	// TODO(bradfitz): this just collects all the DNS servers on all
-	// the interfaces in some random order. It should order it by
-	// default route, or only use the default route(s) instead.
-	// In practice, however, it mostly works.
+
 	for _, aa := range aas {
 		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
 		if aa.OperStatus != windows.IfOperStatusUp {
 			continue
 		}
+
+		// Only take interfaces which have at least one gateway
+		if aa.FirstGatewayAddress == nil {
+			continue
+		}
+
 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
 			sa, err := dns.Address.Sockaddr.Sockaddr()
 			if err != nil {
