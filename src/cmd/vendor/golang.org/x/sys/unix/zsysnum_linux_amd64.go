@@ -369,4 +369,6 @@ const (
 	SYS_FUTEX_WAITV             = 449
 	SYS_SET_MEMPOLICY_HOME_NODE = 450
 	SYS_CACHESTAT               = 451
+	SYS_FCHMODAT2               = 452
+	SYS_MAP_SHADOW_STACK        = 453
 )

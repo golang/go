@@ -431,4 +431,5 @@ const (
 	SYS_FUTEX_WAITV                  = 4449
 	SYS_SET_MEMPOLICY_HOME_NODE      = 4450
 	SYS_CACHESTAT                    = 4451
+	SYS_FCHMODAT2                    = 4452
 )

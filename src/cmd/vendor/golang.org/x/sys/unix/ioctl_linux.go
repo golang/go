@@ -231,3 +231,8 @@ func IoctlLoopGetStatus64(fd int) (*LoopInfo64, error) {
 func IoctlLoopSetStatus64(fd int, value *LoopInfo64) error {
 	return ioctlPtr(fd, LOOP_SET_STATUS64, unsafe.Pointer(value))
 }
+
+// IoctlLoopConfigure configures all loop device parameters in a single step
+func IoctlLoopConfigure(fd int, value *LoopConfig) error {
+	return ioctlPtr(fd, LOOP_CONFIGURE, unsafe.Pointer(value))
+}

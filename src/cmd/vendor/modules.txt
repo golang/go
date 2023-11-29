@@ -17,7 +17,7 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307
+# golang.org/x/arch v0.6.0
 ## explicit; go 1.18
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
@@ -37,15 +37,15 @@ golang.org/x/mod/zip
 # golang.org/x/sync v0.5.0
 ## explicit; go 1.18
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
+# golang.org/x/sys v0.15.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
+# golang.org/x/term v0.15.0
 ## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53
+# golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
 ## explicit; go 1.18
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
