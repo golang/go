@@ -47,9 +47,11 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 				ip = make(IP, IPv6len)
 				copy(ip, sa.Addr[:])
 				if ip[0] == 0xfe && ip[1] == 0xc0 {
-					// Ignore these fec0/10 ones. Windows seems to
-					// populate them as defaults on its misc rando
-					// interfaces.
+					// fec0/10 IPv6 addresses are site local anycast DNS
+					// addresses Microsoft sets by default if no other
+					// IPv6 DNS address is set. Site local anycast is
+					// deprecated since 2004, see
+					// https://datatracker.ietf.org/doc/html/rfc3879
 					continue
 				}
 			default:
