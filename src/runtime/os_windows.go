@@ -122,8 +122,15 @@ var (
 	_LoadLibraryExW,
 	_ stdFunction
 
-	// Use ProcessPrng to generate cryptographically random data.
-	_ProcessPrng stdFunction
+	// Use RtlGenRandom to generate cryptographically random data.
+	// This approach has been recommended by Microsoft (see issue
+	// 15589 for details).
+	// The RtlGenRandom is not listed in advapi32.dll, instead
+	// RtlGenRandom function can be found by searching for SystemFunction036.
+	// Also some versions of Mingw cannot link to SystemFunction036
+	// when building executable as Cgo. So load SystemFunction036
+	// manually during runtime startup.
+	_RtlGenRandom stdFunction
 
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
@@ -249,12 +256,12 @@ func loadOptionalSyscalls() {
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
 
-	var bcryptprimitivesdll = []byte("bcryptprimitives.dll\000")
-	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll)
-	if bcryptPrimitives == 0 {
-		throw("bcryptprimitives.dll not found")
+	var advapi32dll = []byte("advapi32.dll\000")
+	a32 := windowsLoadSystemLib(advapi32dll)
+	if a32 == 0 {
+		throw("advapi32.dll not found")
 	}
-	_ProcessPrng = windowsFindfunc(bcryptPrimitives, []byte("ProcessPrng\000"))
+	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
 
 	var ntdll = []byte("ntdll.dll\000")
 	n32 := windowsLoadSystemLib(ntdll)
@@ -637,7 +644,7 @@ func initWine(k32 uintptr) {
 //go:nosplit
 func getRandomData(r []byte) {
 	n := 0
-	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+	if stdcall2(_RtlGenRandom, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
 		n = len(r)
 	}
 	extendRandom(r, n)
