@@ -30,11 +30,11 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 	// default route, or only use the default route(s) instead.
 	// In practice, however, it mostly works.
 	for _, aa := range aas {
+		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
+		if aa.OperStatus != windows.IfOperStatusUp {
+			continue
+		}
 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
-			// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
-			if aa.OperStatus != windows.IfOperStatusUp {
-				continue
-			}
 			sa, err := dns.Address.Sockaddr.Sockaddr()
 			if err != nil {
 				continue
