@@ -100,10 +100,11 @@ func (d domain) String() string {
 }
 
 type pair struct {
-	v, w *Value // a pair of values, ordered by ID.
+	// a pair of values, ordered by ID.
 	// v can be nil, to mean the zero value.
 	// for booleans the zero value (v == nil) is false.
-	d domain
+	v, w *Value
+	d    domain
 }
 
 // fact is a pair plus a relation for that pair.
@@ -165,7 +166,7 @@ type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
 
-	// order is a couple of partial order sets that record information
+	// order* is a couple of partial order sets that record information
 	// about relations between SSA values in the signed and unsigned
 	// domain.
 	orderS *poset

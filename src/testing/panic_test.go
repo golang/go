@@ -211,68 +211,57 @@ func TestPanicHelper(t *testing.T) {
 }
 
 func TestMorePanic(t *testing.T) {
-	subprocess := false
-	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
-		subprocess = true
-	} else {
-		testenv.MustHaveExec(t)
-		t.Parallel()
-	}
+	testenv.MustHaveExec(t)
 
 	testCases := []struct {
-		issue int
 		desc  string
-		f     func(*testing.T)
+		flags []string
 		want  string
 	}{
 		{
-			issue: 48502,
-			desc:  "runtime.Goexit in t.Cleanup after panic",
-			f: func(t *testing.T) {
-				t.Cleanup(func() {
-					t.Log("Goexiting in cleanup")
-					runtime.Goexit()
-				})
-				t.Parallel()
-				panic("die")
-			},
-			want: `panic: die [recovered]
-	panic: die`,
+			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
+			flags: []string{"-test.run=^TestGoexitInCleanupAfterPanicHelper$"},
+			want: `panic: die
+	panic: test executed panic(nil) or runtime.Goexit`,
 		},
 		{
-			issue: 48515,
-			desc:  "t.Run in t.Cleanup should trigger panic",
-			f: func(t *testing.T) {
-				t.Cleanup(func() {
-					t.Run("in-cleanup", func(t *testing.T) {
-						t.Log("must not be executed")
-					})
-				})
-			},
-			want: `panic: testing: t.Run called during t.Cleanup`,
+			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
+			flags: []string{"-test.run=^TestCallRunInCleanupHelper$"},
+			want:  `panic: testing: t.Run called during t.Cleanup`,
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-		t.Run(fmt.Sprintf("issue%v", tc.issue), func(t *testing.T) {
-			if subprocess {
-				tc.f(t)
-				return
-			}
-
-			t.Parallel()
-			cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
-			cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
-			b, _ := cmd.CombinedOutput()
-			got := string(b)
-			t.Logf("%v:\n%s", tc.desc, got)
-
-			want := tc.want
-			re := makeRegexp(want)
-			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-				t.Errorf("wanted:\n%s", want)
-			}
-		})
+		cmd := exec.Command(os.Args[0], tc.flags...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		b, _ := cmd.CombinedOutput()
+		got := string(b)
+		want := tc.want
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+		}
 	}
+}
+
+func TestCallRunInCleanupHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() {
+		t.Run("in-cleanup", func(t *testing.T) {
+			t.Log("must not be executed")
+		})
+	})
+}
+
+func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() { runtime.Goexit() })
+	t.Parallel()
+	panic("die")
 }

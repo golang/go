@@ -129,7 +129,7 @@ type Profile struct {
 	// the percentage threshold for hot/cold partitioning.
 	TotalWeight int64
 
-	// EdgeMap contains all unique call edges in the profile and their
+	// NamedEdgeMap contains all unique call edges in the profile and their
 	// edge weight.
 	NamedEdgeMap NamedEdgeMap
 

@@ -55,7 +55,7 @@ type query struct {
 	// path.
 	matchWildcard func(path string) bool
 
-	// canMatchWildcard, if non-nil, reports whether the module with the given
+	// canMatchWildcardInModule, if non-nil, reports whether the module with the given
 	// path could lexically contain a package matching pattern, which must be a
 	// wildcard.
 	canMatchWildcardInModule func(mPath string) bool

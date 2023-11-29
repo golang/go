@@ -1018,7 +1018,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		return metricGrowth, profileGrowth, p
 	}
 
-	testcase := func(strictTiming bool, stk []string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
+	testcase := func(strictTiming bool, acceptStacks [][]string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
 		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
 			metricGrowth, profileGrowth, p := measureDelta(t, func() {
 				var started, stopped sync.WaitGroup
@@ -1056,19 +1056,24 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			t.Logf("lock contention growth in runtime/pprof's view  (%fs)", profileGrowth)
 			t.Logf("lock contention growth in runtime/metrics' view (%fs)", metricGrowth)
 
-			if goexperiment.StaticLockRanking {
-				if !slices.ContainsFunc(stk, func(s string) bool {
-					return s == "runtime.systemstack" || s == "runtime.mcall" || s == "runtime.mstart"
-				}) {
-					// stk is a call stack that is still on the user stack when
-					// it calls runtime.unlock. Add the extra function that
-					// we'll see, when the static lock ranking implementation of
-					// runtime.unlockWithRank switches to the system stack.
-					stk = append([]string{"runtime.unlockWithRank"}, stk...)
+			acceptStacks = append([][]string(nil), acceptStacks...)
+			for i, stk := range acceptStacks {
+				if goexperiment.StaticLockRanking {
+					if !slices.ContainsFunc(stk, func(s string) bool {
+						return s == "runtime.systemstack" || s == "runtime.mcall" || s == "runtime.mstart"
+					}) {
+						// stk is a call stack that is still on the user stack when
+						// it calls runtime.unlock. Add the extra function that
+						// we'll see, when the static lock ranking implementation of
+						// runtime.unlockWithRank switches to the system stack.
+						stk = append([]string{"runtime.unlockWithRank"}, stk...)
+					}
 				}
+				acceptStacks[i] = stk
 			}
 
 			var stks [][]string
+			values := make([][2]int64, len(acceptStacks))
 			for _, s := range p.Sample {
 				var have []string
 				for _, loc := range s.Location {
@@ -1077,18 +1082,26 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 					}
 				}
 				stks = append(stks, have)
-				if slices.Equal(have, stk) {
-					n += s.Value[0]
-					value += s.Value[1]
+				for i, stk := range acceptStacks {
+					if slices.Equal(have, stk) {
+						values[i][0] += s.Value[0]
+						values[i][1] += s.Value[1]
+					}
 				}
 			}
-			t.Logf("stack %v has samples totaling n=%d value=%d", stk, n, value)
+			for i, stk := range acceptStacks {
+				n += values[i][0]
+				value += values[i][1]
+				t.Logf("stack %v has samples totaling n=%d value=%d", stk, values[i][0], values[i][1])
+			}
 			if n == 0 && value == 0 {
 				t.Logf("profile:\n%s", p)
 				for _, have := range stks {
 					t.Logf("have stack %v", have)
 				}
-				t.Errorf("want stack %v", stk)
+				for _, stk := range acceptStacks {
+					t.Errorf("want stack %v", stk)
+				}
 			}
 
 			return metricGrowth, profileGrowth, n, value
@@ -1140,18 +1153,18 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			return true
 		}
 
-		stk := []string{
+		stks := [][]string{{
 			"runtime.unlock",
 			"runtime_test." + name + ".func5.1",
 			"runtime_test.(*contentionWorker).run",
-		}
+		}}
 
 		t.Run("sample-1", func(t *testing.T) {
 			old := runtime.SetMutexProfileFraction(1)
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(true, stk, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
 
 			if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); have < want {
 				// The test imposes a delay with usleep, verified with calls to
@@ -1175,7 +1188,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(true, stk, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
 
 			// With 100 trials and profile fraction of 2, we expect to capture
 			// 50 samples. Allow the test to pass if we get at least 20 samples;
@@ -1231,11 +1244,20 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			return true
 		}
 
-		stk := []string{
-			"runtime.unlock",
-			"runtime.semrelease1",
-			"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
-			"runtime_test.(*contentionWorker).run",
+		stks := [][]string{
+			{
+				"runtime.unlock",
+				"runtime.semrelease1",
+				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
+				"runtime_test.(*contentionWorker).run",
+			},
+			{
+				"runtime.unlock",
+				"runtime.semacquire1",
+				"runtime.semacquire",
+				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
+				"runtime_test.(*contentionWorker).run",
+			},
 		}
 
 		// Verify that we get call stack we expect, with anything more than zero
@@ -1243,7 +1265,11 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		// small relative to the expected overhead for us to verify its value
 		// more directly. Leave that to the explicit lock/unlock test.
 
-		testcase(false, stk, workers, fn)(t)
+		testcase(false, stks, workers, fn)(t)
+
+		if remaining := tries.Load(); remaining >= 0 {
+			t.Logf("finished test early (%d tries remaining)", remaining)
+		}
 	})
 }
 
