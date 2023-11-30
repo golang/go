@@ -60,6 +60,22 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- add #cgo noescape/nocallback annotations -->
 </p>
 
+<h3 id="trace">Trace</h3>
+
+<!-- https://go.dev/issue/63960 -->
+<p>
+  The <code>trace</code> tool's web UI has been gently refreshed as part of the
+  work to support the new tracer, resolving several issues and improving the
+  readability of various sub-pages.
+  The web UI now supports exploring traces in a thread-oriented view.
+  The trace viewer also now displays the full duration of all system calls.
+  <br />
+  These improvements only apply for viewing traces produced by programs built with
+  Go 1.22 or newer.
+  A future release will bring some of these improvements to traces produced by older
+  version of Go.
+</p>
+
 <h3 id="vet">Vet</h3>
 
 <p><!-- CL 539016 -->
@@ -545,6 +561,35 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60773 -->
+      The execution tracer has been completely overhauled in this release, resolving several long-standing
+      issues and paving the way for new use-cases for execution traces.
+      <br />
+      Execution traces now use the operating system's clock on most platforms (Windows excluded) so
+      it is possible to correlate them with traces produced by lower-level components.
+      Execution traces no longer depend on the reliability of the platform's clock to produce a correct trace.
+      Execution traces are now partitioned regularly on-the-fly and as a result may be processed in a
+      streamable way.
+      Execution traces now contain complete durations for all system calls.
+      Execution traces now contain information about the operating system threads that goroutines executed on.
+      The latency impact of starting and stopping execution traces has been dramatically reduced.
+      Execution traces may now begin or end during the garbage collection mark phase.
+      <br />
+      To allow Go developers to take advantage of these improvements, an experimental
+      trace reading package is available at <a href="/pkg/golang.org/x/exp/trace">golang.org/x/exp/trace</a>.
+      Note that this package only works on traces produced by programs built with Go 1.22 at the moment.
+      Please try out the package and provide feedback on
+      <a href="https://github.com/golang/go/issues/62627">the corresponding proposal issue</a>.
+      <br />
+      If you experience any issues with the new execution tracer implementation, you may switch back to the
+      old implementation by building your Go program with <code>GOEXPERIMENT=noexectracer2</code>.
+      If you do, please file an issue, otherwise this option will be removed in a future release.
+    </p>
+  </dd>
+</dl><!-- runtime/trace -->
 
 <dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
   <dd>
