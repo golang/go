@@ -836,3 +836,40 @@ func zero_uint64_2(d1, d2 []uint64) {
 	d1[0], d1[1] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
 	d2[1], d2[0] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
 }
+
+func store32le(p *struct{ a, b uint32 }, x uint64) {
+	// amd64:"MOVQ",-"MOVL",-"SHRQ"
+	// arm64:"MOVD",-"MOVW",-"LSR"
+	// ppc64le:"MOVD",-"MOVW",-"SRD"
+	p.a = uint32(x)
+	// amd64:-"MOVL",-"SHRQ"
+	// arm64:-"MOVW",-"LSR"
+	// ppc64le:-"MOVW",-"SRD"
+	p.b = uint32(x >> 32)
+}
+func store32be(p *struct{ a, b uint32 }, x uint64) {
+	// ppc64:"MOVD",-"MOVW",-"SRD"
+	// s390x:"MOVD",-"MOVW",-"SRD"
+	p.a = uint32(x >> 32)
+	// ppc64:-"MOVW",-"SRD"
+	// s390x:-"MOVW",-"SRD"
+	p.b = uint32(x)
+}
+func store16le(p *struct{ a, b uint16 }, x uint32) {
+	// amd64:"MOVL",-"MOVW",-"SHRL"
+	// arm64:"MOVW",-"MOVH",-"UBFX"
+	// ppc64le:"MOVW",-"MOVH",-"SRW"
+	p.a = uint16(x)
+	// amd64:-"MOVW",-"SHRL"
+	// arm64:-"MOVH",-"UBFX"
+	// ppc64le:-"MOVH",-"SRW"
+	p.b = uint16(x >> 16)
+}
+func store16be(p *struct{ a, b uint16 }, x uint32) {
+	// ppc64:"MOVW",-"MOVH",-"SRW"
+	// s390x:"MOVW",-"MOVH",-"SRW"
+	p.a = uint16(x >> 16)
+	// ppc64:-"MOVH",-"SRW"
+	// s390x:-"MOVH",-"SRW"
+	p.b = uint16(x)
+}
