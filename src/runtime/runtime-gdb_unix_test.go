@@ -239,7 +239,7 @@ const coreCrashThreadSource = `
 package main
 
 /*
-#cgo CFLAGS: -g -O0 -Wall
+#cgo CFLAGS: -g -O0
 #include <stdio.h>
 #include <stddef.h>
 void trigger_crash()
