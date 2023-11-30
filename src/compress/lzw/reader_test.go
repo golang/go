@@ -294,7 +294,7 @@ func BenchmarkDecoder(b *testing.B) {
 			buf1 := getInputBuf(buf, n)
 			runtime.GC()
 			b.StartTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				io.Copy(io.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
 			}
 		})
@@ -305,7 +305,7 @@ func BenchmarkDecoder(b *testing.B) {
 			runtime.GC()
 			b.StartTimer()
 			r := NewReader(bytes.NewReader(buf1), LSB, 8)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				io.Copy(io.Discard, r)
 				r.Close()
 				r.(*Reader).Reset(bytes.NewReader(buf1), LSB, 8)

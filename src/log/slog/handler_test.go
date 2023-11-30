@@ -707,7 +707,7 @@ func BenchmarkWriteTime(b *testing.B) {
 	tm := time.Date(2022, 3, 4, 5, 6, 7, 823456789, time.Local)
 	b.ResetTimer()
 	var buf []byte
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf = appendRFC3339Millis(buf[:0], tm)
 	}
 }

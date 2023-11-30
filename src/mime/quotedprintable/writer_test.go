@@ -150,7 +150,7 @@ var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données
 	"Enfin, un signe égal suivi par un saut de ligne (donc la suite des trois caractères de codes ASCII 61, 13 et 10) peut être inséré n'importe où, afin de limiter la taille des lignes produites si nécessaire. Une limite de 76 caractères par ligne est généralement respectée.\r\n")
 
 func BenchmarkWriter(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w := NewWriter(io.Discard)
 		w.Write(testMsg)
 		w.Close()

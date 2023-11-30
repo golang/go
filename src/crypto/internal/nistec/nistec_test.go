@@ -280,7 +280,7 @@ func benchmarkScalarMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
 	rand.Read(scalar)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p.ScalarMult(p, scalar)
 	}
 }
@@ -305,7 +305,7 @@ func benchmarkScalarBaseMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) 
 	rand.Read(scalar)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p.ScalarBaseMult(scalar)
 	}
 }

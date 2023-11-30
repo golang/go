@@ -653,25 +653,25 @@ func TestParseFloatIncorrectBitSize(t *testing.T) {
 }
 
 func BenchmarkAtof64Decimal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("33909", 64)
 	}
 }
 
 func BenchmarkAtof64Float(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("339.7784", 64)
 	}
 }
 
 func BenchmarkAtof64FloatExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("-5.09e75", 64)
 	}
 }
 
 func BenchmarkAtof64Big(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("123456789123456789123456789", 64)
 	}
 }
@@ -679,7 +679,7 @@ func BenchmarkAtof64Big(b *testing.B) {
 func BenchmarkAtof64RandomBits(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		ParseFloat(benchmarksRandomBits[i%1024], 64)
 	}
 }
@@ -687,7 +687,7 @@ func BenchmarkAtof64RandomBits(b *testing.B) {
 func BenchmarkAtof64RandomFloats(b *testing.B) {
 	initAtof()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
 	}
 }
@@ -700,7 +700,7 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 	}
 	b.ResetTimer()
 	idx := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat(samples[idx], 64)
 		idx++
 		if idx == len(samples) {
@@ -710,19 +710,19 @@ func BenchmarkAtof64RandomLongFloats(b *testing.B) {
 }
 
 func BenchmarkAtof32Decimal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("33909", 32)
 	}
 }
 
 func BenchmarkAtof32Float(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("339.778", 32)
 	}
 }
 
 func BenchmarkAtof32FloatExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseFloat("12.3456e32", 32)
 	}
 }
@@ -735,7 +735,7 @@ func BenchmarkAtof32Random(b *testing.B) {
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		ParseFloat(float32strings[i%4096], 32)
 	}
 }
@@ -748,7 +748,7 @@ func BenchmarkAtof32RandomLong(b *testing.B) {
 		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', 20, 32)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		ParseFloat(float32strings[i%4096], 32)
 	}
 }

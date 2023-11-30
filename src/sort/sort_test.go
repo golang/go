@@ -214,7 +214,7 @@ func BenchmarkSortString1K(b *testing.B) {
 	}
 	data := make([]string, len(unsorted))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(data, unsorted)
 		b.StartTimer()
 		Strings(data)
@@ -230,7 +230,7 @@ func BenchmarkSortString1K_Slice(b *testing.B) {
 	}
 	data := make([]string, len(unsorted))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(data, unsorted)
 		b.StartTimer()
 		Slice(data, func(i, j int) bool { return data[i] < data[j] })
@@ -246,7 +246,7 @@ func BenchmarkStableString1K(b *testing.B) {
 	}
 	data := make([]string, len(unsorted))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(data, unsorted)
 		b.StartTimer()
 		Stable(StringSlice(data))
@@ -256,7 +256,7 @@ func BenchmarkStableString1K(b *testing.B) {
 
 func BenchmarkSortInt1K(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0x2cc
@@ -269,7 +269,7 @@ func BenchmarkSortInt1K(b *testing.B) {
 
 func BenchmarkSortInt1K_Sorted(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = i
@@ -282,7 +282,7 @@ func BenchmarkSortInt1K_Sorted(b *testing.B) {
 
 func BenchmarkSortInt1K_Reversed(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = len(data) - i
@@ -295,7 +295,7 @@ func BenchmarkSortInt1K_Reversed(b *testing.B) {
 
 func BenchmarkSortInt1K_Mod8(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = i % 8
@@ -313,7 +313,7 @@ func BenchmarkStableInt1K(b *testing.B) {
 		unsorted[i] = i ^ 0x2cc
 	}
 	data := make([]int, len(unsorted))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(data, unsorted)
 		b.StartTimer()
 		Stable(IntSlice(data))
@@ -328,7 +328,7 @@ func BenchmarkStableInt1K_Slice(b *testing.B) {
 		unsorted[i] = i ^ 0x2cc
 	}
 	data := make([]int, len(unsorted))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(data, unsorted)
 		b.StartTimer()
 		SliceStable(data, func(i, j int) bool { return data[i] < data[j] })
@@ -338,7 +338,7 @@ func BenchmarkStableInt1K_Slice(b *testing.B) {
 
 func BenchmarkSortInt64K(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<16)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0xcccc
@@ -351,7 +351,7 @@ func BenchmarkSortInt64K(b *testing.B) {
 
 func BenchmarkSortInt64K_Slice(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<16)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0xcccc
@@ -364,7 +364,7 @@ func BenchmarkSortInt64K_Slice(b *testing.B) {
 
 func BenchmarkStableInt64K(b *testing.B) {
 	b.StopTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		data := make([]int, 1<<16)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0xcccc
@@ -721,7 +721,7 @@ func bench(b *testing.B, size int, algo func(Interface), name string) {
 	b.StopTimer()
 	data := make(intPairs, size)
 	x := ^uint32(0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for n := size - 3; n <= size+3; n++ {
 			for i := 0; i < len(data); i++ {
 				x += x

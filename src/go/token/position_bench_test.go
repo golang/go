@@ -18,7 +18,7 @@ func BenchmarkSearchInts(b *testing.B) {
 		b.Errorf("got index = %d; want %d", r, x)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		searchInts(data, x)
 	}
 }

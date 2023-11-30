@@ -39,7 +39,7 @@ func TestClone(t *testing.T) {
 func BenchmarkClone(b *testing.B) {
 	var str = strings.Repeat("a", 42)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		stringSink = strings.Clone(str)
 	}
 }

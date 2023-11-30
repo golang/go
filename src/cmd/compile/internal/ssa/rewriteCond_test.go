@@ -518,7 +518,7 @@ func benchSoloJump(b *testing.B) {
 	d := rnd.Int63n(10)
 
 	// 6 out 10 conditions evaluate to true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if r1+r2 < 0 {
 			d *= 2
 			d /= 2
@@ -580,7 +580,7 @@ func benchCombJump(b *testing.B) {
 	d := rnd.Int63n(10)
 
 	// 6 out 10 conditions evaluate to true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if r1+r2 <= 0 {
 			d *= 2
 			d /= 2

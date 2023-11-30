@@ -70,7 +70,7 @@ func BenchmarkBoringVerify(b *testing.B) {
 
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		err := VerifyPKCS1v15(key, crypto.SHA1, hash, sig)
 		if err == nil {
 			b.Fatalf("sha1: expected verification error")

@@ -488,7 +488,7 @@ func benchmarkNew(b *testing.B, random bool) {
 	}
 	b.StartTimer()
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		New(data)
 	}
 }
@@ -568,7 +568,7 @@ func BenchmarkNew(b *testing.B) {
 
 							b.SetBytes(int64(len(data)))
 							b.ReportAllocs()
-							for i := 0; i < b.N; i++ {
+							for range b.N {
 								New(data)
 							}
 						})
@@ -600,7 +600,7 @@ func BenchmarkSaveRestore(b *testing.B) {
 			b.SetBytes(int64(size))
 			b.StartTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf.Reset()
 				if err := x.Write(buf); err != nil {
 					b.Fatal(err)

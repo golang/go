@@ -10,7 +10,7 @@ func BenchmarkAdd(b *testing.B) {
 	x := new(Element).One()
 	y := new(Element).Add(x, x)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Add(x, y)
 	}
 }
@@ -19,7 +19,7 @@ func BenchmarkMultiply(b *testing.B) {
 	x := new(Element).One()
 	y := new(Element).Add(x, x)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Multiply(x, y)
 	}
 }
@@ -27,7 +27,7 @@ func BenchmarkMultiply(b *testing.B) {
 func BenchmarkSquare(b *testing.B) {
 	x := new(Element).Add(feOne, feOne)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Square(x)
 	}
 }
@@ -35,7 +35,7 @@ func BenchmarkSquare(b *testing.B) {
 func BenchmarkInvert(b *testing.B) {
 	x := new(Element).Add(feOne, feOne)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Invert(x)
 	}
 }
@@ -43,7 +43,7 @@ func BenchmarkInvert(b *testing.B) {
 func BenchmarkMult32(b *testing.B) {
 	x := new(Element).One()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Mult32(x, 0xaa42aa42)
 	}
 }

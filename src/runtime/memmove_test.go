@@ -294,7 +294,7 @@ func BenchmarkMemmove(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		y := make([]byte, n)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x, y)
 		}
 	})
@@ -303,7 +303,7 @@ func BenchmarkMemmove(b *testing.B) {
 func BenchmarkMemmoveOverlap(b *testing.B) {
 	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
 		x := make([]byte, n+16)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x[16:n+16], x[:n])
 		}
 	})
@@ -313,7 +313,7 @@ func BenchmarkMemmoveUnalignedDst(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
 		x := make([]byte, n+1)
 		y := make([]byte, n)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x[1:], y)
 		}
 	})
@@ -322,7 +322,7 @@ func BenchmarkMemmoveUnalignedDst(b *testing.B) {
 func BenchmarkMemmoveUnalignedDstOverlap(b *testing.B) {
 	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
 		x := make([]byte, n+16)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x[16:n+16], x[1:n+1])
 		}
 	})
@@ -332,7 +332,7 @@ func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		y := make([]byte, n+1)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x, y[1:])
 		}
 	})
@@ -346,14 +346,14 @@ func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
 		for _, off := range []int{0, 1, 4, 7} {
 			b.Run(fmt.Sprint("f_", n, off), func(b *testing.B) {
 				b.SetBytes(int64(n))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					copy(x[off:n+off], y[off:n+off])
 				}
 			})
 
 			b.Run(fmt.Sprint("b_", n, off), func(b *testing.B) {
 				b.SetBytes(int64(n))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					copy(y[off:n+off], x[off:n+off])
 				}
 			})
@@ -364,7 +364,7 @@ func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
 func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
 	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
 		x := make([]byte, n+1)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			copy(x[1:n+1], x[:n])
 		}
 	})
@@ -407,7 +407,7 @@ func BenchmarkMemclr(b *testing.B) {
 		x := make([]byte, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				MemclrBytes(x)
 			}
 		})
@@ -416,7 +416,7 @@ func BenchmarkMemclr(b *testing.B) {
 		x := make([]byte, m<<20)
 		b.Run(fmt.Sprint(m, "M"), func(b *testing.B) {
 			b.SetBytes(int64(m << 20))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				MemclrBytes(x)
 			}
 		})
@@ -429,7 +429,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 			x := make([]byte, n+off)
 			b.Run(fmt.Sprint(off, n), func(b *testing.B) {
 				b.SetBytes(int64(n))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					MemclrBytes(x[off:])
 				}
 			})
@@ -441,7 +441,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 			x := make([]byte, (m<<20)+off)
 			b.Run(fmt.Sprint(off, m, "M"), func(b *testing.B) {
 				b.SetBytes(int64(m << 20))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					MemclrBytes(x[off:])
 				}
 			})
@@ -452,7 +452,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 func BenchmarkGoMemclr(b *testing.B) {
 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
 		x := make([]byte, n)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for j := range x {
 				x[j] = 0
 			}
@@ -506,7 +506,7 @@ func BenchmarkMemclrRange(b *testing.B) {
 		}
 		b.Run(text, func(b *testing.B) {
 			b.SetBytes(int64(total))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				for _, clrLen := range t.data {
 					MemclrBytes(buffer[:clrLen])
 				}
@@ -519,7 +519,7 @@ func BenchmarkClearFat7(b *testing.B) {
 	p := new([7]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [7]byte{}
 	}
 }
@@ -528,7 +528,7 @@ func BenchmarkClearFat8(b *testing.B) {
 	p := new([8 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [8 / 4]uint32{}
 	}
 }
@@ -537,7 +537,7 @@ func BenchmarkClearFat11(b *testing.B) {
 	p := new([11]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [11]byte{}
 	}
 }
@@ -546,7 +546,7 @@ func BenchmarkClearFat12(b *testing.B) {
 	p := new([12 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [12 / 4]uint32{}
 	}
 }
@@ -555,7 +555,7 @@ func BenchmarkClearFat13(b *testing.B) {
 	p := new([13]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [13]byte{}
 	}
 }
@@ -564,7 +564,7 @@ func BenchmarkClearFat14(b *testing.B) {
 	p := new([14]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [14]byte{}
 	}
 }
@@ -573,7 +573,7 @@ func BenchmarkClearFat15(b *testing.B) {
 	p := new([15]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [15]byte{}
 	}
 }
@@ -582,7 +582,7 @@ func BenchmarkClearFat16(b *testing.B) {
 	p := new([16 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [16 / 4]uint32{}
 	}
 }
@@ -591,7 +591,7 @@ func BenchmarkClearFat24(b *testing.B) {
 	p := new([24 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [24 / 4]uint32{}
 	}
 }
@@ -600,7 +600,7 @@ func BenchmarkClearFat32(b *testing.B) {
 	p := new([32 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [32 / 4]uint32{}
 	}
 }
@@ -609,7 +609,7 @@ func BenchmarkClearFat40(b *testing.B) {
 	p := new([40 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [40 / 4]uint32{}
 	}
 }
@@ -618,7 +618,7 @@ func BenchmarkClearFat48(b *testing.B) {
 	p := new([48 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [48 / 4]uint32{}
 	}
 }
@@ -627,7 +627,7 @@ func BenchmarkClearFat56(b *testing.B) {
 	p := new([56 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [56 / 4]uint32{}
 	}
 }
@@ -636,7 +636,7 @@ func BenchmarkClearFat64(b *testing.B) {
 	p := new([64 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [64 / 4]uint32{}
 	}
 }
@@ -645,7 +645,7 @@ func BenchmarkClearFat72(b *testing.B) {
 	p := new([72 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [72 / 4]uint32{}
 	}
 }
@@ -654,7 +654,7 @@ func BenchmarkClearFat128(b *testing.B) {
 	p := new([128 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [128 / 4]uint32{}
 	}
 }
@@ -663,7 +663,7 @@ func BenchmarkClearFat256(b *testing.B) {
 	p := new([256 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [256 / 4]uint32{}
 	}
 }
@@ -672,7 +672,7 @@ func BenchmarkClearFat512(b *testing.B) {
 	p := new([512 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [512 / 4]uint32{}
 	}
 }
@@ -681,7 +681,7 @@ func BenchmarkClearFat1024(b *testing.B) {
 	p := new([1024 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [1024 / 4]uint32{}
 	}
 }
@@ -690,7 +690,7 @@ func BenchmarkClearFat1032(b *testing.B) {
 	p := new([1032 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [1032 / 4]uint32{}
 	}
 }
@@ -699,7 +699,7 @@ func BenchmarkClearFat1040(b *testing.B) {
 	p := new([1040 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = [1040 / 4]uint32{}
 	}
 }
@@ -709,7 +709,7 @@ func BenchmarkCopyFat7(b *testing.B) {
 	p := new([7]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -719,7 +719,7 @@ func BenchmarkCopyFat8(b *testing.B) {
 	p := new([8 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -729,7 +729,7 @@ func BenchmarkCopyFat11(b *testing.B) {
 	p := new([11]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -739,7 +739,7 @@ func BenchmarkCopyFat12(b *testing.B) {
 	p := new([12 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -749,7 +749,7 @@ func BenchmarkCopyFat13(b *testing.B) {
 	p := new([13]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -759,7 +759,7 @@ func BenchmarkCopyFat14(b *testing.B) {
 	p := new([14]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -769,7 +769,7 @@ func BenchmarkCopyFat15(b *testing.B) {
 	p := new([15]byte)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -779,7 +779,7 @@ func BenchmarkCopyFat16(b *testing.B) {
 	p := new([16 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -789,7 +789,7 @@ func BenchmarkCopyFat24(b *testing.B) {
 	p := new([24 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -799,7 +799,7 @@ func BenchmarkCopyFat32(b *testing.B) {
 	p := new([32 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -809,7 +809,7 @@ func BenchmarkCopyFat64(b *testing.B) {
 	p := new([64 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -819,7 +819,7 @@ func BenchmarkCopyFat72(b *testing.B) {
 	p := new([72 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -829,7 +829,7 @@ func BenchmarkCopyFat128(b *testing.B) {
 	p := new([128 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -839,7 +839,7 @@ func BenchmarkCopyFat256(b *testing.B) {
 	p := new([256 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -849,7 +849,7 @@ func BenchmarkCopyFat512(b *testing.B) {
 	p := new([512 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -859,7 +859,7 @@ func BenchmarkCopyFat520(b *testing.B) {
 	p := new([520 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -869,7 +869,7 @@ func BenchmarkCopyFat1024(b *testing.B) {
 	p := new([1024 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -879,7 +879,7 @@ func BenchmarkCopyFat1032(b *testing.B) {
 	p := new([1032 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -889,7 +889,7 @@ func BenchmarkCopyFat1040(b *testing.B) {
 	p := new([1040 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		*p = x
 	}
 }
@@ -928,7 +928,7 @@ func BenchmarkMemclrKnownSize1(b *testing.B) {
 	var x [1]int8
 
 	b.SetBytes(1)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -940,7 +940,7 @@ func BenchmarkMemclrKnownSize2(b *testing.B) {
 	var x [2]int8
 
 	b.SetBytes(2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -952,7 +952,7 @@ func BenchmarkMemclrKnownSize4(b *testing.B) {
 	var x [4]int8
 
 	b.SetBytes(4)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -964,7 +964,7 @@ func BenchmarkMemclrKnownSize8(b *testing.B) {
 	var x [8]int8
 
 	b.SetBytes(8)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -976,7 +976,7 @@ func BenchmarkMemclrKnownSize16(b *testing.B) {
 	var x [16]int8
 
 	b.SetBytes(16)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -988,7 +988,7 @@ func BenchmarkMemclrKnownSize32(b *testing.B) {
 	var x [32]int8
 
 	b.SetBytes(32)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1000,7 +1000,7 @@ func BenchmarkMemclrKnownSize64(b *testing.B) {
 	var x [64]int8
 
 	b.SetBytes(64)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1012,7 +1012,7 @@ func BenchmarkMemclrKnownSize112(b *testing.B) {
 	var x [112]int8
 
 	b.SetBytes(112)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1025,7 +1025,7 @@ func BenchmarkMemclrKnownSize128(b *testing.B) {
 	var x [128]int8
 
 	b.SetBytes(128)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1038,7 +1038,7 @@ func BenchmarkMemclrKnownSize192(b *testing.B) {
 	var x [192]int8
 
 	b.SetBytes(192)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1051,7 +1051,7 @@ func BenchmarkMemclrKnownSize248(b *testing.B) {
 	var x [248]int8
 
 	b.SetBytes(248)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1064,7 +1064,7 @@ func BenchmarkMemclrKnownSize256(b *testing.B) {
 	var x [256]int8
 
 	b.SetBytes(256)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1076,7 +1076,7 @@ func BenchmarkMemclrKnownSize512(b *testing.B) {
 	var x [512]int8
 
 	b.SetBytes(512)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1088,7 +1088,7 @@ func BenchmarkMemclrKnownSize1024(b *testing.B) {
 	var x [1024]int8
 
 	b.SetBytes(1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1100,7 +1100,7 @@ func BenchmarkMemclrKnownSize4096(b *testing.B) {
 	var x [4096]int8
 
 	b.SetBytes(4096)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}
@@ -1112,7 +1112,7 @@ func BenchmarkMemclrKnownSize512KiB(b *testing.B) {
 	var x [524288]int8
 
 	b.SetBytes(524288)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for a := range x {
 			x[a] = 0
 		}

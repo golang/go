@@ -323,7 +323,7 @@ func BenchmarkPoolSTW(b *testing.B) {
 	var pauses []uint64
 
 	var p Pool
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Put a large number of items into a pool.
 		const N = 100000
 		var item any = 42

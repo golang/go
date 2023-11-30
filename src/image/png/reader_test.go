@@ -848,7 +848,7 @@ func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
 	b.SetBytes(int64(cfg.Width * cfg.Height * bytesPerPixel))
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Decode(bytes.NewReader(data))
 	}
 }

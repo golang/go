@@ -357,19 +357,19 @@ func TestIsJsMimeType(t *testing.T) {
 }
 
 func BenchmarkJSValEscaperWithNum(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsValEscaper(3.141592654)
 	}
 }
 
 func BenchmarkJSValEscaperWithStr(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsValEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }
 
 func BenchmarkJSValEscaperWithStrNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsValEscaper("The quick, brown fox jumps over the lazy dog")
 	}
 }
@@ -382,7 +382,7 @@ func BenchmarkJSValEscaperWithObj(b *testing.B) {
 		"The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>\u2028",
 		42,
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsValEscaper(o)
 	}
 }
@@ -395,31 +395,31 @@ func BenchmarkJSValEscaperWithObjNoSpecials(b *testing.B) {
 		"The quick, brown fox jumps over the lazy dog",
 		42,
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsValEscaper(o)
 	}
 }
 
 func BenchmarkJSStrEscaperNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsStrEscaper("The quick, brown fox jumps over the lazy dog.")
 	}
 }
 
 func BenchmarkJSStrEscaper(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsStrEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }
 
 func BenchmarkJSRegexpEscaperNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsRegexpEscaper("The quick, brown fox jumps over the lazy dog")
 	}
 }
 
 func BenchmarkJSRegexpEscaper(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		jsRegexpEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }

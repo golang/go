@@ -30,7 +30,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
 			buf := make([]byte, size)
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
 				m.r = newPcgRand()
@@ -58,7 +58,7 @@ func BenchmarkMutatorString(b *testing.B) {
 			buf := make([]byte, size)
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
 				m.r = newPcgRand()
@@ -93,7 +93,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 
 	for _, t := range types {
 		b.Run(fmt.Sprintf("%T", t), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				m.r = newPcgRand()
 				m.mutate([]any{t}, workerSharedMemSize)
 			}

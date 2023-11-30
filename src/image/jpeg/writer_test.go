@@ -261,7 +261,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	options := &Options{Quality: 90}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img, options)
 	}
 }
@@ -283,7 +283,7 @@ func BenchmarkEncodeYCbCr(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	options := &Options{Quality: 90}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img, options)
 	}
 }

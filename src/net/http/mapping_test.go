@@ -112,7 +112,7 @@ func BenchmarkFindChild(b *testing.B) {
 					entries = append(entries, entry[string, any]{c, nil})
 				}
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					findChildLinear(key, entries)
 				}
 			})
@@ -123,7 +123,7 @@ func BenchmarkFindChild(b *testing.B) {
 				}
 				var x any
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					x = m[key]
 				}
 				_ = x
@@ -135,7 +135,7 @@ func BenchmarkFindChild(b *testing.B) {
 				}
 				var x any
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					x, _ = h.find(key)
 				}
 				_ = x

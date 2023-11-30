@@ -242,7 +242,7 @@ func BenchmarkIs(b *testing.B) {
 	err1 := errors.New("1")
 	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !errors.Is(err2, err1) {
 			b.Fatal("Is failed")
 		}
@@ -251,7 +251,7 @@ func BenchmarkIs(b *testing.B) {
 
 func BenchmarkAs(b *testing.B) {
 	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var target errorT
 		if !errors.As(err, &target) {
 			b.Fatal("As failed")

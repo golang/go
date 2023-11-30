@@ -84,7 +84,7 @@ func TestInvalidHandle(t *testing.T) {
 
 func BenchmarkHandle(b *testing.B) {
 	b.Run("non-concurrent", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			h := NewHandle(i)
 			_ = h.Value()
 			h.Delete()

@@ -38,7 +38,7 @@ func randomNumerators() []uint32 {
 
 func bmUint32Div(divisor uint32, b *testing.B) {
 	var sum uint32
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += numerators[i&(numeratorsSize-1)] / divisor
 	}
 }
@@ -56,7 +56,7 @@ func BenchmarkUint32Div106956295(b *testing.B) { bmUint32Div(106956295, b) }
 
 func bmUint32Mod(divisor uint32, b *testing.B) {
 	var sum uint32
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += numerators[i&(numeratorsSize-1)] % divisor
 	}
 }

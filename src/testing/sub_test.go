@@ -546,7 +546,7 @@ func TestTRun(t *T) {
 
 func TestBRun(t *T) {
 	work := func(b *B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			time.Sleep(time.Nanosecond)
 		}
 	}
@@ -625,7 +625,7 @@ func TestBRun(t *T) {
 			const bufSize = 256
 			alloc := func(b *B) {
 				var buf [bufSize]byte
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = append([]byte(nil), buf[:]...)
 				}
 			}
@@ -885,7 +885,7 @@ func TestBenchmark(t *T) {
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {
 			b.Run("", func(b *B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					time.Sleep(time.Millisecond)
 				}
 			})

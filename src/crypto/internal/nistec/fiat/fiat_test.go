@@ -14,7 +14,7 @@ func BenchmarkMul(b *testing.B) {
 		v := new(fiat.P224Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Mul(v, v)
 		}
 	})
@@ -22,7 +22,7 @@ func BenchmarkMul(b *testing.B) {
 		v := new(fiat.P384Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Mul(v, v)
 		}
 	})
@@ -30,7 +30,7 @@ func BenchmarkMul(b *testing.B) {
 		v := new(fiat.P521Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Mul(v, v)
 		}
 	})
@@ -41,7 +41,7 @@ func BenchmarkSquare(b *testing.B) {
 		v := new(fiat.P224Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Square(v)
 		}
 	})
@@ -49,7 +49,7 @@ func BenchmarkSquare(b *testing.B) {
 		v := new(fiat.P384Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Square(v)
 		}
 	})
@@ -57,7 +57,7 @@ func BenchmarkSquare(b *testing.B) {
 		v := new(fiat.P521Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			v.Square(v)
 		}
 	})

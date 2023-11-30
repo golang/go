@@ -215,7 +215,7 @@ func TestSearchWrappersDontAlloc(t *testing.T) {
 }
 
 func BenchmarkSearchWrappers(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		runSearchWrappers()
 	}
 }

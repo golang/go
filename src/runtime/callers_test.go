@@ -359,7 +359,7 @@ func callersCached(b *testing.B, n int) int {
 	if n <= 0 {
 		pcs := make([]uintptr, 32)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			runtime.Callers(0, pcs)
 		}
 		b.StopTimer()
@@ -372,7 +372,7 @@ func callersInlined(b *testing.B, n int) int {
 	if n <= 0 {
 		pcs := make([]uintptr, 32)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			runtime.Callers(0, pcs)
 		}
 		b.StopTimer()
@@ -389,7 +389,7 @@ func callersNoCache(b *testing.B, n int) int {
 	if n <= 0 {
 		pcs := make([]uintptr, 32)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			runtime.Callers(0, pcs)
 		}
 		b.StopTimer()
@@ -442,7 +442,7 @@ func fpCallersCached(b *testing.B, n int) int {
 	if n <= 0 {
 		pcs := make([]uintptr, 32)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			runtime.FPCallers(pcs)
 		}
 		b.StopTimer()

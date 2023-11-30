@@ -217,7 +217,7 @@ func TestCharsetDecoderError(t *testing.T) {
 }
 
 func BenchmarkQEncodeWord(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		QEncoding.Encode("UTF-8", "¡Hola, señor!")
 	}
 }
@@ -225,7 +225,7 @@ func BenchmarkQEncodeWord(b *testing.B) {
 func BenchmarkQDecodeWord(b *testing.B) {
 	dec := new(WordDecoder)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
 	}
 }
@@ -233,7 +233,7 @@ func BenchmarkQDecodeWord(b *testing.B) {
 func BenchmarkQDecodeHeader(b *testing.B) {
 	dec := new(WordDecoder)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
 	}
 }

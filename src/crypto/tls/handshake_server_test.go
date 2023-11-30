@@ -1293,7 +1293,7 @@ func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, 
 	}()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		feeder <- struct{}{}
 		server := Server(serverConn, config)
 		if err := server.Handshake(); err != nil {

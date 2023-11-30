@@ -57,7 +57,7 @@ func TestPaeth(t *testing.T) {
 }
 
 func BenchmarkPaeth(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		paeth(uint8(i>>16), uint8(i>>8), uint8(i))
 	}
 }

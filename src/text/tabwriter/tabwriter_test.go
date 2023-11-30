@@ -662,7 +662,7 @@ func BenchmarkTable(b *testing.B) {
 			b.Run(fmt.Sprintf("%dx%d", w, h), func(b *testing.B) {
 				b.Run("new", func(b *testing.B) {
 					b.ReportAllocs()
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 						// Write the line h times.
 						for j := 0; j < h; j++ {
@@ -675,7 +675,7 @@ func BenchmarkTable(b *testing.B) {
 				b.Run("reuse", func(b *testing.B) {
 					b.ReportAllocs()
 					w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						// Write the line h times.
 						for j := 0; j < h; j++ {
 							w.Write(line)
@@ -694,7 +694,7 @@ func BenchmarkPyramid(b *testing.B) {
 		line := bytes.Repeat([]byte("a\t"), x)
 		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 				// Write increasing prefixes of that line.
 				for j := 0; j < x; j++ {
@@ -716,7 +716,7 @@ func BenchmarkRagged(b *testing.B) {
 	for _, h := range [...]int{10, 100, 1000} {
 		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 				// Write the lines in turn h times.
 				for j := 0; j < h; j++ {
@@ -744,7 +744,7 @@ lines
 
 func BenchmarkCode(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 		// The code is small, so it's reasonable for the tabwriter user
 		// to write it all at once, or buffer the writes.

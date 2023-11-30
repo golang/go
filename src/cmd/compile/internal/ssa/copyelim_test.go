@@ -34,7 +34,7 @@ func benchmarkCopyElim(b *testing.B, n int) {
 		values[i], values[len(values)-1-i] = values[len(values)-1-i], values[i]
 	}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		fun := c.Fun("entry", Bloc("entry", values...))
 		Copyelim(fun.f)
 	}

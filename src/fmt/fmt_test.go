@@ -1396,7 +1396,7 @@ func BenchmarkManyArgs(b *testing.B) {
 
 func BenchmarkFprintInt(b *testing.B) {
 	var buf bytes.Buffer
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Fprint(&buf, 123456)
 	}
@@ -1405,7 +1405,7 @@ func BenchmarkFprintInt(b *testing.B) {
 func BenchmarkFprintfBytes(b *testing.B) {
 	data := []byte(string("0123456789"))
 	var buf bytes.Buffer
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Fprintf(&buf, "%s", data)
 	}
@@ -1414,7 +1414,7 @@ func BenchmarkFprintfBytes(b *testing.B) {
 func BenchmarkFprintIntNoAlloc(b *testing.B) {
 	var x any = 123456
 	var buf bytes.Buffer
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Fprint(&buf, x)
 	}

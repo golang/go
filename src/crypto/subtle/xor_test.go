@@ -81,7 +81,7 @@ func BenchmarkXORBytes(b *testing.B) {
 			s0 := data0[:size]
 			s1 := data1[:size]
 			b.SetBytes(int64(size))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				XORBytes(dst, s0, s1)
 			}
 		})

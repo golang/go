@@ -480,7 +480,7 @@ func BenchmarkAllocation(b *testing.B) {
 	ngo := runtime.GOMAXPROCS(0)
 	work := make(chan bool, b.N+ngo)
 	result := make(chan *T)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		work <- true
 	}
 	for i := 0; i < ngo; i++ {
@@ -624,7 +624,7 @@ func BenchmarkReadMemStats(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		runtime.ReadMemStats(&ms)
 	}
 
@@ -692,7 +692,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 	// and measuring the latency.
 	b.ResetTimer()
 	var ms runtime.MemStats
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Sleep for a bit, otherwise we're just going to keep
 		// stopping the world and no one will get to do anything.
 		time.Sleep(100 * time.Millisecond)
@@ -873,7 +873,7 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
 	}
 	ready.Wait()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StartTimer()
 		runtime.GC()
 		runtime.GC()
@@ -897,7 +897,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 			rand.Read(bits)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				runtime.MSpanCountAlloc(s, bits)
 			}
 		})

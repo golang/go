@@ -42,7 +42,7 @@ func runGCDExt(b *testing.B, aSize, bSize uint, calcXY bool) {
 		y = new(Int)
 	}
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		new(Int).GCD(x, y, aa, bb)
 	}
 }

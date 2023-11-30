@@ -516,7 +516,7 @@ func benchmarkDecode(b *testing.B, filename string) {
 	b.SetBytes(int64(cfg.Width * cfg.Height * 4))
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Decode(bytes.NewReader(data))
 	}
 }

@@ -333,7 +333,7 @@ func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
 	in = in[:0]
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		h.Reset()
 		h.Write(data)
 		h.Sum(in)

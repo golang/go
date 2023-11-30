@@ -567,7 +567,7 @@ func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
 	return func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := index(buf, 'x')
 			if j != n-1 {
 				b.Fatal("bad index", j)
@@ -589,7 +589,7 @@ func bmIndexRuneASCII(index func([]byte, rune) int) func(b *testing.B, n int) {
 	return func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := index(buf, 'x')
 			if j != n-1 {
 				b.Fatal("bad index", j)
@@ -603,7 +603,7 @@ func bmIndexRune(index func([]byte, rune) int) func(b *testing.B, n int) {
 	return func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
 		utf8.EncodeRune(buf[n-3:], '世')
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := index(buf, '世')
 			if j != n-3 {
 				b.Fatal("bad index", j)
@@ -620,7 +620,7 @@ func BenchmarkEqual(b *testing.B) {
 		var buf [4]byte
 		buf1 := buf[0:0]
 		buf2 := buf[1:1]
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			eq := Equal(buf1, buf2)
 			if !eq {
 				b.Fatal("bad equal")
@@ -641,7 +641,7 @@ func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
 		buf2 := bmbuf[n : 2*n]
 		buf1[n-1] = 'x'
 		buf2[n-1] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			eq := equal(buf1, buf2)
 			if !eq {
 				b.Fatal("bad equal")
@@ -671,7 +671,7 @@ func BenchmarkEqualBothUnaligned(b *testing.B) {
 			buf2[n-1] = 'x'
 			b.Run(fmt.Sprint(n, off), func(b *testing.B) {
 				b.SetBytes(int64(n))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					eq := Equal(buf1, buf2)
 					if !eq {
 						b.Fatal("bad equal")
@@ -688,7 +688,7 @@ func BenchmarkIndex(b *testing.B) {
 	benchBytes(b, indexSizes, func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := Index(buf, buf[n-7:])
 			if j != n-7 {
 				b.Fatal("bad index", j)
@@ -703,7 +703,7 @@ func BenchmarkIndexEasy(b *testing.B) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
 		buf[n-7] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := Index(buf, buf[n-7:])
 			if j != n-7 {
 				b.Fatal("bad index", j)
@@ -718,7 +718,7 @@ func BenchmarkCount(b *testing.B) {
 	benchBytes(b, indexSizes, func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := Count(buf, buf[n-7:])
 			if j != 1 {
 				b.Fatal("bad count", j)
@@ -733,7 +733,7 @@ func BenchmarkCountEasy(b *testing.B) {
 		buf := bmbuf[0:n]
 		buf[n-1] = 'x'
 		buf[n-7] = 'x'
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := Count(buf, buf[n-7:])
 			if j != 1 {
 				b.Fatal("bad count", j)
@@ -752,7 +752,7 @@ func BenchmarkCountSingle(b *testing.B) {
 			buf[i] = 1
 		}
 		expect := (len(buf) + (step - 1)) / step
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			j := Count(buf, []byte{1})
 			if j != expect {
 				b.Fatal("bad count", j, expect)
@@ -1130,7 +1130,7 @@ func BenchmarkToUpper(b *testing.B) {
 	for _, tc := range upperTests {
 		tin := []byte(tc.in)
 		b.Run(tc.in, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				actual := ToUpper(tin)
 				if !Equal(actual, tc.out) {
 					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
@@ -1144,7 +1144,7 @@ func BenchmarkToLower(b *testing.B) {
 	for _, tc := range lowerTests {
 		tin := []byte(tc.in)
 		b.Run(tc.in, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				actual := ToLower(tin)
 				if !Equal(actual, tc.out) {
 					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
@@ -1939,7 +1939,7 @@ func BenchmarkFields(b *testing.B) {
 					b.ReportAllocs()
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						Fields(data)
 					}
 				})
@@ -1956,7 +1956,7 @@ func BenchmarkFieldsFunc(b *testing.B) {
 					b.ReportAllocs()
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						FieldsFunc(data, unicode.IsSpace)
 					}
 				})
@@ -1977,7 +1977,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				TrimSpace(test.input)
 			}
 		})
@@ -1997,7 +1997,7 @@ func BenchmarkToValidUTF8(b *testing.B) {
 	b.ResetTimer()
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				ToValidUTF8(test.input, replacement)
 			}
 		})
@@ -2024,19 +2024,19 @@ func makeBenchInputHard() []byte {
 var benchInputHard = makeBenchInputHard()
 
 func benchmarkIndexHard(b *testing.B, sep []byte) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Index(benchInputHard, sep)
 	}
 }
 
 func benchmarkLastIndexHard(b *testing.B, sep []byte) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		LastIndex(benchInputHard, sep)
 	}
 }
 
 func benchmarkCountHard(b *testing.B, sep []byte) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Count(benchInputHard, sep)
 	}
 }
@@ -2057,41 +2057,41 @@ func BenchmarkCountHard2(b *testing.B) { benchmarkCountHard(b, []byte("</pre>"))
 func BenchmarkCountHard3(b *testing.B) { benchmarkCountHard(b, []byte("<b>hello world</b>")) }
 
 func BenchmarkSplitEmptySeparator(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Split(benchInputHard, nil)
 	}
 }
 
 func BenchmarkSplitSingleByteSeparator(b *testing.B) {
 	sep := []byte("/")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Split(benchInputHard, sep)
 	}
 }
 
 func BenchmarkSplitMultiByteSeparator(b *testing.B) {
 	sep := []byte("hello")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Split(benchInputHard, sep)
 	}
 }
 
 func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
 	sep := []byte("/")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		SplitN(benchInputHard, sep, 10)
 	}
 }
 
 func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 	sep := []byte("hello")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		SplitN(benchInputHard, sep, 10)
 	}
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Repeat([]byte("-"), 80)
 	}
 }
@@ -2106,7 +2106,7 @@ func BenchmarkRepeatLarge(b *testing.B) {
 				continue
 			}
 			b.Run(fmt.Sprintf("%d/%d", 1<<j, k), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					Repeat(s, n)
 				}
 				b.SetBytes(int64(n * len(s)))
@@ -2130,7 +2130,7 @@ func BenchmarkBytesCompare(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				Compare(x, y)
 			}
 		})
@@ -2143,7 +2143,7 @@ func BenchmarkIndexAnyASCII(b *testing.B) {
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					IndexAny(x[:k], cs[:j])
 				}
 			})
@@ -2157,7 +2157,7 @@ func BenchmarkIndexAnyUTF8(b *testing.B) {
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					IndexAny(x[:k], cs[:j])
 				}
 			})
@@ -2171,7 +2171,7 @@ func BenchmarkLastIndexAnyASCII(b *testing.B) {
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					LastIndexAny(x[:k], cs[:j])
 				}
 			})
@@ -2185,7 +2185,7 @@ func BenchmarkLastIndexAnyUTF8(b *testing.B) {
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					LastIndexAny(x[:k], cs[:j])
 				}
 			})
@@ -2199,7 +2199,7 @@ func BenchmarkTrimASCII(b *testing.B) {
 		for j := 1; j <= 16; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				x := Repeat([]byte(cs[:j]), k) // Always matches set
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					Trim(x[:k], cs[:j])
 				}
 			})
@@ -2209,7 +2209,7 @@ func BenchmarkTrimASCII(b *testing.B) {
 
 func BenchmarkTrimByte(b *testing.B) {
 	x := []byte("  the quick brown fox   ")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Trim(x, " ")
 	}
 }
@@ -2222,7 +2222,7 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 			for i := 0; i < len(buf); i += skip {
 				buf[i] = 1
 			}
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				Index(buf, key)
 			}
 		})

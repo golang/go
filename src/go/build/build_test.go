@@ -581,7 +581,7 @@ func BenchmarkImportVendor(b *testing.B) {
 	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
 	dir := filepath.Join(ctxt.GOPATH, "src/a/b")
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ctxt.Import("c/d", dir, 0)
 		if err != nil {
 			b.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)

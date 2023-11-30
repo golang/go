@@ -474,7 +474,7 @@ func benchmarkDecryptPKCS1v15(b *testing.B, k *PrivateKey) {
 
 	b.ResetTimer()
 	var sink byte
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p, err := DecryptPKCS1v15(r, k, c)
 		if err != nil {
 			b.Fatal(err)
@@ -492,7 +492,7 @@ func BenchmarkEncryptPKCS1v15(b *testing.B) {
 		m := []byte("Hello Gophers")
 
 		var sink byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			c, err := EncryptPKCS1v15(r, &test2048Key.PublicKey, m)
 			if err != nil {
 				b.Fatal(err)
@@ -514,7 +514,7 @@ func BenchmarkDecryptOAEP(b *testing.B) {
 
 		b.ResetTimer()
 		var sink byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			p, err := DecryptOAEP(sha256.New(), r, test2048Key, c, nil)
 			if err != nil {
 				b.Fatal(err)
@@ -533,7 +533,7 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 		m := []byte("Hello Gophers")
 
 		var sink byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			c, err := EncryptOAEP(sha256.New(), r, &test2048Key.PublicKey, m, nil)
 			if err != nil {
 				b.Fatal(err)
@@ -549,7 +549,7 @@ func BenchmarkSignPKCS1v15(b *testing.B) {
 
 		var sink byte
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s, err := SignPKCS1v15(rand.Reader, test2048Key, crypto.SHA256, hashed[:])
 			if err != nil {
 				b.Fatal(err)
@@ -568,7 +568,7 @@ func BenchmarkVerifyPKCS1v15(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			err := VerifyPKCS1v15(&test2048Key.PublicKey, crypto.SHA256, hashed[:], s)
 			if err != nil {
 				b.Fatal(err)
@@ -583,7 +583,7 @@ func BenchmarkSignPSS(b *testing.B) {
 
 		var sink byte
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s, err := SignPSS(rand.Reader, test2048Key, crypto.SHA256, hashed[:], nil)
 			if err != nil {
 				b.Fatal(err)
@@ -602,7 +602,7 @@ func BenchmarkVerifyPSS(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			err := VerifyPSS(&test2048Key.PublicKey, crypto.SHA256, hashed[:], s, nil)
 			if err != nil {
 				b.Fatal(err)

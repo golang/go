@@ -353,7 +353,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	out := make([]byte, len(tt.in))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Encrypt(out, tt.in)
 	}
 }
@@ -367,7 +367,7 @@ func BenchmarkDecrypt(b *testing.B) {
 	out := make([]byte, len(tt.out))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Decrypt(out, tt.out)
 	}
 }
@@ -377,7 +377,7 @@ func BenchmarkExpand(b *testing.B) {
 	n := len(tt.key) + 28
 	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		expandKey(tt.key, c.enc, c.dec)
 	}
 }

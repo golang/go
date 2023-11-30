@@ -136,7 +136,7 @@ func BenchmarkPC(b *testing.B) {
 		b.Run(strconv.Itoa(depth), func(b *testing.B) {
 			b.ReportAllocs()
 			var x uintptr
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = callerPC(depth)
 			}
 			_ = x
@@ -148,7 +148,7 @@ func BenchmarkRecord(b *testing.B) {
 	const nAttrs = nAttrsInline * 10
 	var a Attr
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		r := NewRecord(time.Time{}, LevelInfo, "", 0)
 		for j := 0; j < nAttrs; j++ {
 			r.AddAttrs(Int("k", j))

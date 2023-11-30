@@ -634,7 +634,7 @@ func benchmarkServeMux(b *testing.B, runHandler bool) {
 	rw := httptest.NewRecorder()
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, tt := range tests {
 			*rw = httptest.ResponseRecorder{}
 			h, pattern := mux.Handler(tt.req)
@@ -4965,7 +4965,7 @@ func benchmarkClientServer(b *testing.B, mode testMode) {
 	b.StartTimer()
 
 	c := ts.Client()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := c.Get(ts.URL)
 		if err != nil {
 			b.Fatal("Get:", err)
@@ -5157,7 +5157,7 @@ func BenchmarkClient(b *testing.B) {
 
 	// Do b.N requests to the server.
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		res, err := Get(url)
 		if err != nil {
 			b.Fatalf("Get: %v", err)
@@ -5198,7 +5198,7 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 		rw.Write(res)
 	})
 	ln := new(oneConnListener)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		conn.readBuf.Reset()
 		conn.writeBuf.Reset()
 		conn.readBuf.Write(req)
@@ -5365,7 +5365,7 @@ Host: golang.org
 		closec: make(chan bool, 1),
 	}
 	ln := &oneConnListener{conn: conn}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		conn.Reader = bytes.NewReader(req)
 		ln.conn = conn
 		Serve(ln, h)
@@ -5383,7 +5383,7 @@ func benchmarkCloseNotifier(b *testing.B, mode testMode) {
 		sawClose <- true
 	})).ts
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
 			b.Fatalf("error dialing: %v", err)

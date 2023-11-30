@@ -531,26 +531,26 @@ func TestValidRune(t *testing.T) {
 
 func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
 	s := []byte("0123456789")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		RuneCount(s)
 	}
 }
 
 func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
 	s := []byte("日本語日本語日本語日")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		RuneCount(s)
 	}
 }
 
 func BenchmarkRuneCountInStringTenASCIIChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		RuneCountInString("0123456789")
 	}
 }
 
 func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		RuneCountInString("日本語日本語日本語日")
 	}
 }
@@ -559,64 +559,64 @@ var ascii100000 = strings.Repeat("0123456789", 10000)
 
 func BenchmarkValidTenASCIIChars(b *testing.B) {
 	s := []byte("0123456789")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Valid(s)
 	}
 }
 
 func BenchmarkValid100KASCIIChars(b *testing.B) {
 	s := []byte(ascii100000)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Valid(s)
 	}
 }
 
 func BenchmarkValidTenJapaneseChars(b *testing.B) {
 	s := []byte("日本語日本語日本語日")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Valid(s)
 	}
 }
 func BenchmarkValidLongMostlyASCII(b *testing.B) {
 	longMostlyASCII := []byte(longStringMostlyASCII)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Valid(longMostlyASCII)
 	}
 }
 
 func BenchmarkValidLongJapanese(b *testing.B) {
 	longJapanese := []byte(longStringJapanese)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Valid(longJapanese)
 	}
 }
 
 func BenchmarkValidStringTenASCIIChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidString("0123456789")
 	}
 }
 
 func BenchmarkValidString100KASCIIChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidString(ascii100000)
 	}
 }
 
 func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidString("日本語日本語日本語日")
 	}
 }
 
 func BenchmarkValidStringLongMostlyASCII(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidString(longStringMostlyASCII)
 	}
 }
 
 func BenchmarkValidStringLongJapanese(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidString(longStringJapanese)
 	}
 }
@@ -640,42 +640,42 @@ func init() {
 
 func BenchmarkEncodeASCIIRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		EncodeRune(buf, 'a')
 	}
 }
 
 func BenchmarkEncodeJapaneseRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		EncodeRune(buf, '本')
 	}
 }
 
 func BenchmarkAppendASCIIRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		AppendRune(buf[:0], 'a')
 	}
 }
 
 func BenchmarkAppendJapaneseRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		AppendRune(buf[:0], '本')
 	}
 }
 
 func BenchmarkDecodeASCIIRune(b *testing.B) {
 	a := []byte{'a'}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		DecodeRune(a)
 	}
 }
 
 func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	nihon := []byte("本")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		DecodeRune(nihon)
 	}
 }
@@ -695,7 +695,7 @@ func BenchmarkFullRune(b *testing.B) {
 	}
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				boolSink = FullRune(bm.data)
 			}
 		})

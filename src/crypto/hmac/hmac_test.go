@@ -662,7 +662,7 @@ func BenchmarkHMACSHA256_1K(b *testing.B) {
 	buf := make([]byte, 1024)
 	h := New(sha256.New, key)
 	b.SetBytes(int64(len(buf)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		h.Write(buf)
 		mac := h.Sum(nil)
 		h.Reset()
@@ -675,7 +675,7 @@ func BenchmarkHMACSHA256_32(b *testing.B) {
 	buf := make([]byte, 32)
 	h := New(sha256.New, key)
 	b.SetBytes(int64(len(buf)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		h.Write(buf)
 		mac := h.Sum(nil)
 		h.Reset()
@@ -686,7 +686,7 @@ func BenchmarkHMACSHA256_32(b *testing.B) {
 func BenchmarkNewWriteSum(b *testing.B) {
 	buf := make([]byte, 32)
 	b.SetBytes(int64(len(buf)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		h := New(sha256.New, make([]byte, 32))
 		h.Write(buf)
 		mac := h.Sum(nil)

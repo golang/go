@@ -335,7 +335,7 @@ func BenchmarkMapSetDifferentRandom(b *testing.B) {
 	v := new(Int)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		m := new(Map).Init()
 		for _, k := range keys {
 			m.Set(k, v)
@@ -405,7 +405,7 @@ func BenchmarkMapAddDifferentRandom(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		m := new(Map).Init()
 		for _, k := range keys {
 			m.Add(k, 1)
@@ -504,7 +504,7 @@ func BenchmarkMapString(b *testing.B) {
 	b.ResetTimer()
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m.String()
 	}
 }

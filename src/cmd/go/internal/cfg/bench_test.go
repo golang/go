@@ -12,7 +12,7 @@ import (
 func BenchmarkLookPath(b *testing.B) {
 	testenv.MustHaveExecPath(b, "go")
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := LookPath("go")
 		if err != nil {
 			b.Fatal(err)

@@ -443,7 +443,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 
 	// Hit metrics.Read continuously and measure.
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		start := time.Now()
 		metrics.Read(samples)
 		latencies = append(latencies, time.Since(start))

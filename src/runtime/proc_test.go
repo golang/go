@@ -520,7 +520,7 @@ func BenchmarkPingPongHog(b *testing.B) {
 		done <- true
 	}()
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			ping <- <-pong
 		}
 		done <- true
@@ -691,7 +691,7 @@ func benchmarkCreateGoroutines(b *testing.B, procs int) {
 
 func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		const N = 4
 		var wg sync.WaitGroup
 		wg.Add(N)
@@ -749,7 +749,7 @@ func BenchmarkCreateGoroutinesSingle(b *testing.B) {
 
 	var wg sync.WaitGroup
 	wg.Add(b.N)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			wg.Done()
 		}()
@@ -760,7 +760,7 @@ func BenchmarkCreateGoroutinesSingle(b *testing.B) {
 func BenchmarkClosureCall(b *testing.B) {
 	sum := 0
 	off1 := 1
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		off2 := 2
 		func() {
 			sum += i + off1 + off2
@@ -826,7 +826,7 @@ func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
 			done := make(chan struct{})
 			go func() {
 				<-start
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					// sender
 					spin(delay + wakeDelay)
 					ping <- struct{}{}
@@ -837,7 +837,7 @@ func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
 				done <- struct{}{}
 			}()
 			go func() {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					// receiver
 					spin(delay)
 					<-ping

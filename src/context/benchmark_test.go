@@ -93,19 +93,19 @@ func BenchmarkCancelTree(b *testing.B) {
 	for _, d := range depths {
 		b.Run(fmt.Sprintf("depth=%d", d), func(b *testing.B) {
 			b.Run("Root=Background", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					buildContextTree(Background(), d)
 				}
 			})
 			b.Run("Root=OpenCanceler", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					ctx, cancel := WithCancel(Background())
 					buildContextTree(ctx, d)
 					cancel()
 				}
 			})
 			b.Run("Root=ClosedCanceler", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					ctx, cancel := WithCancel(Background())
 					cancel()
 					buildContextTree(ctx, d)
@@ -125,12 +125,12 @@ func BenchmarkCheckCanceled(b *testing.B) {
 	ctx, cancel := WithCancel(Background())
 	cancel()
 	b.Run("Err", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			ctx.Err()
 		}
 	})
 	b.Run("Done", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			select {
 			case <-ctx.Done():
 			default:
@@ -161,7 +161,7 @@ func BenchmarkDeepValueNewGoRoutine(b *testing.B) {
 		}
 
 		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				var wg sync.WaitGroup
 				wg.Add(1)
 				go func() {
@@ -182,7 +182,7 @@ func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
 		}
 
 		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				ctx.Value(-1)
 			}
 		})

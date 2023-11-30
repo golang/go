@@ -320,7 +320,7 @@ func BenchmarkPallocBitsSummarize(b *testing.B) {
 		}
 		b.Run(fmt.Sprintf("Unpacked%02X", p), func(b *testing.B) {
 			checkPallocSum(b, buf.Summarize(), SummarizeSlow(buf))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf.Summarize()
 			}
 		})
@@ -542,7 +542,7 @@ func BenchmarkFindBitRange64(b *testing.B) {
 	for _, pattern := range patterns {
 		for _, size := range sizes {
 			b.Run(fmt.Sprintf("Pattern%02XSize%d", pattern, size), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					FindBitRange64(pattern, size)
 				}
 			})

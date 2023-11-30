@@ -43,7 +43,7 @@ func BenchmarkUDP6LinkLocalUnicast(b *testing.B) {
 	defer c2.Close()
 
 	var buf [1]byte
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := c1.WriteTo(buf[:], c2.LocalAddr()); err != nil {
 			b.Fatal(err)
 		}
@@ -559,7 +559,7 @@ func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
 	buf := make([]byte, 8)
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addr)
 		if err != nil {
 			b.Fatal(err)
@@ -581,7 +581,7 @@ func BenchmarkWriteToReadFromUDP(b *testing.B) {
 	buf := make([]byte, 8)
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := conn.WriteTo(buf, addr)
 		if err != nil {
 			b.Fatal(err)
@@ -603,7 +603,7 @@ func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
 	buf := make([]byte, 8)
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := conn.WriteToUDPAddrPort(buf, addr)
 		if err != nil {
 			b.Fatal(err)

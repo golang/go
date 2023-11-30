@@ -636,7 +636,7 @@ func benchmarkParseInt(b *testing.B, neg int) {
 	for _, cs := range cases {
 		b.Run(cs.name, func(b *testing.B) {
 			s := fmt.Sprintf("%d", cs.num*int64(neg))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				out, _ := ParseInt(s, 10, 64)
 				BenchSink += int(out)
 			}
@@ -668,7 +668,7 @@ func benchmarkAtoi(b *testing.B, neg int) {
 	for _, cs := range cases {
 		b.Run(cs.name, func(b *testing.B) {
 			s := fmt.Sprintf("%d", cs.num*int64(neg))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				out, _ := Atoi(s)
 				BenchSink += out
 			}

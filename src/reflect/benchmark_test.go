@@ -37,61 +37,61 @@ var sinkAll struct {
 }
 
 func BenchmarkBool(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawBool = sourceAll.Bool.Bool()
 	}
 }
 
 func BenchmarkString(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawString = sourceAll.String.String()
 	}
 }
 
 func BenchmarkBytes(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawBytes = sourceAll.Bytes.Bytes()
 	}
 }
 
 func BenchmarkNamedBytes(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawBytes = sourceAll.NamedBytes.Bytes()
 	}
 }
 
 func BenchmarkBytesArray(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawBytes = sourceAll.BytesArray.Bytes()
 	}
 }
 
 func BenchmarkSliceLen(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawInt = sourceAll.SliceAny.Len()
 	}
 }
 
 func BenchmarkMapLen(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawInt = sourceAll.MapStringAny.Len()
 	}
 }
 
 func BenchmarkStringLen(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawInt = sourceAll.String.Len()
 	}
 }
 
 func BenchmarkArrayLen(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawInt = sourceAll.BytesArray.Len()
 	}
 }
 
 func BenchmarkSliceCap(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkAll.RawInt = sourceAll.SliceAny.Cap()
 	}
 }
@@ -100,7 +100,7 @@ func BenchmarkDeepEqual(b *testing.B) {
 	for _, bb := range deepEqualPerfTests {
 		b.Run(ValueOf(bb.x).Type().String(), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sink = DeepEqual(bb.x, bb.y)
 			}
 		})
@@ -114,7 +114,7 @@ func BenchmarkMapsDeepEqual(b *testing.B) {
 	m2 := map[int]int{
 		1: 1, 2: 2,
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		DeepEqual(m1, m2)
 	}
 }
@@ -149,7 +149,7 @@ func BenchmarkIsZero(b *testing.B) {
 		name := source.Type().Field(i).Name
 		value := source.Field(i)
 		b.Run(name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sink = value.IsZero()
 			}
 		})
@@ -179,17 +179,17 @@ func BenchmarkSetZero(b *testing.B) {
 		value := source.Field(i)
 		zero := Zero(value.Type())
 		b.Run(name+"/Direct", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				value.SetZero()
 			}
 		})
 		b.Run(name+"/CachedZero", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				value.Set(zero)
 			}
 		})
 		b.Run(name+"/NewZero", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				value.Set(Zero(value.Type()))
 			}
 		})
@@ -209,7 +209,7 @@ func BenchmarkSelect(b *testing.B) {
 	for _, numCases := range []int{1, 4, 8} {
 		b.Run(strconv.Itoa(numCases), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, _, _ = Select(cases[:numCases])
 			}
 		})
@@ -238,7 +238,7 @@ func BenchmarkCallMethod(b *testing.B) {
 	z := new(myint)
 
 	v := ValueOf(z.inc)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.Call(nil)
 	}
 }
@@ -399,7 +399,7 @@ func BenchmarkMap(b *testing.B) {
 		b.Run(tt.label, func(b *testing.B) {
 			b.Run("MapIndex", func(b *testing.B) {
 				b.ReportAllocs()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					for j := tt.keys.Len() - 1; j >= 0; j-- {
 						tt.m.MapIndex(tt.keys.Index(j))
 					}
@@ -407,7 +407,7 @@ func BenchmarkMap(b *testing.B) {
 			})
 			b.Run("SetMapIndex", func(b *testing.B) {
 				b.ReportAllocs()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					for j := tt.keys.Len() - 1; j >= 0; j-- {
 						tt.m.SetMapIndex(tt.keys.Index(j), tt.value)
 					}
@@ -420,7 +420,7 @@ func BenchmarkMap(b *testing.B) {
 func BenchmarkMapIterNext(b *testing.B) {
 	m := ValueOf(map[string]int{"a": 0, "b": 1, "c": 2, "d": 3})
 	it := m.MapRange()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for it.Next() {
 		}
 		it.Reset(m)

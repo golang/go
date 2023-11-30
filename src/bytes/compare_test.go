@@ -156,7 +156,7 @@ func TestEndianBaseCompare(t *testing.T) {
 func BenchmarkCompareBytesEqual(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello Gophers!")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
@@ -166,7 +166,7 @@ func BenchmarkCompareBytesEqual(b *testing.B) {
 func BenchmarkCompareBytesToNil(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	var b2 []byte
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 1 {
 			b.Fatal("b1 > b2 failed")
 		}
@@ -176,7 +176,7 @@ func BenchmarkCompareBytesToNil(b *testing.B) {
 func BenchmarkCompareBytesEmpty(b *testing.B) {
 	b1 := []byte("")
 	b2 := b1
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
@@ -186,7 +186,7 @@ func BenchmarkCompareBytesEmpty(b *testing.B) {
 func BenchmarkCompareBytesIdentical(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := b1
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
@@ -196,7 +196,7 @@ func BenchmarkCompareBytesIdentical(b *testing.B) {
 func BenchmarkCompareBytesSameLength(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello, Gophers")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != -1 {
 			b.Fatal("b1 < b2 failed")
 		}
@@ -206,7 +206,7 @@ func BenchmarkCompareBytesSameLength(b *testing.B) {
 func BenchmarkCompareBytesDifferentLength(b *testing.B) {
 	b1 := []byte("Hello Gophers!")
 	b2 := []byte("Hello, Gophers!")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != -1 {
 			b.Fatal("b1 < b2 failed")
 		}
@@ -271,7 +271,7 @@ func BenchmarkCompareBytesBig(b *testing.B) {
 	}
 	b2 := append([]byte{}, b1...)
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}
@@ -287,7 +287,7 @@ func BenchmarkCompareBytesBigIdentical(b *testing.B) {
 	}
 	b2 := b1
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if Compare(b1, b2) != 0 {
 			b.Fatal("b1 != b2")
 		}

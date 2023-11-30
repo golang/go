@@ -389,7 +389,7 @@ func BenchmarkModAdd(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Add(y, m)
 	}
 }
@@ -400,7 +400,7 @@ func BenchmarkModSub(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Sub(y, m)
 	}
 }
@@ -410,7 +410,7 @@ func BenchmarkMontgomeryRepr(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.montgomeryRepresentation(m)
 	}
 }
@@ -422,7 +422,7 @@ func BenchmarkMontgomeryMul(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out.montgomeryMul(x, y, m)
 	}
 }
@@ -433,7 +433,7 @@ func BenchmarkModMul(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Mul(y, m)
 	}
 }
@@ -448,7 +448,7 @@ func BenchmarkExpBig(b *testing.B) {
 	n.Add(n, one)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out.Exp(x, e, n)
 	}
 }
@@ -460,7 +460,7 @@ func BenchmarkExp(b *testing.B) {
 	m := makeBenchmarkModulus()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out.Exp(x, e, m)
 	}
 }

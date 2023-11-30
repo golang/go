@@ -666,7 +666,7 @@ func BenchmarkMatch(b *testing.B) {
 			t := makeText(size.n)
 			b.Run(data.name+"/"+size.name, func(b *testing.B) {
 				b.SetBytes(int64(size.n))
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					if r.Match(t) {
 						b.Fatal("match!")
 					}
@@ -690,7 +690,7 @@ func BenchmarkMatch_onepass_regex(b *testing.B) {
 		b.Run(size.name, func(b *testing.B) {
 			b.SetBytes(int64(size.n))
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if !r.Match(t) {
 					b.Fatal("not match!")
 				}

@@ -764,7 +764,7 @@ func BenchmarkSetReadDeadline(b *testing.B) {
 	c.SetWriteDeadline(time.Now().Add(2 * time.Hour))
 	deadline := time.Now().Add(time.Hour)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.SetReadDeadline(deadline)
 		deadline = deadline.Add(1)
 	}

@@ -131,7 +131,7 @@ var benchmarkGlobal uint8
 func BenchmarkConstantTimeByteEq(b *testing.B) {
 	var x, y uint8
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = uint8(ConstantTimeByteEq(x, y)), x
 	}
 
@@ -141,7 +141,7 @@ func BenchmarkConstantTimeByteEq(b *testing.B) {
 func BenchmarkConstantTimeEq(b *testing.B) {
 	var x, y int
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = ConstantTimeEq(int32(x), int32(y)), x
 	}
 
@@ -151,7 +151,7 @@ func BenchmarkConstantTimeEq(b *testing.B) {
 func BenchmarkConstantTimeLessOrEq(b *testing.B) {
 	var x, y int
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = ConstantTimeLessOrEq(x, y), x
 	}
 

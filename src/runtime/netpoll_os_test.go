@@ -18,7 +18,7 @@ func init() {
 
 func BenchmarkNetpollBreak(b *testing.B) {
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 10; j++ {
 			wg.Add(1)
 			go func() {

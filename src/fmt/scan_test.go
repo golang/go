@@ -1099,7 +1099,7 @@ func BenchmarkScanInts(b *testing.B) {
 	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf := bytes.NewBuffer(ints)
 		b.StartTimer()
 		scanInts(&r, buf)
@@ -1111,7 +1111,7 @@ func BenchmarkScanRecursiveInt(b *testing.B) {
 	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf := bytes.NewBuffer(ints)
 		b.StartTimer()
 		Fscan(buf, &r)
@@ -1123,7 +1123,7 @@ func BenchmarkScanRecursiveIntReaderWrapper(b *testing.B) {
 	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf := struct{ io.Reader }{strings.NewReader(string(ints))}
 		b.StartTimer()
 		Fscan(buf, &r)

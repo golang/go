@@ -23,7 +23,7 @@ func benchmarkAESGCMSeal(b *testing.B, buf []byte, keySize int) {
 	var out []byte
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out = aesgcm.Seal(out[:0], nonce[:], buf, ad[:])
 	}
 }
@@ -42,7 +42,7 @@ func benchmarkAESGCMOpen(b *testing.B, buf []byte, keySize int) {
 	ct := aesgcm.Seal(nil, nonce[:], buf[:], ad[:])
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out, _ = aesgcm.Open(out[:0], nonce[:], ct, ad[:])
 	}
 }
@@ -74,7 +74,7 @@ func benchmarkAESStream(b *testing.B, mode func(cipher.Block, []byte) cipher.Str
 	stream := mode(aes, iv[:])
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		stream.XORKeyStream(buf, buf)
 	}
 }
@@ -118,7 +118,7 @@ func BenchmarkAESCBCEncrypt1K(b *testing.B) {
 	var iv [16]byte
 	aes, _ := aes.NewCipher(key[:])
 	cbc := cipher.NewCBCEncrypter(aes, iv[:])
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cbc.CryptBlocks(buf, buf)
 	}
 }
@@ -131,7 +131,7 @@ func BenchmarkAESCBCDecrypt1K(b *testing.B) {
 	var iv [16]byte
 	aes, _ := aes.NewCipher(key[:])
 	cbc := cipher.NewCBCDecrypter(aes, iv[:])
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cbc.CryptBlocks(buf, buf)
 	}
 }

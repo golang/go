@@ -526,7 +526,7 @@ func TestFloatSignalingNaNConversionConst(t *testing.T) {
 var sinkFloat float64
 
 func BenchmarkMul2(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var m float64 = 1
 		for j := 0; j < 500; j++ {
 			m *= 2
@@ -535,7 +535,7 @@ func BenchmarkMul2(b *testing.B) {
 	}
 }
 func BenchmarkMulNeg2(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var m float64 = 1
 		for j := 0; j < 500; j++ {
 			m *= -2

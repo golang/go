@@ -259,7 +259,7 @@ func BenchmarkFunc(b *testing.B) {
 	}
 	f := runtime.FuncForPC(pc)
 	b.Run("Name", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			name := f.Name()
 			if name != "runtime_test.BenchmarkFunc" {
 				b.Fatalf("unexpected name %q", name)
@@ -267,7 +267,7 @@ func BenchmarkFunc(b *testing.B) {
 		}
 	})
 	b.Run("Entry", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			pc := f.Entry()
 			if pc == 0 {
 				b.Fatal("zero PC")
@@ -275,7 +275,7 @@ func BenchmarkFunc(b *testing.B) {
 		}
 	})
 	b.Run("FileLine", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			file, line := f.FileLine(pc)
 			if !strings.HasSuffix(file, "symtab_test.go") || line == 0 {
 				b.Fatalf("unexpected file/line %q:%d", file, line)

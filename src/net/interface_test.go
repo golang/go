@@ -301,7 +301,7 @@ func BenchmarkInterfaces(b *testing.B) {
 	b.ReportAllocs()
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := Interfaces(); err != nil {
 			b.Fatal(err)
 		}
@@ -316,7 +316,7 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
 	if ifi == nil {
 		b.Skip("loopback interface not found")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := InterfaceByIndex(ifi.Index); err != nil {
 			b.Fatal(err)
 		}
@@ -331,7 +331,7 @@ func BenchmarkInterfaceByName(b *testing.B) {
 	if ifi == nil {
 		b.Skip("loopback interface not found")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := InterfaceByName(ifi.Name); err != nil {
 			b.Fatal(err)
 		}
@@ -342,7 +342,7 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
 	b.ReportAllocs()
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := InterfaceAddrs(); err != nil {
 			b.Fatal(err)
 		}
@@ -357,7 +357,7 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
 	if ifi == nil {
 		b.Skip("loopback interface not found")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := ifi.Addrs(); err != nil {
 			b.Fatal(err)
 		}
@@ -372,7 +372,7 @@ func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
 	if ifi == nil {
 		b.Skip("loopback interface not found")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := ifi.MulticastAddrs(); err != nil {
 			b.Fatal(err)
 		}

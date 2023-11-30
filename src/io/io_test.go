@@ -180,7 +180,7 @@ func BenchmarkCopyNSmall(b *testing.B) {
 	buf := new(Buffer)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		CopyN(buf, rd, 512)
 		rd.Reset(bs)
 	}
@@ -192,7 +192,7 @@ func BenchmarkCopyNLarge(b *testing.B) {
 	buf := new(Buffer)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		CopyN(buf, rd, 32*1024)
 		rd.Reset(bs)
 	}

@@ -154,7 +154,7 @@ func TestHilbert(t *testing.T) {
 }
 
 func BenchmarkHilbert(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doHilbert(nil, 10)
 	}
 }

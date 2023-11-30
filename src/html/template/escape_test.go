@@ -2139,7 +2139,7 @@ func BenchmarkEscapedExecute(b *testing.B) {
 	tmpl := Must(New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))
 	var buf bytes.Buffer
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tmpl.Execute(&buf, "foo & 'bar' & baz")
 		buf.Reset()
 	}

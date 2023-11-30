@@ -23,7 +23,7 @@ func fn(a, b int) bool {
 }
 
 func BenchmarkPhioptPass(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a := rand.Perm(i/10 + 10)
 		for i := 1; i < len(a)/2; i++ {
 			fn(a[i]-a[i-1], a[i+len(a)/2-2]-a[i+len(a)/2-1])
@@ -44,7 +44,7 @@ func BenchmarkInvertLessThanNoov(b *testing.B) {
 	p1 := Point{1, 2}
 	p2 := Point{2, 3}
 	p3 := Point{3, 4}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sign(p1, p2, p3)
 	}
 }

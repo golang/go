@@ -9,13 +9,13 @@ import "testing"
 var s int
 
 func BenchmarkCallClosure(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += func(ii int) int { return 2 * ii }(i)
 	}
 }
 
 func BenchmarkCallClosure1(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		j := i
 		s += func(ii int) int { return 2*ii + j }(i)
 	}
@@ -24,7 +24,7 @@ func BenchmarkCallClosure1(b *testing.B) {
 var ss *int
 
 func BenchmarkCallClosure2(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		j := i
 		s += func() int {
 			ss = &j
@@ -38,7 +38,7 @@ func addr1(x int) *int {
 }
 
 func BenchmarkCallClosure3(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		ss = addr1(i)
 	}
 }
@@ -48,7 +48,7 @@ func addr2() (x int, p *int) {
 }
 
 func BenchmarkCallClosure4(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, ss = addr2()
 	}
 }

@@ -283,7 +283,7 @@ func benchmarkCond(b *testing.B, waiters int) {
 
 	for routine := 0; routine < waiters+1; routine++ {
 		go func() {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				c.L.Lock()
 				if id == -1 {
 					c.L.Unlock()

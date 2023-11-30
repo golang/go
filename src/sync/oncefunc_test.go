@@ -245,14 +245,14 @@ func doOnceFunc() {
 func BenchmarkOnceFunc(b *testing.B) {
 	b.Run("v=Once", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			// The baseline is direct use of sync.Once.
 			doOnceFunc()
 		}
 	})
 	b.Run("v=Global", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			// As of 3/2023, the compiler doesn't recognize that onceFunc is
 			// never mutated and is a closure that could be inlined.
 			// Too bad, because this is how OnceFunc will usually be used.
@@ -265,7 +265,7 @@ func BenchmarkOnceFunc(b *testing.B) {
 		// inlinable closure. This is the best case for OnceFunc, but probably
 		// not typical usage.
 		f := sync.OnceFunc(func() {})
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			f()
 		}
 	})
@@ -289,7 +289,7 @@ func BenchmarkOnceValue(b *testing.B) {
 	// See BenchmarkOnceFunc
 	b.Run("v=Once", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if want, got := 42, doOnceValue(); want != got {
 				b.Fatalf("want %d, got %d", want, got)
 			}
@@ -297,7 +297,7 @@ func BenchmarkOnceValue(b *testing.B) {
 	})
 	b.Run("v=Global", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if want, got := 42, onceValue(); want != got {
 				b.Fatalf("want %d, got %d", want, got)
 			}
@@ -306,7 +306,7 @@ func BenchmarkOnceValue(b *testing.B) {
 	b.Run("v=Local", func(b *testing.B) {
 		b.ReportAllocs()
 		onceValue := sync.OnceValue(func() int { return 42 })
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if want, got := 42, onceValue(); want != got {
 				b.Fatalf("want %d, got %d", want, got)
 			}

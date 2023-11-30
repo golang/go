@@ -72,7 +72,7 @@ func BenchmarkExpand(b *testing.B) {
 	b.Run("noop", func(b *testing.B) {
 		var s string
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s = Expand("tick tick tick tick", func(string) string { return "" })
 		}
 		global = s
@@ -80,7 +80,7 @@ func BenchmarkExpand(b *testing.B) {
 	b.Run("multiple", func(b *testing.B) {
 		var s string
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s = Expand("$a $a $a $a", func(string) string { return "boom" })
 		}
 		global = s

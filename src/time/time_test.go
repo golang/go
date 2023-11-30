@@ -1413,46 +1413,46 @@ func TestDefaultLoc(t *testing.T) {
 }
 
 func BenchmarkNow(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t = Now()
 	}
 }
 
 func BenchmarkNowUnixNano(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		u = Now().UnixNano()
 	}
 }
 
 func BenchmarkNowUnixMilli(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		u = Now().UnixMilli()
 	}
 }
 
 func BenchmarkNowUnixMicro(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		u = Now().UnixMicro()
 	}
 }
 
 func BenchmarkFormat(b *testing.B) {
 	t := Unix(1265346057, 0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Format("Mon Jan  2 15:04:05 2006")
 	}
 }
 
 func BenchmarkFormatRFC3339(b *testing.B) {
 	t := Unix(1265346057, 0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Format("2006-01-02T15:04:05Z07:00")
 	}
 }
 
 func BenchmarkFormatRFC3339Nano(b *testing.B) {
 	t := Unix(1265346057, 0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Format("2006-01-02T15:04:05.999999999Z07:00")
 	}
 }
@@ -1461,27 +1461,27 @@ func BenchmarkFormatNow(b *testing.B) {
 	// Like BenchmarkFormat, but easier, because the time zone
 	// lookup cache is optimized for the present.
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Format("Mon Jan  2 15:04:05 2006")
 	}
 }
 
 func BenchmarkMarshalJSON(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.MarshalJSON()
 	}
 }
 
 func BenchmarkMarshalText(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.MarshalText()
 	}
 }
 
 func BenchmarkParse(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
 	}
 }
@@ -1489,7 +1489,7 @@ func BenchmarkParse(b *testing.B) {
 const testdataRFC3339UTC = "2020-08-22T11:27:43.123456789Z"
 
 func BenchmarkParseRFC3339UTC(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Parse(RFC3339, testdataRFC3339UTC)
 	}
 }
@@ -1497,7 +1497,7 @@ func BenchmarkParseRFC3339UTC(b *testing.B) {
 var testdataRFC3339UTCBytes = []byte(testdataRFC3339UTC)
 
 func BenchmarkParseRFC3339UTCBytes(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Parse(RFC3339, string(testdataRFC3339UTCBytes))
 	}
 }
@@ -1505,7 +1505,7 @@ func BenchmarkParseRFC3339UTCBytes(b *testing.B) {
 const testdataRFC3339TZ = "2020-08-22T11:27:43.123456789-02:00"
 
 func BenchmarkParseRFC3339TZ(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Parse(RFC3339, testdataRFC3339TZ)
 	}
 }
@@ -1513,13 +1513,13 @@ func BenchmarkParseRFC3339TZ(b *testing.B) {
 var testdataRFC3339TZBytes = []byte(testdataRFC3339TZ)
 
 func BenchmarkParseRFC3339TZBytes(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Parse(RFC3339, string(testdataRFC3339TZBytes))
 	}
 }
 
 func BenchmarkParseDuration(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseDuration("9007199254.740993ms")
 		ParseDuration("9007199254740993ns")
 	}
@@ -1527,42 +1527,42 @@ func BenchmarkParseDuration(b *testing.B) {
 
 func BenchmarkHour(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Hour()
 	}
 }
 
 func BenchmarkSecond(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Second()
 	}
 }
 
 func BenchmarkYear(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Year()
 	}
 }
 
 func BenchmarkDay(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Day()
 	}
 }
 
 func BenchmarkISOWeek(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = t.ISOWeek()
 	}
 }
 
 func BenchmarkGoString(b *testing.B) {
 	t := Now()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.GoString()
 	}
 }
@@ -1570,7 +1570,7 @@ func BenchmarkGoString(b *testing.B) {
 func BenchmarkUnmarshalText(b *testing.B) {
 	var t Time
 	in := []byte("2020-08-22T11:27:43.123456789-02:00")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.UnmarshalText(in)
 	}
 }

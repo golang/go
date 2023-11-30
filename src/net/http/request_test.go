@@ -1266,7 +1266,7 @@ func benchmarkReadRequest(b *testing.B, request string) {
 	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ReadRequest(r)
 		if err != nil {
 			b.Fatalf("failed to read request: %v", err)
@@ -1385,7 +1385,7 @@ func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64
 	cst := newClientServerTest(b, mode, handler).ts
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Perform some setup.
 		b.StopTimer()
 		if _, err := f.Seek(0, 0); err != nil {

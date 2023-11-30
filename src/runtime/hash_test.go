@@ -628,7 +628,7 @@ func randBytes(r *rand.Rand, b []byte) {
 func benchmarkHash(b *testing.B, n int) {
 	s := strings.Repeat("A", n)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StringHash(s, 0)
 	}
 	b.SetBytes(int64(n))
@@ -743,7 +743,7 @@ func BenchmarkAlignedLoad(b *testing.B) {
 	var buf [16]byte
 	p := unsafe.Pointer(&buf[0])
 	var s uint64
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += ReadUnaligned64(p)
 	}
 	sink = s
@@ -753,7 +753,7 @@ func BenchmarkUnalignedLoad(b *testing.B) {
 	var buf [16]byte
 	p := unsafe.Pointer(&buf[1])
 	var s uint64
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += ReadUnaligned64(p)
 	}
 	sink = s

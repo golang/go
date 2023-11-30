@@ -13,30 +13,30 @@ var boolres bool
 var i64res int64
 
 func BenchmarkDivconstI64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i64res = int64(i) / 7
 	}
 }
 
 func BenchmarkModconstI64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i64res = int64(i) % 7
 	}
 }
 
 func BenchmarkDivisiblePow2constI64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int64(i)%16 == 0
 	}
 }
 func BenchmarkDivisibleconstI64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int64(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstI64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i64res = int64(i) / 7
 		boolres = int64(i)%7 == 0
 	}
@@ -97,28 +97,28 @@ func TestDivmodConstU64(t *testing.T) {
 func BenchmarkDivconstU64(b *testing.B) {
 	b.Run("3", func(b *testing.B) {
 		x := uint64(123456789123456789)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x += x << 4
 			u64res = uint64(x) / 3
 		}
 	})
 	b.Run("5", func(b *testing.B) {
 		x := uint64(123456789123456789)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x += x << 4
 			u64res = uint64(x) / 5
 		}
 	})
 	b.Run("37", func(b *testing.B) {
 		x := uint64(123456789123456789)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x += x << 4
 			u64res = uint64(x) / 37
 		}
 	})
 	b.Run("1234567", func(b *testing.B) {
 		x := uint64(123456789123456789)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x += x << 4
 			u64res = uint64(x) / 1234567
 		}
@@ -126,19 +126,19 @@ func BenchmarkDivconstU64(b *testing.B) {
 }
 
 func BenchmarkModconstU64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u64res = uint64(i) % 7
 	}
 }
 
 func BenchmarkDivisibleconstU64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = uint64(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstU64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u64res = uint64(i) / 7
 		boolres = uint64(i)%7 == 0
 	}
@@ -147,31 +147,31 @@ func BenchmarkDivisibleWDivconstU64(b *testing.B) {
 var i32res int32
 
 func BenchmarkDivconstI32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i32res = int32(i) / 7
 	}
 }
 
 func BenchmarkModconstI32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i32res = int32(i) % 7
 	}
 }
 
 func BenchmarkDivisiblePow2constI32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int32(i)%16 == 0
 	}
 }
 
 func BenchmarkDivisibleconstI32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int32(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstI32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i32res = int32(i) / 7
 		boolres = int32(i)%7 == 0
 	}
@@ -180,25 +180,25 @@ func BenchmarkDivisibleWDivconstI32(b *testing.B) {
 var u32res uint32
 
 func BenchmarkDivconstU32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u32res = uint32(i) / 7
 	}
 }
 
 func BenchmarkModconstU32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u32res = uint32(i) % 7
 	}
 }
 
 func BenchmarkDivisibleconstU32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = uint32(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstU32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u32res = uint32(i) / 7
 		boolres = uint32(i)%7 == 0
 	}
@@ -207,31 +207,31 @@ func BenchmarkDivisibleWDivconstU32(b *testing.B) {
 var i16res int16
 
 func BenchmarkDivconstI16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i16res = int16(i) / 7
 	}
 }
 
 func BenchmarkModconstI16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i16res = int16(i) % 7
 	}
 }
 
 func BenchmarkDivisiblePow2constI16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int16(i)%16 == 0
 	}
 }
 
 func BenchmarkDivisibleconstI16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int16(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstI16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i16res = int16(i) / 7
 		boolres = int16(i)%7 == 0
 	}
@@ -240,25 +240,25 @@ func BenchmarkDivisibleWDivconstI16(b *testing.B) {
 var u16res uint16
 
 func BenchmarkDivconstU16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u16res = uint16(i) / 7
 	}
 }
 
 func BenchmarkModconstU16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u16res = uint16(i) % 7
 	}
 }
 
 func BenchmarkDivisibleconstU16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = uint16(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstU16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u16res = uint16(i) / 7
 		boolres = uint16(i)%7 == 0
 	}
@@ -267,31 +267,31 @@ func BenchmarkDivisibleWDivconstU16(b *testing.B) {
 var i8res int8
 
 func BenchmarkDivconstI8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i8res = int8(i) / 7
 	}
 }
 
 func BenchmarkModconstI8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i8res = int8(i) % 7
 	}
 }
 
 func BenchmarkDivisiblePow2constI8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int8(i)%16 == 0
 	}
 }
 
 func BenchmarkDivisibleconstI8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = int8(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstI8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		i8res = int8(i) / 7
 		boolres = int8(i)%7 == 0
 	}
@@ -300,25 +300,25 @@ func BenchmarkDivisibleWDivconstI8(b *testing.B) {
 var u8res uint8
 
 func BenchmarkDivconstU8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u8res = uint8(i) / 7
 	}
 }
 
 func BenchmarkModconstU8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u8res = uint8(i) % 7
 	}
 }
 
 func BenchmarkDivisibleconstU8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		boolres = uint8(i)%7 == 0
 	}
 }
 
 func BenchmarkDivisibleWDivconstU8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		u8res = uint8(i) / 7
 		boolres = uint8(i)%7 == 0
 	}

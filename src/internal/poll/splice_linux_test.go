@@ -92,7 +92,7 @@ func TestSplicePipePool(t *testing.T) {
 
 func BenchmarkSplicePipe(b *testing.B) {
 	b.Run("SplicePipeWithPool", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			p, _, err := poll.GetPipe()
 			if err != nil {
 				continue
@@ -101,7 +101,7 @@ func BenchmarkSplicePipe(b *testing.B) {
 		}
 	})
 	b.Run("SplicePipeWithoutPool", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			p := poll.NewPipe()
 			if p == nil {
 				b.Skip("newPipe returned nil")

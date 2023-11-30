@@ -254,7 +254,7 @@ func TestBinomial(t *testing.T) {
 
 func BenchmarkBinomial(b *testing.B) {
 	var z Int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		z.Binomial(1000, 990)
 	}
 }
@@ -489,7 +489,7 @@ func BenchmarkQuoRem(b *testing.B) {
 	r := new(Int)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		q.QuoRem(y, x, r)
 	}
 }
@@ -656,7 +656,7 @@ func BenchmarkExp(b *testing.B) {
 	y, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF72", 0)
 	n, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73", 0)
 	out := new(Int)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out.Exp(x, y, n)
 	}
 }
@@ -689,7 +689,7 @@ func BenchmarkExpMont(b *testing.B) {
 		out := new(Int)
 		b.Run(mod.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				out.Exp(x, y, n)
 			}
 		})
@@ -701,7 +701,7 @@ func BenchmarkExp2(b *testing.B) {
 	y, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF72", 0)
 	n, _ := new(Int).SetString("0xAC6BDB41324A9A9BF166DE5E1389582FAF72B6651987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0CF6095179A163AB3661A05FBD5FAAAE82918A9962F0B93B855F97993EC975EEAA80D740ADBF4FF747359D041D5C33EA71D281E446B14773BCA97B43A23FB801676BD207A436C6481F1D2B9078717461A5B9D32E688F87748544523B524B0D57D5EA77A2775D2ECFA032CFBDBF52FB3786160279004E57AE6AF874E7303CE53299CCC041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4AFF73", 0)
 	out := new(Int)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		out.Exp(x, y, n)
 	}
 }
@@ -1471,7 +1471,7 @@ func tri(n uint) *Int {
 func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 	p := tri(225)
 	x := NewInt(2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.SetUint64(2)
 		x.modSqrtTonelliShanks(x, p)
 	}
@@ -1480,7 +1480,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 func BenchmarkModSqrt225_3Mod4(b *testing.B) {
 	p := tri(225)
 	x := new(Int).SetUint64(2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.SetUint64(2)
 		x.modSqrt3Mod4Prime(x, p)
 	}
@@ -1491,7 +1491,7 @@ func BenchmarkModSqrt231_Tonelli(b *testing.B) {
 	p.Sub(p, intOne)
 	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
 	x := new(Int).SetUint64(7)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.SetUint64(7)
 		x.modSqrtTonelliShanks(x, p)
 	}
@@ -1502,7 +1502,7 @@ func BenchmarkModSqrt231_5Mod8(b *testing.B) {
 	p.Sub(p, intOne)
 	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
 	x := new(Int).SetUint64(7)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.SetUint64(7)
 		x.modSqrt5Mod8Prime(x, p)
 	}
@@ -1608,7 +1608,7 @@ func BenchmarkModInverse(b *testing.B) {
 	p.Sub(p, intOne)
 	x := new(Int).Sub(p, intOne)
 	z := new(Int)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		z.ModInverse(x, p)
 	}
 }
@@ -1819,7 +1819,7 @@ func BenchmarkSqrt(b *testing.B) {
 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
 	b.ResetTimer()
 	t := new(Int)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Sqrt(n)
 	}
 }
@@ -1829,7 +1829,7 @@ func benchmarkIntSqr(b *testing.B, nwords int) {
 	x.abs = rndNat(nwords)
 	t := new(Int)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t.Mul(x, x)
 	}
 }
@@ -1856,7 +1856,7 @@ func benchmarkDiv(b *testing.B, aSize, bSize int) {
 	y := new(Int)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.DivMod(aa, bb, y)
 	}
 }

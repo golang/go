@@ -168,7 +168,7 @@ func BenchmarkMMU(b *testing.B) {
 	mu := MutatorUtilization(events.Events, UtilSTW|UtilBackground|UtilAssist|UtilSweep)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		mmuCurve := NewMMUCurve(mu)
 		xMin, xMax := time.Microsecond, time.Second
 		logMin, logMax := math.Log(float64(xMin)), math.Log(float64(xMax))

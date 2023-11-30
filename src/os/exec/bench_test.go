@@ -15,7 +15,7 @@ func BenchmarkExecHostname(b *testing.B) {
 		b.Fatalf("could not find hostname: %v", err)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := Command(path).Run(); err != nil {
 			b.Fatalf("hostname: %v", err)
 		}

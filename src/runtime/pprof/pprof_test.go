@@ -1804,7 +1804,7 @@ func BenchmarkGoroutine(b *testing.B) {
 	benchWriteTo := func(b *testing.B) {
 		goroutineProf := Lookup("goroutine")
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			goroutineProf.WriteTo(io.Discard, 0)
 		}
 		b.StopTimer()
@@ -1813,7 +1813,7 @@ func BenchmarkGoroutine(b *testing.B) {
 	benchGoroutineProfile := func(b *testing.B) {
 		p := make([]runtime.StackRecord, 10000)
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			runtime.GoroutineProfile(p)
 		}
 		b.StopTimer()

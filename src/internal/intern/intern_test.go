@@ -190,7 +190,7 @@ func TestGetByStringAllocs(t *testing.T) {
 
 func BenchmarkGetByString(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v := GetByString(globalString)
 		sink = v.Get().(string)
 	}

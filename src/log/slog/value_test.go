@@ -266,7 +266,7 @@ func BenchmarkUnsafeStrings(b *testing.B) {
 	}
 	b.ResetTimer()
 	var d string
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		copy(dst, src)
 		for _, a := range dst {
 			d = a.String()

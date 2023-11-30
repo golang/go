@@ -469,7 +469,7 @@ func TestCalibrate(t *testing.T) {
 		blinear := func(b *testing.B) {
 			tab := tab
 			max := n*5 + 20
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				for j := 0; j <= max; j++ {
 					linear(tab, uint16(j))
 				}
@@ -478,7 +478,7 @@ func TestCalibrate(t *testing.T) {
 		bbinary := func(b *testing.B) {
 			tab := tab
 			max := n*5 + 20
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				for j := 0; j <= max; j++ {
 					binary(tab, uint16(j))
 				}

@@ -1548,7 +1548,7 @@ func BenchmarkBinaryMarshalRoundTrip(b *testing.B) {
 	for _, tc := range tests {
 		b.Run(tc.name, func(b *testing.B) {
 			ip := mustIP(tc.ip)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				bt, err := ip.MarshalBinary()
 				if err != nil {
 					b.Fatal(err)
@@ -1565,7 +1565,7 @@ func BenchmarkBinaryMarshalRoundTrip(b *testing.B) {
 func BenchmarkStdIPv4(b *testing.B) {
 	b.ReportAllocs()
 	ips := []net.IP{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ip := net.IPv4(8, 8, 8, 8)
 		ips = ips[:0]
 		for i := 0; i < 100; i++ {
@@ -1577,7 +1577,7 @@ func BenchmarkStdIPv4(b *testing.B) {
 func BenchmarkIPv4(b *testing.B) {
 	b.ReportAllocs()
 	ips := []Addr{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ip := IPv4(8, 8, 8, 8)
 		ips = ips[:0]
 		for i := 0; i < 100; i++ {
@@ -1606,7 +1606,7 @@ func newip4i_v4(a, b, c, d byte) ip4i {
 func BenchmarkIPv4_inline(b *testing.B) {
 	b.ReportAllocs()
 	ips := []ip4i{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ip := newip4i_v4(8, 8, 8, 8)
 		ips = ips[:0]
 		for i := 0; i < 100; i++ {
@@ -1618,7 +1618,7 @@ func BenchmarkIPv4_inline(b *testing.B) {
 func BenchmarkStdIPv6(b *testing.B) {
 	b.ReportAllocs()
 	ips := []net.IP{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ip := net.ParseIP("2001:db8::1")
 		ips = ips[:0]
 		for i := 0; i < 100; i++ {
@@ -1630,7 +1630,7 @@ func BenchmarkStdIPv6(b *testing.B) {
 func BenchmarkIPv6(b *testing.B) {
 	b.ReportAllocs()
 	ips := []Addr{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ip := mustIP("2001:db8::1")
 		ips = ips[:0]
 		for i := 0; i < 100; i++ {
@@ -1643,7 +1643,7 @@ func BenchmarkIPv4Contains(b *testing.B) {
 	b.ReportAllocs()
 	prefix := PrefixFrom(IPv4(192, 168, 1, 0), 24)
 	ip := IPv4(192, 168, 1, 1)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		prefix.Contains(ip)
 	}
 }
@@ -1652,7 +1652,7 @@ func BenchmarkIPv6Contains(b *testing.B) {
 	b.ReportAllocs()
 	prefix := MustParsePrefix("::1/128")
 	ip := MustParseAddr("::1")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		prefix.Contains(ip)
 	}
 }
@@ -1673,7 +1673,7 @@ func BenchmarkParseAddr(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkIP, _ = ParseAddr(test.ip)
 			}
 		})
@@ -1684,7 +1684,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkStdIP = net.ParseIP(test.ip)
 			}
 		})
@@ -1696,7 +1696,7 @@ func BenchmarkIPString(b *testing.B) {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkString = ip.String()
 			}
 		})
@@ -1708,7 +1708,7 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkString = ip.StringExpanded()
 			}
 		})
@@ -1718,7 +1718,7 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 func BenchmarkIPMarshalText(b *testing.B) {
 	b.ReportAllocs()
 	ip := MustParseAddr("66.55.44.33")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkBytes, _ = ip.MarshalText()
 	}
 }
@@ -1729,7 +1729,7 @@ func BenchmarkAddrPortString(b *testing.B) {
 		ipp := AddrPortFrom(ip, 60000)
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkString = ipp.String()
 			}
 		})
@@ -1742,7 +1742,7 @@ func BenchmarkAddrPortMarshalText(b *testing.B) {
 		ipp := AddrPortFrom(ip, 60000)
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkBytes, _ = ipp.MarshalText()
 			}
 		})
@@ -1806,7 +1806,7 @@ func BenchmarkPrefixMasking(b *testing.B) {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkPrefix, _ = tt.ip.Prefix(tt.bits)
 			}
 		})
@@ -1816,7 +1816,7 @@ func BenchmarkPrefixMasking(b *testing.B) {
 func BenchmarkPrefixMarshalText(b *testing.B) {
 	b.ReportAllocs()
 	ipp := MustParsePrefix("66.55.44.33/22")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkBytes, _ = ipp.MarshalText()
 	}
 }
@@ -1832,7 +1832,7 @@ func BenchmarkParseAddrPort(b *testing.B) {
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sinkAddrPort, _ = ParseAddrPort(ipp)
 			}
 		})
@@ -2144,7 +2144,7 @@ var sink16 [16]byte
 
 func BenchmarkAs16(b *testing.B) {
 	addr := MustParseAddr("1::10")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sink16 = addr.As16()
 	}
 }

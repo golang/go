@@ -382,7 +382,7 @@ func BenchmarkECDH(b *testing.B) {
 
 		var allocationsSink byte
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			key, err := curve.GenerateKey(rand)
 			if err != nil {
 				b.Fatal(err)

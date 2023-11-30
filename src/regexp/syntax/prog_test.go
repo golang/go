@@ -118,7 +118,7 @@ func TestCompile(t *testing.T) {
 }
 
 func BenchmarkEmptyOpContext(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var r1 rune = -1
 		for _, r2 := range "foo, bar, baz\nsome input text.\n" {
 			EmptyOpContext(r1, r2)
@@ -132,7 +132,7 @@ var sink any
 
 func BenchmarkIsWordChar(b *testing.B) {
 	const chars = "Don't communicate by sharing memory, share memory by communicating."
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, r := range chars {
 			sink = IsWordChar(r)
 		}

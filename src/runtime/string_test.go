@@ -19,7 +19,7 @@ const sizeNoStack = 100
 func BenchmarkCompareStringEqual(b *testing.B) {
 	bytes := []byte("Hello Gophers!")
 	s1, s2 := string(bytes), string(bytes)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 != s2 {
 			b.Fatal("s1 != s2")
 		}
@@ -29,7 +29,7 @@ func BenchmarkCompareStringEqual(b *testing.B) {
 func BenchmarkCompareStringIdentical(b *testing.B) {
 	s1 := "Hello Gophers!"
 	s2 := s1
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 != s2 {
 			b.Fatal("s1 != s2")
 		}
@@ -39,7 +39,7 @@ func BenchmarkCompareStringIdentical(b *testing.B) {
 func BenchmarkCompareStringSameLength(b *testing.B) {
 	s1 := "Hello Gophers!"
 	s2 := "Hello, Gophers"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 == s2 {
 			b.Fatal("s1 == s2")
 		}
@@ -49,7 +49,7 @@ func BenchmarkCompareStringSameLength(b *testing.B) {
 func BenchmarkCompareStringDifferentLength(b *testing.B) {
 	s1 := "Hello Gophers!"
 	s2 := "Hello, Gophers!"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 == s2 {
 			b.Fatal("s1 == s2")
 		}
@@ -62,7 +62,7 @@ func BenchmarkCompareStringBigUnaligned(b *testing.B) {
 		bytes = append(bytes, "Hello Gophers!"...)
 	}
 	s1, s2 := string(bytes), "hello"+string(bytes)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 != s2[len("hello"):] {
 			b.Fatal("s1 != s2")
 		}
@@ -76,7 +76,7 @@ func BenchmarkCompareStringBig(b *testing.B) {
 		bytes = append(bytes, "Hello Gophers!"...)
 	}
 	s1, s2 := string(bytes), string(bytes)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if s1 != s2 {
 			b.Fatal("s1 != s2")
 		}
@@ -86,7 +86,7 @@ func BenchmarkCompareStringBig(b *testing.B) {
 
 func BenchmarkConcatStringAndBytes(b *testing.B) {
 	s1 := []byte("Gophers!")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = "Hello " + string(s1)
 	}
 }
@@ -97,7 +97,7 @@ func BenchmarkSliceByteToString(b *testing.B) {
 	buf := []byte{'!'}
 	for n := 0; n < 8; n++ {
 		b.Run(strconv.Itoa(len(buf)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				escapeString = string(buf)
 			}
 		})
@@ -118,7 +118,7 @@ func BenchmarkRuneCount(b *testing.B) {
 	b.Run("lenruneslice", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					sinkInt += len([]rune(sd.data))
 				}
 			})
@@ -127,7 +127,7 @@ func BenchmarkRuneCount(b *testing.B) {
 	b.Run("rangeloop", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					n := 0
 					for range sd.data {
 						n++
@@ -140,7 +140,7 @@ func BenchmarkRuneCount(b *testing.B) {
 	b.Run("utf8.RuneCountInString", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					sinkInt += utf8.RuneCountInString(sd.data)
 				}
 			})
@@ -152,7 +152,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 	b.Run("range", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					for range sd.data {
 					}
 				}
@@ -162,7 +162,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 	b.Run("range1", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					for range sd.data {
 					}
 				}
@@ -172,7 +172,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 	b.Run("range2", func(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					for range sd.data {
 					}
 				}
@@ -185,7 +185,7 @@ func BenchmarkArrayEqual(b *testing.B) {
 	a1 := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	a2 := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if a1 != a2 {
 			b.Fatal("not equal")
 		}

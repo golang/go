@@ -74,7 +74,7 @@ func BenchmarkPrintFile(b *testing.B) {
 	}
 	b.ReportAllocs()
 	b.SetBytes(fileSize)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		testprint(io.Discard, fileNode)
 	}
 }
@@ -85,7 +85,7 @@ func BenchmarkPrintDecl(b *testing.B) {
 	}
 	b.ReportAllocs()
 	b.SetBytes(declSize)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		testprint(io.Discard, declNode)
 	}
 }

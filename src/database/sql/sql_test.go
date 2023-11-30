@@ -4643,7 +4643,7 @@ func TestTypedString(t *testing.T) {
 func BenchmarkConcurrentDBExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentDBExecTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4651,7 +4651,7 @@ func BenchmarkConcurrentDBExec(b *testing.B) {
 func BenchmarkConcurrentStmtQuery(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentStmtQueryTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4659,7 +4659,7 @@ func BenchmarkConcurrentStmtQuery(b *testing.B) {
 func BenchmarkConcurrentStmtExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentStmtExecTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4667,7 +4667,7 @@ func BenchmarkConcurrentStmtExec(b *testing.B) {
 func BenchmarkConcurrentTxQuery(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentTxQueryTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4675,7 +4675,7 @@ func BenchmarkConcurrentTxQuery(b *testing.B) {
 func BenchmarkConcurrentTxExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentTxExecTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4683,7 +4683,7 @@ func BenchmarkConcurrentTxExec(b *testing.B) {
 func BenchmarkConcurrentTxStmtQuery(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentTxStmtQueryTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4691,7 +4691,7 @@ func BenchmarkConcurrentTxStmtQuery(b *testing.B) {
 func BenchmarkConcurrentTxStmtExec(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentTxStmtExecTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4699,7 +4699,7 @@ func BenchmarkConcurrentTxStmtExec(b *testing.B) {
 func BenchmarkConcurrentRandom(b *testing.B) {
 	b.ReportAllocs()
 	ct := new(concurrentRandomTest)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doConcurrentTest(b, ct)
 	}
 }
@@ -4755,7 +4755,7 @@ func BenchmarkGrabConn(b *testing.B) {
 	b.ReportAllocs()
 	c := new(Conn)
 	ctx := context.Background()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, release, err := c.grabConn(ctx)
 		if err != nil {
 			b.Fatal(err)

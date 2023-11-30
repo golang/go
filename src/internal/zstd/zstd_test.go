@@ -327,7 +327,7 @@ func BenchmarkLarge(b *testing.B) {
 	r := NewReader(input)
 
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		input.Reset(compressed)
 		r.Reset(input)
 		io.Copy(io.Discard, r)

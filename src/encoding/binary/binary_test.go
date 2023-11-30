@@ -600,7 +600,7 @@ func BenchmarkReadSlice1000Int32s(b *testing.B) {
 	buf := make([]byte, len(slice)*4)
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = buf
 		Read(bsr, BigEndian, slice)
 	}
@@ -613,7 +613,7 @@ func BenchmarkReadStruct(b *testing.B) {
 	b.SetBytes(int64(dataSize(reflect.ValueOf(s))))
 	t := s
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = buf.Bytes()
 		Read(bsr, BigEndian, &t)
 	}
@@ -626,7 +626,7 @@ func BenchmarkReadStruct(b *testing.B) {
 func BenchmarkWriteStruct(b *testing.B) {
 	b.SetBytes(int64(Size(&s)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Write(io.Discard, BigEndian, &s)
 	}
 }
@@ -637,7 +637,7 @@ func BenchmarkReadInts(b *testing.B) {
 	var r io.Reader = bsr
 	b.SetBytes(2 * (1 + 2 + 4 + 8))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = big
 		Read(r, BigEndian, &ls.Int8)
 		Read(r, BigEndian, &ls.Int16)
@@ -667,7 +667,7 @@ func BenchmarkWriteInts(b *testing.B) {
 	var w io.Writer = buf
 	b.SetBytes(2 * (1 + 2 + 4 + 8))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Write(w, BigEndian, s.Int8)
 		Write(w, BigEndian, s.Int16)
@@ -690,7 +690,7 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 	var w io.Writer = buf
 	b.SetBytes(4 * 1000)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Write(w, BigEndian, slice)
 	}
@@ -699,84 +699,84 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 
 func BenchmarkPutUint16(b *testing.B) {
 	b.SetBytes(2)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		BigEndian.PutUint16(putbuf[:2], uint16(i))
 	}
 }
 
 func BenchmarkAppendUint16(b *testing.B) {
 	b.SetBytes(2)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = BigEndian.AppendUint16(putbuf[:0], uint16(i))
 	}
 }
 
 func BenchmarkPutUint32(b *testing.B) {
 	b.SetBytes(4)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		BigEndian.PutUint32(putbuf[:4], uint32(i))
 	}
 }
 
 func BenchmarkAppendUint32(b *testing.B) {
 	b.SetBytes(4)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = BigEndian.AppendUint32(putbuf[:0], uint32(i))
 	}
 }
 
 func BenchmarkPutUint64(b *testing.B) {
 	b.SetBytes(8)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		BigEndian.PutUint64(putbuf[:8], uint64(i))
 	}
 }
 
 func BenchmarkAppendUint64(b *testing.B) {
 	b.SetBytes(8)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = BigEndian.AppendUint64(putbuf[:0], uint64(i))
 	}
 }
 
 func BenchmarkLittleEndianPutUint16(b *testing.B) {
 	b.SetBytes(2)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		LittleEndian.PutUint16(putbuf[:2], uint16(i))
 	}
 }
 
 func BenchmarkLittleEndianAppendUint16(b *testing.B) {
 	b.SetBytes(2)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = LittleEndian.AppendUint16(putbuf[:0], uint16(i))
 	}
 }
 
 func BenchmarkLittleEndianPutUint32(b *testing.B) {
 	b.SetBytes(4)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		LittleEndian.PutUint32(putbuf[:4], uint32(i))
 	}
 }
 
 func BenchmarkLittleEndianAppendUint32(b *testing.B) {
 	b.SetBytes(4)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = LittleEndian.AppendUint32(putbuf[:0], uint32(i))
 	}
 }
 
 func BenchmarkLittleEndianPutUint64(b *testing.B) {
 	b.SetBytes(8)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		LittleEndian.PutUint64(putbuf[:8], uint64(i))
 	}
 }
 
 func BenchmarkLittleEndianAppendUint64(b *testing.B) {
 	b.SetBytes(8)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		putbuf = LittleEndian.AppendUint64(putbuf[:0], uint64(i))
 	}
 }
@@ -787,7 +787,7 @@ func BenchmarkReadFloats(b *testing.B) {
 	var r io.Reader = bsr
 	b.SetBytes(4 + 8)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = big[30:]
 		Read(r, BigEndian, &ls.Float32)
 		Read(r, BigEndian, &ls.Float64)
@@ -817,7 +817,7 @@ func BenchmarkWriteFloats(b *testing.B) {
 	var w io.Writer = buf
 	b.SetBytes(4 + 8)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Write(w, BigEndian, s.Float32)
 		Write(w, BigEndian, s.Float64)
@@ -834,7 +834,7 @@ func BenchmarkReadSlice1000Float32s(b *testing.B) {
 	buf := make([]byte, len(slice)*4)
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = buf
 		Read(bsr, BigEndian, slice)
 	}
@@ -846,7 +846,7 @@ func BenchmarkWriteSlice1000Float32s(b *testing.B) {
 	var w io.Writer = buf
 	b.SetBytes(4 * 1000)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Write(w, BigEndian, slice)
 	}
@@ -859,7 +859,7 @@ func BenchmarkReadSlice1000Uint8s(b *testing.B) {
 	buf := make([]byte, len(slice))
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bsr.remain = buf
 		Read(bsr, BigEndian, slice)
 	}
@@ -871,7 +871,7 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 	var w io.Writer = buf
 	b.SetBytes(1000)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		Write(w, BigEndian, slice)
 	}

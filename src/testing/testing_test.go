@@ -61,7 +61,7 @@ func TestTempDirInBenchmark(t *testing.T) {
 	testing.Benchmark(func(b *testing.B) {
 		if !b.Run("test", func(b *testing.B) {
 			// Add a loop so that the test won't fail. See issue 38677.
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = b.TempDir()
 			}
 		}) {
@@ -595,7 +595,7 @@ func BenchmarkRacy(b *testing.B) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		b.Skipf("skipping intentionally-racy benchmark")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doRace()
 	}
 }
@@ -622,14 +622,14 @@ func BenchmarkSubRacy(b *testing.B) {
 
 	b.Run("non-racy", func(b *testing.B) {
 		tot := 0
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			tot++
 		}
 		_ = tot
 	})
 
 	b.Run("racy", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			doRace()
 		}
 	})

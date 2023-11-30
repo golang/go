@@ -60,7 +60,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 	ws.memMu <- mem
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ws.m = newMutator()
 		mem.setValue(encodedVals)
 		mem.header().count = 0
@@ -77,7 +77,7 @@ func BenchmarkWorkerPing(b *testing.B) {
 	}
 	b.SetParallelism(1)
 	w := newWorkerForTest(b)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if err := w.client.ping(context.Background()); err != nil {
 			b.Fatal(err)
 		}
@@ -197,7 +197,7 @@ func BenchmarkWorkerMinimize(b *testing.B) {
 				}
 				return time.Second, nil
 			}
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				b.SetBytes(int64(sz))
 				ws.minimize(ctx, minimizeArgs{})
 			}

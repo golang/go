@@ -773,7 +773,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
 	ctx := context.Background()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		goResolver.LookupIPAddr(ctx, "www.example.com")
 	}
 }
@@ -783,7 +783,7 @@ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
 	ctx := context.Background()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		goResolver.LookupIPAddr(ctx, "some.nonexistent")
 	}
 }
@@ -807,7 +807,7 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	ctx := context.Background()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		goResolver.LookupIPAddr(ctx, "www.example.com")
 	}
 }

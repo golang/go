@@ -106,7 +106,7 @@ func BenchmarkTBHelper(b *testing.B) {
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if i&1 == 0 {
 			f1()
 		} else {

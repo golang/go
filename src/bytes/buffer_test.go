@@ -520,7 +520,7 @@ func BenchmarkReadString(b *testing.B) {
 	data := make([]byte, n)
 	data[n-1] = 'x'
 	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf := NewBuffer(data)
 		_, err := buf.ReadString('x')
 		if err != nil {
@@ -651,7 +651,7 @@ func BenchmarkWriteByte(b *testing.B) {
 	const n = 4 << 10
 	b.SetBytes(n)
 	buf := NewBuffer(make([]byte, n))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		for i := 0; i < n; i++ {
 			buf.WriteByte('x')
@@ -664,7 +664,7 @@ func BenchmarkWriteRune(b *testing.B) {
 	const r = '☺'
 	b.SetBytes(int64(n * utf8.RuneLen(r)))
 	buf := NewBuffer(make([]byte, n*utf8.UTFMax))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		for i := 0; i < n; i++ {
 			buf.WriteRune(r)
@@ -675,7 +675,7 @@ func BenchmarkWriteRune(b *testing.B) {
 // From Issue 5154.
 func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 	buf := make([]byte, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var b Buffer
 		b.Write(buf[0:1])
 		for i := 0; i < 5<<10; i++ {
@@ -688,7 +688,7 @@ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 // Check that we don't compact too often. From Issue 5154.
 func BenchmarkBufferFullSmallReads(b *testing.B) {
 	buf := make([]byte, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var b Buffer
 		b.Write(buf)
 		for b.Len()+20 < b.Cap() {
@@ -706,7 +706,7 @@ func BenchmarkBufferWriteBlock(b *testing.B) {
 	for _, n := range []int{1 << 12, 1 << 16, 1 << 20} {
 		b.Run(fmt.Sprintf("N%d", n), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				var bb Buffer
 				for bb.Len() < n {
 					bb.Write(block)
@@ -721,7 +721,7 @@ func BenchmarkBufferAppendNoCopy(b *testing.B) {
 	bb.Grow(16 << 20)
 	b.SetBytes(int64(bb.Available()))
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bb.Reset()
 		b := bb.AvailableBuffer()
 		b = b[:cap(b)] // use max capacity to simulate a large append operation

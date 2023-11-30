@@ -3109,7 +3109,7 @@ func BenchmarkCreateCertificate(b *testing.B) {
 		k := tc.gen()
 		b.ResetTimer()
 		b.Run(tc.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
 				if err != nil {
 					b.Fatalf("failed to create certificate: %s", err)
@@ -3361,7 +3361,7 @@ Qc4=
 			pemBlock, _ := pem.Decode([]byte(c.pem))
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, err := ParseCertificate(pemBlock.Bytes)
 				if err != nil {
 					b.Fatal(err)

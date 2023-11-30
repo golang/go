@@ -72,179 +72,179 @@ func TestCmpIfaceConcreteAlloc(t *testing.T) {
 }
 
 func BenchmarkEqEfaceConcrete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = e == ts
 	}
 }
 
 func BenchmarkEqIfaceConcrete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = i1 == ts
 	}
 }
 
 func BenchmarkNeEfaceConcrete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = e != ts
 	}
 }
 
 func BenchmarkNeIfaceConcrete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = i1 != ts
 	}
 }
 
 func BenchmarkConvT2EByteSized(b *testing.B) {
 	b.Run("bool", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			e = yes
 		}
 	})
 	b.Run("uint8", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			e = eight8
 		}
 	})
 }
 
 func BenchmarkConvT2ESmall(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e = ts
 	}
 }
 
 func BenchmarkConvT2EUintptr(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e = tm
 	}
 }
 
 func BenchmarkConvT2ELarge(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e = tl
 	}
 }
 
 func BenchmarkConvT2ISmall(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i1 = ts
 	}
 }
 
 func BenchmarkConvT2IUintptr(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i1 = tm
 	}
 }
 
 func BenchmarkConvT2ILarge(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i1 = tl
 	}
 }
 
 func BenchmarkConvI2E(b *testing.B) {
 	i2 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e = i2
 	}
 }
 
 func BenchmarkConvI2I(b *testing.B) {
 	i2 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i1 = i2
 	}
 }
 
 func BenchmarkAssertE2T(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tm = e.(TM)
 	}
 }
 
 func BenchmarkAssertE2TLarge(b *testing.B) {
 	e = tl
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tl = e.(TL)
 	}
 }
 
 func BenchmarkAssertE2I(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i1 = e.(I1)
 	}
 }
 
 func BenchmarkAssertI2T(b *testing.B) {
 	i1 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tm = i1.(TM)
 	}
 }
 
 func BenchmarkAssertI2I(b *testing.B) {
 	i1 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		i2 = i1.(I2)
 	}
 }
 
 func BenchmarkAssertI2E(b *testing.B) {
 	i1 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e = i1.(any)
 	}
 }
 
 func BenchmarkAssertE2E(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e_ = e
 	}
 }
 
 func BenchmarkAssertE2T2(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tm, ok = e.(TM)
 	}
 }
 
 func BenchmarkAssertE2T2Blank(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, ok = e.(TM)
 	}
 }
 
 func BenchmarkAssertI2E2(b *testing.B) {
 	i1 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e, ok = i1.(any)
 	}
 }
 
 func BenchmarkAssertI2E2Blank(b *testing.B) {
 	i1 = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, ok = i1.(any)
 	}
 }
 
 func BenchmarkAssertE2E2(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e_, ok = e.(any)
 	}
 }
 
 func BenchmarkAssertE2E2Blank(b *testing.B) {
 	e = tm
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, ok = e.(any)
 	}
 }
@@ -355,83 +355,83 @@ var (
 func BenchmarkConvT2Ezero(b *testing.B) {
 	b.Run("zero", func(b *testing.B) {
 		b.Run("16", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zero16
 			}
 		})
 		b.Run("32", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zero32
 			}
 		})
 		b.Run("64", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zero64
 			}
 		})
 		b.Run("str", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zerostr
 			}
 		})
 		b.Run("slice", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zeroslice
 			}
 		})
 		b.Run("big", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = zerobig
 			}
 		})
 	})
 	b.Run("nonzero", func(b *testing.B) {
 		b.Run("str", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = nzstr
 			}
 		})
 		b.Run("slice", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = nzslice
 			}
 		})
 		b.Run("big", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = nzbig
 			}
 		})
 	})
 	b.Run("smallint", func(b *testing.B) {
 		b.Run("16", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = one16
 			}
 		})
 		b.Run("32", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = one32
 			}
 		})
 		b.Run("64", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = one64
 			}
 		})
 	})
 	b.Run("largeint", func(b *testing.B) {
 		b.Run("16", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = thousand16
 			}
 		})
 		b.Run("32", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = thousand32
 			}
 		})
 		b.Run("64", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				e = thousand64
 			}
 		})

@@ -342,7 +342,7 @@ func TestAllocations(t *testing.T) {
 
 func BenchmarkKeyGeneration(b *testing.B) {
 	var zero zeroReader
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, _, err := GenerateKey(zero); err != nil {
 			b.Fatal(err)
 		}
@@ -351,7 +351,7 @@ func BenchmarkKeyGeneration(b *testing.B) {
 
 func BenchmarkNewKeyFromSeed(b *testing.B) {
 	seed := make([]byte, SeedSize)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = NewKeyFromSeed(seed)
 	}
 }
@@ -364,7 +364,7 @@ func BenchmarkSigning(b *testing.B) {
 	}
 	message := []byte("Hello, world!")
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Sign(priv, message)
 	}
 }
@@ -378,7 +378,7 @@ func BenchmarkVerification(b *testing.B) {
 	message := []byte("Hello, world!")
 	signature := Sign(priv, message)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Verify(pub, message, signature)
 	}
 }

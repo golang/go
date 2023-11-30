@@ -1515,7 +1515,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	out := make([]byte, len(tt.in))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Encrypt(out, tt.in)
 	}
 }
@@ -1529,7 +1529,7 @@ func BenchmarkDecrypt(b *testing.B) {
 	out := make([]byte, len(tt.out))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Decrypt(out, tt.out)
 	}
 }
@@ -1543,7 +1543,7 @@ func BenchmarkTDESEncrypt(b *testing.B) {
 	out := make([]byte, len(tt.in))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Encrypt(out, tt.in)
 	}
 }
@@ -1557,7 +1557,7 @@ func BenchmarkTDESDecrypt(b *testing.B) {
 	out := make([]byte, len(tt.out))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.Decrypt(out, tt.out)
 	}
 }

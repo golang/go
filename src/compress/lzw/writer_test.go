@@ -219,7 +219,7 @@ func BenchmarkEncoder(b *testing.B) {
 		runtime.GC()
 		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
 			b.SetBytes(int64(n))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				w := NewWriter(io.Discard, LSB, 8)
 				w.Write(buf1)
 				w.Close()
@@ -228,7 +228,7 @@ func BenchmarkEncoder(b *testing.B) {
 		b.Run(fmt.Sprint("1e-Reuse", e), func(b *testing.B) {
 			b.SetBytes(int64(n))
 			w := NewWriter(io.Discard, LSB, 8)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				w.Write(buf1)
 				w.Close()
 				w.(*Writer).Reset(io.Discard, LSB, 8)

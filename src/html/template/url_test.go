@@ -133,37 +133,37 @@ func TestSrcsetFilter(t *testing.T) {
 }
 
 func BenchmarkURLEscaper(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		urlEscaper("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
 	}
 }
 
 func BenchmarkURLEscaperNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		urlEscaper("TheQuickBrownFoxJumpsOverTheLazyDog.")
 	}
 }
 
 func BenchmarkURLNormalizer(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		urlNormalizer("The quick brown fox jumps over the lazy dog.\n")
 	}
 }
 
 func BenchmarkURLNormalizerNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		urlNormalizer("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
 	}
 }
 
 func BenchmarkSrcsetFilter(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcsetFilterAndEscaper(" /foo/bar.png 200w, /baz/boo(1).png")
 	}
 }
 
 func BenchmarkSrcsetFilterNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcsetFilterAndEscaper("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
 	}
 }

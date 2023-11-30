@@ -330,7 +330,7 @@ func TestScanPiParallel(t *testing.T) {
 }
 
 func BenchmarkScanPi(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var x nat
 		x.scan(strings.NewReader(pi), 10, false)
 	}
@@ -367,7 +367,7 @@ func BenchmarkScan(b *testing.B) {
 				}
 				b.StartTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					z.scan(bytes.NewReader(s), base, false)
 				}
 			})
@@ -389,7 +389,7 @@ func BenchmarkString(b *testing.B) {
 				z.utoa(base) // warm divisor cache
 				b.StartTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = z.utoa(base)
 				}
 			})
@@ -421,7 +421,7 @@ func LeafSizeHelper(b *testing.B, base, size int) {
 		_ = z.utoa(base)                 // warm divisor cache
 		b.StartTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = z.utoa(base)
 		}
 	}

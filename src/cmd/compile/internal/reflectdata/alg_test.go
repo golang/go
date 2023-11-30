@@ -54,7 +54,7 @@ func BenchmarkEqArrayOfFloats5(b *testing.B) {
 	var a [5]float32
 	var c [5]float32
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = a == c
 	}
 }
@@ -63,7 +63,7 @@ func BenchmarkEqArrayOfFloats64(b *testing.B) {
 	var a [64]float32
 	var c [64]float32
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = a == c
 	}
 }
@@ -72,7 +72,7 @@ func BenchmarkEqArrayOfFloats1024(b *testing.B) {
 	var a [1024]float32
 	var c [1024]float32
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = a == c
 	}
 }
@@ -138,7 +138,7 @@ func BenchmarkEqStruct(b *testing.B) {
 	x.a = [size]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	y.a = [size]byte{2, 3, 4, 5, 6, 7, 8, 9}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		f := x == y
 		if f {
 			println("hello")

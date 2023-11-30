@@ -72,7 +72,7 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        rand.Int()
 //	    }
 //	}
@@ -91,7 +91,7 @@
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
 //	    b.ResetTimer()
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        big.Len()
 //	    }
 //	}

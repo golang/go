@@ -94,7 +94,7 @@ var Output int
 
 func BenchmarkLeadingZeros(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += LeadingZeros(uint(Input) >> (uint(i) % UintSize))
 	}
 	Output = s
@@ -102,7 +102,7 @@ func BenchmarkLeadingZeros(b *testing.B) {
 
 func BenchmarkLeadingZeros8(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += LeadingZeros8(uint8(Input) >> (uint(i) % 8))
 	}
 	Output = s
@@ -110,7 +110,7 @@ func BenchmarkLeadingZeros8(b *testing.B) {
 
 func BenchmarkLeadingZeros16(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += LeadingZeros16(uint16(Input) >> (uint(i) % 16))
 	}
 	Output = s
@@ -118,7 +118,7 @@ func BenchmarkLeadingZeros16(b *testing.B) {
 
 func BenchmarkLeadingZeros32(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += LeadingZeros32(uint32(Input) >> (uint(i) % 32))
 	}
 	Output = s
@@ -126,7 +126,7 @@ func BenchmarkLeadingZeros32(b *testing.B) {
 
 func BenchmarkLeadingZeros64(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += LeadingZeros64(uint64(Input) >> (uint(i) % 64))
 	}
 	Output = s
@@ -195,7 +195,7 @@ func TestTrailingZeros(t *testing.T) {
 
 func BenchmarkTrailingZeros(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += TrailingZeros(uint(Input) << (uint(i) % UintSize))
 	}
 	Output = s
@@ -203,7 +203,7 @@ func BenchmarkTrailingZeros(b *testing.B) {
 
 func BenchmarkTrailingZeros8(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += TrailingZeros8(uint8(Input) << (uint(i) % 8))
 	}
 	Output = s
@@ -211,7 +211,7 @@ func BenchmarkTrailingZeros8(b *testing.B) {
 
 func BenchmarkTrailingZeros16(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += TrailingZeros16(uint16(Input) << (uint(i) % 16))
 	}
 	Output = s
@@ -219,7 +219,7 @@ func BenchmarkTrailingZeros16(b *testing.B) {
 
 func BenchmarkTrailingZeros32(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += TrailingZeros32(uint32(Input) << (uint(i) % 32))
 	}
 	Output = s
@@ -227,7 +227,7 @@ func BenchmarkTrailingZeros32(b *testing.B) {
 
 func BenchmarkTrailingZeros64(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += TrailingZeros64(uint64(Input) << (uint(i) % 64))
 	}
 	Output = s
@@ -296,7 +296,7 @@ func testOnesCount(t *testing.T, x uint64, want int) {
 
 func BenchmarkOnesCount(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += OnesCount(uint(Input))
 	}
 	Output = s
@@ -304,7 +304,7 @@ func BenchmarkOnesCount(b *testing.B) {
 
 func BenchmarkOnesCount8(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += OnesCount8(uint8(Input))
 	}
 	Output = s
@@ -312,7 +312,7 @@ func BenchmarkOnesCount8(b *testing.B) {
 
 func BenchmarkOnesCount16(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += OnesCount16(uint16(Input))
 	}
 	Output = s
@@ -320,7 +320,7 @@ func BenchmarkOnesCount16(b *testing.B) {
 
 func BenchmarkOnesCount32(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += OnesCount32(uint32(Input))
 	}
 	Output = s
@@ -328,7 +328,7 @@ func BenchmarkOnesCount32(b *testing.B) {
 
 func BenchmarkOnesCount64(b *testing.B) {
 	var s int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		s += OnesCount64(uint64(Input))
 	}
 	Output = s
@@ -410,7 +410,7 @@ func TestRotateLeft(t *testing.T) {
 
 func BenchmarkRotateLeft(b *testing.B) {
 	var s uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += RotateLeft(uint(Input), i)
 	}
 	Output = int(s)
@@ -418,7 +418,7 @@ func BenchmarkRotateLeft(b *testing.B) {
 
 func BenchmarkRotateLeft8(b *testing.B) {
 	var s uint8
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += RotateLeft8(uint8(Input), i)
 	}
 	Output = int(s)
@@ -426,7 +426,7 @@ func BenchmarkRotateLeft8(b *testing.B) {
 
 func BenchmarkRotateLeft16(b *testing.B) {
 	var s uint16
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += RotateLeft16(uint16(Input), i)
 	}
 	Output = int(s)
@@ -434,7 +434,7 @@ func BenchmarkRotateLeft16(b *testing.B) {
 
 func BenchmarkRotateLeft32(b *testing.B) {
 	var s uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += RotateLeft32(uint32(Input), i)
 	}
 	Output = int(s)
@@ -442,7 +442,7 @@ func BenchmarkRotateLeft32(b *testing.B) {
 
 func BenchmarkRotateLeft64(b *testing.B) {
 	var s uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += RotateLeft64(uint64(Input), i)
 	}
 	Output = int(s)
@@ -528,7 +528,7 @@ func testReverse(t *testing.T, x64, want64 uint64) {
 
 func BenchmarkReverse(b *testing.B) {
 	var s uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += Reverse(uint(i))
 	}
 	Output = int(s)
@@ -536,7 +536,7 @@ func BenchmarkReverse(b *testing.B) {
 
 func BenchmarkReverse8(b *testing.B) {
 	var s uint8
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += Reverse8(uint8(i))
 	}
 	Output = int(s)
@@ -544,7 +544,7 @@ func BenchmarkReverse8(b *testing.B) {
 
 func BenchmarkReverse16(b *testing.B) {
 	var s uint16
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += Reverse16(uint16(i))
 	}
 	Output = int(s)
@@ -552,7 +552,7 @@ func BenchmarkReverse16(b *testing.B) {
 
 func BenchmarkReverse32(b *testing.B) {
 	var s uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += Reverse32(uint32(i))
 	}
 	Output = int(s)
@@ -560,7 +560,7 @@ func BenchmarkReverse32(b *testing.B) {
 
 func BenchmarkReverse64(b *testing.B) {
 	var s uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += Reverse64(uint64(i))
 	}
 	Output = int(s)
@@ -624,7 +624,7 @@ func testReverseBytes(t *testing.T, x64, want64 uint64) {
 
 func BenchmarkReverseBytes(b *testing.B) {
 	var s uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += ReverseBytes(uint(i))
 	}
 	Output = int(s)
@@ -632,7 +632,7 @@ func BenchmarkReverseBytes(b *testing.B) {
 
 func BenchmarkReverseBytes16(b *testing.B) {
 	var s uint16
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += ReverseBytes16(uint16(i))
 	}
 	Output = int(s)
@@ -640,7 +640,7 @@ func BenchmarkReverseBytes16(b *testing.B) {
 
 func BenchmarkReverseBytes32(b *testing.B) {
 	var s uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += ReverseBytes32(uint32(i))
 	}
 	Output = int(s)
@@ -648,7 +648,7 @@ func BenchmarkReverseBytes32(b *testing.B) {
 
 func BenchmarkReverseBytes64(b *testing.B) {
 	var s uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		s += ReverseBytes64(uint64(i))
 	}
 	Output = int(s)
@@ -1180,7 +1180,7 @@ func TestRem64Overflow(t *testing.T) {
 
 func BenchmarkAdd(b *testing.B) {
 	var z, c uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Add(uint(Input), uint(i), c)
 	}
 	Output = int(z + c)
@@ -1188,7 +1188,7 @@ func BenchmarkAdd(b *testing.B) {
 
 func BenchmarkAdd32(b *testing.B) {
 	var z, c uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Add32(uint32(Input), uint32(i), c)
 	}
 	Output = int(z + c)
@@ -1196,7 +1196,7 @@ func BenchmarkAdd32(b *testing.B) {
 
 func BenchmarkAdd64(b *testing.B) {
 	var z, c uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Add64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
@@ -1207,7 +1207,7 @@ func BenchmarkAdd64multiple(b *testing.B) {
 	var z1 = uint64(Input)
 	var z2 = uint64(Input)
 	var z3 = uint64(Input)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		var c uint64
 		z0, c = Add64(z0, uint64(i), c)
 		z1, c = Add64(z1, uint64(i), c)
@@ -1219,7 +1219,7 @@ func BenchmarkAdd64multiple(b *testing.B) {
 
 func BenchmarkSub(b *testing.B) {
 	var z, c uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Sub(uint(Input), uint(i), c)
 	}
 	Output = int(z + c)
@@ -1227,7 +1227,7 @@ func BenchmarkSub(b *testing.B) {
 
 func BenchmarkSub32(b *testing.B) {
 	var z, c uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Sub32(uint32(Input), uint32(i), c)
 	}
 	Output = int(z + c)
@@ -1235,7 +1235,7 @@ func BenchmarkSub32(b *testing.B) {
 
 func BenchmarkSub64(b *testing.B) {
 	var z, c uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		z, c = Sub64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
@@ -1246,7 +1246,7 @@ func BenchmarkSub64multiple(b *testing.B) {
 	var z1 = uint64(Input)
 	var z2 = uint64(Input)
 	var z3 = uint64(Input)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		var c uint64
 		z0, c = Sub64(z0, uint64(i), c)
 		z1, c = Sub64(z1, uint64(i), c)
@@ -1258,7 +1258,7 @@ func BenchmarkSub64multiple(b *testing.B) {
 
 func BenchmarkMul(b *testing.B) {
 	var hi, lo uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		hi, lo = Mul(uint(Input), uint(i))
 	}
 	Output = int(hi + lo)
@@ -1266,7 +1266,7 @@ func BenchmarkMul(b *testing.B) {
 
 func BenchmarkMul32(b *testing.B) {
 	var hi, lo uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		hi, lo = Mul32(uint32(Input), uint32(i))
 	}
 	Output = int(hi + lo)
@@ -1274,7 +1274,7 @@ func BenchmarkMul32(b *testing.B) {
 
 func BenchmarkMul64(b *testing.B) {
 	var hi, lo uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		hi, lo = Mul64(uint64(Input), uint64(i))
 	}
 	Output = int(hi + lo)
@@ -1282,7 +1282,7 @@ func BenchmarkMul64(b *testing.B) {
 
 func BenchmarkDiv(b *testing.B) {
 	var q, r uint
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		q, r = Div(1, uint(i), uint(Input))
 	}
 	Output = int(q + r)
@@ -1290,7 +1290,7 @@ func BenchmarkDiv(b *testing.B) {
 
 func BenchmarkDiv32(b *testing.B) {
 	var q, r uint32
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		q, r = Div32(1, uint32(i), uint32(Input))
 	}
 	Output = int(q + r)
@@ -1298,7 +1298,7 @@ func BenchmarkDiv32(b *testing.B) {
 
 func BenchmarkDiv64(b *testing.B) {
 	var q, r uint64
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		q, r = Div64(1, uint64(i), uint64(Input))
 	}
 	Output = int(q + r)

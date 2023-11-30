@@ -596,13 +596,13 @@ func BenchmarkNopLog(b *testing.B) {
 	l := New(&captureHandler{})
 	b.Run("no attrs", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			l.LogAttrs(ctx, LevelInfo, "msg")
 		}
 	})
 	b.Run("attrs", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
 		}
 	})
@@ -616,13 +616,13 @@ func BenchmarkNopLog(b *testing.B) {
 	})
 	b.Run("keys-values", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			l.Log(ctx, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
 		}
 	})
 	b.Run("WithContext", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			l.LogAttrs(ctx, LevelInfo, "msg2", Int("a", 1), String("b", "two"), Bool("c", true))
 		}
 	})

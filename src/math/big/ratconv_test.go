@@ -709,7 +709,7 @@ func BenchmarkFloatPrecExact(b *testing.B) {
 		r.SetFrac(NewInt(1), d)
 
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				prec, ok := r.FloatPrec()
 				if prec != n || !ok {
 					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), true)
@@ -731,7 +731,7 @@ func BenchmarkFloatPrecMixed(b *testing.B) {
 		r.SetFrac(NewInt(1), d)
 
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				prec, ok := r.FloatPrec()
 				if prec != n || ok {
 					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), false)
@@ -754,7 +754,7 @@ func BenchmarkFloatPrecInexact(b *testing.B) {
 		r.SetFrac(NewInt(1), d)
 
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, ok := r.FloatPrec()
 				if ok {
 					b.Fatalf("got unexpected ok")

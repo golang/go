@@ -491,7 +491,7 @@ func TestStackPanic(t *testing.T) {
 
 func BenchmarkStackCopyPtr(b *testing.B) {
 	c := make(chan bool)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			i := 1000000
 			countp(&i)
@@ -511,7 +511,7 @@ func countp(n *int) {
 
 func BenchmarkStackCopy(b *testing.B) {
 	c := make(chan bool)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			count(1000000)
 			c <- true
@@ -529,7 +529,7 @@ func count(n int) int {
 
 func BenchmarkStackCopyNoCache(b *testing.B) {
 	c := make(chan bool)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			count1(1000000)
 			c <- true
@@ -586,7 +586,7 @@ func Sum(n int64, p *stkobjT) {
 
 func BenchmarkStackCopyWithStkobj(b *testing.B) {
 	c := make(chan bool)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			var s stkobjT
 			Sum(100000, &s)
@@ -604,7 +604,7 @@ func BenchmarkIssue18138(b *testing.B) {
 		c <- make([]byte, 1)
 	}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		<-c // get token
 		go func() {
 			useStackPtrs(1000, false) // uses ~1MB max

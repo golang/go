@@ -169,7 +169,7 @@ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
 	CheckFunc(fun.f)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		domBenchRes = dominators(fun.f)
 	}
 }

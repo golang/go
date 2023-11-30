@@ -111,7 +111,7 @@ func TestDecimalRounding(t *testing.T) {
 var sink string
 
 func BenchmarkDecimalConversion(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for shift := -100; shift <= +100; shift++ {
 			var d decimal
 			d.init(natOne, shift)
@@ -126,7 +126,7 @@ func BenchmarkFloatString(b *testing.B) {
 		x.SetPrec(prec).SetRat(NewRat(1, 3))
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sink = x.String()
 			}
 		})

@@ -667,7 +667,7 @@ func BenchmarkEncodeRandomPaletted(b *testing.B) {
 	b.SetBytes(640 * 480 * 1)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, paletted, nil)
 	}
 }
@@ -690,7 +690,7 @@ func BenchmarkEncodeRandomRGBA(b *testing.B) {
 	b.SetBytes(640 * 480 * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, rgba, nil)
 	}
 }
@@ -707,7 +707,7 @@ func BenchmarkEncodeRealisticPaletted(b *testing.B) {
 	b.SetBytes(int64(bo.Dx() * bo.Dy() * 1))
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, paletted, nil)
 	}
 }
@@ -728,7 +728,7 @@ func BenchmarkEncodeRealisticRGBA(b *testing.B) {
 	b.SetBytes(int64(bo.Dx() * bo.Dy() * 4))
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, rgba, nil)
 	}
 }

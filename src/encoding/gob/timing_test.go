@@ -320,7 +320,7 @@ func BenchmarkDecodeMap(b *testing.B) {
 	bbuf := benchmarkBuf{data: buf.Bytes()}
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		var rm map[int]int
 		bbuf.reset()
 		dec := NewDecoder(&bbuf)

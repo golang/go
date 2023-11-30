@@ -14,7 +14,7 @@ var sink any
 func BenchmarkAtomicLoad64(b *testing.B) {
 	var x uint64
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = atomic.Load64(&x)
 	}
 }
@@ -22,7 +22,7 @@ func BenchmarkAtomicLoad64(b *testing.B) {
 func BenchmarkAtomicStore64(b *testing.B) {
 	var x uint64
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		atomic.Store64(&x, 0)
 	}
 }
@@ -30,7 +30,7 @@ func BenchmarkAtomicStore64(b *testing.B) {
 func BenchmarkAtomicLoad(b *testing.B) {
 	var x uint32
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = atomic.Load(&x)
 	}
 }
@@ -38,7 +38,7 @@ func BenchmarkAtomicLoad(b *testing.B) {
 func BenchmarkAtomicStore(b *testing.B) {
 	var x uint32
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		atomic.Store(&x, 0)
 	}
 }
@@ -46,7 +46,7 @@ func BenchmarkAtomicStore(b *testing.B) {
 func BenchmarkAnd8(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.And8(&x[255], uint8(i))
 	}
 }
@@ -54,7 +54,7 @@ func BenchmarkAnd8(b *testing.B) {
 func BenchmarkAnd(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.And(&x[63], uint32(i))
 	}
 }
@@ -86,7 +86,7 @@ func BenchmarkAndParallel(b *testing.B) {
 func BenchmarkOr8(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.Or8(&x[255], uint8(i))
 	}
 }
@@ -94,7 +94,7 @@ func BenchmarkOr8(b *testing.B) {
 func BenchmarkOr(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.Or(&x[63], uint32(i))
 	}
 }

@@ -214,7 +214,7 @@ func TestDiscard(t *testing.T) {
 
 func BenchmarkItoa(b *testing.B) {
 	dst := make([]byte, 0, 64)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		dst = dst[0:0]
 		itoa(&dst, 2015, 4)   // year
 		itoa(&dst, 1, 2)      // month
@@ -231,7 +231,7 @@ func BenchmarkPrintln(b *testing.B) {
 	var buf bytes.Buffer
 	l := New(&buf, "", LstdFlags)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		l.Println(testString)
 	}
@@ -242,7 +242,7 @@ func BenchmarkPrintlnNoFlags(b *testing.B) {
 	var buf bytes.Buffer
 	l := New(&buf, "", 0)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		l.Println(testString)
 	}
@@ -262,7 +262,7 @@ func BenchmarkConcurrent(b *testing.B) {
 	for i := runtime.NumCPU(); i > 0; i-- {
 		group.Add(1)
 		go func() {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				l.Output(0, "hello, world!")
 			}
 			defer group.Done()
@@ -274,7 +274,7 @@ func BenchmarkConcurrent(b *testing.B) {
 func BenchmarkDiscard(b *testing.B) {
 	l := New(io.Discard, "", LstdFlags|Lshortfile)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		l.Printf("processing %d objects from bucket %q", 1234, "fizzbuzz")
 	}
 }

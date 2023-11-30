@@ -342,7 +342,7 @@ func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool
 
 func BenchmarkBuildString_Builder(b *testing.B) {
 	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var buf Builder
 			if grow {
 				buf.Grow(len(someBytes) * numWrite)
@@ -358,7 +358,7 @@ func BenchmarkBuildString_Builder(b *testing.B) {
 func BenchmarkBuildString_WriteString(b *testing.B) {
 	someString := string(someBytes)
 	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var buf Builder
 			if grow {
 				buf.Grow(len(someString) * numWrite)
@@ -373,7 +373,7 @@ func BenchmarkBuildString_WriteString(b *testing.B) {
 
 func BenchmarkBuildString_ByteBuffer(b *testing.B) {
 	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var buf bytes.Buffer
 			if grow {
 				buf.Grow(len(someBytes) * numWrite)

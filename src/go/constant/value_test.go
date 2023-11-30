@@ -692,7 +692,7 @@ func BenchmarkStringAdd(b *testing.B) {
 		b.Run(fmt.Sprint(size), func(b *testing.B) {
 			b.ReportAllocs()
 			n := int64(0)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x := MakeString(strings.Repeat("x", 100))
 				y := x
 				for j := 0; j < size-1; j++ {

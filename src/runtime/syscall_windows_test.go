@@ -1305,7 +1305,7 @@ func BenchmarkChanToChanPing(b *testing.B) {
 }
 
 func BenchmarkOsYield(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		runtime.OsYield()
 	}
 }
@@ -1328,7 +1328,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cmd := exec.Command(exe)
 		out, err := cmd.CombinedOutput()
 		if err != nil {

@@ -210,7 +210,7 @@ var buf bytes.Buffer
 
 func BenchmarkHeaderWriteSubset(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.Reset()
 		testHeader.WriteSubset(&buf, nil)
 	}

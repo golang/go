@@ -94,7 +94,7 @@ func BenchmarkAddVV(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				addVV(z, x, y)
 			}
 		})
@@ -111,7 +111,7 @@ func BenchmarkSubVV(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				subVV(z, x, y)
 			}
 		})
@@ -402,7 +402,7 @@ func BenchmarkAddVW(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				addVW(z, x, y)
 			}
 		})
@@ -420,7 +420,7 @@ func BenchmarkAddVWext(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				addVW(z, x, y)
 			}
 		})
@@ -437,7 +437,7 @@ func BenchmarkSubVW(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				subVW(z, x, y)
 			}
 		})
@@ -455,7 +455,7 @@ func BenchmarkSubVWext(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				subVW(z, x, y)
 			}
 		})
@@ -632,7 +632,7 @@ func BenchmarkMulAddVWW(b *testing.B) {
 		r := rndW()
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				mulAddVWW(z, x, y, r)
 			}
 		})
@@ -649,7 +649,7 @@ func BenchmarkAddMulVVW(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				addMulVVW(z, x, y)
 			}
 		})
@@ -665,7 +665,7 @@ func BenchmarkDivWVW(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				divWVW(z, 0, x, y)
 			}
 		})
@@ -683,12 +683,12 @@ func BenchmarkNonZeroShifts(b *testing.B) {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
 			b.Run("shrVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = shrVU(z, x, s)
 				}
 			})
 			b.Run("shlVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = shlVU(z, x, s)
 				}
 			})

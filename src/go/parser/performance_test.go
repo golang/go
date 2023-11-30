@@ -22,7 +22,7 @@ func readFile(filename string) []byte {
 
 func BenchmarkParse(b *testing.B) {
 	b.SetBytes(int64(len(src)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := ParseFile(token.NewFileSet(), "", src, ParseComments); err != nil {
 			b.Fatalf("benchmark failed due to parse error: %s", err)
 		}
@@ -31,7 +31,7 @@ func BenchmarkParse(b *testing.B) {
 
 func BenchmarkParseOnly(b *testing.B) {
 	b.SetBytes(int64(len(src)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := ParseFile(token.NewFileSet(), "", src, ParseComments|SkipObjectResolution); err != nil {
 			b.Fatalf("benchmark failed due to parse error: %s", err)
 		}
@@ -40,7 +40,7 @@ func BenchmarkParseOnly(b *testing.B) {
 
 func BenchmarkResolve(b *testing.B) {
 	b.SetBytes(int64(len(src)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		fset := token.NewFileSet()
 		file, err := ParseFile(fset, "", src, SkipObjectResolution)

@@ -77,7 +77,7 @@ func BenchmarkFormat(b *testing.B) {
 			b.SetBytes(int64(len(data)))
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				var err error
 				sink, err = format.Source(data)
 				if err != nil {

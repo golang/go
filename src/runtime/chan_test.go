@@ -788,21 +788,21 @@ type struct0 struct{}
 func BenchmarkMakeChan(b *testing.B) {
 	b.Run("Byte", func(b *testing.B) {
 		var x chan byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make(chan byte, 8)
 		}
 		close(x)
 	})
 	b.Run("Int", func(b *testing.B) {
 		var x chan int
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make(chan int, 8)
 		}
 		close(x)
 	})
 	b.Run("Ptr", func(b *testing.B) {
 		var x chan *byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make(chan *byte, 8)
 		}
 		close(x)
@@ -810,21 +810,21 @@ func BenchmarkMakeChan(b *testing.B) {
 	b.Run("Struct", func(b *testing.B) {
 		b.Run("0", func(b *testing.B) {
 			var x chan struct0
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make(chan struct0, 8)
 			}
 			close(x)
 		})
 		b.Run("32", func(b *testing.B) {
 			var x chan struct32
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make(chan struct32, 8)
 			}
 			close(x)
 		})
 		b.Run("40", func(b *testing.B) {
 			var x chan struct40
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make(chan struct40, 8)
 			}
 			close(x)
@@ -1175,7 +1175,7 @@ func BenchmarkChanPopular(b *testing.B) {
 		d := make(chan bool)
 		a = append(a, d)
 		go func() {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				select {
 				case <-c:
 				case <-d:
@@ -1184,7 +1184,7 @@ func BenchmarkChanPopular(b *testing.B) {
 			wg.Done()
 		}()
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, d := range a {
 			d <- true
 		}

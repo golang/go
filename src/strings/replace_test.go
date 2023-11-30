@@ -422,7 +422,7 @@ func TestGenericTrieBuilding(t *testing.T) {
 func BenchmarkGenericNoMatch(b *testing.B) {
 	str := Repeat("A", 100) + Repeat("B", 100)
 	generic := NewReplacer("a", "A", "b", "B", "12", "123") // varying lengths forces generic
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		generic.Replace(str)
 	}
 }
@@ -430,14 +430,14 @@ func BenchmarkGenericNoMatch(b *testing.B) {
 func BenchmarkGenericMatch1(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
 	generic := NewReplacer("a", "A", "b", "B", "12", "123")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		generic.Replace(str)
 	}
 }
 
 func BenchmarkGenericMatch2(b *testing.B) {
 	str := Repeat("It&apos;s &lt;b&gt;HTML&lt;/b&gt;!", 100)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlUnescaper.Replace(str)
 	}
 }
@@ -446,7 +446,7 @@ func benchmarkSingleString(b *testing.B, pattern, text string) {
 	r := NewReplacer(pattern, "[match]")
 	b.SetBytes(int64(len(text)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		r.Replace(text)
 	}
 }
@@ -465,35 +465,35 @@ func BenchmarkSingleMatch(b *testing.B) {
 
 func BenchmarkByteByteNoMatch(b *testing.B) {
 	str := Repeat("A", 100) + Repeat("B", 100)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		capitalLetters.Replace(str)
 	}
 }
 
 func BenchmarkByteByteMatch(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		capitalLetters.Replace(str)
 	}
 }
 
 func BenchmarkByteStringMatch(b *testing.B) {
 	str := "<" + Repeat("a", 99) + Repeat("b", 99) + ">"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlEscaper.Replace(str)
 	}
 }
 
 func BenchmarkHTMLEscapeNew(b *testing.B) {
 	str := "I <3 to escape HTML & other text too."
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlEscaper.Replace(str)
 	}
 }
 
 func BenchmarkHTMLEscapeOld(b *testing.B) {
 	str := "I <3 to escape HTML & other text too."
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		oldHTMLEscape(str)
 	}
 }
@@ -501,7 +501,7 @@ func BenchmarkHTMLEscapeOld(b *testing.B) {
 func BenchmarkByteStringReplacerWriteString(b *testing.B) {
 	str := Repeat("I <3 to escape HTML & other text too.", 100)
 	buf := new(bytes.Buffer)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlEscaper.WriteString(buf, str)
 		buf.Reset()
 	}
@@ -510,7 +510,7 @@ func BenchmarkByteStringReplacerWriteString(b *testing.B) {
 func BenchmarkByteReplacerWriteString(b *testing.B) {
 	str := Repeat("abcdefghijklmnopqrstuvwxyz", 100)
 	buf := new(bytes.Buffer)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		capitalLetters.WriteString(buf, str)
 		buf.Reset()
 	}
@@ -519,7 +519,7 @@ func BenchmarkByteReplacerWriteString(b *testing.B) {
 // BenchmarkByteByteReplaces compares byteByteImpl against multiple Replaces.
 func BenchmarkByteByteReplaces(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Replace(Replace(str, "a", "A", -1), "b", "B", -1)
 	}
 }
@@ -536,7 +536,7 @@ func BenchmarkByteByteMap(b *testing.B) {
 		}
 		return r
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Map(fn, str)
 	}
 }
@@ -554,7 +554,7 @@ func BenchmarkMap(b *testing.B) {
 	b.Run("identity", func(b *testing.B) {
 		for _, md := range mapdata {
 			b.Run(md.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					Map(mapidentity, md.data)
 				}
 			})
@@ -574,7 +574,7 @@ func BenchmarkMap(b *testing.B) {
 	b.Run("change", func(b *testing.B) {
 		for _, md := range mapdata {
 			b.Run(md.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					Map(mapchange, md.data)
 				}
 			})

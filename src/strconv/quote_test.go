@@ -92,13 +92,13 @@ func TestQuoteToGraphic(t *testing.T) {
 }
 
 func BenchmarkQuote(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Quote("\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
 	}
 }
 
 func BenchmarkQuoteRune(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		QuoteRune('\a')
 	}
 }
@@ -106,7 +106,7 @@ func BenchmarkQuoteRune(b *testing.B) {
 var benchQuoteBuf []byte
 
 func BenchmarkAppendQuote(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		benchQuoteBuf = AppendQuote(benchQuoteBuf[:0], "\a\b\f\r\n\t\v\a\b\f\r\n\t\v\a\b\f\r\n\t\v")
 	}
 }
@@ -114,7 +114,7 @@ func BenchmarkAppendQuote(b *testing.B) {
 var benchQuoteRuneBuf []byte
 
 func BenchmarkAppendQuoteRune(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		benchQuoteRuneBuf = AppendQuoteRune(benchQuoteRuneBuf[:0], '\a')
 	}
 }
@@ -372,13 +372,13 @@ func testUnquote(t *testing.T, in, want string, wantErr error) {
 }
 
 func BenchmarkUnquoteEasy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Unquote(`"Give me a rock, paper and scissors and I will move the world."`)
 	}
 }
 
 func BenchmarkUnquoteHard(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Unquote(`"\x47ive me a \x72ock, \x70aper and \x73cissors and \x49 will move the world."`)
 	}
 }

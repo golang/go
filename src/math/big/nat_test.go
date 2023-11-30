@@ -212,7 +212,7 @@ func BenchmarkMul(b *testing.B) {
 	mulx := rndNat(1e4)
 	muly := rndNat(1e4)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var z nat
 		z.mul(mulx, muly)
 	}
@@ -223,7 +223,7 @@ func benchmarkNatMul(b *testing.B, nwords int) {
 	y := rndNat(nwords)
 	var z nat
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		z.mul(x, y)
 	}
 }
@@ -306,25 +306,25 @@ func BenchmarkZeroShifts(b *testing.B) {
 	x := rndNat(800)
 
 	b.Run("Shl", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var z nat
 			z.shl(x, 0)
 		}
 	})
 	b.Run("ShlSame", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x.shl(x, 0)
 		}
 	})
 
 	b.Run("Shr", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var z nat
 			z.shr(x, 0)
 		}
 	})
 	b.Run("ShrSame", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x.shr(x, 0)
 		}
 	})
@@ -572,7 +572,7 @@ func BenchmarkExp3Power(b *testing.B) {
 	} {
 		b.Run(fmt.Sprintf("%#x", y), func(b *testing.B) {
 			var z nat
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				z.expWW(x, y)
 			}
 		})
@@ -621,7 +621,7 @@ func TestFibo(t *testing.T) {
 }
 
 func BenchmarkFibo(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		fibo(1e0)
 		fibo(1e1)
 		fibo(1e2)
@@ -733,7 +733,7 @@ func benchmarkNatSqr(b *testing.B, nwords int) {
 	x := rndNat(nwords)
 	var z nat
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		z.sqr(x)
 	}
 }
@@ -815,7 +815,7 @@ func BenchmarkNatSetBytes(b *testing.B) {
 	buf := make([]byte, maxLength)
 	for _, l := range lengths {
 		b.Run(fmt.Sprint(l), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				n.setBytes(buf[:l])
 			}
 		})

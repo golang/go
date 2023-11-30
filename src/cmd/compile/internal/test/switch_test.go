@@ -18,7 +18,7 @@ func BenchmarkSwitch8Unpredictable(b *testing.B) {
 func benchmarkSwitch8(b *testing.B, predictable bool) {
 	n := 0
 	rng := newRNG()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rng = rng.next(predictable)
 		switch rng.value() & 7 {
 		case 0:
@@ -51,7 +51,7 @@ func BenchmarkSwitch32Unpredictable(b *testing.B) {
 func benchmarkSwitch32(b *testing.B, predictable bool) {
 	n := 0
 	rng := newRNG()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rng = rng.next(predictable)
 		switch rng.value() & 31 {
 		case 0, 1, 2:
@@ -96,7 +96,7 @@ func benchmarkSwitchString(b *testing.B, predictable bool) {
 	}
 	n := 0
 	rng := newRNG()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rng = rng.next(predictable)
 		switch a[rng.value()&7] {
 		case "foo":
@@ -139,7 +139,7 @@ func benchmarkSwitchType(b *testing.B, predictable bool) {
 	}
 	n := 0
 	rng := newRNG()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rng = rng.next(predictable)
 		switch a[rng.value()&7].(type) {
 		case int8:
@@ -255,7 +255,7 @@ func benchmarkSwitchInterfaceType(b *testing.B, predictable bool) {
 	}
 	n := 0
 	rng := newRNG()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rng = rng.next(predictable)
 		switch a[rng.value()&7].(type) {
 		case SI0:

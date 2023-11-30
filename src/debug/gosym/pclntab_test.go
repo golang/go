@@ -346,7 +346,7 @@ func Benchmark115(b *testing.B) {
 
 	b.Run("NewLineTable", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			sinkLineTable = NewLineTable(dat, textStart)
 		}
 	})
@@ -354,7 +354,7 @@ func Benchmark115(b *testing.B) {
 	pcln := NewLineTable(dat, textStart)
 	b.Run("NewTable", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var err error
 			sinkTable, err = NewTable(nil, pcln)
 			if err != nil {
@@ -370,7 +370,7 @@ func Benchmark115(b *testing.B) {
 
 	b.Run("LineToPC", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var f *Func
 			var pc uint64
 			pc, f, err = tab.LineToPC("/tmp/hello.go", 3)
@@ -391,7 +391,7 @@ func Benchmark115(b *testing.B) {
 
 	b.Run("PCToLine", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			file, line, fn := tab.PCToLine(0x105c280)
 			if file != "/tmp/hello.go" {
 				b.Fatalf("want name=/tmp/hello.go, got %q", file)

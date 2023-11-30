@@ -104,7 +104,7 @@ func TestIPNextPrev(t *testing.T) {
 }
 
 func BenchmarkIPNextPrev(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		doNextPrev(b)
 	}
 }

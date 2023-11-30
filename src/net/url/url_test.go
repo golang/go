@@ -644,7 +644,7 @@ func BenchmarkString(b *testing.B) {
 		}
 		b.StartTimer()
 		var g string
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			g = u.String()
 		}
 		b.StopTimer()
@@ -1118,7 +1118,7 @@ func TestResolvePath(t *testing.T) {
 
 func BenchmarkResolvePath(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		resolvePath("a/b/c", ".././d")
 	}
 }
@@ -2001,7 +2001,7 @@ func BenchmarkQueryEscape(b *testing.B) {
 		b.Run("", func(b *testing.B) {
 			b.ReportAllocs()
 			var g string
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				g = QueryEscape(tc.unescaped)
 			}
 			b.StopTimer()
@@ -2018,7 +2018,7 @@ func BenchmarkPathEscape(b *testing.B) {
 		b.Run("", func(b *testing.B) {
 			b.ReportAllocs()
 			var g string
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				g = PathEscape(tc.unescaped)
 			}
 			b.StopTimer()
@@ -2035,7 +2035,7 @@ func BenchmarkQueryUnescape(b *testing.B) {
 		b.Run("", func(b *testing.B) {
 			b.ReportAllocs()
 			var g string
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				g, _ = QueryUnescape(tc.query)
 			}
 			b.StopTimer()
@@ -2052,7 +2052,7 @@ func BenchmarkPathUnescape(b *testing.B) {
 		b.Run("", func(b *testing.B) {
 			b.ReportAllocs()
 			var g string
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				g, _ = PathUnescape(tc.path)
 			}
 			b.StopTimer()

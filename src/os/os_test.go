@@ -497,7 +497,7 @@ func TestFileReadDir(t *testing.T) {
 
 func benchmarkReaddirname(path string, b *testing.B) {
 	var nentries int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		f, err := Open(path)
 		if err != nil {
 			b.Fatalf("open %q failed: %v", path, err)
@@ -514,7 +514,7 @@ func benchmarkReaddirname(path string, b *testing.B) {
 
 func benchmarkReaddir(path string, b *testing.B) {
 	var nentries int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		f, err := Open(path)
 		if err != nil {
 			b.Fatalf("open %q failed: %v", path, err)
@@ -531,7 +531,7 @@ func benchmarkReaddir(path string, b *testing.B) {
 
 func benchmarkReadDir(path string, b *testing.B) {
 	var nentries int
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		f, err := Open(path)
 		if err != nil {
 			b.Fatalf("open %q failed: %v", path, err)
@@ -560,7 +560,7 @@ func BenchmarkReadDir(b *testing.B) {
 
 func benchmarkStat(b *testing.B, path string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := Stat(path)
 		if err != nil {
 			b.Fatalf("Stat(%q) failed: %v", path, err)
@@ -570,7 +570,7 @@ func benchmarkStat(b *testing.B, path string) {
 
 func benchmarkLstat(b *testing.B, path string) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := Lstat(path)
 		if err != nil {
 			b.Fatalf("Lstat(%q) failed: %v", path, err)

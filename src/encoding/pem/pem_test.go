@@ -296,7 +296,7 @@ func TestFuzz(t *testing.T) {
 func BenchmarkEncode(b *testing.B) {
 	data := &Block{Bytes: make([]byte, 65536)}
 	b.SetBytes(int64(len(data.Bytes)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, data)
 	}
 }
@@ -306,7 +306,7 @@ func BenchmarkDecode(b *testing.B) {
 	data := EncodeToMemory(block)
 	b.SetBytes(int64(len(data)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Decode(data)
 	}
 }

@@ -68,7 +68,7 @@ func TestJoinPath(t *testing.T) {
 func BenchmarkJoinPath(b *testing.B) {
 	for _, test := range joinPathTests {
 		b.Run("", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				syscall.JoinPath(test.dir, test.file)
 			}
 		})

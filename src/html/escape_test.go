@@ -126,14 +126,14 @@ var (
 
 func BenchmarkEscape(b *testing.B) {
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(EscapeString(benchEscapeData))
 	}
 }
 
 func BenchmarkEscapeNone(b *testing.B) {
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(EscapeString(benchEscapeNone))
 	}
 }
@@ -141,7 +141,7 @@ func BenchmarkEscapeNone(b *testing.B) {
 func BenchmarkUnescape(b *testing.B) {
 	s := EscapeString(benchEscapeData)
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(UnescapeString(s))
 	}
 }
@@ -149,21 +149,21 @@ func BenchmarkUnescape(b *testing.B) {
 func BenchmarkUnescapeNone(b *testing.B) {
 	s := EscapeString(benchEscapeNone)
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(UnescapeString(s))
 	}
 }
 
 func BenchmarkUnescapeSparse(b *testing.B) {
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(UnescapeString(benchUnescapeSparse))
 	}
 }
 
 func BenchmarkUnescapeDense(b *testing.B) {
 	n := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n += len(UnescapeString(benchUnescapeDense))
 	}
 }

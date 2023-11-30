@@ -303,7 +303,7 @@ func decodeHex(s string) []byte {
 
 func BenchmarkEncodingDecoding(b *testing.B) {
 	p := new(Point).Set(dalekScalarBasepoint)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf := p.Bytes()
 		_, err := p.SetBytes(buf)
 		if err != nil {

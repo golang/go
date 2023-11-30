@@ -653,7 +653,7 @@ func TestLineNum(t *testing.T) {
 
 func BenchmarkParseLarge(b *testing.B) {
 	text := strings.Repeat("{{1234}}\n", 10000)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
 		if err != nil {
 			b.Fatal(err)
@@ -669,7 +669,7 @@ func BenchmarkVariableString(b *testing.B) {
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkv = v.String()
 	}
 	if sinkv == "" {
@@ -702,7 +702,7 @@ func BenchmarkListString(b *testing.B) {
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkl = tree.Root.String()
 	}
 	if sinkl == "" {

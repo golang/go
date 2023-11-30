@@ -820,7 +820,7 @@ func TestMapBuckets(t *testing.T) {
 
 func benchmarkMapPop(b *testing.B, n int) {
 	m := map[int]int{}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < n; j++ {
 			m[j] = j
 		}
@@ -875,14 +875,14 @@ func TestNonEscapingMap(t *testing.T) {
 
 func benchmarkMapAssignInt32(b *testing.B, n int) {
 	a := make(map[int32]int)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a[int32(i&(n-1))] = i
 	}
 }
 
 func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
 	a := make(map[int32]int)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a[int32(i&(n-1))] += i
 	}
 }
@@ -891,7 +891,7 @@ func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
 	a := make(map[int32][]int)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := int32(i & (n - 1))
 		a[key] = append(a[key], i)
 	}
@@ -900,7 +900,7 @@ func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
 func benchmarkMapDeleteInt32(b *testing.B, n int) {
 	a := make(map[int32]int, n)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if len(a) == 0 {
 			b.StopTimer()
 			for j := i; j < i+n; j++ {
@@ -914,14 +914,14 @@ func benchmarkMapDeleteInt32(b *testing.B, n int) {
 
 func benchmarkMapAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a[int64(i&(n-1))] = i
 	}
 }
 
 func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a[int64(i&(n-1))] += i
 	}
 }
@@ -930,7 +930,7 @@ func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
 	a := make(map[int64][]int)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := int64(i & (n - 1))
 		a[key] = append(a[key], i)
 	}
@@ -939,7 +939,7 @@ func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
 func benchmarkMapDeleteInt64(b *testing.B, n int) {
 	a := make(map[int64]int, n)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if len(a) == 0 {
 			b.StopTimer()
 			for j := i; j < i+n; j++ {
@@ -958,7 +958,7 @@ func benchmarkMapAssignStr(b *testing.B, n int) {
 	}
 	b.ResetTimer()
 	a := make(map[string]int)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		a[k[i&(n-1)]] = i
 	}
 }
@@ -970,7 +970,7 @@ func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
 	}
 	b.ResetTimer()
 	a := make(map[string]string)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := k[i&(n-1)]
 		a[key] += key
 	}
@@ -984,7 +984,7 @@ func benchmarkMapAppendAssignStr(b *testing.B, n int) {
 	a := make(map[string][]string)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := k[i&(n-1)]
 		a[key] = append(a[key], key)
 	}
@@ -998,7 +998,7 @@ func benchmarkMapDeleteStr(b *testing.B, n int) {
 	a := make(map[string]int, n)
 	b.ResetTimer()
 	k := 0
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if len(a) == 0 {
 			b.StopTimer()
 			for j := 0; j < n; j++ {
@@ -1019,7 +1019,7 @@ func benchmarkMapDeletePointer(b *testing.B, n int) {
 	a := make(map[*int]int, n)
 	b.ResetTimer()
 	k := 0
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		if len(a) == 0 {
 			b.StopTimer()
 			for j := 0; j < n; j++ {

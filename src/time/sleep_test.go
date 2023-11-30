@@ -668,7 +668,7 @@ func BenchmarkParallelTimerLatency(b *testing.B) {
 	const delay = Millisecond
 	var wg sync.WaitGroup
 	var count int32
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		wg.Add(timerCount)
 		atomic.StoreInt32(&count, 0)
 		for j := 0; j < timerCount; j++ {

@@ -119,7 +119,7 @@ func BenchmarkCopyValues(b *testing.B) {
 		"j": {"1", "2"},
 		"m": nil,
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		dst := url.Values{"a": {"b"}, "b": {"2"}, "c": {"3"}, "d": {"4"}, "j": nil, "m": {"x"}}
 		copyValues(dst, src)
 		if valuesCount = len(dst["a"]); valuesCount != 6 {
@@ -194,7 +194,7 @@ const redirectURL = "/thisaredirect细雪withasciilettersのけぶabcdefghijk.ht
 func BenchmarkHexEscapeNonASCII(b *testing.B) {
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		hexEscapeNonASCII(redirectURL)
 	}
 }

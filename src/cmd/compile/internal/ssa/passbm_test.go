@@ -39,7 +39,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 	fun := c.Fun("entry", bg(size)...)
 	CheckFunc(fun.f)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		fn(fun.f)
 		b.StopTimer()
 		CheckFunc(fun.f)

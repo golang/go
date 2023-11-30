@@ -319,21 +319,21 @@ func TestArenaCollision(t *testing.T) {
 }
 
 func BenchmarkMalloc8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p := new(int64)
 		Escape(p)
 	}
 }
 
 func BenchmarkMalloc16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p := new([2]int64)
 		Escape(p)
 	}
 }
 
 func BenchmarkMallocTypeInfo8(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p := new(struct {
 			p [8 / unsafe.Sizeof(uintptr(0))]*int
 		})
@@ -342,7 +342,7 @@ func BenchmarkMallocTypeInfo8(b *testing.B) {
 }
 
 func BenchmarkMallocTypeInfo16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
 		})
@@ -355,7 +355,7 @@ type LargeStruct struct {
 }
 
 func BenchmarkMallocLargeStruct(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		p := make([]LargeStruct, 2)
 		Escape(p)
 	}
@@ -409,7 +409,7 @@ func benchHelper(b *testing.B, n int, read func(chan struct{})) {
 	b.ResetTimer()
 	GC()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, ch := range m {
 			if ch != nil {
 				ch <- struct{}{}
@@ -439,7 +439,7 @@ func BenchmarkGoroutineIdle(b *testing.B) {
 	GC()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		GC()
 	}
 

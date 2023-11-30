@@ -541,7 +541,7 @@ func BenchmarkSign(b *testing.B) {
 
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			sig, err := SignASN1(r, priv, hashed)
 			if err != nil {
 				b.Fatal(err)
@@ -567,7 +567,7 @@ func BenchmarkVerify(b *testing.B) {
 
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if !VerifyASN1(&priv.PublicKey, hashed, sig) {
 				b.Fatal("verify failed")
 			}
@@ -580,7 +580,7 @@ func BenchmarkGenerateKey(b *testing.B) {
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if _, err := GenerateKey(curve, r); err != nil {
 				b.Fatal(err)
 			}

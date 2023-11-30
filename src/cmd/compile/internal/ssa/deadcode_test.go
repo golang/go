@@ -152,7 +152,7 @@ func BenchmarkDeadCode(b *testing.B) {
 				blocks = append(blocks, Bloc(fmt.Sprintf("dead%d", i), Goto("exit")))
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				fun := c.Fun("entry", blocks...)
 				Deadcode(fun.f)
 			}

@@ -1478,112 +1478,112 @@ func TestInfiniteLoopIntanSeries(t *testing.T) {
 }
 
 func BenchmarkAbs(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Abs(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAcos(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Acos(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAcosh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Acosh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAsin(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Asin(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAsinh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Asinh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAtan(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Atan(complex(2.5, 3.5))
 	}
 }
 func BenchmarkAtanh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Atanh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkConj(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Conj(complex(2.5, 3.5))
 	}
 }
 func BenchmarkCos(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Cos(complex(2.5, 3.5))
 	}
 }
 func BenchmarkCosh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Cosh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Exp(complex(2.5, 3.5))
 	}
 }
 func BenchmarkLog(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Log(complex(2.5, 3.5))
 	}
 }
 func BenchmarkLog10(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Log10(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPhase(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Phase(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPolar(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Polar(complex(2.5, 3.5))
 	}
 }
 func BenchmarkPow(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Pow(complex(2.5, 3.5), complex(2.5, 3.5))
 	}
 }
 func BenchmarkRect(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Rect(2.5, 1.5)
 	}
 }
 func BenchmarkSin(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Sin(complex(2.5, 3.5))
 	}
 }
 func BenchmarkSinh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Sinh(complex(2.5, 3.5))
 	}
 }
 func BenchmarkSqrt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Sqrt(complex(2.5, 3.5))
 	}
 }
 func BenchmarkTan(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Tan(complex(2.5, 3.5))
 	}
 }
 func BenchmarkTanh(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Tanh(complex(2.5, 3.5))
 	}
 }

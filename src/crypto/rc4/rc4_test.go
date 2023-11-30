@@ -144,7 +144,7 @@ func benchmark(b *testing.B, size int64) {
 	}
 	b.SetBytes(size)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c.XORKeyStream(buf, buf)
 	}
 }

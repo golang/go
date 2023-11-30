@@ -3296,7 +3296,7 @@ var (
 
 func BenchmarkAcos(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Acos(.5)
 	}
 	GlobalF = x
@@ -3304,7 +3304,7 @@ func BenchmarkAcos(b *testing.B) {
 
 func BenchmarkAcosh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Acosh(1.5)
 	}
 	GlobalF = x
@@ -3312,7 +3312,7 @@ func BenchmarkAcosh(b *testing.B) {
 
 func BenchmarkAsin(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Asin(.5)
 	}
 	GlobalF = x
@@ -3320,7 +3320,7 @@ func BenchmarkAsin(b *testing.B) {
 
 func BenchmarkAsinh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Asinh(.5)
 	}
 	GlobalF = x
@@ -3328,7 +3328,7 @@ func BenchmarkAsinh(b *testing.B) {
 
 func BenchmarkAtan(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Atan(.5)
 	}
 	GlobalF = x
@@ -3336,7 +3336,7 @@ func BenchmarkAtan(b *testing.B) {
 
 func BenchmarkAtanh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Atanh(.5)
 	}
 	GlobalF = x
@@ -3344,7 +3344,7 @@ func BenchmarkAtanh(b *testing.B) {
 
 func BenchmarkAtan2(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Atan2(.5, 1)
 	}
 	GlobalF = x
@@ -3352,7 +3352,7 @@ func BenchmarkAtan2(b *testing.B) {
 
 func BenchmarkCbrt(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Cbrt(10)
 	}
 	GlobalF = x
@@ -3360,7 +3360,7 @@ func BenchmarkCbrt(b *testing.B) {
 
 func BenchmarkCeil(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Ceil(.5)
 	}
 	GlobalF = x
@@ -3370,7 +3370,7 @@ var copysignNeg = -1.0
 
 func BenchmarkCopysign(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Copysign(.5, copysignNeg)
 	}
 	GlobalF = x
@@ -3378,7 +3378,7 @@ func BenchmarkCopysign(b *testing.B) {
 
 func BenchmarkCos(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Cos(.5)
 	}
 	GlobalF = x
@@ -3386,7 +3386,7 @@ func BenchmarkCos(b *testing.B) {
 
 func BenchmarkCosh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Cosh(2.5)
 	}
 	GlobalF = x
@@ -3394,7 +3394,7 @@ func BenchmarkCosh(b *testing.B) {
 
 func BenchmarkErf(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Erf(.5)
 	}
 	GlobalF = x
@@ -3402,7 +3402,7 @@ func BenchmarkErf(b *testing.B) {
 
 func BenchmarkErfc(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Erfc(.5)
 	}
 	GlobalF = x
@@ -3410,7 +3410,7 @@ func BenchmarkErfc(b *testing.B) {
 
 func BenchmarkErfinv(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Erfinv(.5)
 	}
 	GlobalF = x
@@ -3418,7 +3418,7 @@ func BenchmarkErfinv(b *testing.B) {
 
 func BenchmarkErfcinv(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Erfcinv(.5)
 	}
 	GlobalF = x
@@ -3426,7 +3426,7 @@ func BenchmarkErfcinv(b *testing.B) {
 
 func BenchmarkExp(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Exp(.5)
 	}
 	GlobalF = x
@@ -3434,7 +3434,7 @@ func BenchmarkExp(b *testing.B) {
 
 func BenchmarkExpGo(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = ExpGo(.5)
 	}
 	GlobalF = x
@@ -3442,7 +3442,7 @@ func BenchmarkExpGo(b *testing.B) {
 
 func BenchmarkExpm1(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Expm1(.5)
 	}
 	GlobalF = x
@@ -3450,7 +3450,7 @@ func BenchmarkExpm1(b *testing.B) {
 
 func BenchmarkExp2(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Exp2(.5)
 	}
 	GlobalF = x
@@ -3458,7 +3458,7 @@ func BenchmarkExp2(b *testing.B) {
 
 func BenchmarkExp2Go(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Exp2Go(.5)
 	}
 	GlobalF = x
@@ -3468,7 +3468,7 @@ var absPos = .5
 
 func BenchmarkAbs(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Abs(absPos)
 	}
 	GlobalF = x
@@ -3477,7 +3477,7 @@ func BenchmarkAbs(b *testing.B) {
 
 func BenchmarkDim(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Dim(GlobalF, x)
 	}
 	GlobalF = x
@@ -3485,7 +3485,7 @@ func BenchmarkDim(b *testing.B) {
 
 func BenchmarkFloor(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Floor(.5)
 	}
 	GlobalF = x
@@ -3493,7 +3493,7 @@ func BenchmarkFloor(b *testing.B) {
 
 func BenchmarkMax(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Max(10, 3)
 	}
 	GlobalF = x
@@ -3501,7 +3501,7 @@ func BenchmarkMax(b *testing.B) {
 
 func BenchmarkMin(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Min(10, 3)
 	}
 	GlobalF = x
@@ -3509,7 +3509,7 @@ func BenchmarkMin(b *testing.B) {
 
 func BenchmarkMod(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Mod(10, 3)
 	}
 	GlobalF = x
@@ -3518,7 +3518,7 @@ func BenchmarkMod(b *testing.B) {
 func BenchmarkFrexp(b *testing.B) {
 	x := 0.0
 	y := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = Frexp(8)
 	}
 	GlobalF = x
@@ -3527,7 +3527,7 @@ func BenchmarkFrexp(b *testing.B) {
 
 func BenchmarkGamma(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Gamma(2.5)
 	}
 	GlobalF = x
@@ -3535,7 +3535,7 @@ func BenchmarkGamma(b *testing.B) {
 
 func BenchmarkHypot(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Hypot(3, 4)
 	}
 	GlobalF = x
@@ -3543,7 +3543,7 @@ func BenchmarkHypot(b *testing.B) {
 
 func BenchmarkHypotGo(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = HypotGo(3, 4)
 	}
 	GlobalF = x
@@ -3551,7 +3551,7 @@ func BenchmarkHypotGo(b *testing.B) {
 
 func BenchmarkIlogb(b *testing.B) {
 	x := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Ilogb(.5)
 	}
 	GlobalI = x
@@ -3559,7 +3559,7 @@ func BenchmarkIlogb(b *testing.B) {
 
 func BenchmarkJ0(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = J0(2.5)
 	}
 	GlobalF = x
@@ -3567,7 +3567,7 @@ func BenchmarkJ0(b *testing.B) {
 
 func BenchmarkJ1(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = J1(2.5)
 	}
 	GlobalF = x
@@ -3575,7 +3575,7 @@ func BenchmarkJ1(b *testing.B) {
 
 func BenchmarkJn(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Jn(2, 2.5)
 	}
 	GlobalF = x
@@ -3583,7 +3583,7 @@ func BenchmarkJn(b *testing.B) {
 
 func BenchmarkLdexp(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Ldexp(.5, 2)
 	}
 	GlobalF = x
@@ -3592,7 +3592,7 @@ func BenchmarkLdexp(b *testing.B) {
 func BenchmarkLgamma(b *testing.B) {
 	x := 0.0
 	y := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = Lgamma(2.5)
 	}
 	GlobalF = x
@@ -3601,7 +3601,7 @@ func BenchmarkLgamma(b *testing.B) {
 
 func BenchmarkLog(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Log(.5)
 	}
 	GlobalF = x
@@ -3609,7 +3609,7 @@ func BenchmarkLog(b *testing.B) {
 
 func BenchmarkLogb(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Logb(.5)
 	}
 	GlobalF = x
@@ -3617,7 +3617,7 @@ func BenchmarkLogb(b *testing.B) {
 
 func BenchmarkLog1p(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Log1p(.5)
 	}
 	GlobalF = x
@@ -3625,7 +3625,7 @@ func BenchmarkLog1p(b *testing.B) {
 
 func BenchmarkLog10(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Log10(.5)
 	}
 	GlobalF = x
@@ -3633,7 +3633,7 @@ func BenchmarkLog10(b *testing.B) {
 
 func BenchmarkLog2(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Log2(.5)
 	}
 	GlobalF += x
@@ -3642,7 +3642,7 @@ func BenchmarkLog2(b *testing.B) {
 func BenchmarkModf(b *testing.B) {
 	x := 0.0
 	y := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = Modf(1.5)
 	}
 	GlobalF += x
@@ -3651,7 +3651,7 @@ func BenchmarkModf(b *testing.B) {
 
 func BenchmarkNextafter32(b *testing.B) {
 	x := float32(0.0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Nextafter32(.5, 1)
 	}
 	GlobalF = float64(x)
@@ -3659,7 +3659,7 @@ func BenchmarkNextafter32(b *testing.B) {
 
 func BenchmarkNextafter64(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Nextafter(.5, 1)
 	}
 	GlobalF = x
@@ -3667,7 +3667,7 @@ func BenchmarkNextafter64(b *testing.B) {
 
 func BenchmarkPowInt(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Pow(2, 2)
 	}
 	GlobalF = x
@@ -3675,7 +3675,7 @@ func BenchmarkPowInt(b *testing.B) {
 
 func BenchmarkPowFrac(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Pow(2.5, 1.5)
 	}
 	GlobalF = x
@@ -3685,7 +3685,7 @@ var pow10pos = int(300)
 
 func BenchmarkPow10Pos(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Pow10(pow10pos)
 	}
 	GlobalF = x
@@ -3695,7 +3695,7 @@ var pow10neg = int(-300)
 
 func BenchmarkPow10Neg(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Pow10(pow10neg)
 	}
 	GlobalF = x
@@ -3705,7 +3705,7 @@ var roundNeg = float64(-2.5)
 
 func BenchmarkRound(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Round(roundNeg)
 	}
 	GlobalF = x
@@ -3713,7 +3713,7 @@ func BenchmarkRound(b *testing.B) {
 
 func BenchmarkRoundToEven(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = RoundToEven(roundNeg)
 	}
 	GlobalF = x
@@ -3721,7 +3721,7 @@ func BenchmarkRoundToEven(b *testing.B) {
 
 func BenchmarkRemainder(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Remainder(10, 3)
 	}
 	GlobalF = x
@@ -3731,7 +3731,7 @@ var signbitPos = 2.5
 
 func BenchmarkSignbit(b *testing.B) {
 	x := false
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Signbit(signbitPos)
 	}
 	GlobalB = x
@@ -3739,7 +3739,7 @@ func BenchmarkSignbit(b *testing.B) {
 
 func BenchmarkSin(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Sin(.5)
 	}
 	GlobalF = x
@@ -3748,7 +3748,7 @@ func BenchmarkSin(b *testing.B) {
 func BenchmarkSincos(b *testing.B) {
 	x := 0.0
 	y := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x, y = Sincos(.5)
 	}
 	GlobalF += x
@@ -3757,7 +3757,7 @@ func BenchmarkSincos(b *testing.B) {
 
 func BenchmarkSinh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Sinh(2.5)
 	}
 	GlobalF = x
@@ -3766,7 +3766,7 @@ func BenchmarkSinh(b *testing.B) {
 func BenchmarkSqrtIndirect(b *testing.B) {
 	x, y := 0.0, 10.0
 	f := Sqrt
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x += f(y)
 	}
 	GlobalF = x
@@ -3774,7 +3774,7 @@ func BenchmarkSqrtIndirect(b *testing.B) {
 
 func BenchmarkSqrtLatency(b *testing.B) {
 	x := 10.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Sqrt(x)
 	}
 	GlobalF = x
@@ -3783,7 +3783,7 @@ func BenchmarkSqrtLatency(b *testing.B) {
 func BenchmarkSqrtIndirectLatency(b *testing.B) {
 	x := 10.0
 	f := Sqrt
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = f(x)
 	}
 	GlobalF = x
@@ -3791,7 +3791,7 @@ func BenchmarkSqrtIndirectLatency(b *testing.B) {
 
 func BenchmarkSqrtGoLatency(b *testing.B) {
 	x := 10.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = SqrtGo(x)
 	}
 	GlobalF = x
@@ -3813,7 +3813,7 @@ func isPrime(i int) bool {
 
 func BenchmarkSqrtPrime(b *testing.B) {
 	x := false
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = isPrime(100003)
 	}
 	GlobalB = x
@@ -3821,7 +3821,7 @@ func BenchmarkSqrtPrime(b *testing.B) {
 
 func BenchmarkTan(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Tan(.5)
 	}
 	GlobalF = x
@@ -3829,14 +3829,14 @@ func BenchmarkTan(b *testing.B) {
 
 func BenchmarkTanh(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Tanh(2.5)
 	}
 	GlobalF = x
 }
 func BenchmarkTrunc(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Trunc(.5)
 	}
 	GlobalF = x
@@ -3844,7 +3844,7 @@ func BenchmarkTrunc(b *testing.B) {
 
 func BenchmarkY0(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Y0(2.5)
 	}
 	GlobalF = x
@@ -3852,7 +3852,7 @@ func BenchmarkY0(b *testing.B) {
 
 func BenchmarkY1(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Y1(2.5)
 	}
 	GlobalF = x
@@ -3860,7 +3860,7 @@ func BenchmarkY1(b *testing.B) {
 
 func BenchmarkYn(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Yn(2, 2.5)
 	}
 	GlobalF = x
@@ -3868,7 +3868,7 @@ func BenchmarkYn(b *testing.B) {
 
 func BenchmarkFloat64bits(b *testing.B) {
 	y := uint64(0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		y = Float64bits(roundNeg)
 	}
 	GlobalI = int(y)
@@ -3878,7 +3878,7 @@ var roundUint64 = uint64(5)
 
 func BenchmarkFloat64frombits(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Float64frombits(roundUint64)
 	}
 	GlobalF = x
@@ -3888,7 +3888,7 @@ var roundFloat32 = float32(-2.5)
 
 func BenchmarkFloat32bits(b *testing.B) {
 	y := uint32(0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		y = Float32bits(roundFloat32)
 	}
 	GlobalI = int(y)
@@ -3898,7 +3898,7 @@ var roundUint32 = uint32(5)
 
 func BenchmarkFloat32frombits(b *testing.B) {
 	x := float32(0.0)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = Float32frombits(roundUint32)
 	}
 	GlobalF = float64(x)
@@ -3906,7 +3906,7 @@ func BenchmarkFloat32frombits(b *testing.B) {
 
 func BenchmarkFMA(b *testing.B) {
 	x := 0.0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = FMA(E, Pi, x)
 	}
 	GlobalF = x

@@ -710,7 +710,7 @@ func TestFloatFormat(t *testing.T) {
 }
 
 func BenchmarkParseFloatSmallExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, s := range []string{
 			"1e0",
 			"1e-1",
@@ -740,7 +740,7 @@ func BenchmarkParseFloatSmallExp(b *testing.B) {
 }
 
 func BenchmarkParseFloatLargeExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, s := range []string{
 			"1e0",
 			"1e-10",

@@ -45,7 +45,7 @@ var sink32 uint32
 func BenchmarkFastrandn(b *testing.B) {
 	for n := uint32(2); n <= 5; n++ {
 		b.Run(strconv.Itoa(int(n)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sink32 = Fastrandn(n)
 			}
 		})

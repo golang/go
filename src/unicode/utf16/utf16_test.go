@@ -180,7 +180,7 @@ func TestIsSurrogate(t *testing.T) {
 func BenchmarkDecodeValidASCII(b *testing.B) {
 	// "hello world"
 	data := []uint16{104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Decode(data)
 	}
 }
@@ -188,7 +188,7 @@ func BenchmarkDecodeValidASCII(b *testing.B) {
 func BenchmarkDecodeValidJapaneseChars(b *testing.B) {
 	// "日本語日本語日本語"
 	data := []uint16{26085, 26412, 35486, 26085, 26412, 35486, 26085, 26412, 35486}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Decode(data)
 	}
 }
@@ -201,7 +201,7 @@ func BenchmarkDecodeRune(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 5; j++ {
 			DecodeRune(rs[2*j], rs[2*j+1])
 		}
@@ -210,14 +210,14 @@ func BenchmarkDecodeRune(b *testing.B) {
 
 func BenchmarkEncodeValidASCII(b *testing.B) {
 	data := []rune{'h', 'e', 'l', 'l', 'o'}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(data)
 	}
 }
 
 func BenchmarkEncodeValidJapaneseChars(b *testing.B) {
 	data := []rune{'日', '本', '語'}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(data)
 	}
 }
@@ -225,7 +225,7 @@ func BenchmarkEncodeValidJapaneseChars(b *testing.B) {
 func BenchmarkAppendRuneValidASCII(b *testing.B) {
 	data := []rune{'h', 'e', 'l', 'l', 'o'}
 	a := make([]uint16, 0, len(data)*2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, u := range data {
 			a = AppendRune(a, u)
 		}
@@ -236,7 +236,7 @@ func BenchmarkAppendRuneValidASCII(b *testing.B) {
 func BenchmarkAppendRuneValidJapaneseChars(b *testing.B) {
 	data := []rune{'日', '本', '語'}
 	a := make([]uint16, 0, len(data)*2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, u := range data {
 			a = AppendRune(a, u)
 		}
@@ -245,7 +245,7 @@ func BenchmarkAppendRuneValidJapaneseChars(b *testing.B) {
 }
 
 func BenchmarkEncodeRune(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, u := range []rune{'𝓐', '𝓑', '𝓒', '𝓓', '𝓔'} {
 			EncodeRune(u)
 		}

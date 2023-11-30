@@ -19,21 +19,21 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 	b.Run("mallocmove", func(b *testing.B) {
 		b.Run("Byte", func(b *testing.B) {
 			var x []byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]byte, len(bytes))
 				copy(x, bytes)
 			}
 		})
 		b.Run("Int", func(b *testing.B) {
 			var x []int
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]int, len(ints))
 				copy(x, ints)
 			}
 		})
 		b.Run("Ptr", func(b *testing.B) {
 			var x []*byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]*byte, len(ptrs))
 				copy(x, ptrs)
 			}
@@ -43,21 +43,21 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 	b.Run("makecopy", func(b *testing.B) {
 		b.Run("Byte", func(b *testing.B) {
 			var x []byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]byte, 8*length)
 				copy(x, bytes)
 			}
 		})
 		b.Run("Int", func(b *testing.B) {
 			var x []int
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]int, length)
 				copy(x, ints)
 			}
 		})
 		b.Run("Ptr", func(b *testing.B) {
 			var x []*byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]*byte, length)
 				copy(x, ptrs)
 			}
@@ -67,21 +67,21 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 	b.Run("nilappend", func(b *testing.B) {
 		b.Run("Byte", func(b *testing.B) {
 			var x []byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = append([]byte(nil), bytes...)
 				_ = x
 			}
 		})
 		b.Run("Int", func(b *testing.B) {
 			var x []int
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = append([]int(nil), ints...)
 				_ = x
 			}
 		})
 		b.Run("Ptr", func(b *testing.B) {
 			var x []*byte
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = append([]*byte(nil), ptrs...)
 				_ = x
 			}
@@ -99,28 +99,28 @@ func BenchmarkMakeSlice(b *testing.B) {
 	const length = 2
 	b.Run("Byte", func(b *testing.B) {
 		var x []byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make([]byte, length, 2*length)
 			_ = x
 		}
 	})
 	b.Run("Int16", func(b *testing.B) {
 		var x []int16
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make([]int16, length, 2*length)
 			_ = x
 		}
 	})
 	b.Run("Int", func(b *testing.B) {
 		var x []int
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make([]int, length, 2*length)
 			_ = x
 		}
 	})
 	b.Run("Ptr", func(b *testing.B) {
 		var x []*byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x = make([]*byte, length, 2*length)
 			_ = x
 		}
@@ -128,21 +128,21 @@ func BenchmarkMakeSlice(b *testing.B) {
 	b.Run("Struct", func(b *testing.B) {
 		b.Run("24", func(b *testing.B) {
 			var x []struct24
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]struct24, length, 2*length)
 				_ = x
 			}
 		})
 		b.Run("32", func(b *testing.B) {
 			var x []struct32
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]struct32, length, 2*length)
 				_ = x
 			}
 		})
 		b.Run("40", func(b *testing.B) {
 			var x []struct40
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = make([]struct40, length, 2*length)
 				_ = x
 			}
@@ -154,44 +154,44 @@ func BenchmarkMakeSlice(b *testing.B) {
 func BenchmarkGrowSlice(b *testing.B) {
 	b.Run("Byte", func(b *testing.B) {
 		x := make([]byte, 9)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = append([]byte(nil), x...)
 		}
 	})
 	b.Run("Int16", func(b *testing.B) {
 		x := make([]int16, 9)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = append([]int16(nil), x...)
 		}
 	})
 	b.Run("Int", func(b *testing.B) {
 		x := make([]int, 9)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = append([]int(nil), x...)
 		}
 	})
 	b.Run("Ptr", func(b *testing.B) {
 		x := make([]*byte, 9)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = append([]*byte(nil), x...)
 		}
 	})
 	b.Run("Struct", func(b *testing.B) {
 		b.Run("24", func(b *testing.B) {
 			x := make([]struct24, 9)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = append([]struct24(nil), x...)
 			}
 		})
 		b.Run("32", func(b *testing.B) {
 			x := make([]struct32, 9)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = append([]struct32(nil), x...)
 			}
 		})
 		b.Run("40", func(b *testing.B) {
 			x := make([]struct40, 9)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = append([]struct40(nil), x...)
 			}
 		})
@@ -208,21 +208,21 @@ func BenchmarkExtendSlice(b *testing.B) {
 	var length = 4 // Use a variable to prevent stack allocation of slices.
 	b.Run("IntSlice", func(b *testing.B) {
 		s := make([]int, 0, length)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s = append(s[:0:length/2], make([]int, length)...)
 		}
 		SinkIntSlice = s
 	})
 	b.Run("PointerSlice", func(b *testing.B) {
 		s := make([]*int, 0, length)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s = append(s[:0:length/2], make([]*int, length)...)
 		}
 		SinkIntPointerSlice = s
 	})
 	b.Run("NoGrow", func(b *testing.B) {
 		s := make([]int, 0, length)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			s = append(s[:0:length], make([]int, length)...)
 		}
 		SinkIntSlice = s
@@ -233,7 +233,7 @@ func BenchmarkAppend(b *testing.B) {
 	b.StopTimer()
 	x := make([]int, 0, N)
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = x[0:0]
 		for j := 0; j < N; j++ {
 			x = append(x, j)
@@ -242,7 +242,7 @@ func BenchmarkAppend(b *testing.B) {
 }
 
 func BenchmarkAppendGrowByte(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var x []byte
 		for j := 0; j < 1<<20; j++ {
 			x = append(x, byte(j))
@@ -252,7 +252,7 @@ func BenchmarkAppendGrowByte(b *testing.B) {
 
 func BenchmarkAppendGrowString(b *testing.B) {
 	var s string
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var x []string
 		for j := 0; j < 1<<20; j++ {
 			x = append(x, s)
@@ -265,7 +265,7 @@ func BenchmarkAppendSlice(b *testing.B) {
 		b.Run(fmt.Sprint(length, "Bytes"), func(b *testing.B) {
 			x := make([]byte, 0, N)
 			y := make([]byte, length)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = x[0:0]
 				x = append(x, y...)
 			}
@@ -281,7 +281,7 @@ func BenchmarkAppendSliceLarge(b *testing.B) {
 	for _, length := range []int{1 << 10, 4 << 10, 16 << 10, 64 << 10, 256 << 10, 1024 << 10} {
 		y := make([]byte, length)
 		b.Run(fmt.Sprint(length, "Bytes"), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				blackhole = nil
 				blackhole = append(blackhole, y...)
 			}
@@ -299,7 +299,7 @@ func BenchmarkAppendStr(b *testing.B) {
 	} {
 		b.Run(fmt.Sprint(len(str), "Bytes"), func(b *testing.B) {
 			x := make([]byte, 0, N)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				x = x[0:0]
 				x = append(x, str...)
 			}
@@ -311,7 +311,7 @@ func BenchmarkAppendSpecialCase(b *testing.B) {
 	b.StopTimer()
 	x := make([]int, 0, N)
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x = x[0:0]
 		for j := 0; j < N; j++ {
 			if len(x) < cap(x) {
@@ -355,7 +355,7 @@ func BenchmarkCopy(b *testing.B) {
 		b.Run(fmt.Sprint(l, "Byte"), func(b *testing.B) {
 			s := make([]byte, l)
 			var n int
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				n = copy(buf, s)
 			}
 			b.SetBytes(int64(n))
@@ -363,7 +363,7 @@ func BenchmarkCopy(b *testing.B) {
 		b.Run(fmt.Sprint(l, "String"), func(b *testing.B) {
 			s := string(make([]byte, l))
 			var n int
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				n = copy(buf, s)
 			}
 			b.SetBytes(int64(n))
@@ -398,7 +398,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		const C = 128
 
 		b.Run("Byte", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sByte = make([]byte, C)
 				for j := 0; j < C; j++ {
 					sByte = append(sByte, 0x77)
@@ -407,7 +407,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("1Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s1Ptr = make([]uintptr, C)
 				for j := 0; j < C; j++ {
 					s1Ptr = append(s1Ptr, 0x77)
@@ -416,7 +416,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("2Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s2Ptr = make([][2]uintptr, C)
 				for j := 0; j < C; j++ {
 					s2Ptr = append(s2Ptr, [2]uintptr{0x77, 0x88})
@@ -425,7 +425,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("3Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s3Ptr = make([][3]uintptr, C)
 				for j := 0; j < C; j++ {
 					s3Ptr = append(s3Ptr, [3]uintptr{0x77, 0x88, 0x99})
@@ -434,7 +434,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("4Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s4Ptr = make([][4]uintptr, C)
 				for j := 0; j < C; j++ {
 					s4Ptr = append(s4Ptr, [4]uintptr{0x77, 0x88, 0x99, 0xAA})
@@ -448,7 +448,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		const C = 5
 
 		b.Run("Byte", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				sByte = make([]byte, 0)
 				for j := 0; j < C; j++ {
 					sByte = append(sByte, 0x77)
@@ -458,7 +458,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("1Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s1Ptr = make([]uintptr, 0)
 				for j := 0; j < C; j++ {
 					s1Ptr = append(s1Ptr, 0x77)
@@ -468,7 +468,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("2Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s2Ptr = make([][2]uintptr, 0)
 				for j := 0; j < C; j++ {
 					s2Ptr = append(s2Ptr, [2]uintptr{0x77, 0x88})
@@ -478,7 +478,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("3Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s3Ptr = make([][3]uintptr, 0)
 				for j := 0; j < C; j++ {
 					s3Ptr = append(s3Ptr, [3]uintptr{0x77, 0x88, 0x99})
@@ -488,7 +488,7 @@ func BenchmarkAppendInPlace(b *testing.B) {
 		})
 
 		b.Run("4Ptr", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s4Ptr = make([][4]uintptr, 0)
 				for j := 0; j < C; j++ {
 					s4Ptr = append(s4Ptr, [4]uintptr{0x77, 0x88, 0x99, 0xAA})

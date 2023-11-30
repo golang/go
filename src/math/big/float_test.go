@@ -1831,7 +1831,7 @@ func BenchmarkFloatAdd(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				z.Add(x, y)
 			}
 		})
@@ -1850,7 +1850,7 @@ func BenchmarkFloatSub(b *testing.B) {
 
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				z.Sub(x, y)
 			}
 		})

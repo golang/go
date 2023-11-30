@@ -461,7 +461,7 @@ func BenchmarkEncode(b *testing.B) {
 	data := make([]byte, 8192)
 	buf := make([]byte, StdEncoding.EncodedLen(len(data)))
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StdEncoding.Encode(buf, data)
 	}
 }
@@ -469,7 +469,7 @@ func BenchmarkEncode(b *testing.B) {
 func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StdEncoding.EncodeToString(data)
 	}
 }
@@ -479,14 +479,14 @@ func BenchmarkDecode(b *testing.B) {
 	StdEncoding.Encode(data, make([]byte, 8192))
 	buf := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StdEncoding.Decode(buf, data)
 	}
 }
 func BenchmarkDecodeString(b *testing.B) {
 	data := StdEncoding.EncodeToString(make([]byte, 8192))
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StdEncoding.DecodeString(data)
 	}
 }

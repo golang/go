@@ -590,7 +590,7 @@ func BenchmarkDOM(b *testing.B) {
 		b.Skip("Not a browser environment. Skipping.")
 	}
 	const data = "someString"
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		div := document.Call("createElement", "div")
 		div.Call("setAttribute", "id", "myDiv")
 		document.Get("body").Call("appendChild", div)

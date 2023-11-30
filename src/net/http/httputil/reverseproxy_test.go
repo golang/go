@@ -1055,7 +1055,7 @@ func BenchmarkServeHTTP(b *testing.B) {
 	r := httptest.NewRequest("GET", "/", nil)
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		proxy.ServeHTTP(w, r)
 	}
 }

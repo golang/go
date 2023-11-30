@@ -15,7 +15,7 @@ import (
 func benchmarkDCT(b *testing.B, f func(*block)) {
 	b.StopTimer()
 	blocks := make([]block, 0, b.N*len(testBlocks))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		blocks = append(blocks, testBlocks[:]...)
 	}
 	b.StartTimer()

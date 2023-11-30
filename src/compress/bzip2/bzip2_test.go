@@ -229,7 +229,7 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		r := bytes.NewReader(compressed)
 		io.Copy(io.Discard, NewReader(r))
 	}

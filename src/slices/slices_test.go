@@ -131,7 +131,7 @@ func BenchmarkEqualFunc_Large(b *testing.B) {
 
 	xs := make([]Large, 1024)
 	ys := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = EqualFunc(xs, ys, func(x, y Large) bool { return x == y })
 	}
 }
@@ -393,7 +393,7 @@ func BenchmarkIndex_Large(b *testing.B) {
 	type Large [4 * 1024]byte
 
 	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = Index(ss, Large{1})
 	}
 }
@@ -418,7 +418,7 @@ func BenchmarkIndexFunc_Large(b *testing.B) {
 	type Large [4 * 1024]byte
 
 	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = IndexFunc(ss, func(e Large) bool {
 			return e == Large{1}
 		})
@@ -805,7 +805,7 @@ func BenchmarkCompact_Large(b *testing.B) {
 	type Large [4 * 1024]byte
 
 	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = Compact(ss)
 	}
 }
@@ -877,7 +877,7 @@ func BenchmarkCompactFunc_Large(b *testing.B) {
 	type Large [4 * 1024]byte
 
 	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = CompactFunc(ss, func(a, b Large) bool { return a == b })
 	}
 }

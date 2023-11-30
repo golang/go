@@ -181,7 +181,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 	}
 
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		// Scatter the destination rectangle to draw into.
 		x := 3 * i % (dstw - srcw)
 		y := 7 * i % (dsth - srch)

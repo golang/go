@@ -73,25 +73,25 @@ func TestStripTags(t *testing.T) {
 }
 
 func BenchmarkHTMLNospaceEscaper(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlNospaceEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }
 
 func BenchmarkHTMLNospaceEscaperNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		htmlNospaceEscaper("The_quick,_brown_fox_jumps_over_the_lazy_dog.")
 	}
 }
 
 func BenchmarkStripTags(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		stripTags("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }
 
 func BenchmarkStripTagsNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		stripTags("The quick, brown fox jumps over the lazy dog.")
 	}
 }

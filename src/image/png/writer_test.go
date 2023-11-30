@@ -283,7 +283,7 @@ func BenchmarkEncodeGray(b *testing.B) {
 	b.SetBytes(640 * 480 * 1)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }
@@ -308,7 +308,7 @@ func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
 	b.SetBytes(640 * 480 * 1)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e.Encode(io.Discard, img)
 	}
 }
@@ -328,7 +328,7 @@ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
 	b.SetBytes(640 * 480 * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }
@@ -341,7 +341,7 @@ func BenchmarkEncodeNRGBA(b *testing.B) {
 	b.SetBytes(640 * 480 * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }
@@ -354,7 +354,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
 	b.SetBytes(640 * 480 * 1)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }
@@ -374,7 +374,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.SetBytes(640 * 480 * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }
@@ -401,7 +401,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.SetBytes(width * height * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Encode(io.Discard, img)
 	}
 }

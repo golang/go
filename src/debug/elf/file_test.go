@@ -1548,7 +1548,7 @@ func BenchmarkSymbols64(b *testing.B) {
 	}
 	defer f.Close()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		symbols, err := f.Symbols()
 		if err != nil {
 			b.Fatalf("Symbols(): got unexpected error %v", err)
@@ -1567,7 +1567,7 @@ func BenchmarkSymbols32(b *testing.B) {
 	}
 	defer f.Close()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		symbols, err := f.Symbols()
 		if err != nil {
 			b.Fatalf("Symbols(): got unexpected error %v", err)

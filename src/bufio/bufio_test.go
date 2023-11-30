@@ -1839,7 +1839,7 @@ func BenchmarkReaderCopyOptimal(b *testing.B) {
 	src := NewReader(srcBuf)
 	dstBuf := new(bytes.Buffer)
 	dst := onlyWriter{dstBuf}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		src.Reset(srcBuf)
 		dstBuf.Reset()
@@ -1853,7 +1853,7 @@ func BenchmarkReaderCopyUnoptimal(b *testing.B) {
 	src := NewReader(onlyReader{srcBuf})
 	dstBuf := new(bytes.Buffer)
 	dst := onlyWriter{dstBuf}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		src.Reset(onlyReader{srcBuf})
 		dstBuf.Reset()
@@ -1867,7 +1867,7 @@ func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
 	src := onlyReader{srcReader}
 	dstBuf := new(bytes.Buffer)
 	dst := onlyWriter{dstBuf}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		srcReader.Reset(srcBuf)
 		dstBuf.Reset()
@@ -1883,7 +1883,7 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
 	if _, ok := io.Discard.(io.ReaderFrom); !ok {
 		b.Fatal("io.Discard doesn't support ReaderFrom")
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		r.Seek(0, io.SeekStart)
 		srcReader.Reset(onlyReader{r})
 		n, err := srcReader.WriteTo(io.Discard)
@@ -1900,7 +1900,7 @@ func BenchmarkReaderReadString(b *testing.B) {
 	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
 	buf := NewReader(r)
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		r.Seek(0, io.SeekStart)
 		buf.Reset(r)
 
@@ -1917,7 +1917,7 @@ func BenchmarkWriterCopyOptimal(b *testing.B) {
 	src := onlyReader{srcBuf}
 	dstBuf := new(bytes.Buffer)
 	dst := NewWriter(dstBuf)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		dstBuf.Reset()
 		dst.Reset(dstBuf)
@@ -1930,7 +1930,7 @@ func BenchmarkWriterCopyUnoptimal(b *testing.B) {
 	src := onlyReader{srcBuf}
 	dstBuf := new(bytes.Buffer)
 	dst := NewWriter(onlyWriter{dstBuf})
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		dstBuf.Reset()
 		dst.Reset(onlyWriter{dstBuf})
@@ -1944,7 +1944,7 @@ func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
 	dstBuf := new(bytes.Buffer)
 	dstWriter := NewWriter(dstBuf)
 	dst := onlyWriter{dstWriter}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		srcBuf.Reset()
 		dstBuf.Reset()
 		dstWriter.Reset(dstBuf)
@@ -1955,7 +1955,7 @@ func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
 func BenchmarkReaderEmpty(b *testing.B) {
 	b.ReportAllocs()
 	str := strings.Repeat("x", 16<<10)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		br := NewReader(strings.NewReader(str))
 		n, err := io.Copy(io.Discard, br)
 		if err != nil {
@@ -1971,7 +1971,7 @@ func BenchmarkWriterEmpty(b *testing.B) {
 	b.ReportAllocs()
 	str := strings.Repeat("x", 1<<10)
 	bs := []byte(str)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bw := NewWriter(io.Discard)
 		bw.Flush()
 		bw.WriteByte('a')
@@ -1989,7 +1989,7 @@ func BenchmarkWriterFlush(b *testing.B) {
 	b.ReportAllocs()
 	bw := NewWriter(io.Discard)
 	str := strings.Repeat("x", 50)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		bw.WriteString(str)
 		bw.Flush()
 	}

@@ -520,7 +520,7 @@ func TestDecoderIssue15656(t *testing.T) {
 func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		StdEncoding.EncodeToString(data)
 	}
 }
@@ -531,7 +531,7 @@ func BenchmarkDecodeString(b *testing.B) {
 		data := StdEncoding.EncodeToString(make([]byte, benchSize))
 		b.SetBytes(int64(len(data)))
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			StdEncoding.DecodeString(data)
 		}
 	}
@@ -544,7 +544,7 @@ func BenchmarkDecodeString(b *testing.B) {
 
 func BenchmarkNewEncoding(b *testing.B) {
 	b.SetBytes(int64(len(Encoding{}.decodeMap)))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e := NewEncoding(encodeStd)
 		for _, v := range e.decodeMap {
 			_ = v

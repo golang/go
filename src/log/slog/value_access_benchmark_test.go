@@ -36,7 +36,7 @@ func BenchmarkDispatch(b *testing.B) {
 		a  any
 	)
 	b.Run("switch-checked", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, v := range vs {
 				switch v.Kind() {
 				case KindString:
@@ -68,7 +68,7 @@ func BenchmarkDispatch(b *testing.B) {
 
 	})
 	b.Run("As", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, kv := range vs {
 				if v, ok := kv.AsString(); ok {
 					s = v
@@ -101,7 +101,7 @@ func BenchmarkDispatch(b *testing.B) {
 	b.Run("Visit", func(b *testing.B) {
 		v := &setVisitor{}
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, kv := range vs {
 				kv.Visit(v)
 			}

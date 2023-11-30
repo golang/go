@@ -696,7 +696,7 @@ func TestRatSetUint64(t *testing.T) {
 
 func BenchmarkRatCmp(b *testing.B) {
 	x, y := NewRat(4, 1), NewRat(7, 2)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		x.Cmp(y)
 	}
 }

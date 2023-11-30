@@ -243,13 +243,13 @@ func TestCSSValueFilter(t *testing.T) {
 }
 
 func BenchmarkCSSEscaper(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cssEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
 	}
 }
 
 func BenchmarkCSSEscaperNoSpecials(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cssEscaper("The quick, brown fox jumps over the lazy dog.")
 	}
 }
@@ -257,7 +257,7 @@ func BenchmarkCSSEscaperNoSpecials(b *testing.B) {
 func BenchmarkDecodeCSS(b *testing.B) {
 	s := []byte(`The \3c i\3equick\3c/i\3e,\d\A\3cspan style=\27 color:brown\27\3e brown\3c/span\3e fox jumps\2028over the \3c canine class=\22lazy\22 \3edog\3c/canine\3e`)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		decodeCSS(s)
 	}
 }
@@ -265,19 +265,19 @@ func BenchmarkDecodeCSS(b *testing.B) {
 func BenchmarkDecodeCSSNoSpecials(b *testing.B) {
 	s := []byte("The quick, brown fox jumps over the lazy dog.")
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		decodeCSS(s)
 	}
 }
 
 func BenchmarkCSSValueFilter(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cssValueFilter(`  e\78preS\0Sio/**/n(alert(1337))`)
 	}
 }
 
 func BenchmarkCSSValueFilterOk(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cssValueFilter(`Times New Roman`)
 	}
 }

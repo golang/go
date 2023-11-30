@@ -497,7 +497,7 @@ func BenchmarkReadMIMEHeader(b *testing.B) {
 			br := bufio.NewReader(&buf)
 			r := NewReader(br)
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf.WriteString(set.headers)
 				if _, err := r.ReadMIMEHeader(); err != nil {
 					b.Fatal(err)
@@ -512,7 +512,7 @@ func BenchmarkUncommon(b *testing.B) {
 	var buf bytes.Buffer
 	br := bufio.NewReader(&buf)
 	r := NewReader(br)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		buf.WriteString("uncommon-header-for-benchmark: foo\r\n\r\n")
 		h, err := r.ReadMIMEHeader()
 		if err != nil {

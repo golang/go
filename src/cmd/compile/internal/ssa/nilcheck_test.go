@@ -53,7 +53,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		nilcheckelim(fun.f)
 	}
 }

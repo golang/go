@@ -58,7 +58,7 @@ var x, y uintptr
 func BenchmarkMulUintptr(b *testing.B) {
 	x, y = 1, 2
 	b.Run("small", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var overflow bool
 			SinkUintptr, overflow = MulUintptr(x, y)
 			if overflow {
@@ -68,7 +68,7 @@ func BenchmarkMulUintptr(b *testing.B) {
 	})
 	x, y = MaxUintptr, MaxUintptr-1
 	b.Run("large", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var overflow bool
 			SinkUintptr, overflow = MulUintptr(x, y)
 			if overflow {

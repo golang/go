@@ -32,7 +32,7 @@ func BenchmarkEncode(b *testing.B) {
 		}
 		runtime.GC()
 		b.StartTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			w.Reset(io.Discard)
 			w.Write(buf1)
 			w.Close()

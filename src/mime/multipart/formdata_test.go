@@ -486,7 +486,7 @@ func BenchmarkReadForm(b *testing.B) {
 				}
 				b.Run(fmt.Sprintf("maxMemory=%v", maxMemory), func(b *testing.B) {
 					b.ReportAllocs()
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						fr := NewReader(bytes.NewReader(buf.Bytes()), fw.Boundary())
 						form, err := fr.ReadForm(maxMemory)
 						if err != nil {

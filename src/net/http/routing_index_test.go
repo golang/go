@@ -160,7 +160,7 @@ func BenchmarkMultiConflicts(b *testing.B) {
 		pats = append(pats, mustParsePattern(b, fmt.Sprintf("/a/b/{x}/d%d/", i)))
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		var idx routingIndex
 		for _, p := range pats {
 			got := indexConflicts(p, &idx)

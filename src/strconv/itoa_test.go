@@ -170,7 +170,7 @@ func TestFormatUintVarlen(t *testing.T) {
 }
 
 func BenchmarkFormatInt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, test := range itob64tests {
 			s := FormatInt(test.in, test.base)
 			BenchSink += len(s)
@@ -180,7 +180,7 @@ func BenchmarkFormatInt(b *testing.B) {
 
 func BenchmarkAppendInt(b *testing.B) {
 	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, test := range itob64tests {
 			dst = AppendInt(dst[:0], test.in, test.base)
 			BenchSink += len(dst)
@@ -189,7 +189,7 @@ func BenchmarkAppendInt(b *testing.B) {
 }
 
 func BenchmarkFormatUint(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, test := range uitob64tests {
 			s := FormatUint(test.in, test.base)
 			BenchSink += len(s)
@@ -199,7 +199,7 @@ func BenchmarkFormatUint(b *testing.B) {
 
 func BenchmarkAppendUint(b *testing.B) {
 	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, test := range uitob64tests {
 			dst = AppendUint(dst[:0], test.in, test.base)
 			BenchSink += len(dst)
@@ -211,7 +211,7 @@ func BenchmarkFormatIntSmall(b *testing.B) {
 	smallInts := []int64{7, 42}
 	for _, smallInt := range smallInts {
 		b.Run(Itoa(int(smallInt)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				s := FormatInt(smallInt, 10)
 				BenchSink += len(s)
 			}
@@ -222,7 +222,7 @@ func BenchmarkFormatIntSmall(b *testing.B) {
 func BenchmarkAppendIntSmall(b *testing.B) {
 	dst := make([]byte, 0, 30)
 	const smallInt = 42
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		dst = AppendInt(dst[:0], smallInt, 10)
 		BenchSink += len(dst)
 	}

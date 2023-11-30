@@ -12,7 +12,7 @@ var globl32 int32
 func BenchmarkLoadAdd(b *testing.B) {
 	x := make([]int64, 1024)
 	y := make([]int64, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var s int64
 		for i := range x {
 			s ^= x[i] + y[i]
@@ -24,7 +24,7 @@ func BenchmarkLoadAdd(b *testing.B) {
 // Added for ppc64 extswsli on power9
 func BenchmarkExtShift(b *testing.B) {
 	x := make([]int32, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var s int64
 		for i := range x {
 			s ^= int64(x[i]+32) * 8
@@ -36,7 +36,7 @@ func BenchmarkExtShift(b *testing.B) {
 func BenchmarkModify(b *testing.B) {
 	a := make([]int64, 1024)
 	v := globl
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range a {
 			a[j] += v
 		}
@@ -45,7 +45,7 @@ func BenchmarkModify(b *testing.B) {
 
 func BenchmarkMullImm(b *testing.B) {
 	x := make([]int32, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		var s int32
 		for i := range x {
 			s += x[i] * 100
@@ -56,7 +56,7 @@ func BenchmarkMullImm(b *testing.B) {
 
 func BenchmarkConstModify(b *testing.B) {
 	a := make([]int64, 1024)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range a {
 			a[j] += 3
 		}
@@ -66,7 +66,7 @@ func BenchmarkConstModify(b *testing.B) {
 func BenchmarkBitSet(b *testing.B) {
 	const N = 64 * 8
 	a := make([]uint64, N/64)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := uint64(0); j < N; j++ {
 			a[j/64] |= 1 << (j % 64)
 		}
@@ -76,7 +76,7 @@ func BenchmarkBitSet(b *testing.B) {
 func BenchmarkBitClear(b *testing.B) {
 	const N = 64 * 8
 	a := make([]uint64, N/64)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := uint64(0); j < N; j++ {
 			a[j/64] &^= 1 << (j % 64)
 		}
@@ -86,7 +86,7 @@ func BenchmarkBitClear(b *testing.B) {
 func BenchmarkBitToggle(b *testing.B) {
 	const N = 64 * 8
 	a := make([]uint64, N/64)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := uint64(0); j < N; j++ {
 			a[j/64] ^= 1 << (j % 64)
 		}
@@ -96,7 +96,7 @@ func BenchmarkBitToggle(b *testing.B) {
 func BenchmarkBitSetConst(b *testing.B) {
 	const N = 64
 	a := make([]uint64, N)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range a {
 			a[j] |= 1 << 37
 		}
@@ -106,7 +106,7 @@ func BenchmarkBitSetConst(b *testing.B) {
 func BenchmarkBitClearConst(b *testing.B) {
 	const N = 64
 	a := make([]uint64, N)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range a {
 			a[j] &^= 1 << 37
 		}
@@ -116,7 +116,7 @@ func BenchmarkBitClearConst(b *testing.B) {
 func BenchmarkBitToggleConst(b *testing.B) {
 	const N = 64
 	a := make([]uint64, N)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := range a {
 			a[j] ^= 1 << 37
 		}

@@ -102,7 +102,7 @@ var benchmarkWriteData = [][]string{
 }
 
 func BenchmarkWrite(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w := NewWriter(&bytes.Buffer{})
 		err := w.WriteAll(benchmarkWriteData)
 		if err != nil {

@@ -143,7 +143,7 @@ func TestIntNegativeMaxPanics(t *testing.T) {
 
 func BenchmarkPrime(b *testing.B) {
 	r := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rand.Prime(r, 1024)
 	}
 }

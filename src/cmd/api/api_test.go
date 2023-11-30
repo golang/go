@@ -197,7 +197,7 @@ func TestSkipInternal(t *testing.T) {
 }
 
 func BenchmarkAll(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
 			for _, name := range w.stdPackages {

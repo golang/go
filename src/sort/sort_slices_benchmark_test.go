@@ -54,7 +54,7 @@ func makeSortedStrings(n int) []string {
 const N = 100_000
 
 func BenchmarkSortInts(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ints := makeRandomInts(N)
 		b.StartTimer()
@@ -63,7 +63,7 @@ func BenchmarkSortInts(b *testing.B) {
 }
 
 func BenchmarkSlicesSortInts(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ints := makeRandomInts(N)
 		b.StartTimer()
@@ -72,7 +72,7 @@ func BenchmarkSlicesSortInts(b *testing.B) {
 }
 
 func BenchmarkSortIsSorted(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ints := makeSortedInts(N)
 		b.StartTimer()
@@ -81,7 +81,7 @@ func BenchmarkSortIsSorted(b *testing.B) {
 }
 
 func BenchmarkSlicesIsSorted(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ints := makeSortedInts(N)
 		b.StartTimer()
@@ -107,7 +107,7 @@ func makeRandomStrings(n int) []string {
 }
 
 func BenchmarkSortStrings(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ss := makeRandomStrings(N)
 		b.StartTimer()
@@ -116,7 +116,7 @@ func BenchmarkSortStrings(b *testing.B) {
 }
 
 func BenchmarkSlicesSortStrings(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ss := makeRandomStrings(N)
 		b.StartTimer()
@@ -128,7 +128,7 @@ func BenchmarkSortStrings_Sorted(b *testing.B) {
 	ss := makeSortedStrings(N)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Sort(StringSlice(ss))
 	}
 }
@@ -137,7 +137,7 @@ func BenchmarkSlicesSortStrings_Sorted(b *testing.B) {
 	ss := makeSortedStrings(N)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		slices.Sort(ss)
 	}
 }
@@ -182,7 +182,7 @@ func TestStructSorts(t *testing.T) {
 }
 
 func BenchmarkSortStructs(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ss := makeRandomStructs(N)
 		b.StartTimer()
@@ -192,7 +192,7 @@ func BenchmarkSortStructs(b *testing.B) {
 
 func BenchmarkSortFuncStructs(b *testing.B) {
 	cmpFunc := func(a, b *myStruct) int { return a.n - b.n }
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		b.StopTimer()
 		ss := makeRandomStructs(N)
 		b.StartTimer()

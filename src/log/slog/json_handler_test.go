@@ -182,7 +182,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 				String("URL", "https://pkg.go.dev/golang.org/x/log/slog"))
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),
@@ -244,7 +244,7 @@ func BenchmarkPreformatting(b *testing.B) {
 			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),
@@ -262,7 +262,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 	defer buf.Free()
 	b.Run("json.Marshal", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			by, err := json.Marshal(value)
 			if err != nil {
 				b.Fatal(err)
@@ -273,7 +273,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 	})
 	b.Run("Encoder.Encode", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if err := json.NewEncoder(buf).Encode(value); err != nil {
 				b.Fatal(err)
 			}

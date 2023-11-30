@@ -247,7 +247,7 @@ func benchmarkKB(b *testing.B, h hash.Hash) {
 	in := make([]byte, 0, h.Size())
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		h.Reset()
 		h.Write(data)
 		h.Sum(in)

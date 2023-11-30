@@ -296,7 +296,7 @@ func BenchmarkFuse(b *testing.B) {
 					Exit("mem")))
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				fun := c.Fun("entry", blocks...)
 				fuseLate(fun.f)
 			}

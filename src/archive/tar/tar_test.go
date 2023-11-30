@@ -798,7 +798,7 @@ func Benchmark(b *testing.B) {
 		for _, v := range vectors {
 			b.Run(v.label, func(b *testing.B) {
 				b.ReportAllocs()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					// Writing to io.Discard because we want to
 					// test purely the writer code and not bring in disk performance into this.
 					tw := NewWriter(io.Discard)
@@ -833,7 +833,7 @@ func Benchmark(b *testing.B) {
 			b.Run(v.label, func(b *testing.B) {
 				b.ReportAllocs()
 				// Read from the byte buffer.
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					r.Reset(buf.Bytes())
 					tr := NewReader(&r)
 					if _, err := tr.Next(); err != nil {

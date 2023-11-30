@@ -221,7 +221,7 @@ func benchmarkSize(b *testing.B, size int) {
 
 	b.Run("Write", func(b *testing.B) {
 		b.SetBytes(int64(size))
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			h.Reset()
 			h.Write(buf)
 			h.Sum64()
@@ -231,7 +231,7 @@ func benchmarkSize(b *testing.B, size int) {
 	b.Run("Bytes", func(b *testing.B) {
 		b.SetBytes(int64(size))
 		seed := h.Seed()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			Bytes(seed, buf)
 		}
 	})
@@ -239,7 +239,7 @@ func benchmarkSize(b *testing.B, size int) {
 	b.Run("String", func(b *testing.B) {
 		b.SetBytes(int64(size))
 		seed := h.Seed()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			String(seed, s)
 		}
 	})

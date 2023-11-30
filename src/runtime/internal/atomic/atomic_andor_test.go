@@ -168,7 +168,7 @@ func TestOr64(t *testing.T) {
 func BenchmarkAnd32(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.And32(&x[63], uint32(i))
 	}
 }
@@ -188,7 +188,7 @@ func BenchmarkAnd32Parallel(b *testing.B) {
 func BenchmarkAnd64(b *testing.B) {
 	var x [128]uint64 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.And64(&x[63], uint64(i))
 	}
 }
@@ -208,7 +208,7 @@ func BenchmarkAnd64Parallel(b *testing.B) {
 func BenchmarkOr32(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.Or32(&x[63], uint32(i))
 	}
 }
@@ -228,7 +228,7 @@ func BenchmarkOr32Parallel(b *testing.B) {
 func BenchmarkOr64(b *testing.B) {
 	var x [128]uint64 // give x its own cache line
 	sink = &x
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		atomic.Or64(&x[63], uint64(i))
 	}
 }

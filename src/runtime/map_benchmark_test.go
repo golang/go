@@ -26,7 +26,7 @@ func BenchmarkHashStringSpeed(b *testing.B) {
 	}
 	idx := 0
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += m[strings[idx]]
 		idx++
 		if idx == size {
@@ -51,7 +51,7 @@ func BenchmarkHashBytesSpeed(b *testing.B) {
 	}
 	idx := 0
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if m[chunks[idx]] != idx {
 			b.Error("bad map entry for chunk")
 		}
@@ -74,7 +74,7 @@ func BenchmarkHashInt32Speed(b *testing.B) {
 	}
 	idx := 0
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += m[ints[idx]]
 		idx++
 		if idx == size {
@@ -95,7 +95,7 @@ func BenchmarkHashInt64Speed(b *testing.B) {
 	}
 	idx := 0
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += m[ints[idx]]
 		idx++
 		if idx == size {
@@ -117,7 +117,7 @@ func BenchmarkHashStringArraySpeed(b *testing.B) {
 	}
 	idx := 0
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sum += m[stringpairs[idx]]
 		idx++
 		if idx == size {
@@ -133,7 +133,7 @@ func BenchmarkMegMap(b *testing.B) {
 	}
 	key := strings.Repeat("X", 1<<20-1) + "k"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key]
 	}
 }
@@ -143,7 +143,7 @@ func BenchmarkMegOneMap(b *testing.B) {
 	m[strings.Repeat("X", 1<<20)] = true
 	key := strings.Repeat("Y", 1<<20)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key]
 	}
 }
@@ -154,7 +154,7 @@ func BenchmarkMegEqMap(b *testing.B) {
 	key2 := strings.Repeat("X", 1<<20) // equal but different instance
 	m[key1] = true
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key2]
 	}
 }
@@ -163,7 +163,7 @@ func BenchmarkMegEmptyMap(b *testing.B) {
 	m := make(map[string]bool)
 	key := strings.Repeat("X", 1<<20)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key]
 	}
 }
@@ -172,7 +172,7 @@ func BenchmarkMegEmptyMapWithInterfaceKey(b *testing.B) {
 	m := make(map[any]bool)
 	key := strings.Repeat("X", 1<<20)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key]
 	}
 }
@@ -184,7 +184,7 @@ func BenchmarkSmallStrMap(b *testing.B) {
 	}
 	key := "k"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[key]
 	}
 }
@@ -201,7 +201,7 @@ func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
 	}
 	key := strings.Repeat("K", keySize)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[key]
 	}
 }
@@ -212,7 +212,7 @@ func BenchmarkIntMap(b *testing.B) {
 		m[i] = true
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = m[7]
 	}
 }
@@ -225,7 +225,7 @@ func BenchmarkMapFirst(b *testing.B) {
 				m[i] = true
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = m[0]
 			}
 		})
@@ -239,7 +239,7 @@ func BenchmarkMapMid(b *testing.B) {
 				m[i] = true
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = m[n>>1]
 			}
 		})
@@ -253,7 +253,7 @@ func BenchmarkMapLast(b *testing.B) {
 				m[i] = true
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = m[n-1]
 			}
 		})
@@ -272,7 +272,7 @@ func BenchmarkMapCycle(b *testing.B) {
 	}
 	b.ResetTimer()
 	j := 0
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		j = m[j]
 	}
 	sink = uint64(j)
@@ -303,14 +303,14 @@ func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(
 func BenchmarkMakeMap(b *testing.B) {
 	b.Run("[Byte]Byte", func(b *testing.B) {
 		var m map[byte]byte
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			m = make(map[byte]byte, 10)
 		}
 		hugeSink = m
 	})
 	b.Run("[Int]Int", func(b *testing.B) {
 		var m map[int]int
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			m = make(map[int]int, 10)
 		}
 		hugeSink = m
@@ -319,14 +319,14 @@ func BenchmarkMakeMap(b *testing.B) {
 
 func BenchmarkNewEmptyMap(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = make(map[int]int)
 	}
 }
 
 func BenchmarkNewSmallMap(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		m := make(map[int]int)
 		m[0] = 0
 		m[1] = 1
@@ -339,7 +339,7 @@ func BenchmarkMapIter(b *testing.B) {
 		m[i] = true
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for range m {
 		}
 	}
@@ -348,7 +348,7 @@ func BenchmarkMapIter(b *testing.B) {
 func BenchmarkMapIterEmpty(b *testing.B) {
 	m := make(map[int]bool)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for range m {
 		}
 	}
@@ -363,7 +363,7 @@ func BenchmarkSameLengthMap(b *testing.B) {
 	m[s1] = true
 	m[s2] = true
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[s1]
 	}
 }
@@ -374,7 +374,7 @@ func BenchmarkBigKeyMap(b *testing.B) {
 	m := make(map[BigKey]bool)
 	k := BigKey{3, 4, 5}
 	m[k] = true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[k]
 	}
 }
@@ -385,7 +385,7 @@ func BenchmarkBigValMap(b *testing.B) {
 	m := make(map[BigKey]BigVal)
 	k := BigKey{3, 4, 5}
 	m[k] = BigVal{6, 7, 8}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[k]
 	}
 }
@@ -393,7 +393,7 @@ func BenchmarkBigValMap(b *testing.B) {
 func BenchmarkSmallKeyMap(b *testing.B) {
 	m := make(map[int16]bool)
 	m[5] = true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[5]
 	}
 }
@@ -402,7 +402,7 @@ func BenchmarkMapPopulate(b *testing.B) {
 	for size := 1; size < 1000000; size *= 10 {
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				m := make(map[int]bool)
 				for j := 0; j < size; j++ {
 					m[j] = true
@@ -426,7 +426,7 @@ func BenchmarkComplexAlgMap(b *testing.B) {
 	m := make(map[ComplexAlgKey]bool)
 	var k ComplexAlgKey
 	m[k] = true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = m[k]
 	}
 }
@@ -436,7 +436,7 @@ func BenchmarkGoMapClear(b *testing.B) {
 		for size := 1; size < 100000; size *= 10 {
 			b.Run(strconv.Itoa(size), func(b *testing.B) {
 				m := make(map[int]int, size)
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					m[0] = size // Add one element so len(m) != 0 avoiding fast paths.
 					clear(m)
 				}
@@ -447,7 +447,7 @@ func BenchmarkGoMapClear(b *testing.B) {
 		for size := 1; size < 100000; size *= 10 {
 			b.Run(strconv.Itoa(size), func(b *testing.B) {
 				m := make(map[float64]int, size)
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
 					clear(m)
 				}
@@ -464,7 +464,7 @@ func BenchmarkMapStringConversion(b *testing.B) {
 				b.ReportAllocs()
 				m := make(map[string]int)
 				m[string(bytes)] = 0
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = m[string(bytes)]
 				}
 			})
@@ -473,7 +473,7 @@ func BenchmarkMapStringConversion(b *testing.B) {
 				type stringstruct struct{ s string }
 				m := make(map[stringstruct]int)
 				m[stringstruct{string(bytes)}] = 0
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = m[stringstruct{string(bytes)}]
 				}
 			})
@@ -482,7 +482,7 @@ func BenchmarkMapStringConversion(b *testing.B) {
 				type stringarray [1]string
 				m := make(map[stringarray]int)
 				m[stringarray{string(bytes)}] = 0
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_ = m[stringarray{string(bytes)}]
 				}
 			})
@@ -501,7 +501,7 @@ func BenchmarkMapInterfaceString(b *testing.B) {
 
 	key := (any)("A")
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		BoolSink = m[key]
 	}
 }
@@ -515,7 +515,7 @@ func BenchmarkMapInterfacePtr(b *testing.B) {
 
 	key := new(int)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		BoolSink = m[key]
 	}
 }
@@ -527,14 +527,14 @@ var (
 
 func BenchmarkNewEmptyMapHintLessThan8(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = make(map[int]int, hintLessThan8)
 	}
 }
 
 func BenchmarkNewEmptyMapHintGreaterThan8(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = make(map[int]int, hintGreaterThan8)
 	}
 }

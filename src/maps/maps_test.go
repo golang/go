@@ -142,7 +142,7 @@ func BenchmarkMapClone(b *testing.B) {
 		m[i] = i
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		n = Clone(m)
 	}
 }

@@ -114,7 +114,7 @@ func i2Int4(i I, p *Int) Int {
 
 func BenchmarkEfaceInteger(b *testing.B) {
 	sum := 0
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		sum += i2int(i)
 	}
 	sink = sum
@@ -128,7 +128,7 @@ func i2int(i interface{}) int {
 func BenchmarkTypeAssert(b *testing.B) {
 	e := any(Int(0))
 	r := true
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, ok := e.(I)
 		if !ok {
 			r = false

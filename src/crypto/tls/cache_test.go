@@ -95,7 +95,7 @@ func BenchmarkCertCache(b *testing.B) {
 		b.Run(fmt.Sprint(extra), func(b *testing.B) {
 			actives := make([]*activeCert, extra+1)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				var err error
 				actives[0], err = cc.newCert(p.Bytes)
 				if err != nil {

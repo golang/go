@@ -107,7 +107,7 @@ func TestLookupWithIP(t *testing.T) {
 func BenchmarkParseIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
 		}
@@ -117,7 +117,7 @@ func BenchmarkParseIP(b *testing.B) {
 func BenchmarkParseIPValidIPv4(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseIP("192.0.2.1")
 	}
 }
@@ -125,7 +125,7 @@ func BenchmarkParseIPValidIPv4(b *testing.B) {
 func BenchmarkParseIPValidIPv6(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ParseIP("2001:DB8::1")
 	}
 }
@@ -283,7 +283,7 @@ func BenchmarkIPString(b *testing.B) {
 func benchmarkIPString(b *testing.B, size int) {
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, tt := range ipStringTests {
 			if tt.in != nil && len(tt.in) == size {
 				sink = tt.in.String()
@@ -335,7 +335,7 @@ func TestIPMaskString(t *testing.T) {
 func BenchmarkIPMaskString(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, tt := range ipMaskStringTests {
 			sink = tt.in.String()
 		}

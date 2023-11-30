@@ -43,7 +43,7 @@ func errfn1() error {
 }
 
 func BenchmarkIfaceCmp100(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 100; j++ {
 			if errfn() == io.EOF {
 				b.Fatal("bad comparison")
@@ -53,7 +53,7 @@ func BenchmarkIfaceCmp100(b *testing.B) {
 }
 
 func BenchmarkIfaceCmpNil100(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 100; j++ {
 			if errfn1() == nil {
 				b.Fatal("bad comparison")
@@ -70,7 +70,7 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 	efaceCmp1 = &x
 	y := 6
 	efaceCmp2 = &y
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 100; j++ {
 			if efaceCmp1 == efaceCmp2 {
 				b.Fatal("bad comparison")
@@ -82,7 +82,7 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
 	efaceCmp1 = [2]int{1, 2}
 	efaceCmp2 = [2]int{1, 2}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for j := 0; j < 100; j++ {
 			if efaceCmp1 != efaceCmp2 {
 				b.Fatal("bad comparison")
@@ -92,7 +92,7 @@ func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
 }
 
 func BenchmarkDefer(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		defer1()
 	}
 }
@@ -122,7 +122,7 @@ func defer2() {
 }
 
 func BenchmarkDeferMany(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		defer func(x, y, z int) {
 			if recover() != nil || x != 1 || y != 2 || z != 3 {
 				panic("bad recover")
@@ -132,7 +132,7 @@ func BenchmarkDeferMany(b *testing.B) {
 }
 
 func BenchmarkPanicRecover(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		defer3()
 	}
 }
@@ -371,7 +371,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 			latencies := make([]time.Duration, 0, b.N)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				start := time.Now()
 				ok := fn()
 				if !ok {

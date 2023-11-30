@@ -313,7 +313,7 @@ func TestIssue11130(t *testing.T) {
 func BenchmarkMarshal(b *testing.B) {
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, test := range marshalTests {
 			Marshal(test.in)
 		}
@@ -398,7 +398,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, testCase := range testData {
 			_, _ = Unmarshal(testCase.in, testCase.out)
 		}

@@ -275,7 +275,7 @@ func BenchmarkServerMatch(b *testing.B) {
 	paths := []string{"/", "/notfound", "/admin/", "/admin/foo", "/contact", "/products",
 		"/products/", "/products/3/image.jpg"}
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		r, err := NewRequest("GET", "http://example.com/"+paths[i%len(paths)], nil)
 		if err != nil {
 			b.Fatal(err)

@@ -366,7 +366,7 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 		priv, _, _, _ := GenerateKey(curve, rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x, _ := curve.ScalarBaseMult(priv)
 			// Prevent the compiler from optimizing out the operation.
 			priv[0] ^= byte(x.Bits()[0])
@@ -380,7 +380,7 @@ func BenchmarkScalarMult(b *testing.B) {
 		priv, _, _, _ := GenerateKey(curve, rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			x, y = curve.ScalarMult(x, y, priv)
 		}
 	})
@@ -391,7 +391,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		_, x, y, _ := GenerateKey(curve, rand.Reader)
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf := Marshal(curve, x, y)
 				xx, yy := Unmarshal(curve, buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
@@ -401,7 +401,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		})
 		b.Run("Compressed", func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf := MarshalCompressed(curve, x, y)
 				xx, yy := UnmarshalCompressed(curve, buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {

@@ -220,7 +220,7 @@ func BenchmarkSyncLeak(b *testing.B) {
 		go func() {
 			defer wg.Done()
 			hold := make([][]uint32, H)
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				a := make([]uint32, S)
 				atomic.AddUint32(&a[rand.Intn(len(a))], 1)
 				hold[rand.Intn(len(hold))] = a
@@ -233,7 +233,7 @@ func BenchmarkSyncLeak(b *testing.B) {
 
 func BenchmarkStackLeak(b *testing.B) {
 	done := make(chan bool, 1)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		go func() {
 			growStack(rand.Intn(100))
 			done <- true

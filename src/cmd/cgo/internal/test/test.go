@@ -1103,50 +1103,50 @@ func benchCgoCall(b *testing.B) {
 		const x = C.int(2)
 		const y = C.int(3)
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.add(x, y)
 		}
 	})
 
 	b.Run("one-pointer", func(b *testing.B) {
 		var a0 C.VkDeviceCreateInfo
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.handleComplexPointer(&a0)
 		}
 	})
 	b.Run("string-pointer-escape", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var s string
 			C.handleGoStringPointerEscape(unsafe.Pointer(&s))
 		}
 	})
 	b.Run("string-pointer-noescape", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var s string
 			C.handleGoStringPointerNoescape(unsafe.Pointer(&s))
 		}
 	})
 	b.Run("eight-pointers", func(b *testing.B) {
 		var a0, a1, a2, a3, a4, a5, a6, a7 C.VkDeviceCreateInfo
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.handleComplexPointer8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7)
 		}
 	})
 	b.Run("eight-pointers-nil", func(b *testing.B) {
 		var a0, a1, a2, a3, a4, a5, a6, a7 *C.VkDeviceCreateInfo
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.handleComplexPointer8(a0, a1, a2, a3, a4, a5, a6, a7)
 		}
 	})
 	b.Run("eight-pointers-array", func(b *testing.B) {
 		var a [8]C.VkDeviceCreateInfo
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
 		}
 	})
 	b.Run("eight-pointers-slice", func(b *testing.B) {
 		a := make([]C.VkDeviceCreateInfo, 8)
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
 		}
 	})
@@ -1155,7 +1155,7 @@ func benchCgoCall(b *testing.B) {
 // Benchmark measuring overhead from Go to C and back to Go (via a callback)
 func benchCallback(b *testing.B) {
 	var x = false
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		nestedCall(func() { x = true })
 	}
 	if !x {
@@ -1166,7 +1166,7 @@ func benchCallback(b *testing.B) {
 var sinkString string
 
 func benchGoString(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		sinkString = C.GoString(C.cstr)
 	}
 	const want = "abcefghijklmnopqrstuvwxyzABCEFGHIJKLMNOPQRSTUVWXYZ1234567890"

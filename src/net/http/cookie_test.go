@@ -575,7 +575,7 @@ func BenchmarkCookieString(b *testing.B) {
 	var benchmarkCookieString string
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		benchmarkCookieString = c.String()
 	}
 	if have, want := benchmarkCookieString, wantCookieString; have != want {
@@ -614,7 +614,7 @@ func BenchmarkReadSetCookies(b *testing.B) {
 	var c []*Cookie
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c = readSetCookies(header)
 	}
 	if !reflect.DeepEqual(c, wantCookies) {
@@ -643,7 +643,7 @@ func BenchmarkReadCookies(b *testing.B) {
 	var c []*Cookie
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c = readCookies(header, "")
 	}
 	if !reflect.DeepEqual(c, wantCookies) {
