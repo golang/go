@@ -2622,6 +2622,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		return
 	}
 
+	symAddr := map[string]uint64{}
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -2673,8 +2674,82 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		if symname != elfsym.Name {
 			l.SetSymExtname(s, elfsym.Name)
 		}
+		symAddr[elfsym.Name] = elfsym.Value
 	}
-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
+
+	// Load relocations.
+	// We only really need these for grokking the links between type descriptors
+	// when dynamic linking.
+	relocTarget := map[uint64]string{}
+	addends := false
+	sect := f.SectionByType(elf.SHT_REL)
+	if sect == nil {
+		sect = f.SectionByType(elf.SHT_RELA)
+		if sect == nil {
+			log.Fatalf("can't find SHT_REL or SHT_RELA section of %s", shlib)
+		}
+		addends = true
+	}
+	// TODO: Multiple SHT_RELA/SHT_REL sections?
+	data, err := sect.Data()
+	if err != nil {
+		log.Fatalf("can't read relocation section of %s: %v", shlib, err)
+	}
+	bo := f.ByteOrder
+	for len(data) > 0 {
+		var off, idx uint64
+		var addend int64
+		switch f.Class {
+		case elf.ELFCLASS64:
+			off = bo.Uint64(data)
+			info := bo.Uint64(data[8:])
+			data = data[16:]
+			if addends {
+				addend = int64(bo.Uint64(data))
+				data = data[8:]
+			}
+
+			idx = info >> 32
+			typ := info & 0xffff
+			// buildmode=shared is only supported for amd64,arm64,loong64,s390x,ppc64le.
+			// (List found by looking at the translation of R_ADDR by ../$ARCH/asm.go:elfreloc1)
+			switch typ {
+			case uint64(elf.R_X86_64_64):
+			case uint64(elf.R_AARCH64_ABS64):
+			case uint64(elf.R_LARCH_64):
+			case uint64(elf.R_390_64):
+			case uint64(elf.R_PPC64_ADDR64):
+			default:
+				continue
+			}
+		case elf.ELFCLASS32:
+			off = uint64(bo.Uint32(data))
+			info := bo.Uint32(data[4:])
+			data = data[8:]
+			if addends {
+				addend = int64(int32(bo.Uint32(data)))
+				data = data[4:]
+			}
+
+			idx = uint64(info >> 8)
+			typ := info & 0xff
+			// buildmode=shared is only supported for 386,arm.
+			switch typ {
+			case uint32(elf.R_386_32):
+			case uint32(elf.R_ARM_ABS32):
+			default:
+				continue
+			}
+		default:
+			log.Fatalf("unknown bit size %s", f.Class)
+		}
+		if addend != 0 {
+			continue
+		}
+		relocTarget[off] = syms[idx-1].Name
+	}
+
+	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, symAddr: symAddr, relocTarget: relocTarget})
 }
 
 func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {

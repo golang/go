@@ -1346,30 +1346,56 @@ func (p *GCProg) AddSym(s loader.Sym) {
 		return
 	}
 
-	ptrsize := int64(p.ctxt.Arch.PtrSize)
-	typData := ldr.Data(typ)
-	nptr := decodetypePtrdata(p.ctxt.Arch, typData) / ptrsize
-
 	if debugGCProg {
-		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/ptrsize, nptr)
+		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/int64(p.ctxt.Arch.PtrSize))
 	}
 
 	sval := ldr.SymValue(s)
-	if !decodetypeUsegcprog(p.ctxt.Arch, typData) {
+	p.AddType(sval, typ)
+}
+
+// Add to the gc program the ptr bits for the type typ at
+// byte offset off in the region being described.
+// The type must have a pointer in it.
+func (p *GCProg) AddType(off int64, typ loader.Sym) {
+	ldr := p.ctxt.loader
+	typData := ldr.Data(typ)
+	switch decodetypeKind(p.ctxt.Arch, typData) {
+	default:
+		if decodetypeUsegcprog(p.ctxt.Arch, typData) {
+			p.ctxt.Errorf(p.sym.Sym(), "GC program for non-aggregate type")
+		}
 		// Copy pointers from mask into program.
+		ptrsize := int64(p.ctxt.Arch.PtrSize)
+		ptrdata := decodetypePtrdata(p.ctxt.Arch, typData)
 		mask := decodetypeGcmask(p.ctxt, typ)
-		for i := int64(0); i < nptr; i++ {
+		for i := int64(0); i < ptrdata/ptrsize; i++ {
 			if (mask[i/8]>>uint(i%8))&1 != 0 {
-				p.w.Ptr(sval/ptrsize + i)
+				p.w.Ptr(off/ptrsize + i)
 			}
 		}
-		return
+	case abi.Array:
+		elem := decodetypeArrayElem(p.ctxt, p.ctxt.Arch, typ)
+		n := decodetypeArrayLen(ldr, p.ctxt.Arch, typ)
+		p.AddType(off, elem)
+		if n > 1 {
+			// Issue repeat for subsequent n-1 instances.
+			elemSize := decodetypeSize(p.ctxt.Arch, ldr.Data(elem))
+			ptrsize := int64(p.ctxt.Arch.PtrSize)
+			p.w.ZeroUntil((off + elemSize) / ptrsize)
+			p.w.Repeat(elemSize/ptrsize, n-1)
+		}
+	case abi.Struct:
+		nField := decodetypeStructFieldCount(ldr, p.ctxt.Arch, typ)
+		for i := 0; i < nField; i++ {
+			fTyp := decodetypeStructFieldType(p.ctxt, p.ctxt.Arch, typ, i)
+			if decodetypePtrdata(p.ctxt.Arch, ldr.Data(fTyp)) == 0 {
+				continue
+			}
+			fOff := decodetypeStructFieldOffset(ldr, p.ctxt.Arch, typ, i)
+			p.AddType(off+fOff, fTyp)
+		}
 	}
-
-	// Copy program.
-	prog := decodetypeGcprog(p.ctxt, typ)
-	p.w.ZeroUntil(sval / ptrsize)
-	p.w.Append(prog[4:], nptr)
 }
 
 // cutoff is the maximum data section size permitted by the linker

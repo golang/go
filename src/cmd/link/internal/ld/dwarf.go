@@ -584,7 +584,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 		fld := d.newdie(die, dwarf.DW_ABRV_ARRAYRANGE, "range")
 
@@ -661,7 +661,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
 		elem := d.defgotype(s)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
 
@@ -676,7 +676,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		nfields := decodetypeStructFieldCount(d.ldr, d.arch, gotype)
 		for i := 0; i < nfields; i++ {
 			f := decodetypeStructFieldName(d.ldr, d.arch, gotype, i)
-			s := decodetypeStructFieldType(d.ldr, d.arch, gotype, i)
+			s := decodetypeStructFieldType(d.linkctxt, d.arch, gotype, i)
 			if f == "" {
 				sn := d.ldr.SymName(s)
 				f = sn[5:] // skip "type:"
