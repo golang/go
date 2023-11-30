@@ -83,8 +83,26 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 543255 -->
+  The runtime now keeps type-based garbage collection metadata nearer to each
+  heap object, improving the CPU performance (latency or throughput) of Go programs
+  by 1&mdash;3%.
+  This change also reduces the memory overhead of the majority Go programs by
+  approximately 1% by deduplicating redundant metadata.
+  Some programs may see a smaller improvement because this change adjusts the size
+  class boundaries of the memory allocator, so some objects may be moved up a size
+  class.
+  <br />
+  A consequence of this change is that some objects' addresses that were previously
+  always aligned to a 16 byte (or higher) boundary will now only be aligned to an 8
+  byte boundary.
+  Some programs that use assembly instructions that require memory addresses to be
+  more than 8-byte aligned and rely on the memory allocator's previous alignment behavior
+  may break, but we expect such programs to be rare.
+  Such programs may be built with <code>GOEXPERIMENT=noallocheaders</code> to revert
+  to the old metadata layout and restore the previous alignment behavior, but package
+  owners should update their assembly code to avoid the alignment assumption, as this
+  workaround will be removed in a future release.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -516,10 +534,6 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- https://go.dev/issue/61015 -->
       TODO: <a href="https://go.dev/issue/61015">https://go.dev/issue/61015</a>: change mutex profile to scale contention by number of blocked goroutines
-    </p>
-
-    <p><!-- CL 543255 -->
-      TODO: <a href="https://go.dev/cl/543255">https://go.dev/cl/543255</a>: runtime: put allocation headers back at the start the object
     </p>
   </dd>
 </dl><!-- runtime -->
