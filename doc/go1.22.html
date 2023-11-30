@@ -546,14 +546,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- reflect -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/61015 -->
-      TODO: <a href="https://go.dev/issue/61015">https://go.dev/issue/61015</a>: change mutex profile to scale contention by number of blocked goroutines
-    </p>
-  </dd>
-</dl><!-- runtime -->
-
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/63340 -->
@@ -561,6 +553,23 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61015 -->
+      Mutex profiles now scale contention by the number of goroutines blocked on the mutex.
+      This provides a more accurate representation of the degree to which a mutex is a bottleneck in
+      a Go program.
+      For instance, if 100 goroutines are blocked on a mutex for 10 milliseconds, a mutex profile will
+      now record 1 second of delay instead of 10 milliseconds of delay.
+    </p>
+
+    <p><!-- https://go.dev/issue/50891 -->
+      CPU profiles on Darwin platforms now contain the process's memory map, enabling the disassembly
+      view in the pprof tool.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
 
 <dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
   <dd>
