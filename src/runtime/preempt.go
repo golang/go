@@ -359,7 +359,11 @@ func wantAsyncPreempt(gp *g) bool {
 // In some cases the PC is safe for asynchronous preemption but it
 // also needs to adjust the resumption PC. The new PC is returned in
 // the second result.
-func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+//
+// If noResume is true, we know we're not going to resume execution
+// on this goroutine (as we're crashing), and thus we can preempt
+// more aggressively.
+func isAsyncSafePoint(gp *g, pc, sp, lr uintptr, noResume bool) (bool, uintptr) {
 	mp := gp.m
 
 	// Only user Gs can have safe-points. We check this first
@@ -370,7 +374,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	}
 
 	// Check M state.
-	if mp.p == 0 || !canPreemptM(mp) {
+	if mp.p == 0 || (!canPreemptM(mp) && !noResume) {
 		return false, 0
 	}
 
@@ -384,6 +388,13 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	if !f.valid() {
 		// Not Go code.
 		return false, 0
+	}
+	if noResume && f.flag&abi.FuncFlagAsm == 0 {
+		// We're not going to resume execution and not going to scan the
+		// stack for GC, so we don't care whether it is a safe point, and
+		// also don't care the resumption PC.
+		// TODO: maybe we can preempt non-SPWRITE assembly functions?
+		return true, pc
 	}
 	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc) == 0 {
 		// We probably stopped at a half-executed CALL instruction,

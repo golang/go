@@ -342,7 +342,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	// Check if this G wants to be preempted and is safe to
 	// preempt.
 	if wantAsyncPreempt(gp) {
-		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
+		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr(), panicking.Load() != 0); ok {
 			// Adjust the PC and inject a call to asyncPreempt.
 			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
 		}
