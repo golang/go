@@ -18,4 +18,3 @@ pkg sync/atomic, method (*Int64) Or(int64) int64 #61395
 pkg sync/atomic, method (*Uint32) Or(uint32) uint32 #61395
 pkg sync/atomic, method (*Uint64) Or(uint64) uint64 #61395
 pkg sync/atomic, method (*Uintptr) Or(uintptr) uintptr #61395
-
