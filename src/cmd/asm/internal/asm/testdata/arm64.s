@@ -981,6 +981,14 @@ again:
 	ADR	next, R11     // ADR R11 // 2b000010
 next:
 	NOP
+	ADR -2(PC), R10    // 0a000010
+	ADR 2(PC), R16     // 10000010
+	ADR -26(PC), R1    // 01000010
+	ADR 12(PC), R2     // 02000010
+	ADRP -2(PC), R10   // 0a000090
+	ADRP 2(PC), R16    // 10000090
+	ADRP -26(PC), R1   // 01000090
+	ADRP 12(PC), R2    // 02000090
 
 // LDP/STP
 	LDP	(R0), (R0, R1)      // 000440a9
