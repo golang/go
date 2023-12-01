@@ -534,20 +534,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56353 -->
-      TODO: <a href="https://go.dev/issue/56353">https://go.dev/issue/56353</a>: add Concat
+    <p><!-- https://go.dev/issue/56353 --><!-- CL 504882 -->
+      The new function <code>Concat</code> concatenates multiple slices.
     </p>
 
-    <p><!-- https://go.dev/issue/63393 -->
-      TODO: <a href="https://go.dev/issue/63393">https://go.dev/issue/63393</a>: have Delete and others clear the tail
+    <p><!-- https://go.dev/issue/63393 --><!-- CL 543335 -->
+      Functions that shrink the size of a slice (<code>Delete</code>, <code>DeleteFunc</code>, <code>Compact</code>, <code>CompactFunc</code>, and <code>Replace</code>) now zero the elements between the new length and the old length.
     </p>
 
-    <p><!-- CL 504882 -->
-      TODO: <a href="https://go.dev/cl/504882">https://go.dev/cl/504882</a>: slices: add Concat
-    </p>
-
-    <p><!-- CL 540155 -->
-      TODO: <a href="https://go.dev/cl/540155">https://go.dev/cl/540155</a>: slices: make Insert panic if index is out of range and there are no values
+    <p><!-- https://go.dev/issue/63913 --><!-- CL 540155 -->
+      <code>Insert</code> now always panics if the argument <code>i</code> is out of range. Previously it did not panic in this situation if there were no elements to be inserted.
     </p>
   </dd>
 </dl><!-- slices -->
