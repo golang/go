@@ -1,0 +1,32 @@
+# Regression test for https://go.dev/issue/64282:
+# 'go install' and 'go run' with pkg@version arguments should make
+# a best effort to parse flags before they download modules to
+# identify which toolchain version to use, because those flags
+# may affect the downloaded contents.
+
+# However, the best-effort flag parsing should not interfere with
+# actual flag parsing if we don't switch toolchains. In particular,
+# unrecognized flags should still be diagnosed after the module for
+# the requested package has been downloaded and checked for toolchain
+# upgrades.
+
+! go install -cake=delicious -modcacherw example.com/printversion@v0.1.0
+stderr '^flag provided but not defined: -cake$'
+
+[!short] go install -modcacherw example.com/printversion@v0.1.0
+	# Because the -modcacherw flag was set, we should be able to modify the contents
+	# of a directory within the module cache.
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/printversion@v0.1.0/extraneous_file.go
+
+
+# We should also apply flags from GOFLAGS at this step.
+
+go clean -modcache
+env GOFLAGS=-modcacherw
+! go install -cake=delicious example.com/printversion@v0.1.0
+stderr '^flag provided but not defined: -cake$'
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/printversion@v0.1.0/extraneous_file.go
+
+
+-- $WORK/extraneous.txt --
+This is not a Go source file.

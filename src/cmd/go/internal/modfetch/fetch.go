@@ -525,7 +525,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 				// ignore malformed line so that go mod tidy can fix go.sum
 				continue
 			} else {
-				base.Fatalf("malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
+				base.Fatalf("go: malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
 			}
 		}
 		if f[2] == emptyGoModHash {
@@ -574,32 +574,32 @@ func checkMod(ctx context.Context, mod module.Version) {
 	// Do the file I/O before acquiring the go.sum lock.
 	ziphash, err := CachePath(ctx, mod, "ziphash")
 	if err != nil {
-		base.Fatalf("verifying %v", module.VersionError(mod, err))
+		base.Fatalf("go: verifying %v", module.VersionError(mod, err))
 	}
 	data, err := lockedfile.Read(ziphash)
 	if err != nil {
-		base.Fatalf("verifying %v", module.VersionError(mod, err))
+		base.Fatalf("go: verifying %v", module.VersionError(mod, err))
 	}
 	data = bytes.TrimSpace(data)
 	if !isValidSum(data) {
 		// Recreate ziphash file from zip file and use that to check the mod sum.
 		zip, err := CachePath(ctx, mod, "zip")
 		if err != nil {
-			base.Fatalf("verifying %v", module.VersionError(mod, err))
+			base.Fatalf("go: verifying %v", module.VersionError(mod, err))
 		}
 		err = hashZip(mod, zip, ziphash)
 		if err != nil {
-			base.Fatalf("verifying %v", module.VersionError(mod, err))
+			base.Fatalf("go: verifying %v", module.VersionError(mod, err))
 		}
 		return
 	}
 	h := string(data)
 	if !strings.HasPrefix(h, "h1:") {
-		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
+		base.Fatalf("go: verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
 	}
 
 	if err := checkModSum(mod, h); err != nil {
-		base.Fatalf("%s", err)
+		base.Fatal(err)
 	}
 }
 
@@ -684,7 +684,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
 			return true
 		}
 		if strings.HasPrefix(vh, "h1:") {
-			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, sumFileName, vh)
+			base.Fatalf("go: verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, sumFileName, vh)
 		}
 	}
 	// Also check workspace sums.
@@ -696,7 +696,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
 			if h == vh {
 				foundMatch = true
 			} else if strings.HasPrefix(vh, "h1:") {
-				base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, goSumFile, vh)
+				base.Fatalf("go: verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, goSumFile, vh)
 			}
 		}
 	}
@@ -895,7 +895,7 @@ func TrimGoSum(keep map[module.Version]bool) {
 	defer goSum.mu.Unlock()
 	inited, err := initGoSum()
 	if err != nil {
-		base.Fatalf("%s", err)
+		base.Fatal(err)
 	}
 	if !inited {
 		return

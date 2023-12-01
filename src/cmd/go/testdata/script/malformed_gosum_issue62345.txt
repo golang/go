@@ -1,5 +1,5 @@
 ! go mod download
-stderr '^malformed go.sum:\n.*go.sum:3: wrong number of fields 5\n$'
+stderr '^go: malformed go.sum:\n.*go.sum:3: wrong number of fields 5\n$'
 
 go mod tidy
 cmp go.sum go.sum.after-tidy

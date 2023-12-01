@@ -4,7 +4,7 @@
 cmpenv stderr want-error
 
 -- want-error --
-verifying rsc.io/sampler@v1.3.0/go.mod: checksum mismatch
+go: verifying rsc.io/sampler@v1.3.0/go.mod: checksum mismatch
 	downloaded: h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 	$WORK${/}gopath${/}src${/}a${/}go.sum:     h1:U1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 
