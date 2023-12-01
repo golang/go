@@ -1481,12 +1481,24 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
 
 		dst.tophash[pos] = src.tophash[i]
 		if t.IndirectKey() {
-			*(*unsafe.Pointer)(dstK) = *(*unsafe.Pointer)(srcK)
+			srcK = *(*unsafe.Pointer)(srcK)
+			if t.NeedKeyUpdate() {
+				kStore := newobject(t.Key)
+				typedmemmove(t.Key, kStore, srcK)
+				srcK = kStore
+			}
+			// Note: if NeedKeyUpdate is false, then the memory
+			// used to store the key is immutable, so we can share
+			// it between the original map and its clone.
+			*(*unsafe.Pointer)(dstK) = srcK
 		} else {
 			typedmemmove(t.Key, dstK, srcK)
 		}
 		if t.IndirectElem() {
-			*(*unsafe.Pointer)(dstEle) = *(*unsafe.Pointer)(srcEle)
+			srcEle = *(*unsafe.Pointer)(srcEle)
+			eStore := newobject(t.Elem)
+			typedmemmove(t.Elem, eStore, srcEle)
+			*(*unsafe.Pointer)(dstEle) = eStore
 		} else {
 			typedmemmove(t.Elem, dstEle, srcEle)
 		}
@@ -1510,14 +1522,14 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 		fatal("concurrent map clone and map write")
 	}
 
-	if src.B == 0 {
+	if src.B == 0 && !(t.IndirectKey() && t.NeedKeyUpdate()) && !t.IndirectElem() {
+		// Quick copy for small maps.
 		dst.buckets = newobject(t.Bucket)
 		dst.count = src.count
 		typedmemmove(t.Bucket, dst.buckets, src.buckets)
 		return dst
 	}
 
-	//src.B != 0
 	if dst.B == 0 {
 		dst.buckets = newobject(t.Bucket)
 	}
@@ -1565,6 +1577,8 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 			continue
 		}
 
+		// oldB < dst.B, so a single source bucket may go to multiple destination buckets.
+		// Process entries one at a time.
 		for srcBmap != nil {
 			// move from oldBlucket to new bucket
 			for i := uintptr(0); i < bucketCnt; i++ {
