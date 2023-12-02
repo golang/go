@@ -475,6 +475,12 @@ func TestDirJoin(t *testing.T) {
 	test(Dir("/etc"), "/hosts")
 	test(Dir("/etc"), "hosts")
 	test(Dir("/etc"), "../../../../hosts")
+
+	// Not really directories, but since we use this trick in
+	// ServeFile, test it:
+	test(Dir("/etc/hosts"), "")
+	test(Dir("/etc/hosts"), "/")
+	test(Dir("/etc/hosts"), "../")
 }
 
 func TestEmptyDirOpenCWD(t *testing.T) {
@@ -489,22 +495,6 @@ func TestEmptyDirOpenCWD(t *testing.T) {
 	test(Dir(""))
 	test(Dir("."))
 	test(Dir("./"))
-}
-
-// issue 63769
-func TestDirNormalFile(t *testing.T) {
-	test := func(d Dir, filename string) {
-		f, err := d.Open(filename)
-		if err == nil {
-			f.Close()
-			t.Fatalf("got nil, want error")
-		}
-	}
-
-	test(Dir("testdata/index.html"), "")
-	test(Dir("testdata/index.html"), "/")
-	test(Dir("testdata/index.html"), "..")
-	test(Dir("testdata/index.html"), "../")
 }
 
 func TestServeFileContentType(t *testing.T) { run(t, testServeFileContentType) }
@@ -1682,15 +1672,25 @@ func (grw gzipResponseWriter) Flush() {
 // Issue 63769
 func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
 func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, FileServer(Dir("testdata/index.html"))).ts
-	defer ts.Close()
+	testDirFile := func(t *testing.T, h Handler) {
+		ts := newClientServerTest(t, mode, h).ts
+		defer ts.Close()
 
-	res, err := ts.Client().Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
+		res, err := ts.Client().Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := res.StatusCode, StatusInternalServerError; g != w {
+			t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
+		}
+		res.Body.Close()
 	}
-	if g, w := res.StatusCode, StatusInternalServerError; g != w {
-		t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
-	}
-	res.Body.Close()
+
+	t.Run("FileServer", func(t *testing.T) {
+		testDirFile(t, FileServer(Dir("testdata/index.html")))
+	})
+
+	t.Run("FileServerFS", func(t *testing.T) {
+		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
+	})
 }

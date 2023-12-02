@@ -78,15 +78,11 @@ func (d Dir) Open(name string) (File, error) {
 	if dir == "" {
 		dir = "."
 	}
-	if fi, _ := os.Stat(dir); fi != nil && !fi.IsDir() {
-		return nil, errors.New("http: attempting to traverse a non-directory")
-	}
 	fullName := filepath.Join(dir, path)
 	f, err := os.Open(fullName)
 	if err != nil {
 		return nil, mapOpenError(err, fullName, filepath.Separator, os.Stat)
 	}
-
 	return f, nil
 }
 
@@ -664,11 +660,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				localRedirect(w, r, path.Base(url)+"/")
 				return
 			}
-		} else {
-			if url[len(url)-1] == '/' {
-				localRedirect(w, r, "../"+path.Base(url))
+		} else if url[len(url)-1] == '/' {
+			base := path.Base(url)
+			if base == "/" || base == "." {
+				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
+				msg := "http: attempting to traverse a non-directory"
+				Error(w, msg, StatusInternalServerError)
 				return
 			}
+			localRedirect(w, r, "../"+base)
+			return
 		}
 	}
 
