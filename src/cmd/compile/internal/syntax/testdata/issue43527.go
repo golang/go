@@ -7,17 +7,17 @@ package p
 type (
         // 0 and 1-element []-lists are syntactically valid
         _[A, B /* ERROR missing type constraint */ ] int
-        _[A, /* ERROR type parameters must be named */ interface{}] int
+        _[A, /* ERROR missing type parameter name */ interface{}] int
         _[A, B, C /* ERROR missing type constraint */ ] int
         _[A B, C /* ERROR missing type constraint */ ] int
-        _[A B, /* ERROR type parameters must be named */ interface{}] int
-        _[A B, /* ERROR type parameters must be named */ interface{}, C D] int
-        _[A B, /* ERROR type parameters must be named */ interface{}, C, D] int
-        _[A B, /* ERROR type parameters must be named */ interface{}, C, interface{}] int
-        _[A B, C interface{}, D, /* ERROR type parameters must be named */ interface{}] int
+        _[A B, /* ERROR missing type parameter name */ interface{}] int
+        _[A B, /* ERROR missing type parameter name */ interface{}, C D] int
+        _[A B, /* ERROR missing type parameter name */ interface{}, C, D] int
+        _[A B, /* ERROR missing type parameter name */ interface{}, C, interface{}] int
+        _[A B, C interface{}, D, /* ERROR missing type parameter name */ interface{}] int
 )
 
 // function type parameters use the same parsing routine - just have a couple of tests
 
 func _[A, B /* ERROR missing type constraint */ ]() {}
-func _[A, /* ERROR type parameters must be named */ interface{}]() {}
+func _[A, /* ERROR missing type parameter name */ interface{}]() {}

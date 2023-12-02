@@ -38,5 +38,8 @@ TEXT errors(SB),$0
 	SLLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
 	SRLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
 	SRAIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
-
+	SD	X5, 4294967296(X6)		// ERROR "constant 4294967296 too large"
+	SRLI	$1, X5, F1			// ERROR "expected integer register in rd position but got non-integer register F1"
+	SRLI	$1, F1, X5			// ERROR "expected integer register in rs1 position but got non-integer register F1"
+	FNES	F1, (X5)			// ERROR "needs an integer register output"
 	RET

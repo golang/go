@@ -213,7 +213,9 @@ func releaseLockRank(rank lockRank) {
 	})
 }
 
-// See comment on lockWithRank regarding stack splitting.
+// nosplit because it may be called from nosplit contexts.
+//
+//go:nosplit
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 	gp := getg()
 	if gp.m.locksHeldLen == 0 {

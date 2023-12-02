@@ -53,21 +53,22 @@ NONE <
   sweep;
 
 # Scheduler, timers, netpoll
-NONE < pollDesc, cpuprof;
+NONE < pollDesc, cpuprof, wakeableSleep;
 assistQueue,
   cpuprof,
   forcegc,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
   sweep,
-  sweepWaiters
+  sweepWaiters,
+  wakeableSleep
 < sched;
 sched < allg, allp;
-allp < timers;
+allp, wakeableSleep < timers;
 timers < netpollInit;
 
 # Channels
-scavenge, sweep < hchan;
+scavenge, sweep, wakeableSleep < hchan;
 NONE < notifyList;
 hchan, notifyList < sudog;
 

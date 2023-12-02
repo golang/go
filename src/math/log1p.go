@@ -84,7 +84,7 @@ package math
 //       See HP-15C Advanced Functions Handbook, p.193.
 
 // Log1p returns the natural logarithm of 1 plus its argument x.
-// It is more accurate than Log(1 + x) when x is near zero.
+// It is more accurate than [Log](1 + x) when x is near zero.
 //
 // Special cases are:
 //

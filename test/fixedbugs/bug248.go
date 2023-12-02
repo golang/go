@@ -1,5 +1,6 @@
-// +build !nacl,!js,!plan9
 // errorcheckandrundir -1
+
+//go:build !nacl && !js && !plan9
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

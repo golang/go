@@ -8,54 +8,31 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"syscall"
-	"unsafe"
 )
 
 // Pledge implements the pledge syscall.
 //
-// The pledge syscall does not accept execpromises on OpenBSD releases
-// before 6.3.
-//
-// execpromises must be empty when Pledge is called on OpenBSD
-// releases predating 6.3, otherwise an error will be returned.
+// This changes both the promises and execpromises; use PledgePromises or
+// PledgeExecpromises to only change the promises or execpromises
+// respectively.
 //
 // For more information see pledge(2).
 func Pledge(promises, execpromises string) error {
-	maj, min, err := majmin()
+	if err := pledgeAvailable(); err != nil {
+		return err
+	}
+
+	pptr, err := BytePtrFromString(promises)
 	if err != nil {
 		return err
 	}
 
-	err = pledgeAvailable(maj, min, execpromises)
+	exptr, err := BytePtrFromString(execpromises)
 	if err != nil {
 		return err
 	}
 
-	pptr, err := syscall.BytePtrFromString(promises)
-	if err != nil {
-		return err
-	}
-
-	// This variable will hold either a nil unsafe.Pointer or
-	// an unsafe.Pointer to a string (execpromises).
-	var expr unsafe.Pointer
-
-	// If we're running on OpenBSD > 6.2, pass execpromises to the syscall.
-	if maj > 6 || (maj == 6 && min > 2) {
-		exptr, err := syscall.BytePtrFromString(execpromises)
-		if err != nil {
-			return err
-		}
-		expr = unsafe.Pointer(exptr)
-	}
-
-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(unsafe.Pointer(pptr)), uintptr(expr), 0)
-	if e != 0 {
-		return e
-	}
-
-	return nil
+	return pledge(pptr, exptr)
 }
 
 // PledgePromises implements the pledge syscall.
@@ -64,30 +41,16 @@ func Pledge(promises, execpromises string) error {
 //
 // For more information see pledge(2).
 func PledgePromises(promises string) error {
-	maj, min, err := majmin()
+	if err := pledgeAvailable(); err != nil {
+		return err
+	}
+
+	pptr, err := BytePtrFromString(promises)
 	if err != nil {
 		return err
 	}
 
-	err = pledgeAvailable(maj, min, "")
-	if err != nil {
-		return err
-	}
-
-	// This variable holds the execpromises and is always nil.
-	var expr unsafe.Pointer
-
-	pptr, err := syscall.BytePtrFromString(promises)
-	if err != nil {
-		return err
-	}
-
-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(unsafe.Pointer(pptr)), uintptr(expr), 0)
-	if e != 0 {
-		return e
-	}
-
-	return nil
+	return pledge(pptr, nil)
 }
 
 // PledgeExecpromises implements the pledge syscall.
@@ -96,30 +59,16 @@ func PledgePromises(promises string) error {
 //
 // For more information see pledge(2).
 func PledgeExecpromises(execpromises string) error {
-	maj, min, err := majmin()
+	if err := pledgeAvailable(); err != nil {
+		return err
+	}
+
+	exptr, err := BytePtrFromString(execpromises)
 	if err != nil {
 		return err
 	}
 
-	err = pledgeAvailable(maj, min, execpromises)
-	if err != nil {
-		return err
-	}
-
-	// This variable holds the promises and is always nil.
-	var pptr unsafe.Pointer
-
-	exptr, err := syscall.BytePtrFromString(execpromises)
-	if err != nil {
-		return err
-	}
-
-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(pptr), uintptr(unsafe.Pointer(exptr)), 0)
-	if e != 0 {
-		return e
-	}
-
-	return nil
+	return pledge(nil, exptr)
 }
 
 // majmin returns major and minor version number for an OpenBSD system.
@@ -147,16 +96,15 @@ func majmin() (major int, minor int, err error) {
 
 // pledgeAvailable checks for availability of the pledge(2) syscall
 // based on the running OpenBSD version.
-func pledgeAvailable(maj, min int, execpromises string) error {
-	// If OpenBSD <= 5.9, pledge is not available.
-	if (maj == 5 && min != 9) || maj < 5 {
-		return fmt.Errorf("pledge syscall is not available on OpenBSD %d.%d", maj, min)
+func pledgeAvailable() error {
+	maj, min, err := majmin()
+	if err != nil {
+		return err
 	}
 
-	// If OpenBSD <= 6.2 and execpromises is not empty,
-	// return an error - execpromises is not available before 6.3
-	if (maj < 6 || (maj == 6 && min <= 2)) && execpromises != "" {
-		return fmt.Errorf("cannot use execpromises on OpenBSD %d.%d", maj, min)
+	// Require OpenBSD 6.4 as a minimum.
+	if maj < 6 || (maj == 6 && min <= 3) {
+		return fmt.Errorf("cannot call Pledge on OpenBSD %d.%d", maj, min)
 	}
 
 	return nil

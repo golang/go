@@ -115,21 +115,14 @@ func removeLeadingDuplicates(env []string) (ret []string) {
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	root := h.Root
-	if root == "" {
-		root = "/"
-	}
-
 	if len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked" {
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte("Chunked request bodies are not supported by CGI."))
 		return
 	}
 
-	pathInfo := req.URL.Path
-	if root != "/" && strings.HasPrefix(pathInfo, root) {
-		pathInfo = pathInfo[len(root):]
-	}
+	root := strings.TrimRight(h.Root, "/")
+	pathInfo := strings.TrimPrefix(req.URL.Path, root)
 
 	port := "80"
 	if req.TLS != nil {

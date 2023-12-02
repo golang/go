@@ -100,7 +100,7 @@ func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 }
 
 func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
-	return l >= LevelInfo
+	return l >= logLoggerLevel.Level()
 }
 
 // Collect the level, attributes and message in a string and
@@ -125,7 +125,7 @@ func (h *defaultHandler) WithGroup(name string) Handler {
 	return &defaultHandler{h.ch.withGroup(name), h.output}
 }
 
-// HandlerOptions are options for a TextHandler or JSONHandler.
+// HandlerOptions are options for a [TextHandler] or [JSONHandler].
 // A zero HandlerOptions consists entirely of default values.
 type HandlerOptions struct {
 	// AddSource causes the handler to compute the source code position
@@ -461,9 +461,8 @@ func (s *handleState) appendAttrs(as []Attr) bool {
 	return nonEmpty
 }
 
-// appendAttr appends the Attr's key and value using app.
+// appendAttr appends the Attr's key and value.
 // It handles replacement and checking for an empty key.
-// after replacement).
 // It reports whether something was appended.
 func (s *handleState) appendAttr(a Attr) bool {
 	a.Value = a.Value.Resolve()

@@ -196,6 +196,9 @@ func fastrandu() uint {
 //go:linkname rand_fastrand64 math/rand.fastrand64
 func rand_fastrand64() uint64 { return fastrand64() }
 
+//go:linkname rand2_fastrand64 math/rand/v2.fastrand64
+func rand2_fastrand64() uint64 { return fastrand64() }
+
 //go:linkname sync_fastrandn sync.fastrandn
 func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
 
@@ -371,6 +374,11 @@ func getcallersp() uintptr // implemented as an intrinsic on all platforms
 //
 // The compiler rewrites calls to this function into instructions that fetch the
 // pointer from a well-known register (DX on x86 architecture, etc.) directly.
+//
+// WARNING: PGO-based devirtualization cannot detect that caller of
+// getclosureptr require closure context, and thus must maintain a list of
+// these functions, which is in
+// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
 func getclosureptr() uintptr
 
 //go:noescape
@@ -421,11 +429,15 @@ func call1073741824(typ, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOf
 func systemstack_switch()
 
 // alignUp rounds n up to a multiple of a. a must be a power of 2.
+//
+//go:nosplit
 func alignUp(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
 // alignDown rounds n down to a multiple of a. a must be a power of 2.
+//
+//go:nosplit
 func alignDown(n, a uintptr) uintptr {
 	return n &^ (a - 1)
 }

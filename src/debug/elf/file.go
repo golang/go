@@ -103,7 +103,7 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 //
-// For an SHT_NOBITS section, Data always returns a non-nil error.
+// For an [SHT_NOBITS] section, Data always returns a non-nil error.
 func (s *Section) Data() ([]byte, error) {
 	return saferio.ReadData(s.Open(), s.Size)
 }
@@ -121,7 +121,7 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 // Even if the section is stored compressed in the ELF file,
 // the ReadSeeker reads uncompressed data.
 //
-// For an SHT_NOBITS section, all calls to the opened reader
+// For an [SHT_NOBITS] section, all calls to the opened reader
 // will return a non-nil error.
 func (s *Section) Open() io.ReadSeeker {
 	if s.Type == SHT_NOBITS {
@@ -234,7 +234,7 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as an ELF binary.
+// Open opens the named file using [os.Open] and prepares it for use as an ELF binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -249,8 +249,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -272,7 +272,7 @@ func (f *File) SectionByType(typ SectionType) *Section {
 	return nil
 }
 
-// NewFile creates a new File for accessing an ELF binary in an underlying reader.
+// NewFile creates a new [File] for accessing an ELF binary in an underlying reader.
 // The ELF binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -614,7 +614,7 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-// ErrNoSymbols is returned by File.Symbols and File.DynamicSymbols
+// ErrNoSymbols is returned by [File.Symbols] and [File.DynamicSymbols]
 // if there is no such section in the File.
 var ErrNoSymbols = errors.New("no symbol section")
 
@@ -1434,10 +1434,10 @@ func (f *File) Symbols() ([]Symbol, error) {
 // DynamicSymbols returns the dynamic symbol table for f. The symbols
 // will be listed in the order they appear in f.
 //
-// If f has a symbol version table, the returned Symbols will have
-// initialized Version and Library fields.
+// If f has a symbol version table, the returned [File.Symbols] will have
+// initialized [Version] and Library fields.
 //
-// For compatibility with Symbols, DynamicSymbols omits the null symbol at index 0.
+// For compatibility with [File.Symbols], [File.DynamicSymbols] omits the null symbol at index 0.
 // After retrieving the symbols as symtab, an externally supplied index x
 // corresponds to symtab[x-1], not symtab[x].
 func (f *File) DynamicSymbols() ([]Symbol, error) {
@@ -1590,8 +1590,8 @@ func (f *File) ImportedLibraries() ([]string, error) {
 // DynString returns the strings listed for the given tag in the file's dynamic
 // section.
 //
-// The tag must be one that takes string values: DT_NEEDED, DT_SONAME, DT_RPATH, or
-// DT_RUNPATH.
+// The tag must be one that takes string values: [DT_NEEDED], [DT_SONAME], [DT_RPATH], or
+// [DT_RUNPATH].
 func (f *File) DynString(tag DynTag) ([]string, error) {
 	switch tag {
 	case DT_NEEDED, DT_SONAME, DT_RPATH, DT_RUNPATH:
@@ -1607,6 +1607,15 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
+	}
+
 	str, err := f.stringTable(ds.Link)
 	if err != nil {
 		return nil, err
@@ -1645,6 +1654,14 @@ func (f *File) DynValue(tag DynTag) ([]uint64, error) {
 	d, err := ds.Data()
 	if err != nil {
 		return nil, err
+	}
+
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
 	}
 
 	// Parse the .dynamic section as a string of bytes.

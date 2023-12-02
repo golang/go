@@ -284,6 +284,31 @@ noswitch:
 #endif
 	RET
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVD	R3, R11				// context register
+	MOVD	g_m(g), R3			// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)	// clobbers R31
+	MOVD	R3, g_m(g)			// g.m = curm
+	MOVD	g, m_g0(R3)			// curm.g0 = g
+
+	// switch to crashstack
+	MOVD	(g_stack+stack_hi)(g), R3
+	SUB	$(4*8), R3
+	MOVD	R3, R1
+
+	// call target function
+	MOVD	0(R11), R12			// code pointer
+	MOVD	R12, CTR
+	BL	(CTR)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -297,6 +322,14 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVD	R1, (g_sched+gobuf_sp)(g)
+	MOVD	LR, R8
+	MOVD	R8, (g_sched+gobuf_pc)(g)
+	MOVD	R5, (g_sched+gobuf_lr)(g)
+	MOVD	R11, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -311,14 +344,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
 	BL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVD	R1, (g_sched+gobuf_sp)(g)
-	MOVD	LR, R8
-	MOVD	R8, (g_sched+gobuf_pc)(g)
-	MOVD	R5, (g_sched+gobuf_lr)(g)
-	MOVD	R11, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.

@@ -43,7 +43,7 @@ var valids = []string{
 	`package p; func _() { map[int]int{}[0]++; map[int]int{}[0] += 1 }`,
 	`package p; func _(x interface{f()}) { interface{f()}(x).f() }`,
 	`package p; func _(x chan int) { chan int(x) <- 0 }`,
-	`package p; const (x = 0; y; z)`, // issue 9639
+	`package p; const (x = 0; y; z)`, // go.dev/issue/9639
 	`package p; var _ = map[P]int{P{}:0, {}:1}`,
 	`package p; var _ = map[*P]int{&P{}:0, {}:1}`,
 	`package p; type T = int`,
@@ -172,21 +172,21 @@ var invalids = []string{
 	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ int) }`,
 	`package p; type _ struct{ *( /* ERROR "cannot parenthesize embedded type" */ []byte) }`,
 
-	// issue 8656
+	// go.dev/issue/8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
 
-	// issue 9639
+	// go.dev/issue/9639
 	`package p; var x, y, z; /* ERROR "expected type" */`,
 
-	// issue 12437
+	// go.dev/issue/12437
 	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{};`,
 	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ y float }{};`,
 
-	// issue 11611
+	// go.dev/issue/11611
 	`package p; type _ struct { int, } /* ERROR "expected 'IDENT', found '}'" */ ;`,
 	`package p; type _ struct { int, float } /* ERROR "expected type, found '}'" */ ;`,
 
-	// issue 13475
+	// go.dev/issue/13475
 	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
 	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
 
@@ -195,8 +195,7 @@ var invalids = []string{
 	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
 
-	// TODO(rfindley) a better location would be after the ']'
-	`package p; type _[A /* ERROR "type parameters must be named" */ ,] struct{ A }`,
+	`package p; type _[A,] /* ERROR "missing type constraint" */ struct{ A }`,
 
 	`package p; func _[type /* ERROR "found 'type'" */ P, *Q interface{}]()`,
 

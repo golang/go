@@ -30,14 +30,14 @@ TEXT ·kmcQuery(SB), NOSPLIT|NOFRAME, $0-16
 TEXT ·kmctrQuery(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD $0, R0         // set function code to 0 (KMCTR-Query)
 	MOVD $ret+0(FP), R1 // address of 16-byte return value
-	KMCTR R6, R2, R4    // cipher message with counter (KMCTR)
+	KMCTR R2, R4, R4    // cipher message with counter (KMCTR)
 	RET
 
 // func kmaQuery() queryResult
 TEXT ·kmaQuery(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD $0, R0         // set function code to 0 (KMA-Query)
 	MOVD $ret+0(FP), R1 // address of 16-byte return value
-	KMA  R6, R2, R4     // cipher message with authentication (KMA)
+	KMA  R2, R6, R4     // cipher message with authentication (KMA)
 	RET
 
 // func kimdQuery() queryResult

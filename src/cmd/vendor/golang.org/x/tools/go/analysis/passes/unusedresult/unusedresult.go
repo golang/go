@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -82,7 +83,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.ExprStmt)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := analysisutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+		call, ok := astutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
 			return // not a call statement
 		}
@@ -92,7 +93,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return // e.g. var or builtin
 		}
-
 		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {

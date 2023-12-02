@@ -20,6 +20,9 @@
 #ifdef GOAMD64_v4
 #define hasAVX
 #define hasAVX2
+#define hasAVX512F
+#define hasAVX512BW
+#define hasAVX512VL
 #define hasPOPCNT
 #define hasSSE42
 #endif

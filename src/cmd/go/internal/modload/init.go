@@ -485,7 +485,13 @@ func Init() {
 	if len(list) > 0 && list[0] != "" {
 		gopath = list[0]
 		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
-			base.Fatalf("$GOPATH/go.mod exists but should not")
+			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in $GOPATH %v\n", gopath)
+			if RootMode == NeedRoot {
+				base.Fatal(ErrNoModRoot)
+			}
+			if !mustUseModules {
+				return
+			}
 		}
 	}
 }

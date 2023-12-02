@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // For Unix, get the pagesize from the runtime.
 

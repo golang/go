@@ -1985,17 +1985,7 @@ func main() {
 	}
 }
 
-func TestZeroSizedVariable(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	mustHaveDWARF(t)
-	t.Parallel()
-
-	// This test verifies that the compiler emits DIEs for zero sized variables
-	// (for example variables of type 'struct {}').
-	// See go.dev/issues/54615.
-
-	const prog = `
+const zeroSizedVarProg = `
 package main
 
 import (
@@ -2008,10 +1998,24 @@ func main() {
 }
 `
 
+func TestZeroSizedVariable(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	// This test verifies that the compiler emits DIEs for zero sized variables
+	// (for example variables of type 'struct {}').
+	// See go.dev/issues/54615.
+
 	for _, opt := range []string{NoOpt, DefaultOpt} {
 		opt := opt
 		t.Run(opt, func(t *testing.T) {
-			_, ex := gobuildAndExamine(t, prog, opt)
+			_, ex := gobuildAndExamine(t, zeroSizedVarProg, opt)
 
 			// Locate the main.zeroSizedVariable DIE
 			abcs := ex.Named("zeroSizedVariable")
@@ -2022,5 +2026,48 @@ func main() {
 				t.Fatalf("more than one zeroSizedVariable DIE")
 			}
 		})
+	}
+}
+
+func TestConsistentGoKindAndRuntimeType(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	// Ensure that if we emit a "go runtime type" attr on a type DIE,
+	// we also include the "go kind" attribute. See issue #64231.
+	_, ex := gobuildAndExamine(t, zeroSizedVarProg, DefaultOpt)
+
+	// Walk all dies.
+	typesChecked := 0
+	failures := 0
+	for _, die := range ex.DIEs() {
+		// For any type DIE with DW_AT_go_runtime_type set...
+		rtt, hasRT := die.Val(intdwarf.DW_AT_go_runtime_type).(uint64)
+		if !hasRT || rtt == 0 {
+			continue
+		}
+		typesChecked++
+		// ... we want to see a meaningful DW_AT_go_kind value.
+		if val, ok := die.Val(intdwarf.DW_AT_go_kind).(int64); !ok || val == 0 {
+			failures++
+			// dump DIEs for first 10 failures.
+			if failures <= 10 {
+				idx := ex.IdxFromOffset(die.Offset)
+				t.Logf("type DIE has DW_AT_go_runtime_type but invalid DW_AT_go_kind:\n")
+				ex.DumpEntry(idx, false, 0)
+			}
+			t.Errorf("bad type DIE at offset %d\n", die.Offset)
+		}
+	}
+	if typesChecked == 0 {
+		t.Fatalf("something went wrong, 0 types checked")
+	} else {
+		t.Logf("%d types checked\n", typesChecked)
 	}
 }

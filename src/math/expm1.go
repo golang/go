@@ -114,7 +114,7 @@ package math
 //
 
 // Expm1 returns e**x - 1, the base-e exponential of x minus 1.
-// It is more accurate than Exp(x) - 1 when x is near zero.
+// It is more accurate than [Exp](x) - 1 when x is near zero.
 //
 // Special cases are:
 //

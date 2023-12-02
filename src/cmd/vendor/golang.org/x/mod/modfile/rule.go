@@ -367,7 +367,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 				}
 			}
 			if !fixed {
-				errorf("invalid go version '%s': must match format 1.23", args[0])
+				errorf("invalid go version '%s': must match format 1.23.0", args[0])
 				return
 			}
 		}
@@ -384,7 +384,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			errorf("toolchain directive expects exactly one argument")
 			return
 		} else if strict && !ToolchainRE.MatchString(args[0]) {
-			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
+			errorf("invalid toolchain version '%s': must match format go1.23.0 or local", args[0])
 			return
 		}
 		f.Toolchain = &Toolchain{Syntax: line}
@@ -542,7 +542,7 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 			if strings.Contains(ns, "@") {
 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
 			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
 		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
@@ -555,7 +555,6 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 		}
 		if IsDirectoryPath(ns) {
 			return nil, errorf("replacement module directory path %q cannot have version", ns)
-
 		}
 	}
 	return &Replace{
@@ -679,14 +678,15 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 	}
 }
 
-// IsDirectoryPath reports whether the given path should be interpreted
-// as a directory path. Just like on the go command line, relative paths
+// IsDirectoryPath reports whether the given path should be interpreted as a directory path.
+// Just like on the go command line, relative paths starting with a '.' or '..' path component
 // and rooted paths are directory paths; the rest are module paths.
 func IsDirectoryPath(ns string) bool {
 	// Because go.mod files can move from one system to another,
 	// we check all known path syntaxes, both Unix and Windows.
-	return strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, "/") ||
-		strings.HasPrefix(ns, `.\`) || strings.HasPrefix(ns, `..\`) || strings.HasPrefix(ns, `\`) ||
+	return ns == "." || strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, `.\`) ||
+		ns == ".." || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, `..\`) ||
+		strings.HasPrefix(ns, "/") || strings.HasPrefix(ns, `\`) ||
 		len(ns) >= 2 && ('A' <= ns[0] && ns[0] <= 'Z' || 'a' <= ns[0] && ns[0] <= 'z') && ns[1] == ':'
 }
 

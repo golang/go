@@ -934,8 +934,10 @@ func (r RegisterWithArrangement) String() string {
 	return result
 }
 
-// Register with arrangement and index: <Vm>.<Ts>[<index>],
-//   { <Vt>.B, <Vt2>.B }[<index>].
+// Register with arrangement and index:
+//
+//	<Vm>.<Ts>[<index>],
+//	{ <Vt>.B, <Vt2>.B }[<index>].
 type RegisterWithArrangementAndIndex struct {
 	r     Reg
 	a     Arrangement

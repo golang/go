@@ -706,7 +706,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Now committed to returning dir (not "").
 
 	// Are there Go source files in the directory?
-	// We don't care about build tags, not even "+build ignore".
+	// We don't care about build tags, not even "go:build ignore".
 	// We're just looking for a plausible directory.
 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which

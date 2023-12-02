@@ -184,6 +184,7 @@ var (
 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
 	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
+	procAddDllDirectory                                      = modkernel32.NewProc("AddDllDirectory")
 	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
 	procCancelIo                                             = modkernel32.NewProc("CancelIo")
 	procCancelIoEx                                           = modkernel32.NewProc("CancelIoEx")
@@ -253,6 +254,7 @@ var (
 	procGetFileAttributesW                                   = modkernel32.NewProc("GetFileAttributesW")
 	procGetFileInformationByHandle                           = modkernel32.NewProc("GetFileInformationByHandle")
 	procGetFileInformationByHandleEx                         = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetFileTime                                          = modkernel32.NewProc("GetFileTime")
 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
@@ -329,6 +331,7 @@ var (
 	procReadProcessMemory                                    = modkernel32.NewProc("ReadProcessMemory")
 	procReleaseMutex                                         = modkernel32.NewProc("ReleaseMutex")
 	procRemoveDirectoryW                                     = modkernel32.NewProc("RemoveDirectoryW")
+	procRemoveDllDirectory                                   = modkernel32.NewProc("RemoveDllDirectory")
 	procResetEvent                                           = modkernel32.NewProc("ResetEvent")
 	procResizePseudoConsole                                  = modkernel32.NewProc("ResizePseudoConsole")
 	procResumeThread                                         = modkernel32.NewProc("ResumeThread")
@@ -1604,6 +1607,15 @@ func GetIfEntry(pIfRow *MibIfRow) (errcode error) {
 	return
 }
 
+func AddDllDirectory(path *uint16) (cookie uintptr, err error) {
+	r0, _, e1 := syscall.Syscall(procAddDllDirectory.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	cookie = uintptr(r0)
+	if cookie == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func AssignProcessToJobObject(job Handle, process Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procAssignProcessToJobObject.Addr(), 2, uintptr(job), uintptr(process), 0)
 	if r1 == 0 {
@@ -2179,6 +2191,14 @@ func GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (e
 
 func GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, outBufferLen uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferLen), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileTime.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -2864,6 +2884,14 @@ func ReleaseMutex(mutex Handle) (err error) {
 
 func RemoveDirectory(path *uint16) (err error) {
 	r1, _, e1 := syscall.Syscall(procRemoveDirectoryW.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func RemoveDllDirectory(cookie uintptr) (err error) {
+	r1, _, e1 := syscall.Syscall(procRemoveDllDirectory.Addr(), 1, uintptr(cookie), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

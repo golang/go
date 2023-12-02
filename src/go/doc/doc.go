@@ -96,7 +96,7 @@ type Note struct {
 	Body     string    // note body text
 }
 
-// Mode values control the operation of New and NewFromFiles.
+// Mode values control the operation of [New] and [NewFromFiles].
 type Mode int
 
 const (
@@ -116,7 +116,7 @@ const (
 
 // New computes the package documentation for the given package AST.
 // New takes ownership of the AST pkg and may edit or overwrite it.
-// To have the Examples fields populated, use NewFromFiles and include
+// To have the [Examples] fields populated, use [NewFromFiles] and include
 // the package's _test.go files.
 func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 	var r reader
@@ -198,9 +198,9 @@ func (p *Package) collectFuncs(funcs []*Func) {
 // Examples found in _test.go files are associated with the corresponding
 // type, function, method, or the package, based on their name.
 // If the example has a suffix in its name, it is set in the
-// Example.Suffix field. Examples with malformed names are skipped.
+// [Example.Suffix] field. [Examples] with malformed names are skipped.
 //
-// Optionally, a single extra argument of type Mode can be provided to
+// Optionally, a single extra argument of type [Mode] can be provided to
 // control low-level aspects of the documentation extraction behavior.
 //
 // NewFromFiles takes ownership of the AST files and may edit them,

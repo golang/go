@@ -90,7 +90,7 @@ var (
 	flagF             = flag.Bool("f", false, "ignore version mismatch")
 	flagG             = flag.Bool("g", false, "disable go package data checks")
 	flagH             = flag.Bool("h", false, "halt on error")
-	flagN             = flag.Bool("n", false, "dump symbol table")
+	flagN             = flag.Bool("n", false, "no-op (deprecated)")
 	FlagS             = flag.Bool("s", false, "disable symbol table")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")

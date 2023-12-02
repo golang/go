@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build dragonfly || freebsd || linux || netbsd || openbsd
-// +build dragonfly freebsd linux netbsd openbsd
+//go:build dragonfly || freebsd || linux || netbsd
 
 package unix
 

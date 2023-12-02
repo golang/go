@@ -116,7 +116,7 @@ func Erfinv(x float64) float64 {
 	return ans
 }
 
-// Erfcinv returns the inverse of Erfc(x).
+// Erfcinv returns the inverse of [Erfc](x).
 //
 // Special cases are:
 //

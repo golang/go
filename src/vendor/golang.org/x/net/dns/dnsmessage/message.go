@@ -751,6 +751,9 @@ func (p *Parser) AllAnswers() ([]Resource, error) {
 }
 
 // SkipAnswer skips a single Answer Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AnswerHeader] would actually return an error.
 func (p *Parser) SkipAnswer() error {
 	return p.skipResource(sectionAnswers)
 }
@@ -801,6 +804,9 @@ func (p *Parser) AllAuthorities() ([]Resource, error) {
 }
 
 // SkipAuthority skips a single Authority Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AuthorityHeader] would actually return an error.
 func (p *Parser) SkipAuthority() error {
 	return p.skipResource(sectionAuthorities)
 }
@@ -851,6 +857,9 @@ func (p *Parser) AllAdditionals() ([]Resource, error) {
 }
 
 // SkipAdditional skips a single Additional Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AdditionalHeader] would actually return an error.
 func (p *Parser) SkipAdditional() error {
 	return p.skipResource(sectionAdditionals)
 }

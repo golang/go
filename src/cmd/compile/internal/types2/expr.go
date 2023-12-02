@@ -1081,6 +1081,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
 
 	case *syntax.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {
+			// Set the Scope's extent to the complete "func (...) {...}"
+			// so that Scope.Innermost works correctly.
+			sig.scope.pos = e.Pos()
+			sig.scope.end = syntax.EndPos(e)
 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
 				// Anonymous functions are considered part of the
 				// init expression/func declaration which contains

@@ -58,6 +58,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		return targs
 	}
 
+	// If we have invalid (ordinary) arguments, an error was reported before.
+	// Avoid additional inference errors and exit early (go.dev/issue/60434).
+	for _, arg := range args {
+		if arg.mode == invalid {
+			return nil
+		}
+	}
+
 	// Make sure we have a "full" list of type arguments, some of which may
 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
 	if len(targs) < n {
@@ -544,6 +552,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	case *Basic:
 		// nothing to do
 
+	case *Alias:
+		return w.isParameterized(Unalias(t))
+
 	case *Array:
 		return w.isParameterized(t.elem)
 
@@ -694,6 +705,9 @@ func (w *cycleFinder) typ(typ Type) {
 	switch t := typ.(type) {
 	case *Basic:
 		// nothing to do
+
+	case *Alias:
+		w.typ(Unalias(t))
 
 	case *Array:
 		w.typ(t.elem)

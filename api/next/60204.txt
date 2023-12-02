@@ -1,1 +1,0 @@
-pkg cmp, func Or[$0 comparable](...$0) $0 #60204
