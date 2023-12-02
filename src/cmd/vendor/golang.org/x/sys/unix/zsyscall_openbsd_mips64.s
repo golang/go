@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
 DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
 
+TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_fcntl(SB)
+GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
+DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
+
 TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_ppoll(SB)
 GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $8
@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
 DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
 
+TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_getfsstat(SB)
+GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
+DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
+
 TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_utimensat(SB)
 GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
 DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
+
+TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_pledge(SB)
+GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
+DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
+
+TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_unveil(SB)
+GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
+DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)

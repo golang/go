@@ -6,13 +6,18 @@ package testing_test
 
 import (
 	"bytes"
+	"fmt"
 	"internal/race"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // This is exactly what a test would do without a TestMain.
@@ -635,4 +640,175 @@ func BenchmarkSubRacy(b *testing.B) {
 	})
 
 	doRace() // should be reported separately
+}
+
+func TestRunningTests(t *testing.T) {
+	t.Parallel()
+
+	// Regression test for https://go.dev/issue/64404:
+	// on timeout, the "running tests" message should not include
+	// tests that are waiting on parked subtests.
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		for i := 0; i < 2; i++ {
+			t.Run(fmt.Sprintf("outer%d", i), func(t *testing.T) {
+				t.Parallel()
+				for j := 0; j < 2; j++ {
+					t.Run(fmt.Sprintf("inner%d", j), func(t *testing.T) {
+						t.Parallel()
+						for {
+							time.Sleep(1 * time.Millisecond)
+						}
+					})
+				}
+			})
+		}
+	}
+
+	timeout := 10 * time.Millisecond
+	for {
+		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
+		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v:\n%s", cmd, out)
+		if _, ok := err.(*exec.ExitError); !ok {
+			t.Fatal(err)
+		}
+
+		// Because the outer subtests (and TestRunningTests itself) are marked as
+		// parallel, their test functions return (and are no longer “running”)
+		// before the inner subtests are released to run and hang.
+		// Only those inner subtests should be reported as running.
+		want := []string{
+			"TestRunningTests/outer0/inner0",
+			"TestRunningTests/outer0/inner1",
+			"TestRunningTests/outer1/inner0",
+			"TestRunningTests/outer1/inner1",
+		}
+
+		got, ok := parseRunningTests(out)
+		if slices.Equal(got, want) {
+			break
+		}
+		if ok {
+			t.Logf("found running tests:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+		} else {
+			t.Logf("no running tests found")
+		}
+		t.Logf("retrying with longer timeout")
+		timeout *= 2
+	}
+}
+
+func TestRunningTestsInCleanup(t *testing.T) {
+	t.Parallel()
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		for i := 0; i < 2; i++ {
+			t.Run(fmt.Sprintf("outer%d", i), func(t *testing.T) {
+				// Not parallel: we expect to see only one outer test,
+				// stuck in cleanup after its subtest finishes.
+
+				t.Cleanup(func() {
+					for {
+						time.Sleep(1 * time.Millisecond)
+					}
+				})
+
+				for j := 0; j < 2; j++ {
+					t.Run(fmt.Sprintf("inner%d", j), func(t *testing.T) {
+						t.Parallel()
+					})
+				}
+			})
+		}
+	}
+
+	timeout := 10 * time.Millisecond
+	for {
+		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
+		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v:\n%s", cmd, out)
+		if _, ok := err.(*exec.ExitError); !ok {
+			t.Fatal(err)
+		}
+
+		// TestRunningTestsInCleanup is blocked in the call to t.Run,
+		// but its test function has not yet returned so it should still
+		// be considered to be running.
+		// outer1 hasn't even started yet, so only outer0 and the top-level
+		// test function should be reported as running.
+		want := []string{
+			"TestRunningTestsInCleanup",
+			"TestRunningTestsInCleanup/outer0",
+		}
+
+		got, ok := parseRunningTests(out)
+		if slices.Equal(got, want) {
+			break
+		}
+		if ok {
+			t.Logf("found running tests:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+		} else {
+			t.Logf("no running tests found")
+		}
+		t.Logf("retrying with longer timeout")
+		timeout *= 2
+	}
+}
+
+func parseRunningTests(out []byte) (runningTests []string, ok bool) {
+	inRunningTests := false
+	for _, line := range strings.Split(string(out), "\n") {
+		if inRunningTests {
+			if trimmed, ok := strings.CutPrefix(line, "\t"); ok {
+				if name, _, ok := strings.Cut(trimmed, " "); ok {
+					runningTests = append(runningTests, name)
+					continue
+				}
+			}
+
+			// This line is not the name of a running test.
+			return runningTests, true
+		}
+
+		if strings.TrimSpace(line) == "running tests:" {
+			inRunningTests = true
+		}
+	}
+
+	return nil, false
+}
+
+func TestConcurrentRun(t *testing.T) {
+	// Regression test for https://go.dev/issue/64402:
+	// this deadlocked after https://go.dev/cl/506755.
+
+	block := make(chan struct{})
+	var ready, done sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		ready.Add(1)
+		done.Add(1)
+		go t.Run("", func(*testing.T) {
+			ready.Done()
+			<-block
+			done.Done()
+		})
+	}
+	ready.Wait()
+	close(block)
+	done.Wait()
+}
+
+func TestParentRun(t1 *testing.T) {
+	// Regression test for https://go.dev/issue/64402:
+	// this deadlocked after https://go.dev/cl/506755.
+
+	t1.Run("outer", func(t2 *testing.T) {
+		t2.Log("Hello outer!")
+		t1.Run("not_inner", func(t3 *testing.T) { // Note: this is t1.Run, not t2.Run.
+			t3.Log("Hello inner!")
+		})
+	})
 }

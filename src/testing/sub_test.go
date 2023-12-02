@@ -767,22 +767,6 @@ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
 	})
 }
 
-func TestParallelSub(t *T) {
-	c := make(chan int)
-	block := make(chan int)
-	for i := 0; i < 10; i++ {
-		go func(i int) {
-			<-block
-			t.Run(fmt.Sprint(i), func(t *T) {})
-			c <- 1
-		}(i)
-	}
-	close(block)
-	for i := 0; i < 10; i++ {
-		<-c
-	}
-}
-
 type funcWriter struct {
 	write func([]byte) (int, error)
 }
@@ -910,18 +894,22 @@ func TestCleanup(t *T) {
 func TestConcurrentCleanup(t *T) {
 	cleanups := 0
 	t.Run("test", func(t *T) {
-		done := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(2)
 		for i := 0; i < 2; i++ {
 			i := i
 			go func() {
 				t.Cleanup(func() {
+					// Although the calls to Cleanup are concurrent, the functions passed
+					// to Cleanup should be called sequentially, in some nondeterministic
+					// order based on when the Cleanup calls happened to be scheduled.
+					// So these assignments to the cleanups variable should not race.
 					cleanups |= 1 << i
 				})
-				done <- struct{}{}
+				wg.Done()
 			}()
 		}
-		<-done
-		<-done
+		wg.Wait()
 	})
 	if cleanups != 1|2 {
 		t.Errorf("unexpected cleanup; got %d want 3", cleanups)

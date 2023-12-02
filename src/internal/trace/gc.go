@@ -7,7 +7,6 @@ package trace
 import (
 	"container/heap"
 	tracev2 "internal/trace/v2"
-	"io"
 	"math"
 	"sort"
 	"strings"
@@ -212,13 +211,7 @@ func MutatorUtilization(events []*Event, flags UtilFlags) [][]MutatorUtil {
 //
 // If the UtilPerProc flag is not given, this always returns a single
 // utilization function. Otherwise, it returns one function per P.
-func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, error) {
-	// Create a reader.
-	r, err := tracev2.NewReader(trace)
-	if err != nil {
-		return nil, err
-	}
-
+func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUtil {
 	// Set up a bunch of analysis state.
 	type perP struct {
 		// gc > 0 indicates that GC is active on this P.
@@ -255,16 +248,9 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
 	}
 
 	// Iterate through the trace, tracking mutator utilization.
-	var lastEv tracev2.Event
-	for {
-		// Read a single event.
-		ev, err := r.ReadEvent()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
+	var lastEv *tracev2.Event
+	for i := range events {
+		ev := &events[i]
 		lastEv = ev
 
 		// Process the event.
@@ -451,8 +437,8 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
 	}
 
 	// No events in the stream.
-	if lastEv.Kind() == tracev2.EventBad {
-		return nil, nil
+	if lastEv == nil {
+		return nil
 	}
 
 	// Add final 0 utilization event to any remaining series. This
@@ -463,7 +449,7 @@ func MutatorUtilizationV2(trace io.Reader, flags UtilFlags) ([][]MutatorUtil, er
 	for i := range ps {
 		out[ps[i].series] = addUtil(out[ps[i].series], mu)
 	}
-	return out, nil
+	return out
 }
 
 func addUtil(util []MutatorUtil, mu MutatorUtil) []MutatorUtil {

@@ -263,6 +263,15 @@ type Info struct {
 	// scope, the function scopes are embedded in the file scope of the file
 	// containing the function declaration.
 	//
+	// The Scope of a function contains the declarations of any
+	// type parameters, parameters, and named results, plus any
+	// local declarations in the body block.
+	// It is coextensive with the complete extent of the
+	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
+	// The Scopes mapping does not contain an entry for the
+	// function body ([*ast.BlockStmt]); the function's scope is
+	// associated with the [*ast.FuncType].
+	//
 	// The following node types may appear in Scopes:
 	//
 	//     *ast.File

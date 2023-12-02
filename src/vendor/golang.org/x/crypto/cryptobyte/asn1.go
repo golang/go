@@ -733,13 +733,14 @@ func (s *String) ReadOptionalASN1OctetString(out *[]byte, outPresent *bool, tag 
 	return true
 }
 
-// ReadOptionalASN1Boolean sets *out to the value of the next ASN.1 BOOLEAN or,
-// if the next bytes are not an ASN.1 BOOLEAN, to the value of defaultValue.
-// It reports whether the operation was successful.
-func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
+// ReadOptionalASN1Boolean attempts to read an optional ASN.1 BOOLEAN
+// explicitly tagged with tag into out and advances. If no element with a
+// matching tag is present, it sets "out" to defaultValue instead. It reports
+// whether the read was successful.
+func (s *String) ReadOptionalASN1Boolean(out *bool, tag asn1.Tag, defaultValue bool) bool {
 	var present bool
 	var child String
-	if !s.ReadOptionalASN1(&child, &present, asn1.BOOLEAN) {
+	if !s.ReadOptionalASN1(&child, &present, tag) {
 		return false
 	}
 
@@ -748,7 +749,7 @@ func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
 		return true
 	}
 
-	return s.ReadASN1Boolean(out)
+	return child.ReadASN1Boolean(out)
 }
 
 func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {

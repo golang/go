@@ -209,66 +209,6 @@ func And(addr *uint32, v uint32) {
 }
 
 //go:nosplit
-func Or32(addr *uint32, v uint32) uint32 {
-	for {
-		old := *addr
-		if Cas(addr, old, old|v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func And32(addr *uint32, v uint32) uint32 {
-	for {
-		old := *addr
-		if Cas(addr, old, old&v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func Or64(addr *uint64, v uint64) uint64 {
-	for {
-		old := *addr
-		if Cas64(addr, old, old|v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func And64(addr *uint64, v uint64) uint64 {
-	for {
-		old := *addr
-		if Cas64(addr, old, old&v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func Oruintptr(addr *uintptr, v uintptr) uintptr {
-	for {
-		old := *addr
-		if Casuintptr(addr, old, old|v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func Anduintptr(addr *uintptr, v uintptr) uintptr {
-	for {
-		old := *addr
-		if Casuintptr(addr, old, old&v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
 
 //go:noescape

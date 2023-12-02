@@ -345,6 +345,11 @@ const (
 	R_LOONG64_TLS_IE_PCREL_HI
 	R_LOONG64_TLS_IE_LO
 
+	// R_LOONG64_GOT_HI and R_LOONG64_GOT_LO resolves a GOT-relative instruction sequence,
+	// usually an pcalau12i followed by another ld or addi instruction.
+	R_LOONG64_GOT_HI
+	R_LOONG64_GOT_LO
+
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.
 	R_JMPLOONG64

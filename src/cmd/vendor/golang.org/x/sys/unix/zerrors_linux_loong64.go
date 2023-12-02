@@ -118,6 +118,7 @@ const (
 	IXOFF                            = 0x1000
 	IXON                             = 0x400
 	LASX_CTX_MAGIC                   = 0x41535801
+	LBT_CTX_MAGIC                    = 0x42540001
 	LSX_CTX_MAGIC                    = 0x53580001
 	MAP_ANON                         = 0x20
 	MAP_ANONYMOUS                    = 0x20

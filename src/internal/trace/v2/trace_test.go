@@ -35,7 +35,7 @@ func TestTraceAnnotations(t *testing.T) {
 			{trace.EventRegionEnd, trace.TaskID(1), []string{"region0"}},
 			{trace.EventTaskEnd, trace.TaskID(1), []string{"task0"}},
 			//  Currently, pre-existing region is not recorded to avoid allocations.
-			{trace.EventRegionBegin, trace.NoTask, []string{"post-existing region"}},
+			{trace.EventRegionBegin, trace.BackgroundTask, []string{"post-existing region"}},
 		}
 		r, err := trace.NewReader(bytes.NewReader(tb))
 		if err != nil {
@@ -526,6 +526,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 
 	// Check if we're on a builder.
 	onBuilder := testenv.Builder() != ""
+	onOldBuilder := !strings.Contains(testenv.Builder(), "gotip") && !strings.Contains(testenv.Builder(), "go1")
 
 	testPath := filepath.Join("./testdata/testprog", progName)
 	testName := progName
@@ -567,7 +568,18 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			// data is critical for debugging and this is the only way
 			// we can currently make sure it's retained.
 			t.Log("found bad trace; dumping to test log...")
-			t.Log(dumpTraceToText(t, tb))
+			s := dumpTraceToText(t, tb)
+			if onOldBuilder && len(s) > 1<<20+512<<10 {
+				// The old build infrastructure truncates logs at ~2 MiB.
+				// Let's assume we're the only failure and give ourselves
+				// up to 1.5 MiB to dump the trace.
+				//
+				// TODO(mknyszek): Remove this when we've migrated off of
+				// the old infrastructure.
+				t.Logf("text trace too large to dump (%d bytes)", len(s))
+			} else {
+				t.Log(s)
+			}
 		} else if t.Failed() || *dumpTraces {
 			// We asked to dump the trace or failed. Write the trace to a file.
 			t.Logf("wrote trace to file: %s", dumpTraceToFile(t, testName, stress, tb))

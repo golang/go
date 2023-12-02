@@ -90,7 +90,7 @@ func (ex *Examiner) DumpEntry(idx int, dumpKids bool, ilevel int) {
 	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
 	for _, f := range entry.Field {
 		indent(ilevel)
-		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
+		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
 	}
 	if dumpKids {
 		ksl := ex.kids[idx]

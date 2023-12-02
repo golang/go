@@ -5,6 +5,7 @@
 package fs_test
 
 import (
+	"errors"
 	. "io/fs"
 	"os"
 	"testing"
@@ -89,5 +90,22 @@ func TestFileInfoToDirEntry(t *testing.T) {
 				t.Errorf("IsDir mismatch: got=%v, want=%v", g, w)
 			}
 		})
+	}
+}
+
+func errorPath(err error) string {
+	var perr *PathError
+	if !errors.As(err, &perr) {
+		return ""
+	}
+	return perr.Path
+}
+
+func TestReadDirPath(t *testing.T) {
+	fsys := os.DirFS(t.TempDir())
+	_, err1 := ReadDir(fsys, "non-existent")
+	_, err2 := ReadDir(struct{ FS }{fsys}, "non-existent")
+	if s1, s2 := errorPath(err1), errorPath(err2); s1 != s2 {
+		t.Fatalf("s1: %s != s2: %s", s1, s2)
 	}
 }

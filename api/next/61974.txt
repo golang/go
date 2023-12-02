@@ -1,2 +1,0 @@
-pkg debug/elf, const R_MIPS_PC32 = 248 #61974
-pkg debug/elf, const R_MIPS_PC32 R_MIPS #61974

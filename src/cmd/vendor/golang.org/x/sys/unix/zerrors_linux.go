@@ -480,10 +480,13 @@ const (
 	BPF_FROM_BE                                 = 0x8
 	BPF_FROM_LE                                 = 0x0
 	BPF_FS_MAGIC                                = 0xcafe4a11
+	BPF_F_AFTER                                 = 0x10
 	BPF_F_ALLOW_MULTI                           = 0x2
 	BPF_F_ALLOW_OVERRIDE                        = 0x1
 	BPF_F_ANY_ALIGNMENT                         = 0x2
-	BPF_F_KPROBE_MULTI_RETURN                   = 0x1
+	BPF_F_BEFORE                                = 0x8
+	BPF_F_ID                                    = 0x20
+	BPF_F_NETFILTER_IP_DEFRAG                   = 0x1
 	BPF_F_QUERY_EFFECTIVE                       = 0x1
 	BPF_F_REPLACE                               = 0x4
 	BPF_F_SLEEPABLE                             = 0x10
@@ -520,6 +523,7 @@ const (
 	BPF_MAJOR_VERSION                           = 0x1
 	BPF_MAXINSNS                                = 0x1000
 	BPF_MEM                                     = 0x60
+	BPF_MEMSX                                   = 0x80
 	BPF_MEMWORDS                                = 0x10
 	BPF_MINOR_VERSION                           = 0x1
 	BPF_MISC                                    = 0x7
@@ -775,6 +779,8 @@ const (
 	DEVLINK_GENL_MCGRP_CONFIG_NAME              = "config"
 	DEVLINK_GENL_NAME                           = "devlink"
 	DEVLINK_GENL_VERSION                        = 0x1
+	DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO            = 0x4
+	DEVLINK_PORT_FN_CAP_IPSEC_PACKET            = 0x8
 	DEVLINK_PORT_FN_CAP_MIGRATABLE              = 0x2
 	DEVLINK_PORT_FN_CAP_ROCE                    = 0x1
 	DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX           = 0x14
@@ -1697,6 +1703,7 @@ const (
 	KEXEC_ON_CRASH                              = 0x1
 	KEXEC_PRESERVE_CONTEXT                      = 0x2
 	KEXEC_SEGMENT_MAX                           = 0x10
+	KEXEC_UPDATE_ELFCOREHDR                     = 0x4
 	KEYCTL_ASSUME_AUTHORITY                     = 0x10
 	KEYCTL_CAPABILITIES                         = 0x1f
 	KEYCTL_CAPS0_BIG_KEY                        = 0x10
@@ -1794,6 +1801,7 @@ const (
 	LOCK_SH                                     = 0x1
 	LOCK_UN                                     = 0x8
 	LOOP_CLR_FD                                 = 0x4c01
+	LOOP_CONFIGURE                              = 0x4c0a
 	LOOP_CTL_ADD                                = 0x4c80
 	LOOP_CTL_GET_FREE                           = 0x4c82
 	LOOP_CTL_REMOVE                             = 0x4c81
@@ -2274,6 +2282,7 @@ const (
 	PERF_MEM_LVLNUM_PMEM                        = 0xe
 	PERF_MEM_LVLNUM_RAM                         = 0xd
 	PERF_MEM_LVLNUM_SHIFT                       = 0x21
+	PERF_MEM_LVLNUM_UNC                         = 0x8
 	PERF_MEM_LVL_HIT                            = 0x2
 	PERF_MEM_LVL_IO                             = 0x1000
 	PERF_MEM_LVL_L1                             = 0x8
@@ -3460,6 +3469,7 @@ const (
 	XDP_PACKET_HEADROOM                         = 0x100
 	XDP_PGOFF_RX_RING                           = 0x0
 	XDP_PGOFF_TX_RING                           = 0x80000000
+	XDP_PKT_CONTD                               = 0x1
 	XDP_RING_NEED_WAKEUP                        = 0x1
 	XDP_RX_RING                                 = 0x2
 	XDP_SHARED_UMEM                             = 0x1
@@ -3472,6 +3482,7 @@ const (
 	XDP_UMEM_REG                                = 0x4
 	XDP_UMEM_UNALIGNED_CHUNK_FLAG               = 0x1
 	XDP_USE_NEED_WAKEUP                         = 0x8
+	XDP_USE_SG                                  = 0x10
 	XDP_ZEROCOPY                                = 0x4
 	XENFS_SUPER_MAGIC                           = 0xabba1974
 	XFS_SUPER_MAGIC                             = 0x58465342
