@@ -911,19 +911,19 @@ func TestCatchInvalidNilValue(t *testing.T) {
 	}
 }
 
-// A top-level nil pointer generates a panic with a helpful string-valued message.
+// A top-level nil pointer generates an error. See issue 31664.
 func TestTopLevelNilPointer(t *testing.T) {
 	var ip *int
 	encodeErr, panicErr := encodeAndRecover(ip)
-	if encodeErr != nil {
-		t.Fatal("error in encode:", encodeErr)
+	if encodeErr == nil {
+		t.Fatal("no expected error in top level nil pointer encode")
 	}
-	if panicErr == nil {
-		t.Fatal("top-level nil pointer did not panic")
+	if panicErr != nil {
+		t.Fatalf("unexpected panic: %v", panicErr)
 	}
-	errMsg := panicErr.Error()
-	if !strings.Contains(errMsg, "nil pointer") {
-		t.Fatal("expected nil pointer error, got:", errMsg)
+	const wantPrefix = "gob: cannot encode nil pointer of type "
+	if !strings.HasPrefix(encodeErr.Error(), wantPrefix) {
+		t.Fatalf("expected prefix: %v; got err=%v", wantPrefix, encodeErr)
 	}
 }
 
@@ -944,7 +944,9 @@ func encodeAndRecover(value any) (encodeErr, panicErr error) {
 	return
 }
 
-func TestNilPointerPanics(t *testing.T) {
+// Ensure that if a nil pointer value is passed
+// into EncodeValue, that we never panic.
+func TestNilPointerEncodingNeverPanics(t *testing.T) {
 	var (
 		nilStringPtr      *string
 		intMap            = make(map[int]int)
@@ -958,32 +960,21 @@ func TestNilPointerPanics(t *testing.T) {
 		nilStringSlicePtr *[]string
 	)
 
-	testCases := []struct {
-		value     any
-		mustPanic bool
-	}{
-		{nilStringPtr, true},
-		{intMap, false},
-		{intMapPtr, false},
-		{nilIntMapPtr, true},
-		{zero, false},
-		{nilStringSlice, false},
-		{stringSlice, false},
-		{nilStringSlicePtr, true},
-		{nilBoolChannel, false},
-		{nilBoolChannelPtr, true},
+	testCases := []interface{}{
+		nilStringPtr,
+		intMap,
+		intMapPtr,
+		nilIntMapPtr,
+		zero,
+		nilStringSlice,
+		stringSlice,
+		nilStringSlicePtr,
+		nilBoolChannel,
+		nilBoolChannelPtr,
 	}
-
 	for _, tt := range testCases {
-		_, panicErr := encodeAndRecover(tt.value)
-		if tt.mustPanic {
-			if panicErr == nil {
-				t.Errorf("expected panic with input %#v, did not panic", tt.value)
-			}
-			continue
-		}
-		if panicErr != nil {
-			t.Fatalf("expected no panic with input %#v, got panic=%v", tt.value, panicErr)
+		if _, panicErr := encodeAndRecover(tt); panicErr != nil {
+			t.Errorf("%#v: unexpected panic %v", tt, panicErr)
 		}
 	}
 }
