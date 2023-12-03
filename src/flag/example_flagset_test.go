@@ -42,7 +42,7 @@ func ExampleFlagSet() {
 			stop(subArgs)
 		default:
 			fmt.Printf("error: unknown command - %q\n", args[1])
-			// On a real program (not an example) print to os.Stderr and exit the program with non-zero value.
+			// In a real program (not an example) print to os.Stderr and exit the program with non-zero value.
 		}
 	}
 
