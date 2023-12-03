@@ -82,8 +82,17 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 			// in _Pgcstop, but we model it as running in the tracer.
 			status = traceProcRunning
 		}
-	case _Prunning, _Psyscall:
+	case _Prunning:
 		status = traceProcRunning
+		// There's a short window wherein the goroutine may have entered _Gsyscall
+		// but it still owns the P (it's not in _Psyscall yet). The goroutine entering
+		// _Gsyscall is the tracer's signal that the P its bound to is also in a syscall,
+		// so we need to emit a status that matches. See #64318.
+		if w.mp.p.ptr() == pp && w.mp.curg != nil && readgstatus(w.mp.curg)&^_Gscan == _Gsyscall {
+			status = traceProcSyscall
+		}
+	case _Psyscall:
+		status = traceProcSyscall
 	default:
 		throw("attempt to trace invalid or unsupported P status")
 	}
