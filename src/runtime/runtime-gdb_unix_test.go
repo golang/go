@@ -296,6 +296,7 @@ func TestGdbCoreCrashThreadBacktrace(t *testing.T) {
 		t.Skip("Backtrace through signal handler only works on 386 and amd64")
 	}
 
+	testenv.MustHaveCGO(t)
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
