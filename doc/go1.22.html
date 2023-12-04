@@ -638,6 +638,13 @@ defer func() {
 
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
+    <p><!-- https://go.dev/issue/57071 -->
+      <code>/sync/mutex/wait/total:seconds</code> now includes contention on
+      runtime-internal locks in addition to
+      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
+      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
+    </p>
+
     <p><!-- https://go.dev/issue/63340 -->
       TODO: <a href="https://go.dev/issue/63340">https://go.dev/issue/63340</a>: provide histogram of all STW events
     </p>
@@ -652,6 +659,14 @@ defer func() {
       a Go program.
       For instance, if 100 goroutines are blocked on a mutex for 10 milliseconds, a mutex profile will
       now record 1 second of delay instead of 10 milliseconds of delay.
+    </p>
+
+    <p><!-- https://go.dev/issue/57071 -->
+      Mutex profiles also now include contention on runtime-internal locks in addition to
+      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
+      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
+      Contention on runtime-internal locks is always reported at <code>runtime._LostContendedRuntimeLock</code>.
+      A future release will add complete stack traces in these cases.
     </p>
 
     <p><!-- https://go.dev/issue/50891 -->
