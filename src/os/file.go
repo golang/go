@@ -392,6 +392,15 @@ func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }
 
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+//
+// If the link destination is relative, Readlink returns the relative path
+// without resolving it to an absolute one.
+func Readlink(name string) (string, error) {
+	return readlink(name)
+}
+
 // Many functions in package syscall return a count of -1 instead of 0.
 // Using fixCount(call()) instead of call() corrects the count.
 func fixCount(n int, err error) (int, error) {
