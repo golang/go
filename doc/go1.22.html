@@ -437,12 +437,10 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/50489 -->
-      TODO: <a href="https://go.dev/issue/50489">https://go.dev/issue/50489</a>: Rat: add FloatPrec() (int, bool)
-    </p>
-
-    <p><!-- CL 539299 -->
-      TODO: <a href="https://go.dev/cl/539299">https://go.dev/cl/539299</a>: math/big: implement Rat.FloatPrec; modified api/next/50489.txt
+    <p><!-- https://go.dev/issue/50489, CL 539299 -->
+      The new method <a href="/pkg/math/big#Rat.FloatPrec">Rat.FloatPrec</a> computes the number of fractional decimal digits
+      required to represent a rational number accurately as a floating-point number, and whether accurate decimal representation
+      is possible in the first place.
     </p>
   </dd>
 </dl><!-- math/big -->
