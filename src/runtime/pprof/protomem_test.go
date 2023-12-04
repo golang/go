@@ -6,8 +6,11 @@ package pprof
 
 import (
 	"bytes"
+	"fmt"
 	"internal/profile"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +83,64 @@ func TestConvertMemProfile(t *testing.T) {
 
 			checkProfile(t, p, rate, periodType, sampleType, samples, tc.defaultSampleType)
 		})
+	}
+}
+
+func genericAllocFunc[T interface{ uint32 | uint64 }](n int) []T {
+	return make([]T, n)
+}
+
+func profileToString(p *profile.Profile) []string {
+	var res []string
+	for _, s := range p.Sample {
+		var funcs []string
+		for i := len(s.Location) - 1; i >= 0; i-- {
+			loc := s.Location[i]
+			for j := len(loc.Line) - 1; j >= 0; j-- {
+				line := loc.Line[j]
+				funcs = append(funcs, line.Function.Name)
+			}
+		}
+		res = append(res, fmt.Sprintf("%s %v", strings.Join(funcs, ";"), s.Value))
+	}
+	return res
+}
+
+// This is a regression test for https://go.dev/issue/64528 .
+func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
+	previousRate := runtime.MemProfileRate
+	runtime.MemProfileRate = 1
+	defer func() {
+		runtime.MemProfileRate = previousRate
+	}()
+	for _, sz := range []int{128, 256} {
+		genericAllocFunc[uint32](sz / 4)
+	}
+	for _, sz := range []int{32, 64} {
+		genericAllocFunc[uint64](sz / 8)
+	}
+
+	runtime.GC()
+	buf := bytes.NewBuffer(nil)
+	if err := WriteHeapProfile(buf); err != nil {
+		t.Fatalf("writing profile: %v", err)
+	}
+	p, err := profile.Parse(buf)
+	if err != nil {
+		t.Fatalf("profile.Parse: %v", err)
+	}
+
+	actual := profileToString(p)
+	expected := []string{
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 128 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 256 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 32 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 64 0 0]",
+	}
+
+	for _, l := range expected {
+		if !slices.Contains(actual, l) {
+			t.Errorf("profile = %v\nwant = %v", strings.Join(actual, "\n"), l)
+		}
 	}
 }
