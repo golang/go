@@ -447,10 +447,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		monotonically.
 
 	/sync/mutex/wait/total:seconds
-		Approximate cumulative time goroutines have spent blocked
-		on a sync.Mutex or sync.RWMutex. This metric is useful for
-		identifying global changes in lock contention. Collect a mutex
-		or block profile using the runtime/pprof package for more
-		detailed contention data.
+		Approximate cumulative time goroutines have spent blocked on a
+		sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric
+		is useful for identifying global changes in lock contention.
+		Collect a mutex or block profile using the runtime/pprof package
+		for more detailed contention data.
 */
 package metrics
