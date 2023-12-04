@@ -1,0 +1,67 @@
+# Regression test for https://go.dev/issue/53955.
+# New remote tags were erroneously added to the local clone of a repo
+# only *after* extracting version information for a locally-cached commit,
+# causing the version information to have incomplete Tags and Version fields.
+
+[short] skip 'constructs a local git repo'
+[!git] skip
+[!net:github.com] skip 'does not actually use github.com because of insteadOf, but silence network check just in case'
+
+env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+env GIT_ALLOW_PROTOCOL=file
+env GOPRIVATE=github.com/golang/issue53955
+
+[!GOOS:windows] exec git config --global 'url.file://'$WORK'/repo.insteadOf' 'https://github.com/golang/issue53955'
+[GOOS:windows]  exec git config --global 'url.file:///'$WORK'/repo.insteadOf' 'https://github.com/golang/issue53955'
+
+cd $WORK/repo
+
+env GIT_AUTHOR_NAME='Go Gopher'
+env GIT_AUTHOR_EMAIL='gopher@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+exec git init
+
+env GIT_COMMITTER_DATE=2022-07-19T11:07:00-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:00-04:00
+exec git add go.mod issue53955.go
+exec git commit -m 'initial commit'
+exec git branch -m main
+exec git tag v1.0.9
+
+env GIT_COMMITTER_DATE=2022-07-19T11:07:01-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:01-04:00
+exec git add extra.go
+exec git commit -m 'next commit'
+exec git show-ref --tags --heads
+cmp stdout $WORK/.git-refs-1
+
+cd $WORK/m
+go get -x github.com/golang/issue53955@2cb3d49f
+stderr '^go: added github.com/golang/issue53955 v1.0.10-0.20220719150701-2cb3d49f8874$'
+
+cd $WORK/repo
+exec git tag v1.0.10
+
+cd $WORK/m
+go get -x github.com/golang/issue53955@v1.0.10
+! stderr 'v1\.0\.10 is not a tag'
+stderr '^go: upgraded github.com/golang/issue53955 v.* => v1\.0\.10$'
+
+-- $WORK/repo/go.mod --
+module github.com/golang/issue53955
+
+go 1.18
+-- $WORK/repo/issue53955.go --
+package issue53955
+-- $WORK/repo/extra.go --
+package issue53955
+-- $WORK/.git-refs-1 --
+2cb3d49f8874b9362ed0ddd2a6512e4108bbf6b1 refs/heads/main
+050526ebf5883191e990529eb3cc9345abaf838c refs/tags/v1.0.9
+-- $WORK/m/go.mod --
+module m
+
+go 1.18
+-- $WORK/.gitconfig --
