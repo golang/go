@@ -638,15 +638,29 @@ defer func() {
 
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
+    <p><!-- https://go.dev/issue/63340 -->
+      Four new histogram metrics
+      <code>/sched/pauses/stopping/gc:seconds</code>,
+      <code>/sched/pauses/stopping/other:seconds</code>,
+      <code>/sched/pauses/total/gc:seconds</code>, and
+      <code>/sched/pauses/total/other:seconds</code> provide additional details
+      about stop-the-world pauses.
+      The "stopping" metrics report the time taken from deciding to stop the
+      world until all goroutines are stopped.
+      The "total" metrics report the time taken from deciding to stop the world
+      until it is started again.
+    </p>
+
+    <p><!-- https://go.dev/issue/63340 -->
+      The <code>/gc/pauses:seconds</code> metric is deprecated, as it is
+      equivalent to the new <code>/sched/pauses/total/gc:seconds</code> metric.
+    </p>
+
     <p><!-- https://go.dev/issue/57071 -->
       <code>/sync/mutex/wait/total:seconds</code> now includes contention on
       runtime-internal locks in addition to
       <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
       <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
-    </p>
-
-    <p><!-- https://go.dev/issue/63340 -->
-      TODO: <a href="https://go.dev/issue/63340">https://go.dev/issue/63340</a>: provide histogram of all STW events
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
