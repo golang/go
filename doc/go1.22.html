@@ -516,8 +516,11 @@ Do not send CLs removing the interior tags from such phrases.
       TODO: <a href="https://go.dev/issue/63223">https://go.dev/issue/63223</a>: API changes to support explicit Alias nodes
     </p>
 
-    <p><!-- https://go.dev/issue/61035 -->
-      TODO: <a href="https://go.dev/issue/61035">https://go.dev/issue/61035</a>: go/types, types2: fix SizesFor(&#34;gc&#34;, ...) to match actual gc behavior
+    <p><!-- https://go.dev/issue/61035, multiple CLs, see issue for details -->
+      The implementation of <a href="/pkg/go/types#SizesFor"><code>SizesFor</code></a> has been adjusted to compute
+      the same type sizes as the compiler when the compiler argument for <code>SizesFor</code> is <code>"gc"</code>.
+      The default <a href="/pkg/go/types#Sizes"><code>Sizes</code></a> implementation used by the type checker is now
+      <code>types.SizesFor("gc", "amd64")</code>.
     </p>
 
     <p><!-- CL 541575 -->
