@@ -368,38 +368,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- go/ast -->
 
-<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/62037 -->
-      TODO: <a href="https://go.dev/issue/62037">https://go.dev/issue/62037</a>: add Info.PkgName method
-    </p>
-
-    <p><!-- https://go.dev/issue/62605 -->
-      TODO: <a href="https://go.dev/issue/62605">https://go.dev/issue/62605</a>: Export Info.FileVersions for access to file-specific version information
-    </p>
-
-    <p><!-- https://go.dev/issue/63223 -->
-      TODO: <a href="https://go.dev/issue/63223">https://go.dev/issue/63223</a>: API changes to support explicit Alias nodes
-    </p>
-
-    <p><!-- CL 540056 -->
-      TODO: <a href="https://go.dev/cl/540056">https://go.dev/cl/540056</a>: go/types: export Info.FileVersions; modified api/next/62605.txt
-    </p>
-
-    <p><!-- https://go.dev/issue/61035 -->
-      TODO: <a href="https://go.dev/issue/61035">https://go.dev/issue/61035</a>: go/types, types2: fix SizesFor(&#34;gc&#34;, ...) to match actual gc behavior
-    </p>
-
-    <p><!-- CL 541575 -->
-      TODO: <a href="https://go.dev/cl/541575">https://go.dev/cl/541575</a>: go/types, types2: implement Info.PkgNameOf; modified api/next/62037.txt
-    </p>
-
-    <p><!-- CL 541737 -->
-      TODO: <a href="https://go.dev/cl/541737">https://go.dev/cl/541737</a>: go/types, types2: implement Alias proposal (export API); modified api/next/63223.txt
-    </p>
-  </dd>
-</dl><!-- go/types -->
-
 <dl id="go/version"><dt><a href="/pkg/go/version/">go/version</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/62039 -->
@@ -540,12 +508,38 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
+    <p><!-- https://go.dev/issue/62037 -->
+      TODO: <a href="https://go.dev/issue/62037">https://go.dev/issue/62037</a>: add Info.PkgName method
+    </p>
+
+    <p><!-- https://go.dev/issue/63223 -->
+      TODO: <a href="https://go.dev/issue/63223">https://go.dev/issue/63223</a>: API changes to support explicit Alias nodes
+    </p>
+
+    <p><!-- https://go.dev/issue/61035 -->
+      TODO: <a href="https://go.dev/issue/61035">https://go.dev/issue/61035</a>: go/types, types2: fix SizesFor(&#34;gc&#34;, ...) to match actual gc behavior
+    </p>
+
+    <p><!-- CL 541575 -->
+      TODO: <a href="https://go.dev/cl/541575">https://go.dev/cl/541575</a>: go/types, types2: implement Info.PkgNameOf; modified api/next/62037.txt
+    </p>
+
+    <p><!-- CL 541737 -->
+      TODO: <a href="https://go.dev/cl/541737">https://go.dev/cl/541737</a>: go/types, types2: implement Alias proposal (export API); modified api/next/63223.txt
+    </p>
+
     <p><!-- https://go.dev/issue/64295, CL 544035 -->
       The start position (<a href="/pkg/go/types#Scope.Pos">Pos</a>)
       of the lexical environment block (<a href="/pkg/go/types#Scope">Scope</a>)
       that represents a function body has changed:
       it used to start at the opening curly brace of the function body,
       but now starts at the function's <code>func</code> token.
+    </p>
+
+    <p><!-- https://go.dev/issue/62605, CL 540056 -->
+      The <a href="/pkg/go/types#Info"><code>Info</code></a> struct now exports the
+      <a href="/pkg/go/types#Info.FileVersions"><code>FileVersions</code></a> map
+      which provides per-file Go version information.
     </p>
   </dd>
 </dl>
