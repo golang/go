@@ -126,6 +126,31 @@ import (
 // pprof display to -alloc_space, the total number of bytes allocated since
 // the program began (including garbage-collected bytes).
 //
+// The block profile tracks time spent blocked on synchronization primitives,
+// such as [sync.Mutex], [sync.RWMutex], [sync.WaitGroup], [sync.Cond], and
+// channel send/receive/select. Stack traces correspond to the location that
+// blocked (for example, [sync.Mutex.Lock]). Sample values correspond to
+// cumulative time spent blocked at that stack trace, subject to time-based
+// sampling specified by [runtime.SetBlockProfileRate].
+//
+// The mutex profile tracks contention on mutexes, such as [sync.Mutex],
+// [sync.RWMutex], and runtime-internal locks. Stack traces correspond to the
+// end of the critical section causing contention. For example, a lock held for
+// a long time while other goroutines are waiting to acquire the lock will
+// report contention when the lock is finally unlocked (that is, at
+// [sync.Mutex.Unlock]). Sample values correspond to the approximate cumulative
+// time other goroutines spent blocked waiting for the lock, subject to
+// event-based sampling specified by [runtime.SetMutexProfileFraction]. For
+// example, if a caller holds a lock for 1s while 5 other goroutines are
+// waiting for the entire second to acquire the lock, its unlock call stack
+// will report 5s of contention.
+//
+// In the mutex profile, runtime-internal locks are always reported at the
+// location "runtime._LostContendedRuntimeLock". More detailed stack traces for
+// runtime-internal locks can be obtained by setting
+// `GODEBUG=runtimecontentionstacks=1` (see package [runtime] docs for
+// caveats).
+//
 // The CPU profile is not available as a Profile. It has a special API,
 // the [StartCPUProfile] and [StopCPUProfile] functions, because it streams
 // output to a writer during profiling.
