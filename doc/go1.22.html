@@ -508,8 +508,9 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/62037 -->
-      TODO: <a href="https://go.dev/issue/62037">https://go.dev/issue/62037</a>: add Info.PkgName method
+    <p><!-- https://go.dev/issue/62037, CL 541575 -->
+      The new helper method <a href="/pkg/go/types#Info.PkgNameOf"><code>PkgNameOf</code></a> returns the local package name
+      for the given import declaration.
     </p>
 
     <p><!-- https://go.dev/issue/63223 -->
@@ -521,10 +522,6 @@ Do not send CLs removing the interior tags from such phrases.
       the same type sizes as the compiler when the compiler argument for <code>SizesFor</code> is <code>"gc"</code>.
       The default <a href="/pkg/go/types#Sizes"><code>Sizes</code></a> implementation used by the type checker is now
       <code>types.SizesFor("gc", "amd64")</code>.
-    </p>
-
-    <p><!-- CL 541575 -->
-      TODO: <a href="https://go.dev/cl/541575">https://go.dev/cl/541575</a>: go/types, types2: implement Info.PkgNameOf; modified api/next/62037.txt
     </p>
 
     <p><!-- CL 541737 -->
