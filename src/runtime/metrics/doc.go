@@ -327,6 +327,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=x509usefallbackroots=...
 		setting.
 
+	/godebug/non-default-behavior/x509usepolicies:events
+		The number of non-default behaviors executed by the crypto/x509
+		package due to a non-default GODEBUG=x509usepolicies=...
+		setting.
+
 	/godebug/non-default-behavior/zipinsecurepath:events
 		The number of non-default behaviors executed by the archive/zip
 		package due to a non-default GODEBUG=zipinsecurepath=...
