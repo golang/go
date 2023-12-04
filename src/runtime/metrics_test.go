@@ -956,12 +956,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	{
 		before := os.Getenv("GODEBUG")
 		for _, s := range strings.Split(before, ",") {
-			if strings.HasPrefix(s, "profileruntimelocks=") {
+			if strings.HasPrefix(s, "runtimecontentionstacks=") {
 				t.Logf("GODEBUG includes explicit setting %q", s)
 			}
 		}
 		defer func() { os.Setenv("GODEBUG", before) }()
-		os.Setenv("GODEBUG", fmt.Sprintf("%s,profileruntimelocks=1", before))
+		os.Setenv("GODEBUG", fmt.Sprintf("%s,runtimecontentionstacks=1", before))
 	}
 
 	t.Logf("NumCPU %d", runtime.NumCPU())

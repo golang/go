@@ -552,7 +552,7 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 // previous lock call took (like the user-space "block" profile).
 //
 // Thus, reporting the call stacks of runtime-internal lock contention is
-// guarded by GODEBUG for now. Set GODEBUG=profileruntimelocks=1 to enable.
+// guarded by GODEBUG for now. Set GODEBUG=runtimecontentionstacks=1 to enable.
 //
 // TODO(rhysh): plumb through the delay duration, remove GODEBUG, update comment
 //
@@ -644,7 +644,7 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
 	if prev := prof.cycles; prev > 0 {
 		// We can only store one call stack for runtime-internal lock contention
 		// on this M, and we've already got one. Decide which should stay, and
-		// add the other to the report for runtime._LostContendedLock.
+		// add the other to the report for runtime._LostContendedRuntimeLock.
 		prevScore := uint64(cheaprand64()) % uint64(prev)
 		thisScore := uint64(cheaprand64()) % uint64(cycles)
 		if prevScore > thisScore {
@@ -690,8 +690,8 @@ func (prof *mLockProfile) captureStack() {
 	}
 	prof.pending = 0
 
-	if debug.profileruntimelocks.Load() == 0 {
-		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum
+	if debug.runtimeContentionStacks.Load() == 0 {
+		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
 		prof.stack[1] = 0
 		return
 	}
@@ -733,7 +733,7 @@ func (prof *mLockProfile) store() {
 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
 	if lost > 0 {
 		lostStk := [...]uintptr{
-			abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum,
 		}
 		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
 	}
