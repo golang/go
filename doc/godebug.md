@@ -178,6 +178,13 @@ should adjust their Linux configuration according to the recommendations in the
 [GC guide](/doc/gc-guide#Linux_transparent_huge_pages), or switch to a Linux
 distribution that disables transparent huge pages altogether.
 
+Go 1.22 added contention on runtime-internal locks to the [`mutex`
+profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
+reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
+runtime locks can be enabled with the [`runtimecontentionstacks`
+setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+non-standard semantics, see setting documentation for details.
+
 ### Go 1.21
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,
