@@ -368,6 +368,54 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- go/ast -->
 
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/63223, CL 521956, CL 541737 -->
+      The new <a href="/pkg/go/types#Alias"><code>Alias</code></a> type represents type aliases.
+      Previously, type aliases were not represented explicitly, so a reference to a type alias was equivalent
+      to spelling out the aliased type, and the name of the alias was lost.
+      The new representation retains the intermediate Alias.
+      This enables improved error reporting (the name of an alias can be reported), and allows for better handling
+      of cyclic type declarations involving type aliases.
+      In a future release, <code>Alias</code> types will also carry <a href="https://go.dev/issue/46477">type parameter information</a>.
+      The new function <a href="/pkg/go/types#Unalias"><code>Unalias</code></a> returns the actual type denoted by an
+      <code>Alias</code> type (or any other <a href="/pkg/go/types#Type"><code>Type</code></a> for that matter).
+      Because <code>Alias</code> types may break existing type switches that do not know to check for them,
+      this functionality is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>gotypesalias</code>.
+      With <code>gotypesalias=0</code>, everything behaves as before, and <code>Alias</code> types are never created.
+      With <code>gotypesalias=1</code>, <code>Alias</code> types are created and clients must expect them.
+      The default is <code>gotypesalias=0</code>.
+      In a future release, the default will be changed to <code>gotypesalias=1</code>.
+    </p>
+
+    <p><!-- https://go.dev/issue/62605, CL 540056 -->
+      The <a href="/pkg/go/types#Info"><code>Info</code></a> struct now exports the
+      <a href="/pkg/go/types#Info.FileVersions"><code>FileVersions</code></a> map
+      which provides per-file Go version information.
+    </p>
+
+    <p><!-- https://go.dev/issue/62037, CL 541575 -->
+      The new helper method <a href="/pkg/go/types#Info.PkgNameOf"><code>PkgNameOf</code></a> returns the local package name
+      for the given import declaration.
+    </p>
+
+    <p><!-- https://go.dev/issue/61035, multiple CLs, see issue for details -->
+      The implementation of <a href="/pkg/go/types#SizesFor"><code>SizesFor</code></a> has been adjusted to compute
+      the same type sizes as the compiler when the compiler argument for <code>SizesFor</code> is <code>"gc"</code>.
+      The default <a href="/pkg/go/types#Sizes"><code>Sizes</code></a> implementation used by the type checker is now
+      <code>types.SizesFor("gc", "amd64")</code>.
+    </p>
+
+    <p><!-- https://go.dev/issue/64295, CL 544035 -->
+      The start position (<a href="/pkg/go/types#Scope.Pos"><code>Pos</code></a>)
+      of the lexical environment block (<a href="/pkg/go/types#Scope"><code>Scope</code></a>)
+      that represents a function body has changed:
+      it used to start at the opening curly brace of the function body,
+      but now starts at the function's <code>func</code> token.
+    </p>
+  </dd>
+</dl>
+
 <dl id="go/version"><dt><a href="/pkg/go/version/">go/version</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/62039 -->
@@ -505,54 +553,6 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- os/exec -->
-
-<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/62037, CL 541575 -->
-      The new helper method <a href="/pkg/go/types#Info.PkgNameOf"><code>PkgNameOf</code></a> returns the local package name
-      for the given import declaration.
-    </p>
-
-    <p><!-- https://go.dev/issue/63223, CL 521956, CL 541737 -->
-      The new <a href="/pkg/go/types#Alias"><code>Alias</code></a> type represents type aliases.
-      Previously, type aliases were not represented explicitly, so a reference to a type alias was equivalent
-      to spelling out the aliased type, and the name of the alias was lost.
-      The new representation retains the intermediate Alias.
-      This enables improved error reporting (the name of an alias can be reported), and allows for better handling
-      of cyclic type declarations involving type aliases.
-      In a future release, <code>Alias</code> types will also carry <a href="https://go.dev/issue/46477">type parameter information</a>.
-      The new function <a href="/pkg/go/types#Unalias"><code>Unalias</code></a> returns the actual type denoted by an
-      <code>Alias</code> type (or any other <a href="/pkg/go/types#Type"><code>Type</code></a> for that matter).
-      Because <code>Alias</code> types may break existing type switches that do not know to check for them,
-      this functionality is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>gotypesalias</code>.
-      With <code>gotypesalias=0</code>, everything behaves as before, and <code>Alias</code> types are never created.
-      With <code>gotypesalias=1</code>, <code>Alias</code> types are created and clients must expect them.
-      The default is <code>gotypesalias=0</code>.
-      In a future release, the default will be changed to <code>gotypesalias=1</code>.
-    </p>
-
-    <p><!-- https://go.dev/issue/61035, multiple CLs, see issue for details -->
-      The implementation of <a href="/pkg/go/types#SizesFor"><code>SizesFor</code></a> has been adjusted to compute
-      the same type sizes as the compiler when the compiler argument for <code>SizesFor</code> is <code>"gc"</code>.
-      The default <a href="/pkg/go/types#Sizes"><code>Sizes</code></a> implementation used by the type checker is now
-      <code>types.SizesFor("gc", "amd64")</code>.
-    </p>
-
-    <p><!-- https://go.dev/issue/64295, CL 544035 -->
-      The start position (<a href="/pkg/go/types#Scope.Pos"><code>Pos</code></a>)
-      of the lexical environment block (<a href="/pkg/go/types#Scope"><code>Scope</code></a>)
-      that represents a function body has changed:
-      it used to start at the opening curly brace of the function body,
-      but now starts at the function's <code>func</code> token.
-    </p>
-
-    <p><!-- https://go.dev/issue/62605, CL 540056 -->
-      The <a href="/pkg/go/types#Info"><code>Info</code></a> struct now exports the
-      <a href="/pkg/go/types#Info.FileVersions"><code>FileVersions</code></a> map
-      which provides per-file Go version information.
-    </p>
-  </dd>
-</dl>
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
