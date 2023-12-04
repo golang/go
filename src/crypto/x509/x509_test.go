@@ -3928,25 +3928,14 @@ func TestCertificateOIDPolicies(t *testing.T) {
 		NotBefore:         time.Unix(1000, 0),
 		NotAfter:          time.Unix(100000, 0),
 		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
-		Policies: []OID{
-			mustNewOIDFromInts(t, []uint64{1, 2, 3}),
-			mustNewOIDFromInts(t, []uint64{1, 2, 3, 4, 5}),
-			mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxInt32}),
-			mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxUint32, math.MaxUint64}),
-		},
 	}
 
 	var expectPolicyIdentifiers = []asn1.ObjectIdentifier{
 		[]int{1, 2, 3},
-		[]int{1, 2, 3, 4, 5},
-		[]int{1, 2, 3, math.MaxInt32},
 	}
 
 	var expectPolicies = []OID{
 		mustNewOIDFromInts(t, []uint64{1, 2, 3}),
-		mustNewOIDFromInts(t, []uint64{1, 2, 3, 4, 5}),
-		mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxInt32}),
-		mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxUint32, math.MaxUint64}),
 	}
 
 	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
@@ -3965,21 +3954,5 @@ func TestCertificateOIDPolicies(t *testing.T) {
 
 	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
-	}
-}
-
-func TestInvalidPolicyOID(t *testing.T) {
-	template := Certificate{
-		SerialNumber:      big.NewInt(1),
-		Subject:           pkix.Name{CommonName: "Cert"},
-		NotBefore:         time.Now(),
-		NotAfter:          time.Now().Add(time.Hour),
-		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
-		Policies:          []OID{OID{}},
-	}
-	_, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
-	expected := "invalid policy object identifier"
-	if err.Error() != expected {
-		t.Fatalf("CreateCertificate() unexpected error: %v, want: %v", err, expected)
 	}
 }
