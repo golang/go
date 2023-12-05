@@ -186,11 +186,19 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		argument(e.discardHole(), &call.X)
 		argument(e.discardHole(), &call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+	case ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		call := call.(*ir.CallExpr)
 		fixRecoverCall(call)
 		for i := range call.Args {
 			argument(e.discardHole(), &call.Args[i])
+		}
+		argumentRType(&call.RType)
+
+	case ir.OMIN, ir.OMAX:
+		call := call.(*ir.CallExpr)
+		fixRecoverCall(call)
+		for i := range call.Args {
+			argument(ks[0], &call.Args[i])
 		}
 		argumentRType(&call.RType)
 
