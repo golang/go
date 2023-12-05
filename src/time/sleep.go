@@ -4,6 +4,8 @@
 
 package time
 
+import "sync/atomic"
+
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
@@ -18,7 +20,7 @@ type runtimeTimer struct {
 	arg      any
 	seq      uintptr
 	nextwhen int64
-	status   uint32
+	status   atomic.Uint32
 }
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
