@@ -155,12 +155,22 @@ packages that do not have their own test files. Prior to Go 1.22 a
 
 <h2 id="linker">Linker</h2>
 
-<p><!-- https://go.dev/issue/62577 -->
-  TODO: <a href="https://go.dev/issue/62577">https://go.dev/issue/62577</a>: cmd/link, cmd/go: emit split DWARF on darwin
+<p><!-- CL 493136 -->
+  The linker's <code>-s</code> and <code>-w</code> flags are now behave more
+  consistently across all platforms.
+  The <code>-w</code> flag suppresses DWARF debug information generation.
+  The <code>-s</code> flag suppresses symbol table generation.
+  The <code>-s</code> flag also implies the <code>-w</code> flag, which can be
+  negated with <code>-w=0</code>.
+  That is, <code>-s</code> <code>-w=0</code> will generate a binary with DWARF
+  debug information generation but without the symbol table.
 </p>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 511475 -->
+  On ELF platforms, the <code>-B</code> linker flag now accepts a special form:
+  with <code>-B</code> <code>gobuildid</code>, the linker will generate a GNU
+  build ID (the ELF <code>NT_GNU_BUILD_ID</code> note) derived from the Go
+  build ID.
 </p>
 
 <h2 id="bootstrap">Bootstrap</h2>
