@@ -55,6 +55,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	cgocheck mode can be enabled using GOEXPERIMENT (which
 	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
 
+	disablethp: setting disablethp=1 on Linux disables transparent huge pages for the heap.
+	It has no effect on other platforms. disablethp is meant for compatibility with versions
+	of Go before 1.21, which stopped working around a Linux kernel default that can result
+	in significant memory overuse. See https://go.dev/issue/64332. This setting will be
+	removed in a future release, so operators should tweak their Linux configuration to suit
+	their needs before then. See https://go.dev/doc/gc-guide#Linux_transparent_huge_pages.
+
 	dontfreezetheworld: by default, the start of a fatal panic or throw
 	"freezes the world", preempting all threads to stop all running
 	goroutines, which makes it possible to traceback all goroutines, and
