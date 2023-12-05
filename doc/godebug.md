@@ -134,6 +134,19 @@ The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
 denial of service attacks, this setting and default was backported to Go
 1.19.13, Go 1.20.8, and Go 1.21.1.
 
+Go 1.22 changed how the runtime interacts with transparent huge pages on Linux.
+In particular, a common default Linux kernel configuration can result in
+significant memory overheads, and Go 1.22 no longer works around this default.
+To work around this issue without adjusting kernel settings, transparent huge
+pages can be disabled for Go memory with the
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+This behavior was backported to Go 1.21.1, but the setting is only available
+starting with Go 1.21.6.
+This setting may be removed in a future release, and users impacted by this issue
+should adjust their Linux configuration according to the recommendations in the
+[GC guide](/doc/gc-guide#Linux_transparent_huge_pages), or switch to a Linux
+distribution that disables transparent huge pages altogether.
+
 ### Go 1.21
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,

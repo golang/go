@@ -309,6 +309,7 @@ type dbgVar struct {
 var debug struct {
 	cgocheck           int32
 	clobberfree        int32
+	disablethp          int32
 	dontfreezetheworld int32
 	efence             int32
 	gccheckmark        int32
@@ -342,6 +343,7 @@ var dbgvars = []*dbgVar{
 	{name: "allocfreetrace", value: &debug.allocfreetrace},
 	{name: "clobberfree", value: &debug.clobberfree},
 	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
