@@ -48,7 +48,12 @@ pkg encoding/base64, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8,
 pkg encoding/base64, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
 pkg encoding/hex, func AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
 pkg encoding/hex, func AppendEncode([]uint8, []uint8) []uint8 #53693
+pkg go/ast, func NewPackage //deprecated #52463
 pkg go/ast, func Unparen(Expr) Expr #60061
+pkg go/ast, type Importer //deprecated #52463
+pkg go/ast, type Object //deprecated #52463
+pkg go/ast, type Package //deprecated #52463
+pkg go/ast, type Scope //deprecated #52463
 pkg go/types, func NewAlias(*TypeName, Type) *Alias #63223
 pkg go/types, func Unalias(Type) Type #63223
 pkg go/types, method (*Alias) Obj() *TypeName #63223
