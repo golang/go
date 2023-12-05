@@ -324,16 +324,21 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="encoding"><dt><a href="/pkg/encoding/">encoding</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/53693 -->
-      TODO: <a href="https://go.dev/issue/53693">https://go.dev/issue/53693</a>: provide append-like variants
+    <p><!-- https://go.dev/issue/53693, https://go.dev/cl/504884 -->
+      The new methods <code>AppendEncode</code> and <code>AppendDecode</code> added to
+      each of the <code>Encoding</code> types in the packages
+      <a href="/pkg/encoding/base32"><code>encoding/base32</code></a>,
+      <a href="/pkg/encoding/base64"><code>encoding/base64</code></a>, and
+      <a href="/pkg/encoding/hex"><code>encoding/hex</code></a>
+      simplify encoding and decoding from and to byte slices by taking care of byte slice buffer management.
     </p>
 
-    <p><!-- CL 504884 -->
-      TODO: <a href="https://go.dev/cl/504884">https://go.dev/cl/504884</a>: encoding: add AppendEncode and AppendDecode; modified api/next/53693.txt
-    </p>
-
-    <p><!-- CL 505236 -->
-      TODO: <a href="https://go.dev/cl/505236">https://go.dev/cl/505236</a>: encoding: reject negative runes in Encoding.WithPadding; Providing a negative rune to Encoding.WithPadding other than NoPadding made no semantic sense, and will now panic.
+    <p><!-- https://go.dev/cl/505236 -->
+      The methods
+      <a href="/pkg/encoding/base32#Encoding.WithPadding"><code>base32.Encoding.WithPadding</code></a> and
+      <a href="/pkg/encoding/base64#Encoding.WithPadding"><code>base64.Encoding.WithPadding</code></a>
+      now panic if the <code>padding</code> argument is a negative value other than
+      <code>NoPadding</code>.
     </p>
   </dd>
 </dl><!-- encoding -->
