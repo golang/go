@@ -409,6 +409,17 @@ defer func() {
   </dd>
 </dl><!-- encoding -->
 
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- https://go.dev/cl/521675 -->
+      Marshaling and encoding functionality now escapes
+      <code>'\b'</code> and <code>'\f'</code> characters as
+      <code>\b</code> and <code>\f</code> instead of
+      <code>\u0008</code> and <code>\u000c</code>.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
 <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/52463, https://go/dev/cl/504915 -->
