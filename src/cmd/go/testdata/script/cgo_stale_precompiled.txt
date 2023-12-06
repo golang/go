@@ -29,8 +29,12 @@ env GOROOT_FINAL=$oldGOROOT_FINAL
 # no longer installed anyway! Since we're requiring a C compiler in order to
 # build and use cgo libraries in the standard library, we should make sure it
 # matches what's in the cache.
-[!abscc] env CGO_ENABLED=1
-[!abscc] [!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
-[!abscc] [GOOS:plan9] env path=''
-[!abscc] ! go build -x runtime/cgo
-[!abscc] stderr 'C compiler .* not found'
+
+[abscc] stop
+
+env CGO_ENABLED=1
+env CC=''
+[!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+[GOOS:plan9] env path=''
+! go build -x runtime/cgo
+stderr 'C compiler .* not found'
