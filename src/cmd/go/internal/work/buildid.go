@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -236,10 +237,22 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	}
 
 	version := ""
+	gccVersionRE := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+`)
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
-		if fields := strings.Fields(line); len(fields) > 1 && fields[1] == "version" || len(fields) > 2 && fields[2] == "version" {
-			version = line
+		fields := strings.Fields(line)
+		for i, field := range fields {
+			if strings.HasSuffix(field, ":") {
+				// Avoid parsing fields of lines like "Configured with: …", which may
+				// contain arbitrary substrings.
+				break
+			}
+			if field == "version" && i < len(fields)-1 && gccVersionRE.MatchString(fields[i+1]) {
+				version = line
+				break
+			}
+		}
+		if version != "" {
 			break
 		}
 	}
