@@ -25,7 +25,7 @@ func ExampleFlagSet() {
 
 	stop := func(args []string) {
 		fs := flag.NewFlagSet("stop", flag.ContinueOnError)
-		timeout := fs.Duration("timeout", time.Second, "stop timeout duration (e.g. `3s`)")
+		timeout := fs.Duration("timeout", time.Second, "stop timeout duration")
 		if err := fs.Parse(args); err != nil {
 			fmt.Printf("error: %s", err)
 			return
