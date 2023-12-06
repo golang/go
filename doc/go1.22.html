@@ -580,7 +580,10 @@ defer func() {
     </p>
 
     <p><!-- CL 467335 -->
-      TODO: <a href="https://go.dev/cl/467335">https://go.dev/cl/467335</a>: net: respect hosts file when resolving names for Windows
+      The Go DNS Resolver, used when building the binary with "-tags=netgo",
+      now searches a matching name in the Windows hosts file,
+      located at <code>%SystemRoot%\System32\drivers\etc\hosts</code>,
+      before making a DNS query.
     </p>
   </dd>
 </dl><!-- net -->
