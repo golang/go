@@ -1011,6 +1011,7 @@ next:
 	LDP	-8(R0), (R1, R2)    // 01887fa9
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
+	LDP	8(R1), (ZR, R2)     // 3f8840a9
 	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
 	LDPW	(R0), (R1, R2)      // 01084029
 	LDPW	4(R0), (R1, R2)     // 01884029
@@ -1028,6 +1029,7 @@ next:
 	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
 	LDPW	x(SB), (R1, R2)
 	LDPW	x+8(SB), (R1, R2)
+	LDPW	8(R1), (ZR, R2)     // 3f084129
 	LDPSW	(R0), (R1, R2)      // 01084069
 	LDPSW	4(R0), (R1, R2)     // 01884069
 	LDPSW	-4(R0), (R1, R2)    // 01887f69
@@ -1044,6 +1046,7 @@ next:
 	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
 	LDPSW	x(SB), (R1, R2)
 	LDPSW	x+8(SB), (R1, R2)
+	LDPSW	8(R1), (ZR, R2)     // 3f084169
 	STP	(R3, R4), (R5)      // a31000a9
 	STP	(R3, R4), 8(R5)     // a39000a9
 	STP.W	(R3, R4), 8(R5)     // a39080a9

@@ -7741,7 +7741,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh int16, l
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	case ALDP, ALDPW, ALDPSW:
-		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
+		if rl < REG_R0 || REG_R31 < rl || rh < REG_R0 || REG_R31 < rh {
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	case ASTP, ASTPW:
