@@ -45,7 +45,7 @@ func fmtJSON(x any) string {
 	return string(js)
 }
 
-func TestConvertCPUProfileEmpty(t *testing.T) {
+func TestConvertCPUProfileNoSamples(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
@@ -64,9 +64,13 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
 	}
 
 	// Expected PeriodType and SampleType.
-	sampleType := []*profile.ValueType{{}, {}}
+	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
+	sampleType := []*profile.ValueType{
+		{Type: "samples", Unit: "count"},
+		{Type: "cpu", Unit: "nanoseconds"},
+	}
 
-	checkProfile(t, p, 2000*1000, nil, sampleType, nil, "")
+	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
 }
 
 func f1() { f1() }

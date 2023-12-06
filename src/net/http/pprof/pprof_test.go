@@ -6,12 +6,14 @@ package pprof
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"internal/profile"
 	"internal/testenv"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -260,4 +262,65 @@ func seen(p *profile.Profile, fname string) bool {
 		}
 	}
 	return false
+}
+
+// TestDeltaProfileEmptyBase validates that we still receive a valid delta
+// profile even if the base contains no samples.
+//
+// Regression test for https://go.dev/issue/64566.
+func TestDeltaProfileEmptyBase(t *testing.T) {
+	if testing.Short() {
+		// Delta profile collection has a 1s minimum.
+		t.Skip("skipping in -short mode")
+	}
+
+	testenv.MustHaveGoRun(t)
+
+	gotool, err := testenv.GoTool()
+	if err != nil {
+		t.Fatalf("error finding go tool: %v", err)
+	}
+
+	out, err := testenv.Command(t, gotool, "run", filepath.Join("testdata", "delta_mutex.go")).CombinedOutput()
+	if err != nil {
+		t.Fatalf("error running profile collection: %v\noutput: %s", err, out)
+	}
+
+	// Log the binary output for debugging failures.
+	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(out)))
+	base64.StdEncoding.Encode(b64, out)
+	t.Logf("Output in base64.StdEncoding: %s", b64)
+
+	p, err := profile.Parse(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("Parse got err %v want nil", err)
+	}
+
+	t.Logf("Output as parsed Profile: %s", p)
+
+	if len(p.SampleType) != 2 {
+		t.Errorf("len(p.SampleType) got %d want 2", len(p.SampleType))
+	}
+	if p.SampleType[0].Type != "contentions" {
+		t.Errorf(`p.SampleType[0].Type got %q want "contentions"`, p.SampleType[0].Type)
+	}
+	if p.SampleType[0].Unit != "count" {
+		t.Errorf(`p.SampleType[0].Unit got %q want "count"`, p.SampleType[0].Unit)
+	}
+	if p.SampleType[1].Type != "delay" {
+		t.Errorf(`p.SampleType[1].Type got %q want "delay"`, p.SampleType[1].Type)
+	}
+	if p.SampleType[1].Unit != "nanoseconds" {
+		t.Errorf(`p.SampleType[1].Unit got %q want "nanoseconds"`, p.SampleType[1].Unit)
+	}
+
+	if p.PeriodType == nil {
+		t.Fatal("p.PeriodType got nil want not nil")
+	}
+	if p.PeriodType.Type != "contentions" {
+		t.Errorf(`p.PeriodType.Type got %q want "contentions"`, p.PeriodType.Type)
+	}
+	if p.PeriodType.Unit != "count" {
+		t.Errorf(`p.PeriodType.Unit got %q want "count"`, p.PeriodType.Unit)
+	}
 }
