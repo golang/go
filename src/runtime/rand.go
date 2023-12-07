@@ -223,3 +223,25 @@ func cheaprandn(n uint32) uint32 {
 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
 	return uint32((uint64(cheaprand()) * uint64(n)) >> 32)
 }
+
+// Too much legacy code has go:linkname references
+// to runtime.fastrand and friends, so keep these around for now.
+// Code should migrate to math/rand/v2.Uint64,
+// which is just as fast, but that's only available in Go 1.22+.
+// It would be reasonable to remove these in Go 1.24.
+// Do not call these from package runtime.
+
+//go:linkname legacy_fastrand runtime.fastrand
+func legacy_fastrand() uint32 {
+	return uint32(rand())
+}
+
+//go:linkname legacy_fastrandn runtime.fastrandn
+func legacy_fastrandn(n uint32) uint32 {
+	return randn(n)
+}
+
+//go:linkname legacy_fastrand64 runtime.fastrand64
+func legacy_fastrand64() uint64 {
+	return rand()
+}
