@@ -7,7 +7,16 @@
 [!git] skip
 [!net:github.com] skip 'does not actually use github.com because of insteadOf, but silence network check just in case'
 
-env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
+# Inject a local repo in place of a remote one, so that we can
+# add commits to the repo partway through the test.
 env GIT_ALLOW_PROTOCOL=file
 env GOPRIVATE=github.com/golang/issue53955
 
@@ -64,4 +73,7 @@ package issue53955
 module m
 
 go 1.18
--- $WORK/.gitconfig --
+-- $WORK/home/gopher/.gitconfig --
+[user]
+	name = Go Gopher
+	email = gopher@golang.org
