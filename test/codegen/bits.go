@@ -382,7 +382,6 @@ func signextendAndMask8to64(a int8) (s, z uint64) {
 	// ppc64x: -"MOVB", "ANDCC\t[$]247,"
 	z = uint64(uint8(a)) & 0x3F7
 	return
-
 }
 
 // Verify zero-extended values are not sign-extended under a bit mask (#61297)
@@ -392,7 +391,6 @@ func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
 	// ppc64x: -"MOVH\t", -"ANDCC", "MOVHZ"
 	y = uint64(b) & 0xFFFF
 	return
-
 }
 
 // Verify rotate and mask instructions, and further simplified instructions for small types

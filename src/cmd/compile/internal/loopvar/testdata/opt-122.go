@@ -19,7 +19,6 @@ func inline(j, k int) []*int {
 		a = append(a, &private)
 	}
 	return a
-
 }
 
 //go:noinline
