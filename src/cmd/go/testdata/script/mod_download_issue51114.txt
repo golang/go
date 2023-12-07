@@ -1,8 +1,14 @@
 [!net:github.com] skip
 [!git] skip
-[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
 
-env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
 env GOPROXY=direct
 
 ! go mod download
@@ -15,6 +21,9 @@ go 1.18
 
 require github.com/golang/notexist/subdir v0.1.0
 
--- $WORK/.gitconfig --
+-- $WORK/home/gopher/.gitconfig --
+[user]
+	name = Go Gopher
+	email = gopher@golang.org
 [url "git@github.com:"]
 	insteadOf = https://github.com/
