@@ -660,6 +660,90 @@ func TestDate(t *testing.T) {
 	}
 }
 
+func TestAllSupportedDates(t *testing.T) {
+	dateMax := yearMonthDay{32768, 1, 1}
+	dateMin := yearMonthDay{-32768, 12, 31}
+
+	checkTimeRange(&dateMax, 1, t)
+	checkTimeRange(&dateMin, -1, t)
+}
+
+func checkTimeRange(limit *yearMonthDay, direction int, t *testing.T) {
+	secondsPerDay := int64(24 * 60 * 60)
+
+	want := int64(0)
+	ymd := yearMonthDay{1970, 1, 1}
+
+	for !ymd.equal(limit) {
+		d := ymd.date()
+
+		got := d.Unix() / secondsPerDay
+		if got != want {
+			fmt.Printf("%d/%d/%d", ymd.year, ymd.month, ymd.day)
+			t.Fatalf("got %d, want %d", got, want)
+		}
+
+		ymd.moveDate(direction)
+		want += int64(direction)
+	}
+}
+
+type yearMonthDay struct {
+	year  int32
+	month uint8
+	day   uint8
+}
+
+func (ymd *yearMonthDay) equal(o *yearMonthDay) bool {
+	return ymd.day == o.day && ymd.month == o.month && ymd.year == o.year
+}
+
+func (ymd *yearMonthDay) date() Time {
+	return Date(int(ymd.year), Month(ymd.month), int(ymd.day), 0, 0, 0, 0, UTC)
+}
+
+func (ymd *yearMonthDay) moveDate(direction int) {
+	if direction > 0 {
+		if ymd.day < lastDayOfMonth(ymd.year, ymd.month) {
+			ymd.day++
+		} else {
+			ymd.day = 1
+			if ymd.month == 12 {
+				ymd.month = 1
+				ymd.year++
+			} else {
+				ymd.month++
+			}
+		}
+	} else {
+		if ymd.day > 1 {
+			ymd.day--
+		} else {
+			if ymd.month == 1 {
+				ymd.month = 12
+				ymd.year--
+			} else {
+				ymd.month--
+			}
+			ymd.day = lastDayOfMonth(ymd.year, ymd.month)
+		}
+	}
+}
+
+func lastDayOfMonth(year int32, month uint8) uint8 {
+	if month == 2 {
+		isLeapYear := year%4 == 0 && (year%100 != 0 || year%400 == 0)
+		if isLeapYear {
+			return 29
+		} else {
+			return 28
+		}
+	}
+
+	m := []uint8{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	return m[month]
+}
+
 // Several ways of getting from
 // Fri Nov 18 7:56:35 PST 2011
 // to
@@ -1826,16 +1910,18 @@ func TestZoneBounds(t *testing.T) {
 	}
 
 	// If the zone begins at the beginning of time, start will be returned as a zero Time.
-	// Use math.MinInt32 to avoid overflow of int arguments on 32-bit systems.
-	beginTime := Date(math.MinInt32, January, 1, 0, 0, 0, 0, loc)
+	// Use January 1st -32767 to avoid overflow of int arguments on 32-bit systems.
+	minYear := -32767
+	beginTime := Date(minYear, January, 1, 0, 0, 0, 0, loc)
 	start, end := beginTime.ZoneBounds()
 	if !start.IsZero() || end.IsZero() {
 		t.Errorf("ZoneBounds of %v expects start is zero Time, got:\n  start=%v\n  end=%v", beginTime, start, end)
 	}
 
 	// If the zone goes on forever, end will be returned as a zero Time.
-	// Use math.MaxInt32 to avoid overflow of int arguments on 32-bit systems.
-	foreverTime := Date(math.MaxInt32, January, 1, 0, 0, 0, 0, loc)
+	// Use December 31th 32767 to avoid overflow of int arguments on 32-bit systems.
+	maxYear := 32767
+	foreverTime := Date(maxYear, December, 31, 0, 0, 0, 0, loc)
 	start, end = foreverTime.ZoneBounds()
 	if start.IsZero() || !end.IsZero() {
 		t.Errorf("ZoneBounds of %v expects end is zero Time, got:\n  start=%v\n  end=%v", foreverTime, start, end)
