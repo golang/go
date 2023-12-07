@@ -1008,7 +1008,7 @@ type S struct{ A }
 	}
 
 	got := S.String()
-	const want = "type p.S struct{p.A /* = []int */}"
+	const want = "type p.S struct{p.A}"
 	if got != want {
 		t.Fatalf("got %q; want %q", got, want)
 	}
