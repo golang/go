@@ -635,7 +635,10 @@ defer func() {
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 516555 -->
-      TODO: <a href="https://go.dev/cl/516555">https://go.dev/cl/516555</a>: os: follow all name surrogate reparse points in Stat on Windows
+      On Windows, the <a href="/pkg/os#Stat"><code>Stat</code></a> function now follows all reparse points
+      that link to another named entity in the system.
+      It was previously only following <code>IO_REPARSE_TAG_SYMLINK</code> and
+      <code>IO_REPARSE_TAG_MOUNT_POINT</code> reparse points.
     </p>
 
     <p><!-- https://go.dev/issue/58808 -->
