@@ -388,6 +388,19 @@ defer func() {
   </dd>
 </dl><!-- database/sql -->
 
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61974, CL 469395 -->
+      Constant <code>R_MIPS_PC32</code> is defined for use with MIPS64 systems.
+    </p>
+  </dd>
+  <dd>
+    <p><!-- https://go.dev/issue/63725, CL 537615 -->
+      Additional <code>R_LARCH_*</code> constants are defined for use with LoongArch systems.
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
+
 <dl id="encoding"><dt><a href="/pkg/encoding/">encoding</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/53693, https://go.dev/cl/504884 -->
@@ -809,9 +822,4 @@ defer func() {
 <p><!-- CL 517935 -->
   Go 1.22 adds an experimental port to OpenBSD on big-endian 64-bit PowerPC
   (<code>openbsd/ppc64</code>).
-</p>
-
-
-<p><!-- CL 469395 -->
-  TODO: <a href="https://go.dev/cl/469395">https://go.dev/cl/469395</a>: debug/elf,cmd/link: add additional MIPS64 relocation type; modified api/next/61974.txt
 </p>
