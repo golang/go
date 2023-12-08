@@ -881,6 +881,13 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 	// Type parameters are the only parameter list closed by ']'.
 	tparams := closing == token.RBRACK
 
+	pos0 := p.pos
+	if name0 != nil {
+		pos0 = name0.Pos()
+	} else if typ0 != nil {
+		pos0 = typ0.Pos()
+	}
+
 	// Note: The code below matches the corresponding code in the syntax
 	//       parser closely. Changes must be reflected in either parser.
 	//       For the code to match, we use the local []field list that
@@ -923,14 +930,31 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 	}
 
 	// distribute parameter types (len(list) > 0)
-	if named == 0 && !tparams {
-		// all unnamed and we're not in a type parameter list => found names are type names
+	if named == 0 {
+		// all unnamed => found names are type names
 		for i := 0; i < len(list); i++ {
 			par := &list[i]
 			if typ := par.name; typ != nil {
 				par.typ = typ
 				par.name = nil
 			}
+		}
+		if tparams {
+			// This is the same error handling as below, adjusted for type parameters only.
+			// See comment below for details. (go.dev/issue/64534)
+			var errPos token.Pos
+			var msg string
+			if named == typed /* same as typed == 0 */ {
+				errPos = p.pos // position error at closing ]
+				msg = "missing type constraint"
+			} else {
+				errPos = pos0 // position at opening [ or first name
+				msg = "missing type parameter name"
+				if len(list) == 1 {
+					msg += " or invalid array length"
+				}
+			}
+			p.error(errPos, msg)
 		}
 	} else if named != len(list) {
 		// some named or we're in a type parameter list => all must be named
