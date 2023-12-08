@@ -129,8 +129,6 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
@@ -1493,14 +1491,14 @@ func (v Value) CanInterface() bool {
 // It panics if the Value was obtained by accessing
 // unexported struct fields.
 func (v Value) Interface() (i any) {
-	return valueInterface(v, true)
+	return valueInterface(v)
 }
 
-func valueInterface(v Value, safe bool) any {
+func valueInterface(v Value) any {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Interface", Invalid})
 	}
-	if safe && v.flag&flagRO != 0 {
+	if v.flag&flagRO != 0 {
 		// Do not allow access to unexported values via Interface,
 		// because they might be pointers that should not be
 		// writable or methods or function that should not be callable.
@@ -1522,7 +1520,6 @@ func valueInterface(v Value, safe bool) any {
 		})(v.ptr)
 	}
 
-	// TODO: pass safe to packEface so we don't need to copy if safe==true?
 	return packEface(v)
 }
 
@@ -3340,7 +3337,7 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
 			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
 			return Value{dst, nil, flag(Interface)}
 		}
-		x := valueInterface(v, false)
+		x := valueInterface(v)
 		if target == nil {
 			target = unsafe_New(dst)
 		}
@@ -3811,7 +3808,7 @@ func cvtDirect(v Value, typ Type) Value {
 // convertOp: concrete -> interface
 func cvtT2I(v Value, typ Type) Value {
 	target := unsafe_New(typ.common())
-	x := valueInterface(v, false)
+	x := valueInterface(v)
 	if typ.NumMethod() == 0 {
 		*(*any)(target) = x
 	} else {

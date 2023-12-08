@@ -171,7 +171,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		return v1.Complex() == v2.Complex()
 	default:
 		// Normal equality suffices
-		return valueInterface(v1, false) == valueInterface(v2, false)
+		return valueInterface(v1) == valueInterface(v2)
 	}
 }
 
