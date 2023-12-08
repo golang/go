@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -237,7 +236,6 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	}
 
 	version := ""
-	gccVersionRE := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+`)
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(line)
@@ -247,9 +245,18 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 				// contain arbitrary substrings.
 				break
 			}
-			if field == "version" && i < len(fields)-1 && gccVersionRE.MatchString(fields[i+1]) {
-				version = line
-				break
+			if field == "version" && i < len(fields)-1 {
+				// Check that the next field is plausibly a version number.
+				// We require only that it begins with an ASCII digit,
+				// since we don't know what version numbering schemes a given
+				// C compiler may use. (Clang and GCC mostly seem to follow the scheme X.Y.Z,
+				// but in https://go.dev/issue/64619 we saw "8.3 [DragonFly]", and who knows
+				// what other C compilers like "zig cc" might report?)
+				next := fields[i+1]
+				if len(next) > 0 && next[0] >= '0' && next[0] <= '9' {
+					version = line
+					break
+				}
 			}
 		}
 		if version != "" {
