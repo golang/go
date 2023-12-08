@@ -2445,7 +2445,19 @@ func StructOf(fields []StructField) Type {
 	}
 
 	typ.Str = resolveReflectName(newName(str, "", false, false))
-	typ.TFlag = 0 // TODO: set tflagRegularMemory
+	TFlagRegularMemoryOk := true
+	for _, v := range fields {
+		typ := v.Type.common()
+		if typ.TFlag != abi.TFlagRegularMemory {
+			TFlagRegularMemoryOk = false
+			break
+		}
+	}
+	if TFlagRegularMemoryOk {
+		typ.TFlag = abi.TFlagRegularMemory
+	} else {
+		typ.TFlag = 0
+	}
 	typ.Hash = hash
 	typ.Size_ = size
 	typ.PtrBytes = typeptrdata(&typ.Type)
