@@ -101,23 +101,6 @@ packages that do not have their own test files. Prior to Go 1.22 a
   TODO: <a href="https://go.dev/cl/539016">https://go.dev/cl/539016</a>: go/analysis/passes/loopclosure: disable checker after go1.22.; loopclosure was modified to only not report in files with GoVersion after 1.22.
 </p>
 
-<!-- CL 527095 -->
-<p>
-  <!-- cmd/vet: add defers analysis pass; Add a release note that there is a new defers checker in cmd/vet. -->
-</p>
-
-<!-- https://go.dev/issue/60048 -->
-<p>
-  <!-- time.Since should not be used in defer statement -->
-</p>
-
-<!-- https://go.dev/issue/60448 -->
-<p>
-  <!-- add a new analyzer  for check missing values after append -->
-</p>
-
-<h3 id="vet">Vet</h3>
-
 <h4 id="vet-appends">New warnings for missing values after append</h4>
 
 <p><!-- CL 498416, https://go.dev/issue/60448: add a new analyzer for check missing values after append -->
@@ -302,14 +285,6 @@ defer func() {
     </p>
   </dd>
 </dl><!-- bufio -->
-
-<dl id="cmd"><dt><a href="/pkg/cmd/">cmd</a></dt>
-  <dd>
-    <p><!-- CL 498416 -->
-      TODO: <a href="https://go.dev/cl/498416">https://go.dev/cl/498416</a>: cmd: add a new analyzer for check missing values after append
-    </p>
-  </dd>
-</dl><!-- cmd -->
 
 <dl id="cmp"><dt><a href="/pkg/cmp/">cmp</a></dt>
   <dd>
