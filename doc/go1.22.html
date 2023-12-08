@@ -650,11 +650,22 @@ defer func() {
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 528037 -->
-      TODO: <a href="https://go.dev/cl/528037">https://go.dev/cl/528037</a>: os/exec: fix edge cases in Windows PATH resolution
+      On Windows, <a href="/pkg/os/exec#LookPath"><code>LookPath</code> now
+      ignores empty entries in <code>%PATH%</code>, and returns
+      <code>ErrNotFound</code> (instead of <code>ErrNotExist</code>) if
+      no executable file extension is found to resolve an otherwise-unambiguous
+      name.
     </p>
 
-    <p><!-- CL 528038 -->
-      TODO: <a href="https://go.dev/cl/528038">https://go.dev/cl/528038</a>: os/exec: avoid calling LookPath in cmd.Start for resolved paths
+    <p><!-- CL 528038, CL 527820 -->
+      On Windows, <a href="/pkg/os/exec#Command"><code>Command</code></a> and
+      <a href="/pkg/os/exec#Cmd.Start"><code>Cmd.Start</code></a> no
+      longer call <code>LookPath</code> if the path to the executable is already
+      absolute and has an executable file extension. In addition,
+      <code>Cmd.Start</code> no longer writes the resolved extension back to
+      the <a href="/pkg/os/exec#Cmd.Path"><code>Path</code></a> field,
+      so it is now safe to call the <code>String</code> method concurrently
+      with a call to <code>Start</code>.
     </p>
   </dd>
 </dl><!-- os/exec -->
