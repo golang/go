@@ -3330,3 +3330,27 @@ func TestPipeCloseRace(t *testing.T) {
 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
 	}
 }
+
+func TestRandomLen(t *testing.T) {
+	for range 5 {
+		dir, err := MkdirTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(dir)
+		if len(base) > 10 {
+			t.Errorf("MkdirTemp returned len %d: %s", len(base), base)
+		}
+	}
+	for range 5 {
+		f, err := CreateTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(f.Name())
+		f.Close()
+		if len(base) > 10 {
+			t.Errorf("CreateTemp returned len %d: %s", len(base), base)
+		}
+	}
+}

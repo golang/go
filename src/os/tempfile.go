@@ -19,7 +19,7 @@ import (
 func runtime_rand() uint64
 
 func nextRandom() string {
-	return itoa.Uitoa(uint(runtime_rand()))
+	return itoa.Uitoa(uint(uint32(runtime_rand())))
 }
 
 // CreateTemp creates a new temporary file in the directory dir,
