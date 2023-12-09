@@ -57,3 +57,37 @@ func TestStructOfEmbeddedIfaceMethodCall(t *testing.T) {
 		_ = x.Name()
 	})
 }
+
+func TestIsRegularMemory(t *testing.T) {
+	type args struct {
+		t reflect.Type
+	}
+	type S struct {
+		int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"struct{i int}", args{reflect.TypeOf(struct{ i int }{})}, true},
+		{"struct{}", args{reflect.TypeOf(struct{}{})}, true},
+		{"struct{i int; s S}", args{reflect.TypeOf(struct {
+			i int
+			s S
+		}{})}, true},
+		{"map[int][int]", args{reflect.TypeOf(map[int]int{})}, false},
+		{"[4]chan int", args{reflect.TypeOf([4]chan int{})}, true},
+		{"struct{i int; _ S}", args{reflect.TypeOf(struct {
+			i int
+			_ S
+		}{})}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := reflect.IsRegularMemory(tt.args.t); got != tt.want {
+				t.Errorf("isRegularMemory() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

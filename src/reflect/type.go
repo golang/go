@@ -2167,8 +2167,8 @@ func isRegularMemory(t Type) bool {
 			return isRegularMemory(t.Field(0).Type)
 		default:
 			for i := range num {
-				typ := t.Field(i).Type
-				if !isRegularMemory(typ) {
+				typ := t.Field(i)
+				if typ.Name == "_" || !isRegularMemory(typ.Type) {
 					return false
 				}
 			}
@@ -2473,12 +2473,7 @@ func StructOf(fields []StructField) Type {
 	typ.Str = resolveReflectName(newName(str, "", false, false))
 	TFlagRegularMemoryOk := true
 	for _, v := range fields {
-		typ := v.Type
-		if v.Name == "_" {
-			TFlagRegularMemoryOk = false
-			break
-		}
-		if !isRegularMemory(typ) {
+		if !isRegularMemory(v.Type) {
 			TFlagRegularMemoryOk = false
 			break
 		}
