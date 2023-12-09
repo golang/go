@@ -26,6 +26,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"internal/abi"
+	"internal/buildcfg"
 	"log"
 	"math/bits"
 	"strings"
@@ -2157,25 +2158,41 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
 			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
 		case AMOVB, AMOVH:
-			// Use SLLI/SRAI to extend.
-			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
-			if p.As == AMOVB {
-				ins.imm = 56
-			} else if p.As == AMOVH {
-				ins.imm = 48
+			if buildcfg.GORISCV64 >= 22 {
+				// Use SEXTB or SEXTH to extend.
+				ins.as, ins.rs1, ins.rs2 = ASEXTB, uint32(p.From.Reg), obj.REG_NONE
+				if p.As == AMOVH {
+					ins.as = ASEXTH
+				}
+			} else {
+				// Use SLLI/SRAI sequence to extend.
+				ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+				if p.As == AMOVB {
+					ins.imm = 56
+				} else if p.As == AMOVH {
+					ins.imm = 48
+				}
+				ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+				inss = append(inss, ins2)
 			}
-			ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
-			inss = append(inss, ins2)
 		case AMOVHU, AMOVWU:
-			// Use SLLI/SRLI to extend.
-			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
-			if p.As == AMOVHU {
-				ins.imm = 48
-			} else if p.As == AMOVWU {
-				ins.imm = 32
+			if buildcfg.GORISCV64 >= 22 {
+				// Use ZEXTH or ADDUW to extend.
+				ins.as, ins.rs1, ins.rs2, ins.imm = AZEXTH, uint32(p.From.Reg), obj.REG_NONE, 0
+				if p.As == AMOVWU {
+					ins.as, ins.rs2 = AADDUW, REG_ZERO
+				}
+			} else {
+				// Use SLLI/SRLI sequence to extend.
+				ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+				if p.As == AMOVHU {
+					ins.imm = 48
+				} else if p.As == AMOVWU {
+					ins.imm = 32
+				}
+				ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+				inss = append(inss, ins2)
 			}
-			ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
-			inss = append(inss, ins2)
 		}
 
 	case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
