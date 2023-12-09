@@ -2152,6 +2152,32 @@ func isValidFieldName(fieldName string) bool {
 	return len(fieldName) > 0
 }
 
+func isRegularMemory(t Type) bool {
+	switch t.Kind() {
+	case Array:
+		return isRegularMemory(t.Elem())
+	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Pointer, Bool, UnsafePointer:
+		return true
+	case Struct:
+		num := t.NumField()
+		switch num {
+		case 0:
+			return true
+		case 1:
+			return isRegularMemory(t.Field(0).Type)
+		default:
+			for i := range num {
+				typ := t.Field(i).Type
+				if !isRegularMemory(typ) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // StructOf returns the struct type containing fields.
 // The Offset and Index fields are ignored and computed as they would be
 // by the compiler.
@@ -2447,8 +2473,12 @@ func StructOf(fields []StructField) Type {
 	typ.Str = resolveReflectName(newName(str, "", false, false))
 	TFlagRegularMemoryOk := true
 	for _, v := range fields {
-		typ := v.Type.common()
-		if typ.TFlag != abi.TFlagRegularMemory {
+		typ := v.Type
+		if v.Name == "_" {
+			TFlagRegularMemoryOk = false
+			break
+		}
+		if !isRegularMemory(typ) {
 			TFlagRegularMemoryOk = false
 			break
 		}
