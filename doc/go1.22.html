@@ -239,6 +239,17 @@ defer func() {
   build ID.
 </p>
 
+<p><!-- CL 534555 -->
+  On Windows, when building with <code>-linkmode=internal</code>, the linker now
+  preserves SEH information from C object files by copying the <code>.pdata</code>
+  and <code>.xdata</code> sections into the final binary.
+  This helps with debugging and profiling binaries using native tools, such as WinDbg.
+  Note that until now, C functions' SEH exception handlers were not being honored,
+  so this change may cause some programs to behave differently.
+  <code>-linkmode=external</code> is not affected by this change, as external linkers
+  already preserve SEH information.
+</p>
+
 <h2 id="bootstrap">Bootstrap</h2>
 
 <p>
