@@ -12,39 +12,17 @@ import (
 
 const Enabled = true
 
-func Read(addr unsafe.Pointer, sz uintptr) {
-	read(addr, sz)
-}
+//go:linkname Read runtime.msanread
+func Read(addr unsafe.Pointer, sz uintptr)
 
-func Write(addr unsafe.Pointer, sz uintptr) {
-	write(addr, sz)
-}
+//go:linkname Write runtime.msanwrite
+func Write(addr unsafe.Pointer, sz uintptr)
 
-func Malloc(addr unsafe.Pointer, sz uintptr) {
-	malloc(addr, sz)
-}
+//go:linkname Malloc runtime.msanmalloc
+func Malloc(addr unsafe.Pointer, sz uintptr)
 
-func Free(addr unsafe.Pointer, sz uintptr) {
-	free(addr, sz)
-}
+//go:linkname Free runtime.msanfree
+func Free(addr unsafe.Pointer, sz uintptr)
 
-func Move(dst, src unsafe.Pointer, sz uintptr) {
-	move(dst, src, sz)
-}
-
-// Import private msan functions from runtime.
-//
-//go:linkname read runtime.msanread
-func read(addr unsafe.Pointer, sz uintptr)
-
-//go:linkname write runtime.msanwrite
-func write(addr unsafe.Pointer, sz uintptr)
-
-//go:linkname malloc runtime.msanmalloc
-func malloc(addr unsafe.Pointer, sz uintptr)
-
-//go:linkname free runtime.msanfree
-func free(addr unsafe.Pointer, sz uintptr)
-
-//go:linkname move runtime.msanmove
-func move(dst, src unsafe.Pointer, sz uintptr)
+//go:linkname Move runtime.msanmove
+func Move(dst, src unsafe.Pointer, sz uintptr)
