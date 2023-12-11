@@ -177,13 +177,14 @@ defer func() {
 <p><!-- CL 543255 -->
   The runtime now keeps type-based garbage collection metadata nearer to each
   heap object, improving the CPU performance (latency or throughput) of Go programs
-  by 1&mdash;3%.
+  by 1&ndash;3%.
   This change also reduces the memory overhead of the majority Go programs by
   approximately 1% by deduplicating redundant metadata.
   Some programs may see a smaller improvement because this change adjusts the size
   class boundaries of the memory allocator, so some objects may be moved up a size
   class.
-  <br />
+</p>
+<p>
   A consequence of this change is that some objects' addresses that were previously
   always aligned to a 16 byte (or higher) boundary will now only be aligned to an 8
   byte boundary.
@@ -749,7 +750,8 @@ defer func() {
     <p><!-- https://go.dev/issue/60773 -->
       The execution tracer has been completely overhauled in this release, resolving several long-standing
       issues and paving the way for new use-cases for execution traces.
-      <br />
+    </p>
+    <p>
       Execution traces now use the operating system's clock on most platforms (Windows excluded) so
       it is possible to correlate them with traces produced by lower-level components.
       Execution traces no longer depend on the reliability of the platform's clock to produce a correct trace.
@@ -759,13 +761,15 @@ defer func() {
       Execution traces now contain information about the operating system threads that goroutines executed on.
       The latency impact of starting and stopping execution traces has been dramatically reduced.
       Execution traces may now begin or end during the garbage collection mark phase.
-      <br />
+    </p>
+    <p>
       To allow Go developers to take advantage of these improvements, an experimental
       trace reading package is available at <a href="/pkg/golang.org/x/exp/trace">golang.org/x/exp/trace</a>.
       Note that this package only works on traces produced by programs built with Go 1.22 at the moment.
       Please try out the package and provide feedback on
       <a href="https://github.com/golang/go/issues/62627">the corresponding proposal issue</a>.
-      <br />
+    </p>
+    <p>
       If you experience any issues with the new execution tracer implementation, you may switch back to the
       old implementation by building your Go program with <code>GOEXPERIMENT=noexectracer2</code>.
       If you do, please file an issue, otherwise this option will be removed in a future release.
