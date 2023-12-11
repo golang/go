@@ -112,7 +112,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Terminology: generic parameter = function parameter with a type-parameterized type
 	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, posn, go1_21))
 
-	errorf := func(kind string, tpar, targ Type, arg *operand) {
+	errorf := func(tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
 		targs := u.inferred(tparams)
 		if targs[0] == nil {
@@ -127,7 +127,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
@@ -139,9 +139,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
 		// the more general CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s", targ, arg.expr, tpar)
 		}
 	}
 
@@ -170,7 +170,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			// Collect the indices of untyped arguments and handle them later.
 			if isTyped(arg.typ) {
 				if !u.unify(par.typ, arg.typ, assign) {
-					errorf("type", par.typ, arg.typ, arg)
+					errorf(par.typ, arg.typ, arg)
 					return nil
 				}
 			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
