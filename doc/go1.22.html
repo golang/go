@@ -67,7 +67,20 @@ func main() {
 
 <!-- https://go.dev/issue/60056 -->
 <p>
-  <!-- support vendoring in workspace mode -->
+  Commands in <a href="https://go.dev/ref/mod#workspaces">workspaces</a> can now
+  use a <code>vendor</code> directory containing the dependencies of the
+  workspace. The directory is created by
+  <a href="/pkg/cmd/go#hdr-Make_vendored_copy_of_dependencies"><code>go</code> <code>work</code> <code>vendor</code></a>,
+  and used by build commands when the <code>-mod</code> flag is set to
+	<code>vendor</code>, which is the default when a workspace <code>vendor</code>
+  directory is present.
+</p>
+<p>
+  Note that the <code>vendor</code> directory's contents for a workspace are different
+  from those of a single module: if the directory at the root of a workspace also
+  contains one of the modules in the workspace, its <code>vendor</code> directory
+  can contain the dependencies of either the workspace or of the module,
+  but not both.
 </p>
 
 <!-- CL 518775 -->
