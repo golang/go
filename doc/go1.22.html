@@ -333,8 +333,10 @@ defer func() {
 
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/56381 -->
-      TODO: <a href="https://go.dev/issue/56381">https://go.dev/issue/56381</a>: allow terminating Scanner early cleanly without a final token or an error
+    <p><!-- https://go.dev/issue/56381, CL 498117 -->
+      When a <a href="/pkg/bufio#SplitFunc"><code>SplitFunc</code></a> returns <a href="/pkg/bufio#ErrFinalToken"><code>ErrFinalToken</code></a> with a <code>nil</code> token, <a href="/pkg/bufio#Scanner"><code>Scanner</code></a> will now stop immediately.
+      Previously, it would report a final empty token before stopping, which was usually not desired.
+      Callers that do want to report a final empty token can do so by returning <code>[]byte{}</code> rather than <code>nil</code>.
     </p>
   </dd>
 </dl><!-- bufio -->
