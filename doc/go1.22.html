@@ -655,6 +655,10 @@ defer func() {
       <code>IO_REPARSE_TAG_MOUNT_POINT</code> reparse points.
     </p>
 
+    <p><!-- CL 541015 -->
+      On Windows, passing <a href="/pkg/os#O_SYNC"><code>O_SYNC</code></a> to <a href="/pkg/os#OpenFile"><code>OpenFile</code></a> now causes write operations to go directly to disk, equivalent to <code>O_SYNC</code> on Unix platforms.
+    </p>
+
     <p><!-- https://go.dev/issue/58808 -->
       TODO: <a href="https://go.dev/issue/58808">https://go.dev/issue/58808</a>: arrange zero-copy of os.File and TCPConn to UnixConn
     </p>
@@ -809,15 +813,18 @@ defer func() {
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/60797 -->
-      TODO: <a href="https://go.dev/issue/60797">https://go.dev/issue/60797</a>: undeprecate
+      The <code>syscall</code> package has been <a href="https://golang.org/s/go1.4-syscall">frozen</a> since Go 1.4 and was marked as deprecated in Go 1.11, causing many editors to warn about any use of the package.
+      However, some non-deprecated functionality requires use of the <code>syscall</code> package, such as the <a href="/pkg/os/exec#Cmd"><code>os/exec.Cmd.SysProcAttr</code></a> field.
+      To avoid unnecesary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
+      The package remains frozen to most new functionality, and new code remains encouraged to use <a href="/pkg/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a> or <a href="/pkg/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> where possible.
     </p>
 
     <p><!-- CL 520266 -->
-      TODO: <a href="https://go.dev/cl/520266">https://go.dev/cl/520266</a>: syscall: add support to get pidfd from ForkExec on Linux
+      On Linux, the new <a href="/pkg/syscall#SysProcAttr"><code>SysProcAttr.PidFD</code></a> field allows obtaining a PID FD when starting a child process via <a href="/pkg/syscall#StartProcess"><code>StartProcess</code></a> or <a href="/pkg/os/exec"><code>os/exec</code></a>.
     </p>
 
     <p><!-- CL 541015 -->
-      TODO: <a href="https://go.dev/cl/541015">https://go.dev/cl/541015</a>: syscall: support O_SYNC flag for os.OpenFile on windows
+      On Windows, passing <a href="/pkg/syscall#O_SYNC"><code>O_SYNC</code></a> to <a href="/pkg/syscall#Open"><code>Open</code></a> now causes write operations to go directly to disk, equivalent to <code>O_SYNC</code> on Unix platforms.
     </p>
   </dd>
 </dl><!-- syscall -->
