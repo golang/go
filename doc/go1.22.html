@@ -94,7 +94,9 @@ func main() {
 
 <!-- CL 518776 -->
 <p>
-  <!-- cmd/go: remove conversion of legacy pre-module dependency configs -->
+  <code>go</code> <code>mod</code> <code>init</code> no longer attempts to import
+  module requirements from configuration files for other vendoring tools
+  (such as <code>Gopkg.lock</code>).
 </p>
 
 <!-- CL 495447 -->
