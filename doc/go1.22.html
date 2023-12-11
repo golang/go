@@ -363,32 +363,22 @@ defer func() {
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/43922 -->
-      TODO: <a href="https://go.dev/issue/43922">https://go.dev/issue/43922</a>: implement RFC7627
+    <p><!-- https://go.dev/issue/43922, CL 544155 -->
+      <a href="/pkg/crypto/tls#ConnectionState.ExportKeyingMaterial"><code>ConnectionState.ExportKeyingMaterial</code></a> will now
+      return an error unless TLS 1.3 is in use, or the <code>extended_master_secret</code> extension is supported by both the server and
+      client. <code>crypto/tls</code> has supported this extension since Go 1.20. This can be disabled with the
+      <code>tlsunsafeekm=1</code> GODEBUG setting.
     </p>
 
-    <p><!-- https://go.dev/issue/62459 -->
-      TODO: <a href="https://go.dev/issue/62459">https://go.dev/issue/62459</a>: make default minimum version for servers TLS 1.2
+    <p><!-- https://go.dev/issue/62459, CL 541516 -->
+      By default, the minimum version offered by <code>crypto/tls</code> servers is now TLS 1.2 if not specified with
+      <a href="/pkg/crypto/tls#Config.MinimumVersion"><code>config.MinimumVersion</code></a>, matching the behavior of <code>crypto/tls</code>
+      clients. This change can be reverted with the <code>tls10server=1</code> GODEBUG setting.
     </p>
 
-    <p><!-- https://go.dev/issue/63413 -->
-      TODO: <a href="https://go.dev/issue/63413">https://go.dev/issue/63413</a>: disable RSA key exchange cipher suites by default
-    </p>
-
-    <p><!-- CL 514997 -->
-      TODO: <a href="https://go.dev/cl/514997">https://go.dev/cl/514997</a>: crypto/tls: change SendSessionTicket to take an options struct; modified api/go1.21.txt
-    </p>
-
-    <p><!-- CL 541516 -->
-      TODO: <a href="https://go.dev/cl/541516">https://go.dev/cl/541516</a>: crypto/tls: change default minimum version to 1.2
-    </p>
-
-    <p><!-- CL 541517 -->
-      TODO: <a href="https://go.dev/cl/541517">https://go.dev/cl/541517</a>: crypto/tls: remove RSA KEX ciphers from the default list
-    </p>
-
-    <p><!-- CL 544155 -->
-      TODO: <a href="https://go.dev/cl/544155">https://go.dev/cl/544155</a>: crypto/tls: disable ExportKeyingMaterial without EMS
+    <p><!-- https://go.dev/issue/63413, CL 541517 -->
+      By default, cipher suites without ECDHE support are no longer offered by either clients or servers during pre-TLS 1.3
+      handshakes. This change can be reverted with the <code>tlsrsakex=1</code> GODEBUG setting.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
@@ -396,23 +386,25 @@ defer func() {
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/57178 -->
-      TODO: <a href="https://go.dev/issue/57178">https://go.dev/issue/57178</a>: support code-constrained roots
+      The new <a href="/pkg/crypto/x509#CertPool.AddCertWithConstraint"><code>CertPool.AddCertWithConstraint</code></a>
+      method can be used to add customized constraints to root certificates to be applied during chain building.
     </p>
 
-    <p><!-- https://go.dev/issue/58922 -->
-      TODO: <a href="https://go.dev/issue/58922">https://go.dev/issue/58922</a>: add android user trusted CA folder as a possible source for certificate retrieval
+    <p><!-- https://go.dev/issue/58922, CL 519315-->
+      On Android, root certificates will now be loaded from <code>/data/misc/keychain/certs-added</code> as well as <code>/system/etc/security/cacerts</code>.
     </p>
 
-    <p><!-- https://go.dev/issue/60665 -->
-      TODO: <a href="https://go.dev/issue/60665">https://go.dev/issue/60665</a>: introduce new robust OID type &amp; use it for certificate policies
-    </p>
+    <p><!-- https://go.dev/issue/60665, CL 520535 -->
+      A new type, <a href="/pkg/crypto/x509#OID"><code>OID</code></a>, supports ASN.1 Object Identifiers with individual
+      components larger than 31 bits. A new field which uses this type, <a href="/pkg/crypto/x509#Certificate.Policies"><code>Policies</code></a>,
+      is added to the <code>Certificate</code> struct, and is now populated during parsing. Any OIDs which cannot be represented
+      using a <a href="/pkg/encoding/asn1#ObjectIdentifier"><code>asn1.ObjectIdentifier</code></a> will appear in <code>Policies</code>,
+      but not in the old <code>PolicyIdentifiers</code> field.
 
-    <p><!-- CL 519315 -->
-      TODO: <a href="https://go.dev/cl/519315">https://go.dev/cl/519315</a>: crypto/x509: implement AddCertWithConstraint; modified api/next/57178.txt
-    </p>
-
-    <p><!-- CL 520535 -->
-      TODO: <a href="https://go.dev/cl/520535">https://go.dev/cl/520535</a>: crypto/x509: add new OID type and use it in Certificate; modified api/next/60665.txt
+      When calling <a href="/pkg/crypto/x509#CreateCertificate"><code>CreateCertificate</code></a>, the <code>Policies</code> field is ignored, and
+      policies are taken from the <code>PolicyIdentifiers</code> field. Using the <code>x509usepolicies=1</code> GODEBUG setting inverts this,
+      populating certificate policies from the <code>Policies</code> field, and ignoring the <code>PolicyIdentifiers</code> field. We may change the
+      default value of <code>x509usepolicies</code> in Go 1.23, making <code>Policies</code> the default field for marshaling.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
