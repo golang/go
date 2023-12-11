@@ -2156,7 +2156,7 @@ func isRegularMemory(t Type) bool {
 	switch t.Kind() {
 	case Array:
 		return isRegularMemory(t.Elem())
-	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uintptr, Chan, Pointer, Bool, UnsafePointer:
+	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Chan, Pointer, Bool, UnsafePointer:
 		return true
 	case Struct:
 		num := t.NumField()
@@ -2167,8 +2167,8 @@ func isRegularMemory(t Type) bool {
 			return isRegularMemory(t.Field(0).Type)
 		default:
 			for i := range num {
-				typ := t.Field(i)
-				if typ.Name == "_" || !isRegularMemory(typ.Type) || !isPaddedField(t, i) {
+				field := t.Field(i)
+				if field.Name == "_" || !isRegularMemory(field.Type) || !isPaddedField(t, i) {
 					return false
 				}
 			}
@@ -2182,11 +2182,10 @@ func isRegularMemory(t Type) bool {
 // by padding.
 func isPaddedField(t Type, i int) bool {
 	field := t.Field(i)
-	end := field.Offset
 	if i+1 < t.NumField() {
-		return end+field.Type.Size() == t.Field(i+1).Offset
+		return field.Offset+field.Type.Size() == t.Field(i+1).Offset
 	}
-	return true
+	return field.Offset+field.Type.Size() == t.Size()
 }
 
 // StructOf returns the struct type containing fields.
@@ -2482,17 +2481,8 @@ func StructOf(fields []StructField) Type {
 	}
 
 	typ.Str = resolveReflectName(newName(str, "", false, false))
-	TFlagRegularMemoryOk := true
-	for _, v := range fields {
-		if !isRegularMemory(v.Type) {
-			TFlagRegularMemoryOk = false
-			break
-		}
-	}
-	if TFlagRegularMemoryOk {
+	if isRegularMemory(toType(&typ.Type)) {
 		typ.TFlag = abi.TFlagRegularMemory
-	} else {
-		typ.TFlag = 0
 	}
 	typ.Hash = hash
 	typ.Size_ = size

@@ -86,6 +86,10 @@ func TestIsRegularMemory(t *testing.T) {
 			a int16
 			b int32
 		}{})}, false},
+		{"struct { x int32; y int16}", args{reflect.TypeOf(struct {
+			x int32
+			y int16
+		}{})}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
