@@ -324,6 +324,14 @@ defer func() {
   </dd>
 </dl><!-- archive/tar -->
 
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54898 -->
+      TODO: <a href="https://go.dev/issue/54898">https://go.dev/issue/54898</a>: archive/zip: add (*Writer).AddFS
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/56381 -->
@@ -480,6 +488,10 @@ defer func() {
       package to resolve identifiers;
       see <code>Object</code>, <code>Info.Uses</code>,
       and <code>Info.Defs</code> for details.
+    </p>
+
+    <p><!-- https://go.dev/issue/60061 -->
+      TODO: <a href="https://go.dev/issue/60061">https://go.dev/issue/60061</a>: go/ast: add func Unparen(Expr) Expr
     </p>
   </dd>
 </dl><!-- go/ast -->
@@ -699,11 +711,14 @@ defer func() {
       These changes make <code>IsZero</code> consistent with comparing
       a value to zero using the language <code>==</code> operator.
     </p>
-  </dd>
-  <dd>
+
     <p><!-- https://go.dev/issue/59599, CL 511035 -->
       The <a href="/pkg/reflect/#PtrTo"><code>PtrTo</code></a> function is deprecated,
       in favor of <a href="/pkg/reflect/#PointerTo"><code>PointerTo</code></a>.
+    </p>
+
+    <p><!-- https://go.dev/issue/60088 -->
+      TODO: <a href="https://go.dev/issue/60088">https://go.dev/issue/60088</a>: reflect: add TypeFor
     </p>
   </dd>
 </dl><!-- reflect -->
@@ -819,7 +834,7 @@ defer func() {
       The package remains frozen to most new functionality, and new code remains encouraged to use <a href="/pkg/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a> or <a href="/pkg/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> where possible.
     </p>
 
-    <p><!-- CL 520266 -->
+    <p><!-- https://go.dev/issue/51246, CL 520266 -->
       On Linux, the new <a href="/pkg/syscall#SysProcAttr"><code>SysProcAttr.PidFD</code></a> field allows obtaining a PID FD when starting a child process via <a href="/pkg/syscall#StartProcess"><code>StartProcess</code></a> or <a href="/pkg/os/exec"><code>os/exec</code></a>.
     </p>
 
