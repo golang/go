@@ -7,7 +7,6 @@ package net
 import (
 	"errors"
 	"fmt"
-	"internal/testenv"
 	"io"
 	"os"
 	"runtime"
@@ -166,19 +165,7 @@ func TestDialTimeoutMaxDuration(t *testing.T) {
 	}
 }
 
-var acceptTimeoutTests = []struct {
-	timeout time.Duration
-	xerrs   [2]error // expected errors in transition
-}{
-	// Tests that accept deadlines in the past work, even if
-	// there's incoming connections available.
-	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
-
-	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
-}
-
 func TestAcceptTimeout(t *testing.T) {
-	testenv.SkipFlaky(t, 17948)
 	t.Parallel()
 
 	switch runtime.GOOS {
@@ -186,49 +173,62 @@ func TestAcceptTimeout(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t, "tcp")
-	defer ln.Close()
-
-	var wg sync.WaitGroup
-	for i, tt := range acceptTimeoutTests {
-		if tt.timeout < 0 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				d := Dialer{Timeout: 100 * time.Millisecond}
-				c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				c.Close()
-			}()
-		}
-
-		if err := ln.(*TCPListener).SetDeadline(time.Now().Add(tt.timeout)); err != nil {
-			t.Fatalf("$%d: %v", i, err)
-		}
-		for j, xerr := range tt.xerrs {
-			for {
-				c, err := ln.Accept()
-				if xerr != nil {
-					if perr := parseAcceptError(err); perr != nil {
-						t.Errorf("#%d/%d: %v", i, j, perr)
-					}
-					if !isDeadlineExceeded(err) {
-						t.Fatalf("#%d/%d: %v", i, j, err)
-					}
-				}
-				if err == nil {
-					c.Close()
-					time.Sleep(10 * time.Millisecond)
-					continue
-				}
-				break
-			}
-		}
+	timeouts := []time.Duration{
+		-5 * time.Second,
+		10 * time.Millisecond,
 	}
-	wg.Wait()
+
+	for _, timeout := range timeouts {
+		timeout := timeout
+		t.Run(fmt.Sprintf("%v", timeout), func(t *testing.T) {
+			t.Parallel()
+
+			ln := newLocalListener(t, "tcp")
+			defer ln.Close()
+
+			if timeout >= 0 {
+				// Don't dial the listener at all, so that Accept will hang.
+			} else {
+				// A deadline in the past should cause Accept to fail even if there are
+				// incoming connections available. Try to make one available before the
+				// call to Accept happens. (It's ok if the timing doesn't always work
+				// out that way, though: the test should pass regardless.)
+				dialDone := make(chan struct{})
+				t.Cleanup(func() { <-dialDone })
+
+				go func() {
+					defer close(dialDone)
+					d := Dialer{}
+					c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					c.Close()
+				}()
+
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if err := ln.(*TCPListener).SetDeadline(time.Now().Add(timeout)); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("ln.SetDeadline(time.Now().Add(%v))", timeout)
+
+			c, err := ln.Accept()
+			if err == nil {
+				c.Close()
+			}
+			t.Logf("ln.Accept: %v", err)
+
+			if perr := parseAcceptError(err); perr != nil {
+				t.Error(perr)
+			}
+			if !isDeadlineExceeded(err) {
+				t.Error("wanted deadline exceeded")
+			}
+		})
+	}
 }
 
 func TestAcceptTimeoutMustReturn(t *testing.T) {
