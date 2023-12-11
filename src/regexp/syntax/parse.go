@@ -1255,17 +1255,33 @@ Loop:
 	return "", &Error{ErrInvalidPerlOp, s[:len(s)-len(t)]}
 }
 
-// isValidCaptureName reports whether name
-// is a valid capture name: [A-Za-z0-9_]+.
-// PCRE limits names to 32 bytes.
-// Python rejects names starting with digits.
-// We don't enforce either of those.
+// Returns whether name is a valid capture name.
 func isValidCaptureName(name string) bool {
 	if name == "" {
 		return false
 	}
+
+	// Historically, we effectively used [0-9A-Za-z_]+ to validate; that
+	// followed Python 2 except for not restricting the first character.
+	// As of Python 3, Unicode characters beyond ASCII are also allowed;
+	// accordingly, we permit the Lu, Ll, Lt, Lm, Lo, Nl, Mn, Mc, Nd and
+	// Pc categories, but again without restricting the first character.
+	// Also, Unicode normalization (e.g. NFKC) isn't performed: Python 3
+	// performs it for identifiers, but seemingly not for capture names;
+	// if they start doing that for capture names, we won't follow suit.
 	for _, c := range name {
-		if c != '_' && !isalnum(c) {
+		if !unicode.In(c,
+			unicode.Lu,
+			unicode.Ll,
+			unicode.Lt,
+			unicode.Lm,
+			unicode.Lo,
+			unicode.Nl,
+			unicode.Mn,
+			unicode.Mc,
+			unicode.Nd,
+			unicode.Pc,
+		) {
 			return false
 		}
 	}
