@@ -568,12 +568,8 @@ defer func() {
 
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/61870 -->
-      TODO: <a href="https://go.dev/issue/61870">https://go.dev/issue/61870</a>: add SectionReader.Outer method
-    </p>
-
-    <p><!-- CL 526855 -->
-      TODO: <a href="https://go.dev/cl/526855">https://go.dev/cl/526855</a>: io: add (*SectionReader).Outer(); modified api/next/61870.txt
+    <p><!-- https://go.dev/issue/61870, CL 526855 -->
+      The new <a href="/pkg/io#SectionReader.Outer"><code>SectionReader.Outer</code></a> method returns the <a href="/pkg/io#ReaderAt"><code>ReaderAt</code></a>, offset, and size passed to <a href="/pkg/io#NewSectionReader"><code>NewSectionReader</code></a>.
     </p>
   </dd>
 </dl><!-- io -->
