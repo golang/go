@@ -2168,7 +2168,7 @@ func isRegularMemory(t Type) bool {
 		default:
 			for i := range num {
 				typ := t.Field(i)
-				if typ.Name == "_" || !isRegularMemory(typ.Type) {
+				if typ.Name == "_" || !isRegularMemory(typ.Type) || !isPaddedField(t, i) {
 					return false
 				}
 			}
@@ -2176,6 +2176,17 @@ func isRegularMemory(t Type) bool {
 		}
 	}
 	return false
+}
+
+// isPaddedField reports whether the i'th field of struct type t is followed
+// by padding.
+func isPaddedField(t Type, i int) bool {
+	field := t.Field(i)
+	end := field.Offset
+	if i+1 < t.NumField() {
+		return end+field.Type.Size() == t.Field(i+1).Offset
+	}
+	return true
 }
 
 // StructOf returns the struct type containing fields.
