@@ -83,14 +83,13 @@ func main() {
   but not both.
 </p>
 
-<!-- CL 518775 -->
+<!-- CL 518775, https://go.dev/issue/60915 -->
 <p>
-  <!-- cmd/go: delete GOPATH-mode get -->
-</p>
-
-<!-- https://go.dev/issue/60915 -->
-<p>
-  <!-- preserve basic GOPATH mode indefinitely -->
+  <code>go</code> <code>get</code> is no longer supported outside of a module in the
+  legacy <code>GOPATH</code> mode (that is, with <code>GO111MODULE=off</code>).
+  Other build commands, such as <code>go</code> <code>build</code> and
+  <code>go</code> <code>test</code>, will continue to work indefinitely
+  for legacy <code>GOPATH</code> programs.
 </p>
 
 <!-- CL 518776 -->
