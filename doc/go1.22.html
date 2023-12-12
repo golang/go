@@ -717,7 +717,9 @@ defer func() {
     <p><!-- https://go.dev/issue/60088, CL 513478 -->
       The new function <a href="/pkg/reflect/#TypeFor"><code>TypeFor</code></a>
       returns the <a href="/pkg/reflect/#Type"><code>Type</code></a> that represents
-      the type argument T.
+      the type argument T. Previously, to get the element type, one had to use
+      <code>reflect.TypeOf((*T)(nil)).Elem()</code>, this can now be written quite
+      nicely with <code>reflect.TypeFor[T]()</code>.
     </p>
   </dd>
 </dl><!-- reflect -->
