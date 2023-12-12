@@ -2164,11 +2164,15 @@ func isRegularMemory(t Type) bool {
 		case 0:
 			return true
 		case 1:
-			return isRegularMemory(t.Field(0).Type)
+			field := t.Field(0)
+			if field.Name == "_" {
+				return false
+			}
+			return isRegularMemory(field.Type)
 		default:
 			for i := range num {
 				field := t.Field(i)
-				if field.Name == "_" || !isRegularMemory(field.Type) || !isPaddedField(t, i) {
+				if field.Name == "_" || !isRegularMemory(field.Type) || isPaddedField(t, i) {
 					return false
 				}
 			}
@@ -2183,9 +2187,9 @@ func isRegularMemory(t Type) bool {
 func isPaddedField(t Type, i int) bool {
 	field := t.Field(i)
 	if i+1 < t.NumField() {
-		return field.Offset+field.Type.Size() == t.Field(i+1).Offset
+		return field.Offset+field.Type.Size() != t.Field(i+1).Offset
 	}
-	return field.Offset+field.Type.Size() == t.Size()
+	return field.Offset+field.Type.Size() != t.Size()
 }
 
 // StructOf returns the struct type containing fields.
