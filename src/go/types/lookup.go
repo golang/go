@@ -447,8 +447,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				// Add package information to disambiguate (go.dev/issue/54258).
 				fs, ms = check.funcString(f, true), check.funcString(m, true)
 			}
-			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
-				m.Name(), fs, ms)
+			if fs == ms {
+				// We still have "want Foo, have Foo".
+				// This is most likely due to different type parameters with
+				// the same name appearing in the instantiated signatures
+				// (go.dev/issue/61685).
+				// Rather than reporting this misleading error cause, for now
+				// just point out that the method signature is incorrect.
+				// TODO(gri) should find a good way to report the root cause
+				*cause = check.sprintf("(wrong type for method %s)", m.Name())
+				break
+			}
+			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
 		case ambigSel:
 			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
 		case ptrRecv:
