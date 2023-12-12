@@ -503,18 +503,22 @@ defer func() {
       The new <a href="/pkg/go/types#Alias"><code>Alias</code></a> type represents type aliases.
       Previously, type aliases were not represented explicitly, so a reference to a type alias was equivalent
       to spelling out the aliased type, and the name of the alias was lost.
-      The new representation retains the intermediate Alias.
-      This enables improved error reporting (the name of an alias can be reported), and allows for better handling
+      The new representation retains the intermediate <code>Alias</code>.
+      This enables improved error reporting (the name of a type alias can be reported), and allows for better handling
       of cyclic type declarations involving type aliases.
       In a future release, <code>Alias</code> types will also carry <a href="https://go.dev/issue/46477">type parameter information</a>.
       The new function <a href="/pkg/go/types#Unalias"><code>Unalias</code></a> returns the actual type denoted by an
       <code>Alias</code> type (or any other <a href="/pkg/go/types#Type"><code>Type</code></a> for that matter).
+    </p>
+    <p>
       Because <code>Alias</code> types may break existing type switches that do not know to check for them,
       this functionality is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>gotypesalias</code>.
       With <code>gotypesalias=0</code>, everything behaves as before, and <code>Alias</code> types are never created.
       With <code>gotypesalias=1</code>, <code>Alias</code> types are created and clients must expect them.
       The default is <code>gotypesalias=0</code>.
       In a future release, the default will be changed to <code>gotypesalias=1</code>.
+      <em>Clients of <a href="/pkg/go/types"><code>go/types</code></a> are urged to adjust their code as soon as possible
+      to work with <code>gotypesalias=1</code> to eliminate problems early.</em>
     </p>
 
     <p><!-- https://go.dev/issue/62605, CL 540056 -->
