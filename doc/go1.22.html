@@ -691,6 +691,15 @@ defer func() {
       On Windows, passing <a href="/pkg/os#O_SYNC"><code>O_SYNC</code></a> to <a href="/pkg/os#OpenFile"><code>OpenFile</code></a> now causes write operations to go directly to disk, equivalent to <code>O_SYNC</code> on Unix platforms.
     </p>
 
+    <p><!-- CL 452995 -->
+      On Windows, the <a href="/pkg/os#ReadDir"><code>ReadDir</code></a>,
+      <a href="/pkg/os#File.ReadDir"><code>File.ReadDir</code></a>,
+      <a href="/pkg/os#File.Readdir"><code>File.Readdir</code></a>,
+      and <a href="/pkg/os#File.Readdirnames"><code>File.Readdirnames</code></a> functions
+      now read directory entries in batches to reduce the number of system calls,
+      improving performance up to 30%.
+    </p>
+
     <p><!-- https://go.dev/issue/58808 -->
       When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
       from a <code>File</code> to a <code>net.UnixConn</code>,
