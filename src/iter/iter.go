@@ -14,8 +14,7 @@ package iter
 import (
 	"internal/race"
 	"unsafe"
-	_ "unsafe"
-) // for linkname
+)
 
 // Seq is an iterator over sequences of individual values.
 // When called as seq(yield), seq calls yield(v) for each value v in the sequence,
