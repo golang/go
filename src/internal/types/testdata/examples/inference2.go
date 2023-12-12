@@ -27,9 +27,9 @@ var (
 	_  func(int) int = f3[int]
 
 	v6 func(int, int)     = f4
-	v7 func(int, string)  = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
+	v7 func(int, string)  = f4 // ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of v7"
 	v8 func(int) []int    = f5
-	v9 func(string) []int = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
+	v9 func(string) []int = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of v9"
 
 	_, _ func(int) = f1, f1
 	_, _ func(int) = f1, f2 // ERROR "cannot infer P"
@@ -49,13 +49,13 @@ func _() {
 	v5 = f3[int]
 
 	v6 = f4
-	v7 = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
+	v7 = f4 // ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of v7"
 	v8 = f5
-	v9 = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
+	v9 = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of v9"
 
 	// non-trivial LHS
 	var a [2]func(string) []int
-	a[0] = f5 // ERROR "type func(string) []int of a[0] does not match inferred type func(string) []string for func(P) []P"
+	a[0] = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of a[0]"
 }
 
 // Return statements
@@ -66,11 +66,11 @@ func _() func(int) int { return f3[int] }
 
 func _() func(int, int) { return f4 }
 func _() func(int, string) {
-	return f4 /* ERROR "type func(int, string) of result variable does not match inferred type func(int, int) for func(P, P)" */
+	return f4 /* ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of result variable" */
 }
 func _() func(int) []int { return f5 }
 func _() func(string) []int {
-	return f5 /* ERROR "type func(string) []int of result variable does not match inferred type func(string) []string for func(P) []P" */
+	return f5 /* ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of result variable" */
 }
 
 func _() (_, _ func(int)) { return f1, f1 }

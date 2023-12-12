@@ -13,4 +13,4 @@ func g[P any](P, string) {}
 // be identical to match).
 // The result is an error from type inference, rather than an
 // error from an assignment mismatch.
-var f func(int, String) = g // ERROR "type func(int, String) of f does not match inferred type func(int, string) for func(P, string)"
+var f func(int, String) = g // ERROR "inferred type func(int, string) for func(P, string) does not match type func(int, String) of f"

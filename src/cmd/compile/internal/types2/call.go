@@ -87,6 +87,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		//
 		var args []*operand
 		var params []*Var
+		var reverse bool
 		if T != nil && sig.tparams != nil {
 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
 				if inst != nil {
@@ -102,13 +103,14 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 			// that makes sense when reported in error messages from infer, below.
 			expr := syntax.NewName(x.Pos(), T.desc)
 			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
+			reverse = true
 		}
 
 		// Rename type parameters to avoid problems with recursive instantiations.
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args)
+		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -608,7 +610,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call.Pos(), tparams, targs, sigParams, args)
+		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.

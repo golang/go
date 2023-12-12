@@ -6,8 +6,8 @@ package p
 
 func f[P any](P) P { panic(0) }
 
-var v func(string) int = f // ERROR "type func(string) int of v does not match inferred type func(string) string for func(P) P"
+var v func(string) int = f // ERROR "inferred type func(string) string for func(P) P does not match type func(string) int of v"
 
 func _() func(string) int {
-	return f // ERROR "type func(string) int of result variable does not match inferred type func(string) string for func(P) P"
+	return f // ERROR "inferred type func(string) string for func(P) P does not match type func(string) int of result variable"
 }
