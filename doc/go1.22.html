@@ -620,19 +620,24 @@ defer func() {
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/51971 -->
-      TODO: <a href="https://go.dev/issue/51971">https://go.dev/issue/51971</a>: add ServeFileFS, FileServerFS, NewFileTransportFS
+      The new functions
+      <a href="/pkg/net/http#ServeFileFS"><code>ServeFileFS</code></a>,
+      <a href="/pkg/net/http#FileServerFS"><code>FileServerFS</code></a>, and
+      <a href="/pkg/net/http#NewFileTransportFS"><code>NewFileTransportFS</code></a>
+      are versions of the existing
+      <code>ServeFile</code>, <code>FileServer</code>, and <code>NewFileTransport</code>,
+      operating on an <code>fs.FS</code>.
     </p>
 
     <p><!-- https://go.dev/issue/61410 -->
       TODO: <a href="https://go.dev/issue/61410">https://go.dev/issue/61410</a>: enhanced ServeMux routing
     </p>
 
-    <p><!-- CL 513956 -->
-      TODO: <a href="https://go.dev/cl/513956">https://go.dev/cl/513956</a>: net/http: add ServeFileFS, FileServerFS, NewFileTransportFS; modified api/next/51971.txt
-    </p>
-
-    <p><!-- CL 517336 -->
-      TODO: <a href="https://go.dev/cl/517336">https://go.dev/cl/517336</a>: net/http: disallow empty Content-Length header
+    <p><!-- https://go.dev/issue/61679 -->
+      The HTTP server and client now reject requests and responses containing
+      an invalid empty <code>Content-Length</code> header.
+      The previous behavior may be restored by setting
+      <a href="/doc/godebug"><code>GODEBUG</code></a> field <code>httplaxcontentlength=1</code>.
     </p>
 
     <p><!-- CL 528355 -->
