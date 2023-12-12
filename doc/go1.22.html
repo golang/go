@@ -602,7 +602,10 @@ defer func() {
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/58808 -->
-      TODO: <a href="https://go.dev/issue/58808">https://go.dev/issue/58808</a>: arrange zero-copy of os.File and TCPConn to UnixConn
+      When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
+      from a <code>TCPConn</code> to a <code>UnixConn</code>,
+      it will now use Linux's <code>sendfile(2)</code> system call if possible,
+      using the new method <a href="/pkg/net#TCPConn.WriteTo"><code>TCPConn.WriteTo</code></a>.
     </p>
 
     <p><!-- CL 467335 -->
@@ -672,7 +675,10 @@ defer func() {
     </p>
 
     <p><!-- https://go.dev/issue/58808 -->
-      TODO: <a href="https://go.dev/issue/58808">https://go.dev/issue/58808</a>: arrange zero-copy of os.File and TCPConn to UnixConn
+      When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
+      from a <code>File</code> to a <code>net.UnixConn</code>,
+      it will now use Linux's <code>sendfile(2)</code> system call if possible,
+      using the new method <a href="/pkg/os#File.WriteTo"><code>File.WriteTo</code></a>.
     </p>
   </dd>
 </dl><!-- os -->
