@@ -10,6 +10,7 @@ git init
 at 2021-08-11T13:52:00-04:00
 git add cmd
 git commit -m 'add cmd/issue47650'
+git branch -m main
 git tag v0.1.0
 
 git add go.mod
