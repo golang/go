@@ -621,8 +621,8 @@ defer func() {
     </p>
 
     <p><!-- CL 467335 -->
-      The Go DNS Resolver, used when building the binary with "-tags=netgo",
-      now searches a matching name in the Windows hosts file,
+      The Go DNS Resolver, used when building with "-tags=netgo",
+      now searches for a matching name in the Windows hosts file,
       located at <code>%SystemRoot%\System32\drivers\etc\hosts</code>,
       before making a DNS query.
     </p>
