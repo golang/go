@@ -219,6 +219,18 @@ defer func() {
   14% improvement from enabling PGO.
 </p>
 
+<p><!-- https://go.dev/cl/528321 -->
+  The compiler now interleaves devirtualization and inlining, so interface
+  method calls are better optimized.
+</p>
+
+<p><!-- https://go.dev/issue/61502 -->
+  Go 1.22 also includes a preview of an enhanced implementation of the compiler's inlining phase that uses heuristics to boost inlinability at call sites deemed "important" (for example, in loops) and discourage inlining at call sites deemed "unimportant" (for example, on panic paths).
+  Building with <code>GOEXPERIMENT=newinliner</code> enables the new call-site
+  heuristics; see <a href="https://go.dev/issue/61502">issue #61502</a> for
+  more info and to provide feedback.
+</p>
+
 <h2 id="linker">Linker</h2>
 
 <p><!-- CL 493136 -->
