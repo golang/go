@@ -22,6 +22,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -5537,7 +5538,7 @@ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) 
 	i := s.expr(fn.X)
 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
 	s.nilCheck(itab)
-	itabidx := fn.Offset() + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
+	itabidx := fn.Offset() + rttype.ITab.OffsetOf("Fun")
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
@@ -6522,7 +6523,7 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 		targetItab = s.expr(n.ITab)
 		// TODO(mdempsky): Investigate whether compiling n.RType could be
 		// better than loading itab.typ.
-		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), targetItab)) // itab.typ
+		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), targetItab))
 	} else {
 		target = s.expr(n.RType)
 	}
@@ -6580,7 +6581,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 					return
 				}
 				// Load type out of itab, build interface with existing idata.
-				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+				off := s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab)
 				typ := s.load(byteptr, off)
 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
 				res = s.newValue2(ssa.OpIMake, dst, typ, idata)
@@ -6590,7 +6591,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			s.startBlock(bOk)
 			// nonempty -> empty
 			// Need to load type from itab
-			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+			off := s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab)
 			s.vars[typVar] = s.load(byteptr, off)
 			s.endBlock()
 
@@ -6644,7 +6645,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		s.startBlock(bNonNil)
 		typ := itab
 		if !src.IsEmptyInterface() {
-			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab))
+			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab))
 		}
 
 		// Check the cache first.
@@ -6685,9 +6686,9 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				// Load hash from type or itab.
 				var hash *ssa.Value
 				if src.IsEmptyInterface() {
-					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, typ), s.mem())
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, rttype.Type.OffsetOf("Hash"), typ), s.mem())
 				} else {
-					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, itab), s.mem())
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, rttype.ITab.OffsetOf("Hash"), itab), s.mem())
 				}
 				hash = s.newValue1(zext, typs.Uintptr, hash)
 				s.vars[hashVar] = hash

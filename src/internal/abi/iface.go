@@ -8,10 +8,7 @@ package abi
 // It records the underlying concrete type (Type), the interface type it
 // is implementing (Inter), and some ancillary information.
 //
-// layout of ITab known to compilers
 // allocated in non-garbage-collected memory
-// Needs to be in sync with
-// cmd/compile/internal/reflectdata/reflect.go:/^func.WritePluginTable.
 type ITab struct {
 	Inter *InterfaceType
 	Type  *Type
