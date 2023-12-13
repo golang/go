@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Dec 19, 2023",
+	"Subtitle": "Version of Dec 26, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -68,6 +68,14 @@ ellipsis <code>…</code> is also used elsewhere in the spec to informally denot
 enumerations or code snippets that are not further specified. The character <code>…</code>
 (as opposed to the three characters <code>...</code>) is not a token of the Go
 language.
+</p>
+
+<p>
+A link of the form [<a href="#Language_versions">Go 1.xx</a>] indicates that a described
+language feature (or some aspect of it) was changed or added with language version 1.xx and
+thus requires at minimum that language version to build.
+For details, see the <a href="#Language_versions">linked section</a>
+in the <a href="#Appendix">appendix</a>.
 </p>
 
 <h2 id="Source_code_representation">Source code representation</h2>
@@ -263,7 +271,8 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation
+[<a href="#Go_1.18">Go 1.18</a>]:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -281,7 +290,8 @@ An integer literal is a sequence of digits representing an
 <a href="#Constants">integer constant</a>.
 An optional prefix sets a non-decimal base: <code>0b</code> or <code>0B</code>
 for binary, <code>0</code>, <code>0o</code>, or <code>0O</code> for octal,
-and <code>0x</code> or <code>0X</code> for hexadecimal.
+and <code>0x</code> or <code>0X</code> for hexadecimal
+[<a href="#Go_1.13">Go 1.13</a>].
 A single <code>0</code> is considered a decimal zero.
 In hexadecimal literals, letters <code>a</code> through <code>f</code>
 and <code>A</code> through <code>F</code> represent values 10 through 15.
@@ -347,7 +357,8 @@ prefix, an integer part (hexadecimal digits), a radix point, a fractional part (
 and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
 One of the integer part or the fractional part may be elided; the radix point may be elided as well,
 but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
-An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
+An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>
+[<a href="#Go_1.13">Go 1.13</a>].
 </p>
 
 <p>
@@ -411,7 +422,8 @@ It consists of an <a href="#Integer_literals">integer</a> or
 <a href="#Floating-point_literals">floating-point</a> literal
 followed by the lowercase letter <code>i</code>.
 The value of an imaginary literal is the value of the respective
-integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
+integer or floating-point literal multiplied by the imaginary unit <i>i</i>
+[<a href="#Go_1.13">Go 1.13</a>]
 </p>
 
 <pre class="ebnf">
@@ -1340,6 +1352,7 @@ interface{}
 
 <p>
 For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+[<a href="#Go_1.18">Go 1.18</a>]
 </p>
 
 <p>
@@ -1375,13 +1388,15 @@ as the <code>File</code> interface.
 In a slightly more general form
 an interface <code>T</code> may use a (possibly qualified) interface type
 name <code>E</code> as an interface element. This is called
-<i>embedding</i> interface <code>E</code> in <code>T</code>.
+<i>embedding</i> interface <code>E</code> in <code>T</code>
+[<a href="#Go_1.14">Go 1.14</a>].
 The type set of <code>T</code> is the <i>intersection</i> of the type sets
 defined by <code>T</code>'s explicitly declared methods and the type sets
 of <code>T</code>’s embedded interfaces.
 In other words, the type set of <code>T</code> is the set of all types that implement all the
 explicitly declared methods of <code>T</code> and also all the methods of
-<code>E</code>.
+<code>E</code>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre>
@@ -1420,7 +1435,8 @@ type ReadCloser interface {
 <p>
 In their most general form, an interface element may also be an arbitrary type term
 <code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
-or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+[<a href="#Go_1.18">Go 1.18</a>].
 Together with method specifications, these elements enable the precise
 definition of an interface's type set as follows:
 </p>
@@ -2303,7 +2319,9 @@ as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">a
 
 <p>
 The following identifiers are implicitly declared in the
-<a href="#Blocks">universe block</a>:
+<a href="#Blocks">universe block</a>
+[<a href="#Go_1.18">Go 1.18</a>]
+[<a href="#Go_1.21">Go 1.21</a>]:
 </p>
 <pre class="grammar">
 Types:
@@ -2487,7 +2505,8 @@ TypeSpec = AliasDecl | TypeDef .
 <h4 id="Alias_declarations">Alias declarations</h4>
 
 <p>
-An alias declaration binds an identifier to the given type.
+An alias declaration binds an identifier to the given type
+[<a href="#Go_1.9">Go 1.9</a>].
 </p>
 
 <pre class="ebnf">
@@ -2636,7 +2655,8 @@ func (l *List[T]) Len() int  { … }
 A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
-in square brackets rather than parentheses.
+in square brackets rather than parentheses
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2719,7 +2739,8 @@ type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type para
 <p>
 A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
-operations supported by values of that type parameter.
+operations supported by values of that type parameter
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2749,7 +2770,8 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">strictly comparable</a>.
+<a href="#Comparison_operators">strictly comparable</a>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <p>
@@ -2782,7 +2804,8 @@ if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
 if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
 As an exception, a <a href="#Comparison_operators">strictly comparable</a>
 type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
-(not necessarily strictly comparable) type argument.
+(not necessarily strictly comparable) type argument
+[<a href="#Go_1.20">Go 1.20</a>].
 More precisely:
 </p>
 
@@ -4306,7 +4329,7 @@ with the same underlying array.
 
 <p>
 A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters.
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4759,6 +4782,7 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
+[<a href="#Go_1.13">Go 1.13</a>]
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -5426,7 +5450,8 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 	<li>
-	<code>x</code> is a slice, <code>T</code> is an array or a pointer to an array,
+	<code>x</code> is a slice, <code>T</code> is an array [<a href="#Go_1.20">Go 1.20</a>]
+	or a pointer to an array [<a href="#Go_1.17">Go 1.17</a>],
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
 </ul>
@@ -6553,7 +6578,7 @@ for      { S() }    is the same as    for true     { S() }
 <p>
 A "for" statement with a "range" clause
 iterates through all entries of an array, slice, string or map, values received on
-a channel, or integer values from zero to an upper limit.
+a channel, or integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>].
 For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
@@ -7249,7 +7274,8 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
 <p>
 The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
 <a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
-and deletes or zeroes out all elements.
+and deletes or zeroes out all elements
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <pre class="grammar">
@@ -7516,7 +7542,8 @@ The precise behavior is implementation-dependent.
 The built-in functions <code>min</code> and <code>max</code> compute the
 smallest&mdash;or largest, respectively&mdash;value of a fixed number of
 arguments of <a href="#Comparison_operators">ordered types</a>.
-There must be at least one argument.
+There must be at least one argument
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <p>
@@ -8296,7 +8323,8 @@ of constant size.
 
 <p>
 The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
-and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
@@ -8316,7 +8344,8 @@ and whose length and capacity are <code>len</code>.
 <p>
 except that, as a special case, if <code>ptr</code>
 is <code>nil</code> and <code>len</code> is zero,
-<code>Slice</code> returns <code>nil</code>.
+<code>Slice</code> returns <code>nil</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
@@ -8325,14 +8354,16 @@ A constant <code>len</code> argument must be non-negative and <a href="#Represen
 if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
+a <a href="#Run_time_panics">run-time panic</a> occurs
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
 The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
 If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
 If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
-Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <p>
@@ -8341,12 +8372,14 @@ The function <code>String</code> returns a <code>string</code> value whose under
 The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
 <code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
 Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+[<a href="#Go_1.20">Go 1.20</a>]
 </p>
 
 <p>
 The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
 For an empty string the return value is unspecified, and may be <code>nil</code>.
-Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
@@ -8386,6 +8419,141 @@ A struct or array type has size zero if it contains no fields (or elements, resp
 </p>
 
 <h2 id="Appendix">Appendix</h2>
+
+<h3 id="Language_versions">Language versions</h3>
+
+<p>
+The <a href="/doc/go1compat">Go 1 compatibility guarantee</a> ensures that
+programs written to the Go 1 specification will continue to compile and run
+correctly, unchanged, over the lifetime of that specification.
+More generally, as adjustements are made and features added to the language,
+the compatibility guarantee ensures that a Go program that works with a
+specific Go language version will continue to work with any subsequent version.
+</p>
+
+<p>
+For instance, the ability to use the prefix <code>0b</code> for binary
+integer literals was introduced with Go 1.13, indicated
+by [<a href="#Go_1.13">Go 1.13</a>] in the section on
+<a href="#Integer_literals">integer literals</a>.
+Source code containing an integer literal such as <code>0b1011</code>
+will be rejected if the implied or required language version used by
+the compiler is older than Go 1.13.
+</p>
+
+<p>
+The following table describes the minimum language version required for
+features introduced after Go 1.
+</p>
+
+<h4 id="Go_1.9">Go 1.9</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may be used to declare an alias name for a type.
+</li>
+</ul>
+
+<h4 id="Go_1.13">Go 1.13</h4>
+<ul>
+<li>
+<a href="#Integer_literals">Integer literals</a> may use the prefixes <code>0b</code>, <code>0B</code>, <code>0o</code>,
+and <code>0O</code> for binary, and octal literals, respectively.
+</li>
+<li>
+Hexadecimal <a href="#Floating-point_literals">floating-point literals</a> may be written using the prefixes
+<code>0x</code> and <code>0X</code>.
+</li>
+<li>
+The <a href="#Imaginary_literals">imaginary suffix</a> <code>i</code> may be used with any (binary, decimal, hexadecimal)
+integer or floating-point literal, not just decimal literals.
+</li>
+<li>
+The digits of any number literal may be <a href="#Integer_literals">separated</a> (grouped)
+using underscores <code>_</code>.
+</li>
+<li>
+The shift count in a <a href="#Operators">shift operation</a> may be a signed integer type.
+</li>
+</ul>
+
+<h4 id="Go_1.14">Go 1.14</h4>
+<ul>
+<li>
+Emdedding a method more than once through different <a href="#Embedded_interfaces">embedded interfaces</a>
+is not an error.
+</li>
+</ul>
+
+<h4 id="Go_1.17">Go 1.17</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array pointer if the slice and array element
+types match, and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>Add</code> and <code>Slice</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.18">Go 1.18</h4>
+<p>
+The 1.18 release adds polymorphic functions and types ("generics") to the language.
+Specifically:
+</p>
+<ul>
+<li>
+The set of <a href="#Operators_and_punctuation">operators and punctuation</a> includes the new token <code>~</code>.
+</li>
+<li>
+Function and type declarations may declare <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+<li>
+Interface types may <a href="#General_interfaces">embed arbitrary types</a> (not just type names of interfaces)
+as well as union and <code>~T</code> type elements.
+</li>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> types includes the new types
+<code>any</code> and <code>comparable</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.20">Go 1.20</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array if the slice and array element
+types match and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>SliceData</code>, <code>String</code>, and <code>StringData</code>.
+</li>
+<li>
+<a href="#Comparison_operators">Comparable types</a> (such as ordinary interfaces) may satisfy
+<code>comparable</code> constraints, even if the type arguments are not strictly comparable.
+</li>
+</ul>
+
+<h4 id="Go_1.21">Go 1.21</h4>
+<ul>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> functions includes the new functions
+<code>min</code>, <code>max</code>, and <code>clear</code>.
+</li>
+<li>
+<a href="#Type_inference">Type inference</a> uses the types of interface methods for inference.
+It also infers type arguments for generic functions assigned to variables or
+passed as arguments to other (possibly generic) functions.
+</li>
+</ul>
+
+<h4 id="Go_1.22">Go 1.22</h4>
+<ul>
+<li>
+A <a href="#For_range">"for" statement with a "range" clause</a> may iterate over
+integer values from zero to an upper limit.
+</li>
+</ul>
 
 <h3 id="Type_unification_rules">Type unification rules</h3>
 
