@@ -85,6 +85,9 @@ func Init() {
 	if got, want := int64(abi.TFlagOff(ptrSize)), Type.OffsetOf("TFlag"); got != want {
 		base.Fatalf("abi.TFlagOff() == %d, want %d", got, want)
 	}
+	if got, want := int64(abi.ITabTypeOff(ptrSize)), ITab.OffsetOf("Type"); got != want {
+		base.Fatalf("abi.ITabTypeOff() == %d, want %d", got, want)
+	}
 }
 
 // fromReflect translates from a host type to the equivalent target type.
