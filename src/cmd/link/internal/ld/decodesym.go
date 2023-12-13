@@ -301,7 +301,7 @@ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
 }
 
-// decodeItabType returns the itab._type field from an itab.
+// decodeItabType returns the itab.Type field from an itab.
 func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
 	relocs := ldr.Relocs(symIdx)
 	return decodeRelocSym(ldr, symIdx, &relocs, int32(arch.PtrSize))
