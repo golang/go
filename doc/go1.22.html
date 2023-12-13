@@ -616,7 +616,7 @@ defer func() {
     <p><!-- https://go.dev/issue/58808 -->
       When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
       from a <code>TCPConn</code> to a <code>UnixConn</code>,
-      it will now use Linux's <code>sendfile(2)</code> system call if possible,
+      it will now use Linux's <code>splice(2)</code> system call if possible,
       using the new method <a href="/pkg/net#TCPConn.WriteTo"><code>TCPConn.WriteTo</code></a>.
     </p>
 
