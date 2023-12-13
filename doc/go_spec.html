@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 16, 2023",
+	"Subtitle": "Version of Nov 1, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -10,7 +10,7 @@
 This is the reference manual for the Go programming language.
 The pre-Go1.18 version, without generics, can be found
 <a href="/doc/go1.17_spec.html">here</a>.
-For more information and other documents, see <a href="/">golang.org</a>.
+For more information and other documents, see <a href="/">go.dev</a>.
 </p>
 
 <p>
@@ -6552,8 +6552,9 @@ for      { S() }    is the same as    for true     { S() }
 
 <p>
 A "for" statement with a "range" clause
-iterates through all entries of an array, slice, string or map,
-or values received on a channel. For each entry it assigns <i>iteration values</i>
+iterates through all entries of an array, slice, string or map, values received on
+a channel, or integer values from zero to an upper limit.
+For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
 
@@ -6564,12 +6565,12 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 its <a href="#Core_types">core type</a> must be
-an array, pointer to an array, slice, string, map, or channel permitting
-<a href="#Receive_operator">receive operations</a>.
+an array, pointer to an array, slice, string, map, channel permitting
+<a href="#Receive_operator">receive operations</a>, or an integer.
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel, at most
-one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables. If the range expression is a channel or integer,
+at most one iteration variable is permitted, otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
@@ -6594,6 +6595,7 @@ array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
 channel         c  chan E, &lt;-chan E       element  e  E
+integer         n  integer type I         value    i  I
 </pre>
 
 <ol>
@@ -6631,6 +6633,12 @@ If the map is <code>nil</code>, the number of iterations is 0.
 For channels, the iteration values produced are the successive values sent on
 the channel until the channel is <a href="#Close">closed</a>. If the channel
 is <code>nil</code>, the range expression blocks forever.
+</li>
+
+<li>
+For an integer value <code>n</code>, the iteration values 0 through <code>n-1</code>
+are produced in increasing order, with the same type as <code>n</code>.
+If <code>n</code> &lt= 0, the loop does not run any iterations.
 </li>
 </ol>
 
@@ -6684,6 +6692,12 @@ for w := range ch {
 
 // empty a channel
 for range ch {}
+
+// call f(0), f(1), ... f(9)
+for i := range 10 {
+	// type of i is int (default type for untyped constant 10)
+	f(i)
+}
 </pre>
 
 

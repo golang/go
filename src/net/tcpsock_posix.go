@@ -45,13 +45,20 @@ func (a *TCPAddr) toLocal(net string) sockaddr {
 }
 
 func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
-	if n, err, handled := splice(c.fd, r); handled {
+	if n, err, handled := spliceFrom(c.fd, r); handled {
 		return n, err
 	}
 	if n, err, handled := sendFile(c.fd, r); handled {
 		return n, err
 	}
 	return genericReadFrom(c, r)
+}
+
+func (c *TCPConn) writeTo(w io.Writer) (int64, error) {
+	if n, err, handled := spliceTo(w, c.fd); handled {
+		return n, err
+	}
+	return genericWriteTo(c, w)
 }
 
 func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {

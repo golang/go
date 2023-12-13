@@ -635,11 +635,11 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		{f.rdataSect, &Segrodata, ctxt.datap},
 		{f.dataSect, &Segdata, ctxt.datap},
 	}
-	if sehp.pdata != 0 {
-		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
+	if len(sehp.pdata) != 0 {
+		sects = append(sects, relsect{f.pdataSect, &Segpdata, sehp.pdata})
 	}
-	if sehp.xdata != 0 {
-		sects = append(sects, relsect{f.xdataSect, &Segxdata, []loader.Sym{sehp.xdata}})
+	if len(sehp.xdata) != 0 {
+		sects = append(sects, relsect{f.xdataSect, &Segxdata, sehp.xdata})
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {

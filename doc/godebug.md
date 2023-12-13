@@ -143,6 +143,56 @@ patterns and unescape both patterns and request paths by segment.
 This behavior can be controlled by the
 [`httpmuxgo121` setting](/pkg/net/http/#ServeMux).
 
+Go 1.22 added the [Alias type](/pkg/go/types#Alias) to [go/types](/pkg/go/types)
+for the explicit representation of [type aliases](/ref/spec#Type_declarations).
+Whether the type checker produces `Alias` types or not is controlled by the
+[`gotypesalias` setting](/pkg/go/types#Alias).
+For Go 1.22 it defaults to `gotypesalias=0`.
+For Go 1.23, `gotypealias=1` will become the default.
+This setting will be removed in a future release, Go 1.24 at the earliest.
+
+Go 1.22 changed the default minimum TLS version supported by both servers
+and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
+[`tls10server` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing the cipher suites which used RSA based key
+exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 disabled
+[`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
+when the connection supports neither TLS 1.3 nor Extended Master Secret
+(implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
+setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
+
+Go 1.22 changed how the runtime interacts with transparent huge pages on Linux.
+In particular, a common default Linux kernel configuration can result in
+significant memory overheads, and Go 1.22 no longer works around this default.
+To work around this issue without adjusting kernel settings, transparent huge
+pages can be disabled for Go memory with the
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+This behavior was backported to Go 1.21.1, but the setting is only available
+starting with Go 1.21.6.
+This setting may be removed in a future release, and users impacted by this issue
+should adjust their Linux configuration according to the recommendations in the
+[GC guide](/doc/gc-guide#Linux_transparent_huge_pages), or switch to a Linux
+distribution that disables transparent huge pages altogether.
+
+Go 1.22 added contention on runtime-internal locks to the [`mutex`
+profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
+reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
+runtime locks can be enabled with the [`runtimecontentionstacks`
+setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+non-standard semantics, see setting documentation for details.
+
+Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
+field, [`Policies`](/pkg/crypto/x509/#Certificate.Policies), which supports
+certificate policy OIDs with components larger than 31 bits. By default this
+field is only used during parsing, when it is populated with policy OIDs, but
+not used during marshaling. It can be used to marshal these larger OIDs, instead
+of the existing PolicyIdentifiers field, by using the
+[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
+
 
 ### Go 1.21
 

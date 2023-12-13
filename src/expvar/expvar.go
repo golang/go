@@ -50,11 +50,11 @@ type jsonVar interface {
 
 // Int is a 64-bit integer variable that satisfies the [Var] interface.
 type Int struct {
-	i int64
+	i atomic.Int64
 }
 
 func (v *Int) Value() int64 {
-	return atomic.LoadInt64(&v.i)
+	return v.i.Load()
 }
 
 func (v *Int) String() string {
@@ -62,15 +62,15 @@ func (v *Int) String() string {
 }
 
 func (v *Int) appendJSON(b []byte) []byte {
-	return strconv.AppendInt(b, atomic.LoadInt64(&v.i), 10)
+	return strconv.AppendInt(b, v.i.Load(), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	atomic.AddInt64(&v.i, delta)
+	v.i.Add(delta)
 }
 
 func (v *Int) Set(value int64) {
-	atomic.StoreInt64(&v.i, value)
+	v.i.Store(value)
 }
 
 // Float is a 64-bit float variable that satisfies the [Var] interface.

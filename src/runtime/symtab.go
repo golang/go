@@ -13,7 +13,7 @@ import (
 )
 
 // Frames may be used to get function/file/line information for a
-// slice of PC values returned by Callers.
+// slice of PC values returned by [Callers].
 type Frames struct {
 	// callers is a slice of PCs that have not yet been expanded to frames.
 	callers []uintptr
@@ -70,9 +70,9 @@ type Frame struct {
 	funcInfo funcInfo
 }
 
-// CallersFrames takes a slice of PC values returned by Callers and
+// CallersFrames takes a slice of PC values returned by [Callers] and
 // prepares to return function/file/line information.
-// Do not change the slice until you are done with the Frames.
+// Do not change the slice until you are done with the [Frames].
 func CallersFrames(callers []uintptr) *Frames {
 	f := &Frames{callers: callers}
 	f.frames = f.frameStore[:0]
@@ -642,7 +642,7 @@ func (md *moduledata) funcName(nameOff int32) string {
 	return gostringnocopy(&md.funcnametab[nameOff])
 }
 
-// FuncForPC returns a *Func describing the function that contains the
+// FuncForPC returns a *[Func] describing the function that contains the
 // given program counter address, or else nil.
 //
 // If pc represents multiple functions because of inlining, it returns
@@ -931,7 +931,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 				cache.inUse++
 				if cache.inUse == 1 {
 					e := &cache.entries[ck]
-					ci := fastrandn(uint32(len(cache.entries[ck])))
+					ci := cheaprandn(uint32(len(cache.entries[ck])))
 					e[ci] = e[0]
 					e[0] = pcvalueCacheEnt{
 						targetpc: targetpc,

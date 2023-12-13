@@ -24,10 +24,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 
-	// set function scope extent
-	sig.scope.pos = body.Pos()
-	sig.scope.end = body.End()
-
 	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
 	defer func(env environment, indent int) {
@@ -979,7 +975,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 		if isString(typ) {
 			return Typ[Int], universeRune, "", false, true // use 'rune' name
 		}
-		if buildcfg.Experiment.Range && isInteger(typ) {
+		if isInteger(typ) {
 			return orig, nil, "", false, true
 		}
 	case *Array:
@@ -994,7 +990,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 		}
 		return typ.elem, nil, "", false, true
 	case *Signature:
-		if !buildcfg.Experiment.Range {
+		if !buildcfg.Experiment.RangeFunc {
 			break
 		}
 		assert(typ.Recv() == nil)

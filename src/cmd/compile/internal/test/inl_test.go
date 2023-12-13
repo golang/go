@@ -44,7 +44,6 @@ func TestIntendedInlining(t *testing.T) {
 			"chanbuf",
 			"evacuated",
 			"fastlog2",
-			"fastrand",
 			"float64bits",
 			"funcspdelta",
 			"getm",
@@ -54,6 +53,7 @@ func TestIntendedInlining(t *testing.T) {
 			"nextslicecap",
 			"noescape",
 			"pcvalueCacheKey",
+			"rand32",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",
@@ -73,11 +73,13 @@ func TestIntendedInlining(t *testing.T) {
 			"gclinkptr.ptr",
 			"guintptr.ptr",
 			"writeHeapBitsForAddr",
+			"heapBitsSlice",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
 			"spanOf",
 			"spanOfUnchecked",
+			"typePointers.nextFast",
 			"(*gcWork).putFast",
 			"(*gcWork).tryGetFast",
 			"(*guintptr).set",
@@ -86,10 +88,15 @@ func TestIntendedInlining(t *testing.T) {
 			"(*mspan).base",
 			"(*mspan).markBitsForBase",
 			"(*mspan).markBitsForIndex",
+			"(*mspan).writeUserArenaHeapBits",
 			"(*muintptr).set",
 			"(*puintptr).set",
 			"(*wbBuf).get1",
 			"(*wbBuf).get2",
+
+			// Trace-related ones.
+			"traceLocker.ok",
+			"traceEnabled",
 		},
 		"runtime/internal/sys": {},
 		"runtime/internal/math": {
@@ -245,6 +252,10 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+	}
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
+		// runtime/internal/atomic.Loaduintptr is only intrinsified on these platforms.
+		want["runtime"] = append(want["runtime"], "traceAcquire")
 	}
 	if bits.UintSize == 64 {
 		// mix is only defined on 64-bit architectures

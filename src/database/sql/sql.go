@@ -1979,9 +1979,9 @@ type Conn struct {
 	// Once done, all operations fail with ErrConnDone.
 	done atomic.Bool
 
-	// releaseConn is a cache of c.closemuRUnlockCondReleaseConn
+	releaseConnOnce sync.Once
+	// releaseConnCache is a cache of c.closemuRUnlockCondReleaseConn
 	// to save allocations in a call to grabConn.
-	releaseConnOnce  sync.Once
 	releaseConnCache releaseConn
 }
 

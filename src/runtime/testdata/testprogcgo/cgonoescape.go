@@ -13,7 +13,7 @@ package main
 // 2. less than 100 new allocated heap objects after invoking withoutNoEscape 100 times.
 
 /*
-#cgo noescape runCWithNoEscape
+// TODO(#56378): #cgo noescape runCWithNoEscape
 
 void runCWithNoEscape(void *p) {
 }

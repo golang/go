@@ -26,57 +26,277 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  TODO: complete this section
+<!-- loop variable scope --><!-- range over int -->
+Go 1.22 makes two changes to "for" loops.
+<ul>
+  <li>
+    Previously, the variables declared by a "for" loop were created once and updated by each iteration. In Go 1.22, each iteration of the loop creates new variables, to avoid accidental sharing bugs.
+    The <a href="https://go.dev/wiki/LoopvarExperiment#my-test-fails-with-the-change-how-can-i-debug-it">transition support tooling</a>
+    described in the proposal continues to work in the same way it did in Go 1.21.
+  </li>
+  <li>
+    "For" loops may now range over integers.
+    For <a href="https://go.dev/play/p/ky02zZxgk_r?v=gotip">example</a>:
+<pre>
+package main
+
+import "fmt"
+
+func main() {
+  for i := range 10 {
+    fmt.Println(10 - i)
+  }
+  fmt.Println("go1.22 has lift-off!")
+}
+</pre>
+    See the spec for <a href="/ref/spec#For_range">details</a>.
+  </li>
+</ul>
+
+<!-- range over func GOEXPERIMENT; https://go.dev/issue/61405, https://go.dev/issue/61897, CLs 510541,539277,540263,543319 -->
+</p>
+<p>
+  Go 1.22 includes a preview of a language change we are considering
+  for a future version of Go: <a href="https://go.dev/wiki/RangefuncExperiment">range-over-function iterators</a>.
+  Building with <code>GOEXPERIMENT=rangefunc</code> enables this feature.
 </p>
 
 <h2 id="tools">Tools</h2>
 
 <h3 id="go-command">Go command</h3>
 
+<!-- https://go.dev/issue/60056 -->
 <p>
-  TODO: complete this section, or delete if not needed
+  Commands in <a href="https://go.dev/ref/mod#workspaces">workspaces</a> can now
+  use a <code>vendor</code> directory containing the dependencies of the
+  workspace. The directory is created by
+  <a href="/pkg/cmd/go#hdr-Make_vendored_copy_of_dependencies"><code>go</code> <code>work</code> <code>vendor</code></a>,
+  and used by build commands when the <code>-mod</code> flag is set to
+	<code>vendor</code>, which is the default when a workspace <code>vendor</code>
+  directory is present.
+</p>
+<p>
+  Note that the <code>vendor</code> directory's contents for a workspace are different
+  from those of a single module: if the directory at the root of a workspace also
+  contains one of the modules in the workspace, its <code>vendor</code> directory
+  can contain the dependencies of either the workspace or of the module,
+  but not both.
 </p>
 
-<h3 id="cgo">Cgo</h3>
+<!-- CL 518775 -->
+<p>
+  <!-- cmd/go: delete GOPATH-mode get -->
+</p>
 
-<p><!-- CL 497837 --> The special comment that precedes
-  <code>import</code> <code>"C"</code> may now include two
-  new <code>#cgo</code> directives.
-  <ul>
-    <li>
-      <code>#cgo</code> <code>noescape</code> <code>cFunctionName</code>
-      tells cgo that Go pointers passed to the C function
-      <code>cFunctionName</code> do not escape.
-    </li>
-    <li>
-      <code>#cgo</code> <code>nocallback</code> <code>cFunctionName</code>
-      tells cgo that the C function <code>cFunctionName</code> does
-      not call any Go functions.
-    </li>
-  </ul>
-  See <a href="/cmd/cgo#hdr-Optimizing_calls_of_C_code">the <code>cgo</code>
-  documentation</a> for more details.
+<!-- https://go.dev/issue/60915 -->
+<p>
+  <!-- preserve basic GOPATH mode indefinitely -->
+</p>
+
+<!-- CL 518776 -->
+<p>
+  <!-- cmd/go: remove conversion of legacy pre-module dependency configs -->
+</p>
+
+<!-- CL 495447 -->
+<p>
+<code>go</code> <code>test</code> <code>-cover</code> now prints coverage summaries for covered
+packages that do not have their own test files. Prior to Go 1.22 a
+<code>go</code> <code>test</code> <code>-cover</code> run for such a package would report
+</p>
+
+<p>
+  <code>?     mymod/mypack    [no test files]</code>
+</p>
+
+<p>
+  and now with Go 1.22, functions in the package are treated as uncovered:
+</p>
+
+<p>
+  <code>mymod/mypack    coverage: 0.0% of statements</code>
+</p>
+
+<h3 id="trace">Trace</h3>
+
+<!-- https://go.dev/issue/63960 -->
+<p>
+  The <code>trace</code> tool's web UI has been gently refreshed as part of the
+  work to support the new tracer, resolving several issues and improving the
+  readability of various sub-pages.
+  The web UI now supports exploring traces in a thread-oriented view.
+  The trace viewer also now displays the full duration of all system calls.
+  <br />
+  These improvements only apply for viewing traces produced by programs built with
+  Go 1.22 or newer.
+  A future release will bring some of these improvements to traces produced by older
+  version of Go.
+</p>
+
+<h3 id="vet">Vet</h3>
+
+<p><!-- CL 539016 -->
+  TODO: <a href="https://go.dev/cl/539016">https://go.dev/cl/539016</a>: go/analysis/passes/loopclosure: disable checker after go1.22.; loopclosure was modified to only not report in files with GoVersion after 1.22.
+</p>
+
+<h4 id="vet-appends">New warnings for missing values after append</h4>
+
+<p><!-- CL 498416, https://go.dev/issue/60448: add a new analyzer for check missing values after append -->
+  The <code>vet</code> tool now reports calls to
+  <a href="/pkg/builtin/#append"><code>append</code></a> that pass
+  no values to be appended to the slice, such as <code>slice = append(slice)</code>.
+  Such a statement has no effect, and experience has shown that is nearly always a mistake.
+</p>
+
+<h4 id="vet-defers">New warnings for deferring <code>time.Since</code></h4>
+
+<p><!-- CL 527095, https://go.dev/issue/60048: time.Since should not be used in defer statement -->
+  The vet tool now reports a non-deferred call to
+  <a href="/pkg/time/#Since"><code>time.Since(t)</code></a> within a <code>defer</code> statement.
+  This is equivalent to calling <code>time.Now().Sub(t)</code> before the <code>defer</code> statement,
+  not when the deferred function is called. In nearly all cases, the correct code
+  requires deferring the <code>time.Since</code> call. For example:
+</p>
+
+<pre>
+t := time.Now()
+defer log.Println(time.Since(t)) // non-deferred call to time.Since
+tmp := time.Since(t); defer log.Println(tmp) // equivalent to the previous defer
+
+defer func() {
+  log.Println(time.Since(t)) // a correctly deferred call to time.Since
+}()
+</pre>
+
+<h4 id="vet-slog">New warnings for mismatched key-value pairs in <code>log/slog</code> calls</h4>
+
+<p><!-- CL 496156, https://go.dev/issue/59407: log/slog: add vet checks for variadic ...any inputs -->
+  The vet tool now reports invalid arguments in calls to functions and methods
+  in the structured logging package, <a href="/pkg/log/slog"><code>log/slog</code></a>,
+  that accept alternating key/value pairs.
+  It reports calls where an argument in a key position is neither a
+  <code>string</code> nor a <code>slog.Attr</code>, and where a final key is missing its value.
 </p>
 
 <h2 id="runtime">Runtime</h2>
 
+<p><!-- CL 543255 -->
+  The runtime now keeps type-based garbage collection metadata nearer to each
+  heap object, improving the CPU performance (latency or throughput) of Go programs
+  by 1&ndash;3%.
+  This change also reduces the memory overhead of the majority Go programs by
+  approximately 1% by deduplicating redundant metadata.
+  Some programs may see a smaller improvement because this change adjusts the size
+  class boundaries of the memory allocator, so some objects may be moved up a size
+  class.
+</p>
 <p>
-  TODO: complete this section, or delete if not needed
+  A consequence of this change is that some objects' addresses that were previously
+  always aligned to a 16 byte (or higher) boundary will now only be aligned to an 8
+  byte boundary.
+  Some programs that use assembly instructions that require memory addresses to be
+  more than 8-byte aligned and rely on the memory allocator's previous alignment behavior
+  may break, but we expect such programs to be rare.
+  Such programs may be built with <code>GOEXPERIMENT=noallocheaders</code> to revert
+  to the old metadata layout and restore the previous alignment behavior, but package
+  owners should update their assembly code to avoid the alignment assumption, as this
+  workaround will be removed in a future release.
+</p>
+
+<p><!-- CL 525475 -->
+  On the <code>windows/amd64 port</code>, programs linking or loading Go libraries built with
+  <code>-buildmode=c-archive</code> or <code>-buildmode=c-shared</code> can now use
+  the <code>SetUnhandledExceptionFilter</code> Win32 function to catch exceptions not handled
+  by the Go runtime. Note that this was already supported on the <code>windows/386</code> port.
 </p>
 
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- https://go.dev/issue/61577 -->
+  <a href="https://go.dev/doc/pgo">Profile-guided Optimization (PGO)</a> builds
+  can now devirtualize a higher proportion of calls than previously possible.
+  Most programs from a representative set of Go programs now see between 2 and
+  14% improvement from enabling PGO.
 </p>
 
 <h2 id="linker">Linker</h2>
 
+<p><!-- CL 493136 -->
+  The linker's <code>-s</code> and <code>-w</code> flags are now behave more
+  consistently across all platforms.
+  The <code>-w</code> flag suppresses DWARF debug information generation.
+  The <code>-s</code> flag suppresses symbol table generation.
+  The <code>-s</code> flag also implies the <code>-w</code> flag, which can be
+  negated with <code>-w=0</code>.
+  That is, <code>-s</code> <code>-w=0</code> will generate a binary with DWARF
+  debug information generation but without the symbol table.
+</p>
+
+<p><!-- CL 511475 -->
+  On ELF platforms, the <code>-B</code> linker flag now accepts a special form:
+  with <code>-B</code> <code>gobuildid</code>, the linker will generate a GNU
+  build ID (the ELF <code>NT_GNU_BUILD_ID</code> note) derived from the Go
+  build ID.
+</p>
+
+<p><!-- CL 534555 -->
+  On Windows, when building with <code>-linkmode=internal</code>, the linker now
+  preserves SEH information from C object files by copying the <code>.pdata</code>
+  and <code>.xdata</code> sections into the final binary.
+  This helps with debugging and profiling binaries using native tools, such as WinDbg.
+  Note that until now, C functions' SEH exception handlers were not being honored,
+  so this change may cause some programs to behave differently.
+  <code>-linkmode=external</code> is not affected by this change, as external linkers
+  already preserve SEH information.
+</p>
+
+<h2 id="bootstrap">Bootstrap</h2>
+
 <p>
-  TODO: complete this section, or delete if not needed
+  As mentioned in the <a href="/doc/go1.20#bootstrap">Go 1.20 release notes</a>, Go 1.22 now requires
+  the final point release of Go 1.20 or later for bootstrap.
+  We expect that Go 1.24 will require the final point release of Go 1.22 or later for bootstrap.
 </p>
 
 <h2 id="library">Core library</h2>
+
+<h3 id="math_rand_v2">New math/rand/v2 package</h3>
+
+<p><!-- CL 502495 -->
+  TODO: <a href="https://go.dev/cl/502495">https://go.dev/cl/502495</a>: math/rand/v2: start of new API; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502497 -->
+  TODO: <a href="https://go.dev/cl/502497">https://go.dev/cl/502497</a>: math/rand/v2: remove Read; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502498 -->
+  TODO: <a href="https://go.dev/cl/502498">https://go.dev/cl/502498</a>: math/rand/v2: remove Rand.Seed; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502499 -->
+  TODO: <a href="https://go.dev/cl/502499">https://go.dev/cl/502499</a>: math/rand/v2: change Source to use uint64; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502500 -->
+  TODO: <a href="https://go.dev/cl/502500">https://go.dev/cl/502500</a>: math/rand/v2: add, optimize N, UintN, Uint32N, Uint64N; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502505 -->
+  TODO: <a href="https://go.dev/cl/502505">https://go.dev/cl/502505</a>: math/rand/v2: add PCG-DXSM; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 502506 -->
+  TODO: <a href="https://go.dev/cl/502506">https://go.dev/cl/502506</a>: math/rand/v2: delete Mitchell/Reeds source; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 516857 -->
+  TODO: <a href="https://go.dev/cl/516857">https://go.dev/cl/516857</a>: math/rand/v2: rename various functions; modified api/next/61716.txt
+</p>
+
+<p><!-- CL 516859 -->
+  TODO: <a href="https://go.dev/cl/516859">https://go.dev/cl/516859</a>: math/rand/v2: add ChaCha8; modified api/next/61716.txt
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
@@ -91,6 +311,100 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/58000, CL 513316 -->
+      The new method <a href="/pkg/archive/tar#Writer.AddFS"<code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
+    </p>
+
+    <p><!-- https://go.dev/issue/50102, CL 514235 -->
+      If the argument to <a href="/pkg/archive/tar#FileInfoHeader"><code>FileInfoHeader</code></a> implements the new <a href="/pkg/archive/tar#FileInfoNames"><code>FileInfoNames</code></a> interface, then the interface methods will be used to set the UID/GID of the file header. This allows applications to override the default UID/GID resolution.
+    </p>
+  </dd>
+</dl><!-- archive/tar -->
+
+<dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54898, CL 513438 -->
+      The new method <a href="/pkg/archive/zip#Writer.AddFS"<code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
+    </p>
+  </dd>
+</dl><!-- archive/zip -->
+
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56381, CL 498117 -->
+      When a <a href="/pkg/bufio#SplitFunc"><code>SplitFunc</code></a> returns <a href="/pkg/bufio#ErrFinalToken"><code>ErrFinalToken</code></a> with a <code>nil</code> token, <a href="/pkg/bufio#Scanner"><code>Scanner</code></a> will now stop immediately.
+      Previously, it would report a final empty token before stopping, which was usually not desired.
+      Callers that do want to report a final empty token can do so by returning <code>[]byte{}</code> rather than <code>nil</code>.
+    </p>
+  </dd>
+</dl><!-- bufio -->
+
+<dl id="cmp"><dt><a href="/pkg/cmp/">cmp</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60204 --><!-- CL 504883 -->
+      The new function <code>Or</code> returns the first in a sequence of values that is not the zero value.
+    </p>
+  </dd>
+</dl><!-- cmp -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/43922 -->
+      TODO: <a href="https://go.dev/issue/43922">https://go.dev/issue/43922</a>: implement RFC7627
+    </p>
+
+    <p><!-- https://go.dev/issue/62459 -->
+      TODO: <a href="https://go.dev/issue/62459">https://go.dev/issue/62459</a>: make default minimum version for servers TLS 1.2
+    </p>
+
+    <p><!-- https://go.dev/issue/63413 -->
+      TODO: <a href="https://go.dev/issue/63413">https://go.dev/issue/63413</a>: disable RSA key exchange cipher suites by default
+    </p>
+
+    <p><!-- CL 514997 -->
+      TODO: <a href="https://go.dev/cl/514997">https://go.dev/cl/514997</a>: crypto/tls: change SendSessionTicket to take an options struct; modified api/go1.21.txt
+    </p>
+
+    <p><!-- CL 541516 -->
+      TODO: <a href="https://go.dev/cl/541516">https://go.dev/cl/541516</a>: crypto/tls: change default minimum version to 1.2
+    </p>
+
+    <p><!-- CL 541517 -->
+      TODO: <a href="https://go.dev/cl/541517">https://go.dev/cl/541517</a>: crypto/tls: remove RSA KEX ciphers from the default list
+    </p>
+
+    <p><!-- CL 544155 -->
+      TODO: <a href="https://go.dev/cl/544155">https://go.dev/cl/544155</a>: crypto/tls: disable ExportKeyingMaterial without EMS
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57178 -->
+      TODO: <a href="https://go.dev/issue/57178">https://go.dev/issue/57178</a>: support code-constrained roots
+    </p>
+
+    <p><!-- https://go.dev/issue/58922 -->
+      TODO: <a href="https://go.dev/issue/58922">https://go.dev/issue/58922</a>: add android user trusted CA folder as a possible source for certificate retrieval
+    </p>
+
+    <p><!-- https://go.dev/issue/60665 -->
+      TODO: <a href="https://go.dev/issue/60665">https://go.dev/issue/60665</a>: introduce new robust OID type &amp; use it for certificate policies
+    </p>
+
+    <p><!-- CL 519315 -->
+      TODO: <a href="https://go.dev/cl/519315">https://go.dev/cl/519315</a>: crypto/x509: implement AddCertWithConstraint; modified api/next/57178.txt
+    </p>
+
+    <p><!-- CL 520535 -->
+      TODO: <a href="https://go.dev/cl/520535">https://go.dev/cl/520535</a>: crypto/x509: add new OID type and use it in Certificate; modified api/next/60665.txt
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/60370, CL 501700 -->
@@ -98,7 +412,304 @@ Do not send CLs removing the interior tags from such phrases.
       provide a way to scan nullable columns for any column types.
     </p>
   </dd>
+</dl><!-- database/sql -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61974, CL 469395 -->
+      Constant <code>R_MIPS_PC32</code> is defined for use with MIPS64 systems.
+    </p>
+  </dd>
+  <dd>
+    <p><!-- https://go.dev/issue/63725, CL 537615 -->
+      Additional <code>R_LARCH_*</code> constants are defined for use with LoongArch systems.
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
+
+<dl id="encoding"><dt><a href="/pkg/encoding/">encoding</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53693, https://go.dev/cl/504884 -->
+      The new methods <code>AppendEncode</code> and <code>AppendDecode</code> added to
+      each of the <code>Encoding</code> types in the packages
+      <a href="/pkg/encoding/base32"><code>encoding/base32</code></a>,
+      <a href="/pkg/encoding/base64"><code>encoding/base64</code></a>, and
+      <a href="/pkg/encoding/hex"><code>encoding/hex</code></a>
+      simplify encoding and decoding from and to byte slices by taking care of byte slice buffer management.
+    </p>
+
+    <p><!-- https://go.dev/cl/505236 -->
+      The methods
+      <a href="/pkg/encoding/base32#Encoding.WithPadding"><code>base32.Encoding.WithPadding</code></a> and
+      <a href="/pkg/encoding/base64#Encoding.WithPadding"><code>base64.Encoding.WithPadding</code></a>
+      now panic if the <code>padding</code> argument is a negative value other than
+      <code>NoPadding</code>.
+    </p>
+  </dd>
+</dl><!-- encoding -->
+
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- https://go.dev/cl/521675 -->
+      Marshaling and encoding functionality now escapes
+      <code>'\b'</code> and <code>'\f'</code> characters as
+      <code>\b</code> and <code>\f</code> instead of
+      <code>\u0008</code> and <code>\u000c</code>.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/52463, https://go/dev/cl/504915 -->
+      The following declarations related to
+      <a href='https://pkg.go.dev/go/ast#Object'>syntactic identifier resolution</a>
+      are now <a href="https://go.dev/issue/52463">deprecated</a>:
+      <code>Ident.Obj</code>,
+      <code>Object</code>,
+      <code>Scope</code>,
+      <code>File.Scope</code>,
+      <code>File.Unresolved</code>,
+      <code>Importer</code>,
+      <code>Package</code>,
+      <code>NewPackage</code>.
+    </p>
+    <p>
+      Identifiers cannot be accurately resolved without type information.
+      Consider, for example, the identifier <code>K</code>
+      in <code>T{K: ""}</code>: it could be the name of a local variable
+      if T is a map type, or the name of a field if T is a struct type.
+    </p>
+    <p>
+      New programs should use the <a href='/pkg/go/types'>go/types</a>
+      package to resolve identifiers;
+      see <code>Object</code>, <code>Info.Uses</code>,
+      and <code>Info.Defs</code> for details.
+    </p>
+
+    <p><!-- https://go.dev/issue/60061 -->
+      The new <a href='https://pkg.go.dev/go/ast#Unparen'><code>ast.Unparen</code></a>
+      function removes any enclosing
+      <a href='https://pkg.go.dev/go/ast#ParenExpr'>parentheses</a> from
+      an <a href='https://pkg.go.dev/go/ast#Expr'>expression</a>.
+    </p>
+  </dd>
+</dl><!-- go/ast -->
+
+<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/63223, CL 521956, CL 541737 -->
+      The new <a href="/pkg/go/types#Alias"><code>Alias</code></a> type represents type aliases.
+      Previously, type aliases were not represented explicitly, so a reference to a type alias was equivalent
+      to spelling out the aliased type, and the name of the alias was lost.
+      The new representation retains the intermediate <code>Alias</code>.
+      This enables improved error reporting (the name of a type alias can be reported), and allows for better handling
+      of cyclic type declarations involving type aliases.
+      In a future release, <code>Alias</code> types will also carry <a href="https://go.dev/issue/46477">type parameter information</a>.
+      The new function <a href="/pkg/go/types#Unalias"><code>Unalias</code></a> returns the actual type denoted by an
+      <code>Alias</code> type (or any other <a href="/pkg/go/types#Type"><code>Type</code></a> for that matter).
+    </p>
+    <p>
+      Because <code>Alias</code> types may break existing type switches that do not know to check for them,
+      this functionality is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>gotypesalias</code>.
+      With <code>gotypesalias=0</code>, everything behaves as before, and <code>Alias</code> types are never created.
+      With <code>gotypesalias=1</code>, <code>Alias</code> types are created and clients must expect them.
+      The default is <code>gotypesalias=0</code>.
+      In a future release, the default will be changed to <code>gotypesalias=1</code>.
+      <em>Clients of <a href="/pkg/go/types"><code>go/types</code></a> are urged to adjust their code as soon as possible
+      to work with <code>gotypesalias=1</code> to eliminate problems early.</em>
+    </p>
+
+    <p><!-- https://go.dev/issue/62605, CL 540056 -->
+      The <a href="/pkg/go/types#Info"><code>Info</code></a> struct now exports the
+      <a href="/pkg/go/types#Info.FileVersions"><code>FileVersions</code></a> map
+      which provides per-file Go version information.
+    </p>
+
+    <p><!-- https://go.dev/issue/62037, CL 541575 -->
+      The new helper method <a href="/pkg/go/types#Info.PkgNameOf"><code>PkgNameOf</code></a> returns the local package name
+      for the given import declaration.
+    </p>
+
+    <p><!-- https://go.dev/issue/61035, multiple CLs, see issue for details -->
+      The implementation of <a href="/pkg/go/types#SizesFor"><code>SizesFor</code></a> has been adjusted to compute
+      the same type sizes as the compiler when the compiler argument for <code>SizesFor</code> is <code>"gc"</code>.
+      The default <a href="/pkg/go/types#Sizes"><code>Sizes</code></a> implementation used by the type checker is now
+      <code>types.SizesFor("gc", "amd64")</code>.
+    </p>
+
+    <p><!-- https://go.dev/issue/64295, CL 544035 -->
+      The start position (<a href="/pkg/go/types#Scope.Pos"><code>Pos</code></a>)
+      of the lexical environment block (<a href="/pkg/go/types#Scope"><code>Scope</code></a>)
+      that represents a function body has changed:
+      it used to start at the opening curly brace of the function body,
+      but now starts at the function's <code>func</code> token.
+    </p>
+  </dd>
 </dl>
+
+<dl id="go/version"><dt><a href="/pkg/go/version/">go/version</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/62039, https://go.dev/cl/538895 -->
+      The new <a href="/pkg/go/version/"><code>go/version</code></a> package implements functions
+      for validating and comparing Go version strings.
+    </p>
+  </dd>
+</dl><!-- go/version -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61619 -->
+      TODO: <a href="https://go.dev/issue/61619">https://go.dev/issue/61619</a>: allow actions in JS template literals
+    </p>
+
+    <p><!-- CL 507995 -->
+      TODO: <a href="https://go.dev/cl/507995">https://go.dev/cl/507995</a>: html/template: support parsing complex JS template literals; modified api/next/61619.txt
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61870, CL 526855 -->
+      The new <a href="/pkg/io#SectionReader.Outer"><code>SectionReader.Outer</code></a> method returns the <a href="/pkg/io#ReaderAt"><code>ReaderAt</code></a>, offset, and size passed to <a href="/pkg/io#NewSectionReader"><code>NewSectionReader</code></a>.
+    </p>
+  </dd>
+</dl><!-- io -->
+
+<dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/62418 -->
+      TODO: <a href="https://go.dev/issue/62418">https://go.dev/issue/62418</a>: enable setting level on default log.Logger
+    </p>
+
+    <p><!-- CL 525096 -->
+      TODO: <a href="https://go.dev/cl/525096">https://go.dev/cl/525096</a>: log/slog: add LogLoggerLevel to enable setting level on the default logger; modified api/next/62418.txt
+    </p>
+  </dd>
+</dl><!-- log/slog -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50489, CL 539299 -->
+      The new method <a href="/pkg/math/big#Rat.FloatPrec">Rat.FloatPrec</a> computes the number of fractional decimal digits
+      required to represent a rational number accurately as a floating-point number, and whether accurate decimal representation
+      is possible in the first place.
+    </p>
+  </dd>
+</dl><!-- math/big -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/58808 -->
+      When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
+      from a <code>TCPConn</code> to a <code>UnixConn</code>,
+      it will now use Linux's <code>sendfile(2)</code> system call if possible,
+      using the new method <a href="/pkg/net#TCPConn.WriteTo"><code>TCPConn.WriteTo</code></a>.
+    </p>
+
+    <p><!-- CL 467335 -->
+      The Go DNS Resolver, used when building the binary with "-tags=netgo",
+      now searches a matching name in the Windows hosts file,
+      located at <code>%SystemRoot%\System32\drivers\etc\hosts</code>,
+      before making a DNS query.
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/51971 -->
+      The new functions
+      <a href="/pkg/net/http#ServeFileFS"><code>ServeFileFS</code></a>,
+      <a href="/pkg/net/http#FileServerFS"><code>FileServerFS</code></a>, and
+      <a href="/pkg/net/http#NewFileTransportFS"><code>NewFileTransportFS</code></a>
+      are versions of the existing
+      <code>ServeFile</code>, <code>FileServer</code>, and <code>NewFileTransport</code>,
+      operating on an <code>fs.FS</code>.
+    </p>
+
+    <p><!-- https://go.dev/issue/61410 -->
+      TODO: <a href="https://go.dev/issue/61410">https://go.dev/issue/61410</a>: enhanced ServeMux routing
+    </p>
+
+    <p><!-- https://go.dev/issue/61679 -->
+      The HTTP server and client now reject requests and responses containing
+      an invalid empty <code>Content-Length</code> header.
+      The previous behavior may be restored by setting
+      <a href="/doc/godebug"><code>GODEBUG</code></a> field <code>httplaxcontentlength=1</code>.
+    </p>
+
+    <p><!-- CL 528355 -->
+      TODO: <a href="https://go.dev/cl/528355">https://go.dev/cl/528355</a>: net/http: implement path value methods on Request; modified api/next/61410.txt
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt>
+  <dd>
+    <p><!-- CL 539615 -->
+      TODO: <a href="https://go.dev/cl/539615">https://go.dev/cl/539615</a>: net/http/cgi: the PATH_INFO should be empty or start with a slash
+    </p>
+  </dd>
+</dl><!-- net/http/cgi -->
+
+<dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61642 -->
+      TODO: <a href="https://go.dev/issue/61642">https://go.dev/issue/61642</a>: add Prefix.Compare and AddrPort.Compare
+    </p>
+
+    <p><!-- CL 524616 -->
+      TODO: <a href="https://go.dev/cl/524616">https://go.dev/cl/524616</a>: net/netip: add AddrPort.Compare and Prefix.Compare; modified api/next/61642.txt
+    </p>
+  </dd>
+</dl><!-- net/netip -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 516555 -->
+      On Windows, the <a href="/pkg/os#Stat"><code>Stat</code></a> function now follows all reparse points
+      that link to another named entity in the system.
+      It was previously only following <code>IO_REPARSE_TAG_SYMLINK</code> and
+      <code>IO_REPARSE_TAG_MOUNT_POINT</code> reparse points.
+    </p>
+
+    <p><!-- CL 541015 -->
+      On Windows, passing <a href="/pkg/os#O_SYNC"><code>O_SYNC</code></a> to <a href="/pkg/os#OpenFile"><code>OpenFile</code></a> now causes write operations to go directly to disk, equivalent to <code>O_SYNC</code> on Unix platforms.
+    </p>
+
+    <p><!-- https://go.dev/issue/58808 -->
+      When <a href="/pkg/io#Copy"><code>io.Copy</code></a> copies
+      from a <code>File</code> to a <code>net.UnixConn</code>,
+      it will now use Linux's <code>sendfile(2)</code> system call if possible,
+      using the new method <a href="/pkg/os#File.WriteTo"><code>File.WriteTo</code></a>.
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
+  <dd>
+    <p><!-- CL 528037 -->
+      On Windows, <a href="/pkg/os/exec#LookPath"><code>LookPath</code> now
+      ignores empty entries in <code>%PATH%</code>, and returns
+      <code>ErrNotFound</code> (instead of <code>ErrNotExist</code>) if
+      no executable file extension is found to resolve an otherwise-unambiguous
+      name.
+    </p>
+
+    <p><!-- CL 528038, CL 527820 -->
+      On Windows, <a href="/pkg/os/exec#Command"><code>Command</code></a> and
+      <a href="/pkg/os/exec#Cmd.Start"><code>Cmd.Start</code></a> no
+      longer call <code>LookPath</code> if the path to the executable is already
+      absolute and has an executable file extension. In addition,
+      <code>Cmd.Start</code> no longer writes the resolved extension back to
+      the <a href="/pkg/os/exec#Cmd.Path"><code>Path</code></a> field,
+      so it is now safe to call the <code>String</code> method concurrently
+      with a call to <code>Start</code>.
+    </p>
+  </dd>
+</dl><!-- os/exec -->
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
@@ -111,12 +722,189 @@ Do not send CLs removing the interior tags from such phrases.
       These changes make <code>IsZero</code> consistent with comparing
       a value to zero using the language <code>==</code> operator.
     </p>
+
+    <p><!-- https://go.dev/issue/59599, CL 511035 -->
+      The <a href="/pkg/reflect/#PtrTo"><code>PtrTo</code></a> function is deprecated,
+      in favor of <a href="/pkg/reflect/#PointerTo"><code>PointerTo</code></a>.
+    </p>
+
+    <p><!-- https://go.dev/issue/60088, CL 513478 -->
+      The new function <a href="/pkg/reflect/#TypeFor"><code>TypeFor</code></a>
+      returns the <a href="/pkg/reflect/#Type"><code>Type</code></a> that represents
+      the type argument T.
+      Previously, to get the <code>reflect.Type</code> value for a type, one had to use
+      <code>reflect.TypeOf((*T)(nil)).Elem()</code>.
+      This may now be written as <code>reflect.TypeFor[T]()</code>.
+    </p>
   </dd>
-</dl>
+</dl><!-- reflect -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/63340 -->
+      Four new histogram metrics
+      <code>/sched/pauses/stopping/gc:seconds</code>,
+      <code>/sched/pauses/stopping/other:seconds</code>,
+      <code>/sched/pauses/total/gc:seconds</code>, and
+      <code>/sched/pauses/total/other:seconds</code> provide additional details
+      about stop-the-world pauses.
+      The "stopping" metrics report the time taken from deciding to stop the
+      world until all goroutines are stopped.
+      The "total" metrics report the time taken from deciding to stop the world
+      until it is started again.
+    </p>
+
+    <p><!-- https://go.dev/issue/63340 -->
+      The <code>/gc/pauses:seconds</code> metric is deprecated, as it is
+      equivalent to the new <code>/sched/pauses/total/gc:seconds</code> metric.
+    </p>
+
+    <p><!-- https://go.dev/issue/57071 -->
+      <code>/sync/mutex/wait/total:seconds</code> now includes contention on
+      runtime-internal locks in addition to
+      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
+      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61015 -->
+      Mutex profiles now scale contention by the number of goroutines blocked on the mutex.
+      This provides a more accurate representation of the degree to which a mutex is a bottleneck in
+      a Go program.
+      For instance, if 100 goroutines are blocked on a mutex for 10 milliseconds, a mutex profile will
+      now record 1 second of delay instead of 10 milliseconds of delay.
+    </p>
+
+    <p><!-- https://go.dev/issue/57071 -->
+      Mutex profiles also now include contention on runtime-internal locks in addition to
+      <a href="/pkg/sync#Mutex"><code>sync.Mutex</code></a> and
+      <a href="/pkg/sync#RWMutex"><code>sync.RWMutex</code></a>.
+      Contention on runtime-internal locks is always reported at <code>runtime._LostContendedRuntimeLock</code>.
+      A future release will add complete stack traces in these cases.
+    </p>
+
+    <p><!-- https://go.dev/issue/50891 -->
+      CPU profiles on Darwin platforms now contain the process's memory map, enabling the disassembly
+      view in the pprof tool.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60773 -->
+      The execution tracer has been completely overhauled in this release, resolving several long-standing
+      issues and paving the way for new use-cases for execution traces.
+    </p>
+    <p>
+      Execution traces now use the operating system's clock on most platforms (Windows excluded) so
+      it is possible to correlate them with traces produced by lower-level components.
+      Execution traces no longer depend on the reliability of the platform's clock to produce a correct trace.
+      Execution traces are now partitioned regularly on-the-fly and as a result may be processed in a
+      streamable way.
+      Execution traces now contain complete durations for all system calls.
+      Execution traces now contain information about the operating system threads that goroutines executed on.
+      The latency impact of starting and stopping execution traces has been dramatically reduced.
+      Execution traces may now begin or end during the garbage collection mark phase.
+    </p>
+    <p>
+      To allow Go developers to take advantage of these improvements, an experimental
+      trace reading package is available at <a href="/pkg/golang.org/x/exp/trace">golang.org/x/exp/trace</a>.
+      Note that this package only works on traces produced by programs built with Go 1.22 at the moment.
+      Please try out the package and provide feedback on
+      <a href="https://github.com/golang/go/issues/62627">the corresponding proposal issue</a>.
+    </p>
+    <p>
+      If you experience any issues with the new execution tracer implementation, you may switch back to the
+      old implementation by building your Go program with <code>GOEXPERIMENT=noexectracer2</code>.
+      If you do, please file an issue, otherwise this option will be removed in a future release.
+    </p>
+  </dd>
+</dl><!-- runtime/trace -->
+
+<dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56353 --><!-- CL 504882 -->
+      The new function <code>Concat</code> concatenates multiple slices.
+    </p>
+
+    <p><!-- https://go.dev/issue/63393 --><!-- CL 543335 -->
+      Functions that shrink the size of a slice (<code>Delete</code>, <code>DeleteFunc</code>, <code>Compact</code>, <code>CompactFunc</code>, and <code>Replace</code>) now zero the elements between the new length and the old length.
+    </p>
+
+    <p><!-- https://go.dev/issue/63913 --><!-- CL 540155 -->
+      <code>Insert</code> now always panics if the argument <code>i</code> is out of range. Previously it did not panic in this situation if there were no elements to be inserted.
+    </p>
+  </dd>
+</dl><!-- slices -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/60797 -->
+      The <code>syscall</code> package has been <a href="https://golang.org/s/go1.4-syscall">frozen</a> since Go 1.4 and was marked as deprecated in Go 1.11, causing many editors to warn about any use of the package.
+      However, some non-deprecated functionality requires use of the <code>syscall</code> package, such as the <a href="/pkg/os/exec#Cmd"><code>os/exec.Cmd.SysProcAttr</code></a> field.
+      To avoid unnecesary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
+      The package remains frozen to most new functionality, and new code remains encouraged to use <a href="/pkg/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a> or <a href="/pkg/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> where possible.
+    </p>
+
+    <p><!-- https://go.dev/issue/51246, CL 520266 -->
+      On Linux, the new <a href="/pkg/syscall#SysProcAttr"><code>SysProcAttr.PidFD</code></a> field allows obtaining a PID FD when starting a child process via <a href="/pkg/syscall#StartProcess"><code>StartProcess</code></a> or <a href="/pkg/os/exec"><code>os/exec</code></a>.
+    </p>
+
+    <p><!-- CL 541015 -->
+      On Windows, passing <a href="/pkg/syscall#O_SYNC"><code>O_SYNC</code></a> to <a href="/pkg/syscall#Open"><code>Open</code></a> now causes write operations to go directly to disk, equivalent to <code>O_SYNC</code> on Unix platforms.
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61758 -->
+      TODO: <a href="https://go.dev/issue/61758">https://go.dev/issue/61758</a>: support sub-tests
+    </p>
+
+    <p><!-- CL 516076 -->
+      TODO: <a href="https://go.dev/cl/516076">https://go.dev/cl/516076</a>: testing/slogtest: add Run to run cases as subtests; modified api/next/61758.txt
+    </p>
+  </dd>
+</dl><!-- testing/slogtest -->
 
 <h2 id="ports">Ports</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<h3 id="darwin">Darwin</h3>
+<p><!-- CL 461697 -->
+  On macOS on 64-bit x86 architecture (the <code>darwin/amd64</code> port),
+  the Go toolchain now generates position-independent executables (PIE) by default.
+  Non-PIE binaries can be generated by specifying the <code>-buildmode=exe</code>
+  build flag.
+  On 64-bit ARM-based macOS (the <code>darwin/arm64</code> port),
+  the Go toolchain already generates PIE by default.
 </p>
 
+<h3 id="arm">Arm</h3>
+<p><!-- CL 514907 -->
+  The <code>GOARM</code> environment variable now allows you to select whether to use software or hardware floating point.
+  Previously, valid <code>GOARM</code> values were <code>5</code>, <code>6</code>, or <code>7</code>. Now those same values can
+  be optionally followed by <code>,softfloat</code> or <code>,hardfloat</code> to select the floating-point implementation.
+</p>
+<p>
+  This new option defaults to <code>softfloat</code> for version <code>5</code> and <code>hardfloat</code> for versions
+  <code>6</code> and <code>7</code>.
+</p>
+
+<h3 id="loong64">Loong64</h3>
+<p><!-- CL 481315 -->
+  The <code>loong64</code> port now supports passing function arguments and results using registers.
+</p>
+<p><!-- CL 481315,537615,480878 -->
+  The <code>linux/loong64</code> port now supports the memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+<p><!-- CL 517935 -->
+  Go 1.22 adds an experimental port to OpenBSD on big-endian 64-bit PowerPC
+  (<code>openbsd/ppc64</code>).
+</p>

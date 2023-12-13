@@ -1104,7 +1104,7 @@ func (c *common) Skipf(format string, args ...any) {
 }
 
 // SkipNow marks the test as having been skipped and stops its execution
-// by calling runtime.Goexit.
+// by calling [runtime.Goexit].
 // If a test fails (see Error, Errorf, Fail) and is then skipped,
 // it is still considered to have failed.
 // Execution will continue at the next test or benchmark. See also FailNow.
@@ -1306,7 +1306,7 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// panicHanding is an argument to runCleanup.
+// panicHanding controls the panic handling used by runCleanup.
 type panicHandling int
 
 const (
@@ -1315,8 +1315,8 @@ const (
 )
 
 // runCleanup is called at the end of the test.
-// If catchPanic is true, this will catch panics, and return the recovered
-// value if any.
+// If ph is recoverAndReturnPanic, it will catch panics, and return the
+// recovered value if any.
 func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	c.cleanupStarted.Store(true)
 	defer c.cleanupStarted.Store(false)
@@ -1638,15 +1638,22 @@ func tRunner(t *T, fn func(t *T)) {
 
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
-			// Decrease the running count for this test.
+
+			// Decrease the running count for this test and mark it as no longer running.
 			t.context.release()
+			running.Delete(t.name)
+
 			// Release the parallel subtests.
 			close(t.barrier)
 			// Wait for subtests to complete.
 			for _, sub := range t.sub {
 				<-sub.signal
 			}
+
+			// Run any cleanup callbacks, marking the test as running
+			// in case the cleanup hangs.
 			cleanupStart := time.Now()
+			running.Store(t.name, cleanupStart)
 			err := t.runCleanup(recoverAndReturnPanic)
 			t.duration += time.Since(cleanupStart)
 			if err != nil {
@@ -1733,11 +1740,19 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// without being preempted, even when their parent is a parallel test. This
 	// may especially reduce surprises if *parallel == 1.
 	go tRunner(t, f)
+
+	// The parent goroutine will block until the subtest either finishes or calls
+	// Parallel, but in general we don't know whether the parent goroutine is the
+	// top-level test function or some other goroutine it has spawned.
+	// To avoid confusing false-negatives, we leave the parent in the running map
+	// even though in the typical case it is blocked.
+
 	if !<-t.signal {
 		// At this point, it is likely that FailNow was called on one of the
 		// parent tests by one of the subtests. Continue aborting up the chain.
 		runtime.Goexit()
 	}
+
 	if t.chatty != nil && t.chatty.json {
 		t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
 	}

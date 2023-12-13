@@ -437,6 +437,10 @@ func (p *pageAlloc) grow(base, size uintptr) {
 //
 // The heap lock must not be held over this operation, since it will briefly acquire
 // the heap lock.
+//
+// Must be called on the system stack because it acquires the heap lock.
+//
+//go:systemstack
 func (p *pageAlloc) enableChunkHugePages() {
 	// Grab the heap lock to turn on huge pages for new chunks and clone the current
 	// heap address space ranges.

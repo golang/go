@@ -313,8 +313,8 @@ func combineLoads(root *Value, n int64) bool {
 	if isLittleEndian && shift0 != 0 {
 		v = leftShift(loadBlock, pos, v, shift0)
 	}
-	if isBigEndian && shift0-(n-1)*8 != 0 {
-		v = leftShift(loadBlock, pos, v, shift0-(n-1)*8)
+	if isBigEndian && shift0-(n-1)*size*8 != 0 {
+		v = leftShift(loadBlock, pos, v, shift0-(n-1)*size*8)
 	}
 
 	// Install with (Copy v).
@@ -662,14 +662,14 @@ func combineStores(root *Value, n int64) bool {
 	isLittleEndian := true
 	shift0 := shift(a[0].store, shiftBase)
 	for i := int64(1); i < n; i++ {
-		if shift(a[i].store, shiftBase) != shift0+i*8 {
+		if shift(a[i].store, shiftBase) != shift0+i*size*8 {
 			isLittleEndian = false
 			break
 		}
 	}
 	isBigEndian := true
 	for i := int64(1); i < n; i++ {
-		if shift(a[i].store, shiftBase) != shift0-i*8 {
+		if shift(a[i].store, shiftBase) != shift0-i*size*8 {
 			isBigEndian = false
 			break
 		}
@@ -692,8 +692,8 @@ func combineStores(root *Value, n int64) bool {
 	if isLittleEndian && shift0 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0)
 	}
-	if isBigEndian && shift0-(n-1)*8 != 0 {
-		sv = rightShift(root.Block, root.Pos, sv, shift0-(n-1)*8)
+	if isBigEndian && shift0-(n-1)*size*8 != 0 {
+		sv = rightShift(root.Block, root.Pos, sv, shift0-(n-1)*size*8)
 	}
 	if sv.Type.Size() > size*n {
 		sv = truncate(root.Block, root.Pos, sv, sv.Type.Size(), size*n)

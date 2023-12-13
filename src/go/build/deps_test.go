@@ -45,20 +45,26 @@ var depsRules = `
 	  internal/cpu, internal/goarch, internal/godebugs,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
+	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
 	# These packages depend only on internal/goarch and unsafe.
 	internal/goarch, unsafe
-	< internal/abi;
+	< internal/abi, internal/chacha8rand;
 
 	unsafe < maps;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/abi, internal/cpu, internal/goarch,
-	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
-	internal/goos, unsafe
+	internal/abi,
+	internal/chacha8rand,
+	internal/coverage/rtcov,
+	internal/cpu,
+	internal/goarch,
+	internal/godebugs,
+	internal/goexperiment,
+	internal/goos
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -76,6 +82,9 @@ var depsRules = `
 	< errors
 	< internal/oserror, math/bits
 	< RUNTIME;
+
+	internal/race
+	< iter;
 
 	# slices depends on unsafe for overlapping check, cmp for comparison
 	# semantics, and math/bits for # calculating bitlength of numbers.
@@ -131,7 +140,7 @@ var depsRules = `
 	< math/cmplx;
 
 	MATH
-	< math/rand;
+	< math/rand, math/rand/v2;
 
 	MATH
 	< runtime/metrics;
@@ -164,7 +173,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, STR
+	os/signal, internal/safefilepath, STR
 	< path/filepath
 	< io/ioutil;
 
@@ -270,6 +279,8 @@ var depsRules = `
 
 	# go parser and friends.
 	FMT
+	< internal/gover
+	< go/version
 	< go/token
 	< go/scanner
 	< go/ast
@@ -603,12 +614,46 @@ var depsRules = `
 	syscall
 	< os/exec/internal/fdtest;
 
-	FMT, container/heap, math/rand
-	< internal/trace;
-
 	FMT
 	< internal/diff, internal/txtar;
 
+	# v2 execution trace parser.
+	FMT
+	< internal/trace/v2/event;
+
+	internal/trace/v2/event
+	< internal/trace/v2/event/go122;
+
+	FMT, io, internal/trace/v2/event/go122
+	< internal/trace/v2/version;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2/raw;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2;
+
+	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
+	< internal/trace/v2/testtrace;
+
+	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
+	< internal/trace/v2/internal/testgen/go122;
+
+	FMT, container/heap, math/rand, internal/trace/v2
+	< internal/trace;
+
+	# cmd/trace dependencies.
+	FMT,
+	embed,
+	encoding/json,
+	html/template,
+	internal/profile,
+	internal/trace,
+	internal/trace/traceviewer/format,
+	net/http
+	< internal/trace/traceviewer;
+
+	# Coverage.
 	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
 	internal/coverage, internal/coverage/uleb128
 	< internal/coverage/cmerge,

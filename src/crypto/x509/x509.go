@@ -772,7 +772,15 @@ type Certificate struct {
 	// CRL Distribution Points
 	CRLDistributionPoints []string
 
+	// PolicyIdentifiers contains asn1.ObjectIdentifiers, the components
+	// of which are limited to int32. If a certificate contains a policy which
+	// cannot be represented by asn1.ObjectIdentifier, it will not be included in
+	// PolicyIdentifiers, but will be present in Policies, which contains all parsed
+	// policy OIDs.
 	PolicyIdentifiers []asn1.ObjectIdentifier
+
+	// Policies contains all policy identifiers included in the certificate.
+	Policies []OID
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
@@ -881,6 +889,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if details.algo == algo {
 			hashType = details.hash
 			pubKeyAlgo = details.pubKeyAlgo
+			break
 		}
 	}
 
@@ -1092,6 +1101,8 @@ func isIA5String(s string) error {
 	return nil
 }
 
+var usePoliciesField = godebug.New("x509usepolicies")
+
 func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
@@ -1177,9 +1188,10 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		n++
 	}
 
-	if len(template.PolicyIdentifiers) > 0 &&
+	usePolicies := usePoliciesField.Value() == "1"
+	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
-		ret[n], err = marshalCertificatePolicies(template.PolicyIdentifiers)
+		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
 		if err != nil {
 			return nil, err
 		}
@@ -1364,14 +1376,35 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
 	return ext, err
 }
 
-func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
 	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
-	policies := make([]policyInformation, len(policyIdentifiers))
-	for i, policy := range policyIdentifiers {
-		policies[i].Policy = policy
-	}
+
+	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+		if usePoliciesField.Value() == "1" {
+			usePoliciesField.IncNonDefault()
+			for _, v := range policies {
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+						if len(v.der) == 0 {
+							child.SetError(errors.New("invalid policy object identifier"))
+							return
+						}
+						child.AddBytes(v.der)
+					})
+				})
+			}
+		} else {
+			for _, v := range policyIdentifiers {
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+					child.AddASN1ObjectIdentifier(v)
+				})
+			}
+		}
+	})
+
 	var err error
-	ext.Value, err = asn1.Marshal(policies)
+	ext.Value, err = b.Bytes()
 	return ext, err
 }
 
@@ -1511,7 +1544,8 @@ var emptyASN1Subject = []byte{0x30, 0}
 //   - PermittedEmailAddresses
 //   - PermittedIPRanges
 //   - PermittedURIDomains
-//   - PolicyIdentifiers
+//   - PolicyIdentifiers (see note below)
+//   - Policies (see note below)
 //   - SerialNumber
 //   - SignatureAlgorithm
 //   - Subject
@@ -1535,6 +1569,13 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
+//
+// The PolicyIdentifier and Policies fields are both used to marshal certificate
+// policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
+// GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
+// be marshalled instead of the PolicyIdentifier field. The Policies field can
+// be used to marshal policy OIDs which have components that are larger than 31
+// bits.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {

@@ -32,10 +32,10 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	// starting at 4(R13).
 	MOVW.W	R14, -4(R13)
 
-	// Skip floating point registers on GOARM < 6.
-	MOVB    runtime·goarm(SB), R11
-	CMP $6, R11
-	BLT skipfpsave
+	// Skip floating point registers if goarmsoftfp!=0.
+	MOVB    runtime·goarmsoftfp(SB), R11
+	CMP     $0, R11
+	BNE     skipfpsave
 	MOVD	F8, (13*4+8*1)(R13)
 	MOVD	F9, (13*4+8*2)(R13)
 	MOVD	F10, (13*4+8*3)(R13)
@@ -50,9 +50,9 @@ skipfpsave:
 	// We set up the arguments to cgocallback when saving registers above.
 	BL	runtime·cgocallback(SB)
 
-	MOVB    runtime·goarm(SB), R11
-	CMP $6, R11
-	BLT skipfprest
+	MOVB    runtime·goarmsoftfp(SB), R11
+	CMP     $0, R11
+	BNE     skipfprest
 	MOVD	(13*4+8*1)(R13), F8
 	MOVD	(13*4+8*2)(R13), F9
 	MOVD	(13*4+8*3)(R13), F10

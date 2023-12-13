@@ -361,6 +361,20 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 	}
 
+	if cfg.Goarch == "arm" {
+		// Define GOARM_value from cfg.GOARM.
+		switch cfg.GOARM {
+		case "7":
+			args = append(args, "-D", "GOARM_7")
+			fallthrough
+		case "6":
+			args = append(args, "-D", "GOARM_6")
+			fallthrough
+		default:
+			args = append(args, "-D", "GOARM_5")
+		}
+	}
+
 	return args
 }
 

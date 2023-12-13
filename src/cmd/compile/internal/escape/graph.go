@@ -38,7 +38,7 @@ import (
 //        e.value(k, n.Left)
 //    }
 
-// An location represents an abstract location that stores a Go
+// A location represents an abstract location that stores a Go
 // variable.
 type location struct {
 	n         ir.Node  // represented variable or expression, if any

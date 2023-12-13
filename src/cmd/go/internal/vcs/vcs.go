@@ -1171,18 +1171,31 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 			var ok bool
 			repoURL, ok = interceptVCSTest(repo, vcs, security)
 			if !ok {
-				scheme := vcs.Scheme[0] // default to first scheme
-				if vcs.PingCmd != "" {
-					// If we know how to test schemes, scan to find one.
+				scheme, err := func() (string, error) {
 					for _, s := range vcs.Scheme {
 						if security == web.SecureOnly && !vcs.isSecureScheme(s) {
 							continue
 						}
-						if vcs.Ping(s, repo) == nil {
-							scheme = s
-							break
+
+						// If we know how to ping URL schemes for this VCS,
+						// check that this repo works.
+						// Otherwise, default to the first scheme
+						// that meets the requested security level.
+						if vcs.PingCmd == "" {
+							return s, nil
+						}
+						if err := vcs.Ping(s, repo); err == nil {
+							return s, nil
 						}
 					}
+					securityFrag := ""
+					if security == web.SecureOnly {
+						securityFrag = "secure "
+					}
+					return "", fmt.Errorf("no %sprotocol found for repository", securityFrag)
+				}()
+				if err != nil {
+					return nil, err
 				}
 				repoURL = scheme + "://" + repo
 			}

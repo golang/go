@@ -18968,79 +18968,84 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	fe := b.Func.fe
-	// match: (NilCheck (GetG mem) mem)
-	// result: mem
+	// match: (NilCheck ptr:(GetG mem) mem)
+	// result: ptr
 	for {
-		if v_0.Op != OpGetG {
+		ptr := v_0
+		if ptr.Op != OpGetG {
 			break
 		}
-		mem := v_0.Args[0]
+		mem := ptr.Args[0]
 		if mem != v_1 {
 			break
 		}
-		v.copyOf(mem)
+		v.copyOf(ptr)
 		return true
 	}
-	// match: (NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
+	// match: (NilCheck ptr:(SelectN [0] call:(StaticLECall _ _)) _)
 	// cond: isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")
-	// result: (Invalid)
+	// result: ptr
 	for {
-		if v_0.Op != OpSelectN || auxIntToInt64(v_0.AuxInt) != 0 {
+		ptr := v_0
+		if ptr.Op != OpSelectN || auxIntToInt64(ptr.AuxInt) != 0 {
 			break
 		}
-		call := v_0.Args[0]
+		call := ptr.Args[0]
 		if call.Op != OpStaticLECall || len(call.Args) != 2 || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
-		v.reset(OpInvalid)
+		v.copyOf(ptr)
 		return true
 	}
-	// match: (NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
+	// match: (NilCheck ptr:(OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	// cond: isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")
-	// result: (Invalid)
+	// result: ptr
 	for {
-		if v_0.Op != OpOffPtr {
+		ptr := v_0
+		if ptr.Op != OpOffPtr {
 			break
 		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSelectN || auxIntToInt64(v_0_0.AuxInt) != 0 {
+		ptr_0 := ptr.Args[0]
+		if ptr_0.Op != OpSelectN || auxIntToInt64(ptr_0.AuxInt) != 0 {
 			break
 		}
-		call := v_0_0.Args[0]
+		call := ptr_0.Args[0]
 		if call.Op != OpStaticLECall || len(call.Args) != 2 || !(isSameCall(call.Aux, "runtime.newobject") && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
-		v.reset(OpInvalid)
+		v.copyOf(ptr)
 		return true
 	}
-	// match: (NilCheck (Addr {_} (SB)) _)
-	// result: (Invalid)
+	// match: (NilCheck ptr:(Addr {_} (SB)) _)
+	// result: ptr
 	for {
-		if v_0.Op != OpAddr {
+		ptr := v_0
+		if ptr.Op != OpAddr {
 			break
 		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSB {
+		ptr_0 := ptr.Args[0]
+		if ptr_0.Op != OpSB {
 			break
 		}
-		v.reset(OpInvalid)
+		v.copyOf(ptr)
 		return true
 	}
-	// match: (NilCheck (Convert (Addr {_} (SB)) _) _)
-	// result: (Invalid)
+	// match: (NilCheck ptr:(Convert (Addr {_} (SB)) _) _)
+	// result: ptr
 	for {
-		if v_0.Op != OpConvert {
+		ptr := v_0
+		if ptr.Op != OpConvert {
 			break
 		}
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpAddr {
+		ptr_0 := ptr.Args[0]
+		if ptr_0.Op != OpAddr {
 			break
 		}
-		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpSB {
+		ptr_0_0 := ptr_0.Args[0]
+		if ptr_0_0.Op != OpSB {
 			break
 		}
-		v.reset(OpInvalid)
+		v.copyOf(ptr)
 		return true
 	}
 	return false

@@ -1926,7 +1926,7 @@
 //
 // Constraints may appear in any kind of source file (not just Go), but
 // they must appear near the top of the file, preceded
-// only by blank lines and other line comments. These rules mean that in Go
+// only by blank lines and other comments. These rules mean that in Go
 // files a build constraint must appear before the package clause.
 //
 // To distinguish build constraints from package documentation,
@@ -2285,6 +2285,8 @@
 //	GOARM
 //		For GOARCH=arm, the ARM architecture for which to compile.
 //		Valid values are 5, 6, 7.
+//		The value can be followed by an option specifying how to implement floating point instructions.
+//		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 //	GO386
 //		For GOARCH=386, how to implement floating point instructions.
 //		Valid values are sse2 (default), softfloat.

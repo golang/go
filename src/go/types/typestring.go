@@ -329,6 +329,13 @@ func (w *typeWriter) typ(typ Type) {
 			}
 		}
 
+	case *Alias:
+		w.typeName(t.obj)
+		if w.ctxt != nil {
+			// TODO(gri) do we need to print the alias type name, too?
+			w.typ(Unalias(t.obj.typ))
+		}
+
 	default:
 		// For externally defined implementations of Type.
 		// Note: In this case cycles won't be caught.

@@ -256,7 +256,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$40-12
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	ADDI	$-24, X2 // Space for result
+	SUB	$24, X2 // Space for result
 	ANDI	$~7, X2 // Align for C code
 	MOV	$8(X2), A1
 
@@ -328,7 +328,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	ADDI	$-24, X2 // Space for result
+	SUB	$24, X2 // Space for result
 	ANDI	$~7, X2 // Align for C code
 	MOV	$8(X2), A1
 

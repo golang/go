@@ -251,10 +251,14 @@ loop:
 			// the syntactic information. We should consider storing
 			// this information explicitly in the object.
 			var alias bool
-			if d := check.objMap[obj]; d != nil {
-				alias = d.tdecl.Alias // package-level object
+			if check.enableAlias {
+				alias = obj.IsAlias()
 			} else {
-				alias = obj.IsAlias() // function local object
+				if d := check.objMap[obj]; d != nil {
+					alias = d.tdecl.Alias // package-level object
+				} else {
+					alias = obj.IsAlias() // function local object
+				}
 			}
 			if !alias {
 				ndef++
@@ -322,7 +326,11 @@ func (check *Checker) cycleError(cycle []Object) {
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
 	tname, _ := obj.(*TypeName)
 	if tname != nil && tname.IsAlias() {
-		check.validAlias(tname, Typ[Invalid])
+		// If we use Alias nodes, it is initialized with Typ[Invalid].
+		// TODO(gri) Adjust this code if we initialize with nil.
+		if !check.enableAlias {
+			check.validAlias(tname, Typ[Invalid])
+		}
 	}
 
 	// report a more concise error for self references
@@ -441,7 +449,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	if lhs == nil || len(lhs) == 1 {
 		assert(lhs == nil || lhs[0] == obj)
 		var x operand
-		check.expr(obj.typ, &x, init)
+		check.expr(newTarget(obj.typ, obj.name), &x, init)
 		check.initVar(obj, &x, "variable declaration")
 		return
 	}
@@ -495,20 +503,32 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
 		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
 	}).describef(obj, "validType(%s)", obj.Name())
 
-	alias := tdecl.Alias
-	if alias && tdecl.TParamList != nil {
+	aliasDecl := tdecl.Alias
+	if aliasDecl && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
 		check.error(tdecl, BadDecl, "generic type cannot be alias")
-		alias = false
+		aliasDecl = false
 	}
 
 	// alias declaration
-	if alias {
+	if aliasDecl {
 		check.verifyVersionf(tdecl, go1_9, "type aliases")
-		check.brokenAlias(obj)
-		rhs = check.typ(tdecl.Type)
-		check.validAlias(obj, rhs)
+		if check.enableAlias {
+			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+			//           the alias as incomplete. Currently this causes problems
+			//           with certain cycles. Investigate.
+			alias := check.newAlias(obj, Typ[Invalid])
+			setDefType(def, alias)
+			rhs = check.definedType(tdecl.Type, obj)
+			assert(rhs != nil)
+			alias.fromRHS = rhs
+			Unalias(alias) // resolve alias.actual
+		} else {
+			check.brokenAlias(obj)
+			rhs = check.typ(tdecl.Type)
+			check.validAlias(obj, rhs)
+		}
 		return
 	}
 
@@ -550,8 +570,11 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized type bounds).
-	for i, f := range list {
-		tparams[i] = check.declareTypeParam(f.Name)
+	if len(list) > 0 {
+		scopePos := list[0].Pos()
+		for i, f := range list {
+			tparams[i] = check.declareTypeParam(f.Name, scopePos)
+		}
 	}
 
 	// Set the type parameters before collecting the type constraints because
@@ -608,7 +631,7 @@ func (check *Checker) bound(x syntax.Expr) Type {
 	return check.typ(x)
 }
 
-func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
+func (check *Checker) declareTypeParam(name *syntax.Name, scopePos syntax.Pos) *TypeParam {
 	// Use Typ[Invalid] for the type constraint to ensure that a type
 	// is present even if the actual constraint has not been assigned
 	// yet.
@@ -616,8 +639,8 @@ func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
 	//           constraints to make sure we don't rely on them if they
 	//           are not properly set yet.
 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
-	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
+	tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tname as a side-effect
+	check.declare(check.scope, name, tname, scopePos)
 	return tpar
 }
 
@@ -729,6 +752,11 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
 	obj.color_ = saved
+
+	// Set the scope's extent to the complete "func (...) { ... }"
+	// so that Scope.Innermost works correctly.
+	sig.scope.pos = fdecl.Pos()
+	sig.scope.end = syntax.EndPos(fdecl)
 
 	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
 		check.softErrorf(fdecl, BadDecl, "generic function is missing function body")

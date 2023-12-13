@@ -390,6 +390,7 @@ func TestAddrPortMarshalTextString(t *testing.T) {
 		want string
 	}{
 		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[::]:80"), "[::]:80"},
 		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
 		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
 		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},
@@ -1456,7 +1457,7 @@ func TestParsePrefixError(t *testing.T) {
 		},
 		{
 			prefix: "1.1.1.0/-1",
-			errstr: "out of range",
+			errstr: "bad bits",
 		},
 		{
 			prefix: "1.1.1.0/33",
@@ -1474,6 +1475,22 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001:db8::%a/32",
 			errstr: "zones cannot be present",
+		},
+		{
+			prefix: "1.1.1.0/+32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/-32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/032",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/0032",
+			errstr: "bad bits",
 		},
 	}
 	for _, test := range tests {

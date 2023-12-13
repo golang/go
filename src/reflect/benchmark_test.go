@@ -120,12 +120,30 @@ func BenchmarkMapsDeepEqual(b *testing.B) {
 }
 
 func BenchmarkIsZero(b *testing.B) {
-	source := ValueOf(struct {
-		ArrayComparable    [4]T
-		ArrayIncomparable  [4]_Complex
-		StructComparable   T
-		StructIncomparable _Complex
-	}{})
+	type Int4 struct {
+		a, b, c, d int
+	}
+	type Int1024 struct {
+		a [1024]int
+	}
+	type Int512 struct {
+		a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16 [16]S
+	}
+	s := struct {
+		ArrayComparable      [4]T
+		ArrayIncomparable    [4]_Complex
+		StructComparable     T
+		StructIncomparable   _Complex
+		ArrayInt_4           [4]int
+		ArrayInt_1024        [1024]int
+		ArrayInt_1024_NoZero [1024]int
+		Struct4Int           Int4
+		ArrayStruct4Int_1024 [256]Int4
+		ArrayChanInt_1024    [1024]chan int
+		StructInt_512        Int512
+	}{}
+	s.ArrayInt_1024_NoZero[512] = 1
+	source := ValueOf(s)
 
 	for i := 0; i < source.NumField(); i++ {
 		name := source.Type().Field(i).Name

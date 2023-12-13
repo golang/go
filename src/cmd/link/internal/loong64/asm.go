@@ -14,7 +14,47 @@ import (
 	"log"
 )
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	o := func(op uint32) {
+		initfunc.AddUint32(ctxt.Arch, op)
+	}
+
+	// Emit the following function:
+	//
+	//	local.dso_init:
+	//		la.pcrel $a0, local.moduledata
+	//		b runtime.addmoduledata
+
+	//	0000000000000000 <local.dso_init>:
+	//	0:	1a000004	pcalau12i	$a0, 0
+	//				0: R_LARCH_PCALA_HI20	local.moduledata
+	o(0x1a000004)
+	rel, _ := initfunc.AddRel(objabi.R_ADDRLOONG64U)
+	rel.SetOff(0)
+	rel.SetSiz(4)
+	rel.SetSym(ctxt.Moduledata)
+
+	//	4:	02c00084	addi.d	$a0, $a0, 0
+	//				4: R_LARCH_PCALA_LO12	local.moduledata
+	o(0x02c00084)
+	rel2, _ := initfunc.AddRel(objabi.R_ADDRLOONG64)
+	rel2.SetOff(4)
+	rel2.SetSiz(4)
+	rel2.SetSym(ctxt.Moduledata)
+
+	//	8:	50000000	b	0
+	//				8: R_LARCH_B26	runtime.addmoduledata
+	o(0x50000000)
+	rel3, _ := initfunc.AddRel(objabi.R_CALLLOONG64)
+	rel3.SetOff(8)
+	rel3.SetSiz(4)
+	rel3.SetSym(addmoduledata)
+}
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	log.Fatalf("adddynrel not implemented")
@@ -78,6 +118,16 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_LARCH_PCALA_HI20) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
+
+	case objabi.R_LOONG64_GOT_HI:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_GOT_PC_HI20) | uint64(elfsym)<<32)
+		out.Write64(uint64(0x0))
+
+	case objabi.R_LOONG64_GOT_LO:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_GOT_PC_LO12) | uint64(elfsym)<<32)
+		out.Write64(uint64(0x0))
 	}
 
 	return true
@@ -111,7 +161,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_CALLLOONG64,
 			objabi.R_JMPLOONG64,
 			objabi.R_LOONG64_TLS_IE_PCREL_HI,
-			objabi.R_LOONG64_TLS_IE_LO:
+			objabi.R_LOONG64_TLS_IE_LO,
+			objabi.R_LOONG64_GOT_HI,
+			objabi.R_LOONG64_GOT_LO:
 			return val, 1, true
 		}
 	}
@@ -156,7 +208,10 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
 	case objabi.R_ADDRLOONG64,
-		objabi.R_ADDRLOONG64U:
+		objabi.R_ADDRLOONG64U,
+		objabi.R_LOONG64_GOT_HI,
+		objabi.R_LOONG64_GOT_LO:
+
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 
 	case objabi.R_ADDRLOONG64TLS,

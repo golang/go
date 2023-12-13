@@ -106,7 +106,7 @@ func Check(t *testing.T) {
 	}
 
 	var nextFiles []string
-	if strings.Contains(runtime.Version(), "devel") {
+	if v := runtime.Version(); strings.Contains(v, "devel") || strings.Contains(v, "beta") {
 		next, err := filepath.Glob(filepath.Join(testenv.GOROOT(t), "api/next/*.txt"))
 		if err != nil {
 			t.Fatal(err)

@@ -52,11 +52,6 @@ var (
 // and might not match those returned by this function.
 func CipherSuites() []*CipherSuite {
 	return []*CipherSuite{
-		{TLS_RSA_WITH_AES_128_CBC_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, false},
-		{TLS_RSA_WITH_AES_256_CBC_SHA, "TLS_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, false},
-		{TLS_RSA_WITH_AES_128_GCM_SHA256, "TLS_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, false},
-		{TLS_RSA_WITH_AES_256_GCM_SHA384, "TLS_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, false},
-
 		{TLS_AES_128_GCM_SHA256, "TLS_AES_128_GCM_SHA256", supportedOnlyTLS13, false},
 		{TLS_AES_256_GCM_SHA384, "TLS_AES_256_GCM_SHA384", supportedOnlyTLS13, false},
 		{TLS_CHACHA20_POLY1305_SHA256, "TLS_CHACHA20_POLY1305_SHA256", supportedOnlyTLS13, false},
@@ -85,7 +80,11 @@ func InsecureCipherSuites() []*CipherSuite {
 	return []*CipherSuite{
 		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
 		{TLS_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
+		{TLS_RSA_WITH_AES_128_CBC_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, true},
+		{TLS_RSA_WITH_AES_256_CBC_SHA, "TLS_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, true},
 		{TLS_RSA_WITH_AES_128_CBC_SHA256, "TLS_RSA_WITH_AES_128_CBC_SHA256", supportedOnlyTLS12, true},
+		{TLS_RSA_WITH_AES_128_GCM_SHA256, "TLS_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, true},
+		{TLS_RSA_WITH_AES_256_GCM_SHA384, "TLS_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, true},
 		{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
 		{TLS_ECDHE_RSA_WITH_RC4_128_SHA, "TLS_ECDHE_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
 		{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
@@ -322,22 +321,47 @@ var cipherSuitesPreferenceOrderNoAES = []uint16{
 	TLS_RSA_WITH_RC4_128_SHA,
 }
 
-// disabledCipherSuites are not used unless explicitly listed in
-// Config.CipherSuites. They MUST be at the end of cipherSuitesPreferenceOrder.
-var disabledCipherSuites = []uint16{
+// disabledCipherSuites are not used unless explicitly listed in Config.CipherSuites.
+var disabledCipherSuites = map[uint16]bool{
 	// CBC_SHA256
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-	TLS_RSA_WITH_AES_128_CBC_SHA256,
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256: true,
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:   true,
+	TLS_RSA_WITH_AES_128_CBC_SHA256:         true,
 
 	// RC4
-	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-	TLS_RSA_WITH_RC4_128_SHA,
+	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA: true,
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA:   true,
+	TLS_RSA_WITH_RC4_128_SHA:         true,
 }
 
-var (
-	defaultCipherSuitesLen = len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
-	defaultCipherSuites    = cipherSuitesPreferenceOrder[:defaultCipherSuitesLen]
-)
+// rsaKexCiphers contains the ciphers which use RSA based key exchange,
+// which we also disable by default unless a GODEBUG is set.
+var rsaKexCiphers = map[uint16]bool{
+	TLS_RSA_WITH_RC4_128_SHA:        true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:   true,
+	TLS_RSA_WITH_AES_128_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_256_CBC_SHA:    true,
+	TLS_RSA_WITH_AES_128_CBC_SHA256: true,
+	TLS_RSA_WITH_AES_128_GCM_SHA256: true,
+	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
+}
+
+var defaultCipherSuites []uint16
+var defaultCipherSuitesWithRSAKex []uint16
+
+func init() {
+	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
+	defaultCipherSuitesWithRSAKex = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
+	for _, c := range cipherSuitesPreferenceOrder {
+		if disabledCipherSuites[c] {
+			continue
+		}
+		if !rsaKexCiphers[c] {
+			defaultCipherSuites = append(defaultCipherSuites, c)
+		}
+		defaultCipherSuitesWithRSAKex = append(defaultCipherSuitesWithRSAKex, c)
+	}
+}
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no
 // disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as

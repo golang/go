@@ -8,6 +8,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/platform"
 	"internal/testenv"
@@ -754,6 +755,7 @@ func TestNeedmDeadlock(t *testing.T) {
 }
 
 func TestCgoNoCallback(t *testing.T) {
+	t.Skip("TODO(#56378): enable in Go 1.23")
 	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
 	want := "function marked with #cgo nocallback called back into Go"
 	if !strings.Contains(got, want) {
@@ -762,6 +764,7 @@ func TestCgoNoCallback(t *testing.T) {
 }
 
 func TestCgoNoEscape(t *testing.T) {
+	t.Skip("TODO(#56378): enable in Go 1.23")
 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
 	want := "OK\n"
 	if got != want {
@@ -783,6 +786,9 @@ func TestCgoTraceParser(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
+	if goexperiment.ExecTracer2 {
+		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
+	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
 	want := "OK\n"
 	ErrTimeOrder := "ErrTimeOrder\n"
@@ -798,6 +804,9 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if goexperiment.ExecTracer2 {
+		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
 	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
 	want := "OK\n"

@@ -9,12 +9,12 @@ import (
 	"io"
 )
 
-// splice transfers data from r to c using the splice system call to minimize
-// copies from and to userspace. c must be a TCP connection. Currently, splice
-// is only enabled if r is a TCP or a stream-oriented Unix connection.
+// spliceFrom transfers data from r to c using the splice system call to minimize
+// copies from and to userspace. c must be a TCP connection.
+// Currently, spliceFrom is only enabled if r is a TCP or a stream-oriented Unix connection.
 //
-// If splice returns handled == false, it has performed no work.
-func splice(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+// If spliceFrom returns handled == false, it has performed no work.
+func spliceFrom(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	var remain int64 = 1<<63 - 1 // by default, copy until EOF
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
@@ -25,14 +25,17 @@ func splice(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	}
 
 	var s *netFD
-	if tc, ok := r.(*TCPConn); ok {
-		s = tc.fd
-	} else if uc, ok := r.(*UnixConn); ok {
-		if uc.fd.net != "unix" {
+	switch v := r.(type) {
+	case *TCPConn:
+		s = v.fd
+	case tcpConnWithoutWriteTo:
+		s = v.fd
+	case *UnixConn:
+		if v.fd.net != "unix" {
 			return 0, nil, false
 		}
-		s = uc.fd
-	} else {
+		s = v.fd
+	default:
 		return 0, nil, false
 	}
 
@@ -40,5 +43,20 @@ func splice(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	if lr != nil {
 		lr.N -= written
 	}
+	return written, wrapSyscallError(sc, err), handled
+}
+
+// spliceTo transfers data from c to w using the splice system call to minimize
+// copies from and to userspace. c must be a TCP connection.
+// Currently, spliceTo is only enabled if w is a stream-oriented Unix connection.
+//
+// If spliceTo returns handled == false, it has performed no work.
+func spliceTo(w io.Writer, c *netFD) (written int64, err error, handled bool) {
+	uc, ok := w.(*UnixConn)
+	if !ok || uc.fd.net != "unix" {
+		return
+	}
+
+	written, handled, sc, err := poll.Splice(&uc.fd.pfd, &c.pfd, 1<<63-1)
 	return written, wrapSyscallError(sc, err), handled
 }

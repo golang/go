@@ -24,10 +24,6 @@ const (
 // If MaxLen is not 0, make sure MaxLen >= 4.
 var MaxLen int
 
-// FIXME: the logic of IndexRabinKarpBytes and IndexRabinKarp are exactly the same,
-// except that the types are different.
-// Can we eliminate one of them without causing allocation?
-
 // PrimeRK is the prime base used in Rabin-Karp algorithm.
 const PrimeRK = 16777619
 
@@ -65,17 +61,17 @@ func HashStrRev[T string | []byte](sep T) (uint32, uint32) {
 	return hash, pow
 }
 
-// IndexRabinKarpBytes uses the Rabin-Karp search algorithm to return the index of the
-// first occurrence of substr in s, or -1 if not present.
-func IndexRabinKarpBytes(s, sep []byte) int {
+// IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
+// first occurrence of sep in s, or -1 if not present.
+func IndexRabinKarp[T string | []byte](s, sep T) int {
 	// Rabin-Karp search
-	hashsep, pow := HashStr(sep)
+	hashss, pow := HashStr(sep)
 	n := len(sep)
 	var h uint32
 	for i := 0; i < n; i++ {
 		h = h*PrimeRK + uint32(s[i])
 	}
-	if h == hashsep && Equal(s[:n], sep) {
+	if h == hashss && string(s[:n]) == string(sep) {
 		return 0
 	}
 	for i := n; i < len(s); {
@@ -83,33 +79,33 @@ func IndexRabinKarpBytes(s, sep []byte) int {
 		h += uint32(s[i])
 		h -= pow * uint32(s[i-n])
 		i++
-		if h == hashsep && Equal(s[i-n:i], sep) {
+		if h == hashss && string(s[i-n:i]) == string(sep) {
 			return i - n
 		}
 	}
 	return -1
 }
 
-// IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
-// first occurrence of substr in s, or -1 if not present.
-func IndexRabinKarp(s, substr string) int {
-	// Rabin-Karp search
-	hashss, pow := HashStr(substr)
-	n := len(substr)
+// LastIndexRabinKarp uses the Rabin-Karp search algorithm to return the last index of the
+// occurrence of sep in s, or -1 if not present.
+func LastIndexRabinKarp[T string | []byte](s, sep T) int {
+	// Rabin-Karp search from the end of the string
+	hashss, pow := HashStrRev(sep)
+	n := len(sep)
+	last := len(s) - n
 	var h uint32
-	for i := 0; i < n; i++ {
+	for i := len(s) - 1; i >= last; i-- {
 		h = h*PrimeRK + uint32(s[i])
 	}
-	if h == hashss && s[:n] == substr {
-		return 0
+	if h == hashss && string(s[last:]) == string(sep) {
+		return last
 	}
-	for i := n; i < len(s); {
+	for i := last - 1; i >= 0; i-- {
 		h *= PrimeRK
 		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashss && s[i-n:i] == substr {
-			return i - n
+		h -= pow * uint32(s[i+n])
+		if h == hashss && string(s[i:i+n]) == string(sep) {
+			return i
 		}
 	}
 	return -1

@@ -183,11 +183,31 @@ GLOBL ·andMask<>(SB), (NOPTR+RODATA), $240
 #define shiftD1Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xd2; BYTE $0x04 // PALIGNR $4, X10, X10
 #define shiftD2Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xdb; BYTE $0x04 // PALIGNR $4, X11, X11
 #define shiftD3Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xff; BYTE $0x04 // PALIGNR $4, X15, X15
+
 // Some macros
+
+// ROL rotates the uint32s in register R left by N bits, using temporary T.
+#define ROL(N, R, T) \
+	MOVO R, T; PSLLL $(N), T; PSRLL $(32-(N)), R; PXOR T, R
+
+// ROL16 rotates the uint32s in register R left by 16, using temporary T if needed.
+#ifdef GOAMD64_v2
+#define ROL16(R, T) PSHUFB ·rol16<>(SB), R
+#else
+#define ROL16(R, T) ROL(16, R, T)
+#endif
+
+// ROL8 rotates the uint32s in register R left by 8, using temporary T if needed.
+#ifdef GOAMD64_v2
+#define ROL8(R, T) PSHUFB ·rol8<>(SB), R
+#else
+#define ROL8(R, T) ROL(8, R, T)
+#endif
+
 #define chachaQR(A, B, C, D, T) \
-	PADDD B, A; PXOR A, D; PSHUFB ·rol16<>(SB), D                            \
+	PADDD B, A; PXOR A, D; ROL16(D, T) \
 	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $12, T; PSRLL $20, B; PXOR T, B \
-	PADDD B, A; PXOR A, D; PSHUFB ·rol8<>(SB), D                             \
+	PADDD B, A; PXOR A, D; ROL8(D, T) \
 	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $7, T; PSRLL $25, B; PXOR T, B
 
 #define chachaQR_AVX2(A, B, C, D, T) \

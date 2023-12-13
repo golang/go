@@ -13,7 +13,7 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
 	AND	$0xff, X13
 	MOV	X10, X12		// store base for later
 	ADD	X10, X11		// end
-	ADD	$-1, X10
+	SUB	$1, X10
 
 loop:
 	ADD	$1, X10
@@ -35,7 +35,7 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	AND	$0xff, X12
 	MOV	X10, X13		// store base for later
 	ADD	X10, X11		// end
-	ADD	$-1, X10
+	SUB	$1, X10
 
 loop:
 	ADD	$1, X10

@@ -74,7 +74,7 @@ func Diff(oldName string, old []byte, newName string, new []byte) []byte {
 			continue
 		}
 
-		// Expand matching lines as far possible,
+		// Expand matching lines as far as possible,
 		// establishing that x[start.x:end.x] == y[start.y:end.y].
 		// Note that on the first (or last) iteration we may (or definitely do)
 		// have an empty match: start.x==end.x and start.y==end.y.

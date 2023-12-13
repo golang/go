@@ -296,6 +296,13 @@ func deferproc(fn func()) {
 	// been set and must not be clobbered.
 }
 
+var rangeExitError = error(errorString("range function continued iteration after exit"))
+
+//go:noinline
+func panicrangeexit() {
+	panic(rangeExitError)
+}
+
 // deferrangefunc is called by functions that are about to
 // execute a range-over-function loop in which the loop body
 // may execute a defer statement. That defer needs to add to

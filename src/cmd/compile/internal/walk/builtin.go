@@ -358,8 +358,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		if n.Esc() == ir.EscNone {
 			// Only need to initialize h.hash0 since
 			// hmap h has been allocated on the stack already.
-			// h.hash0 = fastrand()
-			rand := mkcall("fastrand", types.Types[types.TUINT32], init)
+			// h.hash0 = rand32()
+			rand := mkcall("rand32", types.Types[types.TUINT32], init)
 			hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
 			return typecheck.ConvNop(h, t)

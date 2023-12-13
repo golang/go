@@ -167,10 +167,17 @@ func bigData(t testing.TB) []byte {
 	return bigDataBytes
 }
 
+func findZstd(t testing.TB) string {
+	zstd, err := exec.LookPath("zstd")
+	if err != nil {
+		t.Skip("skipping because zstd not found")
+	}
+	return zstd
+}
+
 var (
 	zstdBigOnce  sync.Once
 	zstdBigBytes []byte
-	zstdBigSkip  bool
 	zstdBigErr   error
 )
 
@@ -180,13 +187,10 @@ var (
 func zstdBigData(t testing.TB) []byte {
 	input := bigData(t)
 
-	zstdBigOnce.Do(func() {
-		if _, err := os.Stat("/usr/bin/zstd"); err != nil {
-			zstdBigSkip = true
-			return
-		}
+	zstd := findZstd(t)
 
-		cmd := exec.Command("/usr/bin/zstd", "-z")
+	zstdBigOnce.Do(func() {
+		cmd := exec.Command(zstd, "-z")
 		cmd.Stdin = bytes.NewReader(input)
 		var compressed bytes.Buffer
 		cmd.Stdout = &compressed
@@ -198,9 +202,6 @@ func zstdBigData(t testing.TB) []byte {
 
 		zstdBigBytes = compressed.Bytes()
 	})
-	if zstdBigSkip {
-		t.Skip("skipping because /usr/bin/zstd does not exist")
-	}
 	if zstdBigErr != nil {
 		t.Fatal(zstdBigErr)
 	}
@@ -217,7 +218,7 @@ func TestLarge(t *testing.T) {
 	data := bigData(t)
 	compressed := zstdBigData(t)
 
-	t.Logf("/usr/bin/zstd compressed %d bytes to %d", len(data), len(compressed))
+	t.Logf("zstd compressed %d bytes to %d", len(data), len(compressed))
 
 	r := NewReader(bytes.NewReader(compressed))
 	got, err := io.ReadAll(r)
@@ -298,6 +299,17 @@ func TestFileSamples(t *testing.T) {
 			want, _, _ := strings.Cut(name, ".")
 			if got != want {
 				t.Errorf("Wrong uncompressed content hash: got %s, want %s", got, want)
+			}
+		})
+	}
+}
+
+func TestReaderBad(t *testing.T) {
+	for i, s := range badStrings {
+		t.Run(fmt.Sprintf("badStrings#%d", i), func(t *testing.T) {
+			_, err := io.Copy(io.Discard, NewReader(strings.NewReader(s)))
+			if err == nil {
+				t.Error("expected error")
 			}
 		})
 	}

@@ -326,9 +326,9 @@ func ii() { // ERROR "can inline ii"
 // Issue #42194 - make sure that functions evaluated in
 // go and defer statements can be inlined.
 func gd1(int) {
-	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd1(gd2()) // ERROR "inlining call to gd2" "can inline gd1.deferwrap1"
 	defer gd3()()    // ERROR "inlining call to gd3"
-	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd1(gd2())    // ERROR "inlining call to gd2" "can inline gd1.gowrap2"
 	go gd3()()       // ERROR "inlining call to gd3"
 }
 
