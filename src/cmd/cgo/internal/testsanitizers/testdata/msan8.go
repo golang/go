@@ -5,6 +5,11 @@
 package main
 
 /*
+// For clang >= 16, uninitialized memory is more aggressively reported.
+// Restore the old behavior for this particular test as it relies on
+// uninitialized variables. See #64616
+#cgo CFLAGS: -fno-sanitize-memory-param-retval
+
 #include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
