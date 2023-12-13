@@ -326,7 +326,7 @@ defer func() {
 <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/58000, CL 513316 -->
-      The new method <a href="/pkg/archive/tar#Writer.AddFS"<code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
+      The new method <a href="/pkg/archive/tar#Writer.AddFS"><code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
     </p>
 
     <p><!-- https://go.dev/issue/50102, CL 514235 -->
@@ -338,7 +338,7 @@ defer func() {
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/54898, CL 513438 -->
-      The new method <a href="/pkg/archive/zip#Writer.AddFS"<code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
+      The new method <a href="/pkg/archive/zip#Writer.AddFS"><code>Writer.AddFS</code></a> adds all of the files from an <a href="/pkg/io/fs#FS"><code>fs.FS</code></a> to the archive.
     </p>
   </dd>
 </dl><!-- archive/zip -->
@@ -703,7 +703,7 @@ defer func() {
 <dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
   <dd>
     <p><!-- CL 528037 -->
-      On Windows, <a href="/pkg/os/exec#LookPath"><code>LookPath</code> now
+      On Windows, <a href="/pkg/os/exec#LookPath"><code>LookPath</code></a> now
       ignores empty entries in <code>%PATH%</code>, and returns
       <code>ErrNotFound</code> (instead of <code>ErrNotExist</code>) if
       no executable file extension is found to resolve an otherwise-unambiguous
