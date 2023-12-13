@@ -9,9 +9,39 @@ package sanitizers_test
 import (
 	"internal/platform"
 	"internal/testenv"
+	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+// clangMajorVersion detects the version of clang installed on the system.
+// Stripped down version of compilerVersion from cmd/go/internal/work/init.go
+func clangMajorVersion() (int, error) {
+	cc := os.Getenv("CC")
+	out, err := exec.Command(cc, "--version").Output()
+	if err != nil {
+		// Compiler does not support "--version" flag: not Clang or GCC.
+		return 0, err
+	}
+
+	var match [][]byte
+	clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
+	if match = clangRE.FindSubmatch(out); len(match) > 0 {
+		compiler.name = "clang"
+	}
+
+	if len(match) < 3 {
+		return 0, nil // "unknown"
+	}
+	major, err := strconv.Atoi(string(match[1]))
+	if err != nil {
+		return 0, err
+	}
+	return major, nil
+}
 
 func TestMSAN(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
@@ -41,9 +71,11 @@ func TestMSAN(t *testing.T) {
 	mustRun(t, config.goCmd("build", "std"))
 
 	cases := []struct {
-		src         string
-		wantErr     bool
-		experiments []string
+		src             string
+		wantErr         bool
+		experiments     []string
+		clangMinVersion int
+		clangMaxVersion int
 	}{
 		{src: "msan.go"},
 		{src: "msan2.go"},
@@ -53,7 +85,8 @@ func TestMSAN(t *testing.T) {
 		{src: "msan5.go"},
 		{src: "msan6.go"},
 		{src: "msan7.go"},
-		{src: "msan8.go"},
+		{src: "msan8.go", clangMaxVersion: 15},
+		{src: "msan8_clang16.go", clangMinVersion: 16},
 		{src: "msan_fail.go", wantErr: true},
 		// This may not always fail specifically due to MSAN. It may sometimes
 		// fail because of a fault. However, we don't care what kind of error we
@@ -61,11 +94,27 @@ func TestMSAN(t *testing.T) {
 		// MSAN it would not fail deterministically.
 		{src: "arena_fail.go", wantErr: true, experiments: []string{"arenas"}},
 	}
+
+	clangVersion, err := clangMajorVersion()
+	if err != nil {
+		t.Logf("could not detect clang version: %v", err)
+	}
+
 	for _, tc := range cases {
 		tc := tc
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
+			if clangVersion > 0 {
+				if tc.clangMinVersion > 0 && clangVersion < tc.clangMinVersion {
+					t.Skipf("skipping on clang %d; requires >= %d", clangVersion, tc.clangMinVersion)
+				}
+
+				if tc.clangMaxVersion > 0 && clangVersion > tc.clangMaxVersion {
+					t.Skipf("skipping on clang %d; requires <= %d", clangVersion, tc.clangMaxVersion)
+				}
+			}
 
 			dir := newTempDir(t)
 			defer dir.RemoveAll(t)
