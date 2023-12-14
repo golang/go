@@ -7,6 +7,7 @@ package godebug_test
 import (
 	"fmt"
 	. "internal/godebug"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -68,6 +69,36 @@ func TestMetrics(t *testing.T) {
 	if count := m[0].Value.Uint64(); count != 3 {
 		t.Fatalf("NonDefault value = %d, want 3", count)
 	}
+}
+
+// TestPanicNilRace checks for a race in the runtime caused by use of runtime
+// atomics (not visible to usual race detection) to install the counter for
+// non-default panic(nil) semantics.  For #64649.
+func TestPanicNilRace(t *testing.T) {
+	if !race.Enabled {
+		t.Skip("Skipping test intended for use with -race.")
+	}
+	if os.Getenv("GODEBUG") != "panicnil=1" {
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
+		cmd.Env = append(cmd.Env, "GODEBUG=panicnil=1")
+		out, err := cmd.CombinedOutput()
+		t.Logf("output:\n%s", out)
+
+		if err != nil {
+			t.Errorf("Was not expecting a crash")
+		}
+		return
+	}
+
+	test := func(t *testing.T) {
+		t.Parallel()
+		defer func() {
+			recover()
+		}()
+		panic(nil)
+	}
+	t.Run("One", test)
+	t.Run("Two", test)
 }
 
 func TestCmdBisect(t *testing.T) {
