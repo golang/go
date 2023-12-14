@@ -389,7 +389,7 @@ func (fs *runtimeSource) read(p []byte, readVal *int64, readPos *int8) (n int, e
 //
 // Deprecated: As of Go 1.20 there is no reason to call Seed with
 // a random value. Programs that call Seed with a known value to get
-// a specific sequence of results should use New(NewSource(seed)) to
+// a specific sequence of results should use rand.New(NewSource(seed)) to
 // obtain a local random generator.
 func Seed(seed int64) {
 	orig := globalRandGenerator.Load()
