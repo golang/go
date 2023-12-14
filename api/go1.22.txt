@@ -131,7 +131,6 @@ pkg net/http, func ServeFileFS(ResponseWriter, *Request, fs.FS, string) #51971
 pkg net/http, method (*Request) PathValue(string) string #61410
 pkg net/http, method (*Request) SetPathValue(string, string) #61410
 pkg net/netip, method (AddrPort) Compare(AddrPort) int #61642
-pkg net/netip, method (Prefix) Compare(Prefix) int #61642
 pkg os, method (*File) WriteTo(io.Writer) (int64, error) #58808
 pkg reflect, func PtrTo //deprecated #59599
 pkg reflect, func TypeFor[$0 interface{}]() Type #60088

@@ -1261,12 +1261,15 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
-// Compare returns an integer comparing two prefixes.
+// compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
 // Prefixes sort first by validity (invalid before valid), then
 // address family (IPv4 before IPv6), then prefix length, then
 // address.
-func (p Prefix) Compare(p2 Prefix) int {
+//
+// Unexported for Go 1.22 because we may want to compare by p.Addr first.
+// See post-acceptance discussion on go.dev/issue/61642.
+func (p Prefix) compare(p2 Prefix) int {
 	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
 		return c
 	}
