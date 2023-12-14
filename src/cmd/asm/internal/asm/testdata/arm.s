@@ -870,10 +870,13 @@ jmp_label_3:
 	BIC.S	R0@>R1, R2           // 7021d2e1
 
 // SRL
+	SRL	$0, R5, R6           // 0560a0e1
+	SRL	$1, R5, R6           // a560a0e1
 	SRL	$14, R5, R6          // 2567a0e1
 	SRL	$15, R5, R6          // a567a0e1
 	SRL	$30, R5, R6          // 256fa0e1
 	SRL	$31, R5, R6          // a56fa0e1
+	SRL	$32, R5, R6          // 2560a0e1
 	SRL.S	$14, R5, R6          // 2567b0e1
 	SRL.S	$15, R5, R6          // a567b0e1
 	SRL.S	$30, R5, R6          // 256fb0e1
@@ -892,10 +895,13 @@ jmp_label_3:
 	SRL.S	R5, R7               // 3775b0e1
 
 // SRA
+	SRA	$0, R5, R6           // 0560a0e1
+	SRA	$1, R5, R6           // c560a0e1
 	SRA	$14, R5, R6          // 4567a0e1
 	SRA	$15, R5, R6          // c567a0e1
 	SRA	$30, R5, R6          // 456fa0e1
 	SRA	$31, R5, R6          // c56fa0e1
+	SRA	$32, R5, R6          // 4560a0e1
 	SRA.S	$14, R5, R6          // 4567b0e1
 	SRA.S	$15, R5, R6          // c567b0e1
 	SRA.S	$30, R5, R6          // 456fb0e1
@@ -914,6 +920,8 @@ jmp_label_3:
 	SRA.S	R5, R7               // 5775b0e1
 
 // SLL
+	SLL	$0, R5, R6           // 0560a0e1
+	SLL	$1, R5, R6           // 8560a0e1
 	SLL	$14, R5, R6          // 0567a0e1
 	SLL	$15, R5, R6          // 8567a0e1
 	SLL	$30, R5, R6          // 056fa0e1

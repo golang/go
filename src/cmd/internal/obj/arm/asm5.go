@@ -1099,6 +1099,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
+	if (p.As == ASRL || p.As == ASRA) && p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+		// Right shifts are weird - a shift that looks like "shift by constant 0" actually
+		// means "shift by constant 32". Use left shift in this situation instead.
+		// See issue 64715.
+		// TODO: rotate by 0? Not currently supported, but if we ever do then include it here.
+		p.As = ASLL
+	}
+
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]
