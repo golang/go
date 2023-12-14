@@ -141,13 +141,18 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
 		if len(hello.supportedVersions) == 1 {
 			hello.cipherSuites = nil
 		}
-		if hasAESGCMHardwareSupport {
+		if needFIPS() {
+			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
+		} else if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
 		} else {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13NoAES...)
 		}
 
-		curveID := config.curvePreferences(maxVersion)[0]
+		if len(hello.supportedCurves) == 0 {
+			return nil, nil, nil, errors.New("tls: no supported elliptic curves for ECDHE")
+		}
+		curveID := hello.supportedCurves[0]
 		keyShareKeys = &keySharePrivateKeys{curveID: curveID}
 		if curveID == x25519Kyber768Draft00 {
 			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)

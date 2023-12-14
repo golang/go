@@ -25,6 +25,31 @@ import (
 	"time"
 )
 
+func allCipherSuitesIncludingTLS13() []uint16 {
+	s := allCipherSuites()
+	for _, suite := range cipherSuitesTLS13 {
+		s = append(s, suite.id)
+	}
+	return s
+}
+
+func isTLS13CipherSuite(id uint16) bool {
+	for _, suite := range cipherSuitesTLS13 {
+		if id == suite.id {
+			return true
+		}
+	}
+	return false
+}
+
+func generateKeyShare(group CurveID) keyShare {
+	key, err := generateECDHEKey(rand.Reader, group)
+	if err != nil {
+		panic(err)
+	}
+	return keyShare{group: group, data: key.PublicKey().Bytes()}
+}
+
 func TestBoringServerProtocolVersion(t *testing.T) {
 	test := func(t *testing.T, name string, v uint16, msg string) {
 		t.Run(name, func(t *testing.T) {
@@ -60,22 +85,22 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 		test(t, "VersionTLS10", VersionTLS10, "supported versions")
 		test(t, "VersionTLS11", VersionTLS11, "supported versions")
 		test(t, "VersionTLS12", VersionTLS12, "")
-		test(t, "VersionTLS13", VersionTLS13, "supported versions")
+		test(t, "VersionTLS13", VersionTLS13, "")
 	})
 }
 
 func isBoringVersion(v uint16) bool {
-	return v == VersionTLS12
+	return v == VersionTLS12 || v == VersionTLS13
 }
 
 func isBoringCipherSuite(id uint16) bool {
 	switch id {
-	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	case TLS_AES_128_GCM_SHA256,
+		TLS_AES_256_GCM_SHA384,
+		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		TLS_RSA_WITH_AES_128_GCM_SHA256,
-		TLS_RSA_WITH_AES_256_GCM_SHA384:
+		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 		return true
 	}
 	return false
@@ -83,7 +108,7 @@ func isBoringCipherSuite(id uint16) bool {
 
 func isBoringCurve(id CurveID) bool {
 	switch id {
-	case CurveP256, CurveP384, CurveP521:
+	case CurveP256, CurveP384:
 		return true
 	}
 	return false
@@ -95,7 +120,7 @@ func isECDSA(id uint16) bool {
 			return suite.flags&suiteECSign == suiteECSign
 		}
 	}
-	panic(fmt.Sprintf("unknown cipher suite %#x", id))
+	return false // TLS 1.3 cipher suites are not tied to the signature algorithm.
 }
 
 func isBoringSignatureScheme(alg SignatureScheme) bool {
@@ -107,7 +132,6 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
 		PKCS1WithSHA384,
 		ECDSAWithP384AndSHA384,
 		PKCS1WithSHA512,
-		ECDSAWithP521AndSHA512,
 		PSSWithSHA256,
 		PSSWithSHA384,
 		PSSWithSHA512:
@@ -118,10 +142,9 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
 
 func TestBoringServerCipherSuites(t *testing.T) {
 	serverConfig := testConfig.Clone()
-	serverConfig.CipherSuites = allCipherSuites()
 	serverConfig.Certificates = make([]Certificate, 1)
 
-	for _, id := range allCipherSuites() {
+	for _, id := range allCipherSuitesIncludingTLS13() {
 		if isECDSA(id) {
 			serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 			serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
@@ -130,14 +153,20 @@ func TestBoringServerCipherSuites(t *testing.T) {
 			serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
 		}
 		serverConfig.BuildNameToCertificate()
-		t.Run(fmt.Sprintf("suite=%#x", id), func(t *testing.T) {
+		t.Run(fmt.Sprintf("suite=%s", CipherSuiteName(id)), func(t *testing.T) {
 			clientHello := &clientHelloMsg{
-				vers:               VersionTLS12,
-				random:             make([]byte, 32),
-				cipherSuites:       []uint16{id},
-				compressionMethods: []uint8{compressionNone},
-				supportedCurves:    defaultCurvePreferences(),
-				supportedPoints:    []uint8{pointFormatUncompressed},
+				vers:                         VersionTLS12,
+				random:                       make([]byte, 32),
+				cipherSuites:                 []uint16{id},
+				compressionMethods:           []uint8{compressionNone},
+				supportedCurves:              defaultCurvePreferences(),
+				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
+				supportedPoints:              []uint8{pointFormatUncompressed},
+				supportedVersions:            []uint16{VersionTLS12},
+				supportedSignatureAlgorithms: defaultSupportedSignatureAlgorithmsFIPS,
+			}
+			if isTLS13CipherSuite(id) {
+				clientHello.supportedVersions = []uint16{VersionTLS13}
 			}
 
 			testClientHello(t, serverConfig, clientHello)
@@ -156,9 +185,6 @@ func TestBoringServerCipherSuites(t *testing.T) {
 
 func TestBoringServerCurves(t *testing.T) {
 	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = make([]Certificate, 1)
-	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 	serverConfig.BuildNameToCertificate()
 
 	for _, curveid := range defaultCurvePreferences() {
@@ -288,7 +314,7 @@ func TestBoringClientHello(t *testing.T) {
 	}
 
 	if !isBoringVersion(hello.vers) {
-		t.Errorf("client vers=%#x, want %#x (TLS 1.2)", hello.vers, VersionTLS12)
+		t.Errorf("client vers=%#x", hello.vers)
 	}
 	for _, v := range hello.supportedVersions {
 		if !isBoringVersion(v) {

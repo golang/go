@@ -29,6 +29,7 @@ import (
 )
 
 func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
+	t.Helper()
 	testClientHelloFailure(t, serverConfig, m, "")
 }
 
