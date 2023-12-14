@@ -530,13 +530,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
-		if ref != "" && ref != "HEAD" {
-			// If we do know the ref name, save the mapping locally
-			// so that (if it is a tag) it can show up in localTags
-			// on a future call. Also, some servers refuse to allow
-			// full hashes in ref specs, so prefer a ref name if known.
-			refspec = ref + ":" + ref
-		} else {
+		if ref == "HEAD" {
 			// Fetch the hash but give it a local name (refs/dummy),
 			// because that triggers the fetch behavior of creating any
 			// other known remote tags for the hash. We never use
@@ -544,6 +538,12 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			// overwritten in the next command, and that's fine.
 			ref = hash
 			refspec = hash + ":refs/dummy"
+		} else {
+			// If we do know the ref name, save the mapping locally
+			// so that (if it is a tag) it can show up in localTags
+			// on a future call. Also, some servers refuse to allow
+			// full hashes in ref specs, so prefer a ref name if known.
+			refspec = ref + ":" + ref
 		}
 
 		release, err := base.AcquireNet()
