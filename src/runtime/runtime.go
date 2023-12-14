@@ -172,7 +172,15 @@ func (g *godebugInc) IncNonDefault() {
 		// *godebug.Setting.
 		inc = new(func())
 		*inc = (*newInc)(g.name)
-		g.inc.Store(inc)
+		if raceenabled {
+			racerelease(unsafe.Pointer(&g.inc))
+		}
+		if !g.inc.CompareAndSwap(nil, inc) {
+			inc = g.inc.Load()
+		}
+	}
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&g.inc))
 	}
 	(*inc)()
 }
