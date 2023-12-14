@@ -397,8 +397,9 @@ type mSpanList struct {
 
 type mspan struct {
 	_    sys.NotInHeap
-	next *mspan // next span in list, or nil if none
-	prev *mspan // previous span in list, or nil if none
+	next *mspan     // next span in list, or nil if none
+	prev *mspan     // previous span in list, or nil if none
+	list *mSpanList // For debugging. TODO: Remove.
 
 	startAddr uintptr // address of first byte of span aka s.base()
 	npages    uintptr // number of pages in span
@@ -1678,6 +1679,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	// span is *not* zeroed.
 	span.next = nil
 	span.prev = nil
+	span.list = nil
 	span.startAddr = base
 	span.npages = npages
 	span.allocCount = 0
@@ -1695,6 +1697,10 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	lockInit(&span.speciallock, lockRankMspanSpecial)
 }
 
+func (span *mspan) inList() bool {
+	return span.list != nil
+}
+
 // Initialize an empty doubly-linked list.
 func (list *mSpanList) init() {
 	list.first = nil
@@ -1702,6 +1708,11 @@ func (list *mSpanList) init() {
 }
 
 func (list *mSpanList) remove(span *mspan) {
+	if span.list != list {
+		print("runtime: failed mSpanList.remove span.npages=", span.npages,
+			" span=", span, " prev=", span.prev, " span.list=", span.list, " list=", list, "\n")
+		throw("mSpanList.remove")
+	}
 	if list.first == span {
 		list.first = span.next
 	} else {
@@ -1714,6 +1725,7 @@ func (list *mSpanList) remove(span *mspan) {
 	}
 	span.next = nil
 	span.prev = nil
+	span.list = nil
 }
 
 func (list *mSpanList) isEmpty() bool {
@@ -1721,8 +1733,8 @@ func (list *mSpanList) isEmpty() bool {
 }
 
 func (list *mSpanList) insert(span *mspan) {
-	if span.next != nil || span.prev != nil {
-		println("runtime: failed mSpanList.insert", span, span.next, span.prev)
+	if span.next != nil || span.prev != nil || span.list != nil {
+		println("runtime: failed mSpanList.insert", span, span.next, span.prev, span.list)
 		throw("mSpanList.insert")
 	}
 	span.next = list.first
@@ -1735,11 +1747,12 @@ func (list *mSpanList) insert(span *mspan) {
 		list.last = span
 	}
 	list.first = span
+	span.list = list
 }
 
 func (list *mSpanList) insertBack(span *mspan) {
-	if span.next != nil || span.prev != nil {
-		println("runtime: failed mSpanList.insertBack", span, span.next, span.prev)
+	if span.next != nil || span.prev != nil || span.list != nil {
+		println("runtime: failed mSpanList.insertBack", span, span.next, span.prev, span.list)
 		throw("mSpanList.insertBack")
 	}
 	span.prev = list.last
@@ -1751,6 +1764,7 @@ func (list *mSpanList) insertBack(span *mspan) {
 		list.first = span
 	}
 	list.last = span
+	span.list = list
 }
 
 // takeAll removes all spans from other and inserts them at the front
@@ -1758,6 +1772,11 @@ func (list *mSpanList) insertBack(span *mspan) {
 func (list *mSpanList) takeAll(other *mSpanList) {
 	if other.isEmpty() {
 		return
+	}
+
+	// Reparent everything in other to list.
+	for s := other.first; s != nil; s = s.next {
+		s.list = list
 	}
 
 	// Concatenate the lists.

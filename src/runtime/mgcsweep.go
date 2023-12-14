@@ -718,6 +718,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		// The arena is ready to be recycled. Remove it from the quarantine list
 		// and place it on the ready list. Don't add it back to any sweep lists.
 		systemstack(func() {
+			// It's the arena code's responsibility to get the chunk on the quarantine
+			// list by the time all references to the chunk are gone.
+			if s.list != &mheap_.userArena.quarantineList {
+				throw("user arena span is on the wrong list")
+			}
 			lock(&mheap_.lock)
 			mheap_.userArena.quarantineList.remove(s)
 			mheap_.userArena.readyList.insert(s)
