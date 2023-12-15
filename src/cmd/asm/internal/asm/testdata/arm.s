@@ -943,6 +943,20 @@ jmp_label_3:
 	SLL	R5, R7               // 1775a0e1
 	SLL.S	R5, R7               // 1775b0e1
 
+// Ops with zero shifts should encode as left shifts
+	ADD	R0<<0, R1, R2	     // 002081e0
+	ADD	R0>>0, R1, R2	     // 002081e0
+	ADD	R0->0, R1, R2	     // 002081e0
+	ADD	R0@>0, R1, R2	     // 002081e0
+	MOVW	R0<<0(R1), R2        // 002091e7
+	MOVW	R0>>0(R1), R2        // 002091e7
+	MOVW	R0->0(R1), R2        // 002091e7
+	MOVW	R0@>0(R1), R2        // 002091e7
+	MOVW	R0, R1<<0(R2)        // 010082e7
+	MOVW	R0, R1>>0(R2)        // 010082e7
+	MOVW	R0, R1->0(R2)        // 010082e7
+	MOVW	R0, R1@>0(R2)        // 010082e7
+
 // MULA / MULS
 	MULAWT		R1, R2, R3, R4       // c23124e1
 	MULAWB		R1, R2, R3, R4       // 823124e1
