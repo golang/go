@@ -3816,8 +3816,10 @@ func injectglist(glist *gList) {
 	}
 
 	npidle := int(sched.npidle.Load())
-	var globq gQueue
-	var n int
+	var (
+		globq gQueue
+		n     int
+	)
 	for n = 0; n < npidle && !q.empty(); n++ {
 		g := q.pop()
 		globq.pushBack(g)
@@ -3833,6 +3835,21 @@ func injectglist(glist *gList) {
 	if !q.empty() {
 		runqputbatch(pp, &q, qsize)
 	}
+
+	// Some P's might have become idle after we loaded `sched.npidle`
+	// but before any goroutines were added to the queue, which could
+	// lead to idle P's when there is work available in the global queue.
+	// That could potentially last until other goroutines become ready
+	// to run. That said, we need to find a way to hedge
+	//
+	// Calling wakep() here is the best bet, it will do nothing in the
+	// common case (no racing on `sched.npidle`), while it could wake one
+	// more P to execute G's, which might end up with >1 P's: the first one
+	// wakes another P and so forth until there is no more work, but this
+	// ought to be an extremely rare case.
+	//
+	// Also see "Worker thread parking/unparking" comment at the top of the file for details.
+	wakep()
 }
 
 // One round of scheduler: find a runnable goroutine and execute it.
