@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -556,7 +557,15 @@ func goInstallVersion() bool {
 
 	// Make a best effort to parse flags so that module flags like -modcacherw
 	// will take effect (see https://go.dev/issue/64282).
-	args := os.Args[2:]
+
+	// All flags past pkg@version should apply to pkg and not to the go
+	// command itself.
+	pkgIdx := slices.Index(os.Args, arg)
+	if pkgIdx == -1 {
+		return false
+	}
+
+	args := os.Args[2:pkgIdx]
 	for len(args) > 0 {
 		var err error
 		_, args, err = cmdflag.ParseOne(cmdFlags, args)
