@@ -1599,12 +1599,14 @@ func (ctxt *Link) hostlink() {
 	}
 
 	var altLinker string
-	if ctxt.IsELF && ctxt.DynlinkingGo() {
+	if ctxt.IsELF && (ctxt.DynlinkingGo() || *flagBindNow) {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
 		argv = append(argv, "-Wl,-z,now")
+	}
 
+	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// Do not let the host linker generate COPY relocations. These
 		// can move symbols out of sections that rely on stable offsets
 		// from the beginning of the section (like sym.STYPE).
