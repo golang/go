@@ -9,6 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/bytealg"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -338,15 +339,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 }
 
 func eqslice(x, y []uintptr) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xi := range x {
-		if xi != y[i] {
-			return false
-		}
-	}
-	return true
+	return bytealg.Equal(*(*[]byte)(unsafe.Pointer(&x)), *(*[]byte)(unsafe.Pointer(&y)))
 }
 
 // mProf_NextCycle publishes the next heap profile cycle and creates a
