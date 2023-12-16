@@ -211,7 +211,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 
 // checkHeader performs basic sanity checks on the header.
 func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
-	rcode := extractExtendedRCode(*p, h)
+	rcode, hasAdd := extractExtendedRCode(*p, h)
 
 	if rcode == dnsmessage.RCodeNameError {
 		return errNoSuchHost
@@ -224,7 +224,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 
 	// libresolv continues to the next server when it receives
 	// an invalid referral response. See golang.org/issue/15434.
-	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
+	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone && !hasAdd {
 		return errLameReferral
 	}
 
@@ -263,16 +263,19 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 
 // extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
 // If an OPT record is not found, the RCode from the hdr is returned.
-func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
+// Another return value indicates whether an additional resource was found.
+func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessage.RCode, bool) {
 	p.SkipAllAnswers()
 	p.SkipAllAuthorities()
+	hasAdd := false
 	for {
 		ahdr, err := p.AdditionalHeader()
+		hasAdd = hasAdd || err != dnsmessage.ErrSectionDone
 		if err != nil {
-			return hdr.RCode
+			return hdr.RCode, hasAdd
 		}
 		if ahdr.Type == dnsmessage.TypeOPT {
-			return ahdr.ExtendedRCode(hdr.RCode)
+			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
 		}
 		p.SkipAdditional()
 	}
