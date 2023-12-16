@@ -296,7 +296,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	// first check optimistically, without the lock
 	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
 		bstk := b.stk()
-		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(*(*[]byte)(unsafe.Pointer(&bstk)), *(*[]byte)(unsafe.Pointer(&stk))) {
+		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(unsafe.Slice((*byte)(unsafe.Pointer(&bstk)), len(bstk)*8), unsafe.Slice((*byte)(unsafe.Pointer(&stk)), len(stk)*8)) {
 			return b
 		}
 	}
@@ -309,7 +309,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	// check again under the insertion lock
 	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
 		bstk := b.stk()
-		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(*(*[]byte)(unsafe.Pointer(&bstk)), *(*[]byte)(unsafe.Pointer(&stk))) {
+		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(unsafe.Slice((*byte)(unsafe.Pointer(&bstk)), len(bstk)*8), unsafe.Slice((*byte)(unsafe.Pointer(&stk)), len(stk)*8)) {
 			unlock(&profInsertLock)
 			return b
 		}
