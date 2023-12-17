@@ -493,17 +493,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		}
 		if pesym.SectionNumber == IMAGE_SYM_ABSOLUTE && bytes.Equal(pesym.Name[:], []byte("@feat.00")) {
-			// Microsoft's linker looks at whether all input objects have an empty
-			// section called @feat.00. If all of them do, then it enables SEH;
-			// otherwise it doesn't enable that feature. So, since around the Windows
-			// XP SP2 era, most tools that make PE objects just tack on that section,
-			// so that it won't gimp Microsoft's linker logic. Go doesn't support SEH,
-			// so in theory, none of this really matters to us. But actually, if the
-			// linker tries to ingest an object with @feat.00 -- which are produced by
-			// LLVM's resource compiler, for example -- it chokes because of the
-			// IMAGE_SYM_ABSOLUTE section that it doesn't know how to deal with. Since
-			// @feat.00 is just a marking anyway, skip IMAGE_SYM_ABSOLUTE sections that
-			// are called @feat.00.
+			// The PE documentation says that, on x86 platforms, the absolute symbol named @feat.00
+			// is used to indicate that the COFF object supports SEH.
+			// Go doesn't support SEH on windows/386, so we can ignore this symbol.
+			// See https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#the-sxdata-section
 			continue
 		}
 		var sect *pe.Section
