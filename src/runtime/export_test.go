@@ -751,7 +751,7 @@ func MapTombstoneCheck(m map[int]int) {
 		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if b.tophash[i] != emptyRest {
 					n++
 				}
@@ -759,7 +759,7 @@ func MapTombstoneCheck(m map[int]int) {
 		}
 		k := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if k < n && b.tophash[i] == emptyRest {
 					panic("early emptyRest")
 				}
