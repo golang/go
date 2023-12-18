@@ -359,6 +359,45 @@ and the Go runtime also use ChaCha8 for randomness.
 We plan to include an API migration tool in a future release, likely Go 1.23.
 </p>
 
+<h3 id="enhanced_routing_patterns"</h3>
+
+<p><!-- https://go.dev/issue/61410 -->
+  HTTP routing in the standard library is now more expressive.
+  The patterns used by <a href="/pkg/net/http#ServeMux"><code>net/http.ServeMux</code></a> have been enhanced to accept methods and wildcards.
+</p>
+
+<p>
+  Registering a handler with a method, like <code>"POST /items/create"</code>, restricts
+  invocations of the handler to requests with the given method. A pattern with a method takes precedence over a matching pattern without one.
+  As a special case, registering a handler with <code> "GET"</code> also registers it with <code>"HEAD"</code>.
+</p>
+
+<p>
+  Wildcards in patterns, like <code>/items/{id}</code>, match segments of the URL path.
+  The actual segment value may be accessed by calling the <a href="/pkg/net/http#Request.PathValue"><code>Request.PathValue</code></a> method.
+  A wildcard ending in "...", like <code>/files/{path...}</code>, must occur at the end of a pattern and matches all the remaining segments.
+</p>
+
+<p>
+  A pattern that ends in "/" matches all paths that have it as a prefix, as always.
+  To match the exact pattern including the trailing slash, end it with <code>{$}</code>,
+  as in <code>/exact/match/{$}</code>.
+</p>
+
+<p>
+  If two patterns overlap in the requests that they match, then the more specific pattern takes precedence.
+  If neither is more specific, the patterns conflict.
+  This rule generalizes the original precedence rules and maintains the property that the order in which
+  patterns are registered does not matter.
+</p>
+
+<p>
+  This change breaks backwards compatiblity in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
+  and some less so&mdash;treatment of escaped paths has been improved.
+  The change is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>httpmuxgo121</code>.
+  Set <code>httpmuxgo121=1</code> to restore the old behavior.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -633,14 +672,13 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
 <dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/62418 -->
-      TODO: <a href="https://go.dev/issue/62418">https://go.dev/issue/62418</a>: enable setting level on default log.Logger
-    </p>
-
-    <p><!-- CL 525096 -->
-      TODO: <a href="https://go.dev/cl/525096">https://go.dev/cl/525096</a>: log/slog: add LogLoggerLevel to enable setting level on the default logger; modified api/next/62418.txt
+      The new <a href="/pkg/log/slog#SetLogLoggerLevel"><code>SetLogLoggerLevel</code></a> function
+      controls the level for the bridge between the `slog` and `log` packages. It sets the minimum level
+      for calls to the top-level `slog` logging functions, and it sets the level for calls to `log.Logger`
+      that go through `slog`.
     </p>
   </dd>
-</dl><!-- log/slog -->
+</dl>
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
@@ -680,10 +718,6 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
       are versions of the existing
       <code>ServeFile</code>, <code>FileServer</code>, and <code>NewFileTransport</code>,
       operating on an <code>fs.FS</code>.
-    </p>
-
-    <p><!-- https://go.dev/issue/61410 -->
-      TODO: <a href="https://go.dev/issue/61410">https://go.dev/issue/61410</a>: enhanced ServeMux routing
     </p>
 
     <p><!-- https://go.dev/issue/61679 -->
@@ -925,11 +959,8 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
 <dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/61758 -->
-      TODO: <a href="https://go.dev/issue/61758">https://go.dev/issue/61758</a>: support sub-tests
-    </p>
-
-    <p><!-- CL 516076 -->
-      TODO: <a href="https://go.dev/cl/516076">https://go.dev/cl/516076</a>: testing/slogtest: add Run to run cases as subtests; modified api/next/61758.txt
+      The new <a href="/pkg/testing/slogtest#Run"><code>Run</code></a> function uses sub-tests to run test cases,
+      providing finer-grained control.
     </p>
   </dd>
 </dl><!-- testing/slogtest -->
