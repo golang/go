@@ -274,40 +274,89 @@ defer func() {
 
 <h3 id="math_rand_v2">New math/rand/v2 package</h3>
 
-<p><!-- CL 502495 -->
-  TODO: <a href="https://go.dev/cl/502495">https://go.dev/cl/502495</a>: math/rand/v2: start of new API; modified api/next/61716.txt
+<!-- CL 502495 -->
+<!-- CL 502497 -->
+<!-- CL 502498 -->
+<!-- CL 502499 -->
+<!-- CL 502500 -->
+<!-- CL 502505 -->
+<!-- CL 502506 -->
+<!-- CL 516857 -->
+<!-- CL 516859 -->
+
+<p>
+  Go 1.22 includes the first “v2” package in the standard library,
+  <a href="/pkg/math/rand/v2/"><code>math/rand/v2</code></a>.
+  The changes compared to <a href="/pkg/math/rand/"><code>math/rand</code></a> are
+  detailed in <a href="/issue/61716">proposal #61716</a>. The most important changes are:
 </p>
 
-<p><!-- CL 502497 -->
-  TODO: <a href="https://go.dev/cl/502497">https://go.dev/cl/502497</a>: math/rand/v2: remove Read; modified api/next/61716.txt
-</p>
+<ul>
+<li>The <code>Read</code> method, deprecated in <code>math/rand</code>,
+was not carried forward for <code>math/rand/v2</code>.
+(It remains available in <code>math/rand</code>.)
+The vast majority of calls to <code>Read</code> should use
+<a href="/pkg/crypto/rand/#Read"><code>crypto/rand</code>’s <code>Read</code></a> instead.
+Otherwise a custom <code>Read</code> can be constructed using the <code>Uint64</code> method.
 
-<p><!-- CL 502498 -->
-  TODO: <a href="https://go.dev/cl/502498">https://go.dev/cl/502498</a>: math/rand/v2: remove Rand.Seed; modified api/next/61716.txt
-</p>
+<li>The global generator accessed by top-level functions is unconditionally randomly seeded.
+Because the API guarantees no fixed sequence of results,
+optimizations like per-thread random generator states are now possible.
 
-<p><!-- CL 502499 -->
-  TODO: <a href="https://go.dev/cl/502499">https://go.dev/cl/502499</a>: math/rand/v2: change Source to use uint64; modified api/next/61716.txt
-</p>
+<li>The <a href="/pkg/math/rand/v2/#Source"><code>Source</code></a>
+interface now has a single <code>Uint64</code> method;
+there is no <code>Source64</code> interface.
 
-<p><!-- CL 502500 -->
-  TODO: <a href="https://go.dev/cl/502500">https://go.dev/cl/502500</a>: math/rand/v2: add, optimize N, UintN, Uint32N, Uint64N; modified api/next/61716.txt
-</p>
+<li>Many methods now use faster algorithms that were not possible to adopt in <code>math/rand</code>
+because they changed the output streams.
 
-<p><!-- CL 502505 -->
-  TODO: <a href="https://go.dev/cl/502505">https://go.dev/cl/502505</a>: math/rand/v2: add PCG-DXSM; modified api/next/61716.txt
-</p>
+<li>The
+<code>Intn</code>,
+<code>Int31</code>,
+<code>Int31n</code>,
+<code>Int63</code>,
+and
+<code>Int64n</code>
+top-level functions and methods from <code>math/rand</code>
+are spelled more idiomatically in <code>math/rand/v2</code>:
+<code>IntN</code>,
+<code>Int32</code>,
+<code>Int32N</code>,
+<code>Int64</code>,
+and
+<code>Int64N</code>.
+There are also new top-level functions and methods
+<code>Uint32</code>,
+<code>Uint32N</code>,
+<code>Uint64</code>,
+<code>Uint64N</code>,
+<code>Uint</code>,
+and
+<code>UintN</code>.
 
-<p><!-- CL 502506 -->
-  TODO: <a href="https://go.dev/cl/502506">https://go.dev/cl/502506</a>: math/rand/v2: delete Mitchell/Reeds source; modified api/next/61716.txt
-</p>
+<li>The
+new generic function <a href="/pkg/math/rand/v2/#N"><code>N</code></a>
+is like
+<a href="/pkg/math/rand/v2/#Int64N"><code>Int64N</code></a> or
+<a href="/pkg/math/rand/v2/#Uint64N"><code>Uint64N</code></a>
+but works for any integer type.
+For example a random duration from 0 up to 5 minutes is
+<code>rand.N(5*time.Minute)</code>.
 
-<p><!-- CL 516857 -->
-  TODO: <a href="https://go.dev/cl/516857">https://go.dev/cl/516857</a>: math/rand/v2: rename various functions; modified api/next/61716.txt
-</p>
+<li>The Mitchell & Reeds LFSR generator provided by
+<a href="/pkg/math/rand/#Source"><code>math/rand</code>’s <code>Source</code></a>
+has been replaced by two more modern pseudo-random generator sources:
+<a href="/pkg/math/rand/v2/#ChaCha8"><code>ChaCha8</code></a>
+<a href="/pkg/math/rand/v2/#PCG"><code>PCG</code></a>.
+ChaCha8 is a new, cryptographically strong random number generator
+roughly similar to PCG in efficiency.
+ChaCha8 is the algorithm used for the top-level functions in <code>math/rand/v2</code>.
+As of Go 1.22, <code>math/rand</code>'s top-level functions (when not explicitly seeded)
+and the Go runtime also use ChaCha8 for randomness.
+</ul>
 
-<p><!-- CL 516859 -->
-  TODO: <a href="https://go.dev/cl/516859">https://go.dev/cl/516859</a>: math/rand/v2: add ChaCha8; modified api/next/61716.txt
+<p>
+We plan to include an API migration tool in a future release, likely Go 1.23.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
