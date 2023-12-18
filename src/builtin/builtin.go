@@ -286,7 +286,7 @@ func panic(v any)
 // not stop a panicking sequence. In this case, or when the goroutine is not
 // panicking, recover returns nil.
 //
-// Prior to Go 1.21, recover could also return nil if panic is called with
+// Prior to Go 1.21, recover would also return nil if panic is called with
 // a nil argument. See [panic] for details.
 func recover() any
 
