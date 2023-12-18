@@ -71,10 +71,7 @@ func TestMSAN(t *testing.T) {
 			defer dir.RemoveAll(t)
 
 			outPath := dir.Join(name)
-			buildcmd := config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments)
-			// allow tests to define -f flags in CGO_CFLAGS
-			replaceEnv(buildcmd, "CGO_CFLAGS_ALLOW", "-f.*")
-			mustRun(t, buildcmd)
+			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
 
 			cmd := hangProneCmd(outPath)
 			if tc.wantErr {
