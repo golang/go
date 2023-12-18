@@ -99,7 +99,7 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	}
 	var structuralTypes []types.Type
 	switch t := t.(type) {
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		terms, err := typeparams.StructuralTerms(t)
 		if err != nil {
 			return // invalid type

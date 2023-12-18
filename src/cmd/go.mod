@@ -9,7 +9,7 @@ require (
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.15.0
 	golang.org/x/term v0.15.0
-	golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
+	golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
 )
 
 require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect

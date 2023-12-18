@@ -13,6 +13,8 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 // Format returns a string representation of the expression.
@@ -150,3 +152,5 @@ func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
 	}
 	return false
 }
+
+var MustExtractDoc = analysisinternal.MustExtractDoc

@@ -255,7 +255,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
 	}
 	seen[typ] = true
 
-	if tpar, ok := typ.(*typeparams.TypeParam); ok {
+	if tpar, ok := typ.(*types.TypeParam); ok {
 		terms, err := typeparams.StructuralTerms(tpar)
 		if err != nil {
 			return nil // invalid type
