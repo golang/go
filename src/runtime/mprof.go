@@ -295,8 +295,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	i := int(h % buckHashSize)
 	// first check optimistically, without the lock
 	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
-		bstk := b.stk()
-		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(unsafe.Slice((*byte)((*slice)(unsafe.Pointer(&bstk)).array), len(bstk)*8), unsafe.Slice((*byte)(((*slice)(unsafe.Pointer(&stk))).array), len(stk)*8)) {
+		if b.typ == typ && b.hash == h && b.size == size && eqslice(b.stk(), stk) {
 			return b
 		}
 	}
@@ -308,8 +307,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 	lock(&profInsertLock)
 	// check again under the insertion lock
 	for b := (*bucket)(bh[i].Load()); b != nil; b = b.next {
-		bstk := b.stk()
-		if b.typ == typ && b.hash == h && b.size == size && bytealg.Equal(unsafe.Slice((*byte)((*slice)(unsafe.Pointer(&bstk)).array), len(bstk)*8), unsafe.Slice((*byte)(((*slice)(unsafe.Pointer(&stk))).array), len(stk)*8)) {
+		if b.typ == typ && b.hash == h && b.size == size && eqslice(b.stk(), stk) {
 			unlock(&profInsertLock)
 			return b
 		}
@@ -338,6 +336,13 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 
 	unlock(&profInsertLock)
 	return b
+}
+
+func eqslice(x, y []uintptr) bool {
+	return bytealg.Equal(
+		unsafe.Slice((*byte)(((*slice)(unsafe.Pointer(&x))).array), len(x)*8),
+		unsafe.Slice((*byte)(((*slice)(unsafe.Pointer(&y))).array), len(y)*8),
+	)
 }
 
 // mProf_NextCycle publishes the next heap profile cycle and creates a
