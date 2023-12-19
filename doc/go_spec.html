@@ -6541,7 +6541,6 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
-Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
@@ -6571,6 +6570,48 @@ If the condition is absent, it is equivalent to the boolean value
 <pre>
 for cond { S() }    is the same as    for ; cond ; { S() }
 for      { S() }    is the same as    for true     { S() }
+</pre>
+
+<p>
+Each iteration has its own separate declared variable (or variables)
+[<a href="#Go_1.22">Go 1.22</a>].
+The variable used by the first iteration is declared by the init statement.
+The variable used by each subsequent iteration is declared implicitly before
+executing the post statement and initialized to the value of the previous
+iteration's variable at that moment.
+</p>
+
+<pre>
+var prints []func()
+for i := 0; i < 5; i++ {
+	prints = append(prints, func() { println(i) })
+	i++
+}
+for _, p := range prints {
+	p()
+}
+</pre>
+
+<p>
+prints
+</p>
+
+<pre>
+0
+3
+5
+</pre>
+
+<p>
+Prior to [<a href="#Go_1.22">Go 1.22</a>], iterations share one set of variables
+instead of having their own separate variables.
+In that case, the example above prints
+</p>
+
+<pre>
+6
+6
+6
 </pre>
 
 <h4 id="For_range">For statements with <code>range</code> clause</h4>
@@ -6677,9 +6718,10 @@ The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
-statement; they are re-used in each iteration.
-If the iteration variables are declared outside the "for" statement,
+and their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement;
+each iteration has its own separate variables [<a href="#Go_1.22">Go 1.22</a>]
+(see also <a href="#For_clause">"for" statements with a ForClause</a>).
+If the iteration variables are declared outside the “for” statement,
 after execution their values will be those of the last iteration.
 </p>
 
@@ -8550,7 +8592,11 @@ passed as arguments to other (possibly generic) functions.
 <h4 id="Go_1.22">Go 1.22</h4>
 <ul>
 <li>
-A <a href="#For_range">"for" statement with a "range" clause</a> may iterate over
+In a <a href="#For_statements">"for" statement</a>, each iteration has its own set of iteration
+variables rather than sharing the same variables in each iteration.
+</li>
+<li>
+A "for" statement with <a href="#For_range">"range" clause</a> may iterate over
 integer values from zero to an upper limit.
 </li>
 </ul>
