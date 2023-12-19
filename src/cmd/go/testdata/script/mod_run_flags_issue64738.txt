@@ -1,0 +1,4 @@
+# Regression test for https://go.dev/issue/64738:
+# a bug in 'go run' caused flags arguments after the requested package to
+# also be parsed as cmd/go flags.
+go run -n example.com/printversion@v0.1.0 -p ignored
