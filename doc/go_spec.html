@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Nov 1, 2023",
+	"Subtitle": "Version of Dec 19, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -8232,8 +8232,8 @@ of if the general conversion rules take care of this.
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
-<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Core_types">core type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type of core type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -8243,6 +8243,10 @@ bits = *(*uint64)(unsafe.Pointer(&amp;f))
 
 type ptr unsafe.Pointer
 bits = *(*uint64)(ptr(&amp;f))
+
+func f[P ~*B, B any](p P) uintptr {
+	return uintptr(unsafe.Pointer(p))
+}
 
 var p ptr = nil
 </pre>
