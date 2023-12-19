@@ -274,40 +274,128 @@ defer func() {
 
 <h3 id="math_rand_v2">New math/rand/v2 package</h3>
 
-<p><!-- CL 502495 -->
-  TODO: <a href="https://go.dev/cl/502495">https://go.dev/cl/502495</a>: math/rand/v2: start of new API; modified api/next/61716.txt
+<!-- CL 502495 -->
+<!-- CL 502497 -->
+<!-- CL 502498 -->
+<!-- CL 502499 -->
+<!-- CL 502500 -->
+<!-- CL 502505 -->
+<!-- CL 502506 -->
+<!-- CL 516857 -->
+<!-- CL 516859 -->
+
+<p>
+  Go 1.22 includes the first “v2” package in the standard library,
+  <a href="/pkg/math/rand/v2/"><code>math/rand/v2</code></a>.
+  The changes compared to <a href="/pkg/math/rand/"><code>math/rand</code></a> are
+  detailed in <a href="/issue/61716">proposal #61716</a>. The most important changes are:
 </p>
 
-<p><!-- CL 502497 -->
-  TODO: <a href="https://go.dev/cl/502497">https://go.dev/cl/502497</a>: math/rand/v2: remove Read; modified api/next/61716.txt
+<ul>
+<li>The <code>Read</code> method, deprecated in <code>math/rand</code>,
+was not carried forward for <code>math/rand/v2</code>.
+(It remains available in <code>math/rand</code>.)
+The vast majority of calls to <code>Read</code> should use
+<a href="/pkg/crypto/rand/#Read"><code>crypto/rand</code>’s <code>Read</code></a> instead.
+Otherwise a custom <code>Read</code> can be constructed using the <code>Uint64</code> method.
+
+<li>The global generator accessed by top-level functions is unconditionally randomly seeded.
+Because the API guarantees no fixed sequence of results,
+optimizations like per-thread random generator states are now possible.
+
+<li>The <a href="/pkg/math/rand/v2/#Source"><code>Source</code></a>
+interface now has a single <code>Uint64</code> method;
+there is no <code>Source64</code> interface.
+
+<li>Many methods now use faster algorithms that were not possible to adopt in <code>math/rand</code>
+because they changed the output streams.
+
+<li>The
+<code>Intn</code>,
+<code>Int31</code>,
+<code>Int31n</code>,
+<code>Int63</code>,
+and
+<code>Int64n</code>
+top-level functions and methods from <code>math/rand</code>
+are spelled more idiomatically in <code>math/rand/v2</code>:
+<code>IntN</code>,
+<code>Int32</code>,
+<code>Int32N</code>,
+<code>Int64</code>,
+and
+<code>Int64N</code>.
+There are also new top-level functions and methods
+<code>Uint32</code>,
+<code>Uint32N</code>,
+<code>Uint64</code>,
+<code>Uint64N</code>,
+<code>Uint</code>,
+and
+<code>UintN</code>.
+
+<li>The
+new generic function <a href="/pkg/math/rand/v2/#N"><code>N</code></a>
+is like
+<a href="/pkg/math/rand/v2/#Int64N"><code>Int64N</code></a> or
+<a href="/pkg/math/rand/v2/#Uint64N"><code>Uint64N</code></a>
+but works for any integer type.
+For example a random duration from 0 up to 5 minutes is
+<code>rand.N(5*time.Minute)</code>.
+
+<li>The Mitchell & Reeds LFSR generator provided by
+<a href="/pkg/math/rand/#Source"><code>math/rand</code>’s <code>Source</code></a>
+has been replaced by two more modern pseudo-random generator sources:
+<a href="/pkg/math/rand/v2/#ChaCha8"><code>ChaCha8</code></a>
+<a href="/pkg/math/rand/v2/#PCG"><code>PCG</code></a>.
+ChaCha8 is a new, cryptographically strong random number generator
+roughly similar to PCG in efficiency.
+ChaCha8 is the algorithm used for the top-level functions in <code>math/rand/v2</code>.
+As of Go 1.22, <code>math/rand</code>'s top-level functions (when not explicitly seeded)
+and the Go runtime also use ChaCha8 for randomness.
+</ul>
+
+<p>
+We plan to include an API migration tool in a future release, likely Go 1.23.
 </p>
 
-<p><!-- CL 502498 -->
-  TODO: <a href="https://go.dev/cl/502498">https://go.dev/cl/502498</a>: math/rand/v2: remove Rand.Seed; modified api/next/61716.txt
+<h3 id="enhanced_routing_patterns"</h3>
+
+<p><!-- https://go.dev/issue/61410 -->
+  HTTP routing in the standard library is now more expressive.
+  The patterns used by <a href="/pkg/net/http#ServeMux"><code>net/http.ServeMux</code></a> have been enhanced to accept methods and wildcards.
 </p>
 
-<p><!-- CL 502499 -->
-  TODO: <a href="https://go.dev/cl/502499">https://go.dev/cl/502499</a>: math/rand/v2: change Source to use uint64; modified api/next/61716.txt
+<p>
+  Registering a handler with a method, like <code>"POST /items/create"</code>, restricts
+  invocations of the handler to requests with the given method. A pattern with a method takes precedence over a matching pattern without one.
+  As a special case, registering a handler with <code> "GET"</code> also registers it with <code>"HEAD"</code>.
 </p>
 
-<p><!-- CL 502500 -->
-  TODO: <a href="https://go.dev/cl/502500">https://go.dev/cl/502500</a>: math/rand/v2: add, optimize N, UintN, Uint32N, Uint64N; modified api/next/61716.txt
+<p>
+  Wildcards in patterns, like <code>/items/{id}</code>, match segments of the URL path.
+  The actual segment value may be accessed by calling the <a href="/pkg/net/http#Request.PathValue"><code>Request.PathValue</code></a> method.
+  A wildcard ending in "...", like <code>/files/{path...}</code>, must occur at the end of a pattern and matches all the remaining segments.
 </p>
 
-<p><!-- CL 502505 -->
-  TODO: <a href="https://go.dev/cl/502505">https://go.dev/cl/502505</a>: math/rand/v2: add PCG-DXSM; modified api/next/61716.txt
+<p>
+  A pattern that ends in "/" matches all paths that have it as a prefix, as always.
+  To match the exact pattern including the trailing slash, end it with <code>{$}</code>,
+  as in <code>/exact/match/{$}</code>.
 </p>
 
-<p><!-- CL 502506 -->
-  TODO: <a href="https://go.dev/cl/502506">https://go.dev/cl/502506</a>: math/rand/v2: delete Mitchell/Reeds source; modified api/next/61716.txt
+<p>
+  If two patterns overlap in the requests that they match, then the more specific pattern takes precedence.
+  If neither is more specific, the patterns conflict.
+  This rule generalizes the original precedence rules and maintains the property that the order in which
+  patterns are registered does not matter.
 </p>
 
-<p><!-- CL 516857 -->
-  TODO: <a href="https://go.dev/cl/516857">https://go.dev/cl/516857</a>: math/rand/v2: rename various functions; modified api/next/61716.txt
-</p>
-
-<p><!-- CL 516859 -->
-  TODO: <a href="https://go.dev/cl/516859">https://go.dev/cl/516859</a>: math/rand/v2: add ChaCha8; modified api/next/61716.txt
+<p>
+  This change breaks backwards compatiblity in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
+  and some less so&mdash;treatment of escaped paths has been improved.
+  The change is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>httpmuxgo121</code>.
+  Set <code>httpmuxgo121=1</code> to restore the old behavior.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -363,32 +451,22 @@ defer func() {
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/43922 -->
-      TODO: <a href="https://go.dev/issue/43922">https://go.dev/issue/43922</a>: implement RFC7627
+    <p><!-- https://go.dev/issue/43922, CL 544155 -->
+      <a href="/pkg/crypto/tls#ConnectionState.ExportKeyingMaterial"><code>ConnectionState.ExportKeyingMaterial</code></a> will now
+      return an error unless TLS 1.3 is in use, or the <code>extended_master_secret</code> extension is supported by both the server and
+      client. <code>crypto/tls</code> has supported this extension since Go 1.20. This can be disabled with the
+      <code>tlsunsafeekm=1</code> GODEBUG setting.
     </p>
 
-    <p><!-- https://go.dev/issue/62459 -->
-      TODO: <a href="https://go.dev/issue/62459">https://go.dev/issue/62459</a>: make default minimum version for servers TLS 1.2
+    <p><!-- https://go.dev/issue/62459, CL 541516 -->
+      By default, the minimum version offered by <code>crypto/tls</code> servers is now TLS 1.2 if not specified with
+      <a href="/pkg/crypto/tls#Config.MinimumVersion"><code>config.MinimumVersion</code></a>, matching the behavior of <code>crypto/tls</code>
+      clients. This change can be reverted with the <code>tls10server=1</code> GODEBUG setting.
     </p>
 
-    <p><!-- https://go.dev/issue/63413 -->
-      TODO: <a href="https://go.dev/issue/63413">https://go.dev/issue/63413</a>: disable RSA key exchange cipher suites by default
-    </p>
-
-    <p><!-- CL 514997 -->
-      TODO: <a href="https://go.dev/cl/514997">https://go.dev/cl/514997</a>: crypto/tls: change SendSessionTicket to take an options struct; modified api/go1.21.txt
-    </p>
-
-    <p><!-- CL 541516 -->
-      TODO: <a href="https://go.dev/cl/541516">https://go.dev/cl/541516</a>: crypto/tls: change default minimum version to 1.2
-    </p>
-
-    <p><!-- CL 541517 -->
-      TODO: <a href="https://go.dev/cl/541517">https://go.dev/cl/541517</a>: crypto/tls: remove RSA KEX ciphers from the default list
-    </p>
-
-    <p><!-- CL 544155 -->
-      TODO: <a href="https://go.dev/cl/544155">https://go.dev/cl/544155</a>: crypto/tls: disable ExportKeyingMaterial without EMS
+    <p><!-- https://go.dev/issue/63413, CL 541517 -->
+      By default, cipher suites without ECDHE support are no longer offered by either clients or servers during pre-TLS 1.3
+      handshakes. This change can be reverted with the <code>tlsrsakex=1</code> GODEBUG setting.
     </p>
   </dd>
 </dl><!-- crypto/tls -->
@@ -396,23 +474,25 @@ defer func() {
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/57178 -->
-      TODO: <a href="https://go.dev/issue/57178">https://go.dev/issue/57178</a>: support code-constrained roots
+      The new <a href="/pkg/crypto/x509#CertPool.AddCertWithConstraint"><code>CertPool.AddCertWithConstraint</code></a>
+      method can be used to add customized constraints to root certificates to be applied during chain building.
     </p>
 
-    <p><!-- https://go.dev/issue/58922 -->
-      TODO: <a href="https://go.dev/issue/58922">https://go.dev/issue/58922</a>: add android user trusted CA folder as a possible source for certificate retrieval
+    <p><!-- https://go.dev/issue/58922, CL 519315-->
+      On Android, root certificates will now be loaded from <code>/data/misc/keychain/certs-added</code> as well as <code>/system/etc/security/cacerts</code>.
     </p>
 
-    <p><!-- https://go.dev/issue/60665 -->
-      TODO: <a href="https://go.dev/issue/60665">https://go.dev/issue/60665</a>: introduce new robust OID type &amp; use it for certificate policies
-    </p>
+    <p><!-- https://go.dev/issue/60665, CL 520535 -->
+      A new type, <a href="/pkg/crypto/x509#OID"><code>OID</code></a>, supports ASN.1 Object Identifiers with individual
+      components larger than 31 bits. A new field which uses this type, <a href="/pkg/crypto/x509#Certificate.Policies"><code>Policies</code></a>,
+      is added to the <code>Certificate</code> struct, and is now populated during parsing. Any OIDs which cannot be represented
+      using a <a href="/pkg/encoding/asn1#ObjectIdentifier"><code>asn1.ObjectIdentifier</code></a> will appear in <code>Policies</code>,
+      but not in the old <code>PolicyIdentifiers</code> field.
 
-    <p><!-- CL 519315 -->
-      TODO: <a href="https://go.dev/cl/519315">https://go.dev/cl/519315</a>: crypto/x509: implement AddCertWithConstraint; modified api/next/57178.txt
-    </p>
-
-    <p><!-- CL 520535 -->
-      TODO: <a href="https://go.dev/cl/520535">https://go.dev/cl/520535</a>: crypto/x509: add new OID type and use it in Certificate; modified api/next/60665.txt
+      When calling <a href="/pkg/crypto/x509#CreateCertificate"><code>CreateCertificate</code></a>, the <code>Policies</code> field is ignored, and
+      policies are taken from the <code>PolicyIdentifiers</code> field. Using the <code>x509usepolicies=1</code> GODEBUG setting inverts this,
+      populating certificate policies from the <code>Policies</code> field, and ignoring the <code>PolicyIdentifiers</code> field. We may change the
+      default value of <code>x509usepolicies</code> in Go 1.23, making <code>Policies</code> the default field for marshaling.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
@@ -592,14 +672,13 @@ defer func() {
 <dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/62418 -->
-      TODO: <a href="https://go.dev/issue/62418">https://go.dev/issue/62418</a>: enable setting level on default log.Logger
-    </p>
-
-    <p><!-- CL 525096 -->
-      TODO: <a href="https://go.dev/cl/525096">https://go.dev/cl/525096</a>: log/slog: add LogLoggerLevel to enable setting level on the default logger; modified api/next/62418.txt
+      The new <a href="/pkg/log/slog#SetLogLoggerLevel"><code>SetLogLoggerLevel</code></a> function
+      controls the level for the bridge between the `slog` and `log` packages. It sets the minimum level
+      for calls to the top-level `slog` logging functions, and it sets the level for calls to `log.Logger`
+      that go through `slog`.
     </p>
   </dd>
-</dl><!-- log/slog -->
+</dl>
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
@@ -639,10 +718,6 @@ defer func() {
       are versions of the existing
       <code>ServeFile</code>, <code>FileServer</code>, and <code>NewFileTransport</code>,
       operating on an <code>fs.FS</code>.
-    </p>
-
-    <p><!-- https://go.dev/issue/61410 -->
-      TODO: <a href="https://go.dev/issue/61410">https://go.dev/issue/61410</a>: enhanced ServeMux routing
     </p>
 
     <p><!-- https://go.dev/issue/61679 -->
@@ -884,11 +959,8 @@ defer func() {
 <dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/61758 -->
-      TODO: <a href="https://go.dev/issue/61758">https://go.dev/issue/61758</a>: support sub-tests
-    </p>
-
-    <p><!-- CL 516076 -->
-      TODO: <a href="https://go.dev/cl/516076">https://go.dev/cl/516076</a>: testing/slogtest: add Run to run cases as subtests; modified api/next/61758.txt
+      The new <a href="/pkg/testing/slogtest#Run"><code>Run</code></a> function uses sub-tests to run test cases,
+      providing finer-grained control.
     </p>
   </dd>
 </dl><!-- testing/slogtest -->
@@ -924,7 +996,7 @@ defer func() {
   The <code>loong64</code> port now supports passing function arguments and results using registers.
 </p>
 <p><!-- CL 481315,537615,480878 -->
-  The <code>linux/loong64</code> port now supports the memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
+  The <code>linux/loong64</code> port now supports the address sanitizer, memory sanitizer, new-style linker relocations, and the <code>plugin</code> build mode.
 </p>
 
 <h3 id="openbsd">OpenBSD</h3>

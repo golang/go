@@ -45,7 +45,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.15.0
 ## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
+# golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
 ## explicit; go 1.18
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -92,6 +92,7 @@ golang.org/x/tools/go/ast/inspector
 golang.org/x/tools/go/cfg
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/bisect
 golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/typeparams

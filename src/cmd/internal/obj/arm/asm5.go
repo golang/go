@@ -1099,6 +1099,32 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
+	if (p.As == ASRL || p.As == ASRA) && p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+		// Right shifts are weird - a shift that looks like "shift by constant 0" actually
+		// means "shift by constant 32". Use left shift in this situation instead.
+		// See issue 64715.
+		// TODO: rotate by 0? Not currently supported, but if we ever do then include it here.
+		p.As = ASLL
+	}
+	if p.As != AMOVB && p.As != AMOVBS && p.As != AMOVBU && p.As != AMOVH && p.As != AMOVHS && p.As != AMOVHU && p.As != AXTAB && p.As != AXTABU && p.As != AXTAH && p.As != AXTAHU {
+		// Same here, but for shifts encoded in Addrs.
+		// Don't do it for the extension ops, which
+		// need to keep their RR shifts.
+		fixShift := func(a *obj.Addr) {
+			if a.Type == obj.TYPE_SHIFT {
+				typ := a.Offset & SHIFT_RR
+				isConst := a.Offset&(1<<4) == 0
+				amount := a.Offset >> 7 & 0x1f
+				if isConst && amount == 0 && (typ == SHIFT_LR || typ == SHIFT_AR || typ == SHIFT_RR) {
+					a.Offset -= typ
+					a.Offset += SHIFT_LL
+				}
+			}
+		}
+		fixShift(&p.From)
+		fixShift(&p.To)
+	}
+
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]
