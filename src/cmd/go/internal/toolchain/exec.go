@@ -44,12 +44,12 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 				if e.ProcessState.Exited() {
 					os.Exit(e.ProcessState.ExitCode())
 				}
-				base.Fatalf("go: exec %s: %s", gotoolchain, e.ProcessState)
+				base.Fatalf("exec %s: %s", gotoolchain, e.ProcessState)
 			}
-			base.Fatalf("go: exec %s: %s", exe, err)
+			base.Fatalf("exec %s: %s", exe, err)
 		}
 		os.Exit(0)
 	}
 	err := syscall.Exec(exe, os.Args, os.Environ())
-	base.Fatalf("go: exec %s: %v", gotoolchain, err)
+	base.Fatalf("exec %s: %v", gotoolchain, err)
 }

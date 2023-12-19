@@ -116,7 +116,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 
 	// Record the set of vet tool flags set by GOFLAGS. We want to pass them to
 	// the vet tool, but only if they aren't overridden by an explicit argument.
-	base.SetFromGOFLAGS(&CmdVet.Flag, false)
+	base.SetFromGOFLAGS(&CmdVet.Flag)
 	addFromGOFLAGS := map[string]bool{}
 	CmdVet.Flag.Visit(func(f *flag.Flag) {
 		if isVetFlag[f.Name] {

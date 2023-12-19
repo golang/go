@@ -234,7 +234,7 @@ func invoke(cmd *base.Command, args []string) {
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
-		base.SetFromGOFLAGS(&cmd.Flag, false)
+		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
 		args = cmd.Flag.Args()
 	}
