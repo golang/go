@@ -222,7 +222,7 @@ func (f *shuffleFlag) Set(value string) error {
 //	go test fmt -custom-flag-for-fmt-test
 //	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
-	base.SetFromGOFLAGS(&CmdTest.Flag, false)
+	base.SetFromGOFLAGS(&CmdTest.Flag)
 	addFromGOFLAGS := map[string]bool{}
 	CmdTest.Flag.Visit(func(f *flag.Flag) {
 		if short := strings.TrimPrefix(f.Name, "test."); passFlagToTest[short] {
