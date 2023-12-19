@@ -7,6 +7,7 @@
 package reflect
 
 import (
+	"internal/abi"
 	"internal/bytealg"
 	"unsafe"
 )
@@ -105,9 +106,11 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
-		// Special case for []byte, which is common.
-		if v1.Type().Elem().Kind() == Uint8 {
-			return bytealg.Equal(v1.Bytes(), v2.Bytes())
+		if v1.typ_.TFlag == abi.TFlagRegularMemory {
+			return bytealg.Equal(
+				unsafe.Slice((*byte)(v1.ptr), v1.typ_.Elem().Size_*uintptr(v1.Len())),
+				unsafe.Slice((*byte)(v2.ptr), v2.typ_.Elem().Size_*uintptr(v2.Len())),
+			)
 		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited) {
