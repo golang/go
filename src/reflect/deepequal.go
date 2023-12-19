@@ -106,7 +106,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
-		if v1.typ_.TFlag == abi.TFlagRegularMemory {
+		if v1.typ_.TFlag&abi.TFlagRegularMemory != 0 {
 			return bytealg.Equal(
 				unsafe.Slice((*byte)(v1.ptr), v1.typ_.Elem().Size_*uintptr(v1.Len())),
 				unsafe.Slice((*byte)(v2.ptr), v2.typ_.Elem().Size_*uintptr(v2.Len())),
