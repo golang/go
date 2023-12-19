@@ -1,4 +1,4 @@
-// compile -d=interfacecycles
+// errorcheck
 
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,11 +11,11 @@ package p
 
 // exported interfaces
 
-type I1 interface {
+type I1 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
       F() interface{I1}
 }
 
-type I2 interface {
+type I2 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
       F() interface{I2}
 }
 
@@ -28,11 +28,11 @@ func F() bool {
 
 // non-exported interfaces
 
-type i1 interface {
+type i1 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
       F() interface{i1}
 }
 
-type i2 interface {
+type i2 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
       F() interface{i2}
 }
 

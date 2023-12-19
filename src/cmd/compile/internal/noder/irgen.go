@@ -92,23 +92,22 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	}
 
 	// Check for anonymous interface cycles (#56103).
-	if base.Debug.InterfaceCycles == 0 {
-		var f cycleFinder
-		for _, file := range files {
-			syntax.Inspect(file, func(n syntax.Node) bool {
-				if n, ok := n.(*syntax.InterfaceType); ok {
-					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
-						base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+	// TODO(gri) move this code into the type checkers (types2 and go/types)
+	var f cycleFinder
+	for _, file := range files {
+		syntax.Inspect(file, func(n syntax.Node) bool {
+			if n, ok := n.(*syntax.InterfaceType); ok {
+				if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
+					base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
 
-						for typ := range f.cyclic {
-							f.cyclic[typ] = false // suppress duplicate errors
-						}
+					for typ := range f.cyclic {
+						f.cyclic[typ] = false // suppress duplicate errors
 					}
-					return false
 				}
-				return true
-			})
-		}
+				return false
+			}
+			return true
+		})
 	}
 	base.ExitIfErrors()
 
