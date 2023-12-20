@@ -404,7 +404,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
 </p>
 
 <p>
-  This change breaks backwards compatiblity in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
+  This change breaks backwards compatibility in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
   and some less so&mdash;treatment of escaped paths has been improved.
   The change is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>httpmuxgo121</code>.
   Set <code>httpmuxgo121=1</code> to restore the old behavior.
@@ -952,7 +952,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
     <p><!-- https://go.dev/issue/60797 -->
       The <code>syscall</code> package has been <a href="https://golang.org/s/go1.4-syscall">frozen</a> since Go 1.4 and was marked as deprecated in Go 1.11, causing many editors to warn about any use of the package.
       However, some non-deprecated functionality requires use of the <code>syscall</code> package, such as the <a href="/pkg/os/exec#Cmd"><code>os/exec.Cmd.SysProcAttr</code></a> field.
-      To avoid unnecesary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
+      To avoid unnecessary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
       The package remains frozen to most new functionality, and new code remains encouraged to use <a href="/pkg/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a> or <a href="/pkg/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> where possible.
     </p>
 
