@@ -167,13 +167,10 @@ func (g *godebugInc) IncNonDefault() {
 		if newInc == nil {
 			return
 		}
-		// If other goroutines are racing here, no big deal. One will win,
-		// and all the inc functions will be using the same underlying
-		// *godebug.Setting.
 		inc = new(func())
 		*inc = (*newInc)(g.name)
 		if raceenabled {
-			racerelease(unsafe.Pointer(&g.inc))
+			racereleasemerge(unsafe.Pointer(&g.inc))
 		}
 		if !g.inc.CompareAndSwap(nil, inc) {
 			inc = g.inc.Load()
