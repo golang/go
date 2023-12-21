@@ -629,19 +629,6 @@ OverlayLoop:
 		}
 	}
 
-	// Run SWIG on each .swig and .swigcxx file.
-	// Each run will generate two files, a .go file and a .c or .cxx file.
-	// The .go file will use import "C" and is to be processed by cgo.
-	if p.UsesSwig() {
-		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
-		if err != nil {
-			return err
-		}
-		cgofiles = append(cgofiles, outGo...)
-		cfiles = append(cfiles, outC...)
-		cxxfiles = append(cxxfiles, outCXX...)
-	}
-
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if p.Internal.Cover.Mode != "" {
 		outfiles := []string{}
@@ -720,6 +707,22 @@ OverlayLoop:
 				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
 			}
 		}
+	}
+
+	// Run SWIG on each .swig and .swigcxx file.
+	// Each run will generate two files, a .go file and a .c or .cxx file.
+	// The .go file will use import "C" and is to be processed by cgo.
+	// For -cover test or build runs, this needs to happen after the cover
+	// tool is run; we don't want to instrument swig-generated Go files,
+	// see issue #64661.
+	if p.UsesSwig() {
+		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
+		if err != nil {
+			return err
+		}
+		cgofiles = append(cgofiles, outGo...)
+		cfiles = append(cfiles, outC...)
+		cxxfiles = append(cxxfiles, outCXX...)
 	}
 
 	// Run cgo.
