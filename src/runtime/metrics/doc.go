@@ -8,7 +8,8 @@
 /*
 Package metrics provides a stable interface to access implementation-defined
 metrics exported by the Go runtime. This package is similar to existing functions
-like [runtime.ReadMemStats] and [debug.ReadGCStats], but significantly more general.
+like [runtime.ReadMemStats] and [runtime/debug.ReadGCStats], but significantly
+more general.
 
 The set of metrics defined by this package may evolve as the runtime itself
 evolves, and also enables variation across Go implementations, whose relevant
