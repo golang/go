@@ -66,7 +66,7 @@ func (b *Builder) Reset() {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Builder) grow(n int) {
-	buf := bytealg.MakeNoZeroAtLeast(2*cap(b.buf)+n, true)[:len(b.buf)]
+	buf := bytealg.MakeNoZeroAtLeast(2*cap(b.buf) + n)[:len(b.buf)]
 	copy(buf, b.buf)
 	b.buf = buf
 }
