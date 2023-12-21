@@ -368,3 +368,12 @@ func bytealg_MakeNoZero(len int) []byte {
 	}
 	return unsafe.Slice((*byte)(mallocgc(uintptr(len), nil, false)), len)
 }
+
+//go:linkname bytealg_MakeNoZeroAtLeast internal/bytealg.MakeNoZeroAtLeast
+func bytealg_MakeNoZeroAtLeast(len int) []byte {
+	if uintptr(len) > maxAlloc {
+		panicmakeslicelen()
+	}
+	l := roundupsize(uintptr(len), true)
+	return unsafe.Slice((*byte)(mallocgc(l, nil, false)), l)
+}
