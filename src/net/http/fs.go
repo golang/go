@@ -151,6 +151,8 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, "<!doctype html>\n")
+	fmt.Fprintf(w, "<meta name=\"viewport\" content=\"width=device-width\">\n")
 	fmt.Fprintf(w, "<pre>\n")
 	for i, n := 0, dirs.len(); i < n; i++ {
 		name := dirs.name(i)
