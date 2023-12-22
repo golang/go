@@ -106,10 +106,12 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
-		if v1.typ_.TFlag&abi.TFlagRegularMemory != 0 {
+		// Special case raw memory. Particularly, []byte is very common and is handled here.
+		typ := (*abi.SliceType)(unsafe.Pointer(v1.typ()))
+		if isDeepEqualRawMemory(typ.Elem) {
 			return bytealg.Equal(
-				unsafe.Slice((*byte)(v1.ptr), v1.typ_.Elem().Size_*uintptr(v1.Len())),
-				unsafe.Slice((*byte)(v2.ptr), v2.typ_.Elem().Size_*uintptr(v2.Len())),
+				unsafe.Slice(*(**byte)(v1.ptr), v1.typ_.Elem().Size_*uintptr(v1.Len())),
+				unsafe.Slice(*(**byte)(v2.ptr), v2.typ_.Elem().Size_*uintptr(v2.Len())),
 			)
 		}
 		for i := 0; i < v1.Len(); i++ {
@@ -176,6 +178,33 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)
 	}
+}
+
+// isDeepEqualRawMemory return
+// whether DeepEqual can treat a type of data
+// as a single typ.size byte area to
+// compare whether the depth is equal
+func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
+	// Note: Here is an incorrect implementation :
+	//
+	//	return typ.TFlag==abi.TFlagRegularMemory
+	//
+	// The reason is that DeepEqual
+	// cannot treat a pointer as a single area of a pointer size,
+	// because when DeepEqual
+	// compares two previously compared pointer values a second time and later,
+	// it treats them as equal
+
+	// TODO: Find a way to quickly determine whether a struct contains Pointer
+	// Make struct do not have Pointer return true
+
+	switch typ.Kind() {
+	case abi.Int8, abi.Int16, abi.Int32, abi.Int64, abi.Uintptr, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uint64, abi.Bool:
+		return true
+	case abi.Array, abi.Slice:
+		return isDeepEqualRawMemory(typ.Elem())
+	}
+	return false
 }
 
 // DeepEqual reports whether x and y are “deeply equal,” defined as follows.
