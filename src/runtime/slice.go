@@ -366,6 +366,6 @@ func bytealg_MakeNoZero(len int) []byte {
 	if uintptr(len) > maxAlloc {
 		panicmakeslicelen()
 	}
-	l := roundupsize(uintptr(len), true)
-	return unsafe.Slice((*byte)(mallocgc(uintptr(l), nil, false)), l)[:len]
+	cap := roundupsize(uintptr(len), true)
+	return unsafe.Slice((*byte)(mallocgc(uintptr(cap), nil, false)), cap)[:len]
 }
