@@ -43,7 +43,7 @@ func g() {
 	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as I value in assignment: \*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
 
 	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as I value in assignment: T4 does not implement I \(method M has pointer receiver\)"
-	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as I value in assignment: type \*I is pointer to interface, not interface"
+	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as I value in assignment: \*I does not implement I \(type \*I is pointer to interface, not interface\)"
 
 	_ = i.(*T2) // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
 	_ = i.(*T3) // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
