@@ -29,8 +29,8 @@ import (
 // address usually guarded by an IsInBound check), in this case, we try to hoist
 // it only if the loop invariant dominates all loop exits, which implies that it
 // will be executed unconditionally as soon as it enters the loop.
-// For #2, we rely on a simple but efficient type-based alias analysis to know
-// whether two memory access instructions may access the same memory location.
+// For #2, we always pessimistically assume that they are must-aliases and stop
+// optimizing if we saw both load and store
 
 func logInvariant(val *Value, src *Block, dest *Block) {
 	hoistType := "Simple"
@@ -60,46 +60,6 @@ func isMemoryDef(val *Value) bool {
 		OpPubBarrier,
 		OpVarDef, OpVarLive, OpKeepAlive:
 		return true
-	}
-	return false
-}
-
-// For Load/Store and some special Values they sould be processed separately
-// even if they are loop invariants as they may have observable memory side
-// effect
-func hasMemoryAlias(loads []*Value, stores []*Value, val *Value) bool {
-	if val.Op == OpLoad {
-		if len(stores) == 0 {
-			// good, no other Store at all
-			return false
-		}
-		// Slow path, we need a type-based alias analysis to know whether Load
-		// may alias with Stores
-		for _, st := range stores {
-			loadPtr := val.Args[0]
-			storePtr := st.Args[0]
-			at := GetMemoryAlias(loadPtr, storePtr)
-			if at != NoAlias {
-				return true
-			}
-		}
-		return false
-	} else if val.Op == OpStore {
-		if len(loads) == 0 && len(stores) == 1 /*itself only*/ {
-			return false
-		}
-		for _, v := range append(stores, loads...) {
-			if v == val {
-				continue
-			}
-			ptr := v.Args[0]
-			storePtr := val.Args[0]
-			at := GetMemoryAlias(ptr, storePtr)
-			if at != NoAlias {
-				return true
-			}
-		}
-		return false
 	}
 	return false
 }
@@ -168,7 +128,7 @@ func (h *hoister) hoist(block *Block, val *Value) {
 // outside the loop or all its inputs are loop invariants. Since loop invariant
 // will immediately moved to dominator block of loop, the first rule actually
 // already implies the second rule
-func (h *hoister) tryHoist(loop *loop, li *loopInvariants, val *Value) bool {
+func (h *hoister) tryHoist(loop *loop, invariants loopInvariants, val *Value) bool {
 	// Value is already hoisted
 	if hoisted, exist := h.hoisted[val]; exist {
 		return hoisted
@@ -188,8 +148,8 @@ func (h *hoister) tryHoist(loop *loop, li *loopInvariants, val *Value) bool {
 				continue
 			}
 		}
-		if _, isInvariant := li.invariants[arg]; isInvariant {
-			if !h.tryHoist(loop, li, arg) {
+		if _, isInvariant := invariants[arg]; isInvariant {
+			if !h.tryHoist(loop, invariants, arg) {
 				return false
 			}
 		} else {
@@ -218,14 +178,6 @@ func (h *hoister) tryHoist(loop *loop, li *loopInvariants, val *Value) bool {
 		if !alwaysExecute(h.sdom, loop, val) {
 			if h.fn.pass.debug > 1 {
 				fmt.Printf("LICM failure: %v not always execute\n", val.LongString())
-			}
-			return false
-		}
-
-		// Instructions may access same memory locations?
-		if hasMemoryAlias(li.loads, li.stores, val) {
-			if h.fn.pass.debug > 1 {
-				fmt.Printf("LICM failure: %v has memory alias\n", val.LongString())
 			}
 			return false
 		}
@@ -290,15 +242,11 @@ func (h *hoister) fixMemoryState(loop *loop, startMem, endMem []*Value) {
 	}
 }
 
-type loopInvariants struct {
-	invariants map[*Value]bool
-	loads      []*Value
-	stores     []*Value
-}
+type loopInvariants map[*Value]bool
 
-func (li *loopInvariants) stableKeys() []*Value {
+func stableKeys(li loopInvariants) []*Value {
 	keys := make([]*Value, 0)
-	for k, _ := range li.invariants {
+	for k, _ := range li {
 		keys = append(keys, k)
 	}
 	sort.SliceStable(keys, func(i, j int) bool {
@@ -308,19 +256,19 @@ func (li *loopInvariants) stableKeys() []*Value {
 }
 
 // findInviant finds all loop invariants within the loop
-func (loop *loop) findInvariant(ln *loopnest) *loopInvariants {
+func (loop *loop) findInvariant(ln *loopnest) loopInvariants {
 	loopValues := make(map[*Value]bool)
 	invariants := make(map[*Value]bool)
 	loopBlocks := ln.findLoopBlocks(loop)
-	loads := make([]*Value, 0)
-	stores := make([]*Value, 0)
+
 	// First, collect all def inside loop
+	hasLoad, hasStore := false, false
 	for _, block := range loopBlocks {
 		for _, value := range block.Values {
 			if value.Op == OpLoad {
-				loads = append(loads, value)
+				hasLoad = true
 			} else if value.Op == OpStore {
-				stores = append(stores, value)
+				hasStore = true
 			} else if value.Op.IsCall() {
 				if ln.f.pass.debug > 1 {
 					fmt.Printf("LICM failure: find call %v\n", value.LongString())
@@ -329,6 +277,17 @@ func (loop *loop) findInvariant(ln *loopnest) *loopInvariants {
 			}
 			loopValues[value] = true
 		}
+	}
+
+	// See if loop contains both Load and Store and pessimistically assume that
+	// they are must-aliases and stop optimizing
+	// TODO: We can do better here by using type-based alias analysis in
+	// some cases
+	if hasLoad && hasStore {
+		if ln.f.pass.debug > 1 {
+			fmt.Printf("LICM failure: %v has both load and store\n", loop)
+		}
+		return nil
 	}
 
 	changed := true
@@ -361,11 +320,7 @@ func (loop *loop) findInvariant(ln *loopnest) *loopInvariants {
 		changed = (len(invariants) != numInvar)
 	}
 
-	return &loopInvariants{
-		invariants: invariants,
-		loads:      loads,
-		stores:     stores,
-	}
+	return invariants
 }
 
 // licm stands for Loop Invariant Code Motion, it hoists expressions that computes
@@ -407,8 +362,8 @@ func licm(fn *Func) {
 		}
 
 		// Find loop invariants within the loop
-		li := loop.findInvariant(loopnest)
-		if li == nil || len(li.invariants) == 0 {
+		invariants := loop.findInvariant(loopnest)
+		if invariants == nil || len(invariants) == 0 {
 			continue
 		}
 
@@ -418,10 +373,9 @@ func licm(fn *Func) {
 		}
 
 		// All prerequisites are satisfied, try to hoist loop invariants
-		keys := li.stableKeys()
 		h.sdom = fn.Sdom()
-		for _, val := range keys {
-			h.tryHoist(loop, li, val)
+		for _, val := range stableKeys(invariants) {
+			h.tryHoist(loop, invariants, val)
 		}
 
 		// Fix broken memory state given that CFG no longer changes

@@ -78,7 +78,6 @@ func TestHoistSimpleLI(t *testing.T) {
 			Exit("mem")))
 
 	doLICM(fun)
-	fmt.Printf("== After LICM: %v\n", fun.f.String())
 	checkHoist(t, fun, "li")
 }
 
@@ -115,13 +114,33 @@ func TestHoistTrapDiv(t *testing.T) {
 	checkHoist(t, fun, "li", "li2")
 }
 
-// Hoist load and store from loop
-//
-//	for i := 0; i < 10; i++ {
-//		*addr = 1
-//		load := *addr1
-//	}
-func TestHoistLoadStore(t *testing.T) {
+// Hoist load from loop
+func TestHoistLoad(t *testing.T) {
+	c := testConfig(t)
+	fun := c.Fun("loopEntry",
+		Bloc("loopEntry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("zero", OpConst64, c.config.Types.Int64, 0, nil),
+			Valu("one", OpConst64, c.config.Types.Int64, 1, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Goto("loopHeader")),
+		Bloc("loopHeader",
+			Valu("i", OpPhi, c.config.Types.Int64, 0, nil, "zero", "inc"),
+			Valu("addr1", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb"),
+			Valu("load", OpLoad, c.config.Types.Int8, 0, nil, "addr1", "mem"),
+			Valu("cmp", OpLess64, c.config.Types.Bool, 0, nil, "i", "load"),
+			If("cmp", "loopLatch", "loopExit")),
+		Bloc("loopLatch",
+			Valu("inc", OpAdd64, c.config.Types.Int64, 0, nil, "load", "i"),
+			Goto("loopHeader")),
+		Bloc("loopExit",
+			Exit("mem")))
+
+	doLICM(fun)
+	checkHoist(t, fun, "load", "addr1")
+}
+
+func TestHoistStore(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("loopEntry",
 		Bloc("loopEntry",
@@ -133,19 +152,17 @@ func TestHoistLoadStore(t *testing.T) {
 		Bloc("loopHeader",
 			Valu("i", OpPhi, c.config.Types.Int64, 0, nil, "zero", "inc"),
 			Valu("addr", OpAddr, c.config.Types.Int8.PtrTo(), 0, nil, "sb"),
-			Valu("addr1", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb"),
 			Valu("store", OpStore, types.TypeMem, 0, nil, "addr", "one", "mem"),
-			Valu("load", OpLoad, c.config.Types.Int8, 0, nil, "addr1", "mem"),
-			Valu("cmp", OpLess64, c.config.Types.Bool, 0, nil, "i", "load"),
+			Valu("cmp", OpLess64, c.config.Types.Bool, 0, nil, "i", "one"),
 			If("cmp", "loopLatch", "loopExit")),
 		Bloc("loopLatch",
-			Valu("inc", OpAdd64, c.config.Types.Int64, 0, nil, "load", "i"),
+			Valu("inc", OpAdd64, c.config.Types.Int64, 0, nil, "one", "i"),
 			Goto("loopHeader")),
 		Bloc("loopExit",
 			Exit("mem")))
 
 	doLICM(fun)
-	checkHoist(t, fun, "load", "store", "addr", "addr1")
+	checkHoist(t, fun, "store", "addr")
 }
 
 // Hoist nil check from loop
