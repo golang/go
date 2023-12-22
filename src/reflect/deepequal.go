@@ -201,7 +201,7 @@ func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
 	switch typ.Kind() {
 	case abi.Int8, abi.Int16, abi.Int32, abi.Int64, abi.Uintptr, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uint64, abi.Bool:
 		return true
-	case abi.Array, abi.Slice:
+	case abi.Array:
 		return isDeepEqualRawMemory(typ.Elem())
 	}
 	return false
