@@ -491,3 +491,19 @@ func TestPull2ImmediateStop(t *testing.T) {
 		t.Fatal("next returned true after iterator was stopped")
 	}
 }
+
+func BenchmarkPull(b *testing.B) {
+	seq := count(1)
+	for range b.N {
+		_, stop := Pull(seq)
+		stop()
+	}
+}
+
+func BenchmarkPull2(b *testing.B) {
+	seq := squares(1)
+	for range b.N {
+		_, stop := Pull2(seq)
+		stop()
+	}
+}
