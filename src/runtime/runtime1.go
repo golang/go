@@ -659,3 +659,10 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	reflectOffsUnlock()
 	return id
 }
+
+// sync_goid return goid field of getg()
+//
+//go:linkname sync_goid sync.goid
+func sync_goid() uint64 {
+	return getg().goid
+}
