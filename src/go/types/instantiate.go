@@ -218,13 +218,21 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
 		if cause != nil {
+			longCause := true
 			var detail string
 			if isInterfacePtr(Tu) {
 				detail = check.sprintf("type %s is pointer to interface, not interface", T)
+				if !constraint {
+					longCause = false
+				}
 			} else {
 				detail = check.sprintf("%s is not an interface", T)
 			}
-			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+			if longCause {
+				*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+			} else {
+				*cause = detail
+			}
 		}
 		return false
 	}
