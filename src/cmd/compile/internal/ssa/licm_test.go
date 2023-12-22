@@ -161,7 +161,7 @@ func TestHoistNilCheck(t *testing.T) {
 			Goto("loopHeader")),
 		Bloc("loopHeader",
 			Valu("i", OpPhi, c.config.Types.Int64, 0, nil, "zero", "inc"),
-			Valu("nilcheck", OpNilCheck, types.TypeVoid, 0, nil, "addr", "mem"),
+			Valu("nilcheck", OpNilCheck, c.config.Types.IntPtr, 0, nil, "addr", "mem"),
 			Valu("cmp", OpLess64, c.config.Types.Bool, 0, nil, "i", "one"),
 			If("cmp", "loopLatch", "loopExit")),
 		Bloc("loopLatch",
