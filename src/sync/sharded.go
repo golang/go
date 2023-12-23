@@ -7,7 +7,12 @@ import (
 // Sharded is a container of values of the same type
 // have n data of type T.
 //
-// the same goroutine uses the same T-type data.
+// On a best effort basis, the runtime will strongly associate a given value
+// with a CPU core.  That is to say, retrieving a value twice on the same CPU
+// core will return the same value with high probablity.  Note that the runtime
+// cannot guarantee this fact, and clients must assume that retrieved values
+// can be shared between concurrently executing goroutines.
+//
 // it is safe to call all methods from multiple goroutines.
 //
 // zero value is unavailable
@@ -37,7 +42,7 @@ func NewSharded[T any](n uint) Sharded[T] {
 // Get get one of n data of type T from [Sharded]
 func (s *Sharded[T]) Get() *T {
 	// If zero value is use, slice access is out of bounds.
-	return &s.data[int(goid())%len(s.data)].v
+	return &s.data[int(pid())%len(s.data)].v
 }
 
 // Range Call f for all data of type T in [Sharded]
@@ -51,4 +56,4 @@ func (s *Sharded[T]) Range(f func(*T)) {
 }
 
 // Implemented in runtime/runtime1.go
-func goid() uint64
+func pid() uint64

@@ -2,6 +2,7 @@ package sync_test
 
 import (
 	"runtime"
+	"strconv"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -44,16 +45,6 @@ func TestSharedRace(t *testing.T) {
 	wg.Wait()
 }
 
-func TestSharedOneP(t *testing.T) {
-	var s = NewSharded[atomic.Int64](uint(runtime.GOMAXPROCS(0)))
-	for range 10000 {
-		s.Get().Add(1)
-	}
-	if load := s.Get().Load(); load != int64(10000) {
-		t.Fatalf("expected %d, got %d", 1000, load)
-	}
-}
-
 func TestSharedRange(t *testing.T) {
 	maxprocs := uint(runtime.GOMAXPROCS(0))
 	var s = NewSharded[atomic.Int64](maxprocs)
@@ -78,20 +69,33 @@ func TestSharedRange(t *testing.T) {
 }
 
 func BenchmarkSharedAtomicInt64(b *testing.B) {
-	maxprocs := uint(runtime.GOMAXPROCS(0))
-	for range b.N {
-		var s = NewSharded[atomic.Int64](maxprocs)
-		var wg WaitGroup
-		wg.Add(int(maxprocs))
-		for range maxprocs {
-			go func() {
-				defer wg.Done()
-				for range 10000 {
-					s.Get().Add(1)
+	type args struct {
+		maxprocs int
+	}
+	test := []args{
+		{1},
+		{2},
+		{4},
+		{8},
+		{16},
+	}
+	for _, tt := range test {
+		b.Run(strconv.Itoa(tt.maxprocs), func(b *testing.B) {
+			for range b.N {
+				var s = NewSharded[atomic.Int64](uint(tt.maxprocs))
+				var wg WaitGroup
+				wg.Add(runtime.GOMAXPROCS(0))
+				for range runtime.GOMAXPROCS(0) {
+					go func() {
+						defer wg.Done()
+						for range 10000 {
+							s.Get().Add(1)
+						}
+					}()
 				}
-			}()
-		}
-		wg.Wait()
+				wg.Wait()
+			}
+		})
 	}
 }
 
