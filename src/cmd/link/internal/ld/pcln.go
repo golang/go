@@ -614,16 +614,36 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 	return size, startLocations
 }
 
+// textOff computes the offset of a text symbol, relative to textStart,
+// similar to an R_ADDROFF relocation,  for various runtime metadata and
+// tables (see runtime/symtab.go:(*moduledata).textAddr).
+func textOff(ctxt *Link, s loader.Sym, textStart int64) uint32 {
+	ldr := ctxt.loader
+	off := ldr.SymValue(s) - textStart
+	if off < 0 {
+		panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
+	}
+	if ctxt.IsWasm() {
+		// On Wasm, the function table contains just the function index, whereas
+		// the "PC" (s's Value) is function index << 16 + block index (see
+		// ../wasm/asm.go:assignAddress).
+		if off&(1<<16-1) != 0 {
+			ctxt.Errorf(s, "nonzero PC_B at function entry: %#x", off)
+		}
+		off >>= 16
+	}
+	if int64(uint32(off)) != off {
+		ctxt.Errorf(s, "textOff overflow: %#x", off)
+	}
+	return uint32(off)
+}
+
 // writePCToFunc writes the PC->func lookup table.
 func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, startLocations []uint32) {
 	ldr := ctxt.loader
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	pcOff := func(s loader.Sym) uint32 {
-		off := ldr.SymValue(s) - textStart
-		if off < 0 {
-			panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
-		}
-		return uint32(off)
+		return textOff(ctxt, s, textStart)
 	}
 	for i, s := range funcs {
 		sb.SetUint32(ctxt.Arch, int64(i*2*4), pcOff(s))
@@ -632,7 +652,11 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 
 	// Final entry of table is just end pc offset.
 	lastFunc := funcs[len(funcs)-1]
-	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, pcOff(lastFunc)+uint32(ldr.SymSize(lastFunc)))
+	lastPC := pcOff(lastFunc) + uint32(ldr.SymSize(lastFunc))
+	if ctxt.IsWasm() {
+		lastPC = pcOff(lastFunc) + 1 // On Wasm it is function index (see above)
+	}
+	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, lastPC)
 }
 
 // writeFuncs writes the func structures and pcdata to runtime.functab.
@@ -646,7 +670,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 	var pcsp, pcfile, pcline, pcinline loader.Sym
 	var pcdata []loader.Sym
 
-	// Write the individual func objects.
+	// Write the individual func objects (runtime._func struct).
 	for i, s := range funcs {
 		startLine := int32(0)
 		fi := ldr.FuncInfo(s)
@@ -658,10 +682,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 		off := int64(startLocations[i])
 		// entryOff uint32 (offset of func entry PC from textStart)
-		entryOff := ldr.SymValue(s) - textStart
-		if entryOff < 0 {
-			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
-		}
+		entryOff := textOff(ctxt, s, textStart)
 		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
 
 		// nameOff int32

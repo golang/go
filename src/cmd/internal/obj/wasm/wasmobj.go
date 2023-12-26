@@ -372,6 +372,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
 	s.Size = pc + 1
+	if pc >= 1<<16 {
+		ctxt.Diag("function too big: %s exceeds 65536 blocks", s)
+	}
 
 	if needMoreStack {
 		p := pMorestack
