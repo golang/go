@@ -492,6 +492,7 @@ var passes = [...]pass{
 	{name: "loop sccp", fn: sccp, disabled: !EnableLoopOpts},                  // optimize loop guard conditional test
 	{name: "loop opt", fn: opt, disabled: !EnableLoopOpts},                    // further optimize loop guard conditional test
 	{name: "loop deadcode late", fn: deadcode, disabled: !EnableLoopOpts},     // remove dead loop guard to simplify cfg
+	{name: "loop nilcheckelim", fn: nilcheckelim, disabled: !EnableLoopOpts},  // remove duplicated nil check in loop guard
 	{name: "writebarrier", fn: writebarrier, required: true},                  // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
