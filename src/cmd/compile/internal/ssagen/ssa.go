@@ -633,7 +633,7 @@ func (s *state) zeroResults() {
 		if typ := n.Type(); ssa.CanSSA(typ) {
 			s.assign(n, s.zeroVal(typ), false, 0)
 		} else {
-			if typ.HasPointers() {
+			if typ.HasPointers() || ssa.IsMergeCandidate(n) {
 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
 			}
 			s.zero(n.Type(), s.decladdrs[n])
@@ -3942,7 +3942,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
-	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 && t.HasPointers() {
+	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 && (t.HasPointers() || ssa.IsMergeCandidate(base)) {
 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
 	}
 
@@ -5382,7 +5382,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		}
 		// Make a defer struct on the stack.
 		t := deferstruct()
-		_, addr := s.temp(n.Pos(), t)
+		n, addr := s.temp(n.Pos(), t)
+		n.SetNonMergeable(true)
 		s.store(closure.Type,
 			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
 			closure)
@@ -6886,7 +6887,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 // temp allocates a temp of type t at position pos
 func (s *state) temp(pos src.XPos, t *types.Type) (*ir.Name, *ssa.Value) {
 	tmp := typecheck.TempAt(pos, s.curfn, t)
-	if t.HasPointers() {
+	if t.HasPointers() || (ssa.IsMergeCandidate(tmp) && t != deferstruct()) {
 		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
 	}
 	addr := s.addr(tmp)

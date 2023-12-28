@@ -143,6 +143,11 @@ type liveness struct {
 
 	doClobber     bool // Whether to clobber dead stack slots in this function.
 	noClobberArgs bool // Do not clobber function arguments
+
+	// treat "dead" writes as equivalent to reads during the analysis;
+	// used only during liveness analysis for stack slot merging (doesn't
+	// make sense for stackmap analysis).
+	conservativeWrites bool
 }
 
 // Map maps from *ssa.Value to StackMapIndex.
@@ -312,8 +317,12 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
 		effect |= uevar
 	}
-	if e&ssa.SymWrite != 0 && (!isfat(n.Type()) || v.Op == ssa.OpVarDef) {
-		effect |= varkill
+	if e&ssa.SymWrite != 0 {
+		if !isfat(n.Type()) || v.Op == ssa.OpVarDef {
+			effect |= varkill
+		} else if lv.conservativeWrites {
+			effect |= uevar
+		}
 	}
 
 	if effect == 0 {
@@ -450,6 +459,11 @@ func (lv *liveness) blockEffects(b *ssa.Block) *blockEffects {
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
 func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, locals bitvec.BitVec) {
+	var slotsSeen map[int64]*ir.Name
+	checkForDuplicateSlots := base.Debug.MergeLocals != 0
+	if checkForDuplicateSlots {
+		slotsSeen = make(map[int64]*ir.Name)
+	}
 	for i := int32(0); ; i++ {
 		i = liveout.Next(i)
 		if i < 0 {
@@ -468,6 +482,12 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
 		case ir.PAUTO:
 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
+			if checkForDuplicateSlots {
+				if prev, ok := slotsSeen[node.FrameOffset()]; ok {
+					base.FatalfAt(node.Pos(), "two vars live at pointerMap generation: %q and %q", prev.Sym().Name, node.Sym().Name)
+				}
+				slotsSeen[node.FrameOffset()] = node
+			}
 		}
 	}
 }
