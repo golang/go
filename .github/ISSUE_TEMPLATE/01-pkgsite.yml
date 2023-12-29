@@ -34,14 +34,14 @@ body:
     validations:
       required: true
   - type: textarea
-    id: expected-behavior
+    id: actual-behavior
     attributes:
-      label: "What did you expect to see?"
+      label: "What did you see happen?"
     validations:
       required: true
   - type: textarea
-    id: actual-behavior
+    id: expected-behavior
     attributes:
-      label: "What did you see instead?"
+      label: "What did you expect to see?"
     validations:
       required: true
