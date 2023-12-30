@@ -2130,12 +2130,14 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 
 func TestClientTimeoutErrorWrapping(t *testing.T) { run(t, testClientTimeoutErrorWrapping) }
 func testClientTimeoutErrorWrapping(t *testing.T, mode testMode) {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		time.Sleep(15 * time.Millisecond)
+		<-doneCh
 		w.WriteHeader(200)
 	}))
 	// simulate a timeout and check that the error is wrapped by using errors.Is(err, context.DeadlineExceeded)
-	cst.c.Timeout = 10 * time.Millisecond
+	cst.c.Timeout = 1 * time.Millisecond
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	_, err := cst.c.Do(req)
 	if !errors.Is(err, context.DeadlineExceeded) {
