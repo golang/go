@@ -2152,6 +2152,7 @@ func isValidFieldName(fieldName string) bool {
 	return len(fieldName) > 0
 }
 
+// This must match cmd/compile/internal/compare.IsRegularMemory
 func isRegularMemory(t Type) bool {
 	switch t.Kind() {
 	case Array:
