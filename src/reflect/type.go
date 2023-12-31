@@ -600,7 +600,7 @@ func (t *rtype) Method(i int) (m Method) {
 	p := methods[i]
 	pname := t.nameOff(p.Name)
 	m.Name = pname.Name()
-	fl := flag(Func)
+	fl := abi.Flag(Func)
 	mtyp := t.typeOff(p.Mtyp)
 	ft := (*funcType)(unsafe.Pointer(mtyp))
 	in := make([]Type, 0, 1+ft.NumIn())

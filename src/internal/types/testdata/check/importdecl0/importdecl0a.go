@@ -12,7 +12,7 @@ import (
 	_ "net/rpc"
 	init /* ERROR "cannot import package as init" */ "fmt"
 	// reflect defines a type "flag" which shows up in the gc export data
-	"reflect"
+	"reflect"/* ERROR "imported and not used" */ 
 	. /* ERROR "imported and not used" */ "reflect"
 )
 
@@ -29,10 +29,6 @@ import (
 import "fmt"
 import f1 "fmt"
 import f2 "fmt"
-
-// reflect.flag must not be visible in this package
-type flag int
-type _ reflect.flag /* ERROR "not exported" */
 
 // imported package name may conflict with local objects
 type reflect /* ERROR "reflect already declared" */ int

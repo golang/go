@@ -1155,3 +1155,25 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 	}
 	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
 }
+
+// valueMethodName returns the name of the exported calling method on Value.
+func valueMethodName() string {
+	var pc [5]uintptr
+	n := Callers(1,
+		(*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:],
+	)
+	frames := CallersFrames((*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:n])
+	var frame Frame
+	for more := true; more; {
+		const prefix = "reflect.Value."
+		frame, more = frames.Next()
+		name := frame.Function
+		if len(name) > len(prefix) && name[:len(prefix)] == prefix {
+			methodName := name[len(prefix):]
+			if len(methodName) > 0 && 'A' <= methodName[0] && methodName[0] <= 'Z' {
+				return name
+			}
+		}
+	}
+	return "unknown method"
+}

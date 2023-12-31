@@ -13,13 +13,13 @@ import (
 
 // MakeRO returns a copy of v with the read-only flag set.
 func MakeRO(v Value) Value {
-	v.flag |= flagStickyRO
+	v.flag |= abi.FlagStickyRO
 	return v
 }
 
 // IsRO reports whether v's read-only flag is set.
 func IsRO(v Value) bool {
-	return v.flag&flagStickyRO != 0
+	return v.flag&abi.FlagStickyRO != 0
 }
 
 var CallGC = &callGC
