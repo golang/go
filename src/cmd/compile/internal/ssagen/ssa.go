@@ -7109,24 +7109,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	//   - 0xfb - print _ (offset too large)
 	// These constants need to be in sync with runtime.traceback.go:printArgs.
 	const (
-		_endSeq         = 0xff
-		_startAgg       = 0xfe
-		_endAgg         = 0xfd
-		_dotdotdot      = 0xfc
-		_offsetTooLarge = 0xfb
-		_special        = 0xf0 // above this are operators, below this are ordinary offsets
-	)
-
-	const (
-		limit    = 10 // print no more than 10 args/components
-		maxDepth = 5  // no more than 5 layers of nesting
-
-		// maxLen is a (conservative) upper bound of the byte stream length. For
-		// each arg/component, it has no more than 2 bytes of data (size, offset),
-		// and no more than one {, }, ... at each level (it cannot have both the
-		// data and ... unless it is the last one, just be conservative). Plus 1
-		// for _endSeq.
-		maxLen = (maxDepth*3+2)*limit + 1
+		_special = 0xf0 // above this are operators, below this are ordinary offsets
 	)
 
 	wOff := 0
@@ -7136,7 +7119,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
 		if offset >= _special {
-			writebyte(_offsetTooLarge)
+			writebyte(rtabi.TraceArgsOffsetTooLarge)
 		} else {
 			writebyte(uint8(offset))
 			writebyte(uint8(sz))
@@ -7148,19 +7131,19 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	// Returns whether to continue visiting.
 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
 	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
-		if n >= limit {
-			writebyte(_dotdotdot)
+		if n >= rtabi.TraceArgsLimit {
+			writebyte(rtabi.TraceArgsDotdotdot)
 			return false
 		}
 		if !isAggregate(t) {
 			write1(t.Size(), baseOffset)
 			return true
 		}
-		writebyte(_startAgg)
+		writebyte(rtabi.TraceArgsStartAgg)
 		depth++
-		if depth >= maxDepth {
-			writebyte(_dotdotdot)
-			writebyte(_endAgg)
+		if depth >= rtabi.TraceArgsMaxDepth {
+			writebyte(rtabi.TraceArgsDotdotdot)
+			writebyte(rtabi.TraceArgsEndAgg)
 			n++
 			return true
 		}
@@ -7197,7 +7180,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 				}
 			}
 		}
-		writebyte(_endAgg)
+		writebyte(rtabi.TraceArgsEndAgg)
 		return true
 	}
 
@@ -7212,8 +7195,8 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			break
 		}
 	}
-	writebyte(_endSeq)
-	if wOff > maxLen {
+	writebyte(rtabi.TraceArgsEndSeq)
+	if wOff > rtabi.TraceArgsMaxLen {
 		base.Fatalf("ArgInfo too large")
 	}
 

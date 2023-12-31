@@ -710,3 +710,23 @@ func NewName(n, tag string, exported, embedded bool) Name {
 
 	return Name{Bytes: &b[0]}
 }
+
+const (
+	TraceArgsLimit    = 10 // print no more than 10 args/components
+	TraceArgsMaxDepth = 5  // no more than 5 layers of nesting
+
+	// maxLen is a (conservative) upper bound of the byte stream length. For
+	// each arg/component, it has no more than 2 bytes of data (size, offset),
+	// and no more than one {, }, ... at each level (it cannot have both the
+	// data and ... unless it is the last one, just be conservative). Plus 1
+	// for _endSeq.
+	TraceArgsMaxLen = (TraceArgsMaxDepth*3+2)*TraceArgsLimit + 1
+)
+
+const (
+	TraceArgsEndSeq         = 0xff
+	TraceArgsStartAgg       = 0xfe
+	TraceArgsEndAgg         = 0xfd
+	TraceArgsDotdotdot      = 0xfc
+	TraceArgsOffsetTooLarge = 0xfb
+)
