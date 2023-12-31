@@ -43,6 +43,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"log"
 	"os"
 	"sort"
@@ -2556,8 +2557,8 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		sect.Align = align
 	}
 
-	funcsize := uint64(MINFUNC) // spacing required for findfunctab
-	if ldr.SymSize(s) > MINFUNC {
+	funcsize := uint64(abi.MINFUNC) // spacing required for findfunctab
+	if ldr.SymSize(s) > abi.MINFUNC {
 		funcsize = uint64(ldr.SymSize(s))
 	}
 
@@ -2611,7 +2612,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 				// Assign its address directly in order to be the
 				// first symbol of this new section.
 				ntext.SetType(sym.STEXT)
-				ntext.SetSize(int64(MINFUNC))
+				ntext.SetSize(int64(abi.MINFUNC))
 				ntext.SetOnList(true)
 				ntext.SetAlign(sectAlign)
 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
