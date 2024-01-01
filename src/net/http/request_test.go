@@ -1054,17 +1054,23 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 }
 
 func TestRequestClonePathValue(t *testing.T) {
-	orig, err := http.NewRequest("GET", "https://example.com/", nil)
-	if err != nil {
-		panic(err)
-	}
+	orig, _ := http.NewRequest("GET", "https://example.org/", nil)
 	orig.SetPathValue("orig", "orig")
 
 	copy := orig.Clone(context.Background())
 	copy.SetPathValue("copy", "copy")
 
-	if orig.PathValue("copy") != "" {
-		t.Fatal("orig.PathValue is changed")
+	if orig.PathValue("copy") != "" { // should not be changed
+		t.Fatal(`orig.PathValue("copy") != ""`)
+	}
+	if orig.PathValue("orig") != "orig" {
+		t.Fatal(`orig.PathValue("orig") != "orig"`)
+	}
+	if copy.PathValue("orig") != "orig" {
+		t.Fatal(`copy.PathValue("orig") != "orig"`)
+	}
+	if copy.PathValue("copy") != "copy" {
+		t.Fatal(`copy.PathValue("copy") != "copy"`)
 	}
 }
 
