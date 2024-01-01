@@ -1053,7 +1053,7 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
-func TestRequestClonePathValues(t *testing.T) {
+func TestRequestClonePathValue(t *testing.T) {
 	orig, err := http.NewRequest("GET", "https://example.com/", nil)
 	if err != nil {
 		panic(err)

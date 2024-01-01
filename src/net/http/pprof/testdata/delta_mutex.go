@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/pprof"
 	"net/http/httptest"
+	"net/http/pprof"
 	"runtime"
 )
 
