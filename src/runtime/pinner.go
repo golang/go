@@ -25,10 +25,8 @@ type Pinner struct {
 // objects, these objects must be pinned separately if they are going to be
 // accessed from C code.
 //
-// The argument must be a pointer of any type or an
-// unsafe.Pointer. It must be the result of calling new,
-// taking the address of a composite literal, or taking the address of a
-// local variable. If one of these conditions is not met, Pin will panic.
+// The argument must be a pointer of any type or an unsafe.Pointer.
+// It must be a go pointer and cannot point to memory allocated by arena.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
 		// Check the pinner cache first.
