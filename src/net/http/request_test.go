@@ -1053,24 +1053,30 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
+// Ensure that Request.Clone works correctly with PathValue.
+// See issue #64911.
 func TestRequestClonePathValue(t *testing.T) {
-	orig, _ := http.NewRequest("GET", "https://example.org/", nil)
-	orig.SetPathValue("orig", "orig")
+	req, _ := http.NewRequest("GET", "https://example.org/", nil)
+	req.SetPathValue("p1", "orig")
 
-	copy := orig.Clone(context.Background())
-	copy.SetPathValue("copy", "copy")
+	clonedReq := req.Clone(context.Background())
+	clonedReq.SetPathValue("p2", "copy")
 
-	if orig.PathValue("copy") != "" { // should not be changed
-		t.Fatal(`orig.PathValue("copy") != ""`)
+	// Ensure that any modifications to the cloned
+	// request do not pollute the original request.
+	if g, w := req.PathValue("p2"), ""; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
 	}
-	if orig.PathValue("orig") != "orig" {
-		t.Fatal(`orig.PathValue("orig") != "orig"`)
+	if g, w := req.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
 	}
-	if copy.PathValue("orig") != "orig" {
-		t.Fatal(`copy.PathValue("orig") != "orig"`)
+
+	// Assert on the changes to the cloned request.
+	if g, w := clonedReq.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
 	}
-	if copy.PathValue("copy") != "copy" {
-		t.Fatal(`copy.PathValue("copy") != "copy"`)
+	if g, w := clonedReq.PathValue("p2"), "copy"; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
 	}
 }
 
