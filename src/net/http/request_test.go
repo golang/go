@@ -1053,6 +1053,21 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
+func TestRequestClonePathValues(t *testing.T) {
+	orig, err := http.NewRequest("GET", "https://example.com/", nil)
+	if err != nil {
+		panic(err)
+	}
+	orig.SetPathValue("orig", "orig")
+
+	copy := orig.Clone(context.Background())
+	copy.SetPathValue("copy", "copy")
+
+	if orig.PathValue("copy") != "" {
+		t.Fatal("orig.PathValue is changed")
+	}
+}
+
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {

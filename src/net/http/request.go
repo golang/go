@@ -397,6 +397,20 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)
 	r2.MultipartForm = cloneMultipartForm(r.MultipartForm)
+
+	// See issue 64911.
+	if s := r.matches; s != nil {
+		s2 := make([]string, len(s))
+		copy(s2, s)
+		r2.matches = s2
+	}
+	if s := r2.otherValues; s != nil {
+		s2 := make(map[string]string, len(s))
+		for k, v := range s {
+			s2[k] = v
+		}
+		r2.otherValues = s2
+	}
 	return r2
 }
 
