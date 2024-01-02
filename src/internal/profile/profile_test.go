@@ -5,23 +5,8 @@
 package profile
 
 import (
-	"bytes"
 	"testing"
 )
-
-func TestEmptyProfile(t *testing.T) {
-	var buf bytes.Buffer
-	p, err := Parse(&buf)
-	if err != nil {
-		t.Error("Want no error, got", err)
-	}
-	if p == nil {
-		t.Fatal("Want a valid profile, got <nil>")
-	}
-	if !p.Empty() {
-		t.Errorf("Profile should be empty, got %#v", p)
-	}
-}
 
 func TestParseContention(t *testing.T) {
 	tests := []struct {

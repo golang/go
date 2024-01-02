@@ -796,7 +796,10 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
 					mheap_.freeManual(s, spanAllocPtrScalarBits)
 				})
-				s.largeType = nil
+				// Make sure to zero this pointer without putting the old
+				// value in a write buffer, as the old value might be an
+				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
+				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
 			}
 
 			// Count the free in the consistent, external stats.

@@ -538,6 +538,7 @@ func TestInsertOverlap(t *testing.T) {
 
 func TestInsertPanics(t *testing.T) {
 	a := [3]int{}
+	b := [1]int{}
 	for _, test := range []struct {
 		name string
 		s    []int
@@ -549,6 +550,12 @@ func TestInsertPanics(t *testing.T) {
 		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
 		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
 		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+
+		// There are values.
+		{"with negative index", a[:1:1], -1, b[:]},
+		{"with out-of-bounds index and > cap", a[:1:1], 2, b[:]},
+		{"with out-of-bounds index and = cap", a[:1:2], 2, b[:]},
+		{"with out-of-bounds index and < cap", a[:1:3], 2, b[:]},
 	} {
 		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
 			t.Errorf("Insert %s: got no panic, want panic", test.name)
@@ -672,8 +679,10 @@ func TestDeletePanics(t *testing.T) {
 		{"with negative second index", []int{42}, 1, -1},
 		{"with out-of-bounds first index", []int{42}, 2, 3},
 		{"with out-of-bounds second index", []int{42}, 0, 2},
+		{"with out-of-bounds both indexes", []int{42}, 2, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
+		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
 	} {
 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)

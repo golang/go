@@ -83,7 +83,7 @@ var builtins = [...]struct {
 	{"runtime.efaceeq", 1},
 	{"runtime.panicrangeexit", 1},
 	{"runtime.deferrangefunc", 1},
-	{"runtime.fastrand", 1},
+	{"runtime.rand32", 1},
 	{"runtime.makemap64", 1},
 	{"runtime.makemap", 1},
 	{"runtime.makemap_small", 1},

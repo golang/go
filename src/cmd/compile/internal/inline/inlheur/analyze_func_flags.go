@@ -66,32 +66,22 @@ func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
 	funcProps.Flags = rv
 }
 
-func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
-	val, ok := ffa.nstate[n]
-	if !ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q node %s line %s: internal error, no setting for node:\n%+v\n", ffa.fn.Sym().Name, n.Op().String(), ir.Line(n), n)
-	}
-	return val
+func (ffa *funcFlagsAnalyzer) getState(n ir.Node) pstate {
+	return ffa.nstate[n]
 }
 
-func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
-	if _, ok := ffa.nstate[n]; ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
-	} else {
+func (ffa *funcFlagsAnalyzer) setState(n ir.Node, st pstate) {
+	if st != psNoInfo {
 		ffa.nstate[n] = st
 	}
 }
 
-func (ffa *funcFlagsAnalyzer) updatestate(n ir.Node, st pstate) {
-	if _, ok := ffa.nstate[n]; !ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, expected existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
+func (ffa *funcFlagsAnalyzer) updateState(n ir.Node, st pstate) {
+	if st == psNoInfo {
+		delete(ffa.nstate, n)
 	} else {
 		ffa.nstate[n] = st
 	}
-}
-
-func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
-	ffa.nstate[n] = st
 }
 
 func (ffa *funcFlagsAnalyzer) panicPathTable() map[ir.Node]pstate {
@@ -164,13 +154,13 @@ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 	// line 10 will be on a panic path).
 	for i := len(list) - 1; i >= 0; i-- {
 		n := list[i]
-		psi := ffa.getstate(n)
+		psi := ffa.getState(n)
 		if debugTrace&debugTraceFuncFlags != 0 {
 			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
 				ir.Line(n), n.Op().String(), psi.String())
 		}
 		st = blockCombine(psi, st)
-		ffa.updatestate(n, st)
+		ffa.updateState(n, st)
 	}
 	if st == psTop {
 		st = psNoInfo
@@ -237,8 +227,6 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 			ir.Line(n), n.Op().String(), shouldVisit(n))
 	}
 	if !shouldVisit(n) {
-		// invoke soft set, since node may be shared (e.g. ONAME)
-		ffa.setstateSoft(n, psNoInfo)
 		return
 	}
 	var st pstate
@@ -361,7 +349,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 		fmt.Fprintf(os.Stderr, "=-= %v: visit n=%s returns %s\n",
 			ir.Line(n), n.Op().String(), st.String())
 	}
-	ffa.setstate(n, st)
+	ffa.setState(n, st)
 }
 
 func (ffa *funcFlagsAnalyzer) nodeVisitPre(n ir.Node) {

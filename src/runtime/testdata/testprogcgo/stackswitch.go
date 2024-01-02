@@ -29,7 +29,6 @@ func stackSwitchCallback() {
 	debug.SetGCPercent(gogc)
 }
 
-
 // Regression test for https://go.dev/issue/62440. It should be possible for C
 // threads to call into Go from different stacks without crashing due to g0
 // stack bounds checks.
@@ -37,7 +36,7 @@ func stackSwitchCallback() {
 // N.B. This is only OK for threads created in C. Threads with Go frames up the
 // stack must not change the stack out from under us.
 func StackSwitchCallback() {
-	C.callStackSwitchCallbackFromThread();
+	C.callStackSwitchCallbackFromThread()
 
 	fmt.Printf("OK\n")
 }

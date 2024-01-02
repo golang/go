@@ -161,59 +161,63 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 }
 
-// mergeOrigin merges two origins,
+// mergeOrigin returns the union of data from two origins,
 // returning either a new origin or one of its unmodified arguments.
-// If the two origins conflict, mergeOrigin returns a non-specific one
-// that will not pass CheckReuse.
-// If m1 or m2 is nil, the other is returned unmodified.
-// But if m1 or m2 is non-nil and uncheckable, the result is also uncheckable,
-// to preserve uncheckability.
+// If the two origins conflict including if either is nil,
+// mergeOrigin returns nil.
 func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
-	if m1 == nil {
-		return m2
-	}
-	if m2 == nil {
-		return m1
-	}
-	if !m1.Checkable() {
-		return m1
-	}
-	if !m2.Checkable() {
-		return m2
+	if m1 == nil || m2 == nil {
+		return nil
 	}
 
-	merged := new(codehost.Origin)
-	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+	if m2.VCS != m1.VCS ||
+		m2.URL != m1.URL ||
+		m2.Subdir != m1.Subdir {
+		return nil
+	}
 
+	merged := *m1
+	if m2.Hash != "" {
+		if m1.Hash != "" && m1.Hash != m2.Hash {
+			return nil
+		}
+		merged.Hash = m2.Hash
+	}
 	if m2.TagSum != "" {
 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
-			merged.ClearCheckable()
-			return merged
+			return nil
 		}
 		merged.TagSum = m2.TagSum
 		merged.TagPrefix = m2.TagPrefix
 	}
-	if m2.Hash != "" {
-		if m1.Hash != "" && m1.Hash != m2.Hash {
-			merged.ClearCheckable()
-			return merged
-		}
-		merged.Hash = m2.Hash
-	}
 	if m2.Ref != "" {
 		if m1.Ref != "" && m1.Ref != m2.Ref {
-			merged.ClearCheckable()
-			return merged
+			return nil
 		}
 		merged.Ref = m2.Ref
 	}
-	return merged
+
+	switch {
+	case merged == *m1:
+		return m1
+	case merged == *m2:
+		return m2
+	default:
+		// Clone the result to avoid an alloc for merged
+		// if the result is equal to one of the arguments.
+		clone := merged
+		return &clone
+	}
 }
 
 // addVersions fills in m.Versions with the list of known versions.
 // Excluded versions will be omitted. If listRetracted is false, retracted
 // versions will also be omitted.
 func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+	// TODO(bcmills): Would it make sense to check for reuse here too?
+	// Perhaps that doesn't buy us much, though: we would always have to fetch
+	// all of the version tags to list the available versions anyway.
+
 	allowed := CheckAllowed
 	if listRetracted {
 		allowed = CheckExclusions
@@ -319,21 +323,23 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 			return
 		}
 
-		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
-			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
-				*m = *old
-				m.Query = ""
-				m.Dir = ""
-				return
-			}
-		}
-
 		checksumOk := func(suffix string) bool {
 			return rs == nil || m.Version == "" || !mustHaveSums() ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
+		mod := module.Version{Path: m.Path, Version: m.Version}
+
 		if m.Version != "" {
+			if old := reuse[mod]; old != nil {
+				if err := checkReuse(ctx, mod, old.Origin); err == nil {
+					*m = *old
+					m.Query = ""
+					m.Dir = ""
+					return
+				}
+			}
+
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
@@ -341,7 +347,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				m.Time = &q.Time
 			}
 		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
 
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't

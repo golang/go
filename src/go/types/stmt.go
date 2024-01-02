@@ -24,10 +24,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 
-	// set function scope extent
-	sig.scope.pos = body.Pos()
-	sig.scope.end = body.End()
-
 	// save/restore current environment and set up function environment
 	// (and use 0 indentation at function start)
 	defer func(env environment, indent int) {
@@ -856,7 +852,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	var key, val Type
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
-		k, v, cause, isFunc, ok := rangeKeyVal(x.typ)
+		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+			return check.allowVersion(check.pkg, x.expr, v)
+		})
 		switch {
 		case !ok && cause != "":
 			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s: %s", &x, cause)
@@ -959,10 +957,11 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 }
 
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ. If the range clause is not permitted,
-// rangeKeyVal returns ok = false. When ok = false, rangeKeyVal may also
-// return a reason in cause.
-func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
+// over an expression of type typ.
+// If allowVersion != nil, it is used to check the required language version.
+// If the range clause is not permitted, rangeKeyVal returns ok = false.
+// When ok = false, rangeKeyVal may also return a reason in cause.
+func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, cause string, isFunc, ok bool) {
 	bad := func(cause string) (Type, Type, string, bool, bool) {
 		return Typ[Invalid], Typ[Invalid], cause, false, false
 	}
@@ -980,6 +979,9 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 			return Typ[Int], universeRune, "", false, true // use 'rune' name
 		}
 		if isInteger(typ) {
+			if allowVersion != nil && !allowVersion(go1_22) {
+				return bad("requires go1.22 or later")
+			}
 			return orig, nil, "", false, true
 		}
 	case *Array:
@@ -994,6 +996,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
 		}
 		return typ.elem, nil, "", false, true
 	case *Signature:
+		// TODO(gri) when this becomes enabled permanently, add version check
 		if !buildcfg.Experiment.RangeFunc {
 			break
 		}

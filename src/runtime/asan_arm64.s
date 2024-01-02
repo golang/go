@@ -17,7 +17,7 @@
 // func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
 TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	MOVD	sp+16(FP), RARG2
 	MOVD	pc+24(FP), RARG3
 	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
@@ -27,7 +27,7 @@ TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 // func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
 TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	MOVD	sp+16(FP), RARG2
 	MOVD	pc+24(FP), RARG3
 	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
@@ -37,7 +37,7 @@ TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 // func runtime·asanunpoison(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __asan_unpoison_go(void *addr, uintptr_t sz);
 	MOVD	$__asan_unpoison_go(SB), FARG
 	JMP	asancall<>(SB)
@@ -45,7 +45,7 @@ TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
 // func runtime·asanpoison(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __asan_poison_go(void *addr, uintptr_t sz);
 	MOVD	$__asan_poison_go(SB), FARG
 	JMP	asancall<>(SB)
@@ -53,7 +53,7 @@ TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
 // func runtime·asanregisterglobals(addr unsafe.Pointer, n uintptr)
 TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	n+8(FP), RARG1
 	// void __asan_register_globals_go(void *addr, uintptr_t n);
 	MOVD	$__asan_register_globals_go(SB), FARG
 	JMP	asancall<>(SB)

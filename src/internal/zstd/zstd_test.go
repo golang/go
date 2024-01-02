@@ -304,6 +304,17 @@ func TestFileSamples(t *testing.T) {
 	}
 }
 
+func TestReaderBad(t *testing.T) {
+	for i, s := range badStrings {
+		t.Run(fmt.Sprintf("badStrings#%d", i), func(t *testing.T) {
+			_, err := io.Copy(io.Discard, NewReader(strings.NewReader(s)))
+			if err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
 func BenchmarkLarge(b *testing.B) {
 	b.StopTimer()
 	b.ReportAllocs()

@@ -443,6 +443,7 @@ func traceAdvance(stopTrace bool) {
 	// held, we can be certain that when there are no writers there are
 	// also no stale generation values left. Therefore, it's safe to flush
 	// any buffers that remain in that generation's slot.
+	const debugDeadlock = false
 	systemstack(func() {
 		// Track iterations for some rudimentary deadlock detection.
 		i := 0
@@ -479,16 +480,18 @@ func traceAdvance(stopTrace bool) {
 				osyield()
 			}
 
-			// Try to detect a deadlock. We probably shouldn't loop here
-			// this many times.
-			if i > 100000 && !detectedDeadlock {
-				detectedDeadlock = true
-				println("runtime: failing to flush")
-				for mp := mToFlush; mp != nil; mp = mp.trace.link {
-					print("runtime: m=", mp.id, "\n")
+			if debugDeadlock {
+				// Try to detect a deadlock. We probably shouldn't loop here
+				// this many times.
+				if i > 100000 && !detectedDeadlock {
+					detectedDeadlock = true
+					println("runtime: failing to flush")
+					for mp := mToFlush; mp != nil; mp = mp.trace.link {
+						print("runtime: m=", mp.id, "\n")
+					}
 				}
+				i++
 			}
-			i++
 		}
 	})
 
@@ -761,6 +764,8 @@ func readTrace0() (buf []byte, park bool) {
 		// can continue to advance.
 		if trace.flushedGen.Load() == gen {
 			if trace.shutdown.Load() {
+				unlock(&trace.lock)
+
 				// Wake up anyone waiting for us to be done with this generation.
 				//
 				// Do this after reading trace.shutdown, because the thread we're
@@ -775,13 +780,13 @@ func readTrace0() (buf []byte, park bool) {
 
 				// We're shutting down, and the last generation is fully
 				// read. We're done.
-				unlock(&trace.lock)
 				return nil, false
 			}
 			// The previous gen has had all of its buffers flushed, and
 			// there's nothing else for us to read. Advance the generation
 			// we're reading from and try again.
 			trace.readerGen.Store(trace.gen.Load())
+			unlock(&trace.lock)
 
 			// Wake up anyone waiting for us to be done with this generation.
 			//
@@ -792,6 +797,9 @@ func readTrace0() (buf []byte, park bool) {
 				racerelease(unsafe.Pointer(&trace.doneSema[gen%2]))
 			}
 			semrelease(&trace.doneSema[gen%2])
+
+			// Reacquire the lock and go back to the top of the loop.
+			lock(&trace.lock)
 			continue
 		}
 		// Wait for new data.

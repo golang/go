@@ -139,7 +139,9 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		if len(hello.supportedVersions) == 1 {
 			hello.cipherSuites = nil
 		}
-		if hasAESGCMHardwareSupport {
+		if needFIPS() {
+			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
+		} else if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
 		} else {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13NoAES...)
@@ -524,6 +526,10 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 	if hs.suite = mutualCipherSuite(hs.hello.cipherSuites, hs.serverHello.cipherSuite); hs.suite == nil {
 		hs.c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: server chose an unconfigured cipher suite")
+	}
+
+	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
+		tlsrsakex.IncNonDefault()
 	}
 
 	hs.c.cipherSuite = hs.suite.id

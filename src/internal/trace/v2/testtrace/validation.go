@@ -169,6 +169,11 @@ func (v *Validator) Event(ev trace.Event) error {
 					state.binding = ctx
 				}
 			} else if old.Executing() && !new.Executing() {
+				if tr.Stack != ev.Stack() {
+					// This is a case where the transition is happening to a goroutine that is also executing, so
+					// these two stacks should always match.
+					e.Errorf("StateTransition.Stack doesn't match Event.Stack")
+				}
 				ctx := state.binding
 				if ctx != nil {
 					if ctx.G != id {
@@ -220,7 +225,7 @@ func (v *Validator) Event(ev trace.Event) error {
 				ctx := state.binding
 				if ctx != nil {
 					if ctx.P != id {
-						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ev.Thread())
+						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ctx.M)
 					}
 					ctx.P = trace.NoProc
 					state.binding = nil
@@ -251,8 +256,13 @@ func (v *Validator) Event(ev trace.Event) error {
 	case trace.EventTaskBegin:
 		// Validate task begin.
 		t := ev.Task()
-		if t.ID == trace.NoTask {
+		if t.ID == trace.NoTask || t.ID == trace.BackgroundTask {
+			// The background task should never have an event emitted for it.
 			e.Errorf("found invalid task ID for task of type %s", t.Type)
+		}
+		if t.Parent == trace.BackgroundTask {
+			// It's not possible for a task to be a subtask of the background task.
+			e.Errorf("found background task as the parent for task of type %s", t.Type)
 		}
 		// N.B. Don't check the task type. Empty string is a valid task type.
 		v.tasks[t.ID] = t.Type

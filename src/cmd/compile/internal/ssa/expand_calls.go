@@ -411,7 +411,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSLICE:
-		mem = x.decomposeOne(pos, b, a, mem, x.typs.BytePtr, OpSlicePtr, &rc)
+		mem = x.decomposeOne(pos, b, a, mem, at.Elem().PtrTo(), OpSlicePtr, &rc)
 		pos = pos.WithNotStmt()
 		mem = x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceLen, &rc)
 		return x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceCap, &rc)
@@ -564,7 +564,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		return a
 
 	case types.TSLICE:
-		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr)))
+		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
@@ -721,7 +721,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 		return m0
 
 	case types.TSLICE:
-		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr))
+		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))
 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))

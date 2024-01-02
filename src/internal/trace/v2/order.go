@@ -23,6 +23,23 @@ type ordering struct {
 	gcSeq       uint64
 	gcState     gcState
 	initialGen  uint64
+
+	// Some events like GoDestroySyscall produce two events instead of one.
+	// extraEvent is this extra space. advance must not be called unless
+	// the extraEvent has been consumed with consumeExtraEvent.
+	//
+	// TODO(mknyszek): Replace this with a more formal queue.
+	extraEvent Event
+}
+
+// consumeExtraEvent consumes the extra event.
+func (o *ordering) consumeExtraEvent() Event {
+	if o.extraEvent.Kind() == EventBad {
+		return Event{}
+	}
+	r := o.extraEvent
+	o.extraEvent = Event{}
+	return r
 }
 
 // advance checks if it's valid to proceed with ev which came from thread m.
@@ -83,6 +100,12 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 				// we haven't lost the relevant information. Promote the status and advance.
 				oldState = ProcRunning
 				ev.args[1] = uint64(go122.ProcSyscall)
+			} else if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscallAbandoned {
+				// If we're passing through ProcSyscallAbandoned, then there's no promotion
+				// to do. We've lost the M that this P is associated with. However it got there,
+				// it's going to appear as idle in the API, so pass through as idle.
+				oldState = ProcIdle
+				ev.args[1] = uint64(go122.ProcSyscallAbandoned)
 			} else if s.status != status {
 				return curCtx, false, fmt.Errorf("inconsistent status for proc %d: old %v vs. new %v", pid, s.status, status)
 			}
@@ -101,9 +124,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if status == go122.ProcRunning || status == go122.ProcSyscall {
 			newCtx.P = pid
 		}
-		// Set the current context to the state of the M current running this G. Otherwise
-		// we'll emit a Running -> Running event that doesn't correspond to the right M.
-		if status == go122.ProcSyscallAbandoned && oldState != ProcUndetermined {
+		// If we're advancing through ProcSyscallAbandoned *but* oldState is running then we've
+		// promoted it to ProcSyscall. However, because it's ProcSyscallAbandoned, we know this
+		// P is about to get stolen and its status very likely isn't being emitted by the same
+		// thread it was bound to. Since this status is Running -> Running and Running is binding,
+		// we need to make sure we emit it in the right context: the context to which it is bound.
+		// Find it, and set our current context to it.
+		if status == go122.ProcSyscallAbandoned && oldState == ProcRunning {
 			// N.B. This is slow but it should be fairly rare.
 			found := false
 			for mid, ms := range o.mStates {
@@ -206,6 +233,17 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 
 		// Validate that the M we're stealing from is what we expect.
 		mid := ThreadID(ev.args[2]) // The M we're stealing from.
+
+		if mid == curCtx.M {
+			// We're stealing from ourselves. This behaves like a ProcStop.
+			if curCtx.P != pid {
+				return curCtx, false, fmt.Errorf("tried to self-steal proc %d (thread %d), but got proc %d instead", pid, mid, curCtx.P)
+			}
+			newCtx.P = NoProc
+			return curCtx, true, nil
+		}
+
+		// We're stealing from some other M.
 		mState, ok := o.mStates[mid]
 		if !ok {
 			return curCtx, false, fmt.Errorf("stole proc from non-existent thread %d", mid)
@@ -474,7 +512,7 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// This event indicates that a goroutine is effectively
 		// being created out of a cgo callback. Such a goroutine
 		// is 'created' in the syscall state.
-		if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MustNotHave, Goroutine: event.MustNotHave}); err != nil {
+		if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MustNotHave}); err != nil {
 			return curCtx, false, err
 		}
 		// This goroutine is effectively being created. Add a state for it.
@@ -490,6 +528,15 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// This event indicates that a goroutine created for a
 		// cgo callback is disappearing, either because the callback
 		// ending or the C thread that called it is being destroyed.
+		//
+		// Also, treat this as if we lost our P too.
+		// The thread ID may be reused by the platform and we'll get
+		// really confused if we try to steal the P is this is running
+		// with later. The new M with the same ID could even try to
+		// steal back this P from itself!
+		//
+		// The runtime is careful to make sure that any GoCreateSyscall
+		// event will enter the runtime emitting events for reacquiring a P.
 		//
 		// Note: we might have a P here. The P might not be released
 		// eagerly by the runtime, and it might get stolen back later
@@ -508,6 +555,32 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// This goroutine is exiting itself.
 		delete(o.gStates, curCtx.G)
 		newCtx.G = NoGoroutine
+
+		// If we have a proc, then we're dissociating from it now. See the comment at the top of the case.
+		if curCtx.P != NoProc {
+			pState, ok := o.pStates[curCtx.P]
+			if !ok {
+				return curCtx, false, fmt.Errorf("found invalid proc %d during %s", curCtx.P, go122.EventString(typ))
+			}
+			if pState.status != go122.ProcSyscall {
+				return curCtx, false, fmt.Errorf("proc %d in unexpected state %s during %s", curCtx.P, pState.status, go122.EventString(typ))
+			}
+			// See the go122-create-syscall-reuse-thread-id test case for more details.
+			pState.status = go122.ProcSyscallAbandoned
+			newCtx.P = NoProc
+
+			// Queue an extra self-ProcSteal event.
+			o.extraEvent = Event{
+				table: evt,
+				ctx:   curCtx,
+				base: baseEvent{
+					typ:  go122.EvProcSteal,
+					time: ev.time,
+				},
+			}
+			o.extraEvent.base.args[0] = uint64(curCtx.P)
+			o.extraEvent.base.extra(version.Go122)[0] = uint64(go122.ProcSyscall)
+		}
 		return curCtx, true, nil
 
 	// Handle tasks. Tasks are interesting because:
@@ -525,6 +598,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// Get the parent ID, but don't validate it. There's no guarantee
 		// we actually have information on whether it's active.
 		parentID := TaskID(ev.args[1])
+		if parentID == BackgroundTask {
+			// Note: a value of 0 here actually means no parent, *not* the
+			// background task. Automatic background task attachment only
+			// applies to regions.
+			parentID = NoTask
+			ev.args[1] = uint64(NoTask)
+		}
 
 		// Validate the name and record it. We'll need to pass it through to
 		// EvUserTaskEnd.

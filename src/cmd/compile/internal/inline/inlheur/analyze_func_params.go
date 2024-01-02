@@ -19,6 +19,7 @@ type paramsAnalyzer struct {
 	params []*ir.Name
 	top    []bool
 	*condLevelTracker
+	*nameFinder
 }
 
 // getParams returns an *ir.Name slice containing all params for the
@@ -34,8 +35,8 @@ func getParams(fn *ir.Func) []*ir.Name {
 // new list. If the function in question doesn't have any interesting
 // parameters then the analyzer list is returned unchanged, and the
 // params flags in "fp" are updated accordingly.
-func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps) []propAnalyzer {
-	pa, props := makeParamsAnalyzer(fn)
+func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, nf *nameFinder) []propAnalyzer {
+	pa, props := makeParamsAnalyzer(fn, nf)
 	if pa != nil {
 		analyzers = append(analyzers, pa)
 	} else {
@@ -48,7 +49,7 @@ func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps) []p
 // of function fn. If the function doesn't have any interesting
 // params, a nil helper is returned along with a set of default param
 // flags for the func.
-func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
+func makeParamsAnalyzer(fn *ir.Func, nf *nameFinder) (*paramsAnalyzer, []ParamPropBits) {
 	params := getParams(fn) // includes receiver if applicable
 	if len(params) == 0 {
 		return nil, nil
@@ -98,6 +99,7 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
 		params:           params,
 		top:              top,
 		condLevelTracker: new(condLevelTracker),
+		nameFinder:       nf,
 	}
 	return pa, nil
 }
@@ -162,7 +164,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 			return
 		}
 		sel := ce.Fun.(*ir.SelectorExpr)
-		r := ir.StaticValue(sel.X)
+		r := pa.staticValue(sel.X)
 		if r.Op() != ir.ONAME {
 			return
 		}
@@ -193,8 +195,8 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 					return name == p, false
 				})
 		} else {
-			cname, isFunc, _ := isFuncName(called)
-			if isFunc {
+			cname := pa.funcName(called)
+			if cname != nil {
 				pa.deriveFlagsFromCallee(ce, cname.Func)
 			}
 		}
@@ -238,7 +240,7 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
 		}
 		// See if one of the caller's parameters is flowing unmodified
 		// into this actual expression.
-		r := ir.StaticValue(arg)
+		r := pa.staticValue(arg)
 		if r.Op() != ir.ONAME {
 			return
 		}
@@ -247,7 +249,13 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
 			return
 		}
 		callerParamIdx := pa.findParamIdx(name)
-		if callerParamIdx == -1 || pa.params[callerParamIdx] == nil {
+		// note that callerParamIdx may return -1 in the case where
+		// the param belongs not to the current closure func we're
+		// analyzing but to an outer enclosing func.
+		if callerParamIdx == -1 {
+			return
+		}
+		if pa.params[callerParamIdx] == nil {
 			panic("something went wrong")
 		}
 		if !pa.top[callerParamIdx] &&

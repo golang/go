@@ -7,6 +7,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	. "internal/types/errors"
 )
 
@@ -115,7 +116,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			tparams := check.declareTypeParams(nil, rparams)
+			// The scope of the type parameter T in "func (r T[T]) f()"
+			// starts after f, not at "r"; see #52038.
+			scopePos := ftyp.Params.Pos()
+			tparams := check.declareTypeParams(nil, rparams, scopePos)
 			sig.rparams = bindTParams(tparams)
 			// Blank identifiers don't get declared, so naive type-checking of the
 			// receiver type expression would fail in Checker.collectParams below,
@@ -176,13 +180,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
-	// declarations and then squash that scope into the parent scope (and report any redeclarations at
-	// that time).
+	// Use a temporary scope for all parameter declarations and then
+	// squash that scope into the parent scope (and report any
+	// redeclarations at that time).
+	//
+	// TODO(adonovan): now that each declaration has the correct
+	// scopePos, there should be no need for scope squashing.
+	// Audit to ensure all lookups honor scopePos and simplify.
 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, false)
-	params, variadic := check.collectParams(scope, ftyp.Params, true)
-	results, _ := check.collectParams(scope, ftyp.Results, false)
+	scopePos := ftyp.End() // all parameters' scopes start after the signature
+	recvList, _ := check.collectParams(scope, recvPar, false, scopePos)
+	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
+	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
 	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -262,7 +271,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 // collectParams declares the parameters of list in scope and returns the corresponding
 // variable list.
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool, scopePos token.Pos) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -290,7 +299,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
-				check.declare(scope, name, par, scope.pos)
+				check.declare(scope, name, par, scopePos)
 				params = append(params, par)
 			}
 			named = true

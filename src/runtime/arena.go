@@ -589,7 +589,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(span, span.base(), span.elemsize)
+		gcmarknewobject(span, span.base())
 	}
 
 	if raceenabled {

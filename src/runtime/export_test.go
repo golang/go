@@ -31,6 +31,8 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
+var ReadRandomFailed = &readRandomFailed
+
 var Fastlog2 = fastlog2
 
 var Atoi = atoi
@@ -398,9 +400,9 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -463,6 +465,8 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 
 	startTheWorld(stw)
 }
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
@@ -580,6 +584,10 @@ func blockOnSystemStackInternal() {
 
 type RWMutex struct {
 	rw rwmutex
+}
+
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestW)
 }
 
 func (rw *RWMutex) RLock() {
@@ -1340,6 +1348,18 @@ func PageCachePagesLeaked() (leaked uintptr) {
 	return
 }
 
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+var MutexContended = mutexContended
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
+}
+
 var Semacquire = semacquire
 var Semrelease1 = semrelease1
 
@@ -1920,24 +1940,8 @@ func UserArenaClone[T any](s T) T {
 
 var AlignUp = alignUp
 
-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
-// queue is emptied (and the finalizers have executed) or the timeout
-// is reached. Returns true if the finalizer queue was emptied.
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
-	start := nanotime()
-	for nanotime()-start < timeout {
-		lock(&finlock)
-		// We know the queue has been drained when both finq is nil
-		// and the finalizer g has stopped executing.
-		empty := finq == nil
-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
-		unlock(&finlock)
-		if empty {
-			return true
-		}
-		Gosched()
-	}
-	return false
+	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
 func FrameStartLine(f *Frame) int {

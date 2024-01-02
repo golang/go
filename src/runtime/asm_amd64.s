@@ -1486,6 +1486,7 @@ aes129plus:
 	DECQ	CX
 	SHRQ	$7, CX
 
+	PCALIGN $16
 aesloop:
 	// scramble state
 	AESENC	X8, X8

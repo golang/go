@@ -6,7 +6,10 @@ package trace
 
 import (
 	"bytes"
+	"internal/trace/v2"
+	tracev2 "internal/trace/v2"
 	"internal/trace/v2/testtrace"
+	"io"
 	"math"
 	"os"
 	"testing"
@@ -133,12 +136,23 @@ func TestMMUTrace(t *testing.T) {
 		if err != nil {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
-		// Pass the trace through MutatorUtilizationV2.
-		mu, err := MutatorUtilizationV2(r, UtilSTW|UtilBackground|UtilAssist)
+		var events []tracev2.Event
+		tr, err := trace.NewReader(r)
 		if err != nil {
-			t.Fatalf("failed to compute mutator utilization or parse trace: %v", err)
+			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
-		check(t, mu)
+		for {
+			ev, err := tr.ReadEvent()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+			}
+			events = append(events, ev)
+		}
+		// Pass the trace through MutatorUtilizationV2 and check it.
+		check(t, MutatorUtilizationV2(events, UtilSTW|UtilBackground|UtilAssist))
 	})
 }
 

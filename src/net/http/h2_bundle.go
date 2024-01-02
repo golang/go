@@ -1041,41 +1041,44 @@ func http2shouldRetryDial(call *http2dialCall, req *Request) bool {
 // TODO: Benchmark to determine if the pools are necessary. The GC may have
 // improved enough that we can instead allocate chunks like this:
 // make([]byte, max(16<<10, expectedBytesRemaining))
-var (
-	http2dataChunkSizeClasses = []int{
-		1 << 10,
-		2 << 10,
-		4 << 10,
-		8 << 10,
-		16 << 10,
-	}
-	http2dataChunkPools = [...]sync.Pool{
-		{New: func() interface{} { return make([]byte, 1<<10) }},
-		{New: func() interface{} { return make([]byte, 2<<10) }},
-		{New: func() interface{} { return make([]byte, 4<<10) }},
-		{New: func() interface{} { return make([]byte, 8<<10) }},
-		{New: func() interface{} { return make([]byte, 16<<10) }},
-	}
-)
+var http2dataChunkPools = [...]sync.Pool{
+	{New: func() interface{} { return new([1 << 10]byte) }},
+	{New: func() interface{} { return new([2 << 10]byte) }},
+	{New: func() interface{} { return new([4 << 10]byte) }},
+	{New: func() interface{} { return new([8 << 10]byte) }},
+	{New: func() interface{} { return new([16 << 10]byte) }},
+}
 
 func http2getDataBufferChunk(size int64) []byte {
-	i := 0
-	for ; i < len(http2dataChunkSizeClasses)-1; i++ {
-		if size <= int64(http2dataChunkSizeClasses[i]) {
-			break
-		}
+	switch {
+	case size <= 1<<10:
+		return http2dataChunkPools[0].Get().(*[1 << 10]byte)[:]
+	case size <= 2<<10:
+		return http2dataChunkPools[1].Get().(*[2 << 10]byte)[:]
+	case size <= 4<<10:
+		return http2dataChunkPools[2].Get().(*[4 << 10]byte)[:]
+	case size <= 8<<10:
+		return http2dataChunkPools[3].Get().(*[8 << 10]byte)[:]
+	default:
+		return http2dataChunkPools[4].Get().(*[16 << 10]byte)[:]
 	}
-	return http2dataChunkPools[i].Get().([]byte)
 }
 
 func http2putDataBufferChunk(p []byte) {
-	for i, n := range http2dataChunkSizeClasses {
-		if len(p) == n {
-			http2dataChunkPools[i].Put(p)
-			return
-		}
+	switch len(p) {
+	case 1 << 10:
+		http2dataChunkPools[0].Put((*[1 << 10]byte)(p))
+	case 2 << 10:
+		http2dataChunkPools[1].Put((*[2 << 10]byte)(p))
+	case 4 << 10:
+		http2dataChunkPools[2].Put((*[4 << 10]byte)(p))
+	case 8 << 10:
+		http2dataChunkPools[3].Put((*[8 << 10]byte)(p))
+	case 16 << 10:
+		http2dataChunkPools[4].Put((*[16 << 10]byte)(p))
+	default:
+		panic(fmt.Sprintf("unexpected buffer len=%v", len(p)))
 	}
-	panic(fmt.Sprintf("unexpected buffer len=%v", len(p)))
 }
 
 // dataBuffer is an io.ReadWriter backed by a list of data chunks.
@@ -3056,41 +3059,6 @@ func http2summarizeFrame(f http2Frame) string {
 		fmt.Fprintf(&buf, " ErrCode=%v", f.ErrCode)
 	}
 	return buf.String()
-}
-
-func http2traceHasWroteHeaderField(trace *httptrace.ClientTrace) bool {
-	return trace != nil && trace.WroteHeaderField != nil
-}
-
-func http2traceWroteHeaderField(trace *httptrace.ClientTrace, k, v string) {
-	if trace != nil && trace.WroteHeaderField != nil {
-		trace.WroteHeaderField(k, []string{v})
-	}
-}
-
-func http2traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.MIMEHeader) error {
-	if trace != nil {
-		return trace.Got1xxResponse
-	}
-	return nil
-}
-
-// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
-// connection.
-func (t *http2Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
-	dialer := &tls.Dialer{
-		Config: cfg,
-	}
-	cn, err := dialer.DialContext(ctx, network, addr)
-	if err != nil {
-		return nil, err
-	}
-	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
-	return tlsCn, nil
-}
-
-func http2tlsUnderlyingConn(tc *tls.Conn) net.Conn {
-	return tc.NetConn()
 }
 
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
@@ -6366,7 +6334,6 @@ type http2responseWriterState struct {
 	wroteHeader   bool     // WriteHeader called (explicitly or implicitly). Not necessarily sent to user yet.
 	sentHeader    bool     // have we sent the header frame?
 	handlerDone   bool     // handler has finished
-	dirty         bool     // a Write failed; don't reuse this responseWriterState
 
 	sentContentLen int64 // non-zero if handler set a Content-Length header
 	wroteBytes     int64
@@ -6486,7 +6453,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			date:          date,
 		})
 		if err != nil {
-			rws.dirty = true
 			return 0, err
 		}
 		if endStream {
@@ -6507,7 +6473,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 	if len(p) > 0 || endStream {
 		// only send a 0 byte DATA frame if we're ending the stream.
 		if err := rws.conn.writeDataFromHandler(rws.stream, p, endStream); err != nil {
-			rws.dirty = true
 			return 0, err
 		}
 	}
@@ -6519,9 +6484,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			trailers:  rws.trailers,
 			endStream: true,
 		})
-		if err != nil {
-			rws.dirty = true
-		}
 		return len(p), err
 	}
 	return len(p), nil
@@ -6737,14 +6699,12 @@ func (rws *http2responseWriterState) writeHeader(code int) {
 			h.Del("Transfer-Encoding")
 		}
 
-		if rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+		rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
 			streamID:    rws.stream.id,
 			httpResCode: code,
 			h:           h,
 			endStream:   rws.handlerDone && !rws.hasTrailers(),
-		}) != nil {
-			rws.dirty = true
-		}
+		})
 
 		return
 	}
@@ -6809,19 +6769,10 @@ func (w *http2responseWriter) write(lenData int, dataB []byte, dataS string) (n 
 
 func (w *http2responseWriter) handlerDone() {
 	rws := w.rws
-	dirty := rws.dirty
 	rws.handlerDone = true
 	w.Flush()
 	w.rws = nil
-	if !dirty {
-		// Only recycle the pool if all prior Write calls to
-		// the serverConn goroutine completed successfully. If
-		// they returned earlier due to resets from the peer
-		// there might still be write goroutines outstanding
-		// from the serverConn referencing the rws memory. See
-		// issue 20704.
-		http2responseWriterStatePool.Put(rws)
-	}
+	http2responseWriterStatePool.Put(rws)
 }
 
 // Push errors.
@@ -8094,7 +8045,7 @@ func (cc *http2ClientConn) forceCloseConn() {
 	if !ok {
 		return
 	}
-	if nc := http2tlsUnderlyingConn(tc); nc != nil {
+	if nc := tc.NetConn(); nc != nil {
 		nc.Close()
 	}
 }
@@ -10280,6 +10231,37 @@ func http2traceFirstResponseByte(trace *httptrace.ClientTrace) {
 	if trace != nil && trace.GotFirstResponseByte != nil {
 		trace.GotFirstResponseByte()
 	}
+}
+
+func http2traceHasWroteHeaderField(trace *httptrace.ClientTrace) bool {
+	return trace != nil && trace.WroteHeaderField != nil
+}
+
+func http2traceWroteHeaderField(trace *httptrace.ClientTrace, k, v string) {
+	if trace != nil && trace.WroteHeaderField != nil {
+		trace.WroteHeaderField(k, []string{v})
+	}
+}
+
+func http2traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.MIMEHeader) error {
+	if trace != nil {
+		return trace.Got1xxResponse
+	}
+	return nil
+}
+
+// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
+// connection.
+func (t *http2Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
+	dialer := &tls.Dialer{
+		Config: cfg,
+	}
+	cn, err := dialer.DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
+	return tlsCn, nil
 }
 
 // writeFramer is implemented by any type that is used to write frames.

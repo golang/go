@@ -52,29 +52,39 @@ NONE <
   assistQueue,
   sweep;
 
+# Test only
+NONE < testR, testW;
+
 # Scheduler, timers, netpoll
-NONE < pollDesc, cpuprof;
+NONE <
+  allocmW,
+  execW,
+  cpuprof,
+  pollDesc,
+  wakeableSleep;
 assistQueue,
   cpuprof,
   forcegc,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
   sweep,
-  sweepWaiters
+  sweepWaiters,
+  testR,
+  wakeableSleep
+# Above SCHED are things that can call into the scheduler.
+< SCHED
+# Below SCHED is the scheduler implementation.
+< allocmR,
+  execR
 < sched;
 sched < allg, allp;
-allp < timers;
-timers < wakeableSleep;
+allp, wakeableSleep < timers;
 timers < netpollInit;
 
 # Channels
-scavenge, sweep < hchan;
+scavenge, sweep, testR, wakeableSleep < hchan;
 NONE < notifyList;
 hchan, notifyList < sudog;
-
-# RWMutex
-NONE < rwmutexW;
-rwmutexW, sysmon < rwmutexR;
 
 # Semaphores
 NONE < root;
@@ -100,6 +110,9 @@ traceBuf < traceStrings;
 
 # Malloc
 allg,
+  allocmR,
+  execR, # May grow stack
+  execW, # May allocate after BeforeFork
   hchan,
   notifyList,
   reflectOffs,
@@ -136,7 +149,7 @@ gcBitsArenas,
 < STACKGROW
 # Below STACKGROW is the stack allocator/copying implementation.
 < gscan;
-gscan, rwmutexR < stackpool;
+gscan < stackpool;
 gscan < stackLarge;
 # Generally, hchan must be acquired before gscan. But in one case,
 # where we suspend a G and then shrink its stack, syncadjustsudogs
@@ -189,6 +202,18 @@ NONE < panic;
 panic < deadlock;
 # raceFini is only held while exiting.
 panic < raceFini;
+
+# RWMutex
+allocmW,
+  execW,
+  testW
+< rwmutexW;
+
+rwmutexW,
+  allocmR,
+  execR,
+  testR
+< rwmutexR;
 `
 
 // cyclicRanks lists lock ranks that allow multiple locks of the same

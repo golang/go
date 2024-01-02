@@ -1,0 +1,47 @@
+name: Pkg.go.dev bugs or feature requests
+description: Issues or feature requests for the documentation site
+title: "x/pkgsite: issue title"
+labels: ["pkgsite"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please answer these questions before submitting your issue. Thanks!"
+  - type: input
+    id: url
+    attributes:
+      label: "What is the URL of the page with the issue?"
+    validations:
+      required: true
+  - type: input
+    id: user-agent
+    attributes:
+      label: "What is your user agent?"
+      description: "You can find your user agent here: https://www.google.com/search?q=what+is+my+user+agent"
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: "Screenshot"
+      description: "Please paste a screenshot of the page."
+    validations:
+      required: false
+  - type: textarea
+    id: what-did-you-do
+    attributes:
+      label: "What did you do?"
+      description: "If possible, provide a recipe for reproducing the error. Starting with a Private/Incognito tab/window may help rule out problematic browser extensions."
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "What did you expect to see?"
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see instead?"
+    validations:
+      required: true

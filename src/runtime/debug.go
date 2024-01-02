@@ -52,6 +52,17 @@ func NumCgoCall() int64 {
 	return n
 }
 
+func totalMutexWaitTimeNanos() int64 {
+	total := sched.totalMutexWaitTime.Load()
+
+	total += sched.totalRuntimeLockWaitTime.Load()
+	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+		total += mp.mLockProfile.waitTime.Load()
+	}
+
+	return total
+}
+
 // NumGoroutine returns the number of goroutines that currently exist.
 func NumGoroutine() int {
 	return int(gcount())

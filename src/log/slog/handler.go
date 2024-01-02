@@ -76,11 +76,11 @@ type Handler interface {
 	// A Handler should treat WithGroup as starting a Group of Attrs that ends
 	// at the end of the log event. That is,
 	//
-	//     logger.WithGroup("s").LogAttrs(level, msg, slog.Int("a", 1), slog.Int("b", 2))
+	//     logger.WithGroup("s").LogAttrs(ctx, level, msg, slog.Int("a", 1), slog.Int("b", 2))
 	//
 	// should behave like
 	//
-	//     logger.LogAttrs(level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
+	//     logger.LogAttrs(ctx, level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
 	//
 	// If the name is empty, WithGroup returns the receiver.
 	WithGroup(name string) Handler
@@ -461,9 +461,8 @@ func (s *handleState) appendAttrs(as []Attr) bool {
 	return nonEmpty
 }
 
-// appendAttr appends the Attr's key and value using app.
+// appendAttr appends the Attr's key and value.
 // It handles replacement and checking for an empty key.
-// after replacement).
 // It reports whether something was appended.
 func (s *handleState) appendAttr(a Attr) bool {
 	a.Value = a.Value.Resolve()

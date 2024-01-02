@@ -145,7 +145,6 @@ func (l *Logger) WithGroup(name string) *Logger {
 	c := l.clone()
 	c.handler = l.handler.WithGroup(name)
 	return c
-
 }
 
 // New creates a new Logger with the given non-nil Handler.

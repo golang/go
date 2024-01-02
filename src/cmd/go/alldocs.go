@@ -1324,9 +1324,6 @@
 // using import comments in .go files, vendoring tool configuration files (like
 // Gopkg.lock), and the current directory (if in GOPATH).
 //
-// If a configuration file for a vendoring tool is present, init will attempt to
-// import module requirements from it.
-//
 // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 //
 // # Add missing and remove unused modules
@@ -2285,6 +2282,8 @@
 //	GOARM
 //		For GOARCH=arm, the ARM architecture for which to compile.
 //		Valid values are 5, 6, 7.
+//		The value can be followed by an option specifying how to implement floating point instructions.
+//		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 //	GO386
 //		For GOARCH=386, how to implement floating point instructions.
 //		Valid values are sse2 (default), softfloat.

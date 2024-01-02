@@ -44,7 +44,7 @@ func testGoArch() string {
 
 func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false

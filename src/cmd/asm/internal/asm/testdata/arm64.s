@@ -981,6 +981,14 @@ again:
 	ADR	next, R11     // ADR R11 // 2b000010
 next:
 	NOP
+	ADR -2(PC), R10    // 0a000010
+	ADR 2(PC), R16     // 10000010
+	ADR -26(PC), R1    // 01000010
+	ADR 12(PC), R2     // 02000010
+	ADRP -2(PC), R10   // 0a000090
+	ADRP 2(PC), R16    // 10000090
+	ADRP -26(PC), R1   // 01000090
+	ADRP 12(PC), R2    // 02000090
 
 // LDP/STP
 	LDP	(R0), (R0, R1)      // 000440a9
@@ -1003,6 +1011,7 @@ next:
 	LDP	-8(R0), (R1, R2)    // 01887fa9
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
+	LDP	8(R1), (ZR, R2)     // 3f8840a9
 	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
 	LDPW	(R0), (R1, R2)      // 01084029
 	LDPW	4(R0), (R1, R2)     // 01884029
@@ -1020,6 +1029,7 @@ next:
 	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
 	LDPW	x(SB), (R1, R2)
 	LDPW	x+8(SB), (R1, R2)
+	LDPW	8(R1), (ZR, R2)     // 3f084129
 	LDPSW	(R0), (R1, R2)      // 01084069
 	LDPSW	4(R0), (R1, R2)     // 01884069
 	LDPSW	-4(R0), (R1, R2)    // 01887f69
@@ -1036,6 +1046,7 @@ next:
 	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
 	LDPSW	x(SB), (R1, R2)
 	LDPSW	x+8(SB), (R1, R2)
+	LDPSW	8(R1), (ZR, R2)     // 3f084169
 	STP	(R3, R4), (R5)      // a31000a9
 	STP	(R3, R4), 8(R5)     // a39000a9
 	STP.W	(R3, R4), 8(R5)     // a39080a9

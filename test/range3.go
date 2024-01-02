@@ -74,9 +74,17 @@ func testint4() {
 	}
 }
 
+// Issue #64471.
+func testint5() {
+	for i := range 'a' {
+		var _ *rune = &i // ensure i has type rune
+	}
+}
+
 func main() {
 	testint1()
 	testint2()
 	testint3()
 	testint4()
+	testint5()
 }

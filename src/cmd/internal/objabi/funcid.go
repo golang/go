@@ -14,6 +14,7 @@ var funcIDs = map[string]abi.FuncID{
 	"asmcgocall":         abi.FuncID_asmcgocall,
 	"asyncPreempt":       abi.FuncID_asyncPreempt,
 	"cgocallback":        abi.FuncID_cgocallback,
+	"corostart":          abi.FuncID_corostart,
 	"debugCallV2":        abi.FuncID_debugCallV2,
 	"gcBgMarkWorker":     abi.FuncID_gcBgMarkWorker,
 	"rt0_go":             abi.FuncID_rt0_go,

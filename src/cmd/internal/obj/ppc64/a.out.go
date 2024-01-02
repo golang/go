@@ -436,7 +436,6 @@ const (
 	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */
 	C_XOREG    /* An reg+reg memory arg */
 	C_FPSCR    /* The fpscr register */
-	C_XER      /* The xer, holds the carry bit */
 	C_LR       /* The link register */
 	C_CTR      /* The count register */
 	C_ANY      /* Any argument */

@@ -1,3 +1,7 @@
+// Copyright 2023 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package version
 
 import (
@@ -12,7 +16,8 @@ import (
 type Version uint32
 
 const (
-	Go122 Version = 22
+	Go122   Version = 22
+	Current         = Go122
 )
 
 var versions = map[Version][]event.Spec{

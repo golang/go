@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"internal/buildcfg"
-	"internal/goexperiment"
 	"internal/pkgbits"
 	"path/filepath"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
+	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
@@ -1103,7 +1103,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			if goexperiment.NewInliner {
+			if buildcfg.Experiment.NewInliner {
 				fn.Inl.Properties = r.String()
 			}
 		}
@@ -3795,7 +3795,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// We generate wrappers after the global inlining pass,
 	// so we're responsible for applying inlining ourselves here.
 	// TODO(prattmic): plumb PGO.
-	inline.InlineCalls(fn, nil)
+	interleaved.DevirtualizeAndInlineFunc(fn, nil)
 
 	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
 	// we don't know whether wrapper function has been generated for it or not, so

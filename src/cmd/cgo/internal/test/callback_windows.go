@@ -29,7 +29,7 @@ USHORT backtrace(ULONG FramesToCapture, PVOID *BackTrace) {
 		}
 
 		ControlPc = context.Rip;
-        // Check if we left the user range.
+		// Check if we left the user range.
 		if (ControlPc < 0x10000) {
 			break;
 		}
@@ -65,32 +65,17 @@ func testCallbackCallersSEH(t *testing.T) {
 		// TODO: support SEH on other architectures.
 		t.Skip("skipping on non-amd64")
 	}
-	const cgoexpPrefix = "_cgoexp_"
+	// Only frames in the test package are checked.
 	want := []string{
-		"runtime.asmcgocall_landingpad",
-		"runtime.asmcgocall",
-		"runtime.cgocall",
 		"test._Cfunc_backtrace",
 		"test.testCallbackCallersSEH.func1.1",
 		"test.testCallbackCallersSEH.func1",
 		"test.goCallback",
-		cgoexpPrefix + "goCallback",
-		"runtime.cgocallbackg1",
-		"runtime.cgocallbackg",
-		"runtime.cgocallbackg",
-		"runtime.cgocallback",
-		"crosscall2",
-		"runtime.asmcgocall_landingpad",
-		"runtime.asmcgocall",
-		"runtime.cgocall",
 		"test._Cfunc_callback",
 		"test.nestedCall.func1",
 		"test.nestedCall",
 		"test.testCallbackCallersSEH",
 		"test.TestCallbackCallersSEH",
-		"testing.tRunner",
-		"testing.(*T).Run.gowrap1",
-		"runtime.goexit",
 	}
 	pc := make([]uintptr, 100)
 	n := 0
@@ -105,26 +90,17 @@ func testCallbackCallersSEH(t *testing.T) {
 		}
 		fname := f.Name()
 		switch fname {
-		case "goCallback", "callback":
-			// TODO(qmuntal): investigate why these functions don't appear
+		case "goCallback":
+			// TODO(qmuntal): investigate why this function doesn't appear
 			// when using the external linker.
 			continue
-		}
-		// Skip cgo-generated functions, the runtime might not know about them,
-		// depending on the link mode.
-		if strings.HasPrefix(fname, "_cgo_") {
-			continue
-		}
-		// Remove the cgo-generated random prefix.
-		if strings.HasPrefix(fname, cgoexpPrefix) {
-			idx := strings.Index(fname[len(cgoexpPrefix):], "_")
-			if idx >= 0 {
-				fname = cgoexpPrefix + fname[len(cgoexpPrefix)+idx+1:]
-			}
 		}
 		// In module mode, this package has a fully-qualified import path.
 		// Remove it if present.
 		fname = strings.TrimPrefix(fname, "cmd/cgo/internal/")
+		if !strings.HasPrefix(fname, "test.") {
+			continue
+		}
 		got = append(got, fname)
 	}
 	if !reflect.DeepEqual(want, got) {

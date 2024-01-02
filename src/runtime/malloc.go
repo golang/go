@@ -1153,7 +1153,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				memclrNoHeapPointers(x, size)
 			}
 			if goexperiment.AllocHeaders && hasHeader {
-				header = (**_type)(unsafe.Pointer(uintptr(v) + size - mallocHeaderSize))
+				header = (**_type)(x)
+				x = add(x, mallocHeaderSize)
 				size -= mallocHeaderSize
 			}
 		}
@@ -1220,12 +1221,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		// Pass the full size of the allocation to the number of bytes
-		// marked.
-		//
-		// If !goexperiment.AllocHeaders, "size" doesn't include the
-		// allocation header, so use span.elemsize unconditionally.
-		gcmarknewobject(span, uintptr(x), span.elemsize)
+		gcmarknewobject(span, uintptr(x))
 	}
 
 	if raceenabled {
@@ -1247,12 +1243,28 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		asanunpoison(x, userSize)
 	}
 
+	// If !goexperiment.AllocHeaders, "size" doesn't include the
+	// allocation header, so use span.elemsize as the "full" size
+	// for various computations below.
+	//
+	// TODO(mknyszek): We should really count the header as part
+	// of gc_sys or something, but it's risky to change the
+	// accounting so much right now. Just pretend its internal
+	// fragmentation and match the GC's accounting by using the
+	// whole allocation slot.
+	fullSize := size
+	if goexperiment.AllocHeaders {
+		fullSize = span.elemsize
+	}
 	if rate := MemProfileRate; rate > 0 {
 		// Note cache c only valid while m acquired; see #47302
-		if rate != 1 && size < c.nextSample {
-			c.nextSample -= size
+		//
+		// N.B. Use the full size because that matches how the GC
+		// will update the mem profile on the "free" side.
+		if rate != 1 && fullSize < c.nextSample {
+			c.nextSample -= fullSize
 		} else {
-			profilealloc(mp, x, size)
+			profilealloc(mp, x, fullSize)
 		}
 	}
 	mp.mallocing = 0
@@ -1267,6 +1279,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		if goexperiment.AllocHeaders && header != nil {
 			throw("unexpected malloc header in delayed zeroing of large object")
 		}
+		// N.B. size == fullSize always in this case.
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
 	}
 
@@ -1277,14 +1290,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
-			inittrace.bytes += uint64(size)
+			inittrace.bytes += uint64(fullSize)
 		}
 	}
 
 	if assistG != nil {
 		// Account for internal fragmentation in the assist
 		// debt now that we know it.
-		assistG.gcAssistBytes -= int64(size - dataSize)
+		//
+		// N.B. Use the full size because that's how the rest
+		// of the GC accounts for bytes marked.
+		assistG.gcAssistBytes -= int64(fullSize - dataSize)
 	}
 
 	if shouldhelpgc {
@@ -1456,7 +1472,7 @@ func fastexprand(mean int) int32 {
 	// x = -log_e(q) * mean
 	// x = log_2(q) * (-log_e(2)) * mean    ; Using log_2 for efficiency
 	const randomBitCount = 26
-	q := fastrandn(1<<randomBitCount) + 1
+	q := cheaprandn(1<<randomBitCount) + 1
 	qlog := fastlog2(float64(q)) - randomBitCount
 	if qlog > 0 {
 		qlog = 0
@@ -1474,7 +1490,7 @@ func nextSampleNoFP() uintptr {
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return uintptr(fastrandn(uint32(2 * rate)))
+		return uintptr(cheaprandn(uint32(2 * rate)))
 	}
 	return 0
 }
