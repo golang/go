@@ -272,7 +272,7 @@ func (s *mspan) pinnerBitSize() uintptr {
 }
 
 // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
-// span's pinner bits. newPinneBits is used to mark objects that are pinned.
+// span's pinner bits. newPinnerBits is used to mark objects that are pinned.
 // They are copied when the span is swept.
 func (s *mspan) newPinnerBits() *pinnerBits {
 	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))

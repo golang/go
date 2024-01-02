@@ -844,7 +844,7 @@ func (t *Type) wantEtype(et Kind) {
 	}
 }
 
-// ResultTuple returns the result type of signature type t as a tuple.
+// ResultsTuple returns the result type of signature type t as a tuple.
 // This can be used as the type of multi-valued call expressions.
 func (t *Type) ResultsTuple() *Type { return t.funcType().resultsTuple }
 
@@ -858,7 +858,7 @@ func (t *Type) Params() []*Field { return t.funcType().params() }
 // Results returns a slice of result parameters of signature type t.
 func (t *Type) Results() []*Field { return t.funcType().results() }
 
-// RecvsParamsResults returns a slice containing all of the
+// RecvParamsResults returns a slice containing all of the
 // signature's parameters in receiver (if any), (normal) parameters,
 // and then results.
 func (t *Type) RecvParamsResults() []*Field { return t.funcType().allParams }

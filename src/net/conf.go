@@ -190,7 +190,7 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
 	if runtime.GOOS == "plan9" {
 		// TODO(bradfitz): for now we only permit use of the PreferGo
 		// implementation when there's a non-nil Resolver with a
-		// non-nil Dialer. This is a sign that they the code is trying
+		// non-nil Dialer. This is a sign that the code is trying
 		// to use their DNS-speaking net.Conn (such as an in-memory
 		// DNS cache) and they don't want to actually hit the network.
 		// Once we add support for looking the default DNS servers
