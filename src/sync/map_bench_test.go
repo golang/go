@@ -535,7 +535,6 @@ func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
 }
 
 func BenchmarkClear(b *testing.B) {
-
 	benchMap(b, bench{
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
