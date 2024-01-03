@@ -577,18 +577,17 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
       <code>Importer</code>,
       <code>Package</code>,
       <code>NewPackage</code>.
-    </p>
-    <p>
-      Identifiers cannot be accurately resolved without type information.
+
+      In general, identifiers cannot be accurately resolved without type information.
       Consider, for example, the identifier <code>K</code>
       in <code>T{K: ""}</code>: it could be the name of a local variable
       if T is a map type, or the name of a field if T is a struct type.
-    </p>
-    <p>
+
       New programs should use the <a href='/pkg/go/types'>go/types</a>
-      package to resolve identifiers;
-      see <code>Object</code>, <code>Info.Uses</code>,
-      and <code>Info.Defs</code> for details.
+      package to resolve identifiers; see
+      <a href='https://pkg.go.dev/go/types#Object'><code>Object</code></a>,
+      <a href='https://pkg.go.dev/go/types#Info.Uses'><code>Info.Uses</code></a>, and
+      <a href='https://pkg.go.dev/go/types#Info.Defs'><code>Info.Defs</code></a> for details.
     </p>
 
     <p><!-- https://go.dev/issue/60061 -->
