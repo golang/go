@@ -1054,7 +1054,7 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 }
 
 // Ensure that Request.Clone works correctly with PathValue.
-// See issue #64911.
+// See issue 64911.
 func TestRequestClonePathValue(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://example.org/", nil)
 	req.SetPathValue("p1", "orig")
