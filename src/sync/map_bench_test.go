@@ -539,9 +539,7 @@ func BenchmarkClear(b *testing.B) {
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
 				k, v := i%256, i%256
-
 				m.Clear()
-
 				m.Store(k, v)
 			}
 		},
