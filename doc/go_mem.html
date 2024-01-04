@@ -184,13 +184,7 @@ which are unordered by happens before.
 </p>
 
 <p>
-Note that if there are no read-write or write-write data races on memory location <i>x</i>,
-then any read <i>r</i> on <i>x</i> has only one possible <i>W</i>(<i>r</i>):
-the single <i>w</i> that immediately precedes it in the happens before order.
-</p>
-
-<p>
-More generally, it can be shown that any Go program that is data-race-free,
+It can be shown that any Go program that is data-race-free,
 meaning it has no program executions with read-write or write-write data races,
 can only have outcomes explained by some sequentially consistent interleaving
 of the goroutine executions.
