@@ -87,7 +87,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 		} else {
 			abs = filepath.Join(workDir, use.Path)
 			// use forward slash for relative paths for portability
-			// TODO: @bcmills (should i include a check for GOOS to windows)?
+			// TODO: @bcmills (should i include a check for GOOS == windows)?
 			abs = strings.Replace(abs, "\\", "/", -1) // See golang.org/issue/64851
 		}
 		haveDirs[abs] = append(haveDirs[abs], use.Path)
