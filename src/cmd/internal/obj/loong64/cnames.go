@@ -27,8 +27,6 @@ var cnames0 = []string{
 	"BRAN",
 	"SAUTO",
 	"LAUTO",
-	"SEXT",
-	"LEXT",
 	"ZOREG",
 	"SOREG",
 	"LOREG",

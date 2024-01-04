@@ -204,19 +204,17 @@ const (
 	C_UCON // 32 bit signed, low 12 bits 0
 	C_ADD0CON
 	C_AND0CON
-	C_ADDCON // -0x800 <= v < 0
-	C_ANDCON // 0 < v <= 0xFFF
-	C_LCON   // other 32
-	C_DCON   // other 64 (could subdivide further)
-	C_SACON  // $n(REG) where n <= int12
-	C_LACON // $n(REG) where int12 < n <= int32
+	C_ADDCON  // -0x800 <= v < 0
+	C_ANDCON  // 0 < v <= 0xFFF
+	C_LCON    // other 32
+	C_DCON    // other 64 (could subdivide further)
+	C_SACON   // $n(REG) where n <= int12
+	C_LACON   // $n(REG) where int12 < n <= int32
 	C_EXTADDR // external symbol address
-	C_DACON // $n(REG) where int32 < n
+	C_DACON   // $n(REG) where int32 < n
 	C_BRAN
 	C_SAUTO
 	C_LAUTO
-	C_SEXT
-	C_LEXT
 	C_ZOREG
 	C_SOREG
 	C_LOREG
