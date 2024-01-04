@@ -192,6 +192,65 @@ func BenchmarkArrayEqual(b *testing.B) {
 	}
 }
 
+func concat2(a, b string) string {
+	return a + b
+}
+
+func concat3(a, b, c string) string {
+	return a + b + c
+}
+
+func concat4(a, b, c, d string) string {
+	return a + b + c + d
+}
+
+func concat5(a, b, c, d, e string) string {
+	return a + b + c + d + e
+}
+
+func concat6(a, b, c, d, e, f string) string {
+	return a + b + c + d + e + f
+}
+
+var (
+	first  = "Lorem"
+	second = "ipsum"
+	third  = "dolor"
+	fourth = "sit"
+	fifth  = "amet"
+	sixth  = "consectetur"
+)
+
+func BenchmarkConcat2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = concat2(first, second)
+	}
+}
+
+func BenchmarkConcat3(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = concat3(first, second, third)
+	}
+}
+
+func BenchmarkConcat4(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = concat4(first, second, third, fourth)
+	}
+}
+
+func BenchmarkConcat5(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = concat5(first, second, third, fourth, fifth)
+	}
+}
+
+func BenchmarkConcat6(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = concat6(first, second, third, fourth, fifth, sixth)
+	}
+}
+
 func TestStringW(t *testing.T) {
 	strings := []string{
 		"hello",

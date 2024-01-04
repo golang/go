@@ -64,10 +64,6 @@ func printsp()
 func printlock()
 func printunlock()
 
-func concatstring2(*[32]byte, string, string) string
-func concatstring3(*[32]byte, string, string, string) string
-func concatstring4(*[32]byte, string, string, string, string) string
-func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int

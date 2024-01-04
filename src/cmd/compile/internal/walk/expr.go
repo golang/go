@@ -493,24 +493,14 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 		args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
 	}
 
-	var fn string
-	if c <= 5 {
-		// small numbers of strings use direct runtime helpers.
-		// note: order.expr knows this cutoff too.
-		fn = fmt.Sprintf("concatstring%d", c)
-	} else {
-		// large numbers of strings are passed to the runtime as a slice.
-		fn = "concatstrings"
+	t := types.NewSlice(types.Types[types.TSTRING])
+	// args[1:] to skip buf arg
+	slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, args[1:])
+	slice.Prealloc = n.Prealloc
+	args = []ir.Node{buf, slice}
+	slice.SetEsc(ir.EscNone)
 
-		t := types.NewSlice(types.Types[types.TSTRING])
-		// args[1:] to skip buf arg
-		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, args[1:])
-		slice.Prealloc = n.Prealloc
-		args = []ir.Node{buf, slice}
-		slice.SetEsc(ir.EscNone)
-	}
-
-	cat := typecheck.LookupRuntime(fn)
+	cat := typecheck.LookupRuntime("concatstrings")
 	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
 	r.Args = args
 	r1 := typecheck.Expr(r)

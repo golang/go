@@ -1148,17 +1148,12 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.EditChildren(n, o.edit)
 		return n
 
-	// Addition of strings turns into a function call.
-	// Allocate a temporary to hold the strings.
-	// Fewer than 5 strings use direct runtime helpers.
 	case ir.OADDSTR:
 		n := n.(*ir.AddStringExpr)
 		o.exprList(n.List)
 
-		if len(n.List) > 5 {
-			t := types.NewArray(types.Types[types.TSTRING], int64(len(n.List)))
-			n.Prealloc = o.newTemp(t, false)
-		}
+		t := types.NewArray(types.Types[types.TSTRING], int64(len(n.List)))
+		n.Prealloc = o.newTemp(t, false)
 
 		// Mark string(byteSlice) arguments to reuse byteSlice backing
 		// buffer during conversion. String concatenation does not
