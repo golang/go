@@ -599,6 +599,9 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 // GOTRACEBACK=crash when a signal is received.
 var crashing atomic.Int32
 
+// declared as global for dynamic change in TestGdbCoreCrashThreadBacktrace, see issue 64752.
+var totalSleepTimeUs = 5 * 1000 * 1000
+
 // testSigtrap and testSigusr1 are used by the runtime tests. If
 // non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
 // normal behavior on this signal is suppressed.
@@ -775,13 +778,14 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 			raiseproc(_SIGQUIT)
 		}
 		if isCrashThread {
-			i := 0
-			for (crashing.Load() < mcount()-int32(extraMLength.Load())) && i < 10 {
-				i++
-				usleep(500 * 1000)
+			perLoopSleepTimeUs := 5000
+			i := totalSleepTimeUs / perLoopSleepTimeUs
+			for (crashing.Load() < mcount()-int32(extraMLength.Load())) && i > 0 {
+				i--
+				usleep(uint32(perLoopSleepTimeUs))
 			}
 		} else {
-			usleep(5 * 1000 * 1000)
+			usleep(uint32(totalSleepTimeUs))
 		}
 		printDebugLog()
 		crash()
