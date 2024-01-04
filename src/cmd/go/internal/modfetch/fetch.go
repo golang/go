@@ -199,6 +199,9 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 					vers = vers[:i] + " (" + goos + "/" + goarch + ")"
 				}
 				fmt.Fprintf(os.Stderr, "go: downloading %s\n", vers)
+			}
+			if strings.Contains(cfg.GOPROXY, "file://") {
+				fmt.Fprintf(os.Stderr, "go: copying %s %s\n", mod.Path, vers)
 			} else {
 				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
 			}
