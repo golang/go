@@ -86,10 +86,6 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 			abs = filepath.Clean(use.Path)
 		} else {
 			abs = filepath.Join(workDir, use.Path)
-			// golang.org/issue/64851
-			// use forward slash for relative paths for portability
-			// TODO: @bcmills (should i include a check for GOOS == windows)?
-			abs = strings.Replace(abs, "\\", "/", -1)
 		}
 		haveDirs[abs] = append(haveDirs[abs], use.Path)
 	}
@@ -237,7 +233,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 // its canonical form is absolute.
 //
 // Canonical absolute paths are clean.
-// Canonical relative paths are clean and slash-separated.
+// Relative paths are clean but forward-slash `/` separated.
 func pathRel(workDir, dir string) (abs, canonical string) {
 	if filepath.IsAbs(dir) {
 		abs = filepath.Clean(dir)
@@ -254,5 +250,12 @@ func pathRel(workDir, dir string) (abs, canonical string) {
 
 	// Normalize relative paths to use slashes, so that checked-in go.work
 	// files with relative paths within the repo are platform-independent.
-	return abs, modload.ToDirectoryPath(rel)
+	relPath := modload.ToDirectoryPath(rel)
+
+	// golang.org/issue/64851
+	// use forward slash for relative paths for portability
+	// TODO: @bcmills (should i include a check for GOOS == windows)?
+	relPath = strings.Replace(relPath, `\`, "/", -1)
+
+	return abs, relPath
 }
