@@ -649,7 +649,7 @@ func TestDeletePanics(t *testing.T) {
 		{"with out-of-bounds second index", []int{42}, 0, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
 	} {
-		if !panics(func() { Delete(test.s, test.i, test.j) }) {
+		if !panics(func() { _ = Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
 		}
 	}
@@ -791,10 +791,10 @@ func TestGrow(t *testing.T) {
 	}
 
 	// Test number of allocations.
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)) }); n != 0 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)) }); n != 0 {
 		t.Errorf("Grow should not allocate when given sufficient capacity; allocated %v times", n)
 	}
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
 		if race.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
@@ -806,7 +806,7 @@ func TestGrow(t *testing.T) {
 	var gotPanic bool
 	func() {
 		defer func() { gotPanic = recover() != nil }()
-		Grow(s1, -1)
+		_ = Grow(s1, -1)
 	}()
 	if !gotPanic {
 		t.Errorf("Grow(-1) did not panic; expected a panic")
@@ -917,7 +917,7 @@ func TestReplacePanics(t *testing.T) {
 		{"negative index", []int{1, 2}, []int{3}, -1, 2},
 	} {
 		ss, vv := Clone(test.s), Clone(test.v)
-		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {
+		if !panics(func() { _ = Replace(ss, test.i, test.j, vv...) }) {
 			t.Errorf("Replace %s: should have panicked", test.name)
 		}
 	}
