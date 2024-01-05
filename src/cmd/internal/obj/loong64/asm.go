@@ -74,21 +74,23 @@ var optab = []Optab{
 	{ANEGW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{ANEGV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 	{AMASKEQZ, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASLL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASLL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASLLV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASLLV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMUL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMUL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMULV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMULV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
+	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
+	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
 
-	{ASLL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
-	{ASLL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
-	{ASLLV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
-	{ASLLV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
-
-	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
-	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
-	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
-	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
-	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
-
-	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 29, 4, 0, 0},
+	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
@@ -196,11 +198,6 @@ var optab = []Optab{
 	{AMOVW, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
 	{AMOVV, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
 	{AMOVV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 59, 16, 0, NOTUSETMP},
-
-	{AMUL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMUL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMULV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
-	{AMULV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 
 	{AADD, C_ADD0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
 	{AADD, C_ADD0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
@@ -1388,16 +1385,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 9: // sll r1,[r2],r3
-		switch p.As {
-		case ACLO, ACLZ, ACPUCFG:
-			o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
-		default:
-			r := int(p.Reg)
-			if r == 0 {
-				r = int(p.To.Reg)
-			}
-			o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
-		}
+		o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
 
 	case 10: // add $con,[r1],r2 ==> mov $con, t; add t,[r1],r2
 		v := c.regoff(&p.From)
@@ -1576,9 +1564,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.From.Reg))
 		}
 
-	case 29: // fcmp.cond.x fj, fk, fcc
-		o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(p.To.Reg))
-
 	case 30: // movw r,fr
 		a := OP_TEN(8, 1321) // movgr2fr.w
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
@@ -1586,16 +1571,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 31: // movw fr,r
 		a := OP_TEN(8, 1325) // movfr2gr.s
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
-
-	case 32: // fadd fr1,[fr2],fr3
-		r := int(p.Reg)
-		if r == 0 {
-			r = int(p.To.Reg)
-		}
-		o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
-
-	case 33: // fabs fr1, fr3
-		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
@@ -1960,6 +1935,42 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x201 << 15
 	case AADDD:
 		return 0x202 << 15
+	case ACMPEQF:
+		return 0x0c1<<20 | 0x4<<15 // FCMP.CEQ.S
+	case ACMPEQD:
+		return 0x0c2<<20 | 0x4<<15 // FCMP.CEQ.D
+	case ACMPGED:
+		return 0x0c2<<20 | 0x7<<15 // FCMP.SLE.D
+	case ACMPGEF:
+		return 0x0c1<<20 | 0x7<<15 // FCMP.SLE.S
+	case ACMPGTD:
+		return 0x0c2<<20 | 0x3<<15 // FCMP.SLT.D
+	case ACMPGTF:
+		return 0x0c1<<20 | 0x3<<15 // FCMP.SLT.S
+	}
+
+	if a < 0 {
+		c.ctxt.Diag("bad rrr opcode -%v", -a)
+	} else {
+		c.ctxt.Diag("bad rrr opcode %v", a)
+	}
+	return 0
+}
+
+func (c *ctxt0) oprr(a obj.As) uint32 {
+	switch a {
+	case ACLO:
+		return 0x4 << 10
+	case ACLZ:
+		return 0x5 << 10
+	case ACPUCFG:
+		return 0x1b << 10
+	case ARDTIMELW:
+		return 0x18 << 10
+	case ARDTIMEHW:
+		return 0x19 << 10
+	case ARDTIMED:
+		return 0x1a << 10
 	case ATRUNCFV:
 		return 0x46a9 << 10
 	case ATRUNCDV:
@@ -2000,47 +2011,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x4505 << 10
 	case ANEGD:
 		return 0x4506 << 10
-	case ACMPEQF:
-		return 0x0c1<<20 | 0x4<<15 // FCMP.CEQ.S
-	case ACMPEQD:
-		return 0x0c2<<20 | 0x4<<15 // FCMP.CEQ.D
-	case ACMPGED:
-		return 0x0c2<<20 | 0x7<<15 // FCMP.SLE.D
-	case ACMPGEF:
-		return 0x0c1<<20 | 0x7<<15 // FCMP.SLE.S
-	case ACMPGTD:
-		return 0x0c2<<20 | 0x3<<15 // FCMP.SLT.D
-	case ACMPGTF:
-		return 0x0c1<<20 | 0x3<<15 // FCMP.SLT.S
-
 	case ASQRTF:
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
-	}
-
-	if a < 0 {
-		c.ctxt.Diag("bad rrr opcode -%v", -a)
-	} else {
-		c.ctxt.Diag("bad rrr opcode %v", a)
-	}
-	return 0
-}
-
-func (c *ctxt0) oprr(a obj.As) uint32 {
-	switch a {
-	case ACLO:
-		return 0x4 << 10
-	case ACLZ:
-		return 0x5 << 10
-	case ACPUCFG:
-		return 0x1b << 10
-	case ARDTIMELW:
-		return 0x18 << 10
-	case ARDTIMEHW:
-		return 0x19 << 10
-	case ARDTIMED:
-		return 0x1a << 10
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
