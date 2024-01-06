@@ -295,5 +295,27 @@ The declaration of lower.f may also have a linkname directive with a
 single argument, f. This is optional, but helps alert the reader that
 the function is accessed from outside the package.
 
+    //go:wasmimport importmodule importname
+
+The //go:wasmimport is a wasm-only directive that declares a dependency
+on a external function provided by a wasm module. It replaces any Go
+function calls of the function with a `CALL` instruction to the function
+identified by ``importmodule`` and ``importname`` during compilation.
+
+    //go:wasmimport a_module f
+    func g()
+
+The parameters and return values to the Go function are translated to
+Wasm according to the following table:
+
+    Go value        Wasm value
+    int32, uint32   i32
+    int64, uint64   i64
+    float32         f32
+    float64         f64
+    unsafe.Pointer  i32
+
+Any other parameter types are disallowed by the compiler.
+
 */
 package main
