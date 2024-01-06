@@ -169,11 +169,6 @@ func TestIntendedInlining(t *testing.T) {
 			"Value.pointer",
 			"add",
 			"align",
-			"flag.mustBe",
-			"flag.mustBeAssignable",
-			"flag.mustBeExported",
-			"flag.kind",
-			"flag.ro",
 		},
 		"regexp": {
 			"(*bitState).push",

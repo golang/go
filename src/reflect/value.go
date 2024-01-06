@@ -2029,7 +2029,7 @@ func (v Value) OverflowComplex(x complex128) bool {
 	case Complex128:
 		return false
 	}
-	panic(&ValueError{Method: "reflect.Value.OverflowComplex", Kind: v.Kind()})
+	panic(&ValueError{Method: "reflect.Value.OverflowComplex", Kind: k})
 }
 
 // OverflowFloat reports whether the float64 x cannot be represented by v's type.
