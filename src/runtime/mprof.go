@@ -896,13 +896,9 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
 }
 
-//go:linkname runtime_realgcount runtime/pprof.runtime_realgcount
-func runtime_realgcount() int {
-	n := int(gcount())
-	if fingStatus.Load()&fingRunningFinalizer != 0 {
-		n++
-	}
-	return n
+//go:linkname runtime_gcount runtime/pprof.runtime_gcount
+func runtime_gcount() int {
+	return int(gcount())
 }
 
 func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
@@ -918,7 +914,10 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// goroutines that can vary between user and system to ensure that the count
 	// doesn't change during the collection. So, check the finalizer goroutine
 	// in particular.
-	n = runtime_realgcount()
+	n = runtime_gcount()
+	if fingStatus.Load()&fingRunningFinalizer != 0 {
+		n++
+	}
 
 	if n > len(p) {
 		// There's not enough space in p to store the whole profile, so (per the

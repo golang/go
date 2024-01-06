@@ -715,8 +715,8 @@ func writeGoroutineStacks(w io.Writer) error {
 	return err
 }
 
-// runtime_realgcount is defined in runtime/mprof.go
-func runtime_realgcount() (n int)
+// runtime_gcount is defined in runtime/mprof.go
+func runtime_gcount() (n int)
 
 func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord, []unsafe.Pointer) (int, bool)) error {
 	// Find out how many records there are (fetch(nil)),
@@ -729,7 +729,7 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	var labels []unsafe.Pointer
 	var n, ok = 0, false
 	if name == "goroutine" {
-		n = runtime_realgcount()
+		n = runtime_gcount()
 	} else {
 		n, ok = fetch(nil, nil)
 	}
