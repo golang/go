@@ -38,6 +38,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 	var instErrPos poser
 	if inst != nil {
 		instErrPos = inst.Pos()
+		x.expr = inst // if we don't have an index expression, keep the existing expression of x
 	} else {
 		instErrPos = pos
 	}
@@ -51,7 +52,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
-			x.expr = inst
 			return nil, nil
 		}
 		assert(len(targs) == len(xlist))
@@ -66,7 +66,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		// Providing too many type arguments is always an error.
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
-		x.expr = inst
 		return nil, nil
 	}
 
@@ -114,7 +113,6 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
-			x.expr = inst
 			return nil, nil
 		}
 		got = len(targs)
@@ -122,15 +120,10 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 	assert(got == want)
 
 	// instantiate function signature
-	expr := x.expr // if we don't have an index expression, keep the existing expression of x
-	if inst != nil {
-		expr = inst
-	}
-	sig = check.instantiateSignature(x.Pos(), expr, sig, targs, xlist)
+	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
 
 	x.typ = sig
 	x.mode = value
-	x.expr = expr
 	return nil, nil
 }
 
