@@ -1373,7 +1373,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			width = 21
 			// FCC0 is the implicit source operand, now that we
 			// don't register-allocate from the FCC bank.
-			rd = REG_FCC0
+			rj = REG_FCC0
 		case ABEQ, ABNE:
 			if rd == 0 || rd == REGZERO || rj == REGZERO {
 				// BEQZ/BNEZ can be encoded with 21-bit offsets.
