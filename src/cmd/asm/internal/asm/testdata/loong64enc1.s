@@ -63,15 +63,11 @@ lable2:
 	MOVV	R4, result+16(FP)	// 6460c029
 	MOVB	R4, result+16(FP)	// 64600029
 	MOVBU	R4, result+16(FP)	// 64600029
-	MOVWL	R4, result+16(FP)	// 6460002f
-	MOVVL	R4, result+16(FP)	// 6460802f
 	MOVW	R4, 1(R5)		// a4048029
 	MOVWU	R4, 1(R5)		// a4048029
 	MOVV	R4, 1(R5)		// a404c029
 	MOVB	R4, 1(R5)		// a4040029
 	MOVBU	R4, 1(R5)		// a4040029
-	MOVWL	R4, 1(R5)		// a404002f
-	MOVVL	R4, 1(R5)		// a404802f
 	SC	R4, 1(R5)		// a4040021
 	SCV	R4, 1(R5)		// a4040023
 	MOVW	y+8(FP), R4		// 64408028
@@ -79,15 +75,11 @@ lable2:
 	MOVV	y+8(FP), R4		// 6440c028
 	MOVB	y+8(FP), R4		// 64400028
 	MOVBU	y+8(FP), R4		// 6440002a
-	MOVWL	y+8(FP), R4		// 6440002e
-	MOVVL	y+8(FP), R4		// 6440802e
 	MOVW	1(R5), R4		// a4048028
 	MOVWU	1(R5), R4		// a404802a
 	MOVV	1(R5), R4		// a404c028
 	MOVB	1(R5), R4		// a4040028
 	MOVBU	1(R5), R4		// a404002a
-	MOVWL	1(R5), R4		// a404002e
-	MOVVL	1(R5), R4		// a404802e
 	LL	1(R5), R4		// a4040020
 	LLV	1(R5), R4		// a4040022
 	MOVW	$4(R4), R5		// 8510c002
@@ -209,11 +201,6 @@ lable2:
 
 	DBAR	 			// 00007238
 	NOOP	 			// 00004003
-
-	MOVWR	R4, result+16(FP) 	// 6460402f
-	MOVWR	R4, 1(R5) 		// a404402f
-	MOVWR	y+8(FP), R4 		// 6440402e
-	MOVWR	1(R5), R4 		// a404402e
 
 	CMPEQF	F4, F5, FCC0		// a010120c
 	CMPGTF	F4, F5, FCC1 		// a190110c

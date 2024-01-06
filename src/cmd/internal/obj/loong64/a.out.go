@@ -302,9 +302,6 @@ const (
 	AMOVWD
 	AMOVWF
 
-	AMOVWL
-	AMOVWR
-
 	AMUL
 	AMULD
 	AMULF
@@ -359,8 +356,6 @@ const (
 
 	// 64-bit
 	AMOVV
-	AMOVVL
-	AMOVVR
 
 	ASLLV
 	ASRAV
