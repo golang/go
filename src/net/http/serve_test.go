@@ -7052,3 +7052,24 @@ func testDisableContentLength(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 }
+
+func TestErrorContentLength(t *testing.T) { run(t, testErrorContentLength) }
+func testErrorContentLength(t *testing.T, mode testMode) {
+	const errorBody = "an error occurred"
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "1000")
+		Error(w, errorBody, 400)
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatalf("Get(%q) = %v", cst.ts.URL, err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("io.ReadAll(res.Body) = %v", err)
+	}
+	if string(body) != errorBody+"\n" {
+		t.Fatalf("read body: %q, want %q", string(body), errorBody)
+	}
+}
