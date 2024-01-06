@@ -1491,9 +1491,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = OP_16IRR(c.opirr(p.As), uint32(v)&0x1f, uint32(r), uint32(p.To.Reg))
 		}
 
-	case 17:
-		o1 = OP_RRR(c.oprrr(p.As), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
-
 	case 18: // jmp [r1],0(r2)
 		r := int(p.Reg)
 		if r == 0 {
