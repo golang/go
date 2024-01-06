@@ -1247,14 +1247,6 @@ func buildop(ctxt *obj.Link) {
 	}
 }
 
-func OP(x uint32, y uint32) uint32 {
-	return x<<3 | y<<0
-}
-
-func SP(x uint32, y uint32) uint32 {
-	return x<<29 | y<<26
-}
-
 func OP_TEN(x uint32, y uint32) uint32 {
 	return x<<21 | y<<10
 }
