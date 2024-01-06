@@ -497,8 +497,7 @@ type textsect struct {
 	baseaddr uintptr // relocated section address
 }
 
-const minfunc = 16                 // minimum function size
-const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
+const pcbucketsize = 256 * abi.MINFUNC // size of bucket in the pc->func lookup table
 
 // findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.

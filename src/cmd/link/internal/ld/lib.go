@@ -273,10 +273,6 @@ var (
 	symSize int32
 )
 
-const (
-	MINFUNC = 16 // minimum size for a function
-)
-
 // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
 // are used, 0 otherwise.
 var abiInternalVer = sym.SymVerABIInternal
