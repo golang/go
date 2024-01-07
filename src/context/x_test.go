@@ -8,6 +8,7 @@ import (
 	. "context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"runtime"
 	"strings"
@@ -1073,5 +1074,38 @@ func TestAfterFuncCalledAsynchronously(t *testing.T) {
 	case <-donec:
 	case <-time.After(veryLongDuration):
 		t.Fatalf("AfterFunc not called after context is canceled")
+	}
+}
+
+func TestWithValuePanic(t *testing.T) {
+	type args struct {
+		parent Context
+		key    any
+		val    any
+	}
+	tests := []struct {
+		name  string
+		args  args
+		panic bool
+	}{
+		{"string", args{Background(), "2", ""}, false},
+		{"NaN", args{Background(), math.NaN(), ""}, false},
+		{"func", args{Background(), func() {}, ""}, true},
+		{"[]int", args{Background(), interface{}([]int{1}), ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				Havepanic := false
+				err := recover()
+				if err != nil {
+					Havepanic = true
+				}
+				if Havepanic != tt.panic {
+					t.Fatalf("want panic = %t got panic = %t", tt.panic, Havepanic)
+				}
+			}()
+			_ = WithValue(tt.args.parent, tt.args.key, tt.args.val)
+		})
 	}
 }

@@ -717,10 +717,21 @@ func WithValue(parent Context, key, val any) Context {
 	if key == nil {
 		panic("nil key")
 	}
-	if !reflectlite.TypeOf(key).Comparable() {
+	if !comparable(key) {
 		panic("key is not comparable")
 	}
 	return &valueCtx{parent, key, val}
+}
+
+func comparable(key any) (ret bool) {
+	defer func() {
+		// avoid return false for NaN
+		ret = true
+		if err := recover(); err != nil {
+			ret = false
+		}
+	}()
+	return key == key
 }
 
 // A valueCtx carries a key-value pair. It implements Value for that key and
