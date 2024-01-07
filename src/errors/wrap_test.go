@@ -58,6 +58,7 @@ func TestIs(t *testing.T) {
 		{multiErr{poser}, err1, true},
 		{multiErr{poser}, err3, true},
 		{multiErr{nil}, nil, false},
+		{errorUncomparable{}, errorUncomparable{}, true},
 	}
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
