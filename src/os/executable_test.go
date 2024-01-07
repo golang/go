@@ -30,7 +30,7 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
 
-	cmd := testenv.Command(t, fn, "-test.run=XXXX")
+	cmd := testenv.Command(t, fn, "-test.run=^$")
 	// make child start with a relative program path
 	cmd.Dir = dir
 	cmd.Path = fn
@@ -89,7 +89,7 @@ func init() {
 }
 
 func TestExecutableDeleted(t *testing.T) {
-	testenv.MustHaveExec(t)
+	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skipf("%v does not support deleting running binary", runtime.GOOS)

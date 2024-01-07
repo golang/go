@@ -36,43 +36,60 @@ func TestCoverageApis(t *testing.T) {
 		mkdir(t, dir)
 	}
 
-	// Build harness.
-	bdir := mkdir(t, filepath.Join(dir, "build"))
-	hargs := []string{"-cover", "-coverpkg=all"}
-	if testing.CoverMode() != "" {
-		hargs = append(hargs, "-covermode="+testing.CoverMode())
+	// Build harness. We need two copies of the harness, one built
+	// with -covermode=atomic and one built non-atomic.
+	bdir1 := mkdir(t, filepath.Join(dir, "build1"))
+	hargs1 := []string{"-covermode=atomic", "-coverpkg=all"}
+	atomicHarnessPath := buildHarness(t, bdir1, hargs1)
+	nonAtomicMode := testing.CoverMode()
+	if testing.CoverMode() == "atomic" {
+		nonAtomicMode = "set"
 	}
-	harnessPath := buildHarness(t, bdir, hargs)
+	bdir2 := mkdir(t, filepath.Join(dir, "build2"))
+	hargs2 := []string{"-coverpkg=all", "-covermode=" + nonAtomicMode}
+	nonAtomicHarnessPath := buildHarness(t, bdir2, hargs2)
 
-	t.Logf("harness path is %s", harnessPath)
+	t.Logf("atomic harness path is %s", atomicHarnessPath)
+	t.Logf("non-atomic harness path is %s", nonAtomicHarnessPath)
 
 	// Sub-tests for each API we want to inspect, plus
 	// extras for error testing.
 	t.Run("emitToDir", func(t *testing.T) {
 		t.Parallel()
-		testEmitToDir(t, harnessPath, dir)
+		testEmitToDir(t, atomicHarnessPath, dir)
 	})
 	t.Run("emitToWriter", func(t *testing.T) {
 		t.Parallel()
-		testEmitToWriter(t, harnessPath, dir)
+		testEmitToWriter(t, atomicHarnessPath, dir)
 	})
 	t.Run("emitToNonexistentDir", func(t *testing.T) {
 		t.Parallel()
-		testEmitToNonexistentDir(t, harnessPath, dir)
+		testEmitToNonexistentDir(t, atomicHarnessPath, dir)
 	})
 	t.Run("emitToNilWriter", func(t *testing.T) {
 		t.Parallel()
-		testEmitToNilWriter(t, harnessPath, dir)
+		testEmitToNilWriter(t, atomicHarnessPath, dir)
 	})
 	t.Run("emitToFailingWriter", func(t *testing.T) {
 		t.Parallel()
-		testEmitToFailingWriter(t, harnessPath, dir)
+		testEmitToFailingWriter(t, atomicHarnessPath, dir)
 	})
 	t.Run("emitWithCounterClear", func(t *testing.T) {
 		t.Parallel()
-		testEmitWithCounterClear(t, harnessPath, dir)
+		testEmitWithCounterClear(t, atomicHarnessPath, dir)
 	})
-
+	t.Run("emitToDirNonAtomic", func(t *testing.T) {
+		t.Parallel()
+		testEmitToDirNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
+	})
+	t.Run("emitToWriterNonAtomic", func(t *testing.T) {
+		t.Parallel()
+		testEmitToWriterNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
+	})
+	t.Run("emitWithCounterClearNonAtomic", func(t *testing.T) {
+		t.Parallel()
+		testEmitWithCounterClearNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
+	})
 }
 
 // upmergeCoverData helps improve coverage data for this package
@@ -82,8 +99,8 @@ func TestCoverageApis(t *testing.T) {
 // run from the "harness.exe" runs we've just done. We can accomplish
 // this by doing a merge from the harness gocoverdir's to the test
 // gocoverdir.
-func upmergeCoverData(t *testing.T, gocoverdir string) {
-	if testing.CoverMode() == "" {
+func upmergeCoverData(t *testing.T, gocoverdir string, mode string) {
+	if testing.CoverMode() != mode {
 		return
 	}
 	testGoCoverDir := os.Getenv("GOCOVERDIR")
@@ -243,8 +260,8 @@ func testEmitToDir(t *testing.T, harnessPath string, dir string) {
 		if cdc != wantcf {
 			t.Errorf("EmitToDir: want %d counter-data files, got %d\n", wantcf, cdc)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
@@ -262,8 +279,8 @@ func testEmitToWriter(t *testing.T, harnessPath string, dir string) {
 		if msg := testForSpecificFunctions(t, edir, want, avoid); msg != "" {
 			t.Errorf("coverage data from %q output match failed: %s", tp, msg)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
@@ -276,8 +293,8 @@ func testEmitToNonexistentDir(t *testing.T, harnessPath string, dir string) {
 			t.Logf("%s", output)
 			t.Fatalf("running 'harness -tp %s': %v", tp, err)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
@@ -298,8 +315,8 @@ func testEmitToUnwritableDir(t *testing.T, harnessPath string, dir string) {
 			t.Logf("%s", output)
 			t.Fatalf("running 'harness -tp %s': %v", tp, err)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
@@ -312,8 +329,8 @@ func testEmitToNilWriter(t *testing.T, harnessPath string, dir string) {
 			t.Logf("%s", output)
 			t.Fatalf("running 'harness -tp %s': %v", tp, err)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
@@ -326,71 +343,101 @@ func testEmitToFailingWriter(t *testing.T, harnessPath string, dir string) {
 			t.Logf("%s", output)
 			t.Fatalf("running 'harness -tp %s': %v", tp, err)
 		}
-		upmergeCoverData(t, edir)
-		upmergeCoverData(t, rdir)
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
 }
 
 func testEmitWithCounterClear(t *testing.T, harnessPath string, dir string) {
-	// Ensure that we have two versions of the harness: one built with
-	// -covermode=atomic and one built with -covermode=set (we need
-	// both modes to test all of the functionality).
-	var nonatomicHarnessPath, atomicHarnessPath string
-	if testing.CoverMode() != "atomic" {
-		nonatomicHarnessPath = harnessPath
-		bdir2 := mkdir(t, filepath.Join(dir, "build2"))
-		hargs := []string{"-covermode=atomic", "-coverpkg=all"}
-		atomicHarnessPath = buildHarness(t, bdir2, hargs)
-	} else {
-		atomicHarnessPath = harnessPath
-		mode := "set"
-		if testing.CoverMode() != "" && testing.CoverMode() != "atomic" {
-			mode = testing.CoverMode()
-		}
-		// Build a special nonatomic covermode version of the harness
-		// (we need both modes to test all of the functionality).
-		bdir2 := mkdir(t, filepath.Join(dir, "build2"))
-		hargs := []string{"-covermode=" + mode, "-coverpkg=all"}
-		nonatomicHarnessPath = buildHarness(t, bdir2, hargs)
-	}
-
 	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
-		// First a run with the nonatomic harness path, which we
-		// expect to fail.
 		tp := "emitWithCounterClear"
-		rdir1, edir1 := mktestdirs(t, tag, tp+"1", dir)
-		output, err := runHarness(t, nonatomicHarnessPath, tp,
-			setGoCoverDir, rdir1, edir1)
-		if err == nil {
-			t.Logf("%s", output)
-			t.Fatalf("running '%s -tp %s': unexpected success",
-				nonatomicHarnessPath, tp)
-		}
-
-		// Next a run with the atomic harness path, which we
-		// expect to succeed.
-		rdir2, edir2 := mktestdirs(t, tag, tp+"2", dir)
-		output, err = runHarness(t, atomicHarnessPath, tp,
-			setGoCoverDir, rdir2, edir2)
+		rdir, edir := mktestdirs(t, tag, tp, dir)
+		output, err := runHarness(t, harnessPath, tp,
+			setGoCoverDir, rdir, edir)
 		if err != nil {
 			t.Logf("%s", output)
 			t.Fatalf("running 'harness -tp %s': %v", tp, err)
 		}
 		want := []string{tp, "postClear"}
 		avoid := []string{"preClear", "main", "final"}
-		if msg := testForSpecificFunctions(t, edir2, want, avoid); msg != "" {
+		if msg := testForSpecificFunctions(t, edir, want, avoid); msg != "" {
 			t.Logf("%s", output)
 			t.Errorf("coverage data from %q output match failed: %s", tp, msg)
 		}
-
-		if testing.CoverMode() == "atomic" {
-			upmergeCoverData(t, edir2)
-			upmergeCoverData(t, rdir2)
-		} else {
-			upmergeCoverData(t, edir1)
-			upmergeCoverData(t, rdir1)
-		}
+		upmergeCoverData(t, edir, "atomic")
+		upmergeCoverData(t, rdir, "atomic")
 	})
+}
+
+func testEmitToDirNonAtomic(t *testing.T, harnessPath string, naMode string, dir string) {
+	tp := "emitToDir"
+	tag := "nonatomdir"
+	rdir, edir := mktestdirs(t, tag, tp, dir)
+	output, err := runHarness(t, harnessPath, tp,
+		true, rdir, edir)
+
+	// We expect an error here.
+	if err == nil {
+		t.Logf("%s", output)
+		t.Fatalf("running 'harness -tp %s': did not get expected error", tp)
+	}
+
+	got := strings.TrimSpace(string(output))
+	want := "WriteCountersDir invoked for program built"
+	if !strings.Contains(got, want) {
+		t.Errorf("running 'harness -tp %s': got:\n%s\nwant: %s",
+			tp, got, want)
+	}
+	upmergeCoverData(t, edir, naMode)
+	upmergeCoverData(t, rdir, naMode)
+}
+
+func testEmitToWriterNonAtomic(t *testing.T, harnessPath string, naMode string, dir string) {
+	tp := "emitToWriter"
+	tag := "nonatomw"
+	rdir, edir := mktestdirs(t, tag, tp, dir)
+	output, err := runHarness(t, harnessPath, tp,
+		true, rdir, edir)
+
+	// We expect an error here.
+	if err == nil {
+		t.Logf("%s", output)
+		t.Fatalf("running 'harness -tp %s': did not get expected error", tp)
+	}
+
+	got := strings.TrimSpace(string(output))
+	want := "WriteCounters invoked for program built"
+	if !strings.Contains(got, want) {
+		t.Errorf("running 'harness -tp %s': got:\n%s\nwant: %s",
+			tp, got, want)
+	}
+
+	upmergeCoverData(t, edir, naMode)
+	upmergeCoverData(t, rdir, naMode)
+}
+
+func testEmitWithCounterClearNonAtomic(t *testing.T, harnessPath string, naMode string, dir string) {
+	tp := "emitWithCounterClear"
+	tag := "cclear"
+	rdir, edir := mktestdirs(t, tag, tp, dir)
+	output, err := runHarness(t, harnessPath, tp,
+		true, rdir, edir)
+
+	// We expect an error here.
+	if err == nil {
+		t.Logf("%s", output)
+		t.Fatalf("running 'harness -tp %s' nonatomic: did not get expected error", tp)
+	}
+
+	got := strings.TrimSpace(string(output))
+	want := "ClearCounters invoked for program built"
+	if !strings.Contains(got, want) {
+		t.Errorf("running 'harness -tp %s': got:\n%s\nwant: %s",
+			tp, got, want)
+	}
+
+	upmergeCoverData(t, edir, naMode)
+	upmergeCoverData(t, rdir, naMode)
 }
 
 func TestApisOnNocoverBinary(t *testing.T) {
@@ -447,5 +494,57 @@ func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
 			t.Logf("%s\n", string(b))
 			t.Fatalf("found %s in test output, not permitted", no)
 		}
+	}
+}
+
+func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
+	testenv.MustHaveGoRun(t)
+
+	tmpdir := t.TempDir()
+	ppath := filepath.Join(tmpdir, "foo.cov")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "test", "-coverpkg=all", "-coverprofile="+ppath)
+	cmd.Dir = filepath.Join("testdata", "issue59563")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -cover failed: %v", err)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func="+ppath)
+	b, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool cover -func failed: %v", err)
+	}
+
+	lines := strings.Split(string(b), "\n")
+	nfound := 0
+	bad := false
+	for _, line := range lines {
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
+		}
+		// We're only interested in the specific function "large" for
+		// the testcase being built. See the #59563 for details on why
+		// size matters.
+		if !(strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
+			continue
+		}
+		nfound++
+		want := "100.0%"
+		if f[len(f)-1] != want {
+			t.Errorf("wanted %s got: %q\n", want, line)
+			bad = true
+		}
+	}
+	if nfound != 1 {
+		t.Errorf("wanted 1 found, got %d\n", nfound)
+		bad = true
+	}
+	if bad {
+		t.Logf("func output:\n%s\n", string(b))
 	}
 }

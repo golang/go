@@ -24,8 +24,8 @@
 # in the CL match the update.bash in the CL.
 
 # Versions to use.
-CODE=2022g
-DATA=2022g
+CODE=2023d
+DATA=2023d
 
 set -e
 

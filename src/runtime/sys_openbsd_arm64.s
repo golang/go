@@ -62,14 +62,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
 	MOVW	R0, 8(RSP)		// signum
 	BL	runtime·load_g(SB)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
 	// R1 and R2 already contain info and ctx, respectively.
-#else
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-#endif
 	BL	runtime·sigtrampgo<ABIInternal>(SB)
 
 	// Restore callee-save registers.
@@ -306,11 +301,21 @@ noerr:
 	RET
 
 TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1		// arg 2 - cmd
-	MOVW	8(R0), R2		// arg 3 - arg
-	MOVW	0(R0), R0		// arg 1 - fd
+	MOVD	R0, R19
+	MOVW	0(R19), R0		// arg 1 - fd
+	MOVW	4(R19), R1		// arg 2 - cmd
+	MOVW	8(R19), R2		// arg 3 - arg
 	MOVD	$0, R3			// vararg
 	CALL	libc_fcntl(SB)
+	MOVD	$0, R1
+	CMP	$-1, R0
+	BNE	noerr
+	CALL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	$-1, R0
+noerr:
+	MOVW	R0, 12(R19)
+	MOVW	R1, 16(R19)
 	RET
 
 TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
@@ -638,4 +643,10 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$0
 	MOVD	R0, (13*8)(R19)		// err
 
 ok:
+	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19			// pointer to args
+	CALL	libc_issetugid(SB)
+	MOVW	R0, 0(R19)		// return value
 	RET

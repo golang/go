@@ -2,82 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package loopclosure defines an Analyzer that checks for references to
-// enclosing loop variables from within nested functions.
 package loopclosure
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/versions"
 )
 
-const Doc = `check references to loop variables from within nested functions
-
-This analyzer reports places where a function literal references the
-iteration variable of an enclosing loop, and the loop calls the function
-in such a way (e.g. with go or defer) that it may outlive the loop
-iteration and possibly observe the wrong value of the variable.
-
-In this example, all the deferred functions run after the loop has
-completed, so all observe the final value of v.
-
-    for _, v := range list {
-        defer func() {
-            use(v) // incorrect
-        }()
-    }
-
-One fix is to create a new variable for each iteration of the loop:
-
-    for _, v := range list {
-        v := v // new var per iteration
-        defer func() {
-            use(v) // ok
-        }()
-    }
-
-The next example uses a go statement and has a similar problem.
-In addition, it has a data race because the loop updates v
-concurrent with the goroutines accessing it.
-
-    for _, v := range elem {
-        go func() {
-            use(v)  // incorrect, and a data race
-        }()
-    }
-
-A fix is the same as before. The checker also reports problems
-in goroutines started by golang.org/x/sync/errgroup.Group.
-A hard-to-spot variant of this form is common in parallel tests:
-
-    func Test(t *testing.T) {
-        for _, test := range tests {
-            t.Run(test.name, func(t *testing.T) {
-                t.Parallel()
-                use(test) // incorrect, and a data race
-            })
-        }
-    }
-
-The t.Parallel() call causes the rest of the function to execute
-concurrent with the loop.
-
-The analyzer reports references only in the last statement,
-as it is not deep enough to understand the effects of subsequent
-statements that might render the reference benign.
-("Last statement" is defined recursively in compound
-statements such as if, switch, and select.)
-
-See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "loopclosure",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "loopclosure"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -86,10 +32,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.RangeStmt)(nil),
 		(*ast.ForStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Nodes(nodeFilter, func(n ast.Node, push bool) bool {
+		if !push {
+			// inspect.Nodes is slightly suboptimal as we only use push=true.
+			return true
+		}
 		// Find the variables updated by the loop statement.
 		var vars []types.Object
 		addVar := func(expr ast.Expr) {
@@ -101,6 +52,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		var body *ast.BlockStmt
 		switch n := n.(type) {
+		case *ast.File:
+			// Only traverse the file if its goversion is strictly before go1.22.
+			goversion := versions.Lang(versions.FileVersions(pass.TypesInfo, n))
+			// goversion is empty for older go versions (or the version is invalid).
+			return goversion == "" || versions.Compare(goversion, "go1.22") < 0
 		case *ast.RangeStmt:
 			body = n.Body
 			addVar(n.Key)
@@ -119,7 +75,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		}
 		if vars == nil {
-			return
+			return true
 		}
 
 		// Inspect statements to find function literals that may be run outside of
@@ -168,6 +124,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				}
 			}
 		}
+		return true
 	})
 	return nil, nil
 }
@@ -414,20 +371,5 @@ func isMethodCall(info *types.Info, expr ast.Expr, pkgPath, typeName, method str
 	if ptr, ok := recv.Type().(*types.Pointer); ok {
 		rtype = ptr.Elem()
 	}
-	named, ok := rtype.(*types.Named)
-	if !ok {
-		return false
-	}
-	if named.Obj().Name() != typeName {
-		return false
-	}
-	pkg := f.Pkg()
-	if pkg == nil {
-		return false
-	}
-	if pkg.Path() != pkgPath {
-		return false
-	}
-
-	return true
+	return analysisutil.IsNamedType(rtype, pkgPath, typeName)
 }

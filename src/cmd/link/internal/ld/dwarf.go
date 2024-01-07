@@ -73,13 +73,12 @@ type dwctxt struct {
 // DwAttr objects contain references to symbols via this type.
 type dwSym loader.Sym
 
-func (s dwSym) Length(dwarfContext interface{}) int64 {
-	l := dwarfContext.(dwctxt).ldr
-	return int64(len(l.Data(loader.Sym(s))))
-}
-
 func (c dwctxt) PtrSize() int {
 	return c.arch.PtrSize
+}
+
+func (c dwctxt) Size(s dwarf.Sym) int64 {
+	return int64(len(c.ldr.Data(loader.Sym(s.(dwSym)))))
 }
 
 func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
@@ -153,10 +152,6 @@ func (c dwctxt) Logf(format string, args ...interface{}) {
 }
 
 // At the moment these interfaces are only used in the compiler.
-
-func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
-	panic("should be used only in the compiler")
-}
 
 func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
 	panic("should be used only in the compiler")
@@ -753,6 +748,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type:"+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
+		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(objabi.KindPtr), 0)
 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
@@ -1145,9 +1141,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 }
 
 func expandFile(fname string) string {
-	if strings.HasPrefix(fname, src.FileSymPrefix) {
-		fname = fname[len(src.FileSymPrefix):]
-	}
+	fname = strings.TrimPrefix(fname, src.FileSymPrefix)
 	return expandGoroot(fname)
 }
 
@@ -1517,16 +1511,6 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-// appendSyms appends the syms from 'src' into 'syms' and returns the
-// result. This can go away once we do away with sym.LoaderSym
-// entirely.
-func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
-	for _, s := range src {
-		syms = append(syms, loader.Sym(s))
-	}
-	return syms
-}
-
 func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
 	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
@@ -1555,12 +1539,12 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 	// This is an under-estimate; more will be needed for type DIEs.
 	cu := make([]loader.Sym, 0, len(u.AbsFnDIEs)+len(u.FuncDIEs))
 	cu = append(cu, s)
-	cu = appendSyms(cu, u.AbsFnDIEs)
-	cu = appendSyms(cu, u.FuncDIEs)
+	cu = append(cu, u.AbsFnDIEs...)
+	cu = append(cu, u.FuncDIEs...)
 	if u.Consts != 0 {
 		cu = append(cu, loader.Sym(u.Consts))
 	}
-	cu = appendSyms(cu, u.VarDIEs)
+	cu = append(cu, u.VarDIEs...)
 	var cusize int64
 	for _, child := range cu {
 		cusize += int64(len(d.ldr.Data(child)))
@@ -1633,10 +1617,7 @@ func dwarfEnabled(ctxt *Link) bool {
 	if *FlagW { // disable dwarf
 		return false
 	}
-	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
-		return false
-	}
-	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs {
+	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs || ctxt.HeadType == objabi.Hwasip1 {
 		return false
 	}
 
@@ -1802,17 +1783,17 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// Needed by the prettyprinter code for interface inspection.
 	for _, typ := range []string{
-		"type:runtime._type",
-		"type:runtime.arraytype",
-		"type:runtime.chantype",
-		"type:runtime.functype",
-		"type:runtime.maptype",
-		"type:runtime.ptrtype",
-		"type:runtime.slicetype",
-		"type:runtime.structtype",
-		"type:runtime.interfacetype",
+		"type:internal/abi.Type",
+		"type:internal/abi.ArrayType",
+		"type:internal/abi.ChanType",
+		"type:internal/abi.FuncType",
+		"type:internal/abi.MapType",
+		"type:internal/abi.PtrType",
+		"type:internal/abi.SliceType",
+		"type:internal/abi.StructType",
+		"type:internal/abi.InterfaceType",
 		"type:runtime.itab",
-		"type:runtime.imethod"} {
+		"type:internal/abi.Imethod"} {
 		d.defgotype(d.lookupOrDiag(typ))
 	}
 
@@ -1936,21 +1917,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		if d.ldr.IsFileLocal(idx) {
 			continue
 		}
-		sn := d.ldr.SymName(idx)
-		if sn == "" {
-			// skip aux symbols
-			continue
-		}
 
 		// Find compiler-generated DWARF info sym for global in question,
 		// and tack it onto the appropriate unit.  Note that there are
 		// circumstances under which we can't find the compiler-generated
 		// symbol-- this typically happens as a result of compiler options
 		// (e.g. compile package X with "-dwarf=0").
-
-		// FIXME: use an aux sym or a relocation here instead of a
-		// name lookup.
-		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
+		varDIE := d.ldr.GetVarDwarfAuxSym(idx)
 		if varDIE != 0 {
 			unit := d.ldr.SymUnit(idx)
 			d.defgotype(gt)
@@ -1997,7 +1970,7 @@ type dwUnitSyms struct {
 
 // dwUnitPortion assembles the DWARF content for a given compilation
 // unit: debug_info, debug_lines, debug_ranges, debug_loc (debug_frame
-// is handled elsewere). Order is important; the calls to writelines
+// is handled elsewhere). Order is important; the calls to writelines
 // and writepcranges below make updates to the compilation unit DIE,
 // hence they have to happen before the call to writeUnitInfo.
 func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
@@ -2155,21 +2128,18 @@ func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	return syms
 }
 
-/*
- *  Elf.
- */
-func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
+// Add DWARF section names to the section header string table, by calling add
+// on each name. ELF only.
+func dwarfaddshstrings(ctxt *Link, add func(string)) {
 	if *FlagW { // disable dwarf
 		return
 	}
 
 	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
 	for _, sec := range secs {
-		shstrtab.Addstring(".debug_" + sec)
+		add(".debug_" + sec)
 		if ctxt.IsExternal() {
-			shstrtab.Addstring(elfRelType + ".debug_" + sec)
-		} else {
-			shstrtab.Addstring(".zdebug_" + sec)
+			add(elfRelType + ".debug_" + sec)
 		}
 	}
 }

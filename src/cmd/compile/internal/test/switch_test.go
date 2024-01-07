@@ -120,6 +120,165 @@ func benchmarkSwitchString(b *testing.B, predictable bool) {
 	sink = n
 }
 
+func BenchmarkSwitchTypePredictable(b *testing.B) {
+	benchmarkSwitchType(b, true)
+}
+func BenchmarkSwitchTypeUnpredictable(b *testing.B) {
+	benchmarkSwitchType(b, false)
+}
+func benchmarkSwitchType(b *testing.B, predictable bool) {
+	a := []any{
+		int8(1),
+		int16(2),
+		int32(3),
+		int64(4),
+		uint8(5),
+		uint16(6),
+		uint32(7),
+		uint64(8),
+	}
+	n := 0
+	rng := newRNG()
+	for i := 0; i < b.N; i++ {
+		rng = rng.next(predictable)
+		switch a[rng.value()&7].(type) {
+		case int8:
+			n += 1
+		case int16:
+			n += 2
+		case int32:
+			n += 3
+		case int64:
+			n += 4
+		case uint8:
+			n += 5
+		case uint16:
+			n += 6
+		case uint32:
+			n += 7
+		case uint64:
+			n += 8
+		}
+	}
+	sink = n
+}
+
+func BenchmarkSwitchInterfaceTypePredictable(b *testing.B) {
+	benchmarkSwitchInterfaceType(b, true)
+}
+func BenchmarkSwitchInterfaceTypeUnpredictable(b *testing.B) {
+	benchmarkSwitchInterfaceType(b, false)
+}
+
+type SI0 interface {
+	si0()
+}
+type ST0 struct {
+}
+
+func (ST0) si0() {
+}
+
+type SI1 interface {
+	si1()
+}
+type ST1 struct {
+}
+
+func (ST1) si1() {
+}
+
+type SI2 interface {
+	si2()
+}
+type ST2 struct {
+}
+
+func (ST2) si2() {
+}
+
+type SI3 interface {
+	si3()
+}
+type ST3 struct {
+}
+
+func (ST3) si3() {
+}
+
+type SI4 interface {
+	si4()
+}
+type ST4 struct {
+}
+
+func (ST4) si4() {
+}
+
+type SI5 interface {
+	si5()
+}
+type ST5 struct {
+}
+
+func (ST5) si5() {
+}
+
+type SI6 interface {
+	si6()
+}
+type ST6 struct {
+}
+
+func (ST6) si6() {
+}
+
+type SI7 interface {
+	si7()
+}
+type ST7 struct {
+}
+
+func (ST7) si7() {
+}
+
+func benchmarkSwitchInterfaceType(b *testing.B, predictable bool) {
+	a := []any{
+		ST0{},
+		ST1{},
+		ST2{},
+		ST3{},
+		ST4{},
+		ST5{},
+		ST6{},
+		ST7{},
+	}
+	n := 0
+	rng := newRNG()
+	for i := 0; i < b.N; i++ {
+		rng = rng.next(predictable)
+		switch a[rng.value()&7].(type) {
+		case SI0:
+			n += 1
+		case SI1:
+			n += 2
+		case SI2:
+			n += 3
+		case SI3:
+			n += 4
+		case SI4:
+			n += 5
+		case SI5:
+			n += 6
+		case SI6:
+			n += 7
+		case SI7:
+			n += 8
+		}
+	}
+	sink = n
+}
+
 // A simple random number generator used to make switches conditionally predictable.
 type rng uint64
 

@@ -325,7 +325,7 @@ def iface_dtype(obj):
 		return
 
 	type_size = int(dynamic_go_type['size'])
-	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself an uintptr
+	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself a uintptr
 	if type_size > uintptr_size:
 			dynamic_gdb_type = dynamic_gdb_type.pointer()
 

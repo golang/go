@@ -348,7 +348,7 @@ TEXT	racecallatomic<>(SB), NOSPLIT, $0
 
 	// Trigger SIGSEGV early.
 	MOVD	40(RSP), R3	// 1st arg is addr. after two times BL, get it at 40(RSP)
-	MOVD	(R3), R13	// segv here if addr is bad
+	MOVB	(R3), R13	// segv here if addr is bad
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOVD	runtime·racearenastart(SB), R10
 	CMP	R10, R3

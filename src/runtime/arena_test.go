@@ -390,21 +390,18 @@ func TestUserArenaCloneString(t *testing.T) {
 	// Create a string as using the same memory as the byte slice, hence in
 	// the arena. This could be an arena API, but hasn't really been needed
 	// yet.
-	var as string
-	asHeader := (*reflect.StringHeader)(unsafe.Pointer(&as))
-	asHeader.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
-	asHeader.Len = len(b)
+	as := unsafe.String(&b[0], len(b))
 
 	// Clone should make a copy of as, since it is in the arena.
 	asCopy := UserArenaClone(as)
-	if (*reflect.StringHeader)(unsafe.Pointer(&as)).Data == (*reflect.StringHeader)(unsafe.Pointer(&asCopy)).Data {
+	if unsafe.StringData(as) == unsafe.StringData(asCopy) {
 		t.Error("Clone did not make a copy")
 	}
 
 	// Clone should make a copy of subAs, since subAs is just part of as and so is in the arena.
 	subAs := as[1:3]
 	subAsCopy := UserArenaClone(subAs)
-	if (*reflect.StringHeader)(unsafe.Pointer(&subAs)).Data == (*reflect.StringHeader)(unsafe.Pointer(&subAsCopy)).Data {
+	if unsafe.StringData(subAs) == unsafe.StringData(subAsCopy) {
 		t.Error("Clone did not make a copy")
 	}
 	if len(subAs) != len(subAsCopy) {
@@ -420,13 +417,13 @@ func TestUserArenaCloneString(t *testing.T) {
 	// Clone should not make a copy of doubleAs, since doubleAs will be on the heap.
 	doubleAs := as + as
 	doubleAsCopy := UserArenaClone(doubleAs)
-	if (*reflect.StringHeader)(unsafe.Pointer(&doubleAs)).Data != (*reflect.StringHeader)(unsafe.Pointer(&doubleAsCopy)).Data {
+	if unsafe.StringData(doubleAs) != unsafe.StringData(doubleAsCopy) {
 		t.Error("Clone should not have made a copy")
 	}
 
 	// Clone should not make a copy of s, since s is a static string.
 	sCopy := UserArenaClone(s)
-	if (*reflect.StringHeader)(unsafe.Pointer(&s)).Data != (*reflect.StringHeader)(unsafe.Pointer(&sCopy)).Data {
+	if unsafe.StringData(s) != unsafe.StringData(sCopy) {
 		t.Error("Clone should not have made a copy")
 	}
 

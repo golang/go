@@ -16,16 +16,6 @@ func hasRType(n, rtype ir.Node, fieldName string) bool {
 		return true
 	}
 
-	// We make an exception for `init`, because we still depend on
-	// pkginit for sorting package initialization statements, and it
-	// gets confused by implicit conversions. Also, because
-	// package-scope statements can never be generic, so they'll never
-	// require dictionary lookups.
-	if ir.CurFunc.Nname.Sym().Name != "init" {
-		ir.Dump("CurFunc", ir.CurFunc)
-		base.FatalfAt(n.Pos(), "missing %s in %v: %+v", fieldName, ir.CurFunc, n)
-	}
-
 	return false
 }
 
@@ -126,11 +116,11 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
 }
 
 // ConvIfaceSrcRType asserts that n is a conversion from
-// non-interface type to interface type (or OCONVIDATA operation), and
+// non-interface type to interface type, and
 // returns an expression that yields the *runtime._type for copying
 // the convertee value to the heap.
 func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
-	assertOp2(n, ir.OCONVIFACE, ir.OCONVIDATA)
+	assertOp(n, ir.OCONVIFACE)
 	if hasRType(n, n.SrcRType, "SrcRType") {
 		return n.SrcRType
 	}

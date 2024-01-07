@@ -96,15 +96,16 @@ const (
 
 	_PTHREAD_KEYS_MAX = 512
 
-	_F_SETFD    = 0x2
-	_F_GETFL    = 0x3
-	_F_SETFL    = 0x4
-	_FD_CLOEXEC = 0x1
+	_F_GETFL = 0x3
+	_F_SETFL = 0x4
 
 	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x4
 	_O_CREAT    = 0x200
 	_O_TRUNC    = 0x400
+
+	_VM_REGION_BASIC_INFO_COUNT_64 = 0x9
+	_VM_REGION_BASIC_INFO_64       = 0x9
 )
 
 type stackt struct {
@@ -240,3 +241,11 @@ type machTimebaseInfo struct {
 }
 
 type pthreadkey uint64
+
+type machPort uint32
+type machVMMapRead uint32
+type machVMAddress uint64
+type machVMSize uint64
+type machVMRegionFlavour int32
+type machVMRegionInfo *int32
+type machMsgTypeNumber uint32

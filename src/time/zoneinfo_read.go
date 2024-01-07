@@ -90,7 +90,7 @@ func (d *dataIO) byte() (n byte, ok bool) {
 	return p[0], true
 }
 
-// read returns the read of the data in the buffer.
+// rest returns the rest of the data in the buffer.
 func (d *dataIO) rest() []byte {
 	r := d.p
 	d.p = nil
@@ -107,7 +107,7 @@ func byteString(p []byte) string {
 	return string(p)
 }
 
-var badData = errors.New("malformed time zone information")
+var errBadData = errors.New("malformed time zone information")
 
 // LoadLocationFromTZData returns a Location with the given name
 // initialized from the IANA Time Zone database-formatted data.
@@ -118,14 +118,14 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
-		return nil, badData
+		return nil, errBadData
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var version int
 	var p []byte
 	if p = d.read(16); len(p) != 16 {
-		return nil, badData
+		return nil, errBadData
 	} else {
 		switch p[0] {
 		case 0:
@@ -135,7 +135,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		case '3':
 			version = 3
 		default:
-			return nil, badData
+			return nil, errBadData
 		}
 	}
 
@@ -158,10 +158,10 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	for i := 0; i < 6; i++ {
 		nn, ok := d.big4()
 		if !ok {
-			return nil, badData
+			return nil, errBadData
 		}
 		if uint32(int(nn)) != nn {
-			return nil, badData
+			return nil, errBadData
 		}
 		n[i] = int(nn)
 	}
@@ -191,10 +191,10 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		for i := 0; i < 6; i++ {
 			nn, ok := d.big4()
 			if !ok {
-				return nil, badData
+				return nil, errBadData
 			}
 			if uint32(int(nn)) != nn {
-				return nil, badData
+				return nil, errBadData
 			}
 			n[i] = int(nn)
 		}
@@ -229,7 +229,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	isutc := d.read(n[NUTCLocal])
 
 	if d.error { // ran out of data
-		return nil, badData
+		return nil, errBadData
 	}
 
 	var extend string
@@ -245,26 +245,26 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	if nzone == 0 {
 		// Reject tzdata files with no zones. There's nothing useful in them.
 		// This also avoids a panic later when we add and then use a fake transition (golang.org/issue/29437).
-		return nil, badData
+		return nil, errBadData
 	}
 	zones := make([]zone, nzone)
 	for i := range zones {
 		var ok bool
 		var n uint32
 		if n, ok = zonedata.big4(); !ok {
-			return nil, badData
+			return nil, errBadData
 		}
 		if uint32(int(n)) != n {
-			return nil, badData
+			return nil, errBadData
 		}
 		zones[i].offset = int(int32(n))
 		var b byte
 		if b, ok = zonedata.byte(); !ok {
-			return nil, badData
+			return nil, errBadData
 		}
 		zones[i].isDST = b != 0
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
-			return nil, badData
+			return nil, errBadData
 		}
 		zones[i].name = byteString(abbrev[b:])
 		if runtime.GOOS == "aix" && len(name) > 8 && (name[:8] == "Etc/GMT+" || name[:8] == "Etc/GMT-") {
@@ -283,20 +283,20 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		var n int64
 		if !is64 {
 			if n4, ok := txtimes.big4(); !ok {
-				return nil, badData
+				return nil, errBadData
 			} else {
 				n = int64(int32(n4))
 			}
 		} else {
 			if n8, ok := txtimes.big8(); !ok {
-				return nil, badData
+				return nil, errBadData
 			} else {
 				n = int64(n8)
 			}
 		}
 		tx[i].when = n
 		if int(txzones[i]) >= len(zones) {
-			return nil, badData
+			return nil, errBadData
 		}
 		tx[i].index = txzones[i]
 		if i < len(isstd) {
@@ -329,7 +329,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 			} else if l.extend != "" {
 				// If we're at the end of the known zone transitions,
 				// try the extend string.
-				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheEnd, sec); ok {
+				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheStart, sec); ok {
 					l.cacheStart = estart
 					l.cacheEnd = eend
 					// Find the zone that is returned by tzset to avoid allocation if possible.

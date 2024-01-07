@@ -4,8 +4,11 @@
 
 [short] skip
 [!fuzz-instrumented] skip
+env GOCACHE=$WORK/cache
 
-! go test -fuzz=FuzzCov
+# TODO(#51484): enabled debugging info to help diagnose a deadlock in the fuzzer
+env GODEBUG=fuzzdebug=1
+! go test -fuzz=FuzzCov -v
 ! stderr 'cov instrumentation working'
 
 -- go.mod --

@@ -224,7 +224,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -239,7 +239,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

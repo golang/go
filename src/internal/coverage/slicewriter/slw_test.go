@@ -47,12 +47,13 @@ func TestSliceWriter(t *testing.T) {
 		sleq(t, b, p)
 	}
 
-	sk := func(t *testing.T, ws *WriteSeeker, offset int64, whence int) {
+	sk := func(t *testing.T, ws *WriteSeeker, offset int64, whence int) int64 {
 		t.Helper()
-		_, err := ws.Seek(offset, whence)
+		off, err := ws.Seek(offset, whence)
 		if err != nil {
 			t.Fatalf("unexpected seek error: %v", err)
 		}
+		return off
 	}
 
 	wp1 := []byte{1, 2}
@@ -80,6 +81,8 @@ func TestSliceWriter(t *testing.T) {
 	rf(t, ws, []byte{2, 7})
 	sk(t, ws, -4, io.SeekEnd)
 	rf(t, ws, []byte{2, 7})
+	off := sk(t, ws, 0, io.SeekEnd)
+	sk(t, ws, off, io.SeekStart)
 
 	// seek back and overwrite
 	sk(t, ws, 1, io.SeekStart)
@@ -98,7 +101,7 @@ func TestSliceWriter(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error on invalid -1 seek")
 	}
-	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekStart)
+	_, err = ws.Seek(int64(len(ws.BytesWritten())+1), io.SeekStart)
 	if err == nil {
 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
 	}
@@ -108,7 +111,7 @@ func TestSliceWriter(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error on invalid -1 seek")
 	}
-	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekCurrent)
+	_, err = ws.Seek(int64(len(ws.BytesWritten())+1), io.SeekCurrent)
 	if err == nil {
 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
 	}

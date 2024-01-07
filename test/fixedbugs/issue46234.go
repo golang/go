@@ -1,7 +1,6 @@
 // buildrun -t 45
 
-//go:build !js
-// +build !js
+//go:build !js && !wasip1
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

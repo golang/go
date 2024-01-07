@@ -4,6 +4,15 @@ package template
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[jsCtxRegexp-0]
+	_ = x[jsCtxDivOp-1]
+	_ = x[jsCtxUnknown-2]
+}
+
 const _jsCtx_name = "jsCtxRegexpjsCtxDivOpjsCtxUnknown"
 
 var _jsCtx_index = [...]uint8{0, 11, 21, 33}

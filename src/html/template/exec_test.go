@@ -268,8 +268,8 @@ type execTest struct {
 // of the max int boundary.
 // We do it this way so the test doesn't depend on ints being 32 bits.
 var (
-	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
-	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
+	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeFor[int]().Bits()-1)-1))
+	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeFor[int]().Bits()-1)))
 )
 
 var execTests = []execTest{
@@ -920,7 +920,7 @@ func TestJSEscaping(t *testing.T) {
 		{`'foo`, `\'foo`},
 		{`Go "jump" \`, `Go \"jump\" \\`},
 		{`Yukihiro says "今日は世界"`, `Yukihiro says \"今日は世界\"`},
-		{"unprintable \uFDFF", `unprintable \uFDFF`},
+		{"unprintable \uFFFE", `unprintable \uFFFE`},
 		{`<html>`, `\u003Chtml\u003E`},
 		{`no = in attributes`, `no \u003D in attributes`},
 		{`&#x27; does not become HTML entity`, `\u0026#x27; does not become HTML entity`},

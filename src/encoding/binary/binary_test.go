@@ -351,6 +351,26 @@ func TestSizeStructCache(t *testing.T) {
 	}
 }
 
+func TestSizeInvalid(t *testing.T) {
+	testcases := []any{
+		int(0),
+		new(int),
+		(*int)(nil),
+		[1]uint{},
+		new([1]uint),
+		(*[1]uint)(nil),
+		[]int{},
+		[]int(nil),
+		new([]int),
+		(*[]int)(nil),
+	}
+	for _, tc := range testcases {
+		if got := Size(tc); got != -1 {
+			t.Errorf("Size(%T) = %d, want -1", tc, got)
+		}
+	}
+}
+
 // An attempt to read into a struct with an unexported field will
 // panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
@@ -537,6 +557,30 @@ func testReadInvalidDestination(t *testing.T, order ByteOrder) {
 		if err == nil || err.Error() != want {
 			t.Fatalf("for type %T: got %q; want %q", dst, err, want)
 		}
+	}
+}
+
+func TestNoFixedSize(t *testing.T) {
+	type Person struct {
+		Age    int
+		Weight float64
+		Height float64
+	}
+
+	person := Person{
+		Age:    27,
+		Weight: 67.3,
+		Height: 177.8,
+	}
+
+	buf := new(bytes.Buffer)
+	err := Write(buf, LittleEndian, &person)
+	if err == nil {
+		t.Fatal("binary.Write: unexpected success as size of type *binary.Person is not fixed")
+	}
+	errs := "binary.Write: some values are not fixed-sized in type *binary.Person"
+	if err.Error() != errs {
+		t.Fatalf("got %q, want %q", err, errs)
 	}
 }
 

@@ -19,7 +19,7 @@ import (
 )
 
 // A ClientOps provides the external operations
-// (file caching, HTTP fetches, and so on) needed by the Client.
+// (file caching, HTTP fetches, and so on) needed by the [Client].
 // The methods must be safe for concurrent use by multiple goroutines.
 type ClientOps interface {
 	// ReadRemote reads and returns the content served at the given path
@@ -72,7 +72,7 @@ type ClientOps interface {
 // ErrWriteConflict signals a write conflict during Client.WriteConfig.
 var ErrWriteConflict = errors.New("write conflict")
 
-// ErrSecurity is returned by Client operations that invoke Client.SecurityError.
+// ErrSecurity is returned by [Client] operations that invoke Client.SecurityError.
 var ErrSecurity = errors.New("security error: misbehaving server")
 
 // A Client is a client connection to a checksum database.
@@ -102,14 +102,14 @@ type Client struct {
 	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.ops.WriteCache already
 }
 
-// NewClient returns a new Client using the given Client.
+// NewClient returns a new [Client] using the given [ClientOps].
 func NewClient(ops ClientOps) *Client {
 	return &Client{
 		ops: ops,
 	}
 }
 
-// init initiailzes the client (if not already initialized)
+// init initializes the client (if not already initialized)
 // and returns any initialization error.
 func (c *Client) init() error {
 	c.initOnce.Do(c.initWork)
@@ -155,7 +155,7 @@ func (c *Client) initWork() {
 }
 
 // SetTileHeight sets the tile height for the Client.
-// Any call to SetTileHeight must happen before the first call to Lookup.
+// Any call to SetTileHeight must happen before the first call to [Client.Lookup].
 // If SetTileHeight is not called, the Client defaults to tile height 8.
 // SetTileHeight can be called at most once,
 // and if so it must be called before the first call to Lookup.
@@ -174,7 +174,7 @@ func (c *Client) SetTileHeight(height int) {
 
 // SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Client.
 // For any module path matching one of the patterns,
-// Lookup will return ErrGONOSUMDB.
+// [Client.Lookup] will return ErrGONOSUMDB.
 // SetGONOSUMDB can be called at most once,
 // and if so it must be called before the first call to Lookup.
 func (c *Client) SetGONOSUMDB(list string) {
@@ -187,8 +187,8 @@ func (c *Client) SetGONOSUMDB(list string) {
 	c.nosumdb = list
 }
 
-// ErrGONOSUMDB is returned by Lookup for paths that match
-// a pattern listed in the GONOSUMDB list (set by SetGONOSUMDB,
+// ErrGONOSUMDB is returned by [Client.Lookup] for paths that match
+// a pattern listed in the GONOSUMDB list (set by [Client.SetGONOSUMDB],
 // usually from the environment variable).
 var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
 
@@ -553,6 +553,11 @@ func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
 		wg.Add(1)
 		go func(i int, tile tlog.Tile) {
 			defer wg.Done()
+			defer func() {
+				if e := recover(); e != nil {
+					errs[i] = fmt.Errorf("panic: %v", e)
+				}
+			}()
 			data[i], errs[i] = r.c.readTile(tile)
 		}(i, tile)
 	}

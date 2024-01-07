@@ -18,3 +18,5 @@ func fipsCurvePreferences(c *Config) []CurveID { panic("fipsCurvePreferences") }
 func fipsCipherSuites(c *Config) []uint16      { panic("fipsCipherSuites") }
 
 var fipsSupportedSignatureAlgorithms []SignatureScheme
+
+var defaultCipherSuitesTLS13FIPS []uint16

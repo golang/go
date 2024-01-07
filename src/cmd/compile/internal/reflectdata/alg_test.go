@@ -4,7 +4,9 @@
 
 package reflectdata_test
 
-import "testing"
+import (
+	"testing"
+)
 
 func BenchmarkEqArrayOfStrings5(b *testing.B) {
 	var a [5]string
@@ -71,6 +73,56 @@ func BenchmarkEqArrayOfFloats1024(b *testing.B) {
 	var c [1024]float32
 
 	for i := 0; i < b.N; i++ {
+		_ = a == c
+	}
+}
+
+func BenchmarkEqArrayOfStructsEq(b *testing.B) {
+	type T2 struct {
+		a string
+		b int
+	}
+	const size = 1024
+	var (
+		str1 = "foobar"
+
+		a [size]T2
+		c [size]T2
+	)
+
+	for i := 0; i < size; i++ {
+		a[i].a = str1
+		c[i].a = str1
+	}
+
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		_ = a == c
+	}
+}
+
+func BenchmarkEqArrayOfStructsNotEq(b *testing.B) {
+	type T2 struct {
+		a string
+		b int
+	}
+	const size = 1024
+	var (
+		str1 = "foobar"
+		str2 = "foobarz"
+
+		a [size]T2
+		c [size]T2
+	)
+
+	for i := 0; i < size; i++ {
+		a[i].a = str1
+		c[i].a = str1
+	}
+	c[len(c)-1].a = str2
+
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
 		_ = a == c
 	}
 }

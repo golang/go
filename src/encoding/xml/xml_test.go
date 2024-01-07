@@ -1064,14 +1064,19 @@ func TestIssue7113(t *testing.T) {
 		XMLName Name `xml:""` // Sets empty namespace
 	}
 
+	type D struct {
+		XMLName Name `xml:"d"`
+	}
+
 	type A struct {
 		XMLName Name `xml:""`
 		C       C    `xml:""`
+		D       D
 	}
 
 	var a A
 	structSpace := "b"
-	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C></A>`
+	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><d></d></A>`
 	t.Log(xmlTest)
 	err := Unmarshal([]byte(xmlTest), &a)
 	if err != nil {
@@ -1359,8 +1364,9 @@ func TestParseErrors(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil || err == io.EOF {
-			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
+		// Inv: err != nil
+		if err == io.EOF {
+			t.Errorf("parse %s: unexpected EOF", test.src)
 			continue
 		}
 		if !strings.Contains(err.Error(), test.err) {

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build zos && s390x
-// +build zos,s390x
 
 package unix
 
@@ -139,8 +138,7 @@ func anyToSockaddr(_ int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		for n < int(pp.Len) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -193,7 +191,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 
 //sys   fcntl(fd int, cmd int, arg int) (val int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
-//sys   readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
 //sys	write(fd int, p []byte) (n int, err error)
 
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) = SYS___ACCEPT_A
@@ -213,7 +210,8 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = SYS___SENDMSG_A
 //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) = SYS_MMAP
 //sys   munmap(addr uintptr, length uintptr) (err error) = SYS_MUNMAP
-//sys   ioctl(fd int, req uint, arg uintptr) (err error) = SYS_IOCTL
+//sys   ioctl(fd int, req int, arg uintptr) (err error) = SYS_IOCTL
+//sys   ioctlPtr(fd int, req int, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys   Access(path string, mode uint32) (err error) = SYS___ACCESS_A
 //sys   Chdir(path string) (err error) = SYS___CHDIR_A
@@ -285,23 +283,9 @@ func Close(fd int) (err error) {
 	return
 }
 
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
-}
-
 // Dummy function: there are no semantics for Madvise on z/OS
 func Madvise(b []byte, advice int) (err error) {
 	return
-}
-
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
-}
-
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
 }
 
 //sys   Gethostname(buf []byte) (err error) = SYS___GETHOSTNAME_A
@@ -1120,7 +1104,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 		return "", err
 	}
 
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {

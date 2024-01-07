@@ -34,8 +34,8 @@ type ctrAble interface {
 	NewCTR(iv []byte) Stream
 }
 
-// NewCTR returns a Stream which encrypts/decrypts using the given Block in
-// counter mode. The length of iv must be the same as the Block's block size.
+// NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
+// counter mode. The length of iv must be the same as the [Block]'s block size.
 func NewCTR(block Block, iv []byte) Stream {
 	if ctr, ok := block.(ctrAble); ok {
 		return ctr.NewCTR(iv)

@@ -48,6 +48,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -257,11 +258,9 @@ type pageAlloc struct {
 	// known by the page allocator to be currently in-use (passed
 	// to grow).
 	//
-	// This field is currently unused on 32-bit architectures but
-	// is harmless to track. We care much more about having a
-	// contiguous heap in these cases and take additional measures
-	// to ensure that, so in nearly all cases this should have just
-	// 1 element.
+	// We care much more about having a contiguous heap in these cases
+	// and take additional measures to ensure that, so in nearly all
+	// cases this should have just 1 element.
 	//
 	// All access is protected by the mheapLock.
 	inUse addrRanges
@@ -272,14 +271,17 @@ type pageAlloc struct {
 		// scavenge.
 		index scavengeIndex
 
-		// released is the amount of memory released this scavenge cycle.
-		//
-		// Updated atomically.
-		released uintptr
+		// releasedBg is the amount of memory released in the background this
+		// scavenge cycle.
+		releasedBg atomic.Uintptr
+
+		// releasedEager is the amount of memory released eagerly this scavenge
+		// cycle.
+		releasedEager atomic.Uintptr
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
-	// to test pageAlloc indepedently of the runtime allocator.
+	// to test pageAlloc independently of the runtime allocator.
 	mheapLock *mutex
 
 	// sysStat is the runtime memstat to update when new system
@@ -292,11 +294,15 @@ type pageAlloc struct {
 	// Protected by mheapLock.
 	summaryMappedReady uintptr
 
+	// chunkHugePages indicates whether page bitmap chunks should be backed
+	// by huge pages.
+	chunkHugePages bool
+
 	// Whether or not this struct is being used in tests.
 	test bool
 }
 
-func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
+func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
 	if levelLogPages[0] > logMaxPackedValue {
 		// We can't represent 1<<levelLogPages[0] pages, the maximum number
 		// of pages we need to represent at the root level, in a summary, which
@@ -311,13 +317,19 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	p.inUse.init(sysStat)
 
 	// System-dependent initialization.
-	p.sysInit()
+	p.sysInit(test)
 
 	// Start with the searchAddr in a state indicating there's no free memory.
 	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
+
+	// Initialize the scavenge index.
+	p.summaryMappedReady += p.scav.index.init(test, sysStat)
+
+	// Set if we're in a test.
+	p.test = test
 }
 
 // tryChunkOf returns the bitmap data for the given chunk.
@@ -354,6 +366,9 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// We just update a bunch of additional metadata here.
 	p.sysGrow(base, limit)
 
+	// Grow the scavenge index.
+	p.summaryMappedReady += p.scav.index.grow(base, limit, p.sysStat)
+
 	// Update p.start and p.end.
 	// If no growth happened yet, start == 0. This is generally
 	// safe since the zero page is unmapped.
@@ -385,9 +400,20 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
+			const l2Size = unsafe.Sizeof(*p.chunks[0])
+			r := sysAlloc(l2Size, p.sysStat)
 			if r == nil {
 				throw("pageAlloc: out of memory")
+			}
+			if !p.test {
+				// Make the chunk mapping eligible or ineligible
+				// for huge pages, depending on what our current
+				// state is.
+				if p.chunkHugePages {
+					sysHugePage(r, l2Size)
+				} else {
+					sysNoHugePage(r, l2Size)
+				}
 			}
 			// Store the new chunk block but avoid a write barrier.
 			// grow is used in call chains that disallow write barriers.
@@ -400,6 +426,52 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// we need to ensure this newly-free memory is visible in the
 	// summaries.
 	p.update(base, size/pageSize, true, false)
+}
+
+// enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).
+//
+// This function is idempotent.
+//
+// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
+// time, but may take time proportional to the size of the mapped heap beyond that.
+//
+// The heap lock must not be held over this operation, since it will briefly acquire
+// the heap lock.
+//
+// Must be called on the system stack because it acquires the heap lock.
+//
+//go:systemstack
+func (p *pageAlloc) enableChunkHugePages() {
+	// Grab the heap lock to turn on huge pages for new chunks and clone the current
+	// heap address space ranges.
+	//
+	// After the lock is released, we can be sure that bitmaps for any new chunks may
+	// be backed with huge pages, and we have the address space for the rest of the
+	// chunks. At the end of this function, all chunk metadata should be backed by huge
+	// pages.
+	lock(&mheap_.lock)
+	if p.chunkHugePages {
+		unlock(&mheap_.lock)
+		return
+	}
+	p.chunkHugePages = true
+	var inUse addrRanges
+	inUse.sysStat = p.sysStat
+	p.inUse.cloneInto(&inUse)
+	unlock(&mheap_.lock)
+
+	// This might seem like a lot of work, but all these loops are for generality.
+	//
+	// For a 1 GiB contiguous heap, a 48-bit address space, 13 L1 bits, a palloc chunk size
+	// of 4 MiB, and adherence to the default set of heap address hints, this will result in
+	// exactly 1 call to sysHugePage.
+	for _, r := range p.inUse.ranges {
+		for i := chunkIndex(r.base.addr()).l1(); i < chunkIndex(r.limit.addr()-1).l1(); i++ {
+			// N.B. We can assume that p.chunks[i] is non-nil and in a mapped part of p.chunks
+			// because it's derived from inUse, which never shrinks.
+			sysHugePage(unsafe.Pointer(p.chunks[i]), unsafe.Sizeof(*p.chunks[0]))
+		}
+	}
 }
 
 // update updates heap metadata. It must be called each time the bitmap
@@ -511,19 +583,23 @@ func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
 		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, ei+1-si)
 		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
 	} else {
 		// The range crosses at least one chunk boundary.
 		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, pallocChunkPages-si)
 		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
 		for c := sc + 1; c < ec; c++ {
 			chunk := p.chunkOf(c)
 			scav += chunk.scavenged.popcntRange(0, pallocChunkPages)
 			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
 		}
 		chunk = p.chunkOf(ec)
 		scav += chunk.scavenged.popcntRange(0, ei+1)
 		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
 	}
 	p.update(base, npages, true, true)
 	return uintptr(scav) * pageSize
@@ -857,7 +933,7 @@ Found:
 // Must run on the system stack because p.mheapLock must be held.
 //
 //go:systemstack
-func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
+func (p *pageAlloc) free(base, npages uintptr) {
 	assertLockHeld(p.mheapLock)
 
 	// If we're freeing pages below the p.searchAddr, update searchAddr.
@@ -865,14 +941,13 @@ func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 		p.searchAddr = b
 	}
 	limit := base + npages*pageSize - 1
-	if !scavenged {
-		p.scav.index.mark(base, limit+1)
-	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly
 		// where it is, so mark it directly.
 		i := chunkIndex(base)
-		p.chunkOf(i).free1(chunkPageIndex(base))
+		pi := chunkPageIndex(base)
+		p.chunkOf(i).free1(pi)
+		p.scav.index.free(i, pi, 1)
 	} else {
 		// Slow path: we're clearing more bits so we may need to iterate.
 		sc, ec := chunkIndex(base), chunkIndex(limit)
@@ -881,13 +956,17 @@ func (p *pageAlloc) free(base, npages uintptr, scavenged bool) {
 		if sc == ec {
 			// The range doesn't cross any chunk boundaries.
 			p.chunkOf(sc).free(si, ei+1-si)
+			p.scav.index.free(sc, si, ei+1-si)
 		} else {
 			// The range crosses at least one chunk boundary.
 			p.chunkOf(sc).free(si, pallocChunkPages-si)
+			p.scav.index.free(sc, si, pallocChunkPages-si)
 			for c := sc + 1; c < ec; c++ {
 				p.chunkOf(c).freeAll()
+				p.scav.index.free(c, 0, pallocChunkPages)
 			}
 			p.chunkOf(ec).free(0, ei+1)
+			p.scav.index.free(ec, 0, ei+1)
 		}
 	}
 	p.update(base, npages, true, false)
@@ -963,8 +1042,8 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 	// Merge the summaries in sums into one.
 	//
 	// We do this by keeping a running summary representing the merged
-	// summaries of sums[:i] in start, max, and end.
-	start, max, end := sums[0].unpack()
+	// summaries of sums[:i] in start, most, and end.
+	start, most, end := sums[0].unpack()
 	for i := 1; i < len(sums); i++ {
 		// Merge in sums[i].
 		si, mi, ei := sums[i].unpack()
@@ -980,12 +1059,7 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 		// across the boundary between the running sum and sums[i]
 		// and at the max sums[i], taking the greatest of those two
 		// and the max of the running sum.
-		if end+si > max {
-			max = end + si
-		}
-		if mi > max {
-			max = mi
-		}
+		most = max(most, end+si, mi)
 
 		// Merge in end by checking if this new summary is totally
 		// free. If it is, then we want to extend the running sum's
@@ -998,5 +1072,5 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 			end = ei
 		}
 	}
-	return packPallocSum(start, max, end)
+	return packPallocSum(start, most, end)
 }

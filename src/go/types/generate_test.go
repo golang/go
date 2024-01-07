@@ -95,22 +95,29 @@ func generate(t *testing.T, filename string, write bool) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
-	"array.go":        nil,
-	"basic.go":        nil,
-	"chan.go":         nil,
-	"context.go":      nil,
-	"context_test.go": nil,
-	"gccgosizes.go":   nil,
-	"hilbert_test.go": nil,
-	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
+	"alias.go":          nil,
+	"array.go":          nil,
+	"api_predicates.go": nil,
+	"basic.go":          nil,
+	"chan.go":           nil,
+	"const.go":          func(f *ast.File) { fixTokenPos(f) },
+	"context.go":        nil,
+	"context_test.go":   nil,
+	"gccgosizes.go":     nil,
+	"gcsizes.go":        func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"hilbert_test.go":   func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"infer.go": func(f *ast.File) {
+		fixTokenPos(f)
+		fixInferSig(f)
+	},
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
-	"lookup.go":           nil,
+	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
 	"main_test.go":        nil,
 	"map.go":              nil,
 	"named.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
-	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdent(f, "NewTypeNameLazy", "_NewTypeNameLazy") },
+	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
 	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"objset.go":           nil,
 	"package.go":          nil,
@@ -118,11 +125,10 @@ var filemap = map[string]action{
 	"predicates.go":       nil,
 	"scope.go": func(f *ast.File) {
 		fixTokenPos(f)
-		renameIdent(f, "Squash", "squash")
-		renameIdent(f, "InsertLazy", "_InsertLazy")
+		renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy")
 	},
 	"selection.go":     nil,
-	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "_IsSyncAtomicAlign64") },
+	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
 	"slice.go":         nil,
 	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
 	"termlist.go":      nil,
@@ -142,14 +148,24 @@ var filemap = map[string]action{
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
 //           For now this is a good starting point.
 
-// renameIdent renames an identifier.
-// Note: This doesn't change the use of the identifier in comments.
-func renameIdent(f *ast.File, from, to string) {
+// renameIdent renames identifiers: each renames entry is of the form from->to.
+// Note: This doesn't change the use of the identifiers in comments.
+func renameIdents(f *ast.File, renames ...string) {
+	var list [][]string
+	for _, r := range renames {
+		s := strings.Split(r, "->")
+		if len(s) != 2 {
+			panic("invalid rename entry: " + r)
+		}
+		list = append(list, s)
+	}
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.Ident:
-			if n.Name == from {
-				n.Name = to
+			for _, r := range list {
+				if n.Name == r[0] {
+					n.Name = r[1]
+				}
 			}
 			return false
 		}
@@ -233,6 +249,14 @@ func fixInferSig(f *ast.File) {
 						pos := n.Args[0].Pos()
 						arg := newIdent(pos, "posn")
 						n.Args[0] = arg
+						return false
+					}
+				case "allowVersion":
+					// rewrite check.allowVersion(..., pos, ...) to check.allowVersion(..., posn, ...)
+					if ident, _ := n.Args[1].(*ast.Ident); ident != nil && ident.Name == "pos" {
+						pos := n.Args[1].Pos()
+						arg := newIdent(pos, "posn")
+						n.Args[1] = arg
 						return false
 					}
 				}

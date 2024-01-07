@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -383,8 +381,16 @@ func TestZeroByteRead(t *testing.T) {
 
 			ln := newLocalListener(t, network)
 			connc := make(chan Conn, 1)
+			defer func() {
+				ln.Close()
+				for c := range connc {
+					if c != nil {
+						c.Close()
+					}
+				}
+			}()
 			go func() {
-				defer ln.Close()
+				defer close(connc)
 				c, err := ln.Accept()
 				if err != nil {
 					t.Error(err)
@@ -440,8 +446,9 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c1.Close()
-		errc <- peer1(c1.(*TCPConn))
+		err = peer1(c1.(*TCPConn))
+		c1.Close()
+		errc <- err
 	}()
 	go func() {
 		c2, err := Dial("tcp", ln.Addr().String())
@@ -449,12 +456,13 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c2.Close()
-		errc <- peer2(c2.(*TCPConn))
+		err = peer2(c2.(*TCPConn))
+		c2.Close()
+		errc <- err
 	}()
 	for i := 0; i < 2; i++ {
 		if err := <-errc; err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	}
 }

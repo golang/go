@@ -20,45 +20,45 @@
 //
 // # Verifying Notes
 //
-// A Verifier allows verification of signatures by one server public key.
+// A [Verifier] allows verification of signatures by one server public key.
 // It can report the name of the server and the uint32 hash of the key,
 // and it can verify a purported signature by that key.
 //
 // The standard implementation of a Verifier is constructed
-// by NewVerifier starting from a verifier key, which is a
+// by [NewVerifier] starting from a verifier key, which is a
 // plain text string of the form "<name>+<hash>+<keydata>".
 //
-// A Verifiers allows looking up a Verifier by the combination
+// A [Verifiers] allows looking up a Verifier by the combination
 // of server name and key hash.
 //
 // The standard implementation of a Verifiers is constructed
 // by VerifierList from a list of known verifiers.
 //
-// A Note represents a text with one or more signatures.
+// A [Note] represents a text with one or more signatures.
 // An implementation can reject a note with too many signatures
 // (for example, more than 100 signatures).
 //
-// A Signature represents a signature on a note, verified or not.
+// A [Signature] represents a signature on a note, verified or not.
 //
-// The Open function takes as input a signed message
+// The [Open] function takes as input a signed message
 // and a set of known verifiers. It decodes and verifies
-// the message signatures and returns a Note structure
+// the message signatures and returns a [Note] structure
 // containing the message text and (verified or unverified) signatures.
 //
 // # Signing Notes
 //
-// A Signer allows signing a text with a given key.
+// A [Signer] allows signing a text with a given key.
 // It can report the name of the server and the hash of the key
 // and can sign a raw text using that key.
 //
 // The standard implementation of a Signer is constructed
-// by NewSigner starting from an encoded signer key, which is a
+// by [NewSigner] starting from an encoded signer key, which is a
 // plain text string of the form "PRIVATE+KEY+<name>+<hash>+<keydata>".
 // Anyone with an encoded signer key can sign messages using that key,
 // so it must be kept secret. The encoding begins with the literal text
 // "PRIVATE+KEY" to avoid confusion with the public server key.
 //
-// The Sign function takes as input a Note and a list of Signers
+// The [Sign] function takes as input a Note and a list of Signers
 // and returns an encoded, signed message.
 //
 // # Signed Note Format
@@ -88,7 +88,7 @@
 // although doing so will require deploying the new algorithms to all clients
 // before starting to depend on them for signatures.
 //
-// The GenerateKey function generates and returns a new signer
+// The [GenerateKey] function generates and returns a new signer
 // and corresponding verifier.
 //
 // # Example
@@ -123,9 +123,9 @@
 // base URLs, the only syntactic requirement is that they
 // not contain spaces or newlines).
 //
-// If Open is given access to a Verifiers including the
-// Verifier for this key, then it will succeed at verifiying
-// the encoded message and returning the parsed Note:
+// If [Open] is given access to a [Verifiers] including the
+// [Verifier] for this key, then it will succeed at verifying
+// the encoded message and returning the parsed [Note]:
 //
 //	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
 //	msg := []byte("If you think cryptography is the answer to your problem,\n" +
@@ -238,7 +238,7 @@ func isValidName(name string) bool {
 	return name != "" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsSpace) < 0 && !strings.Contains(name, "+")
 }
 
-// NewVerifier construct a new Verifier from an encoded verifier key.
+// NewVerifier construct a new [Verifier] from an encoded verifier key.
 func NewVerifier(vkey string) (Verifier, error) {
 	name, vkey := chop(vkey, "+")
 	hash16, key64 := chop(vkey, "+")
@@ -295,7 +295,7 @@ func (v *verifier) Name() string                { return v.name }
 func (v *verifier) KeyHash() uint32             { return v.hash }
 func (v *verifier) Verify(msg, sig []byte) bool { return v.verify(msg, sig) }
 
-// NewSigner constructs a new Signer from an encoded signer key.
+// NewSigner constructs a new [Signer] from an encoded signer key.
 func NewSigner(skey string) (Signer, error) {
 	priv1, skey := chop(skey, "+")
 	priv2, skey := chop(skey, "+")
@@ -409,7 +409,7 @@ func (e *UnknownVerifierError) Error() string {
 }
 
 // An ambiguousVerifierError indicates that the given name and hash
-// match multiple keys passed to VerifierList.
+// match multiple keys passed to [VerifierList].
 // (If this happens, some malicious actor has taken control of the
 // verifier list, at which point we may as well give up entirely,
 // but we diagnose the problem instead.)
@@ -422,7 +422,7 @@ func (e *ambiguousVerifierError) Error() string {
 	return fmt.Sprintf("ambiguous key %s+%08x", e.name, e.hash)
 }
 
-// VerifierList returns a Verifiers implementation that uses the given list of verifiers.
+// VerifierList returns a [Verifiers] implementation that uses the given list of verifiers.
 func VerifierList(list ...Verifier) Verifiers {
 	m := make(verifierMap)
 	for _, v := range list {
@@ -510,7 +510,7 @@ var (
 // If known.Verifier returns any other error, Open returns that error.
 //
 // If no known verifier has signed an otherwise valid note,
-// Open returns an UnverifiedNoteError.
+// Open returns an [UnverifiedNoteError].
 // In this case, the unverified note can be fetched from inside the error.
 func Open(msg []byte, known Verifiers) (*Note, error) {
 	if known == nil {

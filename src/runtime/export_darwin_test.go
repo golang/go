@@ -4,12 +4,4 @@
 
 package runtime
 
-func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
-	r := fcntl(int32(fd), int32(cmd), int32(arg))
-	if r < 0 {
-		return ^uintptr(0), uintptr(-r)
-	}
-	return uintptr(r), 0
-}
-
 var SetNonblock = setNonblock

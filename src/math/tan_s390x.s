@@ -49,10 +49,9 @@ TEXT	·tanAsm(SB), NOSPLIT, $0-16
 	FMOVD	F0, F2
 L2:
 	MOVD	$·tanxlim<>+0(SB), R1
-	WORD	$0xED201000	//cdb	%f2,0(%r1)
-	BYTE	$0x00
-	BYTE	$0x19
-	BGE	L11
+	FMOVD	0(R1), F1
+	FCMPU	F2, F1
+	BGT	L9
 	BVS	L11
 	MOVD	$·tanxadd<>+0(SB), R1
 	FMOVD	88(R5), F6
@@ -105,6 +104,8 @@ L11:
 L10:
 	WORD	$0xB3130020	//lcdbr	%f2,%f0
 	BR	L2
+L9:
+	BR	·tan(SB)
 atanIsZero:
 	FMOVD	F0, ret+8(FP)
 	RET

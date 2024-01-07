@@ -39,7 +39,7 @@ type Counter struct {
 func (ctr *Counter) String() string {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
-	return fmt.Sprintf("%d", ctr.n)
+	return strconv.Itoa(ctr.n)
 }
 
 func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {

@@ -50,6 +50,7 @@ func init() {
 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
 	cf.Bool("failfast", false, "")
 	cf.StringVar(&testFuzz, "fuzz", "", "")
+	cf.Bool("fullpath", false, "")
 	cf.StringVar(&testList, "list", "", "")
 	cf.StringVar(&testMemProfile, "memprofile", "", "")
 	cf.String("memprofilerate", "", "")
@@ -60,15 +61,17 @@ func init() {
 	cf.String("run", "", "")
 	cf.Bool("short", false, "")
 	cf.String("skip", "", "")
-	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "") // known to cmd/dist
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")
 	cf.Var(&testV, "v", "")
 	cf.Var(&testShuffle, "shuffle", "")
 
-	for name := range passFlagToTest {
-		cf.Var(cf.Lookup(name).Value, "test."+name, "")
+	for name, ok := range passFlagToTest {
+		if ok {
+			cf.Var(cf.Lookup(name).Value, "test."+name, "")
+		}
 	}
 }
 

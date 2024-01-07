@@ -23,7 +23,7 @@ package cformat
 //				}
 //			}
 //		}
-//		myformatter.EmitPercent(os.Stdout, "")
+//		myformatter.EmitPercent(os.Stdout, "", true, true)
 //		myformatter.EmitTextual(somefile)
 //
 // These apis are linked into tests that are built with "-cover", and
@@ -200,17 +200,33 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
 }
 
 // EmitPercent writes out a "percentage covered" string to the writer 'w'.
-func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) error {
+func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, aggregate bool) error {
 	pkgs := make([]string, 0, len(fm.pm))
 	for importpath := range fm.pm {
 		pkgs = append(pkgs, importpath)
 	}
+
+	rep := func(cov, tot uint64) error {
+		if tot != 0 {
+			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n",
+				100.0*float64(cov)/float64(tot), covpkgs); err != nil {
+				return err
+			}
+		} else if noteEmpty {
+			if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	sort.Strings(pkgs)
-	seenPkg := false
+	var totalStmts, coveredStmts uint64
 	for _, importpath := range pkgs {
-		seenPkg = true
 		p := fm.pm[importpath]
-		var totalStmts, coveredStmts uint64
+		if !aggregate {
+			totalStmts, coveredStmts = 0, 0
+		}
 		for unit, count := range p.unitTable {
 			nx := uint64(unit.NxStmts)
 			totalStmts += nx
@@ -218,21 +234,17 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) er
 				coveredStmts += nx
 			}
 		}
-		if _, err := fmt.Fprintf(w, "\t%s\t", importpath); err != nil {
-			return err
-		}
-		if totalStmts == 0 {
-			if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
+		if !aggregate {
+			if _, err := fmt.Fprintf(w, "\t%s\t\t", importpath); err != nil {
 				return err
 			}
-		} else {
-			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n", 100*float64(coveredStmts)/float64(totalStmts), covpkgs); err != nil {
+			if err := rep(coveredStmts, totalStmts); err != nil {
 				return err
 			}
 		}
 	}
-	if noteEmpty && !seenPkg {
-		if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
+	if aggregate {
+		if err := rep(coveredStmts, totalStmts); err != nil {
 			return err
 		}
 	}

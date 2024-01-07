@@ -63,8 +63,8 @@ type pkixPublicKey struct {
 // ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form. The encoded
 // public key is a SubjectPublicKeyInfo structure (see RFC 5280, Section 4.1).
 //
-// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey,
-// ed25519.PublicKey (not a pointer), or *ecdh.PublicKey (for X25519).
+// It returns a *[rsa.PublicKey], *[dsa.PublicKey], *[ecdsa.PublicKey],
+// [ed25519.PublicKey] (not a pointer), or *[ecdh.PublicKey] (for X25519).
 // More types might be supported in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
@@ -142,8 +142,8 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
 // The encoded public key is a SubjectPublicKeyInfo structure
 // (see RFC 5280, Section 4.1).
 //
-// The following key types are currently supported: *rsa.PublicKey,
-// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey.
+// The following key types are currently supported: *[rsa.PublicKey],
+// *[ecdsa.PublicKey], [ed25519.PublicKey] (not a pointer), and *[ecdh.PublicKey].
 // Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
@@ -772,14 +772,22 @@ type Certificate struct {
 	// CRL Distribution Points
 	CRLDistributionPoints []string
 
+	// PolicyIdentifiers contains asn1.ObjectIdentifiers, the components
+	// of which are limited to int32. If a certificate contains a policy which
+	// cannot be represented by asn1.ObjectIdentifier, it will not be included in
+	// PolicyIdentifiers, but will be present in Policies, which contains all parsed
+	// policy OIDs.
 	PolicyIdentifiers []asn1.ObjectIdentifier
+
+	// Policies contains all policy identifiers included in the certificate.
+	Policies []OID
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
-// An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
+// An InsecureAlgorithmError indicates that the [SignatureAlgorithm] used to
 // generate the signature is not secure, and the signature has been rejected.
 //
 // To temporarily restore support for SHA-1 signatures, include the value
@@ -881,6 +889,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if details.algo == algo {
 			hashType = details.hash
 			pubKeyAlgo = details.pubKeyAlgo
+			break
 		}
 	}
 
@@ -941,7 +950,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 
 // CheckCRLSignature checks that the signature in crl is from c.
 //
-// Deprecated: Use RevocationList.CheckSignatureFrom instead.
+// Deprecated: Use [RevocationList.CheckSignatureFrom] instead.
 func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) error {
 	algo := getSignatureAlgorithmFromAI(crl.SignatureAlgorithm)
 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
@@ -1028,6 +1037,7 @@ var (
 	oidExtensionCRLDistributionPoints = []int{2, 5, 29, 31}
 	oidExtensionAuthorityInfoAccess   = []int{1, 3, 6, 1, 5, 5, 7, 1, 1}
 	oidExtensionCRLNumber             = []int{2, 5, 29, 20}
+	oidExtensionReasonCode            = []int{2, 5, 29, 21}
 )
 
 var (
@@ -1090,6 +1100,8 @@ func isIA5String(s string) error {
 
 	return nil
 }
+
+var usePoliciesField = godebug.New("x509usepolicies")
 
 func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
@@ -1176,9 +1188,10 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		n++
 	}
 
-	if len(template.PolicyIdentifiers) > 0 &&
+	usePolicies := usePoliciesField.Value() == "1"
+	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
-		ret[n], err = marshalCertificatePolicies(template.PolicyIdentifiers)
+		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
 		if err != nil {
 			return nil, err
 		}
@@ -1363,14 +1376,35 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
 	return ext, err
 }
 
-func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
 	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
-	policies := make([]policyInformation, len(policyIdentifiers))
-	for i, policy := range policyIdentifiers {
-		policies[i].Policy = policy
-	}
+
+	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+		if usePoliciesField.Value() == "1" {
+			usePoliciesField.IncNonDefault()
+			for _, v := range policies {
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+						if len(v.der) == 0 {
+							child.SetError(errors.New("invalid policy object identifier"))
+							return
+						}
+						child.AddBytes(v.der)
+					})
+				})
+			}
+		} else {
+			for _, v := range policyIdentifiers {
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+					child.AddASN1ObjectIdentifier(v)
+				})
+			}
+		}
+	})
+
 	var err error
-	ext.Value, err = asn1.Marshal(policies)
+	ext.Value, err = b.Bytes()
 	return ext, err
 }
 
@@ -1510,7 +1544,8 @@ var emptyASN1Subject = []byte{0x30, 0}
 //   - PermittedEmailAddresses
 //   - PermittedIPRanges
 //   - PermittedURIDomains
-//   - PolicyIdentifiers
+//   - PolicyIdentifiers (see note below)
+//   - Policies (see note below)
 //   - SerialNumber
 //   - SignatureAlgorithm
 //   - Subject
@@ -1534,6 +1569,13 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
+//
+// The PolicyIdentifier and Policies fields are both used to marshal certificate
+// policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
+// GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
+// be marshalled instead of the PolicyIdentifier field. The Policies field can
+// be used to marshal policy OIDs which have components that are larger than 31
+// bits.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
@@ -1678,7 +1720,7 @@ var pemType = "X509 CRL"
 // will transparently handle PEM encoding as long as there isn't any leading
 // garbage.
 //
-// Deprecated: Use ParseRevocationList instead.
+// Deprecated: Use [ParseRevocationList] instead.
 func ParseCRL(crlBytes []byte) (*pkix.CertificateList, error) {
 	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
 		block, _ := pem.Decode(crlBytes)
@@ -1691,7 +1733,7 @@ func ParseCRL(crlBytes []byte) (*pkix.CertificateList, error) {
 
 // ParseDERCRL parses a DER encoded CRL from the given bytes.
 //
-// Deprecated: Use ParseRevocationList instead.
+// Deprecated: Use [ParseRevocationList] instead.
 func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
 	certList := new(pkix.CertificateList)
 	if rest, err := asn1.Unmarshal(derBytes, certList); err != nil {
@@ -1706,7 +1748,7 @@ func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
 // contains the given list of revoked certificates.
 //
 // Deprecated: this method does not generate an RFC 5280 conformant X.509 v2 CRL.
-// To generate a standards compliant CRL, use CreateRevocationList instead.
+// To generate a standards compliant CRL, use [CreateRevocationList] instead.
 func (c *Certificate) CreateCRL(rand io.Reader, priv any, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
@@ -2154,8 +2196,45 @@ func (c *CertificateRequest) CheckSignature() error {
 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true)
 }
 
-// RevocationList contains the fields used to create an X.509 v2 Certificate
-// Revocation list with CreateRevocationList.
+// RevocationListEntry represents an entry in the revokedCertificates
+// sequence of a CRL.
+type RevocationListEntry struct {
+	// Raw contains the raw bytes of the revokedCertificates entry. It is set when
+	// parsing a CRL; it is ignored when generating a CRL.
+	Raw []byte
+
+	// SerialNumber represents the serial number of a revoked certificate. It is
+	// both used when creating a CRL and populated when parsing a CRL. It must not
+	// be nil.
+	SerialNumber *big.Int
+	// RevocationTime represents the time at which the certificate was revoked. It
+	// is both used when creating a CRL and populated when parsing a CRL. It must
+	// not be the zero time.
+	RevocationTime time.Time
+	// ReasonCode represents the reason for revocation, using the integer enum
+	// values specified in RFC 5280 Section 5.3.1. When creating a CRL, the zero
+	// value will result in the reasonCode extension being omitted. When parsing a
+	// CRL, the zero value may represent either the reasonCode extension being
+	// absent (which implies the default revocation reason of 0/Unspecified), or
+	// it may represent the reasonCode extension being present and explicitly
+	// containing a value of 0/Unspecified (which should not happen according to
+	// the DER encoding rules, but can and does happen anyway).
+	ReasonCode int
+
+	// Extensions contains raw X.509 extensions. When parsing CRL entries,
+	// this can be used to extract non-critical extensions that are not
+	// parsed by this package. When marshaling CRL entries, the Extensions
+	// field is ignored, see ExtraExtensions.
+	Extensions []pkix.Extension
+	// ExtraExtensions contains extensions to be copied, raw, into any
+	// marshaled CRL entries. Values override any extensions that would
+	// otherwise be produced based on the other fields. The ExtraExtensions
+	// field is not populated when parsing CRL entries, see Extensions.
+	ExtraExtensions []pkix.Extension
+}
+
+// RevocationList represents a [Certificate] Revocation List (CRL) as specified
+// by RFC 5280.
 type RevocationList struct {
 	// Raw contains the complete ASN.1 DER content of the CRL (tbsCertList,
 	// signatureAlgorithm, and signatureValue.)
@@ -2180,9 +2259,17 @@ type RevocationList struct {
 	// key will be used.
 	SignatureAlgorithm SignatureAlgorithm
 
+	// RevokedCertificateEntries represents the revokedCertificates sequence in
+	// the CRL. It is used when creating a CRL and also populated when parsing a
+	// CRL. When creating a CRL, it may be empty or nil, in which case the
+	// revokedCertificates ASN.1 sequence will be omitted from the CRL entirely.
+	RevokedCertificateEntries []RevocationListEntry
+
 	// RevokedCertificates is used to populate the revokedCertificates
-	// sequence in the CRL, it may be empty. RevokedCertificates may be nil,
-	// in which case an empty CRL will be created.
+	// sequence in the CRL if RevokedCertificateEntries is empty. It may be empty
+	// or nil, in which case an empty CRL will be created.
+	//
+	// Deprecated: Use RevokedCertificateEntries instead.
 	RevokedCertificates []pkix.RevokedCertificate
 
 	// Number is used to populate the X.509 v2 cRLNumber extension in the CRL,
@@ -2231,13 +2318,13 @@ type tbsCertificateList struct {
 	Extensions          []pkix.Extension          `asn1:"tag:0,optional,explicit"`
 }
 
-// CreateRevocationList creates a new X.509 v2 Certificate Revocation List,
+// CreateRevocationList creates a new X.509 v2 [Certificate] Revocation List,
 // according to RFC 5280, based on template.
 //
 // The CRL is signed by priv which should be the private key associated with
 // the public key in the issuer certificate.
 //
-// The issuer may not be nil, and the crlSign bit must be set in KeyUsage in
+// The issuer may not be nil, and the crlSign bit must be set in [KeyUsage] in
 // order to use it as a CRL issuer.
 //
 // The issuer distinguished name CRL field and authority key identifier
@@ -2268,11 +2355,62 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 		return nil, err
 	}
 
-	// Force revocation times to UTC per RFC 5280.
-	revokedCertsUTC := make([]pkix.RevokedCertificate, len(template.RevokedCertificates))
-	for i, rc := range template.RevokedCertificates {
-		rc.RevocationTime = rc.RevocationTime.UTC()
-		revokedCertsUTC[i] = rc
+	var revokedCerts []pkix.RevokedCertificate
+	// Only process the deprecated RevokedCertificates field if it is populated
+	// and the new RevokedCertificateEntries field is not populated.
+	if len(template.RevokedCertificates) > 0 && len(template.RevokedCertificateEntries) == 0 {
+		// Force revocation times to UTC per RFC 5280.
+		revokedCerts = make([]pkix.RevokedCertificate, len(template.RevokedCertificates))
+		for i, rc := range template.RevokedCertificates {
+			rc.RevocationTime = rc.RevocationTime.UTC()
+			revokedCerts[i] = rc
+		}
+	} else {
+		// Convert the ReasonCode field to a proper extension, and force revocation
+		// times to UTC per RFC 5280.
+		revokedCerts = make([]pkix.RevokedCertificate, len(template.RevokedCertificateEntries))
+		for i, rce := range template.RevokedCertificateEntries {
+			if rce.SerialNumber == nil {
+				return nil, errors.New("x509: template contains entry with nil SerialNumber field")
+			}
+			if rce.RevocationTime.IsZero() {
+				return nil, errors.New("x509: template contains entry with zero RevocationTime field")
+			}
+
+			rc := pkix.RevokedCertificate{
+				SerialNumber:   rce.SerialNumber,
+				RevocationTime: rce.RevocationTime.UTC(),
+			}
+
+			// Copy over any extra extensions, except for a Reason Code extension,
+			// because we'll synthesize that ourselves to ensure it is correct.
+			exts := make([]pkix.Extension, 0, len(rce.ExtraExtensions))
+			for _, ext := range rce.ExtraExtensions {
+				if ext.Id.Equal(oidExtensionReasonCode) {
+					return nil, errors.New("x509: template contains entry with ReasonCode ExtraExtension; use ReasonCode field instead")
+				}
+				exts = append(exts, ext)
+			}
+
+			// Only add a reasonCode extension if the reason is non-zero, as per
+			// RFC 5280 Section 5.3.1.
+			if rce.ReasonCode != 0 {
+				reasonBytes, err := asn1.Marshal(asn1.Enumerated(rce.ReasonCode))
+				if err != nil {
+					return nil, err
+				}
+
+				exts = append(exts, pkix.Extension{
+					Id:    oidExtensionReasonCode,
+					Value: reasonBytes,
+				})
+			}
+
+			if len(exts) > 0 {
+				rc.Extensions = exts
+			}
+			revokedCerts[i] = rc
+		}
 	}
 
 	aki, err := asn1.Marshal(authKeyId{Id: issuer.SubjectKeyId})
@@ -2311,8 +2449,8 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 			},
 		},
 	}
-	if len(revokedCertsUTC) > 0 {
-		tbsCertList.RevokedCertificates = revokedCertsUTC
+	if len(revokedCerts) > 0 {
+		tbsCertList.RevokedCertificates = revokedCerts
 	}
 
 	if len(template.ExtraExtensions) > 0 {

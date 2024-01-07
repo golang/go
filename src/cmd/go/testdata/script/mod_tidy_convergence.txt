@@ -44,7 +44,7 @@ stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
 stderr '^go: finding module for package example\.net/x$'
 
 	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
 
 
 # 'go mod tidy -e' should follow upgrades to try to resolve the modules that it
@@ -65,7 +65,7 @@ cmp go.mod go.mod.tidye
 stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
 
 	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
 
 
 # Since we attempt to resolve the dependencies of package x whenever we add x itself,
@@ -94,7 +94,7 @@ go mod edit -go=1.17 go.mod.tidye
 go mod tidy -e
 cmp go.mod go.mod.tidye
 stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
 
 go get example.net/x@v0.1.0 example.net/y@v0.1.0
 go mod tidy

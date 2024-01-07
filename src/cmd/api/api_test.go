@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package api
+package main
 
 import (
 	"flag"
@@ -20,32 +20,11 @@ import (
 var flagCheck = flag.Bool("check", false, "run API checks")
 
 func TestMain(m *testing.M) {
-	if !testenv.HasExec() {
-		os.Stdout.WriteString("skipping test: platform cannot exec")
-		os.Exit(0)
-	}
-	if !testenv.HasGoBuild() {
-		os.Stdout.WriteString("skipping test: platform cannot 'go build' to import std packages")
-		os.Exit(0)
-	}
-
 	flag.Parse()
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
 	}
 	build.Default.GOROOT = testenv.GOROOT(nil)
-
-	// Warm up the import cache in parallel.
-	var wg sync.WaitGroup
-	for _, context := range contexts {
-		context := context
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_ = NewWalker(context, filepath.Join(testenv.GOROOT(nil), "src"))
-		}()
-	}
-	wg.Wait()
 
 	os.Exit(m.Run())
 }
@@ -59,6 +38,9 @@ func TestGolden(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+
+	testenv.MustHaveGoBuild(t)
+
 	td, err := os.Open("testdata/src/pkg")
 	if err != nil {
 		t.Fatal(err)
@@ -115,16 +97,23 @@ func TestGolden(t *testing.T) {
 
 func TestCompareAPI(t *testing.T) {
 	tests := []struct {
-		name                                    string
-		features, required, optional, exception []string
-		ok                                      bool   // want
-		out                                     string // want
+		name                          string
+		features, required, exception []string
+		ok                            bool   // want
+		out                           string // want
 	}{
+		{
+			name:     "equal",
+			features: []string{"A", "B", "C"},
+			required: []string{"A", "B", "C"},
+			ok:       true,
+			out:      "",
+		},
 		{
 			name:     "feature added",
 			features: []string{"A", "B", "C", "D", "E", "F"},
 			required: []string{"B", "D"},
-			ok:       true,
+			ok:       false,
 			out:      "+A\n+C\n+E\n+F\n",
 		},
 		{
@@ -135,41 +124,51 @@ func TestCompareAPI(t *testing.T) {
 			out:      "-B\n",
 		},
 		{
-			name:     "feature added then removed",
-			features: []string{"A", "C"},
-			optional: []string{"B"},
-			required: []string{"A", "C"},
-			ok:       true,
-			out:      "±B\n",
-		},
-		{
 			name:      "exception removal",
-			required:  []string{"A", "B", "C"},
 			features:  []string{"A", "C"},
+			required:  []string{"A", "B", "C"},
 			exception: []string{"B"},
 			ok:        true,
 			out:       "",
 		},
+
+		// Test that a feature required on a subset of ports is implicitly satisfied
+		// by the same feature being implemented on all ports. That is, it shouldn't
+		// say "pkg syscall (darwin-amd64), type RawSockaddrInet6 struct" is missing.
+		// See https://go.dev/issue/4303.
 		{
-			// https://golang.org/issue/4303
-			name: "contexts reconverging",
-			required: []string{
-				"A",
-				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
-			},
+			name: "contexts reconverging after api/next/* update",
 			features: []string{
 				"A",
 				"pkg syscall, type RawSockaddrInet6 struct",
 			},
+			required: []string{
+				"A",
+				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct", // api/go1.n.txt
+				"pkg syscall, type RawSockaddrInet6 struct",                // api/next/n.txt
+			},
 			ok:  true,
+			out: "",
+		},
+		{
+			name: "contexts reconverging before api/next/* update",
+			features: []string{
+				"A",
+				"pkg syscall, type RawSockaddrInet6 struct",
+			},
+			required: []string{
+				"A",
+				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
+			},
+			ok:  false,
 			out: "+pkg syscall, type RawSockaddrInet6 struct\n",
 		},
 	}
 	for _, tt := range tests {
 		buf := new(strings.Builder)
-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
-		if gotok != tt.ok {
-			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
+		gotOK := compareAPI(buf, tt.features, tt.required, tt.exception)
+		if gotOK != tt.ok {
+			t.Errorf("%s: ok = %v; want %v", tt.name, gotOK, tt.ok)
 		}
 		if got := buf.String(); got != tt.out {
 			t.Errorf("%s: output differs\nGOT:\n%s\nWANT:\n%s", tt.name, got, tt.out)
@@ -210,11 +209,32 @@ func BenchmarkAll(b *testing.B) {
 	}
 }
 
+var warmupCache = sync.OnceFunc(func() {
+	// Warm up the import cache in parallel.
+	var wg sync.WaitGroup
+	for _, context := range contexts {
+		context := context
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = NewWalker(context, filepath.Join(testenv.GOROOT(nil), "src"))
+		}()
+	}
+	wg.Wait()
+})
+
 func TestIssue21181(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
 	if *flagCheck {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
+
+	warmupCache()
+
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue21181")
 		pkg, err := w.import_("p")
@@ -227,10 +247,17 @@ func TestIssue21181(t *testing.T) {
 }
 
 func TestIssue29837(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
 	if *flagCheck {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
+
+	warmupCache()
+
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue29837")
 		_, err := w.ImportFrom("p", "", 0)
@@ -245,6 +272,7 @@ func TestIssue41358(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
 	context := new(build.Context)
 	*context = build.Default
 	context.Dir = filepath.Join(testenv.GOROOT(t), "src")
@@ -257,9 +285,29 @@ func TestIssue41358(t *testing.T) {
 	}
 }
 
+func TestIssue64958(t *testing.T) {
+	defer func() {
+		if x := recover(); x != nil {
+			t.Errorf("expected no panic; recovered %v", x)
+		}
+	}()
+
+	testenv.MustHaveGoBuild(t)
+
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue64958")
+		pkg, err := w.importFrom("p", "", 0)
+		if err != nil {
+			t.Errorf("expected no error importing; got %T", err)
+		}
+		w.export(pkg)
+	}
+}
+
 func TestCheck(t *testing.T) {
 	if !*flagCheck {
 		t.Skip("-check not specified")
 	}
+	testenv.MustHaveGoBuild(t)
 	Check(t)
 }

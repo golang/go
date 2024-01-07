@@ -25,6 +25,7 @@ TEXT	·block(SB),NOSPLIT,$8-32
 	MOVL	(1*4)(BP),	BX
 	MOVL	(2*4)(BP),	CX
 	MOVL	(3*4)(BP),	DX
+	MOVL	$0xffffffff,	R11
 
 	CMPQ	SI,		DI
 	JEQ	end
@@ -40,14 +41,15 @@ loop:
 
 #define ROUND1(a, b, c, d, index, const, shift) \
 	XORL	c, R9; \
-	LEAL	const(a)(R8*1), a; \
+	ADDL	$const, a; \
+	ADDL	R8, a; \
 	ANDL	b, R9; \
-	XORL d, R9; \
-	MOVL (index*4)(SI), R8; \
-	ADDL R9, a; \
-	ROLL $shift, a; \
-	MOVL c, R9; \
-	ADDL b, a
+	XORL	d, R9; \
+	MOVL	(index*4)(SI), R8; \
+	ADDL	R9, a; \
+	ROLL	$shift, a; \
+	MOVL	c, R9; \
+	ADDL	b, a
 
 	ROUND1(AX,BX,CX,DX, 1,0xd76aa478, 7);
 	ROUND1(DX,AX,BX,CX, 2,0xe8c7b756,12);
@@ -64,21 +66,23 @@ loop:
 	ROUND1(AX,BX,CX,DX,13,0x6b901122, 7);
 	ROUND1(DX,AX,BX,CX,14,0xfd987193,12);
 	ROUND1(CX,DX,AX,BX,15,0xa679438e,17);
-	ROUND1(BX,CX,DX,AX, 0,0x49b40821,22);
+	ROUND1(BX,CX,DX,AX, 1,0x49b40821,22);
 
-	MOVL	(1*4)(SI),	R8
 	MOVL	DX,		R9
 	MOVL	DX,		R10
 
+// Uses https://github.com/animetosho/md5-optimisation#dependency-shortcut-in-g-function
+
 #define ROUND2(a, b, c, d, index, const, shift) \
-	NOTL	R9; \
-	LEAL	const(a)(R8*1),a; \
+	XORL	R11, R9; \
+	ADDL	$const,	a; \
+	ADDL	R8,	a; \
 	ANDL	b,		R10; \
 	ANDL	c,		R9; \
 	MOVL	(index*4)(SI),R8; \
-	ORL	R9,		R10; \
+	ADDL	R9,	a; \
+	ADDL	R10,	a; \
 	MOVL	c,		R9; \
-	ADDL	R10,		a; \
 	MOVL	c,		R10; \
 	ROLL	$shift,	a; \
 	ADDL	b,		a
@@ -98,22 +102,34 @@ loop:
 	ROUND2(AX,BX,CX,DX, 2,0xa9e3e905, 5);
 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
-	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
+	ROUND2(BX,CX,DX,AX, 5,0x8d2a4c8a,20);
 
-	MOVL	(5*4)(SI),	R8
 	MOVL	CX,		R9
 
-#define ROUND3(a, b, c, d, index, const, shift) \
-	LEAL	const(a)(R8*1),a; \
-	MOVL	(index*4)(SI),R8; \
-	XORL	d,		R9; \
+// Uses https://github.com/animetosho/md5-optimisation#h-function-re-use
+
+#define ROUND3FIRST(a, b, c, d, index, const, shift) \
+	MOVL	d,		R9; \
+	XORL	c,		R9; \
 	XORL	b,		R9; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
+	MOVL	(index*4)(SI),R8; \
 	ADDL	R9,		a; \
 	ROLL	$shift,		a; \
-	MOVL	b,		R9; \
 	ADDL	b,		a
 
-	ROUND3(AX,BX,CX,DX, 8,0xfffa3942, 4);
+#define ROUND3(a, b, c, d, index, const, shift) \
+	XORL	a,		R9; \
+	XORL	b,		R9; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
+	MOVL	(index*4)(SI),R8; \
+	ADDL	R9,		a; \
+	ROLL	$shift,		a; \
+	ADDL	b,		a
+
+	ROUND3FIRST(AX,BX,CX,DX, 8,0xfffa3942, 4);
 	ROUND3(DX,AX,BX,CX,11,0x8771f681,11);
 	ROUND3(CX,DX,AX,BX,14,0x6d9d6122,16);
 	ROUND3(BX,CX,DX,AX, 1,0xfde5380c,23);
@@ -130,13 +146,13 @@ loop:
 	ROUND3(CX,DX,AX,BX, 2,0x1fa27cf8,16);
 	ROUND3(BX,CX,DX,AX, 0,0xc4ac5665,23);
 
-	MOVL	(0*4)(SI),	R8
-	MOVL	$0xffffffff,	R9
+	MOVL	R11,	R9
 	XORL	DX,		R9
 
 #define ROUND4(a, b, c, d, index, const, shift) \
-	LEAL	const(a)(R8*1),a; \
-	ORL	b,		R9; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
+	ORL		b,		R9; \
 	XORL	c,		R9; \
 	ADDL	R9,		a; \
 	MOVL	(index*4)(SI),R8; \

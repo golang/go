@@ -384,6 +384,9 @@ func TestSectionReader_ReadAt(t *testing.T) {
 		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
 			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
 		}
+		if _r, off, n := s.Outer(); _r != r || off != int64(tt.off) || n != int64(tt.n) {
+			t.Fatalf("%d: Outer() = %v, %d, %d; expected %v, %d, %d", i, _r, off, n, r, tt.off, tt.n)
+		}
 	}
 }
 
@@ -444,6 +447,9 @@ func TestSectionReader_Max(t *testing.T) {
 	n, err = sr.Read(make([]byte, 3))
 	if n != 0 || err != EOF {
 		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
+	}
+	if _r, off, n := sr.Outer(); _r != r || off != 3 || n != maxint64 {
+		t.Fatalf("Outer = %v, %d, %d; expected %v, %d, %d", _r, off, n, r, 3, int64(maxint64))
 	}
 }
 
@@ -605,6 +611,26 @@ func TestOffsetWriter_WriteAt(t *testing.T) {
 		for at := int64(0); at < 2; at++ {
 			work(off, at)
 		}
+	}
+}
+
+func TestWriteAt_PositionPriorToBase(t *testing.T) {
+	tmpdir := t.TempDir()
+	tmpfilename := "TestOffsetWriter_WriteAt"
+	tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
+	if err != nil {
+		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+	}
+	defer tmpfile.Close()
+
+	// start writing position in OffsetWriter
+	offset := int64(10)
+	// position we want to write to the tmpfile
+	at := int64(-1)
+	w := NewOffsetWriter(tmpfile, offset)
+	_, e := w.WriteAt([]byte("hello"), at)
+	if e == nil {
+		t.Errorf("error expected to be not nil")
 	}
 }
 

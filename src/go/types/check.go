@@ -12,7 +12,9 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"internal/godebug"
 	. "internal/types/errors"
+	"strings"
 )
 
 // nopos indicates an unknown position
@@ -20,6 +22,9 @@ var nopos token.Pos
 
 // debugging/development support
 const debug = false // leave on during development
+
+// gotypesalias controls the use of Alias types
+var gotypesalias = godebug.New("gotypesalias")
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -89,16 +94,22 @@ type actionDesc struct {
 }
 
 // A Checker maintains the state of the type checker.
-// It must be created with NewChecker.
+// It must be created with [NewChecker].
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
+
+	// If EnableAlias is set, alias declarations produce an Alias type.
+	// Otherwise the alias information is only in the type name, which
+	// points directly to the actual (aliased) type.
+	enableAlias bool
+
 	conf *Config
 	ctxt *Context // context for de-duplicating instances
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                // accepted language version
+	version goVersion              // accepted language version
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
@@ -118,6 +129,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
+	versions      map[*ast.File]string      // maps files to version strings (each file has an entry)
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
@@ -152,9 +164,14 @@ func (check *Checker) addDeclDep(to Object) {
 	from.addDep(to)
 }
 
+// Note: The following three alias-related functions are only used
+//       when Alias types are not enabled.
+
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
+// Not used if check.enableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
+	assert(!check.enableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -164,13 +181,15 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
+	assert(!check.enableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
+	assert(!check.enableAlias)
+	return check.brokenAliases[alias]
 }
 
 func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
@@ -219,8 +238,8 @@ func (check *Checker) needsCleanup(c cleaner) {
 	check.cleaners = append(check.cleaners, c)
 }
 
-// NewChecker returns a new Checker instance for a given package.
-// Package files may be added incrementally via checker.Files.
+// NewChecker returns a new [Checker] instance for a given package.
+// [Package] files may be added incrementally via checker.Files.
 func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
 	// make sure we have a configuration
 	if conf == nil {
@@ -232,20 +251,22 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
-	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
-	}
+	// Note: clients may call NewChecker with the Unsafe package, which is
+	// globally shared and must not be mutated. Therefore NewChecker must not
+	// mutate *pkg.
+	//
+	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:    conf,
-		ctxt:    conf.Context,
-		fset:    fset,
-		pkg:     pkg,
-		Info:    info,
-		version: version,
-		objMap:  make(map[Object]*declInfo),
-		impMap:  make(map[importKey]*Package),
+		enableAlias: gotypesalias.Value() == "1",
+		conf:        conf,
+		ctxt:        conf.Context,
+		fset:        fset,
+		pkg:         pkg,
+		Info:        info,
+		version:     asGoVersion(conf.GoVersion),
+		objMap:      make(map[Object]*declInfo),
+		impMap:      make(map[importKey]*Package),
 	}
 }
 
@@ -284,6 +305,53 @@ func (check *Checker) initFiles(files []*ast.File) {
 			// ignore this file
 		}
 	}
+
+	// reuse Info.FileVersions if provided
+	versions := check.Info.FileVersions
+	if versions == nil {
+		versions = make(map[*ast.File]string)
+	}
+	check.versions = versions
+
+	pkgVersionOk := check.version.isValid()
+	downgradeOk := check.version.cmp(go1_21) >= 0
+
+	// determine Go version for each file
+	for _, file := range check.files {
+		// use unaltered Config.GoVersion by default
+		// (This version string may contain dot-release numbers as in go1.20.1,
+		// unlike file versions which are Go language versions only, if valid.)
+		v := check.conf.GoVersion
+		// use the file version, if applicable
+		// (file versions are either the empty string or of the form go1.dd)
+		if pkgVersionOk {
+			fileVersion := asGoVersion(file.GoVersion)
+			if fileVersion.isValid() {
+				cmp := fileVersion.cmp(check.version)
+				// Go 1.21 introduced the feature of setting the go.mod
+				// go line to an early version of Go and allowing //go:build lines
+				// to “upgrade” (cmp > 0) the Go version in a given file.
+				// We can do that backwards compatibly.
+				//
+				// Go 1.21 also introduced the feature of allowing //go:build lines
+				// to “downgrade” (cmp < 0) the Go version in a given file.
+				// That can't be done compatibly in general, since before the
+				// build lines were ignored and code got the module's Go version.
+				// To work around this, downgrades are only allowed when the
+				// module's Go version is Go 1.21 or later.
+				//
+				// If there is no valid check.version, then we don't really know what
+				// Go version to apply.
+				// Legacy tools may do this, and they historically have accepted everything.
+				// Preserve that behavior by ignoring //go:build constraints entirely in that
+				// case (!pkgVersionOk).
+				if cmp > 0 || cmp < 0 && downgradeOk {
+					v = file.GoVersion
+				}
+			}
+		}
+		versions[file] = v
+	}
 }
 
 // A bailout panic is used for early termination.
@@ -306,6 +374,17 @@ func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(f
 var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.pkg == Unsafe {
+		// Defensive handling for Unsafe, which cannot be type checked, and must
+		// not be mutated. See https://go.dev/issue/61212 for an example of where
+		// Unsafe is passed to NewChecker.
+		return nil
+	}
+
+	// Note: NewChecker doesn't return an error, so we need to check the version here.
+	if check.version.cmp(go_current) > 0 {
+		return fmt.Errorf("package requires newer Go version %v", check.version)
+	}
 	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
@@ -350,6 +429,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 		check.monomorph()
 	}
 
+	check.pkg.goVersion = check.conf.GoVersion
 	check.pkg.complete = true
 
 	// no longer needed - release memory
@@ -453,7 +533,7 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 		assert(val != nil)
 		// We check allBasic(typ, IsConstType) here as constant expressions may be
 		// recorded as type parameters.
-		assert(typ == Typ[Invalid] || allBasic(typ, IsConstType))
+		assert(!isValid(typ) || allBasic(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
@@ -478,20 +558,24 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	}
 }
 
-func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+// recordCommaOkTypes updates recorded types to reflect that x is used in a commaOk context
+// (and therefore has tuple type).
+func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 	assert(x != nil)
-	if a[0] == nil || a[1] == nil {
+	assert(len(a) == 2)
+	if a[0].mode == invalid {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
+	t0, t1 := a[0].typ, a[1].typ
+	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", a[0]),
-				NewVar(pos, check.pkg, "", a[1]),
+				NewVar(pos, check.pkg, "", t0),
+				NewVar(pos, check.pkg, "", t1),
 			)
 			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X
@@ -535,7 +619,12 @@ func instantiatedIdent(expr ast.Expr) *ast.Ident {
 	case *ast.SelectorExpr:
 		return x.Sel
 	}
-	panic("instantiated ident not found")
+
+	// extra debugging of #63933
+	var buf strings.Builder
+	buf.WriteString("instantiated ident not found; please report: ")
+	ast.Fprint(&buf, token.NewFileSet(), expr, ast.NotNilFilter)
+	panic(buf.String())
 }
 
 func (check *Checker) recordDef(id *ast.Ident, obj Object) {

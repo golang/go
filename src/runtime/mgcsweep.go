@@ -25,6 +25,7 @@
 package runtime
 
 import (
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -36,9 +37,6 @@ type sweepdata struct {
 	lock   mutex
 	g      *g
 	parked bool
-
-	nbgsweep    uint32
-	npausesweep uint32
 
 	// active tracks outstanding sweepers and the sweep
 	// termination condition.
@@ -237,7 +235,6 @@ func finishsweep_m() {
 	// instantly. If GC was forced before the concurrent sweep
 	// finished, there may be spans to sweep.
 	for sweepone() != ^uintptr(0) {
-		sweep.npausesweep++
 	}
 
 	// Make sure there aren't any outstanding sweepers left.
@@ -260,9 +257,11 @@ func finishsweep_m() {
 		c.fullUnswept(sg).reset()
 	}
 
-	// Sweeping is done, so if the scavenger isn't already awake,
-	// wake it up. There's definitely work for it to do at this
-	// point.
+	// Sweeping is done, so there won't be any new memory to
+	// scavenge for a bit.
+	//
+	// If the scavenger isn't already awake, wake it up. There's
+	// definitely work for it to do at this point.
 	scavenger.wake()
 
 	nextMarkBitArenaEpoch()
@@ -275,7 +274,7 @@ func bgsweep(c chan int) {
 	lock(&sweep.lock)
 	sweep.parked = true
 	c <- 1
-	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 
 	for {
 		// bgsweep attempts to be a "low priority" goroutine by intentionally
@@ -297,7 +296,6 @@ func bgsweep(c chan int) {
 		const sweepBatchSize = 10
 		nSwept := 0
 		for sweepone() != ^uintptr(0) {
-			sweep.nbgsweep++
 			nSwept++
 			if nSwept%sweepBatchSize == 0 {
 				goschedIfBusy()
@@ -316,7 +314,7 @@ func bgsweep(c chan int) {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 	}
 }
 
@@ -423,9 +421,17 @@ func sweepone() uintptr {
 		if debug.scavtrace > 0 {
 			systemstack(func() {
 				lock(&mheap_.lock)
-				released := atomic.Loaduintptr(&mheap_.pages.scav.released)
-				printScavTrace(released, false)
-				atomic.Storeuintptr(&mheap_.pages.scav.released, 0)
+
+				// Get released stats.
+				releasedBg := mheap_.pages.scav.releasedBg.Load()
+				releasedEager := mheap_.pages.scav.releasedEager.Load()
+
+				// Print the line.
+				printScavTrace(releasedBg, releasedEager, false)
+
+				// Update the stats.
+				mheap_.pages.scav.releasedBg.Add(-releasedBg)
+				mheap_.pages.scav.releasedEager.Add(-releasedEager)
 				unlock(&mheap_.lock)
 			})
 		}
@@ -484,7 +490,7 @@ func (s *mspan) ensureSwept() {
 	}
 }
 
-// Sweep frees or collects finalizers for blocks not marked in the mark phase.
+// sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 // Returns true if the span was returned to heap.
 // If preserve=true, don't return it to heap nor relink in mcentral lists;
@@ -510,8 +516,10 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("mspan.sweep: bad span state")
 	}
 
-	if trace.enabled {
-		traceGCSweepSpan(s.npages * _PageSize)
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepSpan(s.npages * _PageSize)
+		traceRelease(trace)
 	}
 
 	mheap_.pagesSwept.Add(int64(s.npages))
@@ -592,8 +600,8 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		// efficient; allocfreetrace has massive overhead.
 		mbits := s.markBitsForBase()
 		abits := s.allocBitsForIndex(0)
-		for i := uintptr(0); i < s.nelems; i++ {
-			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
+		for i := uintptr(0); i < uintptr(s.nelems); i++ {
+			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
 				x := s.base() + i*s.elemsize
 				if debug.allocfreetrace != 0 {
 					tracefree(unsafe.Pointer(x), size)
@@ -624,12 +632,12 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		//
 		// Check the first bitmap byte, where we have to be
 		// careful with freeindex.
-		obj := s.freeindex
+		obj := uintptr(s.freeindex)
 		if (*s.gcmarkBits.bytep(obj / 8)&^*s.allocBits.bytep(obj / 8))>>(obj%8) != 0 {
 			s.reportZombies()
 		}
 		// Check remaining bytes.
-		for i := obj/8 + 1; i < divRoundUp(s.nelems, 8); i++ {
+		for i := obj/8 + 1; i < divRoundUp(uintptr(s.nelems), 8); i++ {
 			if *s.gcmarkBits.bytep(i)&^*s.allocBits.bytep(i) != 0 {
 				s.reportZombies()
 			}
@@ -649,14 +657,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
 	s.freeIndexForScan = 0
-	if trace.enabled {
-		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
+	if traceEnabled() {
+		getg().m.p.ptr().trace.reclaimed += uintptr(nfreed) * s.elemsize
 	}
 
 	// gcmarkBits becomes the allocBits.
 	// get a fresh cleared gcmarkBits in preparation for next GC
 	s.allocBits = s.gcmarkBits
-	s.gcmarkBits = newMarkBits(s.nelems)
+	s.gcmarkBits = newMarkBits(uintptr(s.nelems))
+
+	// refresh pinnerBits if they exists
+	if s.pinnerBits != nil {
+		s.refreshPinnerBits()
+	}
 
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
@@ -745,7 +758,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				return true
 			}
 			// Return span back to the right mcentral list.
-			if uintptr(nalloc) == s.nelems {
+			if nalloc == s.nelems {
 				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
 			} else {
 				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)
@@ -775,6 +788,18 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				sysFault(unsafe.Pointer(s.base()), size)
 			} else {
 				mheap_.freeSpan(s)
+			}
+			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.Kind_&kindGCProg != 0 {
+				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
+				// Free the space for the unrolled bitmap.
+				systemstack(func() {
+					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
+					mheap_.freeManual(s, spanAllocPtrScalarBits)
+				})
+				// Make sure to zero this pointer without putting the old
+				// value in a write buffer, as the old value might be an
+				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
+				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
 			}
 
 			// Count the free in the consistent, external stats.
@@ -814,10 +839,10 @@ func (s *mspan) reportZombies() {
 	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
 	mbits := s.markBitsForBase()
 	abits := s.allocBitsForIndex(0)
-	for i := uintptr(0); i < s.nelems; i++ {
+	for i := uintptr(0); i < uintptr(s.nelems); i++ {
 		addr := s.base() + i*s.elemsize
 		print(hex(addr))
-		alloc := i < s.freeindex || abits.isMarked()
+		alloc := i < uintptr(s.freeindex) || abits.isMarked()
 		if alloc {
 			print(" alloc")
 		} else {
@@ -869,15 +894,36 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	if trace.enabled {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
+	// Fix debt if necessary.
 retry:
 	sweptBasis := mheap_.pagesSweptBasis.Load()
-
-	// Fix debt if necessary.
-	newHeapLive := uintptr(gcController.heapLive.Load()-mheap_.sweepHeapLiveBasis) + spanBytes
+	live := gcController.heapLive.Load()
+	liveBasis := mheap_.sweepHeapLiveBasis
+	newHeapLive := spanBytes
+	if liveBasis < live {
+		// Only do this subtraction when we don't overflow. Otherwise, pagesTarget
+		// might be computed as something really huge, causing us to get stuck
+		// sweeping here until the next mark phase.
+		//
+		// Overflow can happen here if gcPaceSweeper is called concurrently with
+		// sweeping (i.e. not during a STW, like it usually is) because this code
+		// is intentionally racy. A concurrent call to gcPaceSweeper can happen
+		// if a GC tuning parameter is modified and we read an older value of
+		// heapLive than what was used to set the basis.
+		//
+		// This state should be transient, so it's fine to just let newHeapLive
+		// be a relatively small number. We'll probably just skip this attempt to
+		// sweep.
+		//
+		// See issue #57523.
+		newHeapLive += uintptr(live - liveBasis)
+	}
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(mheap_.pagesSwept.Load()-sweptBasis) {
 		if sweepone() == ^uintptr(0) {
@@ -890,8 +936,10 @@ retry:
 		}
 	}
 
-	if trace.enabled {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
+		traceRelease(trace)
 	}
 }
 

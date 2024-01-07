@@ -95,8 +95,8 @@ func matchSymbol(names []string, start, end uint64, r *regexp.Regexp, address ui
 		// Match all possible demangled versions of the name.
 		for _, o := range [][]demangle.Option{
 			{demangle.NoClones},
-			{demangle.NoParams},
-			{demangle.NoParams, demangle.NoTemplateParams},
+			{demangle.NoParams, demangle.NoEnclosingParams},
+			{demangle.NoParams, demangle.NoEnclosingParams, demangle.NoTemplateParams},
 		} {
 			if demangled, err := demangle.ToString(name, o...); err == nil && r.MatchString(demangled) {
 				return []string{demangled}

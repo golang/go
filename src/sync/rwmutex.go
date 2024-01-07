@@ -19,12 +19,11 @@ import (
 //
 // A RWMutex must not be copied after first use.
 //
-// If a goroutine holds a RWMutex for reading and another goroutine might
-// call Lock, no goroutine should expect to be able to acquire a read lock
-// until the initial read lock is released. In particular, this prohibits
-// recursive read locking. This is to ensure that the lock eventually becomes
-// available; a blocked Lock call excludes new readers from acquiring the
-// lock.
+// If any goroutine calls Lock while the lock is already held by
+// one or more readers, concurrent calls to RLock will block until
+// the writer has acquired (and released) the lock, to ensure that
+// the lock eventually becomes available to the writer.
+// Note that this prohibits recursive read-locking.
 //
 // In the terminology of the Go memory model,
 // the n'th call to Unlock “synchronizes before” the m'th call to Lock
@@ -217,6 +216,19 @@ func (rw *RWMutex) Unlock() {
 	if race.Enabled {
 		race.Enable()
 	}
+}
+
+// syscall_hasWaitingReaders reports whether any goroutine is waiting
+// to acquire a read lock on rw. This exists because syscall.ForkLock
+// is an RWMutex, and we can't change that without breaking compatibility.
+// We don't need or want RWMutex semantics for ForkLock, and we use
+// this private API to avoid having to change the type of ForkLock.
+// For more details see the syscall package.
+//
+//go:linkname syscall_hasWaitingReaders syscall.hasWaitingReaders
+func syscall_hasWaitingReaders(rw *RWMutex) bool {
+	r := rw.readerCount.Load()
+	return r < 0 && r+rwmutexMaxReaders > 0
 }
 
 // RLocker returns a Locker interface that implements

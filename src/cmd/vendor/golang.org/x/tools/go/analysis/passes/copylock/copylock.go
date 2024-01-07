@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -29,6 +30,7 @@ values should be referred to through a pointer.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "copylocks",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/copylocks",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,
@@ -222,6 +224,8 @@ func (path typePath) String() string {
 }
 
 func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+	x = astutil.Unparen(x) // ignore parens on rhs
+
 	if _, ok := x.(*ast.CompositeLit); ok {
 		return nil
 	}
@@ -230,7 +234,7 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
 		return nil
 	}
 	if star, ok := x.(*ast.StarExpr); ok {
-		if _, ok := star.X.(*ast.CallExpr); ok {
+		if _, ok := astutil.Unparen(star.X).(*ast.CallExpr); ok {
 			// A call may return a pointer to a zero value.
 			return nil
 		}
@@ -241,29 +245,23 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
 // lockPath returns a typePath describing the location of a lock value
 // contained in typ. If there is no contained lock, it returns nil.
 //
-// The seenTParams map is used to short-circuit infinite recursion via type
-// parameters.
-func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.TypeParam]bool) typePath {
-	if typ == nil {
+// The seen map is used to short-circuit infinite recursion due to type cycles.
+func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typePath {
+	if typ == nil || seen[typ] {
 		return nil
 	}
+	if seen == nil {
+		seen = make(map[types.Type]bool)
+	}
+	seen[typ] = true
 
-	if tpar, ok := typ.(*typeparams.TypeParam); ok {
-		if seenTParams == nil {
-			// Lazily allocate seenTParams, since the common case will not involve
-			// any type parameters.
-			seenTParams = make(map[*typeparams.TypeParam]bool)
-		}
-		if seenTParams[tpar] {
-			return nil
-		}
-		seenTParams[tpar] = true
+	if tpar, ok := typ.(*types.TypeParam); ok {
 		terms, err := typeparams.StructuralTerms(tpar)
 		if err != nil {
 			return nil // invalid type
 		}
 		for _, term := range terms {
-			subpath := lockPath(tpkg, term.Type(), seenTParams)
+			subpath := lockPath(tpkg, term.Type(), seen)
 			if len(subpath) > 0 {
 				if term.Tilde() {
 					// Prepend a tilde to our lock path entry to clarify the resulting
@@ -297,7 +295,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.T
 	ttyp, ok := typ.Underlying().(*types.Tuple)
 	if ok {
 		for i := 0; i < ttyp.Len(); i++ {
-			subpath := lockPath(tpkg, ttyp.At(i).Type(), seenTParams)
+			subpath := lockPath(tpkg, ttyp.At(i).Type(), seen)
 			if subpath != nil {
 				return append(subpath, typ.String())
 			}
@@ -322,16 +320,14 @@ func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.T
 	// In go1.10, sync.noCopy did not implement Locker.
 	// (The Unlock method was added only in CL 121876.)
 	// TODO(adonovan): remove workaround when we drop go1.10.
-	if named, ok := typ.(*types.Named); ok &&
-		named.Obj().Name() == "noCopy" &&
-		named.Obj().Pkg().Path() == "sync" {
+	if analysisutil.IsNamedType(typ, "sync", "noCopy") {
 		return []string{typ.String()}
 	}
 
 	nfields := styp.NumFields()
 	for i := 0; i < nfields; i++ {
 		ftyp := styp.Field(i).Type()
-		subpath := lockPath(tpkg, ftyp, seenTParams)
+		subpath := lockPath(tpkg, ftyp, seen)
 		if subpath != nil {
 			return append(subpath, typ.String())
 		}

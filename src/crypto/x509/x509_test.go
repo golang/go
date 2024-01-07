@@ -24,12 +24,14 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"math"
 	"math/big"
 	"net"
 	"net/url"
 	"os/exec"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -154,7 +156,7 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
-// pemEd25519Key is the example from RFC 8410, Secrion 4.
+// pemEd25519Key is the example from RFC 8410, Section 4.
 var pemEd25519Key = `
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
@@ -671,6 +673,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
 
 			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			Policies:                []OID{mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxUint32, math.MaxUint64})},
 			PermittedDNSDomains:     []string{".example.com", "example.com"},
 			ExcludedDNSDomains:      []string{"bar.example.com"},
 			PermittedIPRanges:       []*net.IPNet{parseCIDR("192.168.1.1/16"), parseCIDR("1.2.3.4/8")},
@@ -2586,7 +2589,7 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
@@ -2598,7 +2601,131 @@ func TestCreateRevocationList(t *testing.T) {
 			},
 		},
 		{
+			name: "valid, reason code",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ReasonCode:     1,
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
 			name: "valid, extra entry extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ExtraExtensions: []pkix.Extension{
+							{
+								Id:    []int{2, 5, 29, 99},
+								Value: []byte{5, 0},
+							},
+						},
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, Ed25519 key",
+			key:  ed25519Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, non-default signature algorithm",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				SignatureAlgorithm: ECDSAWithSHA512,
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, extra extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				ExtraExtensions: []pkix.Extension{
+					{
+						Id:    []int{2, 5, 29, 99},
+						Value: []byte{5, 0},
+					},
+				},
+			},
+		},
+		{
+			name: "valid, deprecated entries with extension",
 			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
@@ -2623,79 +2750,6 @@ func TestCreateRevocationList(t *testing.T) {
 				Number:     big.NewInt(5),
 				ThisUpdate: time.Time{}.Add(time.Hour * 24),
 				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, Ed25519 key",
-			key:  ed25519Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, non-default signature algorithm",
-			key:  ec256Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				SignatureAlgorithm: ECDSAWithSHA512,
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, extra extension",
-			key:  ec256Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-				ExtraExtensions: []pkix.Extension{
-					{
-						Id:    []int{2, 5, 29, 99},
-						Value: []byte{5, 0},
-					},
-				},
 			},
 		},
 		{
@@ -2751,9 +2805,32 @@ func TestCreateRevocationList(t *testing.T) {
 					tc.template.SignatureAlgorithm)
 			}
 
-			if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
-				t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
-					parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
+			if len(tc.template.RevokedCertificates) > 0 {
+				if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
+					t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
+						parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
+				}
+			} else {
+				if len(parsedCRL.RevokedCertificateEntries) != len(tc.template.RevokedCertificateEntries) {
+					t.Fatalf("RevokedCertificateEntries length mismatch: got %d; want %d.",
+						len(parsedCRL.RevokedCertificateEntries),
+						len(tc.template.RevokedCertificateEntries))
+				}
+				for i, rce := range parsedCRL.RevokedCertificateEntries {
+					expected := tc.template.RevokedCertificateEntries[i]
+					if rce.SerialNumber.Cmp(expected.SerialNumber) != 0 {
+						t.Fatalf("RevocationListEntry serial mismatch: got %d; want %d.",
+							rce.SerialNumber, expected.SerialNumber)
+					}
+					if !rce.RevocationTime.Equal(expected.RevocationTime) {
+						t.Fatalf("RevocationListEntry revocation time mismatch: got %v; want %v.",
+							rce.RevocationTime, expected.RevocationTime)
+					}
+					if rce.ReasonCode != expected.ReasonCode {
+						t.Fatalf("RevocationListEntry reason code mismatch: got %d; want %d.",
+							rce.ReasonCode, expected.ReasonCode)
+					}
+				}
 			}
 
 			if len(parsedCRL.Extensions) != 2+len(tc.template.ExtraExtensions) {
@@ -3578,7 +3655,7 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	}
 
 	// This is an unrelated OCSP response, which will fail signature verification
-	// but shouldn't return a InsecureAlgorithmError, since SHA1 should be allowed
+	// but shouldn't return an InsecureAlgorithmError, since SHA1 should be allowed
 	// for OCSP.
 	ocspTBSHex := "30819fa2160414884451ff502a695e2d88f421bad90cf2cecbea7c180f32303133303631383037323434335a30743072304a300906052b0e03021a0500041448b60d38238df8456e4ee5843ea394111802979f0414884451ff502a695e2d88f421bad90cf2cecbea7c021100f78b13b946fc9635d8ab49de9d2148218000180f32303133303631383037323434335aa011180f32303133303632323037323434335a"
 	ocspTBS, err := hex.DecodeString(ocspTBSHex)
@@ -3599,9 +3676,10 @@ func TestParseRevocationList(t *testing.T) {
 		t.Errorf("error parsing: %s", err)
 		return
 	}
-	numCerts := len(certList.RevokedCertificates)
+	numCerts := len(certList.RevokedCertificateEntries)
+	numCertsDeprecated := len(certList.RevokedCertificateEntries)
 	expected := 88
-	if numCerts != expected {
+	if numCerts != expected || numCertsDeprecated != expected {
 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
 	}
 }
@@ -3840,5 +3918,84 @@ func TestDuplicateAttributesCSR(t *testing.T) {
 	_, err := ParseCertificateRequest(b.Bytes)
 	if err != nil {
 		t.Fatal("ParseCertificateRequest should succeed when parsing CSR with duplicate attributes")
+	}
+}
+
+func TestCertificateOIDPolicies(t *testing.T) {
+	template := Certificate{
+		SerialNumber:      big.NewInt(1),
+		Subject:           pkix.Name{CommonName: "Cert"},
+		NotBefore:         time.Unix(1000, 0),
+		NotAfter:          time.Unix(100000, 0),
+		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+	}
+
+	var expectPolicyIdentifiers = []asn1.ObjectIdentifier{
+		[]int{1, 2, 3},
+	}
+
+	var expectPolicies = []OID{
+		mustNewOIDFromInts(t, []uint64{1, 2, 3}),
+	}
+
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+
+	cert, err := ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("ParseCertificate() unexpected error: %v", err)
+	}
+
+	if !slices.EqualFunc(cert.PolicyIdentifiers, expectPolicyIdentifiers, slices.Equal) {
+		t.Errorf("cert.PolicyIdentifiers = %v, want: %v", cert.PolicyIdentifiers, expectPolicyIdentifiers)
+	}
+
+	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
+		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+	}
+}
+
+func TestCertificatePoliciesGODEBUG(t *testing.T) {
+	template := Certificate{
+		SerialNumber:      big.NewInt(1),
+		Subject:           pkix.Name{CommonName: "Cert"},
+		NotBefore:         time.Unix(1000, 0),
+		NotAfter:          time.Unix(100000, 0),
+		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+		Policies:          []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})},
+	}
+
+	expectPolicies := []OID{mustNewOIDFromInts(t, []uint64{1, 2, 3})}
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+
+	cert, err := ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("ParseCertificate() unexpected error: %v", err)
+	}
+
+	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
+		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+	}
+
+	t.Setenv("GODEBUG", "x509usepolicies=1")
+	expectPolicies = []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})}
+
+	certDER, err = CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+
+	cert, err = ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("ParseCertificate() unexpected error: %v", err)
+	}
+
+	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
+		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
 	}
 }

@@ -280,7 +280,7 @@ func (s *stackAllocState) stackalloc() {
 			// If there is no unused stack slot, allocate a new one.
 			if i == len(locs) {
 				s.nAuto++
-				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Pos, v.Type), Type: v.Type, Off: 0})
+				locs = append(locs, LocalSlot{N: f.NewLocal(v.Pos, v.Type), Type: v.Type, Off: 0})
 				locations[v.Type] = locs
 			}
 			// Use the stack variable at that index for v.

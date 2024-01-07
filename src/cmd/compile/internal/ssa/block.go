@@ -112,13 +112,6 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-//
-//	  kind          controls        successors
-//	------------------------------------------
-//	  Exit      [return mem]                []
-//	 Plain                []            [next]
-//	    If   [boolean Value]      [then, else]
-//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int16
 
 // short form print
@@ -275,8 +268,7 @@ func (b *Block) truncateValues(i int) {
 	b.Values = b.Values[:i]
 }
 
-// AddEdgeTo adds an edge from block b to block c. Used during building of the
-// SSA graph; do not use on an already-completed SSA graph.
+// AddEdgeTo adds an edge from block b to block c.
 func (b *Block) AddEdgeTo(c *Block) {
 	i := len(b.Succs)
 	j := len(c.Preds)
@@ -305,6 +297,8 @@ func (b *Block) removePred(i int) {
 // removeSucc removes the ith output edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding predecessor edge.
+// Note that this potentially reorders successors of b, so it
+// must be used very carefully.
 func (b *Block) removeSucc(i int) {
 	n := len(b.Succs) - 1
 	if i != n {
@@ -331,6 +325,19 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
+// Swaps b.Succs[x] and b.Succs[y].
+func (b *Block) swapSuccessorsByIdx(x, y int) {
+	if x == y {
+		return
+	}
+	ex := b.Succs[x]
+	ey := b.Succs[y]
+	b.Succs[x] = ey
+	b.Succs[y] = ex
+	ex.b.Preds[ex.i].i = y
+	ey.b.Preds[ey.i].i = x
+}
+
 // removePhiArg removes the ith arg from phi.
 // It must be called after calling b.removePred(i) to
 // adjust the corresponding phi value of the block:
@@ -341,18 +348,19 @@ func (b *Block) swapSuccessors() {
 //	if v.Op != OpPhi {
 //	    continue
 //	}
-//	b.removeArg(v, i)
+//	b.removePhiArg(v, i)
 //
 // }
 func (b *Block) removePhiArg(phi *Value, i int) {
 	n := len(b.Preds)
 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
-		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
+		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
 	}
 	phi.Args[i].Uses--
 	phi.Args[i] = phi.Args[n]
 	phi.Args[n] = nil
 	phi.Args = phi.Args[:n]
+	phielimValue(phi)
 }
 
 // LackingPos indicates whether b is a block whose position should be inherited
@@ -384,10 +392,10 @@ func (b *Block) AuxIntString() string {
 		return fmt.Sprintf("%v", int8(b.AuxInt))
 	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
-	default: // type specified but not implemented - print as int64
-		return fmt.Sprintf("%v", b.AuxInt)
 	case "": // no aux int type
 		return ""
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
 	}
 }
 

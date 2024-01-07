@@ -50,10 +50,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 }
 
 func ginsnop(pp *objw.Progs) *obj.Prog {
-	p := pp.Prog(mips.ANOR)
-	p.From.Type = obj.TYPE_REG
-	p.From.Reg = mips.REG_R0
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = mips.REG_R0
+	p := pp.Prog(mips.ANOOP)
 	return p
 }

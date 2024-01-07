@@ -6,7 +6,6 @@ package vcweb
 
 import (
 	"bufio"
-	"cmd/go/internal/slices"
 	"context"
 	"errors"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"

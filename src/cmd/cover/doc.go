@@ -11,7 +11,7 @@ annotations to track which parts of each function are executed (this
 is referred to "instrumentation"). Cover can operate in "legacy mode"
 on a single Go source file at a time, or when invoked by the Go tool
 it will process all the source files in a single package at a time
-(package-scope instrumentation is enabled via "-pkgcfg" option,
+(package-scope instrumentation is enabled via "-pkgcfg" option).
 
 When generated instrumented code, the cover tool computes approximate
 basic block information by studying the source. It is thus more

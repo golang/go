@@ -23,8 +23,20 @@ func TestSplice(t *testing.T) {
 		t.Skip("skipping unix-to-tcp tests")
 	}
 	t.Run("unix-to-tcp", func(t *testing.T) { testSplice(t, "unix", "tcp") })
+	t.Run("tcp-to-unix", func(t *testing.T) { testSplice(t, "tcp", "unix") })
+	t.Run("tcp-to-file", func(t *testing.T) { testSpliceToFile(t, "tcp", "file") })
+	t.Run("unix-to-file", func(t *testing.T) { testSpliceToFile(t, "unix", "file") })
 	t.Run("no-unixpacket", testSpliceNoUnixpacket)
 	t.Run("no-unixgram", testSpliceNoUnixgram)
+}
+
+func testSpliceToFile(t *testing.T, upNet, downNet string) {
+	t.Run("simple", spliceTestCase{upNet, downNet, 128, 128, 0}.testFile)
+	t.Run("multipleWrite", spliceTestCase{upNet, downNet, 4096, 1 << 20, 0}.testFile)
+	t.Run("big", spliceTestCase{upNet, downNet, 5 << 20, 1 << 30, 0}.testFile)
+	t.Run("honorsLimitedReader", spliceTestCase{upNet, downNet, 4096, 1 << 20, 1 << 10}.testFile)
+	t.Run("updatesLimitedReaderN", spliceTestCase{upNet, downNet, 1024, 4096, 4096 + 100}.testFile)
+	t.Run("limitedReaderAtLimit", spliceTestCase{upNet, downNet, 32, 128, 128}.testFile)
 }
 
 func testSplice(t *testing.T, upNet, downNet string) {
@@ -96,7 +108,65 @@ func (tc spliceTestCase) test(t *testing.T) {
 	}
 }
 
+func (tc spliceTestCase) testFile(t *testing.T) {
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	client, server := spliceTestSocketPair(t, tc.upNet)
+	defer server.Close()
+
+	cleanup, err := startSpliceClient(client, "w", tc.chunkSize, tc.totalSize)
+	if err != nil {
+		client.Close()
+		t.Fatal("failed to start splice client:", err)
+	}
+	defer cleanup()
+
+	var (
+		r          io.Reader = server
+		actualSize           = tc.totalSize
+	)
+	if tc.limitReadSize > 0 {
+		if tc.limitReadSize < actualSize {
+			actualSize = tc.limitReadSize
+		}
+
+		r = &io.LimitedReader{
+			N: int64(tc.limitReadSize),
+			R: r,
+		}
+	}
+
+	got, err := io.Copy(f, r)
+	if err != nil {
+		t.Fatalf("failed to ReadFrom with error: %v", err)
+	}
+	if want := int64(actualSize); got != want {
+		t.Errorf("got %d bytes, want %d", got, want)
+	}
+	if tc.limitReadSize > 0 {
+		wantN := 0
+		if tc.limitReadSize > actualSize {
+			wantN = tc.limitReadSize - actualSize
+		}
+
+		if gotN := r.(*io.LimitedReader).N; gotN != int64(wantN) {
+			t.Errorf("r.N = %d, want %d", gotN, wantN)
+		}
+	}
+}
+
 func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
+	// UnixConn doesn't implement io.ReaderFrom, which will fail
+	// the following test in asserting a UnixConn to be an io.ReaderFrom,
+	// so skip this test.
+	if upNet == "unix" || downNet == "unix" {
+		t.Skip("skipping test on unix socket")
+	}
+
 	clientUp, serverUp := spliceTestSocketPair(t, upNet)
 	defer clientUp.Close()
 	clientDown, serverDown := spliceTestSocketPair(t, downNet)
@@ -104,16 +174,16 @@ func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
 
 	serverUp.Close()
 
-	// We'd like to call net.splice here and check the handled return
+	// We'd like to call net.spliceFrom here and check the handled return
 	// value, but we disable splice on old Linux kernels.
 	//
-	// In that case, poll.Splice and net.splice return a non-nil error
+	// In that case, poll.Splice and net.spliceFrom return a non-nil error
 	// and handled == false. We'd ideally like to see handled == true
 	// because the source reader is at EOF, but if we're running on an old
-	// kernel, and splice is disabled, we won't see EOF from net.splice,
+	// kernel, and splice is disabled, we won't see EOF from net.spliceFrom,
 	// because we won't touch the reader at all.
 	//
-	// Trying to untangle the errors from net.splice and match them
+	// Trying to untangle the errors from net.spliceFrom and match them
 	// against the errors created by the poll package would be brittle,
 	// so this is a higher level test.
 	//
@@ -206,7 +276,7 @@ func testSpliceNoUnixpacket(t *testing.T) {
 	//
 	// What we want is err == nil and handled == false, i.e. we never
 	// called poll.Splice, because we know the unix socket's network.
-	_, err, handled := splice(serverDown.(*TCPConn).fd, serverUp)
+	_, err, handled := spliceFrom(serverDown.(*TCPConn).fd, serverUp)
 	if err != nil || handled != false {
 		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
 	}
@@ -227,7 +297,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// Analogous to testSpliceNoUnixpacket.
-	_, err, handled := splice(serverDown.(*TCPConn).fd, up)
+	_, err, handled := spliceFrom(serverDown.(*TCPConn).fd, up)
 	if err != nil || handled != false {
 		t.Fatalf("got err = %v, handled = %t, want nil error, handled == false", err, handled)
 	}
@@ -238,6 +308,7 @@ func BenchmarkSplice(b *testing.B) {
 
 	b.Run("tcp-to-tcp", func(b *testing.B) { benchSplice(b, "tcp", "tcp") })
 	b.Run("unix-to-tcp", func(b *testing.B) { benchSplice(b, "unix", "tcp") })
+	b.Run("tcp-to-unix", func(b *testing.B) { benchSplice(b, "tcp", "unix") })
 }
 
 func benchSplice(b *testing.B, upNet, downNet string) {
@@ -413,5 +484,58 @@ func init() {
 		if n, err = fn(buf); err != nil {
 			return
 		}
+	}
+}
+
+func BenchmarkSpliceFile(b *testing.B) {
+	b.Run("tcp-to-file", func(b *testing.B) { benchmarkSpliceFile(b, "tcp") })
+	b.Run("unix-to-file", func(b *testing.B) { benchmarkSpliceFile(b, "unix") })
+}
+
+func benchmarkSpliceFile(b *testing.B, proto string) {
+	for i := 0; i <= 10; i++ {
+		size := 1 << (i + 10)
+		bench := spliceFileBench{
+			proto:     proto,
+			chunkSize: size,
+		}
+		b.Run(strconv.Itoa(size), bench.benchSpliceFile)
+	}
+}
+
+type spliceFileBench struct {
+	proto     string
+	chunkSize int
+}
+
+func (bench spliceFileBench) benchSpliceFile(b *testing.B) {
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer f.Close()
+
+	totalSize := b.N * bench.chunkSize
+
+	client, server := spliceTestSocketPair(b, bench.proto)
+	defer server.Close()
+
+	cleanup, err := startSpliceClient(client, "w", bench.chunkSize, totalSize)
+	if err != nil {
+		client.Close()
+		b.Fatalf("failed to start splice client: %v", err)
+	}
+	defer cleanup()
+
+	b.ReportAllocs()
+	b.SetBytes(int64(bench.chunkSize))
+	b.ResetTimer()
+
+	got, err := io.Copy(f, server)
+	if err != nil {
+		b.Fatalf("failed to ReadFrom with error: %v", err)
+	}
+	if want := int64(totalSize); got != want {
+		b.Errorf("bytes sent mismatch, got: %d, want: %d", got, want)
 	}
 }

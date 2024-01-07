@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
 
@@ -53,7 +52,7 @@ func main() {
 func mkbuiltin(w io.Writer) {
 	pkg := "runtime"
 	fset := token.NewFileSet()
-	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "builtin", "runtime.go")
+	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		log.Fatal(err)

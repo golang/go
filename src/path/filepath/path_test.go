@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -66,6 +67,7 @@ var cleantests = []PathTest{
 	{"/abc/def/../../..", "/"},
 	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
 	{"/../abc", "/abc"},
+	{"a/../b:/../../c", `../c`},
 
 	// Combinations
 	{"abc/./../def", "def"},
@@ -88,6 +90,7 @@ var wincleantests = []PathTest{
 	{`c:\abc\def\..\..`, `c:\`},
 	{`c:\..\abc`, `c:\abc`},
 	{`c:..\abc`, `c:..\abc`},
+	{`c:\b:\..\..\..\d`, `c:\d`},
 	{`\`, `\`},
 	{`/`, `\`},
 	{`\\i\..\c$`, `\\i\..\c$`},
@@ -106,6 +109,18 @@ var wincleantests = []PathTest{
 	{`//abc`, `\\abc`},
 	{`///abc`, `\\\abc`},
 	{`//abc//`, `\\abc\\`},
+	{`\\?\C:\`, `\\?\C:\`},
+	{`\\?\C:\a`, `\\?\C:\a`},
+
+	// Don't allow cleaning to move an element with a colon to the start of the path.
+	{`a/../c:`, `.\c:`},
+	{`a\..\c:`, `.\c:`},
+	{`a/../c:/a`, `.\c:\a`},
+	{`a/../../c:`, `..\c:`},
+	{`foo:bar`, `foo:bar`},
+
+	// Don't allow cleaning to create a Root Local Device path like \??\a.
+	{`/a/../??/a`, `\.\??\a`},
 }
 
 func TestClean(t *testing.T) {
@@ -161,19 +176,41 @@ var islocaltests = []IsLocalTest{
 	{"a/", true},
 	{"a/.", true},
 	{"a/./b/./c", true},
+	{`a/../b:/../../c`, false},
 }
 
 var winislocaltests = []IsLocalTest{
 	{"NUL", false},
 	{"nul", false},
+	{"nul ", false},
 	{"nul.", false},
+	{"a/nul:", false},
+	{"a/nul : a", false},
+	{"com0", true},
 	{"com1", false},
+	{"com2", false},
+	{"com3", false},
+	{"com4", false},
+	{"com5", false},
+	{"com6", false},
+	{"com7", false},
+	{"com8", false},
+	{"com9", false},
+	{"com¹", false},
+	{"com²", false},
+	{"com³", false},
+	{"com¹ : a", false},
+	{"cOm1", false},
+	{"lpt1", false},
+	{"LPT1", false},
+	{"lpt³", false},
 	{"./nul", false},
 	{`\`, false},
 	{`\a`, false},
 	{`C:`, false},
 	{`C:\a`, false},
 	{`..\a`, false},
+	{`a/../c:`, false},
 	{`CONIN$`, false},
 	{`conin$`, false},
 	{`CONOUT$`, false},
@@ -371,6 +408,8 @@ var winjointests = []JoinTest{
 	{[]string{`\\a`, `b`, `c`}, `\\a\b\c`},
 	{[]string{`\\a\`, `b`, `c`}, `\\a\b\c`},
 	{[]string{`//`, `a`}, `\\a`},
+	{[]string{`a:\b\c`, `x\..\y:\..\..\z`}, `a:\b\z`},
+	{[]string{`\`, `??\a`}, `\.\??\a`},
 }
 
 func TestJoin(t *testing.T) {
@@ -547,20 +586,11 @@ func tempDirCanonical(t *testing.T) string {
 func TestWalk(t *testing.T) {
 	walk := func(root string, fn fs.WalkDirFunc) error {
 		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-			return fn(path, &statDirEntry{info}, err)
+			return fn(path, fs.FileInfoToDirEntry(info), err)
 		})
 	}
 	testWalk(t, walk, 1)
 }
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
 
 func TestWalkDir(t *testing.T) {
 	testWalk(t, filepath.WalkDir, 2)
@@ -604,8 +634,9 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
 		// Test permission errors. Only possible if we're not root
 		// and only on some file systems (AFS, FAT).  To avoid errors during
 		// all.bash on those file systems, skip during go test -short.
-		if runtime.GOOS == "windows" {
-			t.Skip("skipping on Windows")
+		// Chmod is not supported on wasip1.
+		if runtime.GOOS == "windows" || runtime.GOOS == "wasip1" {
+			t.Skip("skipping on " + runtime.GOOS)
 		}
 		if os.Getuid() == 0 {
 			t.Skip("skipping as root")
@@ -833,6 +864,16 @@ func TestWalkSymlinkRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	abslink := filepath.Join(td, "abslink")
+	if err := os.Symlink(dir, abslink); err != nil {
+		t.Fatal(err)
+	}
+
+	linklink := filepath.Join(td, "linklink")
+	if err := os.Symlink("link", linklink); err != nil {
+		t.Fatal(err)
+	}
+
 	// Per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12:
 	// “A pathname that contains at least one non- <slash> character and that ends
 	// with one or more trailing <slash> characters shall not be resolved
@@ -845,9 +886,10 @@ func TestWalkSymlinkRoot(t *testing.T) {
 	// but if it does end in a slash, Walk should walk the directory to which the symlink
 	// refers (since it must be fully resolved before walking).
 	for _, tt := range []struct {
-		desc string
-		root string
-		want []string
+		desc      string
+		root      string
+		want      []string
+		buggyGOOS []string
 	}{
 		{
 			desc: "no slash",
@@ -858,6 +900,27 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			desc: "slash",
 			root: link + string(filepath.Separator),
 			want: []string{link, filepath.Join(link, "foo")},
+		},
+		{
+			desc: "abs no slash",
+			root: abslink,
+			want: []string{abslink},
+		},
+		{
+			desc: "abs with slash",
+			root: abslink + string(filepath.Separator),
+			want: []string{abslink, filepath.Join(abslink, "foo")},
+		},
+		{
+			desc: "double link no slash",
+			root: linklink,
+			want: []string{linklink},
+		},
+		{
+			desc:      "double link with slash",
+			root:      linklink + string(filepath.Separator),
+			want:      []string{linklink, filepath.Join(linklink, "foo")},
+			buggyGOOS: []string{"darwin", "ios"}, // https://go.dev/issue/59586
 		},
 	} {
 		tt := tt
@@ -876,7 +939,12 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(walked, tt.want) {
-				t.Errorf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+				t.Logf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+				if slices.Contains(tt.buggyGOOS, runtime.GOOS) {
+					t.Logf("(ignoring known bug on %v)", runtime.GOOS)
+				} else {
+					t.Fail()
+				}
 			}
 		})
 	}
@@ -1005,6 +1073,8 @@ var winisabstests = []IsAbsTest{
 	{`\\host\share\`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
+	{`\\?\a\b\c`, true},
+	{`\??\a\b\c`, true},
 }
 
 func TestIsAbs(t *testing.T) {
@@ -1505,7 +1575,8 @@ type VolumeNameTest struct {
 var volumenametests = []VolumeNameTest{
 	{`c:/foo/bar`, `c:`},
 	{`c:`, `c:`},
-	{`2:`, ``},
+	{`c:\`, `c:`},
+	{`2:`, `2:`},
 	{``, ``},
 	{`\\\host`, `\\\host`},
 	{`\\\host\`, `\\\host`},
@@ -1525,12 +1596,26 @@ var volumenametests = []VolumeNameTest{
 	{`//host/share//foo///bar////baz`, `\\host\share`},
 	{`\\host\share\foo\..\bar`, `\\host\share`},
 	{`//host/share/foo/../bar`, `\\host\share`},
+	{`//.`, `\\.`},
+	{`//./`, `\\.\`},
 	{`//./NUL`, `\\.\NUL`},
+	{`//?`, `\\?`},
+	{`//?/`, `\\?\`},
 	{`//?/NUL`, `\\?\NUL`},
+	{`/??`, `\??`},
+	{`/??/`, `\??\`},
+	{`/??/NUL`, `\??\NUL`},
+	{`//./a/b`, `\\.\a`},
 	{`//./C:`, `\\.\C:`},
+	{`//./C:/`, `\\.\C:`},
 	{`//./C:/a/b/c`, `\\.\C:`},
 	{`//./UNC/host/share/a/b/c`, `\\.\UNC\host\share`},
 	{`//./UNC/host`, `\\.\UNC\host`},
+	{`//./UNC/host\`, `\\.\UNC\host\`},
+	{`//./UNC`, `\\.\UNC`},
+	{`//./UNC/`, `\\.\UNC\`},
+	{`\\?\x`, `\\?\x`},
+	{`\??\x`, `\??\x`},
 }
 
 func TestVolumeName(t *testing.T) {
@@ -1571,36 +1656,33 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	if runtime.GOOS == "ios" {
 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	root, err := filepath.EvalSymlinks(testenv.GOROOT(t) + "/test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bugs := filepath.Join(root, "fixedbugs")
-	ken := filepath.Join(root, "ken")
-	seenBugs := false
-	seenKen := false
-	err = filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
+	root := filepath.Join(testenv.GOROOT(t), "src", "unicode")
+	utf16 := filepath.Join(root, "utf16")
+	utf8 := filepath.Join(root, "utf8")
+	seenUTF16 := false
+	seenUTF8 := false
+	err := filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		switch pth {
-		case bugs:
-			seenBugs = true
+		case utf16:
+			seenUTF16 = true
 			return filepath.SkipDir
-		case ken:
-			if !seenBugs {
-				t.Fatal("filepath.Walk out of order - ken before fixedbugs")
+		case utf8:
+			if !seenUTF16 {
+				t.Fatal("filepath.Walk out of order - utf8 before utf16")
 			}
-			seenKen = true
+			seenUTF8 = true
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !seenKen {
-		t.Fatalf("%q not seen", ken)
+	if !seenUTF8 {
+		t.Fatalf("%q not seen", utf8)
 	}
 }
 
@@ -1801,5 +1883,30 @@ func TestIssue51617(t *testing.T) {
 	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
 	if !reflect.DeepEqual(saw, want) {
 		t.Errorf("got directories %v, want %v", saw, want)
+	}
+}
+
+func TestEscaping(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	chdir(t, dir1)
+
+	for _, p := range []string{
+		filepath.Join(dir2, "x"),
+	} {
+		if !filepath.IsLocal(p) {
+			continue
+		}
+		f, err := os.Create(p)
+		if err != nil {
+			f.Close()
+		}
+		ents, err := os.ReadDir(dir2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range ents {
+			t.Fatalf("found: %v", e.Name())
+		}
 	}
 }

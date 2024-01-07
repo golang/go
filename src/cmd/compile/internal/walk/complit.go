@@ -7,7 +7,7 @@ package walk
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
@@ -18,7 +18,7 @@ import (
 // walkCompLit walks a composite literal node:
 // OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT (all CompLitExpr), or OPTRLIT (AddrExpr).
 func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
-	if isStaticCompositeLiteral(n) && !ssagen.TypeOK(n.Type()) {
+	if isStaticCompositeLiteral(n) && !ssa.CanSSA(n.Type()) {
 		n := n.(*ir.CompLitExpr) // not OPTRLIT
 		// n can be directly represented in the read-only data section.
 		// Make direct reference to the static data. See issue 12841.
@@ -26,7 +26,7 @@ func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
 		fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 		return typecheck.Expr(vstat)
 	}
-	var_ := typecheck.Temp(n.Type())
+	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
 	anylit(n, var_, init)
 	return var_
 }
@@ -204,7 +204,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				}
 				r = kv.Value
 			}
-			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(k))
+			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
 			k++
 			if isBlank {
 				return ir.BlankNode, r
@@ -341,7 +341,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	}
 
 	// make new auto *array (3 declare)
-	vauto := typecheck.Temp(types.NewPtr(t))
+	vauto := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a ir.Node
@@ -352,7 +352,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		}
 		a = initStackTemp(init, x, vstat)
 	} else if n.Esc() == ir.EscNone {
-		a = initStackTemp(init, typecheck.Temp(t), vstat)
+		a = initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, t), vstat)
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
@@ -377,7 +377,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			}
 			value = kv.Value
 		}
-		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(index))
+		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))
 		a.SetBounded(true)
 		index++
 
@@ -416,7 +416,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
-	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
@@ -464,7 +464,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		// for i = 0; i < len(vstatk); i++ {
 		//	map[vstatk[i]] = vstate[i]
 		// }
-		i := typecheck.Temp(types.Types[types.TINT])
+		i := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
 		rhs := ir.NewIndexExpr(base.Pos, vstate, i)
 		rhs.SetBounded(true)
 
@@ -476,15 +476,15 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 		lhs.RType = n.RType
 
-		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
-		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, tk.NumElem()))
+		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
 		body = typecheck.Stmt(body)
 		body = orderStmtInPlace(body, map[string][]*ir.Name{})
 
-		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
+		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
 		loop.Body = []ir.Node{body}
 		loop.SetInit([]ir.Node{zero})
 
@@ -497,8 +497,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
 	// TODO(khr): assign these temps in order phase so we can reuse them across multiple maplits?
-	tmpkey := typecheck.Temp(m.Type().Key())
-	tmpelem := typecheck.Temp(m.Type().Elem())
+	tmpkey := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Key())
+	tmpelem := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Elem())
 
 	for _, r := range entries {
 		r := r.(*ir.KeyExpr)

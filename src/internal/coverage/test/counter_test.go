@@ -19,10 +19,6 @@ type ctrVis struct {
 	funcs []decodecounter.FuncPayload
 }
 
-func (v *ctrVis) NumFuncs() (int, error) {
-	return len(v.funcs), nil
-}
-
 func (v *ctrVis) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 	for _, fn := range v.funcs {
 		if err := f(fn.PkgIdx, fn.FuncIdx, fn.Counters); err != nil {

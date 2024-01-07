@@ -189,6 +189,7 @@ func OnesCount8(n uint8) int {
 
 func ReverseBytes(n uint) uint {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
 	return bits.ReverseBytes(n)
@@ -196,15 +197,19 @@ func ReverseBytes(n uint) uint {
 
 func ReverseBytes64(n uint64) uint64 {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
+	// ppc64x/power10: "BRD"
 	return bits.ReverseBytes64(n)
 }
 
 func ReverseBytes32(n uint32) uint32 {
 	// amd64:"BSWAPL"
+	// 386:"BSWAPL"
 	// s390x:"MOVWBR"
 	// arm64:"REVW"
+	// ppc64x/power10: "BRW"
 	return bits.ReverseBytes32(n)
 }
 
@@ -214,6 +219,7 @@ func ReverseBytes16(n uint16) uint16 {
 	// arm/5:"SLL","SRL","ORR"
 	// arm/6:"REV16"
 	// arm/7:"REV16"
+	// ppc64x/power10: "BRH"
 	return bits.ReverseBytes16(n)
 }
 
@@ -287,6 +293,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 func TrailingZeros(n uint) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
@@ -299,6 +306,7 @@ func TrailingZeros(n uint) int {
 func TrailingZeros64(n uint64) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
 	// ppc64x/power8:"ANDN","POPCNTD"
@@ -316,6 +324,7 @@ func TrailingZeros64Subtract(n uint64) int {
 func TrailingZeros32(n uint32) int {
 	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
 	// amd64/v3:"TZCNTL"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
@@ -326,19 +335,20 @@ func TrailingZeros32(n uint32) int {
 }
 
 func TrailingZeros16(n uint16) int {
-	// amd64:"BSFL","BTSL\\t\\$16"
+	// amd64:"BSFL","ORL\\t\\$65536"
 	// 386:"BSFL\t"
 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$65536"
-	// ppc64x/power8:"POPCNTD","OR\\t\\$65536"
-	// ppc64x/power9:"CNTTZD","OR\\t\\$65536"
+	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
+	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros16(n)
 }
 
 func TrailingZeros8(n uint8) int {
-	// amd64:"BSFL","BTSL\\t\\$8"
+	// amd64:"BSFL","ORL\\t\\$256"
+	// 386:"BSFL"
 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$256"
@@ -424,6 +434,7 @@ func AddC(x, ci uint) (r, co uint) {
 	// loong64: "ADDV", "SGTU"
 	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add(x, 7, ci)
 }
@@ -434,6 +445,7 @@ func AddZ(x, y uint) (r, co uint) {
 	// loong64: "ADDV", "SGTU"
 	// ppc64x: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add(x, y, 0)
 }
@@ -444,6 +456,7 @@ func AddR(x, y, ci uint) uint {
 	// loong64: "ADDV", -"SGTU"
 	// ppc64x: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV",-"SGTU"
 	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add(x, y, ci)
 	return r
@@ -465,6 +478,7 @@ func Add64(x, y, ci uint64) (r, co uint64) {
 	// loong64: "ADDV", "SGTU"
 	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, ci)
 }
@@ -475,6 +489,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
 	// loong64: "ADDV", "SGTU"
 	// ppc64x: "ADDC", "ADDE", "ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, 7, ci)
 }
@@ -485,6 +500,7 @@ func Add64Z(x, y uint64) (r, co uint64) {
 	// loong64: "ADDV", "SGTU"
 	// ppc64x: "ADDC", -"ADDE", "ADDZE"
 	// s390x:"ADDC",-"ADDC\t[$]-1,"
+	// mips64:"ADDV","SGTU"
 	// riscv64: "ADD","SLTU"
 	return bits.Add64(x, y, 0)
 }
@@ -495,6 +511,7 @@ func Add64R(x, y, ci uint64) uint64 {
 	// loong64: "ADDV", -"SGTU"
 	// ppc64x: "ADDC", "ADDE", -"ADDZE"
 	// s390x:"ADDE","ADDC\t[$]-1,"
+	// mips64:"ADDV",-"SGTU"
 	// riscv64: "ADD",-"SLTU"
 	r, _ := bits.Add64(x, y, ci)
 	return r
@@ -619,6 +636,7 @@ func Sub(x, y, ci uint) (r, co uint) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, ci)
 }
@@ -629,6 +647,7 @@ func SubC(x, ci uint) (r, co uint) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, 7, ci)
 }
@@ -639,6 +658,7 @@ func SubZ(x, y uint) (r, co uint) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub(x, y, 0)
 }
@@ -670,6 +690,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, ci)
 }
@@ -680,6 +701,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
 	// s390x:"SUBE"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, 7, ci)
 }
@@ -690,6 +712,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
 	// loong64:"SUBV","SGTU"
 	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
 	// s390x:"SUBC"
+	// mips64:"SUBV","SGTU"
 	// riscv64: "SUB","SLTU"
 	return bits.Sub64(x, y, 0)
 }

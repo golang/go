@@ -60,28 +60,6 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 	panic("unreachable")
 }
 
-// NewLiteral returns a new untyped constant with value v.
-func NewLiteral(v constant.Value) Node {
-	return NewBasicLit(base.Pos, v)
-}
-
-func idealType(ct constant.Kind) *types.Type {
-	switch ct {
-	case constant.String:
-		return types.UntypedString
-	case constant.Bool:
-		return types.UntypedBool
-	case constant.Int:
-		return types.UntypedInt
-	case constant.Float:
-		return types.UntypedFloat
-	case constant.Complex:
-		return types.UntypedComplex
-	}
-	base.Fatalf("unexpected Ctype: %v", ct)
-	return nil
-}
-
 var OKForConst [types.NTYPE]bool
 
 // Int64Val returns n as an int64.
@@ -97,7 +75,7 @@ func Int64Val(n Node) int64 {
 	return x
 }
 
-// Uint64Val returns n as an uint64.
+// Uint64Val returns n as a uint64.
 // n must be an integer or rune constant.
 func Uint64Val(n Node) uint64 {
 	if !IsConst(n, constant.Int) {

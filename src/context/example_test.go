@@ -6,11 +6,12 @@ package context_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"sync"
 	"time"
 )
-
-const shortDuration = 1 * time.Millisecond // a reasonable duration to block in an example
 
 var neverReady = make(chan struct{}) // never closed
 
@@ -119,4 +120,144 @@ func ExampleWithValue() {
 	// Output:
 	// found value: Go
 	// key not found: color
+}
+
+// This example uses AfterFunc to define a function which waits on a sync.Cond,
+// stopping the wait when a context is canceled.
+func ExampleAfterFunc_cond() {
+	waitOnCond := func(ctx context.Context, cond *sync.Cond, conditionMet func() bool) error {
+		stopf := context.AfterFunc(ctx, func() {
+			// We need to acquire cond.L here to be sure that the Broadcast
+			// below won't occur before the call to Wait, which would result
+			// in a missed signal (and deadlock).
+			cond.L.Lock()
+			defer cond.L.Unlock()
+
+			// If multiple goroutines are waiting on cond simultaneously,
+			// we need to make sure we wake up exactly this one.
+			// That means that we need to Broadcast to all of the goroutines,
+			// which will wake them all up.
+			//
+			// If there are N concurrent calls to waitOnCond, each of the goroutines
+			// will spuriously wake up O(N) other goroutines that aren't ready yet,
+			// so this will cause the overall CPU cost to be O(N²).
+			cond.Broadcast()
+		})
+		defer stopf()
+
+		// Since the wakeups are using Broadcast instead of Signal, this call to
+		// Wait may unblock due to some other goroutine's context becoming done,
+		// so to be sure that ctx is actually done we need to check it in a loop.
+		for !conditionMet() {
+			cond.Wait()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		}
+
+		return nil
+	}
+
+	cond := sync.NewCond(new(sync.Mutex))
+
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+			defer cancel()
+
+			cond.L.Lock()
+			defer cond.L.Unlock()
+
+			err := waitOnCond(ctx, cond, func() bool { return false })
+			fmt.Println(err)
+		}()
+	}
+	wg.Wait()
+
+	// Output:
+	// context deadline exceeded
+	// context deadline exceeded
+	// context deadline exceeded
+	// context deadline exceeded
+}
+
+// This example uses AfterFunc to define a function which reads from a net.Conn,
+// stopping the read when a context is canceled.
+func ExampleAfterFunc_connection() {
+	readFromConn := func(ctx context.Context, conn net.Conn, b []byte) (n int, err error) {
+		stopc := make(chan struct{})
+		stop := context.AfterFunc(ctx, func() {
+			conn.SetReadDeadline(time.Now())
+			close(stopc)
+		})
+		n, err = conn.Read(b)
+		if !stop() {
+			// The AfterFunc was started.
+			// Wait for it to complete, and reset the Conn's deadline.
+			<-stopc
+			conn.SetReadDeadline(time.Time{})
+			return n, ctx.Err()
+		}
+		return n, err
+	}
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer listener.Close()
+
+	conn, err := net.Dial(listener.Addr().Network(), listener.Addr().String())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	b := make([]byte, 1024)
+	_, err = readFromConn(ctx, conn, b)
+	fmt.Println(err)
+
+	// Output:
+	// context deadline exceeded
+}
+
+// This example uses AfterFunc to define a function which combines
+// the cancellation signals of two Contexts.
+func ExampleAfterFunc_merge() {
+	// mergeCancel returns a context that contains the values of ctx,
+	// and which is canceled when either ctx or cancelCtx is canceled.
+	mergeCancel := func(ctx, cancelCtx context.Context) (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancelCause(ctx)
+		stop := context.AfterFunc(cancelCtx, func() {
+			cancel(context.Cause(cancelCtx))
+		})
+		return ctx, func() {
+			stop()
+			cancel(context.Canceled)
+		}
+	}
+
+	ctx1, cancel1 := context.WithCancelCause(context.Background())
+	defer cancel1(errors.New("ctx1 canceled"))
+
+	ctx2, cancel2 := context.WithCancelCause(context.Background())
+
+	mergedCtx, mergedCancel := mergeCancel(ctx1, ctx2)
+	defer mergedCancel()
+
+	cancel2(errors.New("ctx2 canceled"))
+	<-mergedCtx.Done()
+	fmt.Println(context.Cause(mergedCtx))
+
+	// Output:
+	// ctx2 canceled
 }

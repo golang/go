@@ -36,11 +36,11 @@ type FatArch struct {
 	*File
 }
 
-// ErrNotFat is returned from NewFatFile or OpenFat when the file is not a
+// ErrNotFat is returned from [NewFatFile] or [OpenFat] when the file is not a
 // universal binary but may be a thin binary, based on its magic number.
 var ErrNotFat = &FormatError{0, "not a fat Mach-O file", nil}
 
-// NewFatFile creates a new FatFile for accessing all the Mach-O images in a
+// NewFatFile creates a new [FatFile] for accessing all the Mach-O images in a
 // universal binary. The Mach-O binary is expected to start at position 0 in
 // the ReaderAt.
 func NewFatFile(r io.ReaderAt) (*FatFile, error) {
@@ -86,7 +86,7 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 	// Following the fat_header comes narch fat_arch structs that index
 	// Mach-O images further in the file.
-	c := saferio.SliceCap((*FatArch)(nil), uint64(narch))
+	c := saferio.SliceCap[FatArch](uint64(narch))
 	if c < 0 {
 		return nil, &FormatError{offset, "too many images", nil}
 	}
@@ -127,7 +127,7 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 	return &ff, nil
 }
 
-// OpenFat opens the named file using os.Open and prepares it for use as a Mach-O
+// OpenFat opens the named file using [os.Open] and prepares it for use as a Mach-O
 // universal binary.
 func OpenFat(name string) (*FatFile, error) {
 	f, err := os.Open(name)

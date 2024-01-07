@@ -487,3 +487,39 @@ func TestLinker(t *testing.T) {
 		t.Error("no P384 symbols found in program using ecdh.P384, test is broken")
 	}
 }
+
+func TestMismatchedCurves(t *testing.T) {
+	curves := []struct {
+		name  string
+		curve ecdh.Curve
+	}{
+		{"P256", ecdh.P256()},
+		{"P384", ecdh.P384()},
+		{"P521", ecdh.P521()},
+		{"X25519", ecdh.X25519()},
+	}
+
+	for _, privCurve := range curves {
+		priv, err := privCurve.curve.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatalf("failed to generate test key: %s", err)
+		}
+
+		for _, pubCurve := range curves {
+			if privCurve == pubCurve {
+				continue
+			}
+			t.Run(fmt.Sprintf("%s/%s", privCurve.name, pubCurve.name), func(t *testing.T) {
+				pub, err := pubCurve.curve.GenerateKey(rand.Reader)
+				if err != nil {
+					t.Fatalf("failed to generate test key: %s", err)
+				}
+				expected := "crypto/ecdh: private key and public key curves do not match"
+				_, err = priv.ECDH(pub.PublicKey())
+				if err.Error() != expected {
+					t.Fatalf("unexpected error: want %q, got %q", expected, err)
+				}
+			})
+		}
+	}
+}

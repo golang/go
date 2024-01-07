@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "go_asm.h"
 #include "textflag.h"
 #include "funcdata.h"
 
@@ -28,9 +29,11 @@ casl:
 	CMP	R0, R2
 	BNE	casfail
 
-	MOVB	runtime·goarm(SB), R8
-	CMP	$7, R8
-	BLT	2(PC)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$0, R11
+	BEQ	2(PC)
+#endif
 	DMB	MB_ISHST
 
 	STREX	R3, (R1), R0
@@ -246,52 +249,62 @@ TEXT ·Cas64(SB),NOSPLIT,$-4-21
 	MOVW	addr+0(FP), R1
 	CHECK_ALIGN
 
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	JMP	armCas64<>(SB)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
 	JMP	·goCas64(SB)
+#endif
+	JMP	armCas64<>(SB)
 
 TEXT ·Xadd64(SB),NOSPLIT,$-4-20
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
 	CHECK_ALIGN
 
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	JMP	armXadd64<>(SB)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
 	JMP	·goXadd64(SB)
+#endif
+	JMP	armXadd64<>(SB)
 
 TEXT ·Xchg64(SB),NOSPLIT,$-4-20
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
 	CHECK_ALIGN
 
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	JMP	armXchg64<>(SB)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
 	JMP	·goXchg64(SB)
+#endif
+	JMP	armXchg64<>(SB)
 
 TEXT ·Load64(SB),NOSPLIT,$-4-12
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
 	CHECK_ALIGN
 
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	JMP	armLoad64<>(SB)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
 	JMP	·goLoad64(SB)
+#endif
+	JMP	armLoad64<>(SB)
 
 TEXT ·Store64(SB),NOSPLIT,$-4-12
 	NO_LOCAL_POINTERS
 	MOVW	addr+0(FP), R1
 	CHECK_ALIGN
 
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	JMP	armStore64<>(SB)
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
 	JMP	·goStore64(SB)
+#endif
+	JMP	armStore64<>(SB)

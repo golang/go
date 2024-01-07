@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 )
 
+const maxInt = int(^uint(0) >> 1)
+
 // explode splits s into a slice of UTF-8 strings,
 // one string per Unicode character up to a maximum of n (n < 0 means no limit).
 // Invalid UTF-8 bytes are sliced individually.
@@ -81,7 +83,7 @@ func LastIndex(s, substr string) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, substr[0])
+		return bytealg.LastIndexByteString(s, substr[0])
 	case n == len(s):
 		if substr == s {
 			return 0
@@ -225,12 +227,7 @@ func LastIndexAny(s, chars string) int {
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s string, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByteString(s, c)
 }
 
 // Generic split: splits after each instance of sep,
@@ -275,7 +272,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 //	n < 0: all substrings
 //
 // Edge cases for s and sep (for example, empty strings) are handled
-// as described in the documentation for Split.
+// as described in the documentation for [Split].
 //
 // To split around the first instance of a separator, see Cut.
 func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
@@ -304,7 +301,7 @@ func SplitAfterN(s, sep string, n int) []string {
 // If sep is empty, Split splits after each UTF-8 sequence. If both s
 // and sep are empty, Split returns an empty slice.
 //
-// It is equivalent to SplitN with a count of -1.
+// It is equivalent to [SplitN] with a count of -1.
 //
 // To split around the first instance of a separator, see Cut.
 func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
@@ -318,7 +315,7 @@ func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
 // If sep is empty, SplitAfter splits after each UTF-8 sequence. If
 // both s and sep are empty, SplitAfter returns an empty slice.
 //
-// It is equivalent to SplitAfterN with a count of -1.
+// It is equivalent to [SplitAfterN] with a count of -1.
 func SplitAfter(s, sep string) []string {
 	return genSplit(s, sep, len(sep), -1)
 }
@@ -436,9 +433,19 @@ func Join(elems []string, sep string) string {
 	case 1:
 		return elems[0]
 	}
-	n := len(sep) * (len(elems) - 1)
-	for i := 0; i < len(elems); i++ {
-		n += len(elems[i])
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= maxInt/(len(elems)-1) {
+			panic("strings: Join output length overflow")
+		}
+		n += len(sep) * (len(elems) - 1)
+	}
+	for _, elem := range elems {
+		if len(elem) > maxInt-n {
+			panic("strings: Join output length overflow")
+		}
+		n += len(elem)
 	}
 
 	var b Builder
@@ -451,12 +458,12 @@ func Join(elems []string, sep string) string {
 	return b.String()
 }
 
-// HasPrefix tests whether the string s begins with prefix.
+// HasPrefix reports whether the string s begins with prefix.
 func HasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
-// HasSuffix tests whether the string s ends with suffix.
+// HasSuffix reports whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
@@ -514,7 +521,7 @@ func Map(mapping func(rune) rune, s string) string {
 			if r < utf8.RuneSelf {
 				b.WriteByte(byte(r))
 			} else {
-				// r is not a ASCII rune.
+				// r is not an ASCII rune.
 				b.WriteRune(r)
 			}
 		}
@@ -536,20 +543,19 @@ func Repeat(s string, count int) string {
 	}
 
 	// Since we cannot return an error on overflow,
-	// we should panic if the repeat will generate
-	// an overflow.
+	// we should panic if the repeat will generate an overflow.
 	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if len(s)*count/count != len(s) {
-		panic("strings: Repeat count causes overflow")
 	}
+	if len(s) >= maxInt/count {
+		panic("strings: Repeat output length overflow")
+	}
+	n := len(s) * count
 
 	if len(s) == 0 {
 		return ""
 	}
-
-	n := len(s) * count
 
 	// Past a certain chunk size it is counterproductive to use
 	// larger chunks as the source of the write, as when the source
@@ -898,7 +904,7 @@ func Trim(s, cutset string) string {
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
 //
-// To remove a prefix, use TrimPrefix instead.
+// To remove a prefix, use [TrimPrefix] instead.
 func TrimLeft(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -946,7 +952,7 @@ func trimLeftUnicode(s, cutset string) string {
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
 //
-// To remove a suffix, use TrimSuffix instead.
+// To remove a suffix, use [TrimSuffix] instead.
 func TrimRight(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s

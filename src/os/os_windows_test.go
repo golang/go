@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -280,7 +281,7 @@ func TestDirectoryJunction(t *testing.T) {
 			},
 		},
 		{
-			// Do as junction utility https://technet.microsoft.com/en-au/sysinternals/bb896768.aspx does - set PrintNameLength to 0.
+			// Do as junction utility https://learn.microsoft.com/en-us/sysinternals/downloads/junction does - set PrintNameLength to 0.
 			name: "have_blank_print_name",
 			mklink: func(link, target string) error {
 				var t reparseData
@@ -426,6 +427,28 @@ func TestDirectorySymbolicLink(t *testing.T) {
 	testDirLinks(t, tests)
 }
 
+func mustHaveWorkstation(t *testing.T) {
+	mar, err := windows.OpenSCManager(nil, nil, windows.SERVICE_QUERY_STATUS)
+	if err != nil {
+		return
+	}
+	defer syscall.CloseHandle(mar)
+	//LanmanWorkstation is the service name, and Workstation is the display name.
+	srv, err := windows.OpenService(mar, syscall.StringToUTF16Ptr("LanmanWorkstation"), windows.SERVICE_QUERY_STATUS)
+	if err != nil {
+		return
+	}
+	defer syscall.CloseHandle(srv)
+	var state windows.SERVICE_STATUS
+	err = windows.QueryServiceStatus(srv, &state)
+	if err != nil {
+		return
+	}
+	if state.CurrentState != windows.SERVICE_RUNNING {
+		t.Skip("Requires the Windows service Workstation, but it is detected that it is not enabled.")
+	}
+}
+
 func TestNetworkSymbolicLink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
@@ -434,7 +457,8 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
 
-	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
+	pid := os.Getpid()
+	shareName := fmt.Sprintf("GoSymbolicLinkTestShare%d", pid)
 	sharePath := filepath.Join(dir, shareName)
 	testDir := "TestDir"
 
@@ -452,11 +476,22 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Per https://learn.microsoft.com/en-us/windows/win32/api/lmshare/ns-lmshare-share_info_2:
+	//
+	// “[The shi2_permissions field] indicates the shared resource's permissions
+	// for servers running with share-level security. A server running user-level
+	// security ignores this member.
+	// …
+	// Note that Windows does not support share-level security.”
+	//
+	// So it shouldn't matter what permissions we set here.
+	const permissions = 0
+
 	p := windows.SHARE_INFO_2{
 		Netname:     wShareName,
-		Type:        windows.STYPE_DISKTREE,
+		Type:        windows.STYPE_DISKTREE | windows.STYPE_TEMPORARY,
 		Remark:      nil,
-		Permissions: 0,
+		Permissions: permissions,
 		MaxUses:     1,
 		CurrentUses: 0,
 		Path:        wSharePath,
@@ -465,11 +500,8 @@ func TestNetworkSymbolicLink(t *testing.T) {
 
 	err = windows.NetShareAdd(nil, 2, (*byte)(unsafe.Pointer(&p)), nil)
 	if err != nil {
-		if err == syscall.ERROR_ACCESS_DENIED {
-			t.Skip("you don't have enough privileges to add network share")
-		}
-		if err == _NERR_ServerNotStarted {
-			t.Skip(_NERR_ServerNotStarted.Error())
+		if err == syscall.ERROR_ACCESS_DENIED || err == _NERR_ServerNotStarted {
+			t.Skipf("skipping: NetShareAdd: %v", err)
 		}
 		t.Fatal(err)
 	}
@@ -488,6 +520,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	}
 	fi2, err := os.Stat(UNCPath)
 	if err != nil {
+		mustHaveWorkstation(t)
 		t.Fatal(err)
 	}
 	if !os.SameFile(fi1, fi2) {
@@ -508,7 +541,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != target {
-		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+		t.Errorf(`os.Readlink(%#q): got %v, want %v`, link, got, target)
 	}
 
 	got, err = filepath.EvalSymlinks(link)
@@ -516,7 +549,46 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != target {
-		t.Errorf(`filepath.EvalSymlinks("%s"): got %v, want %v`, link, got, target)
+		t.Errorf(`filepath.EvalSymlinks(%#q): got %v, want %v`, link, got, target)
+	}
+}
+
+func TestStatLxSymLink(t *testing.T) {
+	if _, err := exec.LookPath("wsl"); err != nil {
+		t.Skip("skipping: WSL not detected")
+	}
+
+	temp := t.TempDir()
+	chdir(t, temp)
+
+	const target = "target"
+	const link = "link"
+
+	_, err := testenv.Command(t, "wsl", "/bin/mkdir", target).Output()
+	if err != nil {
+		// This normally happens when WSL still doesn't have a distro installed to run on.
+		t.Skipf("skipping: WSL is not correctly installed: %v", err)
+	}
+
+	_, err = testenv.Command(t, "wsl", "/bin/ln", "-s", target, link).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
+		// This can happen depending on newer WSL versions when running as admin or in developer mode.
+		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of an IO_REPARSE_TAG_LX_SYMLINK")
+	}
+	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
+	// We check this condition to validate that os.Stat has tried to follow the link.
+	_, err = os.Stat(link)
+	const ERROR_CANT_ACCESS_FILE = syscall.Errno(1920)
+	if err == nil || !errors.Is(err, ERROR_CANT_ACCESS_FILE) {
+		t.Fatalf("os.Stat(%q): got %v, want ERROR_CANT_ACCESS_FILE", link, err)
 	}
 }
 
@@ -813,7 +885,7 @@ func main() {
 		` \\\\\""x"""y z`,
 		"\tb\t\"x\ty\"",
 		` "Брад" d e`,
-		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+		// examples from https://learn.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
 		` "abc" d e`,
 		` a\\b d"e f"g h`,
 		` a\\\"b c d`,
@@ -1156,7 +1228,7 @@ func TestRootDirAsTemp(t *testing.T) {
 		t.Skip(err)
 	}
 
-	cmd := testenv.Command(t, exe, "-test.run=TestRootDirAsTemp")
+	cmd := testenv.Command(t, exe, "-test.run=^TestRootDirAsTemp$")
 	cmd.Env = cmd.Environ()
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	cmd.Env = append(cmd.Env, "TMP="+newtmp)
@@ -1375,5 +1447,150 @@ func TestAppExecLinkStat(t *testing.T) {
 	}
 	if p != pythonPath {
 		t.Errorf("exec.LookPath(%q) = %q; want %q", pythonPath, p, pythonPath)
+	}
+}
+
+func TestIllformedUTF16FileName(t *testing.T) {
+	dir := t.TempDir()
+	const sep = string(os.PathSeparator)
+	if !strings.HasSuffix(dir, sep) {
+		dir += sep
+	}
+
+	// This UTF-16 file name is ill-formed as it contains low surrogates that are not preceded by high surrogates ([1:5]).
+	namew := []uint16{0x2e, 0xdc6d, 0xdc73, 0xdc79, 0xdc73, 0x30, 0x30, 0x30, 0x31, 0}
+
+	// Create a file whose name contains unpaired surrogates.
+	// Use syscall.CreateFile instead of os.Create to simulate a file that is created by
+	// a non-Go program so the file name hasn't gone through syscall.UTF16FromString.
+	dirw := utf16.Encode([]rune(dir))
+	pathw := append(dirw, namew...)
+	fd, err := syscall.CreateFile(&pathw[0], syscall.GENERIC_ALL, 0, nil, syscall.CREATE_NEW, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	syscall.CloseHandle(fd)
+
+	name := syscall.UTF16ToString(namew)
+	path := filepath.Join(dir, name)
+	// Verify that os.Lstat can query the file.
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fi.Name(); got != name {
+		t.Errorf("got %q, want %q", got, name)
+	}
+	// Verify that File.Readdirnames lists the file.
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := f.Readdirnames(0)
+	f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(files, name) {
+		t.Error("file not listed")
+	}
+	// Verify that os.RemoveAll can remove the directory
+	// and that it doesn't hang.
+	err = os.RemoveAll(dir)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUTF16Alloc(t *testing.T) {
+	allowsPerRun := func(want int, f func()) {
+		t.Helper()
+		got := int(testing.AllocsPerRun(5, f))
+		if got != want {
+			t.Errorf("got %d allocs, want %d", got, want)
+		}
+	}
+	allowsPerRun(1, func() {
+		syscall.UTF16ToString([]uint16{'a', 'b', 'c'})
+	})
+	allowsPerRun(1, func() {
+		syscall.UTF16FromString("abc")
+	})
+}
+
+func TestNewFileInvalid(t *testing.T) {
+	t.Parallel()
+	if f := os.NewFile(uintptr(syscall.InvalidHandle), "invalid"); f != nil {
+		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
+	}
+}
+
+func TestReadDirPipe(t *testing.T) {
+	dir := `\\.\pipe\`
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		t.Skipf("%s is not a directory", dir)
+	}
+	_, err = os.ReadDir(dir)
+	if err != nil {
+		t.Errorf("ReadDir(%q) = %v", dir, err)
+	}
+}
+
+func TestReadDirNoFileID(t *testing.T) {
+	*os.AllowReadDirFileID = false
+	defer func() { *os.AllowReadDirFileID = true }()
+
+	dir := t.TempDir()
+	pathA := filepath.Join(dir, "a")
+	pathB := filepath.Join(dir, "b")
+	if err := os.WriteFile(pathA, nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pathB, nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("ReadDir(%q) = %v; want 2 files", dir, files)
+	}
+
+	// Check that os.SameFile works with files returned by os.ReadDir.
+	f1, err := files[0].Info()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f2, err := files[1].Info()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(f1, f1) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1)
+	}
+	if !os.SameFile(f2, f2) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2)
+	}
+	if os.SameFile(f1, f2) {
+		t.Errorf("SameFile(%v, %v) = true; want false", f1, f2)
+	}
+
+	// Check that os.SameFile works with a mix of os.ReadDir and os.Stat files.
+	f1s, err := os.Stat(pathA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f2s, err := os.Stat(pathB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(f1, f1s) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1s)
+	}
+	if !os.SameFile(f2, f2s) {
+		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
 	}
 }

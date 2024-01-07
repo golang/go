@@ -916,7 +916,7 @@ func (p *printer) printParameterList(list []*Field, tok token) {
 			}
 			p.print(blank)
 		}
-		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
+		p.printNode(Unparen(f.Type)) // no need for (extra) parentheses around parameter types
 	}
 	// A type parameter list [P T] where the name P and the type expression T syntactically
 	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]

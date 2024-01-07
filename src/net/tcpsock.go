@@ -119,7 +119,7 @@ func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
@@ -130,6 +130,18 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	n, err := c.readFrom(r)
 	if err != nil && err != io.EOF {
 		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
+}
+
+// WriteTo implements the io.WriterTo WriteTo method.
+func (c *TCPConn) WriteTo(w io.Writer) (int64, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeTo(w)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "writeto", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -167,8 +179,10 @@ func (c *TCPConn) CloseWrite() error {
 // If sec == 0, the operating system discards any unsent or
 // unacknowledged data.
 //
-// If sec > 0, the data is sent in the background as with sec < 0. On
-// some operating systems after sec seconds have elapsed any remaining
+// If sec > 0, the data is sent in the background as with sec < 0.
+// On some operating systems including Linux, this may cause Close to block
+// until all data has been sent or discarded.
+// On some operating systems after sec seconds have elapsed any remaining
 // unsent data may be discarded.
 func (c *TCPConn) SetLinger(sec int) error {
 	if !c.ok() {
@@ -215,6 +229,22 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return nil
+}
+
+// MultipathTCP reports whether the ongoing connection is using MPTCP.
+//
+// If Multipath TCP is not supported by the host, by the other peer or
+// intentionally / accidentally filtered out by a device in between, a
+// fallback to TCP will be done. This method does its best to check if
+// MPTCP is still being used or not.
+//
+// On Linux, more conditions are verified on kernels >= v5.16, improving
+// the results.
+func (c *TCPConn) MultipathTCP() (bool, error) {
+	if !c.ok() {
+		return false, syscall.EINVAL
+	}
+	return isUsingMultipathTCP(c.fd), nil
 }
 
 func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
@@ -272,7 +302,7 @@ func (l *TCPListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawListener(l.fd)
+	return newRawListener(l.fd), nil
 }
 
 // AcceptTCP accepts the next incoming call and returns the new
@@ -324,10 +354,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.pfd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
-	}
-	return nil
+	return l.fd.SetDeadline(t)
 }
 
 // File returns a copy of the underlying os.File.

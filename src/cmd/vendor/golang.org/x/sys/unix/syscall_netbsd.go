@@ -13,7 +13,6 @@
 package unix
 
 import (
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -178,13 +177,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 func IoctlGetPtmget(fd int, req uint) (*Ptmget, error) {
 	var value Ptmget
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	runtime.KeepAlive(value)
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }
 
@@ -341,7 +340,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -358,267 +356,16 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
-/*
- * Unimplemented
- */
-// ____semctl13
-// __clone
-// __fhopen40
-// __fhstat40
-// __fhstatvfs140
-// __fstat30
-// __getcwd
-// __getfh30
-// __getlogin
-// __lstat30
-// __mount50
-// __msgctl13
-// __msync13
-// __ntp_gettime30
-// __posix_chown
-// __posix_fchown
-// __posix_lchown
-// __posix_rename
-// __setlogin
-// __shmctl13
-// __sigaction_sigtramp
-// __sigaltstack14
-// __sigpending14
-// __sigprocmask14
-// __sigsuspend14
-// __sigtimedwait
-// __stat30
-// __syscall
-// __vfork14
-// _ksem_close
-// _ksem_destroy
-// _ksem_getvalue
-// _ksem_init
-// _ksem_open
-// _ksem_post
-// _ksem_trywait
-// _ksem_unlink
-// _ksem_wait
-// _lwp_continue
-// _lwp_create
-// _lwp_ctl
-// _lwp_detach
-// _lwp_exit
-// _lwp_getname
-// _lwp_getprivate
-// _lwp_kill
-// _lwp_park
-// _lwp_self
-// _lwp_setname
-// _lwp_setprivate
-// _lwp_suspend
-// _lwp_unpark
-// _lwp_unpark_all
-// _lwp_wait
-// _lwp_wakeup
-// _pset_bind
-// _sched_getaffinity
-// _sched_getparam
-// _sched_setaffinity
-// _sched_setparam
-// acct
-// aio_cancel
-// aio_error
-// aio_fsync
-// aio_read
-// aio_return
-// aio_suspend
-// aio_write
-// break
-// clock_getres
-// clock_gettime
-// clock_settime
-// compat_09_ogetdomainname
-// compat_09_osetdomainname
-// compat_09_ouname
-// compat_10_omsgsys
-// compat_10_osemsys
-// compat_10_oshmsys
-// compat_12_fstat12
-// compat_12_getdirentries
-// compat_12_lstat12
-// compat_12_msync
-// compat_12_oreboot
-// compat_12_oswapon
-// compat_12_stat12
-// compat_13_sigaction13
-// compat_13_sigaltstack13
-// compat_13_sigpending13
-// compat_13_sigprocmask13
-// compat_13_sigreturn13
-// compat_13_sigsuspend13
-// compat_14___semctl
-// compat_14_msgctl
-// compat_14_shmctl
-// compat_16___sigaction14
-// compat_16___sigreturn14
-// compat_20_fhstatfs
-// compat_20_fstatfs
-// compat_20_getfsstat
-// compat_20_statfs
-// compat_30___fhstat30
-// compat_30___fstat13
-// compat_30___lstat13
-// compat_30___stat13
-// compat_30_fhopen
-// compat_30_fhstat
-// compat_30_fhstatvfs1
-// compat_30_getdents
-// compat_30_getfh
-// compat_30_ntp_gettime
-// compat_30_socket
-// compat_40_mount
-// compat_43_fstat43
-// compat_43_lstat43
-// compat_43_oaccept
-// compat_43_ocreat
-// compat_43_oftruncate
-// compat_43_ogetdirentries
-// compat_43_ogetdtablesize
-// compat_43_ogethostid
-// compat_43_ogethostname
-// compat_43_ogetkerninfo
-// compat_43_ogetpagesize
-// compat_43_ogetpeername
-// compat_43_ogetrlimit
-// compat_43_ogetsockname
-// compat_43_okillpg
-// compat_43_olseek
-// compat_43_ommap
-// compat_43_oquota
-// compat_43_orecv
-// compat_43_orecvfrom
-// compat_43_orecvmsg
-// compat_43_osend
-// compat_43_osendmsg
-// compat_43_osethostid
-// compat_43_osethostname
-// compat_43_osetrlimit
-// compat_43_osigblock
-// compat_43_osigsetmask
-// compat_43_osigstack
-// compat_43_osigvec
-// compat_43_otruncate
-// compat_43_owait
-// compat_43_stat43
-// execve
-// extattr_delete_fd
-// extattr_delete_file
-// extattr_delete_link
-// extattr_get_fd
-// extattr_get_file
-// extattr_get_link
-// extattr_list_fd
-// extattr_list_file
-// extattr_list_link
-// extattr_set_fd
-// extattr_set_file
-// extattr_set_link
-// extattrctl
-// fchroot
-// fdatasync
-// fgetxattr
-// fktrace
-// flistxattr
-// fork
-// fremovexattr
-// fsetxattr
-// fstatvfs1
-// fsync_range
-// getcontext
-// getitimer
-// getvfsstat
-// getxattr
-// ktrace
-// lchflags
-// lchmod
-// lfs_bmapv
-// lfs_markv
-// lfs_segclean
-// lfs_segwait
-// lgetxattr
-// lio_listio
-// listxattr
-// llistxattr
-// lremovexattr
-// lseek
-// lsetxattr
-// lutimes
-// madvise
-// mincore
-// minherit
-// modctl
-// mq_close
-// mq_getattr
-// mq_notify
-// mq_open
-// mq_receive
-// mq_send
-// mq_setattr
-// mq_timedreceive
-// mq_timedsend
-// mq_unlink
-// mremap
-// msgget
-// msgrcv
-// msgsnd
-// nfssvc
-// ntp_adjtime
-// pmc_control
-// pmc_get_info
-// pollts
-// preadv
-// profil
-// pselect
-// pset_assign
-// pset_create
-// pset_destroy
-// ptrace
-// pwritev
-// quotactl
-// rasctl
-// readv
-// reboot
-// removexattr
-// sa_enable
-// sa_preempt
-// sa_register
-// sa_setconcurrency
-// sa_stacks
-// sa_yield
-// sbrk
-// sched_yield
-// semconfig
-// semget
-// semop
-// setcontext
-// setitimer
-// setxattr
-// shmat
-// shmdt
-// shmget
-// sstk
-// statvfs1
-// swapctl
-// sysarch
-// syscall
-// timer_create
-// timer_delete
-// timer_getoverrun
-// timer_gettime
-// timer_settime
-// undelete
-// utrace
-// uuidgen
-// vadvise
-// vfork
-// writev
+const (
+	mremapFixed     = MAP_FIXED
+	mremapDontunmap = 0
+	mremapMaymove   = 0
+)
+
+//sys	mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) = SYS_MREMAP
+
+func mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (uintptr, error) {
+	return mremapNetBSD(oldaddr, oldlength, newaddr, newlength, flags)
+}

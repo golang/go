@@ -71,6 +71,10 @@ to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
+On macOS, if Go code that uses the net package is built with
+-buildmode=c-archive, linking the resulting archive into a C program
+requires passing -lresolv when linking the C code.
+
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
 On Windows, in Go 1.18.x and earlier, the resolver always used C
@@ -87,14 +91,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-)
-
-// netGo and netCgo contain the state of the build tags used
-// to build this binary, and whether cgo is available.
-// conf.go mirrors these into conf for easier testing.
-var (
-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
 )
 
 // Addr represents a network end point address.
@@ -628,7 +624,11 @@ type DNSError struct {
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
-	IsNotFound  bool   // if true, host could not be found
+
+	// IsNotFound is set to true when the requested name does not
+	// contain any records of the requested type (data not found),
+	// or the name itself was not found (NXDOMAIN).
+	IsNotFound bool
 }
 
 func (e *DNSError) Error() string {
@@ -664,15 +664,53 @@ var errClosed = poll.ErrNetClosing
 // errors.Is(err, net.ErrClosed).
 var ErrClosed error = errClosed
 
-type writerOnly struct {
-	io.Writer
+// noReadFrom can be embedded alongside another type to
+// hide the ReadFrom method of that other type.
+type noReadFrom struct{}
+
+// ReadFrom hides another ReadFrom method.
+// It should never be called.
+func (noReadFrom) ReadFrom(io.Reader) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutReadFrom implements all the methods of *TCPConn other
+// than ReadFrom. This is used to permit ReadFrom to call io.Copy
+// without leading to a recursive call to ReadFrom.
+type tcpConnWithoutReadFrom struct {
+	noReadFrom
+	*TCPConn
 }
 
 // Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
 // applicable.
-func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+func genericReadFrom(c *TCPConn, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
-	return io.Copy(writerOnly{w}, r)
+	return io.Copy(tcpConnWithoutReadFrom{TCPConn: c}, r)
+}
+
+// noWriteTo can be embedded alongside another type to
+// hide the WriteTo method of that other type.
+type noWriteTo struct{}
+
+// WriteTo hides another WriteTo method.
+// It should never be called.
+func (noWriteTo) WriteTo(io.Writer) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutWriteTo implements all the methods of *TCPConn other
+// than WriteTo. This is used to permit WriteTo to call io.Copy
+// without leading to a recursive call to WriteTo.
+type tcpConnWithoutWriteTo struct {
+	noWriteTo
+	*TCPConn
+}
+
+// Fallback implementation of io.WriterTo's WriteTo, when zero-copy isn't applicable.
+func genericWriteTo(c *TCPConn, w io.Writer) (n int64, err error) {
+	// Use wrapper to hide existing w.WriteTo from io.Copy.
+	return io.Copy(w, tcpConnWithoutWriteTo{TCPConn: c})
 }
 
 // Limit the number of concurrent cgo-using goroutines, because

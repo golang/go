@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// js does not support inter-process file locking.
+// js and wasip1 do not support inter-process file locking.
 //
-//go:build !js
+//go:build !js && !wasip1
 
 package lockedfile_test
 
@@ -238,7 +238,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
+	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
 
 	qDone := make(chan struct{})

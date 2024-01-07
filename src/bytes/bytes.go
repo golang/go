@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package bytes implements functions for the manipulation of byte slices.
-// It is analogous to the facilities of the strings package.
+// It is analogous to the facilities of the [strings] package.
 package bytes
 
 import (
@@ -112,7 +112,7 @@ func LastIndex(s, sep []byte) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, sep[0])
+		return bytealg.LastIndexByte(s, sep[0])
 	case n == len(s):
 		if Equal(s, sep) {
 			return 0
@@ -121,35 +121,12 @@ func LastIndex(s, sep []byte) int {
 	case n > len(s):
 		return -1
 	}
-	// Rabin-Karp search from the end of the string
-	hashss, pow := bytealg.HashStrRevBytes(sep)
-	last := len(s) - n
-	var h uint32
-	for i := len(s) - 1; i >= last; i-- {
-		h = h*bytealg.PrimeRK + uint32(s[i])
-	}
-	if h == hashss && Equal(s[last:], sep) {
-		return last
-	}
-	for i := last - 1; i >= 0; i-- {
-		h *= bytealg.PrimeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i+n])
-		if h == hashss && Equal(s[i:i+n], sep) {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexRabinKarp(s, sep)
 }
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s []byte, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByte(s, c)
 }
 
 // IndexRune interprets s as a sequence of UTF-8-encoded code points.
@@ -533,12 +510,22 @@ func Join(s [][]byte, sep []byte) []byte {
 		// Just return a copy.
 		return append([]byte(nil), s[0]...)
 	}
-	n := len(sep) * (len(s) - 1)
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= maxInt/(len(s)-1) {
+			panic("bytes: Join output length overflow")
+		}
+		n += len(sep) * (len(s) - 1)
+	}
 	for _, v := range s {
+		if len(v) > maxInt-n {
+			panic("bytes: Join output length overflow")
+		}
 		n += len(v)
 	}
 
-	b := make([]byte, n)
+	b := bytealg.MakeNoZero(n)
 	bp := copy(b, s[0])
 	for _, v := range s[1:] {
 		bp += copy(b[bp:], sep)
@@ -547,12 +534,12 @@ func Join(s [][]byte, sep []byte) []byte {
 	return b
 }
 
-// HasPrefix tests whether the byte slice s begins with prefix.
+// HasPrefix reports whether the byte slice s begins with prefix.
 func HasPrefix(s, prefix []byte) bool {
 	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
 }
 
-// HasSuffix tests whether the byte slice s ends with suffix.
+// HasSuffix reports whether the byte slice s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
 }
@@ -589,21 +576,21 @@ func Repeat(b []byte, count int) []byte {
 	if count == 0 {
 		return []byte{}
 	}
+
 	// Since we cannot return an error on overflow,
-	// we should panic if the repeat will generate
-	// an overflow.
+	// we should panic if the repeat will generate an overflow.
 	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("bytes: negative Repeat count")
-	} else if len(b)*count/count != len(b) {
-		panic("bytes: Repeat count causes overflow")
 	}
+	if len(b) >= maxInt/count {
+		panic("bytes: Repeat output length overflow")
+	}
+	n := len(b) * count
 
 	if len(b) == 0 {
 		return []byte{}
 	}
-
-	n := len(b) * count
 
 	// Past a certain chunk size it is counterproductive to use
 	// larger chunks as the source of the write, as when the source
@@ -623,9 +610,9 @@ func Repeat(b []byte, count int) []byte {
 			chunkMax = len(b)
 		}
 	}
-	nb := make([]byte, n)
+	nb := bytealg.MakeNoZero(n)
 	bp := copy(nb, b)
-	for bp < len(nb) {
+	for bp < n {
 		chunk := bp
 		if chunk > chunkMax {
 			chunk = chunkMax
@@ -653,7 +640,7 @@ func ToUpper(s []byte) []byte {
 			// Just return a copy.
 			return append([]byte(""), s...)
 		}
-		b := make([]byte, len(s))
+		b := bytealg.MakeNoZero(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'a' <= c && c <= 'z' {
@@ -683,7 +670,7 @@ func ToLower(s []byte) []byte {
 		if !hasUpper {
 			return append([]byte(""), s...)
 		}
-		b := make([]byte, len(s))
+		b := bytealg.MakeNoZero(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'A' <= c && c <= 'Z' {
@@ -1326,7 +1313,7 @@ func Index(s, sep []byte) int {
 			// we should cutover at even larger average skips,
 			// because Equal becomes that much more expensive.
 			// This code does not take that effect into account.
-			j := bytealg.IndexRabinKarpBytes(s[i:], sep)
+			j := bytealg.IndexRabinKarp(s[i:], sep)
 			if j < 0 {
 				return -1
 			}

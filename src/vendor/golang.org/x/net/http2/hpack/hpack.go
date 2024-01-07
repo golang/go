@@ -211,7 +211,7 @@ func (d *Decoder) at(i uint64) (hf HeaderField, ok bool) {
 	return dt.ents[dt.len()-(int(i)-staticTable.len())], true
 }
 
-// Decode decodes an entire block.
+// DecodeFull decodes an entire block.
 //
 // TODO: remove this method and make it incremental later? This is
 // easier for debugging now.
@@ -359,6 +359,7 @@ func (d *Decoder) parseFieldLiteral(n uint8, it indexType) error {
 
 	var hf HeaderField
 	wantStr := d.emitEnabled || it.indexed()
+	var undecodedName undecodedString
 	if nameIdx > 0 {
 		ihf, ok := d.at(nameIdx)
 		if !ok {
@@ -366,14 +367,26 @@ func (d *Decoder) parseFieldLiteral(n uint8, it indexType) error {
 		}
 		hf.Name = ihf.Name
 	} else {
-		hf.Name, buf, err = d.readString(buf, wantStr)
+		undecodedName, buf, err = d.readString(buf)
 		if err != nil {
 			return err
 		}
 	}
-	hf.Value, buf, err = d.readString(buf, wantStr)
+	undecodedValue, buf, err := d.readString(buf)
 	if err != nil {
 		return err
+	}
+	if wantStr {
+		if nameIdx <= 0 {
+			hf.Name, err = d.decodeString(undecodedName)
+			if err != nil {
+				return err
+			}
+		}
+		hf.Value, err = d.decodeString(undecodedValue)
+		if err != nil {
+			return err
+		}
 	}
 	d.buf = buf
 	if it.indexed() {
@@ -459,46 +472,52 @@ func readVarInt(n byte, p []byte) (i uint64, remain []byte, err error) {
 	return 0, origP, errNeedMore
 }
 
-// readString decodes an hpack string from p.
+// readString reads an hpack string from p.
 //
-// wantStr is whether s will be used. If false, decompression and
-// []byte->string garbage are skipped if s will be ignored
-// anyway. This does mean that huffman decoding errors for non-indexed
-// strings past the MAX_HEADER_LIST_SIZE are ignored, but the server
-// is returning an error anyway, and because they're not indexed, the error
-// won't affect the decoding state.
-func (d *Decoder) readString(p []byte, wantStr bool) (s string, remain []byte, err error) {
+// It returns a reference to the encoded string data to permit deferring decode costs
+// until after the caller verifies all data is present.
+func (d *Decoder) readString(p []byte) (u undecodedString, remain []byte, err error) {
 	if len(p) == 0 {
-		return "", p, errNeedMore
+		return u, p, errNeedMore
 	}
 	isHuff := p[0]&128 != 0
 	strLen, p, err := readVarInt(7, p)
 	if err != nil {
-		return "", p, err
+		return u, p, err
 	}
 	if d.maxStrLen != 0 && strLen > uint64(d.maxStrLen) {
-		return "", nil, ErrStringLength
+		// Returning an error here means Huffman decoding errors
+		// for non-indexed strings past the maximum string length
+		// are ignored, but the server is returning an error anyway
+		// and because the string is not indexed the error will not
+		// affect the decoding state.
+		return u, nil, ErrStringLength
 	}
 	if uint64(len(p)) < strLen {
-		return "", p, errNeedMore
+		return u, p, errNeedMore
 	}
-	if !isHuff {
-		if wantStr {
-			s = string(p[:strLen])
-		}
-		return s, p[strLen:], nil
-	}
+	u.isHuff = isHuff
+	u.b = p[:strLen]
+	return u, p[strLen:], nil
+}
 
-	if wantStr {
-		buf := bufPool.Get().(*bytes.Buffer)
-		buf.Reset() // don't trust others
-		defer bufPool.Put(buf)
-		if err := huffmanDecode(buf, d.maxStrLen, p[:strLen]); err != nil {
-			buf.Reset()
-			return "", nil, err
-		}
-		s = buf.String()
-		buf.Reset() // be nice to GC
+type undecodedString struct {
+	isHuff bool
+	b      []byte
+}
+
+func (d *Decoder) decodeString(u undecodedString) (string, error) {
+	if !u.isHuff {
+		return string(u.b), nil
 	}
-	return s, p[strLen:], nil
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset() // don't trust others
+	var s string
+	err := huffmanDecode(buf, d.maxStrLen, u.b)
+	if err == nil {
+		s = buf.String()
+	}
+	buf.Reset() // be nice to GC
+	bufPool.Put(buf)
+	return s, err
 }

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"crypto/elliptic"
+	"crypto/internal/bigmod"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -395,6 +396,20 @@ func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) 
 	}
 	if loopCount > 0 {
 		t.Error("unexpected rejection")
+	}
+}
+
+func TestHashToNat(t *testing.T) {
+	t.Run("P-224", func(t *testing.T) { testHashToNat(t, p224()) })
+	t.Run("P-256", func(t *testing.T) { testHashToNat(t, p256()) })
+	t.Run("P-384", func(t *testing.T) { testHashToNat(t, p384()) })
+	t.Run("P-521", func(t *testing.T) { testHashToNat(t, p521()) })
+}
+
+func testHashToNat[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) {
+	for l := 0; l < 600; l++ {
+		h := bytes.Repeat([]byte{0xff}, l)
+		hashToNat(c, bigmod.NewNat(), h)
 	}
 }
 

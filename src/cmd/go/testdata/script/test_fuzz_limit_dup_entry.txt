@@ -1,0 +1,37 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# FuzzA attempts to cause the mutator to create duplicate inputs that generate
+# new coverage. Previously this would trigger a corner case when the fuzzer
+# had an execution limit, causing it to deadlock and sit in the coordinator
+# loop indefinitely, failing to exit once the limit had been exhausted.
+
+go test -fuzz=FuzzA -fuzztime=100x -parallel=1
+
+-- go.mod --
+module m
+
+go 1.16
+-- fuzz_test.go --
+package fuzz_test
+
+import (
+	"fmt"
+	"testing"
+)
+
+func FuzzA(f *testing.F) {
+	f.Add([]byte("seed"))
+	i := 0
+	f.Fuzz(func(t *testing.T, b []byte) {
+		i++
+		if string(b) == "seed" {
+			if i == 0 {
+				fmt.Println("a")
+			} else if i > 1 {
+				fmt.Println("b")
+			}
+		}
+	})
+}

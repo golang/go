@@ -362,7 +362,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<title>vcweb</title>\n<pre>\n")
 	fmt.Fprintf(w, "<b>vcweb</b>\n\n")
 	fmt.Fprintf(w, "This server serves various version control repos for testing the go command.\n\n")
-	fmt.Fprintf(w, "For an overview of the script lanugage, see <a href=\"/help\">/help</a>.\n\n")
+	fmt.Fprintf(w, "For an overview of the script language, see <a href=\"/help\">/help</a>.\n\n")
 
 	fmt.Fprintf(w, "<b>cache</b>\n")
 

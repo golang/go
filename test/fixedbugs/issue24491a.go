@@ -74,8 +74,8 @@ func main() {
 			break
 		}
 	}()
-
 	<-done
+
 	func() {
 		s := &S{}
 		defer s.test("method call", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))

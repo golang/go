@@ -34,8 +34,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"internal/abi"
 )
 
 var sharedProgArray = new([10000]obj.Prog) // *T instead of T to work around issue 19839
@@ -57,8 +57,9 @@ func NewProgs(fn *ir.Func, worker int) *Progs {
 	pp.Pos = fn.Pos()
 	pp.SetText(fn)
 	// PCDATA tables implicitly start with index -1.
-	pp.PrevLive = LivenessIndex{-1, false}
+	pp.PrevLive = -1
 	pp.NextLive = pp.PrevLive
+	pp.NextUnsafe = pp.PrevUnsafe
 	return pp
 }
 
@@ -72,22 +73,14 @@ type Progs struct {
 	Cache      []obj.Prog // local progcache
 	CacheIndex int        // first free element of progcache
 
-	NextLive LivenessIndex // liveness index for the next Prog
-	PrevLive LivenessIndex // last emitted liveness index
+	NextLive StackMapIndex // liveness index for the next Prog
+	PrevLive StackMapIndex // last emitted liveness index
+
+	NextUnsafe bool // unsafe mark for the next Prog
+	PrevUnsafe bool // last emitted unsafe mark
 }
 
-// LivenessIndex stores the liveness map information for a Value.
-type LivenessIndex struct {
-	StackMapIndex int
-
-	// IsUnsafePoint indicates that this is an unsafe-point.
-	//
-	// Note that it's possible for a call Value to have a stack
-	// map while also being an unsafe-point. This means it cannot
-	// be preempted at this instruction, but that a preemption or
-	// stack growth may happen in the called function.
-	IsUnsafePoint bool
-}
+type StackMapIndex int
 
 // StackMapDontCare indicates that the stack map index at a Value
 // doesn't matter.
@@ -95,15 +88,10 @@ type LivenessIndex struct {
 // This is a sentinel value that should never be emitted to the PCDATA
 // stream. We use -1000 because that's obviously never a valid stack
 // index (but -1 is).
-const StackMapDontCare = -1000
+const StackMapDontCare StackMapIndex = -1000
 
-// LivenessDontCare indicates that the liveness information doesn't
-// matter. Currently it is used in deferreturn liveness when we don't
-// actually need it. It should never be emitted to the PCDATA stream.
-var LivenessDontCare = LivenessIndex{StackMapDontCare, true}
-
-func (idx LivenessIndex) StackMapValid() bool {
-	return idx.StackMapIndex != StackMapDontCare
+func (s StackMapIndex) StackMapValid() bool {
+	return s != StackMapDontCare
 }
 
 func (pp *Progs) NewProg() *obj.Prog {
@@ -121,7 +109,7 @@ func (pp *Progs) NewProg() *obj.Prog {
 // Flush converts from pp to machine code.
 func (pp *Progs) Flush() {
 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.CurFunc}
-	obj.Flushplist(base.Ctxt, plist, pp.NewProg, base.Ctxt.Pkgpath)
+	obj.Flushplist(base.Ctxt, plist, pp.NewProg)
 }
 
 // Free clears pp and any associated resources.
@@ -139,23 +127,23 @@ func (pp *Progs) Free() {
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
-	if pp.NextLive.StackMapValid() && pp.NextLive.StackMapIndex != pp.PrevLive.StackMapIndex {
+	if pp.NextLive != StackMapDontCare && pp.NextLive != pp.PrevLive {
 		// Emit stack map index change.
-		idx := pp.NextLive.StackMapIndex
-		pp.PrevLive.StackMapIndex = idx
+		idx := pp.NextLive
+		pp.PrevLive = idx
 		p := pp.Prog(obj.APCDATA)
-		p.From.SetConst(objabi.PCDATA_StackMapIndex)
+		p.From.SetConst(abi.PCDATA_StackMapIndex)
 		p.To.SetConst(int64(idx))
 	}
-	if pp.NextLive.IsUnsafePoint != pp.PrevLive.IsUnsafePoint {
+	if pp.NextUnsafe != pp.PrevUnsafe {
 		// Emit unsafe-point marker.
-		pp.PrevLive.IsUnsafePoint = pp.NextLive.IsUnsafePoint
+		pp.PrevUnsafe = pp.NextUnsafe
 		p := pp.Prog(obj.APCDATA)
-		p.From.SetConst(objabi.PCDATA_UnsafePoint)
-		if pp.NextLive.IsUnsafePoint {
-			p.To.SetConst(objabi.PCDATA_UnsafePointUnsafe)
+		p.From.SetConst(abi.PCDATA_UnsafePoint)
+		if pp.NextUnsafe {
+			p.To.SetConst(abi.UnsafePointUnsafe)
 		} else {
-			p.To.SetConst(objabi.PCDATA_UnsafePointSafe)
+			p.To.SetConst(abi.UnsafePointSafe)
 		}
 	}
 

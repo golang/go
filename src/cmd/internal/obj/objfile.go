@@ -15,6 +15,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"io"
 	"log"
 	"os"
@@ -291,8 +292,8 @@ func (w *writer) StringTable() {
 			// Don't include them if Flag_noRefName
 			return
 		}
-		if w.pkgpath != "" {
-			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		if strings.HasPrefix(s.Name, `"".`) {
+			w.ctxt.Diag("unqualified symbol name: %v", s.Name)
 		}
 		w.AddString(s.Name)
 	})
@@ -343,6 +344,9 @@ func (w *writer) Sym(s *LSym) {
 	}
 	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
 		flag2 |= goobj.SymFlagDict
+	}
+	if s.IsPkgInit() {
+		flag2 |= goobj.SymFlagPkgInit
 	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
@@ -419,7 +423,7 @@ func (w *writer) Hash(s *LSym) {
 // contentHashSection returns a mnemonic for s's section.
 // The goal is to prevent content-addressability from moving symbols between sections.
 // contentHashSection only distinguishes between sets of sections for which this matters.
-// Allowing flexibility increases the effectiveness of content-addressibility.
+// Allowing flexibility increases the effectiveness of content-addressability.
 // But in some cases, such as doing addressing based on a base symbol,
 // we need to ensure that a symbol is always in a particular section.
 // Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
@@ -599,10 +603,22 @@ func (w *writer) Aux(s *LSym) {
 		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
 			w.aux1(goobj.AuxPcinline, fn.Pcln.Pcinline)
 		}
+		if fn.sehUnwindInfoSym != nil && fn.sehUnwindInfoSym.Size != 0 {
+			w.aux1(goobj.AuxSehUnwindInfo, fn.sehUnwindInfoSym)
+		}
 		for _, pcSym := range fn.Pcln.Pcdata {
 			w.aux1(goobj.AuxPcdata, pcSym)
 		}
-
+		if fn.WasmImportSym != nil {
+			if fn.WasmImportSym.Size == 0 {
+				panic("wasmimport aux sym must have non-zero size")
+			}
+			w.aux1(goobj.AuxWasmImport, fn.WasmImportSym)
+		}
+	} else if v := s.VarInfo(); v != nil {
+		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
+			w.aux1(goobj.AuxDwarfInfo, v.dwarfInfoSym)
+		}
 	}
 }
 
@@ -699,7 +715,20 @@ func nAuxSym(s *LSym) int {
 		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
 			n++
 		}
+		if fn.sehUnwindInfoSym != nil && fn.sehUnwindInfoSym.Size != 0 {
+			n++
+		}
 		n += len(fn.Pcln.Pcdata)
+		if fn.WasmImport != nil {
+			if fn.WasmImportSym == nil || fn.WasmImportSym.Size == 0 {
+				panic("wasmimport aux sym must exist and have non-zero size")
+			}
+			n++
+		}
+	} else if v := s.VarInfo(); v != nil {
+		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
+			n++
+		}
 	}
 	return n
 }
@@ -756,8 +785,8 @@ func genFuncInfoSyms(ctxt *Link) {
 		fn.FuncInfoSym = isym
 		b.Reset()
 
-		dwsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
-		for _, s := range dwsyms {
+		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym, fn.sehUnwindInfoSym}
+		for _, s := range auxsyms {
 			if s == nil || s.Size == 0 {
 				continue
 			}
@@ -774,11 +803,14 @@ func genFuncInfoSyms(ctxt *Link) {
 func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
 	// Most aux symbols (ex: funcdata) are not interesting--
 	// pick out just the DWARF ones for now.
-	if aux.Type != objabi.SDWARFLOC &&
-		aux.Type != objabi.SDWARFFCN &&
-		aux.Type != objabi.SDWARFABSFCN &&
-		aux.Type != objabi.SDWARFLINES &&
-		aux.Type != objabi.SDWARFRANGE {
+	switch aux.Type {
+	case objabi.SDWARFLOC,
+		objabi.SDWARFFCN,
+		objabi.SDWARFABSFCN,
+		objabi.SDWARFLINES,
+		objabi.SDWARFRANGE,
+		objabi.SDWARFVAR:
+	default:
 		return
 	}
 	ctxt.writeSymDebugNamed(aux, "aux for "+par.Name)
@@ -821,10 +853,10 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
-	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagTopFrame != 0 {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
 	}
-	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_ASM != 0 {
+	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagAsm != 0 {
 		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
@@ -882,9 +914,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 			name = "TLS"
 		}
 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
 		} else {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%v %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
 		}
 	}
 }

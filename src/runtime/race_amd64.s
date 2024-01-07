@@ -24,7 +24,7 @@
 // Arguments are passed in CX, DX, R8, R9, the rest is on stack.
 // Callee-saved registers are: BX, BP, DI, SI, R12-R15.
 // SP must be 16-byte aligned. Windows also requires "stack-backing" for the 4 register arguments:
-// https://msdn.microsoft.com/en-us/library/ms235286.aspx
+// https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention
 // We do not do this, because it seems to be intended for vararg/unprototyped functions.
 // Gcc-compiled race runtime does not try to use that space.
 
@@ -333,7 +333,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
-	MOVL	(R12), R13
+	MOVBLZX	(R12), R13
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	R12, runtime·racearenastart(SB)
 	JB	racecallatomic_data

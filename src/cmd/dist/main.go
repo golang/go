@@ -16,14 +16,14 @@ func usage() {
 	xprintf(`usage: go tool dist [command]
 Commands are:
 
-banner         print installation banner
-bootstrap      rebuild everything
-clean          deletes all built files
-env [-p]       print environment (-p: include $PATH)
-install [dir]  install individual directory
-list [-json]   list all supported platforms
-test [-h]      run Go test(s)
-version        print Go version
+banner                  print installation banner
+bootstrap               rebuild everything
+clean                   deletes all built files
+env [-p]                print environment (-p: include $PATH)
+install [dir]           install individual directory
+list [-json] [-broken]  list all supported platforms
+test [-h]               run Go test(s)
+version                 print Go version
 
 All commands take -v flags to emit extra information.
 `)
@@ -138,6 +138,8 @@ func main() {
 			if strings.Contains(run("", CheckExit, "uname", "-p"), "riscv64") {
 				gohostarch = "riscv64"
 			}
+		case gohostos == "openbsd" && strings.Contains(out, "powerpc64"):
+			gohostarch = "ppc64"
 		case gohostos == "openbsd":
 			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
 				gohostarch = "mips64"

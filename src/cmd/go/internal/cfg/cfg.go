@@ -8,13 +8,13 @@ package cfg
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -81,7 +81,6 @@ var (
 	BuildO                 string                  // -o flag
 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
 	BuildPGO               string                  // -pgo flag
-	BuildPGOFile           string                  // profile selected by -pgo flag, an absolute path (if not empty)
 	BuildPkgdir            string                  // -pkgdir flag
 	BuildRace              bool                    // -race flag
 	BuildToolexec          []string                // -toolexec flag
@@ -98,8 +97,9 @@ var (
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
-	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
-	DebugTrace       string // -debug-trace flag
+	DebugActiongraph  string // -debug-actiongraph flag (undocumented, unstable)
+	DebugTrace        string // -debug-trace flag
+	DebugRuntimeTrace string // -debug-runtime-trace flag (undocumented, unstable)
 
 	// GoPathError is set when GOPATH is not set. it contains an
 	// explanation why GOPATH is unset.
@@ -141,6 +141,7 @@ func defaultContext() build.Context {
 		// (1) environment, (2) go/env file, (3) runtime constants,
 		// while go/build.Default.GOOS/GOARCH are derived from the preference list
 		// (1) environment, (2) runtime constants.
+		//
 		// We know ctxt.GOOS/GOARCH == runtime.GOOS/GOARCH;
 		// no matter how that happened, go/build.Default will make the
 		// same decision (either the environment variables are set explicitly
@@ -159,7 +160,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := exec.LookPath(cc); err != nil {
+				if _, err := LookPath(cc); err != nil {
 					ctxt.CgoEnabled = false
 				}
 			}
@@ -385,6 +386,11 @@ func Getenv(key string) string {
 
 // CanGetenv reports whether key is a valid go/env configuration key.
 func CanGetenv(key string) bool {
+	envCache.once.Do(initEnvCache)
+	if _, ok := envCache.m[key]; ok {
+		// Assume anything in the user file or go.env file is valid.
+		return true
+	}
 	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
 }
 
@@ -483,25 +489,43 @@ func findGOROOT(env string) string {
 		// depend on the executable's location.
 		return def
 	}
+
+	// canonical returns a directory path that represents
+	// the same directory as dir,
+	// preferring the spelling in def if the two are the same.
+	canonical := func(dir string) string {
+		if isSameDir(def, dir) {
+			return def
+		}
+		return dir
+	}
+
 	exe, err := os.Executable()
 	if err == nil {
 		exe, err = filepath.Abs(exe)
 		if err == nil {
+			// cmd/go may be installed in GOROOT/bin or GOROOT/bin/GOOS_GOARCH,
+			// depending on whether it was cross-compiled with a different
+			// GOHOSTOS (see https://go.dev/issue/62119). Try both.
 			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-				// If def (runtime.GOROOT()) and dir are the same
-				// directory, prefer the spelling used in def.
-				if isSameDir(def, dir) {
-					return def
-				}
-				return dir
+				return canonical(dir)
 			}
+			if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+				return canonical(dir)
+			}
+
+			// Depending on what was passed on the command line, it is possible
+			// that os.Executable is a symlink (like /usr/local/bin/go) referring
+			// to a binary installed in a real GOROOT elsewhere
+			// (like /usr/lib/go/bin/go).
+			// Try to find that GOROOT by resolving the symlinks.
 			exe, err = filepath.EvalSymlinks(exe)
 			if err == nil {
 				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-					if isSameDir(def, dir) {
-						return def
-					}
-					return dir
+					return canonical(dir)
+				}
+				if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+					return canonical(dir)
 				}
 			}
 		}
@@ -571,4 +595,24 @@ func gopath(ctxt build.Context) string {
 	}
 	GoPathError = fmt.Sprintf("%s is not set", env)
 	return ""
+}
+
+// WithBuildXWriter returns a Context in which BuildX output is written
+// to given io.Writer.
+func WithBuildXWriter(ctx context.Context, xLog io.Writer) context.Context {
+	return context.WithValue(ctx, buildXContextKey{}, xLog)
+}
+
+type buildXContextKey struct{}
+
+// BuildXWriter returns nil if BuildX is false, or
+// the writer to which BuildX output should be written otherwise.
+func BuildXWriter(ctx context.Context) (io.Writer, bool) {
+	if !BuildX {
+		return nil, false
+	}
+	if v := ctx.Value(buildXContextKey{}); v != nil {
+		return v.(io.Writer), true
+	}
+	return os.Stderr, true
 }

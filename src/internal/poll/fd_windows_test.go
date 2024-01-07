@@ -5,12 +5,15 @@
 package poll_test
 
 import (
+	"errors"
 	"fmt"
 	"internal/poll"
+	"internal/syscall/windows"
 	"os"
 	"sync"
 	"syscall"
 	"testing"
+	"unsafe"
 )
 
 type loggedFD struct {
@@ -108,4 +111,88 @@ func TestSerialFdsAreInitialised(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWSASocketConflict(t *testing.T) {
+	s, err := windows.WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, windows.WSA_FLAG_OVERLAPPED)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
+	_, err = fd.Init("tcp", true)
+	if err != nil {
+		syscall.CloseHandle(s)
+		t.Fatal(err)
+	}
+	defer fd.Close()
+
+	const SIO_TCP_INFO = syscall.IOC_INOUT | syscall.IOC_VENDOR | 39
+	inbuf := uint32(0)
+	var outbuf _TCP_INFO_v0
+	cbbr := uint32(0)
+
+	var ovs []syscall.Overlapped = make([]syscall.Overlapped, 2)
+	// Attempt to exercise behavior where a user-owned syscall.Overlapped
+	// induces an invalid pointer dereference in the Windows-specific version
+	// of runtime.netpoll.
+	ovs[1].Internal -= 1
+
+	// Create an event so that we can efficiently wait for completion
+	// of a requested overlapped I/O operation.
+	ovs[0].HEvent, _ = windows.CreateEvent(nil, 0, 0, nil)
+	if ovs[0].HEvent == 0 {
+		t.Fatalf("could not create the event!")
+	}
+
+	// Set the low bit of the Event Handle so that the completion
+	// of the overlapped I/O event will not trigger a completion event
+	// on any I/O completion port associated with the handle.
+	ovs[0].HEvent |= 0x1
+
+	if err = fd.WSAIoctl(
+		SIO_TCP_INFO,
+		(*byte)(unsafe.Pointer(&inbuf)),
+		uint32(unsafe.Sizeof(inbuf)),
+		(*byte)(unsafe.Pointer(&outbuf)),
+		uint32(unsafe.Sizeof(outbuf)),
+		&cbbr,
+		&ovs[0],
+		0,
+	); err != nil && !errors.Is(err, syscall.ERROR_IO_PENDING) {
+		t.Fatalf("could not perform the WSAIoctl: %v", err)
+	}
+
+	if err != nil && errors.Is(err, syscall.ERROR_IO_PENDING) {
+		// It is possible that the overlapped I/O operation completed
+		// immediately so there is no need to wait for it to complete.
+		if res, err := syscall.WaitForSingleObject(ovs[0].HEvent, syscall.INFINITE); res != 0 {
+			t.Fatalf("waiting for the completion of the overlapped IO failed: %v", err)
+		}
+	}
+
+	if err = syscall.CloseHandle(ovs[0].HEvent); err != nil {
+		t.Fatalf("could not close the event handle: %v", err)
+	}
+}
+
+type _TCP_INFO_v0 struct {
+	State             uint32
+	Mss               uint32
+	ConnectionTimeMs  uint64
+	TimestampsEnabled bool
+	RttUs             uint32
+	MinRttUs          uint32
+	BytesInFlight     uint32
+	Cwnd              uint32
+	SndWnd            uint32
+	RcvWnd            uint32
+	RcvBuf            uint32
+	BytesOut          uint64
+	BytesIn           uint64
+	BytesReordered    uint32
+	BytesRetrans      uint32
+	FastRetrans       uint32
+	DupAcksIn         uint32
+	TimeoutEpisodes   uint32
+	SynRetrans        uint8
 }

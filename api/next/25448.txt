@@ -1,3 +1,0 @@
-pkg runtime, method (*PanicNilError) Error() string #25448
-pkg runtime, method (*PanicNilError) RuntimeError() #25448
-pkg runtime, type PanicNilError struct #25448

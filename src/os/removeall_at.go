@@ -194,5 +194,6 @@ func openFdAt(dirfd int, name string) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, kindOpenFile), nil
+	// We use kindNoPoll because we know that this is a directory.
+	return newFile(r, name, kindNoPoll), nil
 }

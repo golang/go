@@ -7,6 +7,7 @@ package pprof
 import (
 	"errors"
 	"internal/syscall/windows"
+	"os"
 	"syscall"
 )
 
@@ -42,10 +43,14 @@ func (b *profileBuilder) readMapping() {
 	}
 }
 
-func readMainModuleMapping() (start, end uint64, err error) {
+func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
+	exe, err = os.Executable()
+	if err != nil {
+		return 0, 0, "", "", err
+	}
 	snap, err := createModuleSnapshot()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", "", err
 	}
 	defer func() { _ = syscall.CloseHandle(snap) }()
 
@@ -53,10 +58,10 @@ func readMainModuleMapping() (start, end uint64, err error) {
 	module.Size = uint32(windows.SizeofModuleEntry32)
 	err = windows.Module32First(snap, &module)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", "", err
 	}
 
-	return uint64(module.ModBaseAddr), uint64(module.ModBaseAddr) + uint64(module.ModBaseSize), nil
+	return uint64(module.ModBaseAddr), uint64(module.ModBaseAddr) + uint64(module.ModBaseSize), exe, peBuildID(exe), nil
 }
 
 func createModuleSnapshot() (syscall.Handle, error) {

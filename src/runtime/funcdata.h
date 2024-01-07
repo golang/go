@@ -6,7 +6,7 @@
 // in Go binaries. It is included by assembly sources, so it must
 // be written using #defines.
 //
-// These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
+// These must agree with internal/abi/symtab.go.
 
 #define PCDATA_UnsafePoint 0
 #define PCDATA_StackMapIndex 1
@@ -35,9 +35,9 @@
 // defines the pointer map for the function's arguments.
 // GO_ARGS should be the first instruction in a function that uses it.
 // It can be omitted if there are no arguments at all.
-// GO_ARGS is inserted implicitly by the linker for any function whose
-// name starts with a middle-dot and that also has a Go prototype; it
-// is therefore usually not necessary to write explicitly.
+// GO_ARGS is inserted implicitly by the assembler for any function
+// whose package-qualified symbol name belongs to the current package;
+// it is therefore usually not necessary to write explicitly.
 #define GO_ARGS	FUNCDATA $FUNCDATA_ArgsPointerMaps, go_args_stackmap(SB)
 
 // GO_RESULTS_INITIALIZED indicates that the assembly function

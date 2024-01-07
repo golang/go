@@ -7,6 +7,8 @@
 package net
 
 /*
+#define _GNU_SOURCE
+
 #cgo CFLAGS: -fno-stack-protector
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,6 +17,10 @@ package net
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifndef EAI_NODATA
+#define EAI_NODATA -5
+#endif
 
 // If nothing else defined EAI_OVERFLOW, make sure it has a value.
 #ifndef EAI_OVERFLOW
@@ -29,7 +35,9 @@ const (
 	_C_AF_INET6     = C.AF_INET6
 	_C_AF_UNSPEC    = C.AF_UNSPEC
 	_C_EAI_AGAIN    = C.EAI_AGAIN
+	_C_EAI_NODATA   = C.EAI_NODATA
 	_C_EAI_NONAME   = C.EAI_NONAME
+	_C_EAI_SERVICE  = C.EAI_SERVICE
 	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = C.EAI_SYSTEM
 	_C_IPPROTO_TCP  = C.IPPROTO_TCP
@@ -48,14 +56,10 @@ type (
 	_C_struct_sockaddr = C.struct_sockaddr
 )
 
-func _C_GoString(p *_C_char) string      { return C.GoString(p) }
-func _C_CString(s string) *_C_char       { return C.CString(s) }
-func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
 func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
 func _C_free(p unsafe.Pointer)           { C.free(p) }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.ai_next }

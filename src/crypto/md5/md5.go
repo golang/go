@@ -96,7 +96,7 @@ func consumeUint32(b []byte) ([]byte, uint32) {
 }
 
 // New returns a new hash.Hash computing the MD5 checksum. The Hash also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
 	d := new(digest)

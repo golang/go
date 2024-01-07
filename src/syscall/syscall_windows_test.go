@@ -37,6 +37,16 @@ func TestOpen_Dir(t *testing.T) {
 	}
 }
 
+func TestComputerName(t *testing.T) {
+	name, err := syscall.ComputerName()
+	if err != nil {
+		t.Fatalf("ComputerName failed: %v", err)
+	}
+	if len(name) == 0 {
+		t.Error("ComputerName returned empty string")
+	}
+}
+
 func TestWin32finddata(t *testing.T) {
 	dir := t.TempDir()
 
@@ -168,4 +178,65 @@ int main(int argc, char *argv[])
 	if have != want {
 		t.Fatalf("c program output is wrong: got %q, want %q", have, want)
 	}
+}
+
+func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
+	// Regression test for https://github.com/golang/go/issues/60051.
+
+	// The length of a filename is also limited, so we can't reproduce the
+	// crash by creating a single directory with a very long name; we need two
+	// layers.
+	a200 := strings.Repeat("a", 200)
+	dirname := filepath.Join(t.TempDir(), a200, a200)
+
+	err := os.MkdirAll(dirname, 0o700)
+	if err != nil {
+		t.Skipf("MkdirAll failed: %v", err)
+	}
+	err = os.Chdir(dirname)
+	if err != nil {
+		t.Skipf("Chdir failed: %v", err)
+	}
+	// Change out of the temporary directory so that we don't inhibit its
+	// removal during test cleanup.
+	defer os.Chdir(`\`)
+
+	syscall.Getwd()
+}
+
+func TestGetStartupInfo(t *testing.T) {
+	var si syscall.StartupInfo
+	err := syscall.GetStartupInfo(&si)
+	if err != nil {
+		// see https://go.dev/issue/31316
+		t.Fatalf("GetStartupInfo: got error %v, want nil", err)
+	}
+}
+
+func FuzzUTF16FromString(f *testing.F) {
+	f.Add("hi")           // ASCII
+	f.Add("â")            // latin1
+	f.Add("ねこ")           // plane 0
+	f.Add("😃")            // extra Plane 0
+	f.Add("\x90")         // invalid byte
+	f.Add("\xe3\x81")     // truncated
+	f.Add("\xe3\xc1\x81") // invalid middle byte
+
+	f.Fuzz(func(t *testing.T, tst string) {
+		res, err := syscall.UTF16FromString(tst)
+		if err != nil {
+			if strings.Contains(tst, "\x00") {
+				t.Skipf("input %q contains a NUL byte", tst)
+			}
+			t.Fatalf("UTF16FromString(%q): %v", tst, err)
+		}
+		t.Logf("UTF16FromString(%q) = %04x", tst, res)
+
+		if len(res) < 1 || res[len(res)-1] != 0 {
+			t.Fatalf("missing NUL terminator")
+		}
+		if len(res) > len(tst)+1 {
+			t.Fatalf("len(%04x) > len(%q)+1", res, tst)
+		}
+	})
 }

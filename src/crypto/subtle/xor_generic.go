@@ -46,7 +46,13 @@ func aligned(dst, x, y *byte) bool {
 // words returns a []uintptr pointing at the same data as x,
 // with any trailing partial word removed.
 func words(x []byte) []uintptr {
-	return unsafe.Slice((*uintptr)(unsafe.Pointer(&x[0])), uintptr(len(x))/wordSize)
+	n := uintptr(len(x)) / wordSize
+	if n == 0 {
+		// Avoid creating a *uintptr that refers to data smaller than a uintptr;
+		// see issue 59334.
+		return nil
+	}
+	return unsafe.Slice((*uintptr)(unsafe.Pointer(&x[0])), n)
 }
 
 func xorLoop[T byte | uintptr](dst, x, y []T) {

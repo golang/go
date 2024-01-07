@@ -6,6 +6,7 @@ package work
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,7 @@ var goodCompilerFlags = [][]string{
 	{"-Wp,-Ufoo"},
 	{"-Wp,-Dfoo1"},
 	{"-Wp,-Ufoo1"},
+	{"-flto"},
 	{"-fobjc-arc"},
 	{"-fno-objc-arc"},
 	{"-fomit-frame-pointer"},
@@ -228,6 +230,11 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
 	{"../x.o"},
+	{"-Wl,-R,"},
+	{"-Wl,-O"},
+	{"-Wl,-e="},
+	{"-Wl,-e,"},
+	{"-Wl,-R,-flag"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
@@ -276,5 +283,36 @@ func TestCheckFlagAllowDisallow(t *testing.T) {
 	}
 	if err := checkCompilerFlags("TEST", "test", []string{"-fplugin=lint.so"}); err == nil {
 		t.Fatalf("missing error for -fplugin=lint.so: %v", err)
+	}
+}
+
+func TestCheckCompilerFlagsForInternalLink(t *testing.T) {
+	// Any "bad" compiler flag should trigger external linking.
+	for _, f := range badCompilerFlags {
+		if err := checkCompilerFlagsForInternalLink("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+
+	// All "good" compiler flags should not trigger external linking,
+	// except for anything that begins with "-flto".
+	for _, f := range goodCompilerFlags {
+		foundLTO := false
+		for _, s := range f {
+			if strings.Contains(s, "-flto") {
+				foundLTO = true
+			}
+		}
+		if err := checkCompilerFlagsForInternalLink("test", "test", f); err != nil {
+			// expect error for -flto
+			if !foundLTO {
+				t.Errorf("unexpected error for %q: %v", f, err)
+			}
+		} else {
+			// expect no error for everything else
+			if foundLTO {
+				t.Errorf("missing error for %q: %v", f, err)
+			}
+		}
 	}
 }

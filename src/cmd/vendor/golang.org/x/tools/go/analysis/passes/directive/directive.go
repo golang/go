@@ -36,6 +36,7 @@ buildtag analyzer.
 var Analyzer = &analysis.Analyzer{
 	Name: "directive",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/directive",
 	Run:  runDirective,
 }
 
@@ -123,7 +124,7 @@ func (check *checker) nonGoFile(pos token.Pos, fullText string) {
 	for text != "" {
 		offset := len(fullText) - len(text)
 		var line string
-		line, text, _ = stringsCut(text, "\n")
+		line, text, _ = strings.Cut(text, "\n")
 
 		if !inStar && strings.HasPrefix(line, "//") {
 			check.comment(pos+token.Pos(offset), line)
@@ -136,7 +137,7 @@ func (check *checker) nonGoFile(pos token.Pos, fullText string) {
 			line = strings.TrimSpace(line)
 			if inStar {
 				var ok bool
-				_, line, ok = stringsCut(line, "*/")
+				_, line, ok = strings.Cut(line, "*/")
 				if !ok {
 					break
 				}
@@ -197,14 +198,6 @@ func (check *checker) comment(pos token.Pos, line string) {
 			check.pass.Reportf(pos, "//go:debug directive only valid before package declaration")
 		}
 	}
-}
-
-// Go 1.18 strings.Cut.
-func stringsCut(s, sep string) (before, after string, found bool) {
-	if i := strings.Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
 }
 
 // Go 1.20 strings.CutPrefix.

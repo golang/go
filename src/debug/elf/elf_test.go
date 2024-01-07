@@ -25,6 +25,7 @@ var nameTests = []nameTest{
 	{PF_W + PF_R + 0x50, "PF_W+PF_R+0x50"},
 	{DT_SYMBOLIC, "DT_SYMBOLIC"},
 	{DF_BIND_NOW, "DF_BIND_NOW"},
+	{DF_1_PIE, "DF_1_PIE"},
 	{NT_FPREGSET, "NT_FPREGSET"},
 	{STB_GLOBAL, "STB_GLOBAL"},
 	{STT_COMMON, "STT_COMMON"},
@@ -37,7 +38,7 @@ var nameTests = []nameTest{
 	{R_SPARC_GOT22, "R_SPARC_GOT22"},
 	{ET_LOOS + 5, "ET_LOOS+5"},
 	{ProgFlag(0x50), "0x50"},
-	{COMPRESS_ZLIB + 1, "COMPRESS_ZLIB+1"},
+	{COMPRESS_ZLIB + 2, "COMPRESS_ZSTD+1"},
 }
 
 func TestNames(t *testing.T) {

@@ -7,7 +7,6 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
-	"cmd/compile/internal/abi"
 	"fmt"
 	"go/constant"
 	"html"
@@ -17,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
@@ -27,10 +27,11 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+
+	rtabi "internal/abi"
 )
 
 var ssaConfig *ssa.Config
@@ -86,6 +87,8 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
+	_ = types.NewPtr(reflectdata.MapType())                                 // *runtime.hmap
+	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
@@ -96,15 +99,26 @@ func InitConfig() {
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
 	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
 	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
+	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
+	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
 	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
+	ir.Syms.Deferprocat = typecheck.LookupRuntimeFunc("deferprocat")
 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
 	ir.Syms.Deferreturn = typecheck.LookupRuntimeFunc("deferreturn")
 	ir.Syms.Duffcopy = typecheck.LookupRuntimeFunc("duffcopy")
 	ir.Syms.Duffzero = typecheck.LookupRuntimeFunc("duffzero")
-	ir.Syms.GCWriteBarrier = typecheck.LookupRuntimeFunc("gcWriteBarrier")
+	ir.Syms.GCWriteBarrier[0] = typecheck.LookupRuntimeFunc("gcWriteBarrier1")
+	ir.Syms.GCWriteBarrier[1] = typecheck.LookupRuntimeFunc("gcWriteBarrier2")
+	ir.Syms.GCWriteBarrier[2] = typecheck.LookupRuntimeFunc("gcWriteBarrier3")
+	ir.Syms.GCWriteBarrier[3] = typecheck.LookupRuntimeFunc("gcWriteBarrier4")
+	ir.Syms.GCWriteBarrier[4] = typecheck.LookupRuntimeFunc("gcWriteBarrier5")
+	ir.Syms.GCWriteBarrier[5] = typecheck.LookupRuntimeFunc("gcWriteBarrier6")
+	ir.Syms.GCWriteBarrier[6] = typecheck.LookupRuntimeFunc("gcWriteBarrier7")
+	ir.Syms.GCWriteBarrier[7] = typecheck.LookupRuntimeFunc("gcWriteBarrier8")
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
@@ -119,35 +133,25 @@ func InitConfig() {
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
+	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
+	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
 	ir.Syms.Raceread = typecheck.LookupRuntimeFunc("raceread")
 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
 	ir.Syms.Racewriterange = typecheck.LookupRuntimeFunc("racewriterange")
+	ir.Syms.TypeAssert = typecheck.LookupRuntimeFunc("typeAssert")
+	ir.Syms.WBZero = typecheck.LookupRuntimeFunc("wbZero")
+	ir.Syms.WBMove = typecheck.LookupRuntimeFunc("wbMove")
 	ir.Syms.X86HasPOPCNT = typecheck.LookupRuntimeVar("x86HasPOPCNT")       // bool
 	ir.Syms.X86HasSSE41 = typecheck.LookupRuntimeVar("x86HasSSE41")         // bool
 	ir.Syms.X86HasFMA = typecheck.LookupRuntimeVar("x86HasFMA")             // bool
 	ir.Syms.ARMHasVFPv4 = typecheck.LookupRuntimeVar("armHasVFPv4")         // bool
 	ir.Syms.ARM64HasATOMICS = typecheck.LookupRuntimeVar("arm64HasATOMICS") // bool
 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
-	ir.Syms.Typedmemclr = typecheck.LookupRuntimeFunc("typedmemclr")
 	ir.Syms.Typedmemmove = typecheck.LookupRuntimeFunc("typedmemmove")
 	ir.Syms.Udiv = typecheck.LookupRuntimeVar("udiv")                 // asm func with special ABI
 	ir.Syms.WriteBarrier = typecheck.LookupRuntimeVar("writeBarrier") // struct { bool; ... }
 	ir.Syms.Zerobase = typecheck.LookupRuntimeVar("zerobase")
-
-	// asm funcs with special ABI
-	if base.Ctxt.Arch.Name == "amd64" {
-		GCWriteBarrierReg = map[int16]*obj.LSym{
-			x86.REG_AX: typecheck.LookupRuntimeFunc("gcWriteBarrier"),
-			x86.REG_CX: typecheck.LookupRuntimeFunc("gcWriteBarrierCX"),
-			x86.REG_DX: typecheck.LookupRuntimeFunc("gcWriteBarrierDX"),
-			x86.REG_BX: typecheck.LookupRuntimeFunc("gcWriteBarrierBX"),
-			x86.REG_BP: typecheck.LookupRuntimeFunc("gcWriteBarrierBP"),
-			x86.REG_SI: typecheck.LookupRuntimeFunc("gcWriteBarrierSI"),
-			x86.REG_R8: typecheck.LookupRuntimeFunc("gcWriteBarrierR8"),
-			x86.REG_R9: typecheck.LookupRuntimeFunc("gcWriteBarrierR9"),
-		}
-	}
 
 	if Arch.LinkArch.Family == sys.Wasm {
 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("goPanicIndex")
@@ -252,30 +256,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	return a
 }
 
-// dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
-func dvarint(x *obj.LSym, off int, v int64) int {
-	if v < 0 || v > 1e9 {
-		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
-	}
-	if v < 1<<7 {
-		return objw.Uint8(x, off, uint8(v))
-	}
-	off = objw.Uint8(x, off, uint8((v&127)|128))
-	if v < 1<<14 {
-		return objw.Uint8(x, off, uint8(v>>7))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>7)&127)|128))
-	if v < 1<<21 {
-		return objw.Uint8(x, off, uint8(v>>14))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>14)&127)|128))
-	if v < 1<<28 {
-		return objw.Uint8(x, off, uint8(v>>21))
-	}
-	off = objw.Uint8(x, off, uint8(((v>>21)&127)|128))
-	return objw.Uint8(x, off, uint8(v>>28))
-}
-
 // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
 // that is using open-coded defers.  This funcdata is used to determine the active
 // defers in a function and execute those defers during panic processing.
@@ -286,47 +266,59 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 // top of the local variables) for their starting address. The format is:
 //
 //   - Offset of the deferBits variable
-//   - Number of defers in the function
-//   - Information about each defer call, in reverse order of appearance in the function:
-//   - Offset of the closure value to call
+//   - Offset of the first closure slot (the rest are laid out consecutively).
 func (s *state) emitOpenDeferInfo() {
+	firstOffset := s.openDefers[0].closureNode.FrameOffset()
+
+	// Verify that cmpstackvarlt laid out the slots in order.
+	for i, r := range s.openDefers {
+		have := r.closureNode.FrameOffset()
+		want := firstOffset + int64(i)*int64(types.PtrSize)
+		if have != want {
+			base.FatalfAt(s.curfn.Pos(), "unexpected frame offset for open-coded defer slot #%v: have %v, want %v", i, have, want)
+		}
+	}
+
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
+
 	off := 0
-	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
-	off = dvarint(x, off, int64(len(s.openDefers)))
-
-	// Write in reverse-order, for ease of running in that order at runtime
-	for i := len(s.openDefers) - 1; i >= 0; i-- {
-		r := s.openDefers[i]
-		off = dvarint(x, off, -r.closureNode.FrameOffset())
-	}
-}
-
-func okOffset(offset int64) int64 {
-	if offset == types.BOGUS_FUNARG_OFFSET {
-		panic(fmt.Errorf("Bogus offset %d", offset))
-	}
-	return offset
+	off = objw.Uvarint(x, off, uint64(-s.deferBitsTemp.FrameOffset()))
+	off = objw.Uvarint(x, off, uint64(-firstOffset))
 }
 
 // buildssa builds an SSA function for fn.
 // worker indicates which of the backend workers is doing the processing.
 func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	name := ir.FuncName(fn)
+
+	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
+
 	printssa := false
-	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
-		pkgDotName := base.Ctxt.Pkgpath + "." + name
-		printssa = name == ssaDump ||
-			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
+	// match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
+	// optionally allows an ABI suffix specification in the GOSSAHASH, e.g. "(*Reader).Reset<0>" etc
+	if strings.Contains(ssaDump, name) { // in all the cases the function name is entirely contained within the GOSSAFUNC string.
+		nameOptABI := name
+		if strings.Contains(ssaDump, ",") { // ABI specification
+			nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
+		} else if strings.HasSuffix(ssaDump, ">") { // if they use the linker syntax instead....
+			l := len(ssaDump)
+			if l >= 3 && ssaDump[l-3] == '<' {
+				nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
+				ssaDump = ssaDump[:l-3] + "," + ssaDump[l-2:l-1]
+			}
+		}
+		pkgDotName := base.Ctxt.Pkgpath + "." + nameOptABI
+		printssa = nameOptABI == ssaDump || // "(*Reader).Reset"
+			pkgDotName == ssaDump || // "compress/gzip.(*Reader).Reset"
+			strings.HasSuffix(pkgDotName, ssaDump) && strings.HasSuffix(pkgDotName, "/"+ssaDump) // "gzip.(*Reader).Reset"
 	}
+
 	var astBuf *bytes.Buffer
 	if printssa {
 		astBuf = &bytes.Buffer{}
-		ir.FDumpList(astBuf, "buildssa-enter", fn.Enter)
 		ir.FDumpList(astBuf, "buildssa-body", fn.Body)
-		ir.FDumpList(astBuf, "buildssa-exit", fn.Exit)
 		if ssaDumpStdout {
 			fmt.Println("generating SSA for", name)
 			fmt.Print(astBuf.String())
@@ -343,27 +335,36 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
 
+	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
+		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
+			s.instrumentMemory = true
+		}
+		if base.Flag.Race {
+			s.instrumentEnterExit = true
+		}
+	}
+
 	fe := ssafn{
 		curfn: fn,
 		log:   printssa && ssaDumpStdout,
 	}
 	s.curfn = fn
 
-	s.f = ssa.NewFunc(&fe)
+	cache := &ssaCaches[worker]
+	cache.Reset()
+
+	s.f = ssaConfig.NewFunc(&fe, cache)
 	s.config = ssaConfig
 	s.f.Type = fn.Type()
-	s.f.Config = ssaConfig
-	s.f.Cache = &ssaCaches[worker]
-	s.f.Cache.Reset()
 	s.f.Name = name
 	s.f.PrintOrHtmlSSA = printssa
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
-	s.f.ABI1 = ssaConfig.ABI1.Copy()
-	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
-	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
+	s.f.ABI0 = ssaConfig.ABI0
+	s.f.ABI1 = ssaConfig.ABI1
+	s.f.ABIDefault = abiForFunc(nil, ssaConfig.ABI0, ssaConfig.ABI1)
+	s.f.ABISelf = abiSelf
 
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
@@ -375,7 +376,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if printssa {
 		ssaDF := ssaDumpFile
 		if ssaDir != "" {
-			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+name+".html")
+			ssaDF = filepath.Join(ssaDir, base.Ctxt.Pkgpath+"."+s.f.NameABI()+".html")
 			ssaD := filepath.Dir(ssaDF)
 			os.MkdirAll(ssaD, 0755)
 		}
@@ -400,16 +401,16 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 		// preceding the deferreturn/ret code that we don't track correctly.
 		s.hasOpenDefers = false
 	}
-	if s.hasOpenDefers && len(s.curfn.Exit) > 0 {
-		// Skip doing open defers if there is any extra exit code (likely
-		// race detection), since we will not generate that code in the
-		// case of the extra deferreturn/ret segment.
+	if s.hasOpenDefers && s.instrumentEnterExit {
+		// Skip doing open defers if we need to instrument function
+		// returns for the race detector, since we will not generate that
+		// code in the case of the extra deferreturn/ret segment.
 		s.hasOpenDefers = false
 	}
 	if s.hasOpenDefers {
 		// Similarly, skip if there are any heap-allocated result
 		// parameters that need to be copied back to their stack slots.
-		for _, f := range s.curfn.Type().Results().FieldSlice() {
+		for _, f := range s.curfn.Type().Results() {
 			if !f.Nname.(*ir.Name).OnStack() {
 				s.hasOpenDefers = false
 				break
@@ -496,12 +497,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			} else { // address was taken AND/OR too large for SSA
 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
 				if len(paramAssignment.Registers) > 0 {
-					if TypeOK(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
+					if ssa.CanSSA(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
 						v := s.newValue0A(ssa.OpArg, n.Type(), n)
 						s.store(n.Type(), s.decladdrs[n], v)
 					} else { // Too big for SSA.
 						// Brute force, and early, do a bunch of stores from registers
-						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
+						// Note that expand calls knows about this and doesn't trouble itself with larger-than-SSA-able Args in registers.
 						s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], false)
 					}
 				}
@@ -531,7 +532,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 			// runtime calls that did (#43701). Since we don't
 			// convert Addrtaken variables to SSA anyway, no point
 			// in promoting them either.
-			if n.Byval() && !n.Addrtaken() && TypeOK(n.Type()) {
+			if n.Byval() && !n.Addrtaken() && ssa.CanSSA(n.Type()) {
 				n.Class = ir.PAUTO
 				fn.Dcl = append(fn.Dcl, n)
 				s.assign(n, s.load(n.Type(), ptr), false, 0)
@@ -546,7 +547,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
-	s.stmtList(fn.Enter)
+	if s.instrumentEnterExit {
+		s.rtcall(ir.Syms.Racefuncenter, true, nil, s.newValue0(ssa.OpGetCallerPC, types.Types[types.TUINTPTR]))
+	}
 	s.zeroResults()
 	s.paramsToHeap()
 	s.stmtList(fn.Body)
@@ -571,7 +574,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	if s.hasOpenDefers {
+	fe.AllocFrame(s.f)
+
+	if len(s.openDefers) != 0 {
 		s.emitOpenDeferInfo()
 	}
 
@@ -617,7 +622,7 @@ func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *a
 // are always live, so we need to zero them before any allocations,
 // even allocations to move params/results to the heap.
 func (s *state) zeroResults() {
-	for _, f := range s.curfn.Type().Results().FieldSlice() {
+	for _, f := range s.curfn.Type().Results() {
 		n := f.Nname.(*ir.Name)
 		if !n.OnStack() {
 			// The local which points to the return value is the
@@ -626,7 +631,7 @@ func (s *state) zeroResults() {
 			continue
 		}
 		// Zero the stack location containing f.
-		if typ := n.Type(); TypeOK(typ) {
+		if typ := n.Type(); ssa.CanSSA(typ) {
 			s.assign(n, s.zeroVal(typ), false, 0)
 		} else {
 			if typ.HasPointers() {
@@ -640,8 +645,8 @@ func (s *state) zeroResults() {
 // paramsToHeap produces code to allocate memory for heap-escaped parameters
 // and to copy non-result parameters' values from the stack.
 func (s *state) paramsToHeap() {
-	do := func(params *types.Type) {
-		for _, f := range params.FieldSlice() {
+	do := func(params []*types.Field) {
+		for _, f := range params {
 			if f.Nname == nil {
 				continue // anonymous or blank parameter
 			}
@@ -675,12 +680,9 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 	}
 
 	// Declare variable to hold address.
-	addr := ir.NewNameAt(pos, &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
-	addr.SetType(types.NewPtr(n.Type()))
-	addr.Class = ir.PAUTO
+	sym := &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg}
+	addr := s.curfn.NewLocal(pos, sym, types.NewPtr(n.Type()))
 	addr.SetUsed(true)
-	addr.Curfn = s.curfn
-	s.curfn.Dcl = append(s.curfn.Dcl, addr)
 	types.CalcSize(addr.Type())
 
 	if n.Class == ir.PPARAMOUT {
@@ -722,7 +724,7 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
 		count = s.constInt(types.Types[types.TUINTPTR], 1)
 	}
 	if count.Type.Size() != s.config.PtrSize {
-		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
+		s.Fatalf("expected count fit to a uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
 	}
 	var rtype *ssa.Value
 	if rtypeExpr != nil {
@@ -887,11 +889,13 @@ type state struct {
 	// Used to deduplicate panic calls.
 	panics map[funcLine]*ssa.Block
 
-	cgoUnsafeArgs   bool
-	hasdefer        bool // whether the function contains a defer statement
-	softFloat       bool
-	hasOpenDefers   bool // whether we are doing open-coded defers
-	checkPtrEnabled bool // whether to insert checkptr instrumentation
+	cgoUnsafeArgs       bool
+	hasdefer            bool // whether the function contains a defer statement
+	softFloat           bool
+	hasOpenDefers       bool // whether we are doing open-coded defers
+	checkPtrEnabled     bool // whether to insert checkptr instrumentation
+	instrumentEnterExit bool // whether to instrument function enter/exit
+	instrumentMemory    bool // whether to instrument memory operations
 
 	// If doing open-coded defers, list of info about the defer calls in
 	// scanning order. Hence, at exit we should run these defers in reverse
@@ -939,7 +943,7 @@ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl
 func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
 
 func ssaMarker(name string) *ir.Name {
-	return typecheck.NewName(&types.Sym{Name: name})
+	return ir.NewNameAt(base.Pos, &types.Sym{Name: name}, nil)
 }
 
 var (
@@ -953,6 +957,7 @@ var (
 	typVar       = ssaMarker("typ")
 	okVar        = ssaMarker("ok")
 	deferBitsVar = ssaMarker("deferBits")
+	hashVar      = ssaMarker("hash")
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -1249,7 +1254,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		s.instrument(t, addr, kind)
 		return
 	}
-	for _, f := range t.Fields().Slice() {
+	for _, f := range t.Fields() {
 		if f.Sym.IsBlank() {
 			continue
 		}
@@ -1268,7 +1273,7 @@ func (s *state) instrumentMove(t *types.Type, dst, src *ssa.Value) {
 }
 
 func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrumentKind) {
-	if !s.curfn.InstrumentBody() {
+	if !s.instrumentMemory {
 		return
 	}
 
@@ -1440,8 +1445,7 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.BlockStmt)
 		s.stmtList(n.List)
 
-	// No-ops
-	case ir.ODCLCONST, ir.ODCLTYPE, ir.OFALL:
+	case ir.OFALL: // no-op
 
 	// Expression statements
 	case ir.OCALLFUNC:
@@ -1455,9 +1459,9 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		s.callResult(n, callNormal)
-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
-			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
+		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
+			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -1484,10 +1488,10 @@ func (s *state) stmt(n ir.Node) {
 			s.openDeferRecord(n.Call.(*ir.CallExpr))
 		} else {
 			d := callDefer
-			if n.Esc() == ir.EscNever {
+			if n.Esc() == ir.EscNever && n.DeferAt == nil {
 				d = callDeferStack
 			}
-			s.callResult(n.Call.(*ir.CallExpr), d)
+			s.call(n.Call.(*ir.CallExpr), d, false, n.DeferAt)
 		}
 	case ir.OGO:
 		n := n.(*ir.GoDeferStmt)
@@ -1502,7 +1506,7 @@ func (s *state) stmt(n ir.Node) {
 			res, resok = s.dynamicDottype(n.Rhs[0].(*ir.DynamicTypeAssertExpr), true)
 		}
 		deref := false
-		if !TypeOK(n.Rhs[0].Type()) {
+		if !ssa.CanSSA(n.Rhs[0].Type()) {
 			if res.Op != ssa.OpLoad {
 				s.Fatalf("dottype of non-load")
 			}
@@ -1661,7 +1665,7 @@ func (s *state) stmt(n ir.Node) {
 		}
 
 		var r *ssa.Value
-		deref := !TypeOK(t)
+		deref := !ssa.CanSSA(t)
 		if deref {
 			if rhs == nil {
 				r = nil // Signal assign to use OpZero.
@@ -1801,6 +1805,7 @@ func (s *state) stmt(n ir.Node) {
 		// OFOR: for Ninit; Left; Right { Nbody }
 		// cond (Left); body (Nbody); incr (Right)
 		n := n.(*ir.ForStmt)
+		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)
@@ -1991,10 +1996,119 @@ func (s *state) stmt(n ir.Node) {
 
 		s.startBlock(bEnd)
 
+	case ir.OINTERFACESWITCH:
+		n := n.(*ir.InterfaceSwitchStmt)
+		typs := s.f.Config.Types
+
+		t := s.expr(n.RuntimeType)
+		h := s.expr(n.Hash)
+		d := s.newValue1A(ssa.OpAddr, typs.BytePtr, n.Descriptor, s.sb)
+
+		// Check the cache first.
+		var merge *ssa.Block
+		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
+			// Note: we can only use the cache if we have the right atomic load instruction.
+			// Double-check that here.
+			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
+				s.Fatalf("atomic load not available")
+			}
+			merge = s.f.NewBlock(ssa.BlockPlain)
+			cacheHit := s.f.NewBlock(ssa.BlockPlain)
+			cacheMiss := s.f.NewBlock(ssa.BlockPlain)
+			loopHead := s.f.NewBlock(ssa.BlockPlain)
+			loopBody := s.f.NewBlock(ssa.BlockPlain)
+
+			// Pick right size ops.
+			var mul, and, add, zext ssa.Op
+			if s.config.PtrSize == 4 {
+				mul = ssa.OpMul32
+				and = ssa.OpAnd32
+				add = ssa.OpAdd32
+				zext = ssa.OpCopy
+			} else {
+				mul = ssa.OpMul64
+				and = ssa.OpAnd64
+				add = ssa.OpAdd64
+				zext = ssa.OpZeroExt32to64
+			}
+
+			// Load cache pointer out of descriptor, with an atomic load so
+			// we ensure that we see a fully written cache.
+			atomicLoad := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(typs.BytePtr, types.TypeMem), d, s.mem())
+			cache := s.newValue1(ssa.OpSelect0, typs.BytePtr, atomicLoad)
+			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, atomicLoad)
+
+			// Initialize hash variable.
+			s.vars[hashVar] = s.newValue1(zext, typs.Uintptr, h)
+
+			// Load mask from cache.
+			mask := s.newValue2(ssa.OpLoad, typs.Uintptr, cache, s.mem())
+			// Jump to loop head.
+			b := s.endBlock()
+			b.AddEdgeTo(loopHead)
+
+			// At loop head, get pointer to the cache entry.
+			//   e := &cache.Entries[hash&mask]
+			s.startBlock(loopHead)
+			entries := s.newValue2(ssa.OpAddPtr, typs.UintptrPtr, cache, s.uintptrConstant(uint64(s.config.PtrSize)))
+			idx := s.newValue2(and, typs.Uintptr, s.variable(hashVar, typs.Uintptr), mask)
+			idx = s.newValue2(mul, typs.Uintptr, idx, s.uintptrConstant(uint64(3*s.config.PtrSize)))
+			e := s.newValue2(ssa.OpAddPtr, typs.UintptrPtr, entries, idx)
+			//   hash++
+			s.vars[hashVar] = s.newValue2(add, typs.Uintptr, s.variable(hashVar, typs.Uintptr), s.uintptrConstant(1))
+
+			// Look for a cache hit.
+			//   if e.Typ == t { goto hit }
+			eTyp := s.newValue2(ssa.OpLoad, typs.Uintptr, e, s.mem())
+			cmp1 := s.newValue2(ssa.OpEqPtr, typs.Bool, t, eTyp)
+			b = s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(cmp1)
+			b.AddEdgeTo(cacheHit)
+			b.AddEdgeTo(loopBody)
+
+			// Look for an empty entry, the tombstone for this hash table.
+			//   if e.Typ == nil { goto miss }
+			s.startBlock(loopBody)
+			cmp2 := s.newValue2(ssa.OpEqPtr, typs.Bool, eTyp, s.constNil(typs.BytePtr))
+			b = s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(cmp2)
+			b.AddEdgeTo(cacheMiss)
+			b.AddEdgeTo(loopHead)
+
+			// On a hit, load the data fields of the cache entry.
+			//   Case = e.Case
+			//   Itab = e.Itab
+			s.startBlock(cacheHit)
+			eCase := s.newValue2(ssa.OpLoad, typs.Int, s.newValue1I(ssa.OpOffPtr, typs.IntPtr, s.config.PtrSize, e), s.mem())
+			eItab := s.newValue2(ssa.OpLoad, typs.BytePtr, s.newValue1I(ssa.OpOffPtr, typs.BytePtrPtr, 2*s.config.PtrSize, e), s.mem())
+			s.assign(n.Case, eCase, false, 0)
+			s.assign(n.Itab, eItab, false, 0)
+			b = s.endBlock()
+			b.AddEdgeTo(merge)
+
+			// On a miss, call into the runtime to get the answer.
+			s.startBlock(cacheMiss)
+		}
+
+		r := s.rtcall(ir.Syms.InterfaceSwitch, true, []*types.Type{typs.Int, typs.BytePtr}, d, t)
+		s.assign(n.Case, r[0], false, 0)
+		s.assign(n.Itab, r[1], false, 0)
+
+		if merge != nil {
+			// Cache hits merge in here.
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
+			b.AddEdgeTo(merge)
+			s.startBlock(merge)
+		}
+
 	case ir.OCHECKNIL:
 		n := n.(*ir.UnaryExpr)
 		p := s.expr(n.X)
-		s.nilCheck(p)
+		_ = s.nilCheck(p)
+		// TODO: check that throwing away the nilcheck result is ok.
 
 	case ir.OINLMARK:
 		n := n.(*ir.InlineMarkStmt)
@@ -2029,13 +2143,10 @@ func (s *state) exit() *ssa.Block {
 		}
 	}
 
-	var b *ssa.Block
-	var m *ssa.Value
 	// Do actual return.
 	// These currently turn into self-copies (in many cases).
-	resultFields := s.curfn.Type().Results().FieldSlice()
+	resultFields := s.curfn.Type().Results()
 	results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
-	m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
 	for i, f := range resultFields {
 		n := f.Nname.(*ir.Name)
@@ -2061,15 +2172,18 @@ func (s *state) exit() *ssa.Block {
 		}
 	}
 
-	// Run exit code. Today, this is just racefuncexit, in -race mode.
-	// TODO(register args) this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
-	// Spills in register allocation might just fix it.
-	s.stmtList(s.curfn.Exit)
+	// In -race mode, we need to call racefuncexit.
+	// Note: This has to happen after we load any heap-allocated results,
+	// otherwise races will be attributed to the caller instead.
+	if s.instrumentEnterExit {
+		s.rtcall(ir.Syms.Racefuncexit, true, nil)
+	}
 
 	results[len(results)-1] = s.mem()
+	m := s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
 	m.AddArgs(results...)
 
-	b = s.endBlock()
+	b := s.endBlock()
 	b.Kind = ssa.BlockRet
 	b.SetControl(m)
 	if s.hasdefer && s.hasOpenDefers {
@@ -2662,6 +2776,14 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.ConvExpr)
 		str := s.expr(n.X)
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
+		if !n.NonNil() {
+			// We need to ensure []byte("") evaluates to []byte{}, and not []byte(nil).
+			//
+			// TODO(mdempsky): Investigate using "len != 0" instead of "ptr != nil".
+			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], ptr, s.constNil(ptr.Type))
+			zerobase := s.newValue1A(ssa.OpAddr, ptr.Type, ir.Syms.Zerobase, s.sb)
+			ptr = s.ternary(cond, ptr, zerobase)
+		}
 		len := s.newValue1(ssa.OpStringLen, types.Types[types.TINT], str)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
 	case ir.OCFUNC:
@@ -2797,8 +2919,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 
 		// map <--> *hmap
-		if to.Kind() == types.TMAP && from.IsPtr() &&
-			to.MapType().Hmap == from.Elem() {
+		if to.Kind() == types.TMAP && from == types.NewPtr(reflectdata.MapType()) {
 			return v
 		}
 
@@ -3157,7 +3278,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 			p := s.addr(n)
 			return s.load(n.X.Type().Elem(), p)
 		case n.X.Type().IsArray():
-			if TypeOK(n.X.Type()) {
+			if ssa.CanSSA(n.X.Type()) {
 				// SSA can handle arrays of length at most 1.
 				bound := n.X.Type().NumElem()
 				a := s.expr(n.X)
@@ -3203,7 +3324,10 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.UnaryExpr)
 		a := s.expr(n.X)
 		if n.X.Type().IsSlice() {
-			return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
+			if n.Bounded() {
+				return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
+			}
+			return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), a)
 		} else {
 			return s.newValue1(ssa.OpStringPtr, n.Type(), a)
 		}
@@ -3218,7 +3342,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		a := s.expr(n.X)
 		return s.newValue1(ssa.OpIData, n.Type(), a)
 
-	case ir.OEFACE:
+	case ir.OMAKEFACE:
 		n := n.(*ir.BinaryExpr)
 		tab := s.expr(n.X)
 		data := s.expr(n.Y)
@@ -3278,10 +3402,15 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		// slice.ptr
 		n := n.(*ir.ConvExpr)
 		v := s.expr(n.X)
-		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
+		nelem := n.Type().Elem().NumElem()
+		arrlen := s.constInt(types.Types[types.TINT], nelem)
 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
 		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
-		return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), v)
+		op := ssa.OpSlicePtr
+		if nelem == 0 {
+			op = ssa.OpSlicePtrUnchecked
+		}
+		return s.newValue1(op, n.Type(), v)
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
@@ -3308,6 +3437,9 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.OAPPEND:
 		return s.append(n.(*ir.CallExpr), false)
+
+	case ir.OMIN, ir.OMAX:
+		return s.minMax(n.(*ir.CallExpr))
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT:
 		// All literals with nonzero fields have already been
@@ -3349,7 +3481,7 @@ func (s *state) resultOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.Valu
 	pa := aux.ParamAssignmentForResult(which)
 	// TODO(register args) determine if in-memory TypeOK is better loaded early from SelectNAddr or later when SelectN is expanded.
 	// SelectN is better for pattern-matching and possible call-aware analysis we might want to do in the future.
-	if len(pa.Registers) == 0 && !TypeOK(t) {
+	if len(pa.Registers) == 0 && !ssa.CanSSA(t) {
 		addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), which, c)
 		return s.rawLoad(t, addr)
 	}
@@ -3454,7 +3586,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	taddr := s.expr(n.X)
+	taddr := s.expr(n.Fun)
 	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 
 	// Decompose output slice
@@ -3505,7 +3637,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 	args := make([]argRec, 0, len(n.Args[1:]))
 	for _, n := range n.Args[1:] {
-		if TypeOK(n.Type()) {
+		if ssa.CanSSA(n.Type()) {
 			args = append(args, argRec{v: s.expr(n), store: true})
 		} else {
 			v := s.addr(n)
@@ -3525,6 +3657,10 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		}
 	}
 
+	// The following deletions have no practical effect at this time
+	// because state.vars has been reset by the preceding state.startBlock.
+	// They only enforce the fact that these variables are no longer need in
+	// the current scope.
 	delete(s.vars, ptrVar)
 	delete(s.vars, lenVar)
 	if !inplace {
@@ -3536,6 +3672,125 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		return nil
 	}
 	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+}
+
+// minMax converts an OMIN/OMAX builtin call into SSA.
+func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+	// The OMIN/OMAX builtin is variadic, but its semantics are
+	// equivalent to left-folding a binary min/max operation across the
+	// arguments list.
+	fold := func(op func(x, a *ssa.Value) *ssa.Value) *ssa.Value {
+		x := s.expr(n.Args[0])
+		for _, arg := range n.Args[1:] {
+			x = op(x, s.expr(arg))
+		}
+		return x
+	}
+
+	typ := n.Type()
+
+	if typ.IsFloat() || typ.IsString() {
+		// min/max semantics for floats are tricky because of NaNs and
+		// negative zero. Some architectures have instructions which
+		// we can use to generate the right result. For others we must
+		// call into the runtime instead.
+		//
+		// Strings are conceptually simpler, but we currently desugar
+		// string comparisons during walk, not ssagen.
+
+		if typ.IsFloat() {
+			switch Arch.LinkArch.Family {
+			case sys.AMD64, sys.ARM64:
+				var op ssa.Op
+				switch {
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
+					op = ssa.OpMin64F
+				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMAX:
+					op = ssa.OpMax64F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMIN:
+					op = ssa.OpMin32F
+				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMAX:
+					op = ssa.OpMax32F
+				}
+				return fold(func(x, a *ssa.Value) *ssa.Value {
+					return s.newValue2(op, typ, x, a)
+				})
+			}
+		}
+		var name string
+		switch typ.Kind() {
+		case types.TFLOAT32:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "fmin32"
+			case ir.OMAX:
+				name = "fmax32"
+			}
+		case types.TFLOAT64:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "fmin64"
+			case ir.OMAX:
+				name = "fmax64"
+			}
+		case types.TSTRING:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "strmin"
+			case ir.OMAX:
+				name = "strmax"
+			}
+		}
+		fn := typecheck.LookupRuntimeFunc(name)
+
+		return fold(func(x, a *ssa.Value) *ssa.Value {
+			return s.rtcall(fn, true, []*types.Type{typ}, x, a)[0]
+		})
+	}
+
+	lt := s.ssaOp(ir.OLT, typ)
+
+	return fold(func(x, a *ssa.Value) *ssa.Value {
+		switch n.Op() {
+		case ir.OMIN:
+			// a < x ? a : x
+			return s.ternary(s.newValue2(lt, types.Types[types.TBOOL], a, x), a, x)
+		case ir.OMAX:
+			// x < a ? a : x
+			return s.ternary(s.newValue2(lt, types.Types[types.TBOOL], x, a), a, x)
+		}
+		panic("unreachable")
+	})
+}
+
+// ternary emits code to evaluate cond ? x : y.
+func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
+	// Note that we need a new ternaryVar each time (unlike okVar where we can
+	// reuse the variable) because it might have a different type every time.
+	ternaryVar := ssaMarker("ternary")
+
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.SetControl(cond)
+	b.AddEdgeTo(bThen)
+	b.AddEdgeTo(bElse)
+
+	s.startBlock(bThen)
+	s.vars[ternaryVar] = x
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bElse)
+	s.vars[ternaryVar] = y
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+	r := s.variable(ternaryVar, x.Type)
+	delete(s.vars, ternaryVar)
+	return r
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
@@ -3967,7 +4222,6 @@ func InitTables() {
 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
 		},
 		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64, sys.ARM64)
-	alias("runtime", "mulUintptr", "runtime/internal/math", "MulUintptr", all...)
 	add("runtime", "KeepAlive",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
@@ -3998,19 +4252,25 @@ func InitTables() {
 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
 			return nil
 		},
-		sys.ARM64, sys.PPC64)
+		sys.ARM64, sys.PPC64, sys.RISCV64)
 
+	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
+	if buildcfg.GOPPC64 >= 10 {
+		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+		// make it worthwhile as an intrinsic
+		brev_arch = append(brev_arch, sys.PPC64)
+	}
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Bswap32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
+		brev_arch...)
 	addF("runtime/internal/sys", "Bswap64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
+		brev_arch...)
 
 	/****** Prefetch ******/
 	makePrefetchFunc := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4235,25 +4495,25 @@ func InitTables() {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("runtime/internal/atomic", "And",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("runtime/internal/atomic", "Or8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("runtime/internal/atomic", "Or",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
 	atomicAndOrEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
 		s.vars[memVar] = s.newValue3(op, types.TypeMem, args[0], args[1], s.mem())
@@ -4354,7 +4614,7 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm)
+		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
 	addF("math", "Copysign",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
@@ -4486,12 +4746,12 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
@@ -4525,7 +4785,7 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz8, types.Types[types.TINT], args[0])
 		},
-		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
+		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], args[0])
@@ -4537,7 +4797,16 @@ func InitTables() {
 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
 	// ReverseBytes inlines correctly, no need to intrinsify it.
-	// ReverseBytes16 lowers to a rotate, no need for anything special here.
+	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
+	// On Power10, 16-bit rotate is not available so use BRH instruction
+	if buildcfg.GOPPC64 >= 10 {
+		addF("math/bits", "ReverseBytes16",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
+			},
+			sys.PPC64)
+	}
+
 	addF("math/bits", "Len64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
@@ -4718,13 +4987,14 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
+	alias("runtime/internal/math", "Add64", "math/bits", "Add64", all...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
 	addF("math/bits", "Div64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4825,7 +5095,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 	if n == nil {
 		return false
 	}
-	name, ok := n.X.(*ir.Name)
+	name, ok := n.Fun.(*ir.Name)
 	if !ok {
 		return false
 	}
@@ -4834,7 +5104,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 
 // intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.
 func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
-	v := findIntrinsic(n.X.Sym())(s, n, s.intrinsicArgs(n))
+	v := findIntrinsic(n.Fun.Sym())(s, n, s.intrinsicArgs(n))
 	if ssa.IntrinsicsDebug > 0 {
 		x := v
 		if x == nil {
@@ -4843,7 +5113,7 @@ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
 		if x.Op == ssa.OpSelect0 || x.Op == ssa.OpSelect1 {
 			x = x.Args[0]
 		}
-		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.X.Sym().Name, x.LongString())
+		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.Fun.Sym().Name, x.LongString())
 	}
 	return v
 }
@@ -4864,14 +5134,14 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
 // (as well as the deferBits variable), and this will enable us to run the proper
 // defer calls during panics.
 func (s *state) openDeferRecord(n *ir.CallExpr) {
-	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.X.Type().NumResults() != 0 {
+	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.Fun.Type().NumResults() != 0 {
 		s.Fatalf("defer call with arguments or results: %v", n)
 	}
 
 	opendefer := &openDeferInfo{
 		n: n,
 	}
-	fn := n.X
+	fn := n.Fun
 	// We must always store the function value in a stack slot for the
 	// runtime panic code to use. But in the defer exit code, we will
 	// call the function directly if it is a static function.
@@ -4898,7 +5168,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 // (therefore SSAable). val is the value to be stored. The function returns an SSA
 // value representing a pointer to the autotmp location.
 func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		s.Fatalf("openDeferSave of non-SSA-able type %v val=%v", t, val)
 	}
 	if !t.HasPointers() {
@@ -4907,6 +5177,7 @@ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
 	pos := val.Pos
 	temp := typecheck.TempAt(pos.WithNotStmt(), s.curfn, t)
 	temp.SetOpenDeferSlot(true)
+	temp.SetFrameOffset(int64(len(s.openDefers))) // so cmpstackvarlt can order them
 	var addrTemp *ssa.Value
 	// Use OpVarLive to make sure stack slot for the closure is not removed by
 	// dead-store elimination
@@ -4984,7 +5255,7 @@ func (s *state) openDeferExit() {
 		// Generate code to call the function call of the defer, using the
 		// closure that were stored in argtmps at the point of the defer
 		// statement.
-		fn := r.n.X
+		fn := r.n.Fun
 		stksize := fn.Type().ArgWidth()
 		var callArgs []*ssa.Value
 		var call *ssa.Value
@@ -4992,10 +5263,10 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
-			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, nil, nil))
+			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, nil))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
 		} else {
-			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), s.f.ABIDefault.ABIAnalyzeTypes(nil, nil, nil))
+			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), s.f.ABIDefault.ABIAnalyzeTypes(nil, nil))
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		}
 		callArgs = append(callArgs, s.mem())
@@ -5016,29 +5287,30 @@ func (s *state) openDeferExit() {
 }
 
 func (s *state) callResult(n *ir.CallExpr, k callKind) *ssa.Value {
-	return s.call(n, k, false)
+	return s.call(n, k, false, nil)
 }
 
 func (s *state) callAddr(n *ir.CallExpr, k callKind) *ssa.Value {
-	return s.call(n, k, true)
+	return s.call(n, k, true, nil)
 }
 
 // Calls the function n using the specified call type.
 // Returns the address of the return value (or nil if none).
-func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Value {
+func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExtra ir.Expr) *ssa.Value {
 	s.prevCall = nil
-	var callee *ir.Name    // target function (if static)
-	var closure *ssa.Value // ptr to closure to run (if dynamic)
-	var codeptr *ssa.Value // ptr to target code (if dynamic)
-	var rcvr *ssa.Value    // receiver to set
-	fn := n.X
+	var calleeLSym *obj.LSym // target function (if static)
+	var closure *ssa.Value   // ptr to closure to run (if dynamic)
+	var codeptr *ssa.Value   // ptr to target code (if dynamic)
+	var dextra *ssa.Value    // defer extra arg
+	var rcvr *ssa.Value      // receiver to set
+	fn := n.Fun
 	var ACArgs []*types.Type    // AuxCall args
 	var ACResults []*types.Type // AuxCall results
 	var callArgs []*ssa.Value   // For late-expansion, the args themselves (not stored, args to the call instead).
 
 	callABI := s.f.ABIDefault
 
-	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.Fun.Type().NumResults() != 0) {
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 
@@ -5046,7 +5318,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	case ir.OCALLFUNC:
 		if (k == callNormal || k == callTail) && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
-			callee = fn
+			calleeLSym = callTargetLSym(fn)
 			if buildcfg.Experiment.RegabiArgs {
 				// This is a static call, so it may be
 				// a direct call to a non-ABIInternal
@@ -5085,12 +5357,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			closure = iclosure
 		}
 	}
+	if deferExtra != nil {
+		dextra = s.expr(deferExtra)
+	}
 
-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
+	params := callABI.ABIAnalyze(n.Fun.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
 	types.CalcSize(fn.Type())
 	stksize := params.ArgWidth() // includes receiver, args, and results
 
-	res := n.X.Type().Results()
+	res := n.Fun.Type().Results()
 	if k == callNormal || k == callTail {
 		for _, p := range params.OutParams() {
 			ACResults = append(ACResults, p.Type)
@@ -5099,38 +5374,19 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 
 	var call *ssa.Value
 	if k == callDeferStack {
-		// Make a defer struct d on the stack.
 		if stksize != 0 {
 			s.Fatalf("deferprocStack with non-zero stack size %d: %v", stksize, n)
 		}
-
+		// Make a defer struct on the stack.
 		t := deferstruct()
-		d := typecheck.TempAt(n.Pos(), s.curfn, t)
-
-		if t.HasPointers() {
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
-		}
-		addr := s.addr(d)
-
-		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
-		// 0: started, set in deferprocStack
-		// 1: heap, set in deferprocStack
-		// 2: openDefer
-		// 3: sp, set in deferprocStack
-		// 4: pc, set in deferprocStack
-		// 5: fn
+		_, addr := s.temp(n.Pos(), t)
 		s.store(closure.Type,
-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
+			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
 			closure)
-		// 6: panic, set in deferprocStack
-		// 7: link, set in deferprocStack
-		// 8: fd
-		// 9: varp
-		// 10: framepc
 
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
-		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults))
 		callArgs = append(callArgs, addr, s.mem())
 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		call.AddArgs(callArgs...)
@@ -5146,6 +5402,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			callArgs = append(callArgs, closure)
 			stksize += int64(types.PtrSize)
 			argStart += int64(types.PtrSize)
+			if dextra != nil {
+				// Extra token of type any for deferproc
+				ACArgs = append(ACArgs, types.Types[types.TINTER])
+				callArgs = append(callArgs, dextra)
+				stksize += 2 * int64(types.PtrSize)
+				argStart += 2 * int64(types.PtrSize)
+			}
 		}
 
 		// Set receiver (for interface calls).
@@ -5154,7 +5417,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 
 		// Write args.
-		t := n.X.Type()
+		t := n.Fun.Type()
 		args := n.Args
 
 		for _, p := range params.InParams() { // includes receiver for interface calls
@@ -5173,7 +5436,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 
 		for i, n := range args {
-			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
+			callArgs = append(callArgs, s.putArg(n, t.Param(i).Type))
 		}
 
 		callArgs = append(callArgs, s.mem())
@@ -5181,11 +5444,15 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// call target
 		switch {
 		case k == callDefer:
-			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults)) // TODO paramResultInfo for DeferProc
+			sym := ir.Syms.Deferproc
+			if dextra != nil {
+				sym = ir.Syms.Deferprocat
+			}
+			aux := ssa.StaticAuxCall(sym, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults)) // TODO paramResultInfo for Deferproc(at)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		case k == callGo:
-			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
-			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for NewProc
+			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults))
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for Newproc
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -5193,14 +5460,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
-			aux := ssa.ClosureAuxCall(callABI.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+			aux := ssa.ClosureAuxCall(callABI.ABIAnalyzeTypes(ACArgs, ACResults))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
 		case codeptr != nil:
 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
-		case callee != nil:
-			aux := ssa.StaticAuxCall(callTargetLSym(callee), params)
+		case calleeLSym != nil:
+			aux := ssa.StaticAuxCall(calleeLSym, params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 			if k == callTail {
 				call.Op = ssa.OpTailLECall
@@ -5243,11 +5510,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		s.startBlock(bNext)
 	}
 
-	if res.NumFields() == 0 || k != callNormal {
+	if len(res) == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil
 	}
-	fp := res.Field(0)
+	fp := res[0]
 	if returnResultAddr {
 		return s.resultAddrOfCall(call, 0, fp.Type)
 	}
@@ -5427,7 +5694,7 @@ func (s *state) canSSA(n ir.Node) bool {
 	if n.Op() != ir.ONAME {
 		return false
 	}
-	return s.canSSAName(n.(*ir.Name)) && TypeOK(n.Type())
+	return s.canSSAName(n.(*ir.Name)) && ssa.CanSSA(n.Type())
 }
 
 func (s *state) canSSAName(name *ir.Name) bool {
@@ -5454,39 +5721,6 @@ func (s *state) canSSAName(name *ir.Name) bool {
 	// TODO: try to make more variables SSAable?
 }
 
-// TypeOK reports whether variables of type t are SSA-able.
-func TypeOK(t *types.Type) bool {
-	types.CalcSize(t)
-	if t.Size() > int64(4*types.PtrSize) {
-		// 4*Widthptr is an arbitrary constant. We want it
-		// to be at least 3*Widthptr so slices can be registerized.
-		// Too big and we'll introduce too much register pressure.
-		return false
-	}
-	switch t.Kind() {
-	case types.TARRAY:
-		// We can't do larger arrays because dynamic indexing is
-		// not supported on SSA variables.
-		// TODO: allow if all indexes are constant.
-		if t.NumElem() <= 1 {
-			return TypeOK(t.Elem())
-		}
-		return false
-	case types.TSTRUCT:
-		if t.NumFields() > ssa.MaxStruct {
-			return false
-		}
-		for _, t1 := range t.Fields().Slice() {
-			if !TypeOK(t1.Type) {
-				return false
-			}
-		}
-		return true
-	default:
-		return true
-	}
-}
-
 // exprPtr evaluates n to a pointer and nil-checks it.
 func (s *state) exprPtr(n ir.Node, bounded bool, lineno src.XPos) *ssa.Value {
 	p := s.expr(n)
@@ -5496,18 +5730,20 @@ func (s *state) exprPtr(n ir.Node, bounded bool, lineno src.XPos) *ssa.Value {
 		}
 		return p
 	}
-	s.nilCheck(p)
+	p = s.nilCheck(p)
 	return p
 }
 
 // nilCheck generates nil pointer checking code.
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
-func (s *state) nilCheck(ptr *ssa.Value) {
+// Returns a "definitely not nil" copy of x to ensure proper ordering
+// of the uses of the post-nilcheck pointer.
+func (s *state) nilCheck(ptr *ssa.Value) *ssa.Value {
 	if base.Debug.DisableNil != 0 || s.curfn.NilCheckDisabled() {
-		return
+		return ptr
 	}
-	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
+	return s.newValue2(ssa.OpNilCheck, ptr.Type, ptr, s.mem())
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx <[=] len, branches to exit if not.
@@ -5666,7 +5902,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	// Issue call
 	var call *ssa.Value
-	aux := ssa.StaticAuxCall(fn, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))
+	aux := ssa.StaticAuxCall(fn, s.f.ABIDefault.ABIAnalyzeTypes(callArgTypes, results))
 	callArgs = append(callArgs, s.mem())
 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 	call.AddArgs(callArgs...)
@@ -5812,7 +6048,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 // putArg evaluates n for the purpose of passing it as an argument to a function and returns the value for the call.
 func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
 	var a *ssa.Value
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		a = s.newValue2(ssa.OpDereference, t, s.addr(n), s.mem())
 	} else {
 		a = s.expr(n)
@@ -5830,7 +6066,7 @@ func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off 
 		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
 	}
 
-	if !TypeOK(t) {
+	if !ssa.CanSSA(t) {
 		a := s.addr(n)
 		s.move(t, addr, a)
 		return
@@ -5859,8 +6095,8 @@ func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) 
 		if !t.Elem().IsArray() {
 			s.Fatalf("bad ptr to array in slice %v\n", t)
 		}
-		s.nilCheck(v)
-		ptr = s.newValue1(ssa.OpCopy, types.NewPtr(t.Elem().Elem()), v)
+		nv := s.nilCheck(v)
+		ptr = s.newValue1(ssa.OpCopy, types.NewPtr(t.Elem().Elem()), nv)
 		len = s.constInt(types.Types[types.TINT], t.Elem().NumElem())
 		cap = len
 	default:
@@ -6272,7 +6508,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
 }
 
 func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
@@ -6290,7 +6526,7 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 	} else {
 		target = s.expr(n.RType)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok, nil)
 }
 
 // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
@@ -6299,8 +6535,11 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 // target is the *runtime._type of dst.
 // If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
 // commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
-func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
-	byteptr := s.f.Config.Types.BytePtr
+// descriptor is a compiler-allocated internal/abi.TypeAssert whose address is passed to runtime.typeAssert when
+// the target type is a compile-time-known non-empty interface. It may be nil.
+func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool, descriptor *obj.LSym) (res, resok *ssa.Value) {
+	typs := s.f.Config.Types
+	byteptr := typs.BytePtr
 	if dst.IsInterface() {
 		if dst.IsEmptyInterface() {
 			// Converting to an empty interface.
@@ -6368,30 +6607,163 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			idata := s.newValue1(ssa.OpIData, byteptr, iface)
 			res = s.newValue2(ssa.OpIMake, dst, s.variable(typVar, byteptr), idata)
 			resok = cond
-			delete(s.vars, typVar)
+			delete(s.vars, typVar) // no practical effect, just to indicate typVar is no longer live.
 			return
 		}
 		// converting to a nonempty interface needs a runtime call.
 		if base.Debug.TypeAssert > 0 {
 			base.WarnfAt(pos, "type assertion not inlined")
 		}
-		if !commaok {
-			fn := ir.Syms.AssertI2I
-			if src.IsEmptyInterface() {
+
+		itab := s.newValue1(ssa.OpITab, byteptr, iface)
+		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+
+		// First, check for nil.
+		bNil := s.f.NewBlock(ssa.BlockPlain)
+		bNonNil := s.f.NewBlock(ssa.BlockPlain)
+		bMerge := s.f.NewBlock(ssa.BlockPlain)
+		cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(cond)
+		b.Likely = ssa.BranchLikely
+		b.AddEdgeTo(bNonNil)
+		b.AddEdgeTo(bNil)
+
+		s.startBlock(bNil)
+		if commaok {
+			s.vars[typVar] = itab // which will be nil
+			b := s.endBlock()
+			b.AddEdgeTo(bMerge)
+		} else {
+			// Panic if input is nil.
+			s.rtcall(ir.Syms.Panicnildottype, false, nil, target)
+		}
+
+		// Get typ, possibly by loading out of itab.
+		s.startBlock(bNonNil)
+		typ := itab
+		if !src.IsEmptyInterface() {
+			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab))
+		}
+
+		// Check the cache first.
+		var d *ssa.Value
+		if descriptor != nil {
+			d = s.newValue1A(ssa.OpAddr, byteptr, descriptor, s.sb)
+			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
+				// Note: we can only use the cache if we have the right atomic load instruction.
+				// Double-check that here.
+				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
+					s.Fatalf("atomic load not available")
+				}
+				// Pick right size ops.
+				var mul, and, add, zext ssa.Op
+				if s.config.PtrSize == 4 {
+					mul = ssa.OpMul32
+					and = ssa.OpAnd32
+					add = ssa.OpAdd32
+					zext = ssa.OpCopy
+				} else {
+					mul = ssa.OpMul64
+					and = ssa.OpAnd64
+					add = ssa.OpAdd64
+					zext = ssa.OpZeroExt32to64
+				}
+
+				loopHead := s.f.NewBlock(ssa.BlockPlain)
+				loopBody := s.f.NewBlock(ssa.BlockPlain)
+				cacheHit := s.f.NewBlock(ssa.BlockPlain)
+				cacheMiss := s.f.NewBlock(ssa.BlockPlain)
+
+				// Load cache pointer out of descriptor, with an atomic load so
+				// we ensure that we see a fully written cache.
+				atomicLoad := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(typs.BytePtr, types.TypeMem), d, s.mem())
+				cache := s.newValue1(ssa.OpSelect0, typs.BytePtr, atomicLoad)
+				s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, atomicLoad)
+
+				// Load hash from type or itab.
+				var hash *ssa.Value
+				if src.IsEmptyInterface() {
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, typ), s.mem())
+				} else {
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, itab), s.mem())
+				}
+				hash = s.newValue1(zext, typs.Uintptr, hash)
+				s.vars[hashVar] = hash
+				// Load mask from cache.
+				mask := s.newValue2(ssa.OpLoad, typs.Uintptr, cache, s.mem())
+				// Jump to loop head.
+				b := s.endBlock()
+				b.AddEdgeTo(loopHead)
+
+				// At loop head, get pointer to the cache entry.
+				//   e := &cache.Entries[hash&mask]
+				s.startBlock(loopHead)
+				idx := s.newValue2(and, typs.Uintptr, s.variable(hashVar, typs.Uintptr), mask)
+				idx = s.newValue2(mul, typs.Uintptr, idx, s.uintptrConstant(uint64(2*s.config.PtrSize)))
+				idx = s.newValue2(add, typs.Uintptr, idx, s.uintptrConstant(uint64(s.config.PtrSize)))
+				e := s.newValue2(ssa.OpAddPtr, typs.UintptrPtr, cache, idx)
+				//   hash++
+				s.vars[hashVar] = s.newValue2(add, typs.Uintptr, s.variable(hashVar, typs.Uintptr), s.uintptrConstant(1))
+
+				// Look for a cache hit.
+				//   if e.Typ == typ { goto hit }
+				eTyp := s.newValue2(ssa.OpLoad, typs.Uintptr, e, s.mem())
+				cmp1 := s.newValue2(ssa.OpEqPtr, typs.Bool, typ, eTyp)
+				b = s.endBlock()
+				b.Kind = ssa.BlockIf
+				b.SetControl(cmp1)
+				b.AddEdgeTo(cacheHit)
+				b.AddEdgeTo(loopBody)
+
+				// Look for an empty entry, the tombstone for this hash table.
+				//   if e.Typ == nil { goto miss }
+				s.startBlock(loopBody)
+				cmp2 := s.newValue2(ssa.OpEqPtr, typs.Bool, eTyp, s.constNil(typs.BytePtr))
+				b = s.endBlock()
+				b.Kind = ssa.BlockIf
+				b.SetControl(cmp2)
+				b.AddEdgeTo(cacheMiss)
+				b.AddEdgeTo(loopHead)
+
+				// On a hit, load the data fields of the cache entry.
+				//   Itab = e.Itab
+				s.startBlock(cacheHit)
+				eItab := s.newValue2(ssa.OpLoad, typs.BytePtr, s.newValue1I(ssa.OpOffPtr, typs.BytePtrPtr, s.config.PtrSize, e), s.mem())
+				s.vars[typVar] = eItab
+				b = s.endBlock()
+				b.AddEdgeTo(bMerge)
+
+				// On a miss, call into the runtime to get the answer.
+				s.startBlock(cacheMiss)
+			}
+		}
+
+		// Call into runtime to get itab for result.
+		if descriptor != nil {
+			itab = s.rtcall(ir.Syms.TypeAssert, true, []*types.Type{byteptr}, d, typ)[0]
+		} else {
+			var fn *obj.LSym
+			if commaok {
+				fn = ir.Syms.AssertE2I2
+			} else {
 				fn = ir.Syms.AssertE2I
 			}
-			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
-			tab := s.newValue1(ssa.OpITab, byteptr, iface)
-			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
-			return s.newValue2(ssa.OpIMake, dst, tab, data), nil
+			itab = s.rtcall(fn, true, []*types.Type{byteptr}, target, typ)[0]
 		}
-		fn := ir.Syms.AssertI2I2
-		if src.IsEmptyInterface() {
-			fn = ir.Syms.AssertE2I2
+		s.vars[typVar] = itab
+		b = s.endBlock()
+		b.AddEdgeTo(bMerge)
+
+		// Build resulting interface.
+		s.startBlock(bMerge)
+		itab = s.variable(typVar, byteptr)
+		var ok *ssa.Value
+		if commaok {
+			ok = s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
 		}
-		res = s.rtcall(fn, true, []*types.Type{dst}, target, iface)[0]
-		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(dst))
-		return
+		return s.newValue2(ssa.OpIMake, dst, itab, data), ok
 	}
 
 	if base.Debug.TypeAssert > 0 {
@@ -6415,7 +6787,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 	var tmp ir.Node     // temporary for use with large types
 	var addr *ssa.Value // address of tmp
-	if commaok && !TypeOK(dst) {
+	if commaok && !ssa.CanSSA(dst) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
 		tmp, addr = s.temp(pos, dst)
@@ -6493,12 +6865,12 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 	s.startBlock(bEnd)
 	if tmp == nil {
 		res = s.variable(valVar, dst)
-		delete(s.vars, valVar)
+		delete(s.vars, valVar) // no practical effect, just to indicate typVar is no longer live.
 	} else {
 		res = s.load(dst, addr)
 	}
 	resok = s.variable(okVar, types.Types[types.TBOOL])
-	delete(s.vars, okVar)
+	delete(s.vars, okVar) // ditto
 	return res, resok
 }
 
@@ -6703,7 +7075,7 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
 
 	// Emit a funcdata pointing at the arg info data.
 	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
+	p.From.SetConst(rtabi.FUNCDATA_ArgInfo)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
@@ -6761,7 +7133,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
-	// Write one non-aggrgate arg/field/element.
+	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
 		if offset >= _special {
 			writebyte(_offsetTooLarge)
@@ -6819,7 +7191,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 				n++ // {} counts as a component
 				break
 			}
-			for _, field := range t.Fields().Slice() {
+			for _, field := range t.Fields() {
 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
 					break
 				}
@@ -6870,7 +7242,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 
 	// Emit a funcdata pointing at the wrap info data.
 	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_WrapInfo)
+	p.From.SetConst(rtabi.FUNCDATA_WrapInfo)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
@@ -6892,7 +7264,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// This function uses open-coded defers -- write out the funcdata
 		// info that we computed at the end of genssa.
 		p := pp.Prog(obj.AFUNCDATA)
-		p.From.SetConst(objabi.FUNCDATA_OpenCodedDeferInfo)
+		p.From.SetConst(rtabi.FUNCDATA_OpenCodedDeferInfo)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = openDeferInfo
@@ -6953,18 +7325,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		s.lineRunStart = nil
 		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
 
-		// Attach a "default" liveness info. Normally this will be
-		// overwritten in the Values loop below for each Value. But
-		// for an empty block this will be used for its control
-		// instruction. We won't use the actual liveness map on a
-		// control instruction. Just mark it something that is
-		// preemptible, unless this function is "all unsafe".
-		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
-
 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
 			argLiveIdx = idx
 			p := s.pp.Prog(obj.APCDATA)
-			p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+			p.From.SetConst(rtabi.PCDATA_ArgLiveIndex)
 			p.To.SetConst(int64(idx))
 		}
 
@@ -6990,7 +7354,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpWBend:
 				// nothing to do; already used by liveness
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
@@ -7020,6 +7384,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				// Attach this safe point to the next
 				// instruction.
 				s.pp.NextLive = s.livenessMap.Get(v)
+				s.pp.NextUnsafe = s.livenessMap.GetUnsafe(v)
 
 				// let the backend handle it
 				Arch.SSAGenValue(&s, v)
@@ -7028,7 +7393,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			if idx, ok := argLiveValueMap[v.ID]; ok && idx != argLiveIdx {
 				argLiveIdx = idx
 				p := s.pp.Prog(obj.APCDATA)
-				p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+				p.From.SetConst(rtabi.PCDATA_ArgLiveIndex)
 				p.To.SetConst(int64(idx))
 			}
 
@@ -7054,6 +7419,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
 		}
+
+		// Set unsafe mark for any end-of-block generated instructions
+		// (normally, conditional or unconditional branches).
+		// This is particularly important for empty blocks, as there
+		// are no values to inherit the unsafe mark from.
+		s.pp.NextUnsafe = s.livenessMap.GetUnsafeBlock(b)
+
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && base.Flag.N == 0 {
@@ -7094,7 +7466,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// The results are already in memory, because they are not SSA'd
 		// when the function has defers (see canSSAName).
 		for _, o := range f.OwnAux.ABIInfo().OutParams() {
-			n := o.Name.(*ir.Name)
+			n := o.Name
 			rts, offs := o.RegisterTypesAndOffsets()
 			for i := range o.Registers {
 				Arch.LoadRegResult(&s, f, rts[i], ssa.ObjRegForAbiReg(o.Registers[i], f.Config), n, offs[i])
@@ -7105,6 +7477,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	}
 
 	if inlMarks != nil {
+		hasCall := false
+
 		// We have some inline marks. Try to find other instructions we're
 		// going to emit anyway, and use those instructions instead of the
 		// inline marks.
@@ -7121,6 +7495,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				// Don't use inline marks themselves. We don't know
 				// whether they will be zero-sized or not yet.
 				continue
+			}
+			if p.As == obj.ACALL || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+				hasCall = true
 			}
 			pos := p.Pos.AtColumn1()
 			s := inlMarksByPos[pos]
@@ -7147,6 +7524,45 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
 			}
 		}
+
+		if e.stksize == 0 && !hasCall {
+			// Frameless leaf function. It doesn't need any preamble,
+			// so make sure its first instruction isn't from an inlined callee.
+			// If it is, add a nop at the start of the function with a position
+			// equal to the start of the function.
+			// This ensures that runtime.FuncForPC(uintptr(reflect.ValueOf(fn).Pointer())).Name()
+			// returns the right answer. See issue 58300.
+			for p := pp.Text; p != nil; p = p.Link {
+				if p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.ANOP {
+					continue
+				}
+				if base.Ctxt.PosTable.Pos(p.Pos).Base().InliningIndex() >= 0 {
+					// Make a real (not 0-sized) nop.
+					nop := Arch.Ginsnop(pp)
+					nop.Pos = e.curfn.Pos().WithIsStmt()
+
+					// Unfortunately, Ginsnop puts the instruction at the
+					// end of the list. Move it up to just before p.
+
+					// Unlink from the current list.
+					for x := pp.Text; x != nil; x = x.Link {
+						if x.Link == nop {
+							x.Link = nop.Link
+							break
+						}
+					}
+					// Splice in right before p.
+					for x := pp.Text; x != nil; x = x.Link {
+						if x.Link == p {
+							nop.Link = p
+							x.Link = nop
+							break
+						}
+					}
+				}
+				break
+			}
+		}
 	}
 
 	if base.Ctxt.Flag_locationlists {
@@ -7162,9 +7578,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		for i, b := range f.Blocks {
 			idToIdx[b.ID] = i
 		}
-		// Note that at this moment, Prog.Pc is a sequence number; it's
-		// not a real PC until after assembly, so this mapping has to
-		// be done later.
+		// Register a callback that will be used later to fill in PCs into location
+		// lists. At the moment, Prog.Pc is a sequence number; it's not a real PC
+		// until after assembly, so the translation needs to be deferred.
 		debugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:
@@ -7263,7 +7679,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi := f.DumpFileForPhase("genssa")
 		if fi != nil {
 
-			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
+			// inliningDiffers if any filename changes or if any line number except the innermost (last index) changes.
 			inliningDiffers := func(a, b []src.Pos) bool {
 				if len(a) != len(b) {
 					return true
@@ -7272,7 +7688,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 					if a[i].Filename() != b[i].Filename() {
 						return true
 					}
-					if i > 0 && a[i].Line() != b[i].Line() {
+					if i != len(a)-1 && a[i].Line() != b[i].Line() {
 						return true
 					}
 				}
@@ -7284,10 +7700,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 			for p := pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
-					allPos = p.AllPos(allPos)
+					allPos = allPos[:0]
+					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })
 					if inliningDiffers(allPos, allPosOld) {
-						for i := len(allPos) - 1; i >= 0; i-- {
-							pos := allPos[i]
+						for _, pos := range allPos {
 							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
 						}
 						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.
@@ -7355,7 +7771,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 				continue
 			}
 			n, off := ssa.AutoVar(v)
-			if n.Class != ir.PPARAM || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] {
+			if n.Class != ir.PPARAM || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] {
 				continue
 			}
 			partLiveArgsSpilled[nameOff{n, off}] = true
@@ -7363,8 +7779,8 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
 
 		// Then, insert code to spill registers if not already.
 		for _, a := range f.OwnAux.ABIInfo().InParams() {
-			n, ok := a.Name.(*ir.Name)
-			if !ok || n.Addrtaken() || !TypeOK(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+			n := a.Name
+			if n == nil || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
 				continue
 			}
 			rts, offs := a.RegisterTypesAndOffsets()
@@ -7483,16 +7899,10 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	case *ir.Name:
 		if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
 			a.Name = obj.NAME_PARAM
-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
-			a.Offset += n.FrameOffset()
-			break
-		}
-		a.Name = obj.NAME_AUTO
-		if n.Class == ir.PPARAMOUT {
-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
 		} else {
-			a.Sym = n.Linksym()
+			a.Name = obj.NAME_AUTO
 		}
+		a.Sym = n.Linksym()
 		a.Offset += n.FrameOffset()
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
@@ -7700,7 +8110,7 @@ func (s *State) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
 	if !idx.StackMapValid() {
 		// See Liveness.hasStackMap.
-		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
+		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
 			base.Fatalf("missing stack map index for %v", v.LongString())
 		}
 	}
@@ -7735,7 +8145,7 @@ func fieldIdx(n *ir.SelectorExpr) int {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	for i, f := range t.Fields().Slice() {
+	for i, f := range t.Fields() {
 		if f.Sym == n.Sel {
 			if f.Offset != n.Offset() {
 				panic("field offset doesn't match")
@@ -7780,10 +8190,6 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 	return data
 }
 
-func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
-	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
-}
-
 // SplitSlot returns a slot representing the data of parent starting at offset.
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	node := parent.N
@@ -7793,25 +8199,12 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t 
 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
 	}
 
-	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
-	n := ir.NewNameAt(parent.N.Pos(), s)
-	s.Def = n
-	ir.AsNode(s.Def).Name().SetUsed(true)
-	n.SetType(t)
-	n.Class = ir.PAUTO
+	sym := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
+	n := e.curfn.NewLocal(parent.N.Pos(), sym, t)
+	n.SetUsed(true)
 	n.SetEsc(ir.EscNever)
-	n.Curfn = e.curfn
-	e.curfn.Dcl = append(e.curfn.Dcl, n)
 	types.CalcSize(t)
 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
-}
-
-func (e *ssafn) CanSSA(t *types.Type) bool {
-	return TypeOK(t)
-}
-
-func (e *ssafn) Line(pos src.XPos) string {
-	return base.FmtPos(pos)
 }
 
 // Logf logs a message from the compiler.
@@ -7852,27 +8245,21 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 		return ir.Syms.Goschedguarded
 	case "writeBarrier":
 		return ir.Syms.WriteBarrier
-	case "gcWriteBarrier":
-		return ir.Syms.GCWriteBarrier
-	case "typedmemmove":
-		return ir.Syms.Typedmemmove
-	case "typedmemclr":
-		return ir.Syms.Typedmemclr
+	case "wbZero":
+		return ir.Syms.WBZero
+	case "wbMove":
+		return ir.Syms.WBMove
+	case "cgoCheckMemmove":
+		return ir.Syms.CgoCheckMemmove
+	case "cgoCheckPtrWrite":
+		return ir.Syms.CgoCheckPtrWrite
 	}
 	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
 	return nil
 }
 
-func (e *ssafn) SetWBPos(pos src.XPos) {
-	e.curfn.SetWBPos(pos)
-}
-
-func (e *ssafn) MyImportPath() string {
-	return base.Ctxt.Pkgpath
-}
-
-func (e *ssafn) LSym() string {
-	return e.curfn.LSym.Name
+func (e *ssafn) Func() *ir.Func {
+	return e.curfn
 }
 
 func clobberBase(n ir.Node) ir.Node {
@@ -7894,10 +8281,9 @@ func clobberBase(n ir.Node) ir.Node {
 // callTargetLSym returns the correct LSym to call 'callee' using its ABI.
 func callTargetLSym(callee *ir.Name) *obj.LSym {
 	if callee.Func == nil {
-		// TODO(austin): This happens in a few cases of
-		// compiler-generated functions. These are all
-		// ABIInternal. It would be better if callee.Func was
-		// never nil and we didn't need this case.
+		// TODO(austin): This happens in case of interface method I.M from imported package.
+		// It's ABIInternal, and would be better if callee.Func was never nil and we didn't
+		// need this case.
 		return callee.Linksym()
 	}
 
@@ -7918,39 +8304,50 @@ func max8(a, b int8) int8 {
 	return b
 }
 
-// deferstruct makes a runtime._defer structure.
+// deferStructFnField is the field index of _defer.fn.
+const deferStructFnField = 4
+
+var deferType *types.Type
+
+// deferstruct returns a type interchangeable with runtime._defer.
+// Make sure this stays in sync with runtime/runtime2.go:_defer.
 func deferstruct() *types.Type {
-	makefield := func(name string, typ *types.Type) *types.Field {
-		// Unlike the global makefield function, this one needs to set Pkg
-		// because these types might be compared (in SSA CSE sorting).
-		// TODO: unify this makefield and the global one above.
-		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
-		return types.NewField(src.NoXPos, sym, typ)
+	if deferType != nil {
+		return deferType
 	}
-	// These fields must match the ones in runtime/runtime2.go:_defer and
-	// (*state).call above.
+
+	makefield := func(name string, t *types.Type) *types.Field {
+		sym := (*types.Pkg)(nil).Lookup(name)
+		return types.NewField(src.NoXPos, sym, t)
+	}
+
 	fields := []*types.Field{
-		makefield("started", types.Types[types.TBOOL]),
 		makefield("heap", types.Types[types.TBOOL]),
-		makefield("openDefer", types.Types[types.TBOOL]),
+		makefield("rangefunc", types.Types[types.TBOOL]),
 		makefield("sp", types.Types[types.TUINTPTR]),
 		makefield("pc", types.Types[types.TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures
 		// are always scanned explicitly during stack copying and GC,
 		// so we make them uintptr type even though they are real pointers.
 		makefield("fn", types.Types[types.TUINTPTR]),
-		makefield("_panic", types.Types[types.TUINTPTR]),
 		makefield("link", types.Types[types.TUINTPTR]),
-		makefield("fd", types.Types[types.TUINTPTR]),
-		makefield("varp", types.Types[types.TUINTPTR]),
-		makefield("framepc", types.Types[types.TUINTPTR]),
+		makefield("head", types.Types[types.TUINTPTR]),
+	}
+	if name := fields[deferStructFnField].Sym.Name; name != "fn" {
+		base.Fatalf("deferStructFnField is %q, not fn", name)
 	}
 
+	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.Runtime.Lookup("_defer"))
+	typ := types.NewNamed(n)
+	n.SetType(typ)
+	n.SetTypecheck(1)
+
 	// build struct holding the above fields
-	s := types.NewStruct(fields)
-	s.SetNoalg(true)
-	types.CalcStructSize(s)
-	return s
+	typ.SetUnderlying(types.NewStruct(fields))
+	types.CalcStructSize(typ)
+
+	deferType = typ
+	return typ
 }
 
 // SpillSlotAddr uses LocalSlot information to initialize an obj.Addr
@@ -7970,6 +8367,3 @@ var (
 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
 )
-
-// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
-var GCWriteBarrierReg map[int16]*obj.LSym

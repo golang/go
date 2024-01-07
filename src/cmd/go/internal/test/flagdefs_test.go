@@ -7,59 +7,70 @@ package test
 import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/test/internal/genflags"
-	"flag"
 	"internal/testenv"
-	"reflect"
-	"strings"
+	"maps"
+	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
 	cfg.SetGOROOT(testenv.GOROOT(nil), false)
+	os.Exit(m.Run())
 }
 
-func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
-	flag.VisitAll(func(f *flag.Flag) {
-		if !strings.HasPrefix(f.Name, "test.") {
-			return
-		}
-		name := strings.TrimPrefix(f.Name, "test.")
-		switch name {
-		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker",
-			"gocoverdir":
-			// These are internal flags.
-		default:
-			if !passFlagToTest[name] {
-				t.Errorf("passFlagToTest missing entry for %q (flag test.%s)", name, name)
-				t.Logf("(Run 'go generate cmd/go/internal/test' if it should be added.)")
-			}
-		}
-	})
+func TestPassFlagToTest(t *testing.T) {
+	wantNames := genflags.ShortTestFlags()
 
-	for name := range passFlagToTest {
-		if flag.Lookup("test."+name) == nil {
-			t.Errorf("passFlagToTest contains %q, but flag -test.%s does not exist in test binary", name, name)
+	missing := map[string]bool{}
+	for _, name := range wantNames {
+		if !passFlagToTest[name] {
+			missing[name] = true
 		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("passFlagToTest is missing entries: %v", missing)
+	}
 
-		if CmdTest.Flag.Lookup(name) == nil {
-			t.Errorf("passFlagToTest contains %q, but flag -%s does not exist in 'go test' subcommand", name, name)
-		}
+	extra := maps.Clone(passFlagToTest)
+	for _, name := range wantNames {
+		delete(extra, name)
+	}
+	if len(extra) > 0 {
+		t.Errorf("passFlagToTest contains extra entries: %v", extra)
+	}
+
+	if t.Failed() {
+		t.Logf("To regenerate:\n\tgo generate cmd/go/internal/test")
 	}
 }
 
-func TestVetAnalyzersSetIsCorrect(t *testing.T) {
-	vetAns, err := genflags.VetAnalyzers()
+func TestPassAnalyzersToVet(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // runs 'go tool vet -flags'
+
+	wantNames, err := genflags.VetAnalyzers()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := make(map[string]bool)
-	for _, a := range vetAns {
-		want[a] = true
+	missing := map[string]bool{}
+	for _, name := range wantNames {
+		if !passAnalyzersToVet[name] {
+			missing[name] = true
+		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("passAnalyzersToVet is missing entries: %v", missing)
 	}
 
-	if !reflect.DeepEqual(want, passAnalyzersToVet) {
-		t.Errorf("stale vet analyzers: want %v; got %v", want, passAnalyzersToVet)
-		t.Logf("(Run 'go generate cmd/go/internal/test' to refresh the set of analyzers.)")
+	extra := maps.Clone(passAnalyzersToVet)
+	for _, name := range wantNames {
+		delete(extra, name)
+	}
+	if len(extra) > 0 {
+		t.Errorf("passFlagToTest contains extra entries: %v", extra)
+	}
+
+	if t.Failed() {
+		t.Logf("To regenerate:\n\tgo generate cmd/go/internal/test")
 	}
 }

@@ -1,0 +1,68 @@
+name: Go Telemetry Proposals
+description: New telemetry counter or update on an existing one
+title: "x/telemetry/config: proposal title"
+labels: ["Telemetry-Proposal"]
+projects: ["golang/29"]
+body:
+- type: textarea
+  attributes:
+    label: Counter names
+    description: Names of counters to add or update.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Description
+    description: What do these counters measure?
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Rationale
+    description: |
+      Why is the counter important?
+      For example, what new insights will it provide, and how will that information be used?
+      If this is about updating existing counters, why is the change necessary?
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Do the counters carry sensitive user information?
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: How?
+    description: |
+      How do we plan to compute the info?
+      If available, include the code location or cl that uses the golang.org/x/telemetry/counter API.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Proposed Graph Config
+    description: |
+      Approved telemetry counters are maintained as [Go Telemetry Graph Config](https://golang.org/x/telemetry/internal/graphconfig) records.
+      Please draft the record entry for your proposal here.
+      If multiple records need to be included, separate them with `---` lines.
+      You can check the list of the approved counters and their current configuration in [config.txt](https://go.googlesource.com/telemetry/+/master/internal/configgen/config.txt).
+    render: Text
+    value: |
+      counter: gopls/bug
+      title: Gopls bug reports
+      description: Stacks of bugs encountered on the gopls server.
+      type: partition, histogram, stack # choose only one.
+      program: golang.org/x/tools/gopls
+      counter: gopls/bug
+      depth: 16  # only if type is stack.
+      version: v0.13.0  # the first binary version containing this counter.
+  validations:
+      required: true
+- type: dropdown
+  attributes:
+    label: New or Update
+    description: Is this a new counter? See [config.txt](https://go.googlesource.com/telemetry/+/master/internal/configgen/config.txt) for the list of approved counters.
+    options:
+      - New
+      - Update
+    default: 0

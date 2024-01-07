@@ -149,7 +149,7 @@ ks128Loop:
 	BNE	ks128Loop
 	CBZ	R11, ksDone       // If dec is nil we are done
 	SUB	$176, R10
-        // Decryption keys are encryption keys with InverseMixColumns applied
+	// Decryption keys are encryption keys with InverseMixColumns applied
 	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
 	VMOV	V0.B16, V7.B16
 	AESIMC	V1.B16, V6.B16

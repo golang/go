@@ -17,7 +17,7 @@ import (
 )
 
 // A ServerOps provides the external operations
-// (underlying database access and so on) needed by the Server.
+// (underlying database access and so on) needed by the [Server].
 type ServerOps interface {
 	// Signed returns the signed hash of the latest tree.
 	Signed(ctx context.Context) ([]byte, error)
@@ -36,7 +36,7 @@ type ServerOps interface {
 
 // A Server is the checksum database HTTP server,
 // which implements http.Handler and should be invoked
-// to serve the paths listed in ServerPaths.
+// to serve the paths listed in [ServerPaths].
 type Server struct {
 	ops ServerOps
 }
@@ -148,6 +148,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				msg, err := tlog.FormatRecord(start+int64(i), text)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
 				}
 				data = append(data, msg...)
 			}

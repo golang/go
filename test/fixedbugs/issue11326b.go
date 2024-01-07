@@ -2,7 +2,7 @@
 
 // Does not work with gccgo, which uses a smaller (but still permitted)
 // exponent size.
-// +build !gccgo
+//go:build !gccgo
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

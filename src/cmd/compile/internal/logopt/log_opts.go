@@ -225,6 +225,7 @@ type Diagnostic struct {
 // to be converted to JSON for human or IDE consumption.
 type LoggedOpt struct {
 	pos          src.XPos      // Source code position at which the event occurred. If it is inlined, outer and all inlined locations will appear in JSON.
+	lastPos      src.XPos      // Usually the same as pos; current exception is for reporting entire range of transformed loops
 	compilerPass string        // Compiler pass.  For human/adhoc consumption; does not appear in JSON (yet)
 	functionName string        // Function name.  For human/adhoc consumption; does not appear in JSON (yet)
 	what         string        // The (non) optimization; "nilcheck", "boundsCheck", "inline", "noInline"
@@ -324,9 +325,9 @@ var mu = sync.Mutex{} // mu protects loggedOpts.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
 // funcName is the name of the function
 // A typical use for this to accumulate an explanation for a missed optimization, for example, why did something escape?
-func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
+func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
 	pass = strings.Replace(pass, " ", "_", -1)
-	return &LoggedOpt{pos, pass, funcName, what, args}
+	return &LoggedOpt{pos, lastPos, pass, funcName, what, args}
 }
 
 // LogOpt logs information about a (usually missed) optimization performed by the compiler.
@@ -336,7 +337,20 @@ func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
 	if Format == None {
 		return
 	}
-	lo := NewLoggedOpt(pos, what, pass, funcName, args...)
+	lo := NewLoggedOpt(pos, pos, what, pass, funcName, args...)
+	mu.Lock()
+	defer mu.Unlock()
+	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
+	loggedOpts = append(loggedOpts, lo)
+}
+
+// LogOptRange is the same as LogOpt, but includes the ability to express a range of positions,
+// not just a point.
+func LogOptRange(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) {
+	if Format == None {
+		return
+	}
+	lo := NewLoggedOpt(pos, lastPos, what, pass, funcName, args...)
 	mu.Lock()
 	defer mu.Unlock()
 	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
@@ -424,7 +438,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 	switch Format {
 
 	case Json0: // LSP 3.15
-		var posTmp []src.Pos
+		var posTmp, lastTmp []src.Pos
 		var encoder *json.Encoder
 		var w io.WriteCloser
 
@@ -441,7 +455,8 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		// For LSP, make a subdirectory for the package, and for each file foo.go, create foo.json in that subdirectory.
 		currentFile := ""
 		for _, x := range loggedOpts {
-			posTmp, p0 := x.parsePos(ctxt, posTmp)
+			posTmp, p0 := parsePos(ctxt, x.pos, posTmp)
+			lastTmp, l0 := parsePos(ctxt, x.lastPos, lastTmp) // These match posTmp/p0 except for most-inline, and that often also matches.
 			p0f := uprootedPath(p0.Filename())
 
 			if currentFile != p0f {
@@ -462,25 +477,26 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 
 			diagnostic.Code = x.what
 			diagnostic.Message = target
-			diagnostic.Range = newPointRange(p0)
+			diagnostic.Range = newRange(p0, l0)
 			diagnostic.RelatedInformation = diagnostic.RelatedInformation[:0]
 
-			appendInlinedPos(posTmp, &diagnostic)
+			appendInlinedPos(posTmp, lastTmp, &diagnostic)
 
 			// Diagnostic explanation is stored in RelatedInformation after inlining info
 			if len(x.target) > 1 {
 				switch y := x.target[1].(type) {
 				case []*LoggedOpt:
 					for _, z := range y {
-						posTmp, p0 := z.parsePos(ctxt, posTmp)
-						loc := newLocation(p0)
+						posTmp, p0 := parsePos(ctxt, z.pos, posTmp)
+						lastTmp, l0 := parsePos(ctxt, z.lastPos, lastTmp)
+						loc := newLocation(p0, l0)
 						msg := z.what
 						if len(z.target) > 0 {
 							msg = msg + ": " + fmt.Sprint(z.target[0])
 						}
 
 						diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: msg})
-						appendInlinedPos(posTmp, &diagnostic)
+						appendInlinedPos(posTmp, lastTmp, &diagnostic)
 					}
 				}
 			}
@@ -493,34 +509,32 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 	}
 }
 
-// newPointRange returns a single-position Range for the compiler source location p.
-func newPointRange(p src.Pos) Range {
+// newRange returns a single-position Range for the compiler source location p.
+func newRange(p, last src.Pos) Range {
 	return Range{Start: Position{p.Line(), p.Col()},
-		End: Position{p.Line(), p.Col()}}
+		End: Position{last.Line(), last.Col()}}
 }
 
 // newLocation returns the Location for the compiler source location p.
-func newLocation(p src.Pos) Location {
-	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
+func newLocation(p, last src.Pos) Location {
+	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newRange(p, last)}
 	return loc
 }
 
 // appendInlinedPos extracts inlining information from posTmp and append it to diagnostic.
-func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
+func appendInlinedPos(posTmp, lastTmp []src.Pos, diagnostic *Diagnostic) {
 	for i := 1; i < len(posTmp); i++ {
-		p := posTmp[i]
-		loc := newLocation(p)
+		loc := newLocation(posTmp[i], lastTmp[i])
 		diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
 	}
 }
 
-func (x *LoggedOpt) parsePos(ctxt *obj.Link, posTmp []src.Pos) ([]src.Pos, src.Pos) {
-	posTmp = ctxt.AllPos(x.pos, posTmp)
-	// Reverse posTmp to put outermost first.
-	l := len(posTmp)
-	for i := 0; i < l/2; i++ {
-		posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
-	}
-	p0 := posTmp[0]
-	return posTmp, p0
+// parsePos expands a src.XPos into a slice of src.Pos, with the outermost first.
+// It returns the slice, and the outermost.
+func parsePos(ctxt *obj.Link, pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
+	posTmp = posTmp[:0]
+	ctxt.AllPos(pos, func(p src.Pos) {
+		posTmp = append(posTmp, p)
+	})
+	return posTmp, posTmp[0]
 }

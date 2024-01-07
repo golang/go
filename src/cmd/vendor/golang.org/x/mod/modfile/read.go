@@ -65,7 +65,7 @@ type Comments struct {
 }
 
 // Comment returns the receiver. This isn't useful by itself, but
-// a Comments struct is embedded into all the expression
+// a [Comments] struct is embedded into all the expression
 // implementation types, and this gives each of those a Comment
 // method to satisfy the Expr interface.
 func (c *Comments) Comment() *Comments {

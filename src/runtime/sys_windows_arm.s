@@ -9,6 +9,9 @@
 
 // Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
 
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	B	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
@@ -192,57 +195,16 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	dt+0(FP), R3
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-	MOVW	R13, R4			// Save SP
-	SUB	$8, R13			// R13 = R13 - 8
-	BIC	$0x7, R13		// Align SP for ABI
-	MOVW	$0, R1			// R1 = FALSE (alertable)
-	MOVW	$-1, R0			// R0 = handle
-	MOVW	R13, R2			// R2 = pTime
-	MOVW	R3, 0(R2)		// time_lo
-	MOVW	R0, 4(R2)		// time_hi
-	MOVW	runtime·_NtWaitForSingleObject(SB), R3
-	BL	(R3)
-	MOVW	R4, R13			// Restore SP
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
-
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-// TODO: needs to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
-	B	runtime·abort(SB)
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
-	MOVW    R13, R4
-	BIC	$0x7, R13		// alignment for ABI
-	MOVW	runtime·_SwitchToThread(SB), R0
-	BL	(R0)
-	MOVW 	R4, R13			// restore stack pointer
-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
-
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 // never called (this is a GOARM=7 platform)
-TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
 	MOVW	$0xabcd, R0
 	MOVW	R0, (R0)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
-	MOVW	$0, R0
-	MOVB	runtime·useQPCTime(SB), R0
-	CMP	$0, R0
-	BNE	useQPC
-	MOVW	$_INTERRUPT_TIME, R3
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 loop:
 	MOVW	time_hi1(R3), R1
 	DMB	MB_ISH
@@ -261,8 +223,6 @@ loop:
 	MOVW	R3, ret_lo+0(FP)
 	MOVW	R4, ret_hi+4(FP)
 	RET
-useQPC:
-	B	runtime·nanotimeQPC(SB)		// tail call
 
 // save_g saves the g register (R10) into thread local memory
 // so that we can call externally compiled
@@ -273,7 +233,7 @@ useQPC:
 // Save the value in the _TEB->TlsSlots array.
 // Effectively implements TlsSetValue().
 // tls_g stores the TLS slot allocated TlsAlloc().
-TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·save_g(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
 	ADD	$0xe10, R0
 	MOVW 	$runtime·tls_g(SB), R11
@@ -287,7 +247,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 // ARM code that overwrote those registers.
 // Get the value from the _TEB->TlsSlots array.
 // Effectively implements TlsGetValue().
-TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·load_g(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
 	ADD	$0xe10, R0
 	MOVW 	$runtime·tls_g(SB), g

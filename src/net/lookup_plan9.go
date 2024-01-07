@@ -13,6 +13,11 @@ import (
 	"os"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Plan 9. Note that on Plan 9 the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
 	queryAddrs := func() (addrs []string, err error) {
 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
@@ -101,6 +106,22 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
 	return query(ctx, netdir+"/dns", addr+" "+typ, 1024)
 }
 
+func handlePlan9DNSError(err error, name string) error {
+	if stringsHasSuffix(err.Error(), "dns: name does not exist") ||
+		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
+		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") {
+		return &DNSError{
+			Err:        errNoSuchHost.Error(),
+			Name:       name,
+			IsNotFound: true,
+		}
+	}
+	return &DNSError{
+		Err:  err.Error(),
+		Name: name,
+	}
+}
+
 // toLower returns a lower-case version of in. Restricting us to
 // ASCII is sufficient to handle the IP protocol names and allow
 // us to not depend on the strings and unicode packages.
@@ -148,12 +169,10 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
-		dnsError := &DNSError{Err: err.Error(), Name: host}
 		if stringsHasSuffix(err.Error(), "dns failure") {
-			dnsError.Err = errNoSuchHost.Error()
-			dnsError.IsNotFound = true
+			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 		}
-		return nil, dnsError
+		return nil, handlePlan9DNSError(err, host)
 	}
 loop:
 	for _, line := range lines {
@@ -179,31 +198,11 @@ loop:
 	return
 }
 
-// preferGoOverPlan9 reports whether the resolver should use the
-// "PreferGo" implementation rather than asking plan9 services
-// for the answers.
-func (r *Resolver) preferGoOverPlan9() bool {
-	_, _, res := r.preferGoOverPlan9WithOrderAndConf()
-	return res
-}
-
-func (r *Resolver) preferGoOverPlan9WithOrderAndConf() (hostLookupOrder, *dnsConfig, bool) {
-	order, conf := systemConf().hostLookupOrder(r, "") // name is unused
-
-	// TODO(bradfitz): for now we only permit use of the PreferGo
-	// implementation when there's a non-nil Resolver with a
-	// non-nil Dialer. This is a sign that they the code is trying
-	// to use their DNS-speaking net.Conn (such as an in-memory
-	// DNS cache) and they don't want to actually hit the network.
-	// Once we add support for looking the default DNS servers
-	// from plan9, though, then we can relax this.
-	return order, conf, order != hostLookupCgo && r != nil && r.Dial != nil
-}
-
 func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
-	if r.preferGoOverPlan9() {
-		return r.goLookupIP(ctx, network, host)
+	if order, conf := systemConf().hostLookupOrder(r, host); order != hostLookupCgo {
+		return r.goLookupIP(ctx, network, host, order, conf)
 	}
+
 	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
@@ -218,24 +217,36 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	return
 }
 
-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
+	case "ip": // no hints
+		if p, err := r.lookupPortWithNetwork(ctx, "tcp", "ip", service); err == nil {
+			return p, nil
+		}
+		return r.lookupPortWithNetwork(ctx, "udp", "ip", service)
+	case "tcp", "tcp4", "tcp6":
+		return r.lookupPortWithNetwork(ctx, "tcp", "tcp", service)
+	case "udp", "udp4", "udp6":
+		return r.lookupPortWithNetwork(ctx, "udp", "udp", service)
+	default:
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
+}
+
+func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork, service string) (port int, err error) {
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
+		if stringsHasSuffix(err.Error(), "can't translate service") {
+			return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
+		}
 		return
 	}
-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownPortError
+		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 	}
 	s := f[1]
 	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
@@ -244,21 +255,20 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
-	return 0, unknownPortError
+	return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
-	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+	if order, conf := systemConf().hostLookupOrder(r, name); order != hostLookupCgo {
 		return r.goLookupCNAME(ctx, name, order, conf)
 	}
 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
-			cname = name + "."
-			err = nil
+			return absDomainName(name), nil
 		}
-		return
+		return "", handlePlan9DNSError(err, cname)
 	}
 	if len(lines) > 0 {
 		if f := getFields(lines[0]); len(f) >= 3 {
@@ -269,7 +279,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
-	if r.preferGoOverPlan9() {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupSRV(ctx, service, proto, name)
 	}
 	var target string
@@ -280,7 +290,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	}
 	lines, err := queryDNS(ctx, target, "srv")
 	if err != nil {
-		return
+		return "", nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -301,12 +311,12 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 }
 
 func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
-	if r.preferGoOverPlan9() {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupMX(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -322,12 +332,12 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err err
 }
 
 func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
-	if r.preferGoOverPlan9() {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupNS(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -340,12 +350,12 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err err
 }
 
 func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
-	if r.preferGoOverPlan9() {
+	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupTXT(ctx, name)
 	}
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
@@ -356,8 +366,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
-	if _, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
-		return r.goLookupPTR(ctx, addr, conf)
+	if order, conf := systemConf().addrLookupOrder(r, addr); order != hostLookupCgo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {
@@ -365,7 +375,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, 
 	}
 	lines, err := queryDNS(ctx, arpa, "ptr")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, addr)
 	}
 	for _, line := range lines {
 		f := getFields(line)

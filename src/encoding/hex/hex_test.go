@@ -37,6 +37,11 @@ func TestEncode(t *testing.T) {
 		if string(dst) != test.enc {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.enc)
 		}
+		dst = []byte("lead")
+		dst = AppendEncode(dst, test.dec)
+		if string(dst) != "lead"+test.enc {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+test.enc)
+		}
 	}
 }
 
@@ -52,15 +57,13 @@ func TestDecode(t *testing.T) {
 		} else if !bytes.Equal(dst, test.dec) {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.dec)
 		}
-	}
-}
-
-func TestDecode_tooFewDstBytes(t *testing.T) {
-	dst := make([]byte, 1)
-	src := []byte{'0', '1', '2', '3'}
-	_, err := Decode(dst, src)
-	if err == nil {
-		t.Errorf("expected Decode to return an error, but it returned none")
+		dst = []byte("lead")
+		dst, err = AppendDecode(dst, []byte(test.enc))
+		if err != nil {
+			t.Errorf("#%d: AppendDecode error: %v", i, err)
+		} else if string(dst) != "lead"+string(test.dec) {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+string(test.dec))
+		}
 	}
 }
 

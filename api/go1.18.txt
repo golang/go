@@ -189,6 +189,8 @@ pkg syscall (freebsd-amd64), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-arm), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64-cgo), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (windows-386), func Syscall //deprecated
 pkg syscall (windows-386), func Syscall12 //deprecated
 pkg syscall (windows-386), func Syscall15 //deprecated

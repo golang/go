@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"unicode"
 )
 
@@ -35,6 +36,18 @@ func ExampleBuffer_Bytes() {
 	buf.Write([]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'})
 	os.Stdout.Write(buf.Bytes())
 	// Output: hello world
+}
+
+func ExampleBuffer_AvailableBuffer() {
+	var buf bytes.Buffer
+	for i := 0; i < 4; i++ {
+		b := buf.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		b = append(b, ' ')
+		buf.Write(b)
+	}
+	os.Stdout.Write(buf.Bytes())
+	// Output: 0 1 2 3
 }
 
 func ExampleBuffer_Cap() {
@@ -68,9 +81,9 @@ func ExampleBuffer_Next() {
 	var b bytes.Buffer
 	b.Grow(64)
 	b.Write([]byte("abcde"))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s", string(b.Next(2)))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s", b.Next(2))
 	// Output:
 	// ab
 	// cd
@@ -197,6 +210,17 @@ func ExampleContainsRune() {
 	// true
 	// true
 	// false
+}
+
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r >= 'a' && r <= 'z'
+	}
+	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
+	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
+	// Output:
+	// false
+	// true
 }
 
 func ExampleCount() {

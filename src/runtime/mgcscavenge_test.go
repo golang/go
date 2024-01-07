@@ -564,149 +564,278 @@ func TestScavenger(t *testing.T) {
 }
 
 func TestScavengeIndex(t *testing.T) {
-	setup := func(t *testing.T) (func(ChunkIdx, uint), func(uintptr, uintptr)) {
+	// This test suite tests the scavengeIndex data structure.
+
+	// markFunc is a function that makes the address range [base, limit)
+	// available for scavenging in a test index.
+	type markFunc func(base, limit uintptr)
+
+	// findFunc is a function that searches for the next available page
+	// to scavenge in the index. It asserts that the page is found in
+	// chunk "ci" at page "offset."
+	type findFunc func(ci ChunkIdx, offset uint)
+
+	// The structure of the tests below is as follows:
+	//
+	// setup creates a fake scavengeIndex that can be mutated and queried by
+	// the functions it returns. Those functions capture the testing.T that
+	// setup is called with, so they're bound to the subtest they're created in.
+	//
+	// Tests are then organized into test cases which mark some pages as
+	// scavenge-able then try to find them. Tests expect that the initial
+	// state of the scavengeIndex has all of the chunks as dense in the last
+	// generation and empty to the scavenger.
+	//
+	// There are a few additional tests that interleave mark and find operations,
+	// so they're defined separately, but use the same infrastructure.
+	setup := func(t *testing.T, force bool) (mark markFunc, find findFunc, nextGen func()) {
 		t.Helper()
 
 		// Pick some reasonable bounds. We don't need a huge range just to test.
 		si := NewScavengeIndex(BaseChunkIdx, BaseChunkIdx+64)
-		find := func(want ChunkIdx, wantOffset uint) {
+
+		// Initialize all the chunks as dense and empty.
+		//
+		// Also, reset search addresses so that we can get page offsets.
+		si.AllocRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+64, 0))
+		si.NextGen()
+		si.FreeRange(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+64, 0))
+		for ci := BaseChunkIdx; ci < BaseChunkIdx+64; ci++ {
+			si.SetEmpty(ci)
+		}
+		si.ResetSearchAddrs()
+
+		// Create and return test functions.
+		mark = func(base, limit uintptr) {
 			t.Helper()
 
-			got, gotOffset := si.Find()
+			si.AllocRange(base, limit)
+			si.FreeRange(base, limit)
+		}
+		find = func(want ChunkIdx, wantOffset uint) {
+			t.Helper()
+
+			got, gotOffset := si.Find(force)
 			if want != got {
 				t.Errorf("find: wanted chunk index %d, got %d", want, got)
 			}
-			if want != got {
+			if wantOffset != gotOffset {
 				t.Errorf("find: wanted page offset %d, got %d", wantOffset, gotOffset)
 			}
 			if t.Failed() {
 				t.FailNow()
 			}
-			si.Clear(got)
+			si.SetEmpty(got)
 		}
-		mark := func(base, limit uintptr) {
+		nextGen = func() {
 			t.Helper()
 
-			si.Mark(base, limit)
+			si.NextGen()
 		}
-		return find, mark
+		return
 	}
-	t.Run("Uninitialized", func(t *testing.T) {
-		find, _ := setup(t)
-		find(0, 0)
-	})
-	t.Run("OnePage", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 3), PageBase(BaseChunkIdx, 4))
-		find(BaseChunkIdx, 3)
-		find(0, 0)
-	})
-	t.Run("FirstPage", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx, 1))
-		find(BaseChunkIdx, 0)
-		find(0, 0)
-	})
-	t.Run("SeveralPages", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 9), PageBase(BaseChunkIdx, 14))
-		find(BaseChunkIdx, 13)
-		find(0, 0)
-	})
-	t.Run("WholeChunk", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
-		find(BaseChunkIdx, PallocChunkPages-1)
-		find(0, 0)
-	})
-	t.Run("LastPage", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, PallocChunkPages-1), PageBase(BaseChunkIdx+1, 0))
-		find(BaseChunkIdx, PallocChunkPages-1)
-		find(0, 0)
-	})
-	t.Run("TwoChunks", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
-		find(BaseChunkIdx+1, 127)
-		find(BaseChunkIdx, PallocChunkPages-1)
-		find(0, 0)
-	})
-	t.Run("TwoChunksOffset", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
-		find(BaseChunkIdx+8, 128)
-		find(BaseChunkIdx+7, PallocChunkPages-1)
-		find(0, 0)
-	})
-	t.Run("SevenChunksOffset", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx+6, 11), PageBase(BaseChunkIdx+13, 15))
-		find(BaseChunkIdx+13, 14)
-		for i := BaseChunkIdx + 12; i >= BaseChunkIdx+6; i-- {
-			find(i, PallocChunkPages-1)
-		}
-		find(0, 0)
-	})
-	t.Run("ThirtyTwoChunks", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
-		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
-			find(i, PallocChunkPages-1)
-		}
-		find(0, 0)
-	})
-	t.Run("ThirtyTwoChunksOffset", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx+3, 0), PageBase(BaseChunkIdx+35, 0))
-		for i := BaseChunkIdx + 34; i >= BaseChunkIdx+3; i-- {
-			find(i, PallocChunkPages-1)
-		}
-		find(0, 0)
-	})
-	t.Run("Mark", func(t *testing.T) {
-		find, mark := setup(t)
+
+	// Each of these test cases calls mark and then find once.
+	type testCase struct {
+		name string
+		mark func(markFunc)
+		find func(findFunc)
+	}
+	for _, test := range []testCase{
+		{
+			name: "Uninitialized",
+			mark: func(_ markFunc) {},
+			find: func(_ findFunc) {},
+		},
+		{
+			name: "OnePage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 3), PageBase(BaseChunkIdx, 4))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 3)
+			},
+		},
+		{
+			name: "FirstPage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx, 1))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 0)
+			},
+		},
+		{
+			name: "SeveralPages",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 9), PageBase(BaseChunkIdx, 14))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, 13)
+			},
+		},
+		{
+			name: "WholeChunk",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "LastPage",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, PallocChunkPages-1), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "TwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 128), PageBase(BaseChunkIdx+1, 128))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+1, 127)
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "TwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+7, 128), PageBase(BaseChunkIdx+8, 129))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+8, 128)
+				find(BaseChunkIdx+7, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "SevenChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+6, 11), PageBase(BaseChunkIdx+13, 15))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx+13, 14)
+				for i := BaseChunkIdx + 12; i >= BaseChunkIdx+6; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "ThirtyTwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "ThirtyTwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+3, 0), PageBase(BaseChunkIdx+35, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 34; i >= BaseChunkIdx+3; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "Mark",
+			mark: func(mark markFunc) {
+				for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
+					mark(PageBase(i, 0), PageBase(i+1, 0))
+				}
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "MarkIdempotentOneChunk",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
+			},
+			find: func(find findFunc) {
+				find(BaseChunkIdx, PallocChunkPages-1)
+			},
+		},
+		{
+			name: "MarkIdempotentThirtyTwoChunks",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+				mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+		{
+			name: "MarkIdempotentThirtyTwoChunksOffset",
+			mark: func(mark markFunc) {
+				mark(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+31, 0))
+				mark(PageBase(BaseChunkIdx+5, 0), PageBase(BaseChunkIdx+36, 0))
+			},
+			find: func(find findFunc) {
+				for i := BaseChunkIdx + 35; i >= BaseChunkIdx+4; i-- {
+					find(i, PallocChunkPages-1)
+				}
+			},
+		},
+	} {
+		test := test
+		t.Run("Bg/"+test.name, func(t *testing.T) {
+			mark, find, nextGen := setup(t, false)
+			test.mark(mark)
+			find(0, 0)      // Make sure we find nothing at this point.
+			nextGen()       // Move to the next generation.
+			test.find(find) // Now we should be able to find things.
+			find(0, 0)      // The test should always fully exhaust the index.
+		})
+		t.Run("Force/"+test.name, func(t *testing.T) {
+			mark, find, _ := setup(t, true)
+			test.mark(mark)
+			test.find(find) // Finding should always work when forced.
+			find(0, 0)      // The test should always fully exhaust the index.
+		})
+	}
+	t.Run("Bg/MarkInterleaved", func(t *testing.T) {
+		mark, find, nextGen := setup(t, false)
 		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
 			mark(PageBase(i, 0), PageBase(i+1, 0))
-		}
-		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
+			nextGen()
 			find(i, PallocChunkPages-1)
 		}
 		find(0, 0)
 	})
-	t.Run("MarkInterleaved", func(t *testing.T) {
-		find, mark := setup(t)
+	t.Run("Force/MarkInterleaved", func(t *testing.T) {
+		mark, find, _ := setup(t, true)
 		for i := BaseChunkIdx; i < BaseChunkIdx+32; i++ {
 			mark(PageBase(i, 0), PageBase(i+1, 0))
 			find(i, PallocChunkPages-1)
 		}
 		find(0, 0)
 	})
-	t.Run("MarkIdempotentOneChunk", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0))
-		find(BaseChunkIdx, PallocChunkPages-1)
-		find(0, 0)
-	})
-	t.Run("MarkIdempotentThirtyTwoChunks", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
-		mark(PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+32, 0))
-		for i := BaseChunkIdx + 31; i >= BaseChunkIdx; i-- {
-			find(i, PallocChunkPages-1)
-		}
-		find(0, 0)
-	})
-	t.Run("MarkIdempotentThirtyTwoChunksOffset", func(t *testing.T) {
-		find, mark := setup(t)
-		mark(PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+31, 0))
-		mark(PageBase(BaseChunkIdx+5, 0), PageBase(BaseChunkIdx+36, 0))
-		for i := BaseChunkIdx + 35; i >= BaseChunkIdx+4; i-- {
-			find(i, PallocChunkPages-1)
-		}
-		find(0, 0)
-	})
+}
+
+func TestScavChunkDataPack(t *testing.T) {
+	if !CheckPackScavChunkData(1918237402, 512, 512, 0b11) {
+		t.Error("failed pack/unpack check for scavChunkData 1")
+	}
+	if !CheckPackScavChunkData(^uint32(0), 12, 0, 0b00) {
+		t.Error("failed pack/unpack check for scavChunkData 2")
+	}
 }
 
 func FuzzPIController(f *testing.F) {

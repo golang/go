@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package os
 
@@ -48,9 +48,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}
-	if pid1 != 0 {
-		p.setDone()
-	}
+	p.setDone()
 	ps = &ProcessState{
 		pid:    pid1,
 		status: status,

@@ -18,6 +18,7 @@ TEXT ·xorBytes(SB), NOSPLIT, $0
 aligned:
 	MOVQ $0, AX // position in slices
 
+	PCALIGN $16
 loop16b:
 	MOVOU (SI)(AX*1), X0   // XOR 16byte forwards.
 	MOVOU (CX)(AX*1), X1
@@ -28,6 +29,7 @@ loop16b:
 	JNE   loop16b
 	RET
 
+	PCALIGN $16
 loop_1b:
 	SUBQ  $1, DX           // XOR 1byte backwards.
 	MOVB  (SI)(DX*1), DI

@@ -223,7 +223,7 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.PkgName, nil)
 
-		fileScope := NewScope(check.pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
+		fileScope := NewScope(pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
 		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
@@ -351,7 +351,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all constants
-				values := unpackExpr(last.Values)
+				values := syntax.UnpackListExpr(last.Values)
 				for i, name := range s.NameList {
 					obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 
@@ -382,7 +382,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all variables
-				values := unpackExpr(s.Values)
+				values := syntax.UnpackListExpr(s.Values)
 				for i, name := range s.NameList {
 					obj := NewVar(name.Pos(), pkg, name.Value, nil)
 					lhs[i] = obj
@@ -406,9 +406,7 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
-				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) {
-					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
-				}
+				_ = len(s.TParamList) != 0 && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
@@ -455,9 +453,7 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(s.Name, obj)
 				}
-				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
-					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
-				}
+				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
@@ -501,7 +497,7 @@ func (check *Checker) collectObjects() {
 		for i := range methods {
 			m := &methods[i]
 			// Determine the receiver base type and associate m with it.
-			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
+			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
 			if base != nil {
 				m.obj.hasPtrRecv_ = ptr
 				check.methods[base] = append(check.methods[base], m.obj)
@@ -542,7 +538,7 @@ L: // unpack receiver type
 	if ptyp, _ := rtyp.(*syntax.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
-			for _, arg := range unpackExpr(ptyp.Index) {
+			for _, arg := range syntax.UnpackListExpr(ptyp.Index) {
 				var par *syntax.Name
 				switch arg := arg.(type) {
 				case *syntax.Name:
@@ -575,7 +571,7 @@ L: // unpack receiver type
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
@@ -584,8 +580,6 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bo
 	ptr = seenPtr
 	var seen map[*TypeName]bool
 	for {
-		typ = unparen(typ)
-
 		// check if we have a pointer type
 		// if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
 		if pexpr, _ := typ.(*syntax.Operation); pexpr != nil && pexpr.Op == syntax.Mul && pexpr.Y == nil {
@@ -594,18 +588,46 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bo
 				return false, nil
 			}
 			ptr = true
-			typ = unparen(pexpr.X) // continue with pointer base type
+			typ = syntax.Unparen(pexpr.X) // continue with pointer base type
 		}
 
-		// typ must be a name
-		name, _ := typ.(*syntax.Name)
-		if name == nil {
+		// typ must be a name, or a C.name cgo selector.
+		var name string
+		switch typ := typ.(type) {
+		case *syntax.Name:
+			name = typ.Value
+		case *syntax.SelectorExpr:
+			// C.struct_foo is a valid type name for packages using cgo.
+			//
+			// Detect this case, and adjust name so that the correct TypeName is
+			// resolved below.
+			if ident, _ := typ.X.(*syntax.Name); ident != nil && ident.Value == "C" {
+				// Check whether "C" actually resolves to an import of "C", by looking
+				// in the appropriate file scope.
+				var obj Object
+				for _, scope := range fileScopes {
+					if scope.Contains(ident.Pos()) {
+						obj = scope.Lookup(ident.Value)
+					}
+				}
+				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
+				// selectors to their cgo name. We must do the same here.
+				if pname, _ := obj.(*PkgName); pname != nil {
+					if pname.imported.cgo { // only set if Config.go115UsesCgo is set
+						name = "_Ctype_" + typ.Sel.Value
+					}
+				}
+			}
+			if name == "" {
+				return false, nil
+			}
+		default:
 			return false, nil
 		}
 
 		// name must denote an object found in the current package scope
 		// (note that dot-imported objects are not in the package scope!)
-		obj := check.pkg.scope.Lookup(name.Value)
+		obj := check.pkg.scope.Lookup(name)
 		if obj == nil {
 			return false, nil
 		}
@@ -655,32 +677,39 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias type declarations first, followed by alias declarations,
-	// and then everything else. This appears to avoid most situations where the type
-	// of an alias is needed before it is available.
-	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
-	// In those cases Checker.ident will report an error ("invalid use of type alias").
-	var aliasList []*TypeName
-	var othersList []Object // everything that's not a type
-	// phase 1: non-alias type declarations
-	for _, obj := range objList {
-		if tname, _ := obj.(*TypeName); tname != nil {
-			if check.objMap[tname].tdecl.Alias {
-				aliasList = append(aliasList, tname)
-			} else {
-				check.objDecl(obj, nil)
-			}
-		} else {
-			othersList = append(othersList, obj)
+	if check.enableAlias {
+		// With Alias nodes we can process declarations in any order.
+		for _, obj := range objList {
+			check.objDecl(obj, nil)
 		}
-	}
-	// phase 2: alias type declarations
-	for _, obj := range aliasList {
-		check.objDecl(obj, nil)
-	}
-	// phase 3: all other declarations
-	for _, obj := range othersList {
-		check.objDecl(obj, nil)
+	} else {
+		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// alias declarations, and then everything else. This appears to avoid most situations
+		// where the type of an alias is needed before it is available.
+		// There may still be cases where this is not good enough (see also go.dev/issue/25838).
+		// In those cases Checker.ident will report an error ("invalid use of type alias").
+		var aliasList []*TypeName
+		var othersList []Object // everything that's not a type
+		// phase 1: non-alias type declarations
+		for _, obj := range objList {
+			if tname, _ := obj.(*TypeName); tname != nil {
+				if check.objMap[tname].tdecl.Alias {
+					aliasList = append(aliasList, tname)
+				} else {
+					check.objDecl(obj, nil)
+				}
+			} else {
+				othersList = append(othersList, obj)
+			}
+		}
+		// phase 2: alias type declarations
+		for _, obj := range aliasList {
+			check.objDecl(obj, nil)
+		}
+		// phase 3: all other declarations
+		for _, obj := range othersList {
+			check.objDecl(obj, nil)
+		}
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all

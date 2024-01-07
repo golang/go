@@ -30,7 +30,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		x.mode = invalid
 		// TODO(gri) here we re-evaluate e.X - try to avoid this
 		x.typ = check.varType(e.Orig)
-		if x.typ != Typ[Invalid] {
+		if isValid(x.typ) {
 			x.mode = typexpr
 		}
 		return false
@@ -43,7 +43,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 	}
 
 	// x should not be generic at this point, but be safe and check
-	check.nonGeneric(x)
+	check.nonGeneric(nil, x)
 	if x.mode == invalid {
 		return false
 	}
@@ -93,7 +93,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 			return false
 		}
 		var key operand
-		check.expr(&key, index)
+		check.expr(nil, &key, index)
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode = mapindex
@@ -167,7 +167,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 					return false
 				}
 				var k operand
-				check.expr(&k, index)
+				check.expr(nil, &k, index)
 				check.assignment(&k, key, "map index")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode = mapindex
@@ -186,6 +186,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 	if !valid {
 		// types2 uses the position of '[' for the error
 		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
+		check.use(e.Indices...)
 		x.mode = invalid
 		return false
 	}
@@ -208,7 +209,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 }
 
 func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
-	check.expr(x, e.X)
+	check.expr(nil, x, e.X)
 	if x.mode == invalid {
 		check.use(e.Low, e.High, e.Max)
 		return
@@ -350,7 +351,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	val = -1
 
 	var x operand
-	check.expr(&x, index)
+	check.expr(nil, &x, index)
 	if !check.isValidIndex(&x, InvalidIndex, "index", false) {
 		return
 	}
@@ -420,7 +421,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
+			if typ, i := check.index(kv.Key, length); isValid(typ) {
 				if i >= 0 {
 					index = i
 					validIndex = true

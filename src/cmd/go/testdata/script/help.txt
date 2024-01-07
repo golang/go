@@ -48,4 +48,4 @@ stderr 'Run ''go help test'' and ''go help testflag'' for details.'
 # go help get shows usage for get
 go help get
 stdout 'usage: go get'
-stdout 'get when using GOPATH'
+stdout 'specific module versions'

@@ -81,13 +81,13 @@ func CoreType(T types.Type) types.Type {
 // restrictions may be arbitrarily complex. For example, consider the
 // following:
 //
-//  type A interface{ ~string|~[]byte }
+//	type A interface{ ~string|~[]byte }
 //
-//  type B interface{ int|string }
+//	type B interface{ int|string }
 //
-//  type C interface { ~string|~int }
+//	type C interface { ~string|~int }
 //
-//  type T[P interface{ A|B; C }] int
+//	type T[P interface{ A|B; C }] int
 //
 // In this example, the structural type restriction of P is ~string|int: A|B
 // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
@@ -108,15 +108,15 @@ func CoreType(T types.Type) types.Type {
 //
 // _NormalTerms makes no guarantees about the order of terms, except that it
 // is deterministic.
-func _NormalTerms(typ types.Type) ([]*Term, error) {
+func _NormalTerms(typ types.Type) ([]*types.Term, error) {
 	switch typ := typ.(type) {
-	case *TypeParam:
+	case *types.TypeParam:
 		return StructuralTerms(typ)
-	case *Union:
+	case *types.Union:
 		return UnionTermSet(typ)
 	case *types.Interface:
 		return InterfaceTermSet(typ)
 	default:
-		return []*Term{NewTerm(false, typ)}, nil
+		return []*types.Term{types.NewTerm(false, typ)}, nil
 	}
 }

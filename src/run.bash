@@ -31,7 +31,6 @@ fi
 
 export GOENV=off
 eval $(../bin/go tool dist env)
-export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
 
 unset CDPATH	# in case user has it set
 

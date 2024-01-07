@@ -10,6 +10,7 @@ const (
 	_SYS_setgroups  = SYS_SETGROUPS
 	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
 )
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
@@ -36,7 +37,7 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -148,13 +149,23 @@ func Getrlimit(resource int, rlim *Rlimit) error {
 	return getrlimit(resource, rlim)
 }
 
-// Setrlimit prefers the prlimit64 system call. See issue 38604.
-func Setrlimit(resource int, rlim *Rlimit) error {
+// setrlimit prefers the prlimit64 system call. See issue 38604.
+func setrlimit(resource int, rlim *Rlimit) error {
 	err := prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
 	}
-	return setrlimit(resource, rlim)
+	return setrlimit1(resource, rlim)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+	if errno != ENOSYS {
+		return errno
+	}
+	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 func (r *PtraceRegs) PC() uint64 { return r.Pc }

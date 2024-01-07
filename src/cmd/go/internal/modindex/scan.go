@@ -7,11 +7,11 @@ package modindex
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/build"
 	"go/doc"
 	"go/scanner"
 	"go/token"
@@ -160,6 +160,7 @@ type rawFile struct {
 	plusBuildConstraints []string
 	imports              []rawImport
 	embeds               []embed
+	directives           []build.Directive
 }
 
 type rawImport struct {
@@ -171,8 +172,6 @@ type embed struct {
 	pattern  string
 	position token.Position
 }
-
-var pkgcache par.Cache // for packages not in modcache
 
 // importRaw fills the rawPackage from the package files in srcDir.
 // dir is the package's path relative to the modroot.
@@ -234,6 +233,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 			goBuildConstraint:    info.goBuildConstraint,
 			plusBuildConstraints: info.plusBuildConstraints,
 			binaryOnly:           info.binaryOnly,
+			directives:           info.directives,
 		}
 		if info.parsed != nil {
 			rf.pkgName = info.parsed.Name.Name

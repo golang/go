@@ -161,7 +161,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctl(fd int, req uint, arg uintptr) (err error) = SYS_IOCTL
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
@@ -253,6 +254,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	ptrace(request int, pid int, addr uintptr, data int) (err error)
+//sys	ptracePtr(request int, pid int, addr unsafe.Pointer, data int) (err error) = SYS_PTRACE
 
 func PtraceAttach(pid int) (err error) {
 	return ptrace(PT_ATTACH, pid, 0, 0)
@@ -267,19 +269,36 @@ func PtraceDetach(pid int) (err error) {
 }
 
 func PtraceGetFpRegs(pid int, fpregsout *FpReg) (err error) {
-	return ptrace(PT_GETFPREGS, pid, uintptr(unsafe.Pointer(fpregsout)), 0)
+	return ptracePtr(PT_GETFPREGS, pid, unsafe.Pointer(fpregsout), 0)
 }
 
 func PtraceGetRegs(pid int, regsout *Reg) (err error) {
-	return ptrace(PT_GETREGS, pid, uintptr(unsafe.Pointer(regsout)), 0)
+	return ptracePtr(PT_GETREGS, pid, unsafe.Pointer(regsout), 0)
+}
+
+func PtraceIO(req int, pid int, offs uintptr, out []byte, countin int) (count int, err error) {
+	ioDesc := PtraceIoDesc{
+		Op:   int32(req),
+		Offs: offs,
+	}
+	if countin > 0 {
+		_ = out[:countin] // check bounds
+		ioDesc.Addr = &out[0]
+	} else if out != nil {
+		ioDesc.Addr = (*byte)(unsafe.Pointer(&_zero))
+	}
+	ioDesc.SetLen(countin)
+
+	err = ptracePtr(PT_IO, pid, unsafe.Pointer(&ioDesc), 0)
+	return int(ioDesc.Len), err
 }
 
 func PtraceLwpEvents(pid int, enable int) (err error) {
 	return ptrace(PT_LWP_EVENTS, pid, 0, enable)
 }
 
-func PtraceLwpInfo(pid int, info uintptr) (err error) {
-	return ptrace(PT_LWPINFO, pid, info, int(unsafe.Sizeof(PtraceLwpInfoStruct{})))
+func PtraceLwpInfo(pid int, info *PtraceLwpInfoStruct) (err error) {
+	return ptracePtr(PT_LWPINFO, pid, unsafe.Pointer(info), int(unsafe.Sizeof(*info)))
 }
 
 func PtracePeekData(pid int, addr uintptr, out []byte) (count int, err error) {
@@ -299,11 +318,23 @@ func PtracePokeText(pid int, addr uintptr, data []byte) (count int, err error) {
 }
 
 func PtraceSetRegs(pid int, regs *Reg) (err error) {
-	return ptrace(PT_SETREGS, pid, uintptr(unsafe.Pointer(regs)), 0)
+	return ptracePtr(PT_SETREGS, pid, unsafe.Pointer(regs), 0)
 }
 
 func PtraceSingleStep(pid int) (err error) {
 	return ptrace(PT_STEP, pid, 1, 0)
+}
+
+func Dup3(oldfd, newfd, flags int) error {
+	if oldfd == newfd || flags&^O_CLOEXEC != 0 {
+		return EINVAL
+	}
+	how := F_DUP2FD
+	if flags&O_CLOEXEC != 0 {
+		how = F_DUP2FD_CLOEXEC
+	}
+	_, err := fcntl(oldfd, how, newfd)
+	return err
 }
 
 /*
@@ -402,7 +433,6 @@ func PtraceSingleStep(pid int) (err error) {
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -419,197 +449,5 @@ func PtraceSingleStep(pid int) (err error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
-
-/*
- * Unimplemented
- */
-// Profil
-// Sigaction
-// Sigprocmask
-// Getlogin
-// Sigpending
-// Sigaltstack
-// Ioctl
-// Reboot
-// Execve
-// Vfork
-// Sbrk
-// Sstk
-// Ovadvise
-// Mincore
-// Setitimer
-// Swapon
-// Select
-// Sigsuspend
-// Readv
-// Writev
-// Nfssvc
-// Getfh
-// Quotactl
-// Mount
-// Csops
-// Waitid
-// Add_profil
-// Kdebug_trace
-// Sigreturn
-// Atsocket
-// Kqueue_from_portset_np
-// Kqueue_portset
-// Getattrlist
-// Setattrlist
-// Getdents
-// Getdirentriesattr
-// Searchfs
-// Delete
-// Copyfile
-// Watchevent
-// Waitevent
-// Modwatch
-// Fsctl
-// Initgroups
-// Posix_spawn
-// Nfsclnt
-// Fhopen
-// Minherit
-// Semsys
-// Msgsys
-// Shmsys
-// Semctl
-// Semget
-// Semop
-// Msgctl
-// Msgget
-// Msgsnd
-// Msgrcv
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
-// Shm_open
-// Shm_unlink
-// Sem_open
-// Sem_close
-// Sem_unlink
-// Sem_wait
-// Sem_trywait
-// Sem_post
-// Sem_getvalue
-// Sem_init
-// Sem_destroy
-// Open_extended
-// Umask_extended
-// Stat_extended
-// Lstat_extended
-// Fstat_extended
-// Chmod_extended
-// Fchmod_extended
-// Access_extended
-// Settid
-// Gettid
-// Setsgroups
-// Getsgroups
-// Setwgroups
-// Getwgroups
-// Mkfifo_extended
-// Mkdir_extended
-// Identitysvc
-// Shared_region_check_np
-// Shared_region_map_np
-// __pthread_mutex_destroy
-// __pthread_mutex_init
-// __pthread_mutex_lock
-// __pthread_mutex_trylock
-// __pthread_mutex_unlock
-// __pthread_cond_init
-// __pthread_cond_destroy
-// __pthread_cond_broadcast
-// __pthread_cond_signal
-// Setsid_with_pid
-// __pthread_cond_timedwait
-// Aio_fsync
-// Aio_return
-// Aio_suspend
-// Aio_cancel
-// Aio_error
-// Aio_read
-// Aio_write
-// Lio_listio
-// __pthread_cond_wait
-// Iopolicysys
-// __pthread_kill
-// __pthread_sigmask
-// __sigwait
-// __disable_threadsignal
-// __pthread_markcancel
-// __pthread_canceled
-// __semwait_signal
-// Proc_info
-// Stat64_extended
-// Lstat64_extended
-// Fstat64_extended
-// __pthread_chdir
-// __pthread_fchdir
-// Audit
-// Auditon
-// Getauid
-// Setauid
-// Getaudit
-// Setaudit
-// Getaudit_addr
-// Setaudit_addr
-// Auditctl
-// Bsdthread_create
-// Bsdthread_terminate
-// Stack_snapshot
-// Bsdthread_register
-// Workq_open
-// Workq_ops
-// __mac_execve
-// __mac_syscall
-// __mac_get_file
-// __mac_set_file
-// __mac_get_link
-// __mac_set_link
-// __mac_get_proc
-// __mac_set_proc
-// __mac_get_fd
-// __mac_set_fd
-// __mac_get_pid
-// __mac_get_lcid
-// __mac_get_lctx
-// __mac_set_lctx
-// Setlcid
-// Read_nocancel
-// Write_nocancel
-// Open_nocancel
-// Close_nocancel
-// Wait4_nocancel
-// Recvmsg_nocancel
-// Sendmsg_nocancel
-// Recvfrom_nocancel
-// Accept_nocancel
-// Fcntl_nocancel
-// Select_nocancel
-// Fsync_nocancel
-// Connect_nocancel
-// Sigsuspend_nocancel
-// Readv_nocancel
-// Writev_nocancel
-// Sendto_nocancel
-// Pread_nocancel
-// Pwrite_nocancel
-// Waitid_nocancel
-// Poll_nocancel
-// Msgsnd_nocancel
-// Msgrcv_nocancel
-// Sem_wait_nocancel
-// Aio_suspend_nocancel
-// __sigwait_nocancel
-// __semwait_signal_nocancel
-// __mac_mount
-// __mac_get_mount
-// __mac_getfsstat

@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package syscall
 
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // readInt returns the size-bytes unsigned integer in native byte order at offset off.
 func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
@@ -75,7 +78,9 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 		if !ok {
 			break
 		}
-		if ino == 0 { // File absent in directory.
+		// See src/os/dir_unix.go for the reason why this condition is
+		// excluded on wasip1.
+		if ino == 0 && runtime.GOOS != "wasip1" { // File absent in directory.
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))

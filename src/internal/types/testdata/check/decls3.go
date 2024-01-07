@@ -99,9 +99,9 @@ func _() {
 	// unsafe.Pointers are treated like regular pointers when embedded
 	type T2 struct {
 		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
-		*/* ERROR "cannot be unsafe.Pointer" */ /* ERROR "Pointer redeclared" */ unsafe.Pointer
+		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer /* ERROR "Pointer redeclared" */
 		UP /* ERROR "cannot be unsafe.Pointer" */
-		* /* ERROR "cannot be unsafe.Pointer" */  /* ERROR "UP redeclared" */ UP
+		* /* ERROR "cannot be unsafe.Pointer" */ UP /* ERROR "UP redeclared" */
 	}
 }
 

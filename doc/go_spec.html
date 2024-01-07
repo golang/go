@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 19, 2022",
+	"Subtitle": "Version of Dec 27, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -10,7 +10,7 @@
 This is the reference manual for the Go programming language.
 The pre-Go1.18 version, without generics, can be found
 <a href="/doc/go1.17_spec.html">here</a>.
-For more information and other documents, see <a href="/">golang.org</a>.
+For more information and other documents, see <a href="/">go.dev</a>.
 </p>
 
 <p>
@@ -68,6 +68,14 @@ ellipsis <code>…</code> is also used elsewhere in the spec to informally denot
 enumerations or code snippets that are not further specified. The character <code>…</code>
 (as opposed to the three characters <code>...</code>) is not a token of the Go
 language.
+</p>
+
+<p>
+A link of the form [<a href="#Language_versions">Go 1.xx</a>] indicates that a described
+language feature (or some aspect of it) was changed or added with language version 1.xx and
+thus requires at minimum that language version to build.
+For details, see the <a href="#Language_versions">linked section</a>
+in the <a href="#Appendix">appendix</a>.
 </p>
 
 <h2 id="Source_code_representation">Source code representation</h2>
@@ -263,7 +271,8 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation
+[<a href="#Go_1.18">Go 1.18</a>]:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -281,7 +290,8 @@ An integer literal is a sequence of digits representing an
 <a href="#Constants">integer constant</a>.
 An optional prefix sets a non-decimal base: <code>0b</code> or <code>0B</code>
 for binary, <code>0</code>, <code>0o</code>, or <code>0O</code> for octal,
-and <code>0x</code> or <code>0X</code> for hexadecimal.
+and <code>0x</code> or <code>0X</code> for hexadecimal
+[<a href="#Go_1.13">Go 1.13</a>].
 A single <code>0</code> is considered a decimal zero.
 In hexadecimal literals, letters <code>a</code> through <code>f</code>
 and <code>A</code> through <code>F</code> represent values 10 through 15.
@@ -347,7 +357,8 @@ prefix, an integer part (hexadecimal digits), a radix point, a fractional part (
 and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
 One of the integer part or the fractional part may be elided; the radix point may be elided as well,
 but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
-An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
+An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>
+[<a href="#Go_1.13">Go 1.13</a>].
 </p>
 
 <p>
@@ -411,7 +422,8 @@ It consists of an <a href="#Integer_literals">integer</a> or
 <a href="#Floating-point_literals">floating-point</a> literal
 followed by the lowercase letter <code>i</code>.
 The value of an imaginary literal is the value of the respective
-integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
+integer or floating-point literal multiplied by the imaginary unit <i>i</i>
+[<a href="#Go_1.13">Go 1.13</a>]
 </p>
 
 <pre class="ebnf">
@@ -643,6 +655,7 @@ an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>,
 a <a href="#Conversions">conversion</a> with a result that is a constant, or
 the result value of some built-in functions such as
+<code>min</code> or <code>max</code> applied to constant arguments,
 <code>unsafe.Sizeof</code> applied to <a href="#Package_unsafe">certain values</a>,
 <code>cap</code> or <code>len</code> applied to
 <a href="#Length_and_capacity">some expressions</a>,
@@ -690,7 +703,7 @@ constant is implicitly converted in contexts where a typed value is required,
 for instance, in a <a href="#Short_variable_declarations">short variable declaration</a>
 such as <code>i := 0</code> where there is no explicit type.
 The default type of an untyped constant is <code>bool</code>, <code>rune</code>,
-<code>int</code>, <code>float64</code>, <code>complex128</code> or <code>string</code>
+<code>int</code>, <code>float64</code>, <code>complex128</code>, or <code>string</code>
 respectively, depending on whether it is a boolean, rune, integer, floating-point,
 complex, or string constant.
 </p>
@@ -883,7 +896,7 @@ are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
 particular architecture.
-
+</p>
 
 <h3 id="String_types">String types</h3>
 
@@ -1339,6 +1352,7 @@ interface{}
 
 <p>
 For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+[<a href="#Go_1.18">Go 1.18</a>]
 </p>
 
 <p>
@@ -1374,13 +1388,15 @@ as the <code>File</code> interface.
 In a slightly more general form
 an interface <code>T</code> may use a (possibly qualified) interface type
 name <code>E</code> as an interface element. This is called
-<i>embedding</i> interface <code>E</code> in <code>T</code>.
+<i>embedding</i> interface <code>E</code> in <code>T</code>
+[<a href="#Go_1.14">Go 1.14</a>].
 The type set of <code>T</code> is the <i>intersection</i> of the type sets
 defined by <code>T</code>'s explicitly declared methods and the type sets
 of <code>T</code>’s embedded interfaces.
 In other words, the type set of <code>T</code> is the set of all types that implement all the
 explicitly declared methods of <code>T</code> and also all the methods of
-<code>E</code>.
+<code>E</code>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre>
@@ -1419,7 +1435,8 @@ type ReadCloser interface {
 <p>
 In their most general form, an interface element may also be an arbitrary type term
 <code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
-or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+[<a href="#Go_1.18">Go 1.18</a>].
 Together with method specifications, these elements enable the precise
 definition of an interface's type set as follows:
 </p>
@@ -1644,8 +1661,10 @@ built-in function <a href="#Length_and_capacity"><code>len</code></a>
 and may change during execution. Elements may be added during execution
 using <a href="#Assignment_statements">assignments</a> and retrieved with
 <a href="#Index_expressions">index expressions</a>; they may be removed with the
-<a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
+<a href="#Deletion_of_map_elements"><code>delete</code></a> and
+<a href="#Clear"><code>clear</code></a> built-in function.
 </p>
+
 <p>
 A new, empty map value is made using the built-in
 function <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
@@ -1883,7 +1902,7 @@ interface{ ~[]byte | myString }           // bytestring
 
 <p>
 Note that <code>bytestring</code> is not a real type; it cannot be used to declare
-variables are compose other types. It exists solely to describe the behavior of some
+variables or compose other types. It exists solely to describe the behavior of some
 operations that read from a sequence of bytes, which may be a byte slice or a string.
 </p>
 
@@ -2300,7 +2319,9 @@ as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">a
 
 <p>
 The following identifiers are implicitly declared in the
-<a href="#Blocks">universe block</a>:
+<a href="#Blocks">universe block</a>
+[<a href="#Go_1.18">Go 1.18</a>]
+[<a href="#Go_1.21">Go 1.21</a>]:
 </p>
 <pre class="grammar">
 Types:
@@ -2316,8 +2337,8 @@ Zero value:
 	nil
 
 Functions:
-	append cap close complex copy delete imag len
-	make new panic print println real recover
+	append cap clear close complex copy delete imag len
+	make max min new panic print println real recover
 </pre>
 
 <h3 id="Exported_identifiers">Exported identifiers</h3>
@@ -2484,7 +2505,8 @@ TypeSpec = AliasDecl | TypeDef .
 <h4 id="Alias_declarations">Alias declarations</h4>
 
 <p>
-An alias declaration binds an identifier to the given type.
+An alias declaration binds an identifier to the given type
+[<a href="#Go_1.9">Go 1.9</a>].
 </p>
 
 <pre class="ebnf">
@@ -2508,7 +2530,7 @@ type (
 
 <p>
 A type definition creates a new, distinct type with the same
-<a href="#Types">underlying type</a> and operations as the given type
+<a href="#Underlying_types">underlying type</a> and operations as the given type
 and binds an identifier, the <i>type name</i>, to it.
 </p>
 
@@ -2633,7 +2655,8 @@ func (l *List[T]) Len() int  { … }
 A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
-in square brackets rather than parentheses.
+in square brackets rather than parentheses
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2645,7 +2668,7 @@ TypeParamDecl   = IdentifierList TypeConstraint .
 <p>
 All non-blank names in the list must be unique.
 Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
-that acts as a place holder for an (as of yet) unknown type in the declaration.
+that acts as a placeholder for an (as of yet) unknown type in the declaration.
 The type parameter is replaced with a <i>type argument</i> upon
 <a href="#Instantiations">instantiation</a> of the generic function or type.
 </p>
@@ -2716,7 +2739,8 @@ type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type para
 <p>
 A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
-operations supported by values of that type parameter.
+operations supported by values of that type parameter
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2746,7 +2770,8 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">strictly comparable</a>.
+<a href="#Comparison_operators">strictly comparable</a>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <p>
@@ -2759,7 +2784,7 @@ However, they <a href="#Satisfying_a_type_constraint">satisfy</a> <code>comparab
 int                          // implements comparable (int is strictly comparable)
 []byte                       // does not implement comparable (slices cannot be compared)
 interface{}                  // does not implement comparable (see above)
-interface{ ~int | ~string }  // type parameter only: implements comparable (int, string types are stricly comparable)
+interface{ ~int | ~string }  // type parameter only: implements comparable (int, string types are strictly comparable)
 interface{ comparable }      // type parameter only: implements comparable (comparable implements itself)
 interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (slices are not comparable)
 interface{ ~struct{ any } }  // type parameter only: does not implement comparable (field any is not strictly comparable)
@@ -2779,7 +2804,8 @@ if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
 if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
 As an exception, a <a href="#Comparison_operators">strictly comparable</a>
 type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
-(not necessarily strictly comparable) type argument.
+(not necessarily strictly comparable) type argument
+[<a href="#Go_1.20">Go 1.20</a>].
 More precisely:
 </p>
 
@@ -2802,7 +2828,7 @@ A type T <i>satisfies</i> a constraint <code>C</code> if
 type argument      type constraint                // constraint satisfaction
 
 int                interface{ ~int }              // satisfied: int implements interface{ ~int }
-string             comparable                     // satisfied: string implements comparable (string is stricty comparable)
+string             comparable                     // satisfied: string implements comparable (string is strictly comparable)
 []byte             comparable                     // not satisfied: slices are not comparable
 any                interface{ comparable; int }   // not satisfied: any does not implement interface{ int }
 any                comparable                     // satisfied: any is comparable and implements the basic interface any
@@ -3907,7 +3933,7 @@ For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type
 	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
 	    the type of the (identical) element types.</li>
 	<li><code>a[x]</code> may not be assigned to if <code>P</code>'s type set
-	    includes string types.
+	    includes string types.</li>
 </ul>
 
 <p>
@@ -4303,7 +4329,7 @@ with the same underlying array.
 
 <p>
 A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters.
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4337,24 +4363,46 @@ type parameter list    type arguments    after substitution
 </pre>
 
 <p>
-For a generic function, type arguments may be provided explicitly, or they
-may be partially or completely <a href="#Type_inference">inferred</a>.
-A generic function that is <i>not</i> <a href="#Calls">called</a> requires a
-type argument list for instantiation; if the list is partial, all
-remaining type arguments must be inferrable.
-A generic function that is called may provide a (possibly partial) type
-argument list, or may omit it entirely if the omitted type arguments are
-inferrable from the ordinary (non-type) function arguments.
+When using a generic function, type arguments may be provided explicitly,
+or they may be partially or completely <a href="#Type_inference">inferred</a>
+from the context in which the function is used.
+Provided that they can be inferred, type argument lists may be omitted entirely if the function is:
+</p>
+
+<ul>
+<li>
+	<a href="#Calls">called</a> with ordinary arguments,
+</li>
+<li>
+	<a href="#Assignment_statements">assigned</a> to a variable with a known type
+</li>
+<li>
+	<a href="#Calls">passed as an argument</a> to another function, or
+</li>
+<li>
+	<a href="#Return_statements">returned as a result</a>.
+</li>
+</ul>
+
+<p>
+In all other cases, a (possibly partial) type argument list must be present.
+If a type argument list is absent or partial, all missing type arguments
+must be inferrable from the context in which the function is used.
 </p>
 
 <pre>
-func min[T ~int|~float64](x, y T) T { … }
+// sum returns the sum (concatenation, for strings) of its arguments.
+func sum[T ~int | ~float64 | ~string](x... T) T { … }
 
-f := min                   // illegal: min must be instantiated with type arguments when used without being called
-minInt := min[int]         // minInt has type func(x, y int) int
-a := minInt(2, 3)          // a has value 2 of type int
-b := min[float64](2.0, 3)  // b has value 2.0 of type float64
-c := min(b, -1)            // c has value -1.0 of type float64
+x := sum                       // illegal: the type of x is unknown
+intSum := sum[int]             // intSum has type func(x... int) int
+a := intSum(2, 3)              // a has value 5 of type int
+b := sum[float64](2.0, 3)      // b has value 5.0 of type float64
+c := sum(b, -1)                // c has value 4.0 of type float64
+
+type sumFunc func(x... string) string
+var f sumFunc = sum            // same as var f sumFunc = sum[string]
+f = sum                        // same as f = sum[string]
 </pre>
 
 <p>
@@ -4381,398 +4429,323 @@ For a generic type, all type arguments must always be provided explicitly.
 <h3 id="Type_inference">Type inference</h3>
 
 <p>
-Missing function type arguments may be <i>inferred</i> by a series of steps, described below.
-Each step attempts to use known information to infer additional type arguments.
-Type inference stops as soon as all type arguments are known.
-After type inference is complete, it is still necessary to substitute all type arguments
-for type parameters and verify that each type argument
-<a href="#Implementing_an_interface">implements</a> the relevant constraint;
-it is possible for an inferred type argument to fail to implement a constraint, in which
-case instantiation fails.
+A use of a generic function may omit some or all type arguments if they can be
+<i>inferred</i> from the context within which the function is used, including
+the constraints of the function's type parameters.
+Type inference succeeds if it can infer the missing type arguments
+and <a href="#Instantiations">instantiation</a> succeeds with the
+inferred type arguments.
+Otherwise, type inference fails and the program is invalid.
 </p>
 
 <p>
-Type inference is based on
+Type inference uses the type relationships between pairs of types for inference:
+For instance, a function argument must be <a href="#Assignability">assignable</a>
+to its respective function parameter; this establishes a relationship between the
+type of the argument and the type of the parameter.
+If either of these two types contains type parameters, type inference looks for the
+type arguments to substitute the type parameters with such that the assignability
+relationship is satisfied.
+Similarly, type inference uses the fact that a type argument must
+<a href="#Satisfying_a_type_constraint">satisfy</a> the constraint of its respective
+type parameter.
+</p>
+
+<p>
+Each such pair of matched types corresponds to a <i>type equation</i> containing
+one or multiple type parameters, from one or possibly multiple generic functions.
+Inferring the missing type arguments means solving the resulting set of type
+equations for the respective type parameters.
+</p>
+
+<p>
+For example, given
+</p>
+
+<pre>
+// dedup returns a copy of the argument slice with any duplicate entries removed.
+func dedup[S ~[]E, E comparable](S) S { … }
+
+type Slice []int
+var s Slice
+s = dedup(s)   // same as s = dedup[Slice, int](s)
+</pre>
+
+<p>
+the variable <code>s</code> of type <code>Slice</code> must be assignable to
+the function parameter type <code>S</code> for the program to be valid.
+To reduce complexity, type inference ignores the directionality of assignments,
+so the type relationship between <code>Slice</code> and <code>S</code> can be
+expressed via the (symmetric) type equation <code>Slice ≡<sub>A</sub> S</code>
+(or <code>S ≡<sub>A</sub> Slice</code> for that matter),
+where the <code><sub>A</sub></code> in <code>≡<sub>A</sub></code>
+indicates that the LHS and RHS types must match per assignability rules
+(see the section on <a href="#Type_unification">type unification</a> for
+details).
+Similarly, the type parameter <code>S</code> must satisfy its constraint
+<code>~[]E</code>. This can be expressed as <code>S ≡<sub>C</sub> ~[]E</code>
+where <code>X ≡<sub>C</sub> Y</code> stands for
+"<code>X</code> satisfies constraint <code>Y</code>".
+These observations lead to a set of two equations
+</p>
+
+<pre>
+	Slice ≡<sub>A</sub> S      (1)
+	S     ≡<sub>C</sub> ~[]E   (2)
+</pre>
+
+<p>
+which now can be solved for the type parameters <code>S</code> and <code>E</code>.
+From (1) a compiler can infer that the type argument for <code>S</code> is <code>Slice</code>.
+Similarly, because the underlying type of <code>Slice</code> is <code>[]int</code>
+and <code>[]int</code> must match <code>[]E</code> of the constraint,
+a compiler can infer that <code>E</code> must be <code>int</code>.
+Thus, for these two equations, type inference infers
+</p>
+
+<pre>
+	S ➞ Slice
+	E ➞ int
+</pre>
+
+<p>
+Given a set of type equations, the type parameters to solve for are
+the type parameters of the functions that need to be instantiated
+and for which no explicit type arguments is provided.
+These type parameters are called <i>bound</i> type parameters.
+For instance, in the <code>dedup</code> example above, the type parameters
+<code>S</code> and <code>E</code> are bound to <code>dedup</code>.
+An argument to a generic function call may be a generic function itself.
+The type parameters of that function are included in the set of bound
+type parameters.
+The types of function arguments may contain type parameters from other
+functions (such as a generic function enclosing a function call).
+Those type parameters may also appear in type equations but they are
+not bound in that context.
+Type equations are always solved for the bound type parameters only.
+</p>
+
+<p>
+Type inference supports calls of generic functions and assignments
+of generic functions to (explicitly function-typed) variables.
+This includes passing generic functions as arguments to other
+(possibly also generic) functions, and returning generic functions
+as results.
+Type inference operates on a set of equations specific to each of
+these cases.
+The equations are as follows (type argument lists are omitted for clarity):
 </p>
 
 <ul>
 <li>
-	a <a href="#Type_parameter_declarations">type parameter list</a>
+	<p>
+	For a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
+	<code>f</code> or a function argument <code>a<sub>i</sub></code> is
+	a generic function:
+	<br>
+	Each pair <code>(a<sub>i</sub>, p<sub>i</sub>)</code> of corresponding
+	function arguments and parameters where <code>a<sub>i</sub></code> is not an
+	<a href="#Constants">untyped constant</a> yields an equation
+	<code>typeof(p<sub>i</sub>) ≡<sub>A</sub> typeof(a<sub>i</sub>)</code>.
+	<br>
+	If <code>a<sub>i</sub></code> is an untyped constant <code>c<sub>j</sub></code>,
+	and <code>typeof(p<sub>i</sub>)</code> is a bound type parameter <code>P<sub>k</sub></code>,
+	the pair <code>(c<sub>j</sub>, P<sub>k</sub>)</code> is collected separately from
+	the type equations.
+	</p>
 </li>
 <li>
-	a substitution map <i>M</i> initialized with the known type arguments, if any
+	<p>
+	For an assignment <code>v = f</code> of a generic function <code>f</code> to a
+	(non-generic) variable <code>v</code> of function type:
+	<br>
+	<code>typeof(v) ≡<sub>A</sub> typeof(f)</code>.
+	</p>
 </li>
 <li>
-	a (possibly empty) list of ordinary function arguments (in case of a function call only)
+	<p>
+	For a return statement <code>return …, f, … </code> where <code>f</code> is a
+	generic function returned as a result to a (non-generic) result variable
+	<code>r</code> of function type:
+	<br>
+	<code>typeof(r) ≡<sub>A</sub> typeof(f)</code>.
+	</p>
 </li>
 </ul>
 
 <p>
-and then proceeds with the following steps:
+Additionally, each type parameter <code>P<sub>k</sub></code> and corresponding type constraint
+<code>C<sub>k</sub></code> yields the type equation
+<code>P<sub>k</sub> ≡<sub>C</sub> C<sub>k</sub></code>.
+</p>
+
+<p>
+Type inference gives precedence to type information obtained from typed operands
+before considering untyped constants.
+Therefore, inference proceeds in two phases:
 </p>
 
 <ol>
 <li>
-	apply <a href="#Function_argument_type_inference"><i>function argument type inference</i></a>
-	to all <i>typed</i> ordinary function arguments
+	<p>
+	The type equations are solved for the bound
+	type parameters using <a href="#Type_unification">type unification</a>.
+	If unification fails, type inference fails.
+	</p>
 </li>
 <li>
-	apply <a href="#Constraint_type_inference"><i>constraint type inference</i></a>
-</li>
-<li>
-	apply function argument type inference to all <i>untyped</i> ordinary function arguments
-	using the default type for each of the untyped function arguments
-</li>
-<li>
-	apply constraint type inference
+	<p>
+	For each bound type parameter <code>P<sub>k</sub></code> for which no type argument
+	has been inferred yet and for which one or more pairs
+	<code>(c<sub>j</sub>, P<sub>k</sub>)</code> with that same type parameter
+	were collected, determine the <a href="#Constant_expressions">constant kind</a>
+	of the constants <code>c<sub>j</sub></code> in all those pairs the same way as for
+	<a href="#Constant_expressions">constant expressions</a>.
+	The type argument for <code>P<sub>k</sub></code> is the
+	<a href="#Constants">default type</a> for the determined constant kind.
+	If a constant kind cannot be determined due to conflicting constant kinds,
+	type inference fails.
+	</p>
 </li>
 </ol>
 
 <p>
-If there are no ordinary or untyped function arguments, the respective steps are skipped.
-Constraint type inference is skipped if the previous step didn't infer any new type arguments,
-but it is run at least once if there are missing type arguments.
+If not all type arguments have been found after these two phases, type inference fails.
 </p>
 
 <p>
-The substitution map <i>M</i> is carried through all steps, and each step may add entries to <i>M</i>.
-The process stops as soon as <i>M</i> has a type argument for each type parameter or if an inference step fails.
-If an inference step fails, or if <i>M</i> is still missing type arguments after the last step, type inference fails.
+If the two phases are successful, type inference determined a type argument for each
+bound type parameter:
+</p>
+
+<pre>
+	P<sub>k</sub> ➞ A<sub>k</sub>
+</pre>
+
+<p>
+A type argument <code>A<sub>k</sub></code> may be a composite type,
+containing other bound type parameters <code>P<sub>k</sub></code> as element types
+(or even be just another bound type parameter).
+In a process of repeated simplification, the bound type parameters in each type
+argument are substituted with the respective type arguments for those type
+parameters until each type argument is free of bound type parameters.
+</p>
+
+<p>
+If type arguments contain cyclic references to themselves
+through bound type parameters, simplification and thus type
+inference fails.
+Otherwise, type inference succeeds.
 </p>
 
 <h4 id="Type_unification">Type unification</h4>
 
 <p>
-Type inference is based on <i>type unification</i>. A single unification step
-applies to a <a href="#Type_inference">substitution map</a> and two types, either
-or both of which may be or contain type parameters. The substitution map tracks
-the known (explicitly provided or already inferred) type arguments: the map
-contains an entry <code>P</code> &RightArrow; <code>A</code> for each type
-parameter <code>P</code> and corresponding known type argument <code>A</code>.
-During unification, known type arguments take the place of their corresponding type
-parameters when comparing types. Unification is the process of finding substitution
-map entries that make the two types equivalent.
+Type inference solves type equations through <i>type unification</i>.
+Type unification recursively compares the LHS and RHS types of an
+equation, where either or both types may be or contain bound type parameters,
+and looks for type arguments for those type parameters such that the LHS
+and RHS match (become identical or assignment-compatible, depending on
+context).
+To that effect, type inference maintains a map of bound type parameters
+to inferred type arguments; this map is consulted and updated during type unification.
+Initially, the bound type parameters are known but the map is empty.
+During type unification, if a new type argument <code>A</code> is inferred,
+the respective mapping <code>P ➞ A</code> from type parameter to argument
+is added to the map.
+Conversely, when comparing types, a known type argument
+(a type argument for which a map entry already exists)
+takes the place of its corresponding type parameter.
+As type inference progresses, the map is populated more and more
+until all equations have been considered, or until unification fails.
+Type inference succeeds if no unification step fails and the map has
+an entry for each type parameter.
 </p>
 
 <p>
-For unification, two types that don't contain any type parameters from the current type
-parameter list are <i>equivalent</i>
-if they are identical, or if they are channel types that are identical ignoring channel
-direction, or if their underlying types are equivalent.
-</p>
-
-<p>
-Unification works by comparing the structure of pairs of types: their structure
-disregarding type parameters must be identical, and types other than type parameters
-must be equivalent.
-A type parameter in one type may match any complete subtype in the other type;
-each successful match causes an entry to be added to the substitution map.
-If the structure differs, or types other than type parameters are not equivalent,
-unification fails.
-</p>
-
-<!--
-TODO(gri) Somewhere we need to describe the process of adding an entry to the
-          substitution map: if the entry is already present, the type argument
-	  values are themselves unified.
--->
-
-<p>
-For example, if <code>T1</code> and <code>T2</code> are type parameters,
-<code>[]map[int]bool</code> can be unified with any of the following:
+For example, given the type equation with the bound type parameter
+<code>P</code>
 </p>
 
 <pre>
-[]map[int]bool   // types are identical
-T1               // adds T1 &RightArrow; []map[int]bool to substitution map
-[]T1             // adds T1 &RightArrow; map[int]bool to substitution map
-[]map[T1]T2      // adds T1 &RightArrow; int and T2 &RightArrow; bool to substitution map
+	[10]struct{ elem P, list []P } ≡<sub>A</sub> [10]struct{ elem string; list []string }
 </pre>
 
 <p>
-On the other hand, <code>[]map[int]bool</code> cannot be unified with any of
-</p>
-
-<pre>
-int              // int is not a slice
-struct{}         // a struct is not a slice
-[]struct{}       // a struct is not a map
-[]map[T1]string  // map element types don't match
-</pre>
-
-<p>
-As an exception to this general rule, because a <a href="#Type_definitions">defined type</a>
-<code>D</code> and a type literal <code>L</code> are never equivalent,
-unification compares the underlying type of <code>D</code> with <code>L</code> instead.
-For example, given the defined type
-</p>
-
-<pre>
-type Vector []float64
-</pre>
-
-<p>
-and the type literal <code>[]E</code>, unification compares <code>[]float64</code> with
-<code>[]E</code> and adds an entry <code>E</code> &RightArrow; <code>float64</code> to
-the substitution map.
-</p>
-
-<h4 id="Function_argument_type_inference">Function argument type inference</h4>
-
-<!-- In this section and the section on constraint type inference we start with examples
-rather than have the examples follow the rules as is customary elsewhere in spec.
-Hopefully this helps building an intuition and makes the rules easier to follow. -->
-
-<p>
-Function argument type inference infers type arguments from function arguments:
-if a function parameter is declared with a type <code>T</code> that uses
-type parameters,
-<a href="#Type_unification">unifying</a> the type of the corresponding
-function argument with <code>T</code> may infer type arguments for the type
-parameters used by <code>T</code>.
+type inference starts with an empty map.
+Unification first compares the top-level structure of the LHS and RHS
+types.
+Both are arrays of the same length; they unify if the element types unify.
+Both element types are structs; they unify if they have
+the same number of fields with the same names and if the
+field types unify.
+The type argument for <code>P</code> is not known yet (there is no map entry),
+so unifying <code>P</code> with <code>string</code> adds
+the mapping <code>P ➞ string</code> to the map.
+Unifying the types of the <code>list</code> field requires
+unifying <code>[]P</code> and <code>[]string</code> and
+thus <code>P</code> and <code>string</code>.
+Since the type argument for <code>P</code> is known at this point
+(there is a map entry for <code>P</code>), its type argument
+<code>string</code> takes the place of <code>P</code>.
+And since <code>string</code> is identical to <code>string</code>,
+this unification step succeeds as well.
+Unification of the LHS and RHS of the equation is now finished.
+Type inference succeeds because there is only one type equation,
+no unification step failed, and the map is fully populated.
 </p>
 
 <p>
-For instance, given the generic function
-</p>
-
-<pre>
-func scale[Number ~int64|~float64|~complex128](v []Number, s Number) []Number
-</pre>
-
-<p>
-and the call
-</p>
-
-<pre>
-var vector []float64
-scaledVector := scale(vector, 42)
-</pre>
-
-<p>
-the type argument for <code>Number</code> can be inferred from the function argument
-<code>vector</code> by unifying the type of <code>vector</code> with the corresponding
-parameter type: <code>[]float64</code> and <code>[]Number</code>
-match in structure and <code>float64</code> matches with <code>Number</code>.
-This adds the entry <code>Number</code> &RightArrow; <code>float64</code> to the
-<a href="#Type_unification">substitution map</a>.
-Untyped arguments, such as the second function argument <code>42</code> here, are ignored
-in the first round of function argument type inference and only considered if there are
-unresolved type parameters left.
+Unification uses a combination of <i>exact</i> and <i>loose</i>
+unification depending on whether two types have to be
+<a href="#Type_identity">identical</a>,
+<a href="#Assignability">assignment-compatible</a>, or
+only structurally equal.
+The respective <a href="#Type_unification_rules">type unification rules</a>
+are spelled out in detail in the <a href="#Appendix">Appendix</a>.
 </p>
 
 <p>
-Inference happens in two separate phases; each phase operates on a specific list of
-(parameter, argument) pairs:
+For an equation of the form <code>X ≡<sub>A</sub> Y</code>,
+where <code>X</code> and <code>Y</code> are types involved
+in an assignment (including parameter passing and return statements),
+the top-level type structures may unify loosely but element types
+must unify exactly, matching the rules for assignments.
 </p>
 
-<ol>
+<p>
+For an equation of the form <code>P ≡<sub>C</sub> C</code>,
+where <code>P</code> is a type parameter and <code>C</code>
+its corresponding constraint, the unification rules are bit
+more complicated:
+</p>
+
+<ul>
 <li>
-	The list <i>Lt</i> contains all (parameter, argument) pairs where the parameter
-	type uses type parameters and where the function argument is <i>typed</i>.
+	If <code>C</code> has a <a href="#Core_types">core type</a>
+	<code>core(C)</code>
+	and <code>P</code> has a known type argument <code>A</code>,
+	<code>core(C)</code> and <code>A</code> must unify loosely.
+	If <code>P</code> does not have a known type argument
+	and <code>C</code> contains exactly one type term <code>T</code>
+	that is not an underlying (tilde) type, unification adds the
+	mapping <code>P ➞ T</code> to the map.
 </li>
 <li>
-	The list <i>Lu</i> contains all remaining pairs where the parameter type is a single
-	type parameter. In this list, the respective function arguments are untyped.
+	If <code>C</code> does not have a core type
+	and <code>P</code> has a known type argument <code>A</code>,
+	<code>A</code> must have all methods of <code>C</code>, if any,
+	and corresponding method types must unify exactly.
 </li>
-</ol>
+</ul>
 
 <p>
-Any other (parameter, argument) pair is ignored.
-</p>
-
-<p>
-By construction, the arguments of the pairs in <i>Lu</i> are <i>untyped</i> constants
-(or the untyped boolean result of a comparison). And because <a href="#Constants">default types</a>
-of untyped values are always predeclared non-composite types, they can never match against
-a composite type, so it is sufficient to only consider parameter types that are single type
-parameters.
-</p>
-
-<p>
-Each list is processed in a separate phase:
-</p>
-
-<ol>
-<li>
-	In the first phase, the parameter and argument types of each pair in <i>Lt</i>
-	are unified. If unification succeeds for a pair, it may yield new entries that
-	are added to the substitution map <i>M</i>. If unification fails, type inference
-	fails.
-</li>
-<li>
-	The second phase considers the entries of list <i>Lu</i>. Type parameters for
-	which the type argument has already been determined are ignored in this phase.
-	For each remaining pair, the parameter type (which is a single type parameter) and
-	the <a href="#Constants">default type</a> of the corresponding untyped argument is
-	unified. If unification fails, type inference fails.
-</li>
-</ol>
-
-<p>
-While unification is successful, processing of each list continues until all list elements
-are considered, even if all type arguments are inferred before the last list element has
-been processed.
-</p>
-
-<p>
-Example:
-</p>
-
-<pre>
-func min[T ~int|~float64](x, y T) T
-
-var x int
-min(x, 2.0)    // T is int, inferred from typed argument x; 2.0 is assignable to int
-min(1.0, 2.0)  // T is float64, inferred from default type for 1.0 and matches default type for 2.0
-min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default type int (for 2)
-</pre>
-
-<p>
-In the example <code>min(1.0, 2)</code>, processing the function argument <code>1.0</code>
-yields the substitution map entry <code>T</code> &RightArrow; <code>float64</code>. Because
-processing continues until all untyped arguments are considered, an error is reported. This
-ensures that type inference does not depend on the order of the untyped arguments.
-</p>
-
-<h4 id="Constraint_type_inference">Constraint type inference</h4>
-
-<p>
-Constraint type inference infers type arguments by considering type constraints.
-If a type parameter <code>P</code> has a constraint with a
-<a href="#Core_types">core type</a> <code>C</code>,
-<a href="#Type_unification">unifying</a> <code>P</code> with <code>C</code>
-may infer additional type arguments, either the type argument for <code>P</code>,
-or if that is already known, possibly the type arguments for type parameters
-used in <code>C</code>.
-</p>
-
-<p>
-For instance, consider the type parameter list with type parameters <code>List</code> and
-<code>Elem</code>:
-</p>
-
-<pre>
-[List ~[]Elem, Elem any]
-</pre>
-
-<p>
-Constraint type inference can deduce the type of <code>Elem</code> from the type argument
-for <code>List</code> because <code>Elem</code> is a type parameter in the core type
-<code>[]Elem</code> of <code>List</code>.
-If the type argument is <code>Bytes</code>:
-</p>
-
-<pre>
-type Bytes []byte
-</pre>
-
-<p>
-unifying the underlying type of <code>Bytes</code> with the core type means
-unifying <code>[]byte</code> with <code>[]Elem</code>. That unification succeeds and yields
-the <a href="#Type_unification">substitution map</a> entry
-<code>Elem</code> &RightArrow; <code>byte</code>.
-Thus, in this example, constraint type inference can infer the second type argument from the
-first one.
-</p>
-
-<p>
-Using the core type of a constraint may lose some information: In the (unlikely) case that
-the constraint's type set contains a single <a href="#Type_definitions">defined type</a>
-<code>N</code>, the corresponding core type is <code>N</code>'s underlying type rather than
-<code>N</code> itself. In this case, constraint type inference may succeed but instantiation
-will fail because the inferred type is not in the type set of the constraint.
-Thus, constraint type inference uses the <i>adjusted core type</i> of
-a constraint: if the type set contains a single type, use that type; otherwise use the
-constraint's core type.
-</p>
-
-<p>
-Generally, constraint type inference proceeds in two phases: Starting with a given
-substitution map <i>M</i>
-</p>
-
-<ol>
-<li>
-For all type parameters with an adjusted core type, unify the type parameter with that
-type. If any unification fails, constraint type inference fails.
-</li>
-
-<li>
-At this point, some entries in <i>M</i> may map type parameters to other
-type parameters or to types containing type parameters. For each entry
-<code>P</code> &RightArrow; <code>A</code> in <i>M</i> where <code>A</code> is or
-contains type parameters <code>Q</code> for which there exist entries
-<code>Q</code> &RightArrow; <code>B</code> in <i>M</i>, substitute those
-<code>Q</code> with the respective <code>B</code> in <code>A</code>.
-Stop when no further substitution is possible.
-</li>
-</ol>
-
-<p>
-The result of constraint type inference is the final substitution map <i>M</i> from type
-parameters <code>P</code> to type arguments <code>A</code> where no type parameter <code>P</code>
-appears in any of the <code>A</code>.
-</p>
-
-<p>
-For instance, given the type parameter list
-</p>
-
-<pre>
-[A any, B []C, C *A]
-</pre>
-
-<p>
-and the single provided type argument <code>int</code> for type parameter <code>A</code>,
-the initial substitution map <i>M</i> contains the entry <code>A</code> &RightArrow; <code>int</code>.
-</p>
-
-<p>
-In the first phase, the type parameters <code>B</code> and <code>C</code> are unified
-with the core type of their respective constraints. This adds the entries
-<code>B</code> &RightArrow; <code>[]C</code> and <code>C</code> &RightArrow; <code>*A</code>
-to <i>M</i>.
-
-<p>
-At this point there are two entries in <i>M</i> where the right-hand side
-is or contains type parameters for which there exists other entries in <i>M</i>:
-<code>[]C</code> and <code>*A</code>.
-In the second phase, these type parameters are replaced with their respective
-types. It doesn't matter in which order this happens. Starting with the state
-of <i>M</i> after the first phase:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]C</code>,
-<code>C</code> &RightArrow; <code>*A</code>
-</p>
-
-<p>
-Replace <code>A</code> on the right-hand side of &RightArrow; with <code>int</code>:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]C</code>,
-<code>C</code> &RightArrow; <code>*int</code>
-</p>
-
-<p>
-Replace <code>C</code> on the right-hand side of &RightArrow; with <code>*int</code>:
-</p>
-
-<p>
-<code>A</code> &RightArrow; <code>int</code>,
-<code>B</code> &RightArrow; <code>[]*int</code>,
-<code>C</code> &RightArrow; <code>*int</code>
-</p>
-
-<p>
-At this point no further substitution is possible and the map is full.
-Therefore, <code>M</code> represents the final map of type parameters
-to type arguments for the given type parameter list.
+When solving type equations from type constraints,
+solving one equation may infer additional type arguments,
+which in turn may enable solving other equations that depend
+on those type arguments.
+Type inference repeats type unification as long as new type
+arguments are inferred.
 </p>
 
 <h3 id="Operators">Operators</h3>
@@ -4809,6 +4782,7 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
+[<a href="#Go_1.13">Go 1.13</a>]
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -4853,6 +4827,7 @@ As the  <code>++</code> and <code>--</code> operators form
 statements, not expressions, they fall
 outside the operator hierarchy.
 As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
+</p>
 <p>
 There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
@@ -4875,12 +4850,13 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 </p>
 
 <pre>
-+x
-23 + 3*x[i]
-x &lt;= f()
-^a &gt;&gt; b
-f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
++x                         // x
+42 + a - b                 // (42 + a) - b
+23 + 3*x[i]                // 23 + (3 * x[i])
+x &lt;= f()                   // x &lt;= f()
+^a &gt;&gt; b                    // (^a) >> b
+f() || g()                 // f() || g()
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((<-chanInt) > 0)
 </pre>
 
 
@@ -5257,7 +5233,7 @@ Specifically:
 <p>
 Logical operators apply to <a href="#Boolean_types">boolean</a> values
 and yield a result of the same type as the operands.
-The right operand is evaluated conditionally.
+The left operand is evaluated, and then the right if the condition requires it.
 </p>
 
 <pre class="grammar">
@@ -5450,7 +5426,7 @@ in any of these cases:
 	ignoring struct tags (see below),
 	<code>x</code>'s type and <code>T</code> are not
 	<a href="#Type_parameter_declarations">type parameters</a> but have
-	<a href="#Type_identity">identical</a> <a href="#Types">underlying types</a>.
+	<a href="#Type_identity">identical</a> <a href="#Underlying_types">underlying types</a>.
 	</li>
 	<li>
 	ignoring struct tags (see below),
@@ -5474,7 +5450,8 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 	<li>
-	<code>x</code> is a slice, <code>T</code> is an array or a pointer to an array,
+	<code>x</code> is a slice, <code>T</code> is an array [<a href="#Go_1.20">Go 1.20</a>]
+	or a pointer to an array [<a href="#Go_1.17">Go 1.17</a>],
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
 </ul>
@@ -5581,21 +5558,6 @@ succeeds but the result value is implementation-dependent.
 
 <ol>
 <li>
-Converting a signed or unsigned integer value to a string type yields a
-string containing the UTF-8 representation of the integer. Values outside
-the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
-
-<pre>
-string('a')       // "a"
-string(-1)        // "\ufffd" == "\xef\xbf\xbd"
-string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
-
-type myString string
-myString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
-</pre>
-</li>
-
-<li>
 Converting a slice of bytes to a string type yields
 a string whose successive bytes are the elements of the slice.
 
@@ -5634,7 +5596,7 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 
 <li>
 Converting a value of a string type to a slice of bytes type
-yields a slice whose successive elements are the bytes of the string.
+yields a non-nil slice whose successive elements are the bytes of the string.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
@@ -5660,6 +5622,31 @@ runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
 []myRune("♫♬")              // []myRune{0x266b, 0x266c}
 []myRune(myString("🌐"))    // []myRune{0x1f310}
 </pre>
+</li>
+
+<li>
+Finally, for historical reasons, an integer value may be converted to a string type.
+This form of conversion yields a string containing the (possibly multi-byte) UTF-8
+representation of the Unicode code point with the given integer value.
+Values outside the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
+
+<pre>
+string('a')          // "a"
+string(65)           // "A"
+string('\xf8')       // "\u00f8" == "ø" == "\xc3\xb8"
+string(-1)           // "\ufffd" == "\xef\xbf\xbd"
+
+type myString string
+myString('\u65e5')   // "\u65e5" == "日" == "\xe6\x97\xa5"
+</pre>
+
+Note: This form of conversion may eventually be removed from the language.
+The <a href="/pkg/cmd/vet"><code>go vet</code></a> tool flags certain
+integer-to-string conversions as potential errors.
+Library functions such as
+<a href="/pkg/unicode/utf8#AppendRune"><code>utf8.AppendRune</code></a> or
+<a href="/pkg/unicode/utf8#EncodeRune"><code>utf8.EncodeRune</code></a>
+should be used instead.
 </li>
 </ol>
 
@@ -5825,24 +5812,28 @@ determine the evaluation order of individual initialization expressions in
 Otherwise, when evaluating the <a href="#Operands">operands</a> of an
 expression, assignment, or
 <a href="#Return_statements">return statement</a>,
-all function calls, method calls, and
-communication operations are evaluated in lexical left-to-right
-order.
+all function calls, method calls,
+<a href="#Receive operator">receive operations</a>,
+and <a href="#Logical_operators">binary logical operations</a>
+are evaluated in lexical left-to-right order.
 </p>
 
 <p>
 For example, in the (function-local) assignment
 </p>
 <pre>
-y[f()], ok = g(h(), i()+x[j()], &lt;-c), k()
+y[f()], ok = g(z || h(), i()+x[j()], &lt;-c), k()
 </pre>
 <p>
 the function calls and communication happen in the order
-<code>f()</code>, <code>h()</code>, <code>i()</code>, <code>j()</code>,
+<code>f()</code>, <code>h()</code> (if <code>z</code>
+evaluates to false), <code>i()</code>, <code>j()</code>,
 <code>&lt;-c</code>, <code>g()</code>, and <code>k()</code>.
 However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
-of <code>y</code> is not specified.
+of <code>y</code> and <code>z</code> is not specified,
+except as required lexically. For instance, <code>g</code>
+cannot be called before its arguments are evaluated.
 </p>
 
 <pre>
@@ -6027,7 +6018,7 @@ The following built-in functions are not permitted in statement context:
 
 <pre>
 append cap complex imag len make new real
-unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice
+unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice unsafe.SliceData unsafe.String unsafe.StringData
 </pre>
 
 <pre>
@@ -6209,7 +6200,7 @@ x = []int{3, 5, 7}
 for i, x[i] = range x {  // set i, x[2] = 0, x[0]
 	break
 }
-// after this loop, i == 0 and x == []int{3, 5, 3}
+// after this loop, i == 0 and x is []int{3, 5, 3}
 </pre>
 
 <p>
@@ -6550,7 +6541,6 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
-Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
@@ -6582,12 +6572,55 @@ for cond { S() }    is the same as    for ; cond ; { S() }
 for      { S() }    is the same as    for true     { S() }
 </pre>
 
+<p>
+Each iteration has its own separate declared variable (or variables)
+[<a href="#Go_1.22">Go 1.22</a>].
+The variable used by the first iteration is declared by the init statement.
+The variable used by each subsequent iteration is declared implicitly before
+executing the post statement and initialized to the value of the previous
+iteration's variable at that moment.
+</p>
+
+<pre>
+var prints []func()
+for i := 0; i < 5; i++ {
+	prints = append(prints, func() { println(i) })
+	i++
+}
+for _, p := range prints {
+	p()
+}
+</pre>
+
+<p>
+prints
+</p>
+
+<pre>
+1
+3
+5
+</pre>
+
+<p>
+Prior to [<a href="#Go_1.22">Go 1.22</a>], iterations share one set of variables
+instead of having their own separate variables.
+In that case, the example above prints
+</p>
+
+<pre>
+6
+6
+6
+</pre>
+
 <h4 id="For_range">For statements with <code>range</code> clause</h4>
 
 <p>
 A "for" statement with a "range" clause
-iterates through all entries of an array, slice, string or map,
-or values received on a channel. For each entry it assigns <i>iteration values</i>
+iterates through all entries of an array, slice, string or map, values received on
+a channel, or integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>].
+For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
 
@@ -6598,12 +6631,12 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 its <a href="#Core_types">core type</a> must be
-an array, pointer to an array, slice, string, map, or channel permitting
-<a href="#Receive_operator">receive operations</a>.
+an array, pointer to an array, slice, string, map, channel permitting
+<a href="#Receive_operator">receive operations</a>, or an integer.
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel, at most
-one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables. If the range expression is a channel or integer,
+at most one iteration variable is permitted, otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
@@ -6628,6 +6661,7 @@ array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
 channel         c  chan E, &lt;-chan E       element  e  E
+integer         n  integer type I         value    i  I
 </pre>
 
 <ol>
@@ -6666,6 +6700,12 @@ For channels, the iteration values produced are the successive values sent on
 the channel until the channel is <a href="#Close">closed</a>. If the channel
 is <code>nil</code>, the range expression blocks forever.
 </li>
+
+<li>
+For an integer value <code>n</code>, the iteration values 0 through <code>n-1</code>
+are produced in increasing order, with the same type as <code>n</code>.
+If <code>n</code> &lt= 0, the loop does not run any iterations.
+</li>
 </ol>
 
 <p>
@@ -6678,9 +6718,10 @@ The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
-statement; they are re-used in each iteration.
-If the iteration variables are declared outside the "for" statement,
+and their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement;
+each iteration has its own separate variables [<a href="#Go_1.22">Go 1.22</a>]
+(see also <a href="#For_clause">"for" statements with a ForClause</a>).
+If the iteration variables are declared outside the “for” statement,
 after execution their values will be those of the last iteration.
 </p>
 
@@ -6718,6 +6759,12 @@ for w := range ch {
 
 // empty a channel
 for range ch {}
+
+// call f(0), f(1), ... f(9)
+for i := range 10 {
+	// type of i is int (default type for untyped constant 10)
+	f(i)
+}
 </pre>
 
 
@@ -7181,6 +7228,122 @@ so they can only appear in <a href="#Calls">call expressions</a>;
 they cannot be used as function values.
 </p>
 
+
+<h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
+
+<p>
+The built-in functions <code>append</code> and <code>copy</code> assist in
+common slice operations.
+For both functions, the result is independent of whether the memory referenced
+by the arguments overlaps.
+</p>
+
+<p>
+The <a href="#Function_types">variadic</a> function <code>append</code>
+appends zero or more values <code>x</code> to a slice <code>s</code>
+and returns the resulting slice of the same type as <code>s</code>.
+The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
+of type <code>[]E</code>.
+The values <code>x</code> are passed to a parameter of type <code>...E</code>
+and the respective <a href="#Passing_arguments_to_..._parameters">parameter
+passing rules</a> apply.
+As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
+<code>append</code> also accepts a second argument with core type
+<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
+This form appends the bytes of the byte slice or string.
+</p>
+
+<pre class="grammar">
+append(s S, x ...E) S  // core type of S is []E
+</pre>
+
+<p>
+If the capacity of <code>s</code> is not large enough to fit the additional
+values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
+array that fits both the existing slice elements and the additional values.
+Otherwise, <code>append</code> re-uses the underlying array.
+</p>
+
+<pre>
+s0 := []int{0, 0}
+s1 := append(s0, 2)                // append a single element     s1 is []int{0, 0, 2}
+s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 is []int{0, 0, 2, 3, 5, 7}
+s3 := append(s2, s0...)            // append a slice              s3 is []int{0, 0, 2, 3, 5, 7, 0, 0}
+s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 is []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
+
+var t []interface{}
+t = append(t, 42, 3.1415, "foo")   //                             t is []interface{}{42, 3.1415, "foo"}
+
+var b []byte
+b = append(b, "bar"...)            // append string contents      b is []byte{'b', 'a', 'r' }
+</pre>
+
+<p>
+The function <code>copy</code> copies slice elements from
+a source <code>src</code> to a destination <code>dst</code> and returns the
+number of elements copied.
+The <a href="#Core_types">core types</a> of both arguments must be slices
+with <a href="#Type_identity">identical</a> element type.
+The number of elements copied is the minimum of
+<code>len(src)</code> and <code>len(dst)</code>.
+As a special case, if the destination's core type is <code>[]byte</code>,
+<code>copy</code> also accepts a source argument with core type
+</a> <a href="#Core_types"><code>bytestring</code></a>.
+This form copies the bytes from the byte slice or string into the byte slice.
+</p>
+
+<pre class="grammar">
+copy(dst, src []T) int
+copy(dst []byte, src string) int
+</pre>
+
+<p>
+Examples:
+</p>
+
+<pre>
+var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
+var s = make([]int, 6)
+var b = make([]byte, 5)
+n1 := copy(s, a[0:])            // n1 == 6, s is []int{0, 1, 2, 3, 4, 5}
+n2 := copy(s, s[2:])            // n2 == 4, s is []int{2, 3, 4, 5, 4, 5}
+n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
+</pre>
+
+
+<h3 id="Clear">Clear</h3>
+
+<p>
+The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
+<a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
+and deletes or zeroes out all elements
+[<a href="#Go_1.21">Go 1.21</a>].
+</p>
+
+<pre class="grammar">
+Call        Argument type     Result
+
+clear(m)    map[K]T           deletes all entries, resulting in an
+                              empty map (len(m) == 0)
+
+clear(s)    []T               sets all elements up to the length of
+                              <code>s</code> to the zero value of T
+
+clear(t)    type parameter    see below
+</pre>
+
+<p>
+If the type of the argument to <code>clear</code> is a
+<a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be maps or slices, and <code>clear</code>
+performs the operation corresponding to the actual type argument.
+</p>
+
+<p>
+If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
+</p>
+
+
 <h3 id="Close">Close</h3>
 
 <p>
@@ -7196,6 +7359,100 @@ the zero value for the channel's type without blocking.
 The multi-valued <a href="#Receive_operator">receive operation</a>
 returns a received value along with an indication of whether the channel is closed.
 </p>
+
+
+<h3 id="Complex_numbers">Manipulating complex numbers</h3>
+
+<p>
+Three functions assemble and disassemble complex numbers.
+The built-in function <code>complex</code> constructs a complex
+value from a floating-point real and imaginary part, while
+<code>real</code> and <code>imag</code>
+extract the real and imaginary parts of a complex value.
+</p>
+
+<pre class="grammar">
+complex(realPart, imaginaryPart floatT) complexT
+real(complexT) floatT
+imag(complexT) floatT
+</pre>
+
+<p>
+The type of the arguments and return value correspond.
+For <code>complex</code>, the two arguments must be of the same
+<a href="#Numeric_types">floating-point type</a> and the return type is the
+<a href="#Numeric_types">complex type</a>
+with the corresponding floating-point constituents:
+<code>complex64</code> for <code>float32</code> arguments, and
+<code>complex128</code> for <code>float64</code> arguments.
+If one of the arguments evaluates to an untyped constant, it is first implicitly
+<a href="#Conversions">converted</a> to the type of the other argument.
+If both arguments evaluate to untyped constants, they must be non-complex
+numbers or their imaginary parts must be zero, and the return value of
+the function is an untyped complex constant.
+</p>
+
+<p>
+For <code>real</code> and <code>imag</code>, the argument must be
+of complex type, and the return type is the corresponding floating-point
+type: <code>float32</code> for a <code>complex64</code> argument, and
+<code>float64</code> for a <code>complex128</code> argument.
+If the argument evaluates to an untyped constant, it must be a number,
+and the return value of the function is an untyped floating-point constant.
+</p>
+
+<p>
+The <code>real</code> and <code>imag</code> functions together form the inverse of
+<code>complex</code>, so for a value <code>z</code> of a complex type <code>Z</code>,
+<code>z&nbsp;==&nbsp;Z(complex(real(z),&nbsp;imag(z)))</code>.
+</p>
+
+<p>
+If the operands of these functions are all constants, the return
+value is a constant.
+</p>
+
+<pre>
+var a = complex(2, -2)             // complex128
+const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
+x := float32(math.Cos(math.Pi/2))  // float32
+var c64 = complex(5, -x)           // complex64
+var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
+_ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
+var rl = real(c64)                 // float32
+var im = imag(a)                   // float64
+const c = imag(b)                  // untyped constant -1.4
+_ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
+</pre>
+
+<p>
+Arguments of type parameter type are not permitted.
+</p>
+
+
+<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
+
+<p>
+The built-in function <code>delete</code> removes the element with key
+<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
+value <code>k</code> must be <a href="#Assignability">assignable</a>
+to the key type of <code>m</code>.
+</p>
+
+<pre class="grammar">
+delete(m, k)  // remove element m[k] from map m
+</pre>
+
+<p>
+If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in that type set must be maps, and they must all have identical key types.
+</p>
+
+<p>
+If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
+does not exist, <code>delete</code> is a no-op.
+</p>
+
 
 <h3 id="Length_and_capacity">Length and capacity</h3>
 
@@ -7267,6 +7524,125 @@ const (
 var z complex128
 </pre>
 
+
+<h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
+
+<p>
+The built-in function <code>make</code> takes a type <code>T</code>,
+optionally followed by a type-specific list of expressions.
+The <a href="#Core_types">core type</a> of <code>T</code> must
+be a slice, map or channel.
+It returns a value of type <code>T</code> (not <code>*T</code>).
+The memory is initialized as described in the section on
+<a href="#The_zero_value">initial values</a>.
+</p>
+
+<pre class="grammar">
+Call             Core type    Result
+
+make(T, n)       slice        slice of type T with length n and capacity n
+make(T, n, m)    slice        slice of type T with length n and capacity m
+
+make(T)          map          map of type T
+make(T, n)       map          map of type T with initial space for approximately n elements
+
+make(T)          channel      unbuffered channel of type T
+make(T, n)       channel      buffered channel of type T, buffer size n
+</pre>
+
+<p>
+Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
+have a <a href="#Interface_types">type set</a> containing only integer types,
+or be an untyped <a href="#Constants">constant</a>.
+A constant size argument must be non-negative and <a href="#Representability">representable</a>
+by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
+If both <code>n</code> and <code>m</code> are provided and are constant, then
+<code>n</code> must be no larger than <code>m</code>.
+For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
+</p>
+
+<pre>
+s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
+s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
+s := make([]int, 1&lt;&lt;63)         // illegal: len(s) is not representable by a value of type int
+s := make([]int, 10, 0)         // illegal: len(s) > cap(s)
+c := make(chan int, 10)         // channel with a buffer size of 10
+m := make(map[string]int, 100)  // map with initial space for approximately 100 elements
+</pre>
+
+<p>
+Calling <code>make</code> with a map type and size hint <code>n</code> will
+create a map with initial space to hold <code>n</code> map elements.
+The precise behavior is implementation-dependent.
+</p>
+
+
+<h3 id="Min_and_max">Min and max</h3>
+
+<p>
+The built-in functions <code>min</code> and <code>max</code> compute the
+smallest&mdash;or largest, respectively&mdash;value of a fixed number of
+arguments of <a href="#Comparison_operators">ordered types</a>.
+There must be at least one argument
+[<a href="#Go_1.21">Go 1.21</a>].
+</p>
+
+<p>
+The same type rules as for <a href="#Operators">operators</a> apply:
+for <a href="#Comparison_operators">ordered</a> arguments <code>x</code> and
+<code>y</code>, <code>min(x, y)</code> is valid if <code>x + y</code> is valid,
+and the type of <code>min(x, y)</code> is the type of <code>x + y</code>
+(and similarly for <code>max</code>).
+If all arguments are constant, the result is constant.
+</p>
+
+<pre>
+var x, y int
+m := min(x)                 // m == x
+m := min(x, y)              // m is the smaller of x and y
+m := max(x, y, 10)          // m is the larger of x and y but at least 10
+c := max(1, 2.0, 10)        // c == 10.0 (floating-point kind)
+f := max(0, float32(x))     // type of f is float32
+var s []string
+_ = min(s...)               // invalid: slice arguments are not permitted
+t := max("", "foo", "bar")  // t == "foo" (string kind)
+</pre>
+
+<p>
+For numeric arguments, assuming all NaNs are equal, <code>min</code> and <code>max</code> are
+commutative and associative:
+</p>
+
+<pre>
+min(x, y)    == min(y, x)
+min(x, y, z) == min(min(x, y), z) == min(x, min(y, z))
+</pre>
+
+<p>
+For floating-point arguments negative zero, NaN, and infinity the following rules apply:
+</p>
+
+<pre>
+   x        y    min(x, y)    max(x, y)
+
+  -0.0    0.0         -0.0          0.0    // negative zero is smaller than (non-negative) zero
+  -Inf      y         -Inf            y    // negative infinity is smaller than any other number
+  +Inf      y            y         +Inf    // positive infinity is larger than any other number
+   NaN      y          NaN          NaN    // if any argument is a NaN, the result is a NaN
+</pre>
+
+<p>
+For string arguments the result for <code>min</code> is the first argument
+with the smallest (or for <code>max</code>, largest) value,
+compared lexically byte-wise:
+</p>
+
+<pre>
+min(x, y)    == if x <= y then x else y
+min(x, y, z) == min(min(x, y), z)
+</pre>
+
 <h3 id="Allocation">Allocation</h3>
 
 <p>
@@ -7298,233 +7674,6 @@ and returns a value of type <code>*S</code> containing the address
 of the location.
 </p>
 
-<h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
-
-<p>
-The built-in function <code>make</code> takes a type <code>T</code>,
-optionally followed by a type-specific list of expressions.
-The <a href="#Core_types">core type</a> of <code>T</code> must
-be a slice, map or channel.
-It returns a value of type <code>T</code> (not <code>*T</code>).
-The memory is initialized as described in the section on
-<a href="#The_zero_value">initial values</a>.
-</p>
-
-<pre class="grammar">
-Call             Core type    Result
-
-make(T, n)       slice        slice of type T with length n and capacity n
-make(T, n, m)    slice        slice of type T with length n and capacity m
-
-make(T)          map          map of type T
-make(T, n)       map          map of type T with initial space for approximately n elements
-
-make(T)          channel      unbuffered channel of type T
-make(T, n)       channel      buffered channel of type T, buffer size n
-</pre>
-
-
-<p>
-Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
-have a <a href="#Interface_types">type set</a> containing only integer types,
-or be an untyped <a href="#Constants">constant</a>.
-A constant size argument must be non-negative and <a href="#Representability">representable</a>
-by a value of type <code>int</code>; if it is an untyped constant it is given type <code>int</code>.
-If both <code>n</code> and <code>m</code> are provided and are constant, then
-<code>n</code> must be no larger than <code>m</code>.
-For slices and channels, if <code>n</code> is negative or larger than <code>m</code> at run time,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
-</p>
-
-<pre>
-s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
-s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
-s := make([]int, 1&lt;&lt;63)         // illegal: len(s) is not representable by a value of type int
-s := make([]int, 10, 0)         // illegal: len(s) > cap(s)
-c := make(chan int, 10)         // channel with a buffer size of 10
-m := make(map[string]int, 100)  // map with initial space for approximately 100 elements
-</pre>
-
-<p>
-Calling <code>make</code> with a map type and size hint <code>n</code> will
-create a map with initial space to hold <code>n</code> map elements.
-The precise behavior is implementation-dependent.
-</p>
-
-
-<h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
-
-<p>
-The built-in functions <code>append</code> and <code>copy</code> assist in
-common slice operations.
-For both functions, the result is independent of whether the memory referenced
-by the arguments overlaps.
-</p>
-
-<p>
-The <a href="#Function_types">variadic</a> function <code>append</code>
-appends zero or more values <code>x</code> to a slice <code>s</code>
-and returns the resulting slice of the same type as <code>s</code>.
-The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
-of type <code>[]E</code>.
-The values <code>x</code> are passed to a parameter of type <code>...E</code>
-and the respective <a href="#Passing_arguments_to_..._parameters">parameter
-passing rules</a> apply.
-As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
-<code>append</code> also accepts a second argument with core type
-<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
-This form appends the bytes of the byte slice or string.
-</p>
-
-<pre class="grammar">
-append(s S, x ...E) S  // core type of S is []E
-</pre>
-
-<p>
-If the capacity of <code>s</code> is not large enough to fit the additional
-values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
-array that fits both the existing slice elements and the additional values.
-Otherwise, <code>append</code> re-uses the underlying array.
-</p>
-
-<pre>
-s0 := []int{0, 0}
-s1 := append(s0, 2)                // append a single element     s1 == []int{0, 0, 2}
-s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
-s3 := append(s2, s0...)            // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
-s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 == []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
-
-var t []interface{}
-t = append(t, 42, 3.1415, "foo")   //                             t == []interface{}{42, 3.1415, "foo"}
-
-var b []byte
-b = append(b, "bar"...)            // append string contents      b == []byte{'b', 'a', 'r' }
-</pre>
-
-<p>
-The function <code>copy</code> copies slice elements from
-a source <code>src</code> to a destination <code>dst</code> and returns the
-number of elements copied.
-The <a href="#Core_types">core types</a> of both arguments must be slices
-with <a href="#Type_identity">identical</a> element type.
-The number of elements copied is the minimum of
-<code>len(src)</code> and <code>len(dst)</code>.
-As a special case, if the destination's core type is <code>[]byte</code>,
-<code>copy</code> also accepts a source argument with core type
-</a> <a href="#Core_types"><code>bytestring</code></a>.
-This form copies the bytes from the byte slice or string into the byte slice.
-</p>
-
-<pre class="grammar">
-copy(dst, src []T) int
-copy(dst []byte, src string) int
-</pre>
-
-<p>
-Examples:
-</p>
-
-<pre>
-var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
-var s = make([]int, 6)
-var b = make([]byte, 5)
-n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
-n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
-n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
-</pre>
-
-
-<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
-
-<p>
-The built-in function <code>delete</code> removes the element with key
-<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
-value <code>k</code> must be <a href="#Assignability">assignable</a>
-to the key type of <code>m</code>.
-</p>
-
-<pre class="grammar">
-delete(m, k)  // remove element m[k] from map m
-</pre>
-
-<p>
-If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
-all types in that type set must be maps, and they must all have identical key types.
-</p>
-
-<p>
-If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
-does not exist, <code>delete</code> is a no-op.
-</p>
-
-
-<h3 id="Complex_numbers">Manipulating complex numbers</h3>
-
-<p>
-Three functions assemble and disassemble complex numbers.
-The built-in function <code>complex</code> constructs a complex
-value from a floating-point real and imaginary part, while
-<code>real</code> and <code>imag</code>
-extract the real and imaginary parts of a complex value.
-</p>
-
-<pre class="grammar">
-complex(realPart, imaginaryPart floatT) complexT
-real(complexT) floatT
-imag(complexT) floatT
-</pre>
-
-<p>
-The type of the arguments and return value correspond.
-For <code>complex</code>, the two arguments must be of the same
-<a href="#Numeric_types">floating-point type</a> and the return type is the
-<a href="#Numeric_types">complex type</a>
-with the corresponding floating-point constituents:
-<code>complex64</code> for <code>float32</code> arguments, and
-<code>complex128</code> for <code>float64</code> arguments.
-If one of the arguments evaluates to an untyped constant, it is first implicitly
-<a href="#Conversions">converted</a> to the type of the other argument.
-If both arguments evaluate to untyped constants, they must be non-complex
-numbers or their imaginary parts must be zero, and the return value of
-the function is an untyped complex constant.
-</p>
-
-<p>
-For <code>real</code> and <code>imag</code>, the argument must be
-of complex type, and the return type is the corresponding floating-point
-type: <code>float32</code> for a <code>complex64</code> argument, and
-<code>float64</code> for a <code>complex128</code> argument.
-If the argument evaluates to an untyped constant, it must be a number,
-and the return value of the function is an untyped floating-point constant.
-</p>
-
-<p>
-The <code>real</code> and <code>imag</code> functions together form the inverse of
-<code>complex</code>, so for a value <code>z</code> of a complex type <code>Z</code>,
-<code>z&nbsp;==&nbsp;Z(complex(real(z),&nbsp;imag(z)))</code>.
-</p>
-
-<p>
-If the operands of these functions are all constants, the return
-value is a constant.
-</p>
-
-<pre>
-var a = complex(2, -2)             // complex128
-const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
-x := float32(math.Cos(math.Pi/2))  // float32
-var c64 = complex(5, -x)           // complex64
-var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
-_ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
-var rl = real(c64)                 // float32
-var im = imag(a)                   // float64
-const c = imag(b)                  // untyped constant -1.4
-_ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
-</pre>
-
-<p>
-Arguments of type parameter type are not permitted.
-</p>
 
 <h3 id="Handling_panics">Handling panics</h3>
 
@@ -7622,6 +7771,7 @@ Implementation restriction: <code>print</code> and <code>println</code> need not
 accept arbitrary argument types, but printing of boolean, numeric, and string
 <a href="#Types">types</a> must be supported.
 </p>
+
 
 <h2 id="Packages">Packages</h2>
 
@@ -7896,6 +8046,9 @@ The declaration order of variables declared in multiple files is determined
 by the order in which the files are presented to the compiler: Variables
 declared in the first file are declared before any of the variables declared
 in the second file, and so on.
+To ensure reproducible initialization behavior, build systems are encouraged
+to present multiple files belonging to the same package in lexical file name
+order to a compiler.
 </p>
 
 <p>
@@ -8006,15 +8159,30 @@ in a program.
 </p>
 
 <p>
-A package with no imports is initialized by assigning initial values
-to all its package-level variables followed by calling all <code>init</code>
-functions in the order they appear in the source, possibly in multiple files,
-as presented to the compiler.
+The entire package is initialized by assigning initial values
+to all its package-level variables followed by calling
+all <code>init</code> functions in the order they appear
+in the source, possibly in multiple files, as presented
+to the compiler.
+</p>
+
+<h3 id="Program_initialization">Program initialization</h3>
+
+<p>
+The packages of a complete program are initialized stepwise, one package at a time.
 If a package has imports, the imported packages are initialized
 before initializing the package itself. If multiple packages import
 a package, the imported package will be initialized only once.
 The importing of packages, by construction, guarantees that there
 can be no cyclic initialization dependencies.
+More precisely:
+</p>
+
+<p>
+Given the list of all packages, sorted by import path, in each step the first
+uninitialized package in the list for which all imported packages (if any) are
+already initialized is <a href="#Package_initialization">initialized</a>.
+This step is repeated until all packages are initialized.
 </p>
 
 <p>
@@ -8027,13 +8195,6 @@ always sequences
 the <code>init</code> functions: it will not invoke the next one
 until the previous one has returned.
 </p>
-
-<p>
-To ensure reproducible initialization behavior, build systems are encouraged
-to present multiple files belonging to the same package in lexical file name
-order to a compiler.
-</p>
-
 
 <h3 id="Program_execution">Program execution</h3>
 <p>
@@ -8050,8 +8211,8 @@ func main() { … }
 </pre>
 
 <p>
-Program execution begins by initializing the main package and then
-invoking the function <code>main</code>.
+Program execution begins by <a href="#Program_initialization">initializing the program</a>
+and then invoking the function <code>main</code> in package <code>main</code>.
 When that function invocation returns, the program exits.
 It does not wait for other (non-<code>main</code>) goroutines to complete.
 </p>
@@ -8140,8 +8301,8 @@ of if the general conversion rules take care of this.
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be
-<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Core_types">core type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type of core type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -8151,6 +8312,10 @@ bits = *(*uint64)(unsafe.Pointer(&amp;f))
 
 type ptr unsafe.Pointer
 bits = *(*uint64)(ptr(&amp;f))
+
+func f[P ~*B, B any](p P) uintptr {
+	return uintptr(unsafe.Pointer(p))
+}
 
 var p ptr = nil
 </pre>
@@ -8200,7 +8365,8 @@ of constant size.
 
 <p>
 The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
-and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
@@ -8220,7 +8386,8 @@ and whose length and capacity are <code>len</code>.
 <p>
 except that, as a special case, if <code>ptr</code>
 is <code>nil</code> and <code>len</code> is zero,
-<code>Slice</code> returns <code>nil</code>.
+<code>Slice</code> returns <code>nil</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
@@ -8229,14 +8396,16 @@ A constant <code>len</code> argument must be non-negative and <a href="#Represen
 if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
+a <a href="#Run_time_panics">run-time panic</a> occurs
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
 The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
 If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
 If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
-Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <p>
@@ -8245,12 +8414,14 @@ The function <code>String</code> returns a <code>string</code> value whose under
 The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
 <code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
 Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+[<a href="#Go_1.20">Go 1.20</a>]
 </p>
 
 <p>
 The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
 For an empty string the return value is unspecified, and may be <code>nil</code>.
-Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
@@ -8288,3 +8459,284 @@ The following minimal alignment properties are guaranteed:
 <p>
 A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
 </p>
+
+<h2 id="Appendix">Appendix</h2>
+
+<h3 id="Language_versions">Language versions</h3>
+
+<p>
+The <a href="/doc/go1compat">Go 1 compatibility guarantee</a> ensures that
+programs written to the Go 1 specification will continue to compile and run
+correctly, unchanged, over the lifetime of that specification.
+More generally, as adjustements are made and features added to the language,
+the compatibility guarantee ensures that a Go program that works with a
+specific Go language version will continue to work with any subsequent version.
+</p>
+
+<p>
+For instance, the ability to use the prefix <code>0b</code> for binary
+integer literals was introduced with Go 1.13, indicated
+by [<a href="#Go_1.13">Go 1.13</a>] in the section on
+<a href="#Integer_literals">integer literals</a>.
+Source code containing an integer literal such as <code>0b1011</code>
+will be rejected if the implied or required language version used by
+the compiler is older than Go 1.13.
+</p>
+
+<p>
+The following table describes the minimum language version required for
+features introduced after Go 1.
+</p>
+
+<h4 id="Go_1.9">Go 1.9</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may be used to declare an alias name for a type.
+</li>
+</ul>
+
+<h4 id="Go_1.13">Go 1.13</h4>
+<ul>
+<li>
+<a href="#Integer_literals">Integer literals</a> may use the prefixes <code>0b</code>, <code>0B</code>, <code>0o</code>,
+and <code>0O</code> for binary, and octal literals, respectively.
+</li>
+<li>
+Hexadecimal <a href="#Floating-point_literals">floating-point literals</a> may be written using the prefixes
+<code>0x</code> and <code>0X</code>.
+</li>
+<li>
+The <a href="#Imaginary_literals">imaginary suffix</a> <code>i</code> may be used with any (binary, decimal, hexadecimal)
+integer or floating-point literal, not just decimal literals.
+</li>
+<li>
+The digits of any number literal may be <a href="#Integer_literals">separated</a> (grouped)
+using underscores <code>_</code>.
+</li>
+<li>
+The shift count in a <a href="#Operators">shift operation</a> may be a signed integer type.
+</li>
+</ul>
+
+<h4 id="Go_1.14">Go 1.14</h4>
+<ul>
+<li>
+Emdedding a method more than once through different <a href="#Embedded_interfaces">embedded interfaces</a>
+is not an error.
+</li>
+</ul>
+
+<h4 id="Go_1.17">Go 1.17</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array pointer if the slice and array element
+types match, and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>Add</code> and <code>Slice</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.18">Go 1.18</h4>
+<p>
+The 1.18 release adds polymorphic functions and types ("generics") to the language.
+Specifically:
+</p>
+<ul>
+<li>
+The set of <a href="#Operators_and_punctuation">operators and punctuation</a> includes the new token <code>~</code>.
+</li>
+<li>
+Function and type declarations may declare <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+<li>
+Interface types may <a href="#General_interfaces">embed arbitrary types</a> (not just type names of interfaces)
+as well as union and <code>~T</code> type elements.
+</li>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> types includes the new types
+<code>any</code> and <code>comparable</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.20">Go 1.20</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array if the slice and array element
+types match and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>SliceData</code>, <code>String</code>, and <code>StringData</code>.
+</li>
+<li>
+<a href="#Comparison_operators">Comparable types</a> (such as ordinary interfaces) may satisfy
+<code>comparable</code> constraints, even if the type arguments are not strictly comparable.
+</li>
+</ul>
+
+<h4 id="Go_1.21">Go 1.21</h4>
+<ul>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> functions includes the new functions
+<code>min</code>, <code>max</code>, and <code>clear</code>.
+</li>
+<li>
+<a href="#Type_inference">Type inference</a> uses the types of interface methods for inference.
+It also infers type arguments for generic functions assigned to variables or
+passed as arguments to other (possibly generic) functions.
+</li>
+</ul>
+
+<h4 id="Go_1.22">Go 1.22</h4>
+<ul>
+<li>
+In a <a href="#For_statements">"for" statement</a>, each iteration has its own set of iteration
+variables rather than sharing the same variables in each iteration.
+</li>
+<li>
+A "for" statement with <a href="#For_range">"range" clause</a> may iterate over
+integer values from zero to an upper limit.
+</li>
+</ul>
+
+<h3 id="Type_unification_rules">Type unification rules</h3>
+
+<p>
+The type unification rules describe if and how two types unify.
+The precise details are relevant for Go implementations,
+affect the specifics of error messages (such as whether
+a compiler reports a type inference or other error),
+and may explain why type inference fails in unusual code situations.
+But by and large these rules can be ignored when writing Go code:
+type inference is designed to mostly "work as expected",
+and the unification rules are fine-tuned accordingly.
+</p>
+
+<p>
+Type unification is controlled by a <i>matching mode</i>, which may
+be <i>exact</i> or <i>loose</i>.
+As unification recursively descends a composite type structure,
+the matching mode used for elements of the type, the <i>element matching mode</i>,
+remains the same as the matching mode except when two types are unified for
+<a href="#Assignability">assignability</a> (<code>≡<sub>A</sub></code>):
+in this case, the matching mode is <i>loose</i> at the top level but
+then changes to <i>exact</i> for element types, reflecting the fact
+that types don't have to be identical to be assignable.
+</p>
+
+<p>
+Two types that are not bound type parameters unify exactly if any of
+following conditions is true:
+</p>
+
+<ul>
+<li>
+	Both types are <a href="#Type_identity">identical</a>.
+</li>
+<li>
+	Both types have identical structure and their element types
+	unify exactly.
+</li>
+<li>
+	Exactly one type is an <a href="#Type_inference">unbound</a>
+	type parameter with a <a href="#Core_types">core type</a>,
+	and that core type unifies with the other type per the
+	unification rules for <code>≡<sub>A</sub></code>
+	(loose unification at the top level and exact unification
+	for element types).
+</li>
+</ul>
+
+<p>
+If both types are bound type parameters, they unify per the given
+matching modes if:
+</p>
+
+<ul>
+<li>
+	Both type parameters are identical.
+</li>
+<li>
+	At most one of the type parameters has a known type argument.
+	In this case, the type parameters are <i>joined</i>:
+	they both stand for the same type argument.
+	If neither type parameter has a known type argument yet,
+	a future type argument inferred for one the type parameters
+	is simultaneously inferred for both of them.
+</li>
+<li>
+	Both type parameters have a known type argument
+	and the type arguments unify per the given matching modes.
+</li>
+</ul>
+
+<p>
+A single bound type parameter <code>P</code> and another type <code>T</code> unify
+per the given matching modes if:
+</p>
+
+<ul>
+<li>
+	<code>P</code> doesn't have a known type argument.
+	In this case, <code>T</code> is inferred as the type argument for <code>P</code>.
+</li>
+<li>
+	<code>P</code> does have a known type argument <code>A</code>,
+	<code>A</code> and <code>T</code> unify per the given matching modes,
+	and one of the following conditions is true:
+	<ul>
+	<li>
+		Both <code>A</code> and <code>T</code> are interface types:
+		In this case, if both <code>A</code> and <code>T</code> are
+		also <a href="#Type_definitions">defined</a> types,
+		they must be <a href="#Type_identity">identical</a>.
+		Otherwise, if neither of them is a defined type, they must
+		have the same number of methods
+		(unification of <code>A</code> and <code>T</code> already
+		established that the methods match).
+	</li>
+	<li>
+		Neither <code>A</code> nor <code>T</code> are interface types:
+		In this case, if <code>T</code> is a defined type, <code>T</code>
+		replaces <code>A</code> as the inferred type argument for <code>P</code>.
+	</li>
+	</ul>
+</li>
+</ul>
+
+<p>
+Finally, two types that are not bound type parameters unify loosely
+(and per the element matching mode) if:
+</p>
+
+<ul>
+<li>
+	Both types unify exactly.
+</li>
+<li>
+	One type is a <a href="#Type_definitions">defined type</a>,
+	the other type is a type literal, but not an interface,
+	and their underlying types unify per the element matching mode.
+</li>
+<li>
+	Both types are interfaces (but not type parameters) with
+	identical <a href="#Interface_types">type terms</a>,
+	both or neither embed the predeclared type
+	<a href="#Predeclared_identifiers">comparable</a>,
+	corresponding method types unify exactly,
+	and the method set of one of the interfaces is a subset of
+	the method set of the other interface.
+</li>
+<li>
+	Only one type is an interface (but not a type parameter),
+	corresponding methods of the two types unify per the element matching mode,
+	and the method set of the interface is a subset of
+	the method set of the other type.
+</li>
+<li>
+	Both types have the same structure and their element types
+	unify per the element matching mode.
+</li>
+</ul>

@@ -48,9 +48,9 @@ var (
 	traceFile *os.File
 	traceMu   sync.Mutex
 
-	gofsystrace      = godebug.New("gofsystrace")
-	gofsystracelog   = godebug.New("gofsystracelog")
-	gofsystracestack = godebug.New("gofsystracestack")
+	gofsystrace      = godebug.New("#gofsystrace")
+	gofsystracelog   = godebug.New("#gofsystracelog")
+	gofsystracestack = godebug.New("#gofsystracestack")
 )
 
 func init() {
@@ -583,6 +583,10 @@ func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
 func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
 func (f fakeFile) Sys() any           { return f.real.Sys() }
 
+func (f fakeFile) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // missingFile provides an fs.FileInfo for an overlaid file where the
 // destination file in the overlay doesn't exist. It returns zero values
 // for the fileInfo methods other than Name, set to the file's name, and Mode
@@ -596,6 +600,10 @@ func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
 func (f missingFile) IsDir() bool        { return false }
 func (f missingFile) Sys() any           { return nil }
 
+func (f missingFile) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // fakeDir provides an fs.FileInfo implementation for directories that are
 // implicitly created by overlaid files. Each directory in the
 // path of an overlaid file is considered to exist in the overlay filesystem.
@@ -607,6 +615,10 @@ func (f fakeDir) Mode() fs.FileMode  { return fs.ModeDir | 0500 }
 func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
 func (f fakeDir) IsDir() bool        { return true }
 func (f fakeDir) Sys() any           { return nil }
+
+func (f fakeDir) String() string {
+	return fs.FormatFileInfo(f)
+}
 
 // Glob is like filepath.Glob but uses the overlay file system.
 func Glob(pattern string) (matches []string, err error) {
@@ -678,7 +690,7 @@ func volumeNameLen(path string) int {
 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
 		return 2
 	}
-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+	// is it UNC? https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
 	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
 		!isSlash(path[2]) && path[2] != '.' {
 		// first, leading `\\` and next shouldn't be `\`. its server name.

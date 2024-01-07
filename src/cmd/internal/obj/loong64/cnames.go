@@ -4,11 +4,11 @@
 
 package loong64
 
+// This order should be strictly consistent to that in a.out.go.
 var cnames0 = []string{
 	"NONE",
 	"REG",
 	"FREG",
-	"FCREG",
 	"FCSRREG",
 	"FCCREG",
 	"ZCON",
@@ -37,7 +37,9 @@ var cnames0 = []string{
 	"LOREG",
 	"GOK",
 	"ADDR",
-	"TLS",
+	"TLS_LE",
+	"TLS_IE",
+	"GOTADDR",
 	"TEXTSIZE",
 	"NCLASS",
 }

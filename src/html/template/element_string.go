@@ -4,6 +4,17 @@ package template
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[elementNone-0]
+	_ = x[elementScript-1]
+	_ = x[elementStyle-2]
+	_ = x[elementTextarea-3]
+	_ = x[elementTitle-4]
+}
+
 const _element_name = "elementNoneelementScriptelementStyleelementTextareaelementTitle"
 
 var _element_index = [...]uint8{0, 11, 24, 36, 51, 63}

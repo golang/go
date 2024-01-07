@@ -176,6 +176,10 @@
 // Convert x * -1 to -x.
 (Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) => (Neg(8|16|32|64)  x)
 
+// DeMorgan's Laws
+(And(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (Or(8|16|32|64) <t> x y))
+(Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
+
 // Convert multiplication by a power of two to a shift.
 (Mul8  <t> n (Const8  [c])) && isPowerOfTwo8(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
 (Mul16 <t> n (Const16 [c])) && isPowerOfTwo16(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
@@ -518,8 +522,17 @@
 (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 
+// prefer equalities with zero
 (Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 (Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8)U x (Const(64|32|16|8) <t> [1])) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Leq(64|32|16|8)U (Const(64|32|16|8) <t> [1]) x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+
+// prefer comparisons with zero
+(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) => (Leq(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Leq(64|32|16|8) x (Const(64|32|16|8) <t> [-1])) => (Less(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Leq(64|32|16|8) (Const(64|32|16|8) <t> [1]) x) => (Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8) (Const(64|32|16|8) <t> [-1]) x) => (Leq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 
 // constant floating point comparisons
 (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
@@ -563,6 +576,16 @@
 (Sub(64|32|16|8) (Neg(64|32|16|8) x) (Com(64|32|16|8) x)) => (Const(64|32|16|8) [1])
 (Sub(64|32|16|8) (Com(64|32|16|8) x) (Neg(64|32|16|8) x)) => (Const(64|32|16|8) [-1])
 (Add(64|32|16|8) (Com(64|32|16|8) x)                  x)  => (Const(64|32|16|8) [-1])
+
+// Simplification when involving common integer
+// (t + x) - (t + y) == x - y
+// (t + x) - (y + t) == x - y
+// (x + t) - (y + t) == x - y
+// (x + t) - (t + y) == x - y
+// (x - t) + (t + y) == x + y
+// (x - t) + (y + t) == x + y
+(Sub(64|32|16|8) (Add(64|32|16|8) t x) (Add(64|32|16|8) t y)) => (Sub(64|32|16|8) x y)
+(Add(64|32|16|8) (Sub(64|32|16|8) x t) (Add(64|32|16|8) t y)) => (Add(64|32|16|8) x y)
 
 // ^(x-1) == ^x+1 == -x
 (Add(64|32|16|8) (Const(64|32|16|8) [1]) (Com(64|32|16|8) x)) => (Neg(64|32|16|8) x)
@@ -681,7 +704,7 @@
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
 (Load <t1> op:(OffPtr [o1] p1)
@@ -689,7 +712,7 @@
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
@@ -699,7 +722,7 @@
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -711,7 +734,7 @@
 				(Store {t5} p5 _
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -825,28 +848,28 @@
 (StructSelect [2] (StructMake4 _ _ x _)) => x
 (StructSelect [3] (StructMake4 _ _ _ x)) => x
 
-(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
+(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && CanSSA(t) =>
   (StructMake0)
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && CanSSA(t) =>
   (StructMake1
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && CanSSA(t) =>
   (StructMake2
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && CanSSA(t) =>
   (StructMake3
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && CanSSA(t) =>
   (StructMake4
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
-(StructSelect [i] x:(Load <t> ptr mem)) && !fe.CanSSA(t) =>
+(StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) => mem
@@ -888,9 +911,9 @@
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
-(Store {t} dst (Load src mem) mem) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src mem)
-(Store {t} dst (Load src mem) (VarDef {x} mem)) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) (VarDef {x} mem)) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src (VarDef {x} mem))
 
 // array ops
@@ -899,7 +922,7 @@
 (Load <t> _ _) && t.IsArray() && t.NumElem() == 0 =>
   (ArrayMake0)
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store _ (ArrayMake0) mem) => mem
@@ -958,7 +981,7 @@
     (ConstNil <typ.Uintptr>)
     (ConstNil <typ.BytePtr>))
 
-(NilCheck (GetG mem) mem) => mem
+(NilCheck ptr:(GetG mem) mem) => ptr
 
 (If (Not cond) yes no) => (If cond no yes)
 (If (ConstBool [c]) yes no) && c => (First yes no)
@@ -2032,15 +2055,19 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
 
-(NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
+(NilCheck ptr:(SelectN [0] call:(StaticLECall _ _)) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
 
-(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
+(NilCheck ptr:(OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
+
+// Addresses of globals are always non-nil.
+(NilCheck          ptr:(Addr {_} (SB))    _) => ptr
+(NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by 1, 2, 4, 8 byte sizes
@@ -2049,7 +2076,18 @@
   && symIsRO(scon)
   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
 
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [1]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
+
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config)
+  => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [2]) mem)
   && isSameCall(callAux, "runtime.memequal")
   && symIsRO(scon)
   && canLoadUnaligned(config)
@@ -2061,31 +2099,46 @@
   && canLoadUnaligned(config)
   => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
 
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [4]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config)
+  => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
   && isSameCall(callAux, "runtime.memequal")
   && symIsRO(scon)
   && canLoadUnaligned(config) && config.PtrSize == 8
   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
 
+(StaticLECall {callAux} (Addr {scon} (SB)) sptr (Const64 [8]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && symIsRO(scon)
+  && canLoadUnaligned(config) && config.PtrSize == 8
+  => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+
+(StaticLECall {callAux} _ _ (Const64 [0]) mem)
+  && isSameCall(callAux, "runtime.memequal")
+  => (MakeResult (ConstBool <typ.Bool> [true]) mem)
+
+(Static(Call|LECall) {callAux} p q _ mem)
+  && isSameCall(callAux, "runtime.memequal")
+  && isSamePtr(p, q)
+  => (MakeResult (ConstBool <typ.Bool> [true]) mem)
+
 // Turn known-size calls to memclrNoHeapPointers into a Zero.
 // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
 (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
-  && isInlinableMemclr(config)
+  && isInlinableMemclr(config, int64(c))
   && isSameCall(sym, "runtime.memclrNoHeapPointers")
   && call.Uses == 1
   && clobber(call)
   => (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
 
 // Recognise make([]T, 0) and replace it with a pointer to the zerobase
-(SelectN [0] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) _))
-	&& isSameCall(call.Aux, "runtime.makeslice")
-	&& clobberIfDead(call)
-	=> (Addr {ir.Syms.Zerobase} (SB))
-
-(SelectN [1] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) mem))
-	&& isSameCall(call.Aux, "runtime.makeslice")
-	&& clobberIfDead(call)
-	=> mem
+(StaticLECall {callAux} _ (Const(64|32) [0]) (Const(64|32) [0]) mem)
+	&& isSameCall(callAux, "runtime.makeslice")
+	=> (MakeResult (Addr <v.Type.FieldType(0)> {ir.Syms.Zerobase} (SB)) mem)
 
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])
@@ -2108,6 +2161,8 @@
 (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 != o2])
 (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c == d])
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c != d])
+(EqPtr  (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x==y])
+(NeqPtr (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x!=y])
 
 (EqPtr  (LocalAddr _ _) (Addr _)) => (ConstBool [false])
 (EqPtr  (OffPtr (LocalAddr _ _)) (Addr _)) => (ConstBool [false])
@@ -2129,7 +2184,8 @@
 // Evaluate constant user nil checks.
 (IsNonNil (ConstNil)) => (ConstBool [false])
 (IsNonNil (Const(32|64) [c])) => (ConstBool [c != 0])
-(IsNonNil (Addr _)) => (ConstBool [true])
+(IsNonNil          (Addr _)   ) => (ConstBool [true])
+(IsNonNil (Convert (Addr _) _)) => (ConstBool [true])
 (IsNonNil (LocalAddr _ _)) => (ConstBool [true])
 
 // Inline small or disjoint runtime.memmove calls with constant length.
@@ -2172,11 +2228,7 @@
 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
 // De-virtualize late-expanded interface calls into late-expanded static calls.
-// Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
-// so this rule should trigger reliably.
-// devirtLECall removes the first argument, adds the devirtualized symbol to the AuxCall, and changes the opcode
-(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) ___) && devirtLESym(v, auxCall, itab, off) !=
-    nil => devirtLECall(v, devirtLESym(v, auxCall, itab, off))
+(InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___) => devirtLECall(v, fn.(*obj.LSym))
 
 // Move and Zero optimizations.
 // Move source and destination may overlap.
@@ -2561,7 +2613,7 @@
 (SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
 (SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
 
-// When rewriting append to growslice, we use as the the new length the result of
+// When rewriting append to growslice, we use as the new length the result of
 // growslice so that we don't have to spill/restore the new length around the growslice call.
 // The exception here is that if the new length is a constant, avoiding spilling it
 // is pointless and its constantness is sometimes useful for subsequent optimizations.
@@ -2690,3 +2742,15 @@
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 4 && d.Type.Size() == 4 => (RotateLeft(64|32|16|8) x (Add32 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
+
+// Loading constant values from dictionaries and itabs.
+(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+
+// Loading constant values from runtime._type.hash.
+(Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])

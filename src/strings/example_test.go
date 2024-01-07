@@ -80,6 +80,17 @@ func ExampleContainsRune() {
 	// false
 }
 
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r == 'a' || r == 'e' || r == 'i' || r == 'o' || r == 'u'
+	}
+	fmt.Println(strings.ContainsFunc("hello", f))
+	fmt.Println(strings.ContainsFunc("rhythms", f))
+	// Output:
+	// true
+	// false
+}
+
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune

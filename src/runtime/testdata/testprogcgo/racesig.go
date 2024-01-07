@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (linux && amd64) || (freebsd && amd64)
-// +build linux,amd64 freebsd,amd64
+//go:build unix
+// +build unix
 
 package main
 
@@ -81,8 +81,6 @@ import "C"
 
 import (
 	"fmt"
-	"os"
-	"time"
 )
 
 func init() {
@@ -90,14 +88,6 @@ func init() {
 }
 
 func CgoRaceSignal() {
-	// The failure symptom is that the program hangs because of a
-	// deadlock in malloc, so set an alarm.
-	go func() {
-		time.Sleep(5 * time.Second)
-		fmt.Println("Hung for 5 seconds")
-		os.Exit(1)
-	}()
-
 	C.runRaceSignalThread()
 	fmt.Println("OK")
 }

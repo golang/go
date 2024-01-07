@@ -23,7 +23,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -245,7 +244,7 @@ func (h *Header) Read(r *Reader) error {
 }
 
 func (h *Header) Size() int {
-	return len(h.Magic) + 4 + 4*len(h.Offsets)
+	return len(h.Magic) + len(h.Fingerprint) + 4 + 4*len(h.Offsets)
 }
 
 // Autolib
@@ -303,6 +302,7 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagPkgInit
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +333,7 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -440,6 +441,8 @@ const (
 	AuxPcline
 	AuxPcinline
 	AuxPcdata
+	AuxWasmImport
+	AuxSehUnwindInfo
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
@@ -658,13 +661,7 @@ func toString(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
-
-	var s string
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[0])
-	hdr.Len = len(b)
-
-	return s
+	return unsafe.String(&b[0], len(b))
 }
 
 func (r *Reader) StringRef(off uint32) string {
@@ -847,6 +844,15 @@ func (r *Reader) Data(i uint32) []byte {
 	off := r.uint32At(dataIdxOff)
 	end := r.uint32At(dataIdxOff + 4)
 	return r.BytesAt(base+off, int(end-off))
+}
+
+// DataString returns the i-th symbol's data as a string.
+func (r *Reader) DataString(i uint32) string {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.StringAt(base+off, end-off)
 }
 
 // NRefName returns the number of referenced symbol names.

@@ -16,9 +16,11 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math/big"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -43,33 +45,45 @@ var verifyTests = []verifyTest{
 	{
 		name:          "Valid",
 		leaf:          googleLeaf,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "www.google.com",
 
 		expectedChains: [][]string{
-			{"Google", "Google Internet Authority", "GeoTrust"},
+			{"www.google.com", "GTS CA 1C3", "GTS Root R1"},
+		},
+	},
+	{
+		name:          "Valid (fqdn)",
+		leaf:          googleLeaf,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
+		dnsName:       "www.google.com.",
+
+		expectedChains: [][]string{
+			{"www.google.com", "GTS CA 1C3", "GTS Root R1"},
 		},
 	},
 	{
 		name:          "MixedCase",
 		leaf:          googleLeaf,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "WwW.GooGLE.coM",
 
 		expectedChains: [][]string{
-			{"Google", "Google Internet Authority", "GeoTrust"},
+			{"www.google.com", "GTS CA 1C3", "GTS Root R1"},
 		},
 	},
 	{
 		name:          "HostnameMismatch",
 		leaf:          googleLeaf,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "www.example.com",
 
 		errorCallback: expectHostnameError("certificate is valid for"),
@@ -77,9 +91,9 @@ var verifyTests = []verifyTest{
 	{
 		name:          "IPMissing",
 		leaf:          googleLeaf,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "1.2.3.4",
 
 		errorCallback: expectHostnameError("doesn't contain any IP SANs"),
@@ -87,8 +101,8 @@ var verifyTests = []verifyTest{
 	{
 		name:          "Expired",
 		leaf:          googleLeaf,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
 		currentTime:   1,
 		dnsName:       "www.example.com",
 
@@ -97,8 +111,8 @@ var verifyTests = []verifyTest{
 	{
 		name:        "MissingIntermediate",
 		leaf:        googleLeaf,
-		roots:       []string{geoTrustRoot},
-		currentTime: 1395785200,
+		roots:       []string{gtsRoot},
+		currentTime: 1677615892,
 		dnsName:     "www.google.com",
 
 		// Skip when using systemVerify, since Windows
@@ -109,13 +123,13 @@ var verifyTests = []verifyTest{
 	{
 		name:          "RootInIntermediates",
 		leaf:          googleLeaf,
-		intermediates: []string{geoTrustRoot, giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsRoot, gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "www.google.com",
 
 		expectedChains: [][]string{
-			{"Google", "Google Internet Authority", "GeoTrust"},
+			{"www.google.com", "GTS CA 1C3", "GTS Root R1"},
 		},
 		// CAPI doesn't build the chain with the duplicated GeoTrust
 		// entry so the results don't match.
@@ -163,9 +177,9 @@ var verifyTests = []verifyTest{
 	{
 		name:          "InvalidHash",
 		leaf:          googleLeafWithInvalidHash,
-		intermediates: []string{giag2Intermediate},
-		roots:         []string{geoTrustRoot},
-		currentTime:   1395785200,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
 		dnsName:       "www.google.com",
 
 		// The specific error message may not occur when using system
@@ -230,21 +244,20 @@ var verifyTests = []verifyTest{
 		// Check that SHA-384 intermediates (which are popping up)
 		// work.
 		name:          "SHA-384",
-		leaf:          moipLeafCert,
-		intermediates: []string{comodoIntermediateSHA384, comodoRSAAuthority},
-		roots:         []string{addTrustRoot},
-		currentTime:   1397502195,
-		dnsName:       "api.moip.com.br",
+		leaf:          trustAsiaLeaf,
+		intermediates: []string{trustAsiaSHA384Intermediate},
+		roots:         []string{digicertRoot},
+		currentTime:   1558051200,
+		dnsName:       "tm.cn",
 
 		// CryptoAPI can find alternative validation paths.
 		systemLax: true,
 
 		expectedChains: [][]string{
 			{
-				"api.moip.com.br",
-				"COMODO RSA Extended Validation Secure Server CA",
-				"COMODO RSA Certification Authority",
-				"AddTrust External CA Root",
+				"tm.cn",
+				"TrustAsia ECC OV TLS Pro CA",
+				"DigiCert Global Root CA",
 			},
 		},
 	},
@@ -357,7 +370,7 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		// When there are two parents, one with a incorrect subject but matching SKID
+		// When there are two parents, one with an incorrect subject but matching SKID
 		// and one with a correct subject but missing SKID, the latter should be
 		// considered as a possible parent.
 		leaf:        leafMatchingAKIDMatchingIssuer,
@@ -501,22 +514,21 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 		return true
 	}
 
-	// Every expected chain should match 1 returned chain
+	// Every expected chain should match one (or more) returned chain. We tolerate multiple
+	// matches, as due to root store semantics it is plausible that (at least on the system
+	// verifiers) multiple identical (looking) chains may be returned when two roots with the
+	// same subject are present.
 	for _, expectedChain := range test.expectedChains {
-		nChainMatched := 0
+		var match bool
 		for _, chain := range chains {
 			if doesMatch(expectedChain, chain) {
-				nChainMatched++
+				match = true
+				break
 			}
 		}
 
-		if nChainMatched != 1 {
-			t.Errorf("Got %v matches instead of %v for expected chain %v", nChainMatched, 1, expectedChain)
-			for _, chain := range chains {
-				if doesMatch(expectedChain, chain) {
-					t.Errorf("\t matched %v", chainToDebugString(chain))
-				}
-			}
+		if !match {
+			t.Errorf("No match found for %v", expectedChain)
 		}
 	}
 
@@ -582,106 +594,135 @@ func nameToKey(name *pkix.Name) string {
 	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 
-const geoTrustRoot = `-----BEGIN CERTIFICATE-----
-MIIDVDCCAjygAwIBAgIDAjRWMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT
-MRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i
-YWwgQ0EwHhcNMDIwNTIxMDQwMDAwWhcNMjIwNTIxMDQwMDAwWjBCMQswCQYDVQQG
-EwJVUzEWMBQGA1UEChMNR2VvVHJ1c3QgSW5jLjEbMBkGA1UEAxMSR2VvVHJ1c3Qg
-R2xvYmFsIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2swYYzD9
-9BcjGlZ+W988bDjkcbd4kdS8odhM+KhDtgPpTSEHCIjaWC9mOSm9BXiLnTjoBbdq
-fnGk5sRgprDvgOSJKA+eJdbtg/OtppHHmMlCGDUUna2YRpIuT8rxh0PBFpVXLVDv
-iS2Aelet8u5fa9IAjbkU+BQVNdnARqN7csiRv8lVK83Qlz6cJmTM386DGXHKTubU
-1XupGc1V3sjs0l44U+VcT4wt/lAjNvxm5suOpDkZALeVAjmRCw7+OC7RHQWa9k0+
-bw8HHa8sHo9gOeL6NlMTOdReJivbPagUvTLrGAMoUgRx5aszPeE4uwc2hGKceeoW
-MPRfwCvocWvk+QIDAQABo1MwUTAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTA
-ephojYn7qwVkDBF9qn1luMrMTjAfBgNVHSMEGDAWgBTAephojYn7qwVkDBF9qn1l
-uMrMTjANBgkqhkiG9w0BAQUFAAOCAQEANeMpauUvXVSOKVCUn5kaFOSPeCpilKIn
-Z57QzxpeR+nBsqTP3UEaBU6bS+5Kb1VSsyShNwrrZHYqLizz/Tt1kL/6cdjHPTfS
-tQWVYrmm3ok9Nns4d0iXrKYgjy6myQzCsplFAMfOEVEiIuCl6rYVSAlk6l5PdPcF
-PseKUgzbFbS9bZvlxrFUaKnjaZC2mqUPuLk/IH2uSrW4nOQdtqvmlKXBx4Ot2/Un
-hw4EbNX/3aBd7YdStysVAq45pmp06drE57xNNB6pXE0zX5IJL4hmXXeXxx12E6nV
-5fEWCRE11azbJHFwLJhWC9kXtNHjUStedejV0NxPNO3CBWaAocvmMw==
+const gtsIntermediate = `-----BEGIN CERTIFICATE-----
+MIIFljCCA36gAwIBAgINAgO8U1lrNMcY9QFQZjANBgkqhkiG9w0BAQsFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMjAwODEzMDAwMDQyWhcNMjcwOTMwMDAw
+MDQyWjBGMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzETMBEGA1UEAxMKR1RTIENBIDFDMzCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBAPWI3+dijB43+DdCkH9sh9D7ZYIl/ejLa6T/belaI+KZ9hzp
+kgOZE3wJCor6QtZeViSqejOEH9Hpabu5dOxXTGZok3c3VVP+ORBNtzS7XyV3NzsX
+lOo85Z3VvMO0Q+sup0fvsEQRY9i0QYXdQTBIkxu/t/bgRQIh4JZCF8/ZK2VWNAcm
+BA2o/X3KLu/qSHw3TT8An4Pf73WELnlXXPxXbhqW//yMmqaZviXZf5YsBvcRKgKA
+gOtjGDxQSYflispfGStZloEAoPtR28p3CwvJlk/vcEnHXG0g/Zm0tOLKLnf9LdwL
+tmsTDIwZKxeWmLnwi/agJ7u2441Rj72ux5uxiZ0CAwEAAaOCAYAwggF8MA4GA1Ud
+DwEB/wQEAwIBhjAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwEgYDVR0T
+AQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQUinR/r4XN7pXNPZzQ4kYU83E1HScwHwYD
+VR0jBBgwFoAU5K8rJnEaK0gnhS9SZizv8IkTcT4waAYIKwYBBQUHAQEEXDBaMCYG
+CCsGAQUFBzABhhpodHRwOi8vb2NzcC5wa2kuZ29vZy9ndHNyMTAwBggrBgEFBQcw
+AoYkaHR0cDovL3BraS5nb29nL3JlcG8vY2VydHMvZ3RzcjEuZGVyMDQGA1UdHwQt
+MCswKaAnoCWGI2h0dHA6Ly9jcmwucGtpLmdvb2cvZ3RzcjEvZ3RzcjEuY3JsMFcG
+A1UdIARQME4wOAYKKwYBBAHWeQIFAzAqMCgGCCsGAQUFBwIBFhxodHRwczovL3Br
+aS5nb29nL3JlcG9zaXRvcnkvMAgGBmeBDAECATAIBgZngQwBAgIwDQYJKoZIhvcN
+AQELBQADggIBAIl9rCBcDDy+mqhXlRu0rvqrpXJxtDaV/d9AEQNMwkYUuxQkq/BQ
+cSLbrcRuf8/xam/IgxvYzolfh2yHuKkMo5uhYpSTld9brmYZCwKWnvy15xBpPnrL
+RklfRuFBsdeYTWU0AIAaP0+fbH9JAIFTQaSSIYKCGvGjRFsqUBITTcFTNvNCCK9U
++o53UxtkOCcXCb1YyRt8OS1b887U7ZfbFAO/CVMkH8IMBHmYJvJh8VNS/UKMG2Yr
+PxWhu//2m+OBmgEGcYk1KCTd4b3rGS3hSMs9WYNRtHTGnXzGsYZbr8w0xNPM1IER
+lQCh9BIiAfq0g3GvjLeMcySsN1PCAJA/Ef5c7TaUEDu9Ka7ixzpiO2xj2YC/WXGs
+Yye5TBeg2vZzFb8q3o/zpWwygTMD0IZRcZk0upONXbVRWPeyk+gB9lm+cZv9TSjO
+z23HFtz30dZGm6fKa+l3D/2gthsjgx0QGtkJAITgRNOidSOzNIb2ILCkXhAd4FJG
+AJ2xDx8hcFH1mt0G/FX0Kw4zd8NLQsLxdxP8c4CU6x+7Nz/OAipmsHMdMqUybDKw
+juDEI/9bfU1lcKwrmz3O2+BtjjKAvpafkmO8l7tdufThcV4q5O8DIrGKZTqPwJNl
+1IXNDw9bg1kWRxYtnCQ6yICmJhSFm/Y3m6xv+cXDBlHz4n/FsRC6UfTd
 -----END CERTIFICATE-----`
 
-const giag2Intermediate = `-----BEGIN CERTIFICATE-----
-MIIEBDCCAuygAwIBAgIDAjppMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT
-MRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i
-YWwgQ0EwHhcNMTMwNDA1MTUxNTU1WhcNMTUwNDA0MTUxNTU1WjBJMQswCQYDVQQG
-EwJVUzETMBEGA1UEChMKR29vZ2xlIEluYzElMCMGA1UEAxMcR29vZ2xlIEludGVy
-bmV0IEF1dGhvcml0eSBHMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
-AJwqBHdc2FCROgajguDYUEi8iT/xGXAaiEZ+4I/F8YnOIe5a/mENtzJEiaB0C1NP
-VaTOgmKV7utZX8bhBYASxF6UP7xbSDj0U/ck5vuR6RXEz/RTDfRK/J9U3n2+oGtv
-h8DQUB8oMANA2ghzUWx//zo8pzcGjr1LEQTrfSTe5vn8MXH7lNVg8y5Kr0LSy+rE
-ahqyzFPdFUuLH8gZYR/Nnag+YyuENWllhMgZxUYi+FOVvuOAShDGKuy6lyARxzmZ
-EASg8GF6lSWMTlJ14rbtCMoU/M4iarNOz0YDl5cDfsCx3nuvRTPPuj5xt970JSXC
-DTWJnZ37DhF5iR43xa+OcmkCAwEAAaOB+zCB+DAfBgNVHSMEGDAWgBTAephojYn7
-qwVkDBF9qn1luMrMTjAdBgNVHQ4EFgQUSt0GFhu89mi1dvWBtrtiGrpagS8wEgYD
-VR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAQYwOgYDVR0fBDMwMTAvoC2g
-K4YpaHR0cDovL2NybC5nZW90cnVzdC5jb20vY3Jscy9ndGdsb2JhbC5jcmwwPQYI
-KwYBBQUHAQEEMTAvMC0GCCsGAQUFBzABhiFodHRwOi8vZ3RnbG9iYWwtb2NzcC5n
-ZW90cnVzdC5jb20wFwYDVR0gBBAwDjAMBgorBgEEAdZ5AgUBMA0GCSqGSIb3DQEB
-BQUAA4IBAQA21waAESetKhSbOHezI6B1WLuxfoNCunLaHtiONgaX4PCVOzf9G0JY
-/iLIa704XtE7JW4S615ndkZAkNoUyHgN7ZVm2o6Gb4ChulYylYbc3GrKBIxbf/a/
-zG+FA1jDaFETzf3I93k9mTXwVqO94FntT0QJo544evZG0R0SnU++0ED8Vf4GXjza
-HFa9llF7b1cq26KqltyMdMKVvvBulRP/F/A8rLIQjcxz++iPAsbw+zOzlTvjwsto
-WHPbqCRiOwY1nQ2pM714A5AuTHhdUDqB1O6gyHA43LL5Z/qHQF1hwFGPa4NrzQU6
-yuGnBXj8ytqU0CwIPX4WecigUCAkVDNx
+const gtsRoot = `-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
 -----END CERTIFICATE-----`
 
 const googleLeaf = `-----BEGIN CERTIFICATE-----
-MIIEdjCCA16gAwIBAgIIcR5k4dkoe04wDQYJKoZIhvcNAQEFBQAwSTELMAkGA1UE
-BhMCVVMxEzARBgNVBAoTCkdvb2dsZSBJbmMxJTAjBgNVBAMTHEdvb2dsZSBJbnRl
-cm5ldCBBdXRob3JpdHkgRzIwHhcNMTQwMzEyMDkzODMwWhcNMTQwNjEwMDAwMDAw
-WjBoMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwN
-TW91bnRhaW4gVmlldzETMBEGA1UECgwKR29vZ2xlIEluYzEXMBUGA1UEAwwOd3d3
-Lmdvb2dsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC4zYCe
-m0oUBhwE0EwBr65eBOcgcQO2PaSIAB2dEP/c1EMX2tOy0ov8rk83ePhJ+MWdT1z6
-jge9X4zQQI8ZyA9qIiwrKBZOi8DNUvrqNZC7fJAVRrb9aX/99uYOJCypIbpmWG1q
-fhbHjJewhwf8xYPj71eU4rLG80a+DapWmphtfq3h52lDQIBzLVf1yYbyrTaELaz4
-NXF7HXb5YkId/gxIsSzM0aFUVu2o8sJcLYAsJqwfFKBKOMxUcn545nlspf0mTcWZ
-0APlbwsKznNs4/xCDwIxxWjjqgHrYAFl6y07i1gzbAOqdNEyR24p+3JWI8WZBlBI
-dk2KGj0W1fIfsvyxAgMBAAGjggFBMIIBPTAdBgNVHSUEFjAUBggrBgEFBQcDAQYI
-KwYBBQUHAwIwGQYDVR0RBBIwEIIOd3d3Lmdvb2dsZS5jb20waAYIKwYBBQUHAQEE
-XDBaMCsGCCsGAQUFBzAChh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRzIuY3J0
-MCsGCCsGAQUFBzABhh9odHRwOi8vY2xpZW50czEuZ29vZ2xlLmNvbS9vY3NwMB0G
-A1UdDgQWBBTXD5Bx6iqT+dmEhbFL4OUoHyZn8zAMBgNVHRMBAf8EAjAAMB8GA1Ud
-IwQYMBaAFErdBhYbvPZotXb1gba7Yhq6WoEvMBcGA1UdIAQQMA4wDAYKKwYBBAHW
-eQIFATAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lB
-RzIuY3JsMA0GCSqGSIb3DQEBBQUAA4IBAQCR3RJtHzgDh33b/MI1ugiki+nl8Ikj
-5larbJRE/rcA5oite+QJyAr6SU1gJJ/rRrK3ItVEHr9L621BCM7GSdoNMjB9MMcf
-tJAW0kYGJ+wqKm53wG/JaOADTnnq2Mt/j6F2uvjgN/ouns1nRHufIvd370N0LeH+
-orKqTuAPzXK7imQk6+OycYABbqCtC/9qmwRd8wwn7sF97DtYfK8WuNHtFalCAwyi
-8LxJJYJCLWoMhZ+V8GZm+FOex5qkQAjnZrtNlbQJ8ro4r+rpKXtmMFFhfa+7L+PA
-Kom08eUK8skxAzfDDijZPh10VtJ66uBoiDPdT+uCBehcBIcmSTrKjFGX
+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
+i8eNLnKL9PXQ+5SwJFCzfEhcIZuhzg==
 -----END CERTIFICATE-----`
 
 // googleLeafWithInvalidHash is the same as googleLeaf, but the signature
 // algorithm in the certificate contains a nonsense OID.
 const googleLeafWithInvalidHash = `-----BEGIN CERTIFICATE-----
-MIIEdjCCA16gAwIBAgIIcR5k4dkoe04wDQYJKoZIhvcNAWAFBQAwSTELMAkGA1UE
-BhMCVVMxEzARBgNVBAoTCkdvb2dsZSBJbmMxJTAjBgNVBAMTHEdvb2dsZSBJbnRl
-cm5ldCBBdXRob3JpdHkgRzIwHhcNMTQwMzEyMDkzODMwWhcNMTQwNjEwMDAwMDAw
-WjBoMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwN
-TW91bnRhaW4gVmlldzETMBEGA1UECgwKR29vZ2xlIEluYzEXMBUGA1UEAwwOd3d3
-Lmdvb2dsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC4zYCe
-m0oUBhwE0EwBr65eBOcgcQO2PaSIAB2dEP/c1EMX2tOy0ov8rk83ePhJ+MWdT1z6
-jge9X4zQQI8ZyA9qIiwrKBZOi8DNUvrqNZC7fJAVRrb9aX/99uYOJCypIbpmWG1q
-fhbHjJewhwf8xYPj71eU4rLG80a+DapWmphtfq3h52lDQIBzLVf1yYbyrTaELaz4
-NXF7HXb5YkId/gxIsSzM0aFUVu2o8sJcLYAsJqwfFKBKOMxUcn545nlspf0mTcWZ
-0APlbwsKznNs4/xCDwIxxWjjqgHrYAFl6y07i1gzbAOqdNEyR24p+3JWI8WZBlBI
-dk2KGj0W1fIfsvyxAgMBAAGjggFBMIIBPTAdBgNVHSUEFjAUBggrBgEFBQcDAQYI
-KwYBBQUHAwIwGQYDVR0RBBIwEIIOd3d3Lmdvb2dsZS5jb20waAYIKwYBBQUHAQEE
-XDBaMCsGCCsGAQUFBzAChh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRzIuY3J0
-MCsGCCsGAQUFBzABhh9odHRwOi8vY2xpZW50czEuZ29vZ2xlLmNvbS9vY3NwMB0G
-A1UdDgQWBBTXD5Bx6iqT+dmEhbFL4OUoHyZn8zAMBgNVHRMBAf8EAjAAMB8GA1Ud
-IwQYMBaAFErdBhYbvPZotXb1gba7Yhq6WoEvMBcGA1UdIAQQMA4wDAYKKwYBBAHW
-eQIFATAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lB
-RzIuY3JsMA0GCSqGSIb3DQFgBQUAA4IBAQCR3RJtHzgDh33b/MI1ugiki+nl8Ikj
-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
+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
+i8eNLnKL9PXQ+5SwJFCzfEhcIZuhzg==
 -----END CERTIFICATE-----`
 
 const dnssecExpLeaf = `-----BEGIN CERTIFICATE-----
@@ -1095,136 +1136,81 @@ DKqC5JlR3XC321Y9YeRq4VzW9v493kHMB65jUr9TU/Qr6cf9tveCX4XSQRjbgbME
 HMUfpIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
 -----END CERTIFICATE-----`
 
-var moipLeafCert = `-----BEGIN CERTIFICATE-----
-MIIGQDCCBSigAwIBAgIRAPe/cwh7CUWizo8mYSDavLIwDQYJKoZIhvcNAQELBQAw
-gZIxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAO
-BgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBMaW1pdGVkMTgwNgYD
-VQQDEy9DT01PRE8gUlNBIEV4dGVuZGVkIFZhbGlkYXRpb24gU2VjdXJlIFNlcnZl
-ciBDQTAeFw0xMzA4MTUwMDAwMDBaFw0xNDA4MTUyMzU5NTlaMIIBQjEXMBUGA1UE
-BRMOMDg3MTg0MzEwMDAxMDgxEzARBgsrBgEEAYI3PAIBAxMCQlIxGjAYBgsrBgEE
-AYI3PAIBAhMJU2FvIFBhdWxvMR0wGwYDVQQPExRQcml2YXRlIE9yZ2FuaXphdGlv
-bjELMAkGA1UEBhMCQlIxETAPBgNVBBETCDAxNDUyMDAwMRIwEAYDVQQIEwlTYW8g
-UGF1bG8xEjAQBgNVBAcTCVNhbyBQYXVsbzEtMCsGA1UECRMkQXZlbmlkYSBCcmln
-YWRlaXJvIEZhcmlhIExpbWEgLCAyOTI3MR0wGwYDVQQKExRNb2lwIFBhZ2FtZW50
-b3MgUy5BLjENMAsGA1UECxMETU9JUDEYMBYGA1UECxMPU1NMIEJsaW5kYWRvIEVW
-MRgwFgYDVQQDEw9hcGkubW9pcC5jb20uYnIwggEiMA0GCSqGSIb3DQEBAQUAA4IB
-DwAwggEKAoIBAQDN0b9x6TrXXA9hPCF8/NjqGJ++2D4LO4ZiMFTjs0VwpXy2Y1Oe
-s74/HuiLGnAHxTmAtV7IpZMibiOcTxcnDYp9oEWkf+gR+hZvwFZwyOBC7wyb3SR3
-UvV0N1ZbEVRYpN9kuX/3vjDghjDmzzBwu8a/T+y5JTym5uiJlngVAWyh/RjtIvYi
-+NVkQMbyVlPGkoCe6c30pH8DKYuUCZU6DHjUsPTX3jAskqbhDSAnclX9iX0p2bmw
-KVBc+5Vh/2geyzDuquF0w+mNIYdU5h7uXvlmJnf3d2Cext5dxdL8/jezD3U0dAqI
-pYSKERbyxSkJWxdvRlhdpM9YXMJcpc88xNp1AgMBAAGjggHcMIIB2DAfBgNVHSME
-GDAWgBQ52v/KKBSKqHQTCLnkDqnS+n6daTAdBgNVHQ4EFgQU/lXuOa7DMExzZjRj
-LQWcMWGZY7swDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwHQYDVR0lBBYw
-FAYIKwYBBQUHAwEGCCsGAQUFBwMCMEYGA1UdIAQ/MD0wOwYMKwYBBAGyMQECAQUB
-MCswKQYIKwYBBQUHAgEWHWh0dHBzOi8vc2VjdXJlLmNvbW9kby5jb20vQ1BTMFYG
-A1UdHwRPME0wS6BJoEeGRWh0dHA6Ly9jcmwuY29tb2RvY2EuY29tL0NPTU9ET1JT
-QUV4dGVuZGVkVmFsaWRhdGlvblNlY3VyZVNlcnZlckNBLmNybDCBhwYIKwYBBQUH
-AQEEezB5MFEGCCsGAQUFBzAChkVodHRwOi8vY3J0LmNvbW9kb2NhLmNvbS9DT01P
-RE9SU0FFeHRlbmRlZFZhbGlkYXRpb25TZWN1cmVTZXJ2ZXJDQS5jcnQwJAYIKwYB
-BQUHMAGGGGh0dHA6Ly9vY3NwLmNvbW9kb2NhLmNvbTAvBgNVHREEKDAmgg9hcGku
-bW9pcC5jb20uYnKCE3d3dy5hcGkubW9pcC5jb20uYnIwDQYJKoZIhvcNAQELBQAD
-ggEBAFoTmPlaDcf+nudhjXHwud8g7/LRyA8ucb+3/vfmgbn7FUc1eprF5sJS1mA+
-pbiTyXw4IxcJq2KUj0Nw3IPOe9k84mzh+XMmdCKH+QK3NWkE9Udz+VpBOBc0dlqC
-1RH5umStYDmuZg/8/r652eeQ5kUDcJyADfpKWBgDPYaGtwzKVT4h3Aok9SLXRHx6
-z/gOaMjEDMarMCMw4VUIG1pvNraZrG5oTaALPaIXXpd8VqbQYPudYJ6fR5eY3FeW
-H/ofbYFdRcuD26MfBFWE9VGGral9Fgo8sEHffho+UWhgApuQV4/l5fMzxB5YBXyQ
-jhuy8PqqZS9OuLilTeLu4a8z2JI=
+const digicertRoot = `-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
+CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
+nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
+43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
+T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
+gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
+BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
+TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
+DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
+hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
+06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
+PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
+YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
 -----END CERTIFICATE-----`
 
-var comodoIntermediateSHA384 = `-----BEGIN CERTIFICATE-----
-MIIGDjCCA/agAwIBAgIQBqdDgNTr/tQ1taP34Wq92DANBgkqhkiG9w0BAQwFADCB
-hTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxKzApBgNV
-BAMTIkNPTU9ETyBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTIwMjEy
-MDAwMDAwWhcNMjcwMjExMjM1OTU5WjCBkjELMAkGA1UEBhMCR0IxGzAZBgNVBAgT
-EkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMR
-Q09NT0RPIENBIExpbWl0ZWQxODA2BgNVBAMTL0NPTU9ETyBSU0EgRXh0ZW5kZWQg
-VmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC
-AQ8AMIIBCgKCAQEAlVbeVLTf1QJJe9FbXKKyHo+cK2JMK40SKPMalaPGEP0p3uGf
-CzhAk9HvbpUQ/OGQF3cs7nU+e2PsYZJuTzurgElr3wDqAwB/L3XVKC/sVmePgIOj
-vdwDmZOLlJFWW6G4ajo/Br0OksxgnP214J9mMF/b5pTwlWqvyIqvgNnmiDkBfBzA
-xSr3e5Wg8narbZtyOTDr0VdVAZ1YEZ18bYSPSeidCfw8/QpKdhQhXBZzQCMZdMO6
-WAqmli7eNuWf0MLw4eDBYuPCGEUZUaoXHugjddTI0JYT/8ck0YwLJ66eetw6YWNg
-iJctXQUL5Tvrrs46R3N2qPos3cCHF+msMJn4HwIDAQABo4IBaTCCAWUwHwYDVR0j
-BBgwFoAUu69+Aj36pvE8hI6t7jiY7NkyMtQwHQYDVR0OBBYEFDna/8ooFIqodBMI
-ueQOqdL6fp1pMA4GA1UdDwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgEAMD4G
-A1UdIAQ3MDUwMwYEVR0gADArMCkGCCsGAQUFBwIBFh1odHRwczovL3NlY3VyZS5j
-b21vZG8uY29tL0NQUzBMBgNVHR8ERTBDMEGgP6A9hjtodHRwOi8vY3JsLmNvbW9k
-b2NhLmNvbS9DT01PRE9SU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDBxBggr
-BgEFBQcBAQRlMGMwOwYIKwYBBQUHMAKGL2h0dHA6Ly9jcnQuY29tb2RvY2EuY29t
-L0NPTU9ET1JTQUFkZFRydXN0Q0EuY3J0MCQGCCsGAQUFBzABhhhodHRwOi8vb2Nz
-cC5jb21vZG9jYS5jb20wDQYJKoZIhvcNAQEMBQADggIBAERCnUFRK0iIXZebeV4R
-AUpSGXtBLMeJPNBy3IX6WK/VJeQT+FhlZ58N/1eLqYVeyqZLsKeyLeCMIs37/3mk
-jCuN/gI9JN6pXV/kD0fQ22YlPodHDK4ixVAihNftSlka9pOlk7DgG4HyVsTIEFPk
-1Hax0VtpS3ey4E/EhOfUoFDuPPpE/NBXueEoU/1Tzdy5H3pAvTA/2GzS8+cHnx8i
-teoiccsq8FZ8/qyo0QYPFBRSTP5kKwxpKrgNUG4+BAe/eiCL+O5lCeHHSQgyPQ0o
-fkkdt0rvAucNgBfIXOBhYsvss2B5JdoaZXOcOBCgJjqwyBZ9kzEi7nQLiMBciUEA
-KKlHMd99SUWa9eanRRrSjhMQ34Ovmw2tfn6dNVA0BM7pINae253UqNpktNEvWS5e
-ojZh1CSggjMziqHRbO9haKPl0latxf1eYusVqHQSTC8xjOnB3xBLAer2VBvNfzu9
-XJ/B288ByvK6YBIhMe2pZLiySVgXbVrXzYxtvp5/4gJYp9vDLVj2dAZqmvZh+fYA
-tmnYOosxWd2R5nwnI4fdAw+PKowegwFOAWEMUnNt/AiiuSpm5HZNMaBWm9lTjaK2
-jwLI5jqmBNFI+8NKAnb9L9K8E7bobTQk+p0pisehKxTxlgBzuRPpwLk6R1YCcYAn
-pLwltum95OmYdBbxN4SBB7SC
+const trustAsiaSHA384Intermediate = `-----BEGIN CERTIFICATE-----
+MIID9zCCAt+gAwIBAgIQC965p4OR4AKrGlsyW0XrDzANBgkqhkiG9w0BAQwFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0xODA0MjcxMjQyNTlaFw0yODA0MjcxMjQyNTlaMFoxCzAJBgNVBAYTAkNO
+MSUwIwYDVQQKExxUcnVzdEFzaWEgVGVjaG5vbG9naWVzLCBJbmMuMSQwIgYDVQQD
+ExtUcnVzdEFzaWEgRUNDIE9WIFRMUyBQcm8gQ0EwdjAQBgcqhkjOPQIBBgUrgQQA
+IgNiAAQPIUn75M5BCQLKoPsSU2KTr3mDMh13usnAQ38XfKOzjXiyQ+W0inA7meYR
+xS+XMQgvnbCigEsKj3ErPIzO68uC9V/KdqMaXWBJp85Ws9A4KL92NB4Okbn5dp6v
+Qzy08PajggFeMIIBWjAdBgNVHQ4EFgQULdRyBx6HyIH/+LOvuexyH5p/3PwwHwYD
+VR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUwDgYDVR0PAQH/BAQDAgGGMB0G
+A1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjASBgNVHRMBAf8ECDAGAQH/AgEA
+MDcGCCsGAQUFBwEBBCswKTAnBggrBgEFBQcwAYYbaHR0cDovL29jc3AuZGlnaWNl
+cnQtY24uY29tMEQGA1UdHwQ9MDswOaA3oDWGM2h0dHA6Ly9jcmwuZGlnaWNlcnQt
+Y24uY29tL0RpZ2lDZXJ0R2xvYmFsUm9vdENBLmNybDBWBgNVHSAETzBNMDcGCWCG
+SAGG/WwBATAqMCgGCCsGAQUFBwIBFhxodHRwczovL3d3dy5kaWdpY2VydC5jb20v
+Q1BTMAgGBmeBDAECAjAIBgZngQwBAgMwDQYJKoZIhvcNAQEMBQADggEBACVRufYd
+j81xUqngFCO+Pk8EYXie0pxHKsBZnOPygAyXKx+awUasKBAnHjmhoFPXaDGAP2oV
+OeZTWgwnURVr6wUCuTkz2/8Tgl1egC7OrVcHSa0fIIhaVo9/zRA/hr31xMG7LFBk
+GNd7jd06Up4f/UOGbcJsqJexc5QRcUeSwe1MiUDcTNiyCjZk74QCPdcfdFYM4xsa
+SlUpboB5vyT7jFePZ2v95CKjcr0EhiQ0gwxpdgoipZdfYTiMFGxCLsk6v8pUv7Tq
+PT/qadOGyC+PfLuZh1PtLp20mF06K+MzheCiv+w1NT5ofhmcObvukc68wvbvRFL6
+rRzZxAYN36q1SX8=
 -----END CERTIFICATE-----`
 
-const comodoRSAAuthority = `-----BEGIN CERTIFICATE-----
-MIIFdDCCBFygAwIBAgIQJ2buVutJ846r13Ci/ITeIjANBgkqhkiG9w0BAQwFADBv
-MQswCQYDVQQGEwJTRTEUMBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFk
-ZFRydXN0IEV4dGVybmFsIFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBF
-eHRlcm5hbCBDQSBSb290MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFow
-gYUxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAO
-BgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBMaW1pdGVkMSswKQYD
-VQQDEyJDT01PRE8gUlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIICIjANBgkq
-hkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAkehUktIKVrGsDSTdxc9EZ3SZKzejfSNw
-AHG8U9/E+ioSj0t/EFa9n3Byt2F/yUsPF6c947AEYe7/EZfH9IY+Cvo+XPmT5jR6
-2RRr55yzhaCCenavcZDX7P0N+pxs+t+wgvQUfvm+xKYvT3+Zf7X8Z0NyvQwA1onr
-ayzT7Y+YHBSrfuXjbvzYqOSSJNpDa2K4Vf3qwbxstovzDo2a5JtsaZn4eEgwRdWt
-4Q08RWD8MpZRJ7xnw8outmvqRsfHIKCxH2XeSAi6pE6p8oNGN4Tr6MyBSENnTnIq
-m1y9TBsoilwie7SrmNnu4FGDwwlGTm0+mfqVF9p8M1dBPI1R7Qu2XK8sYxrfV8g/
-vOldxJuvRZnio1oktLqpVj3Pb6r/SVi+8Kj/9Lit6Tf7urj0Czr56ENCHonYhMsT
-8dm74YlguIwoVqwUHZwK53Hrzw7dPamWoUi9PPevtQ0iTMARgexWO/bTouJbt7IE
-IlKVgJNp6I5MZfGRAy1wdALqi2cVKWlSArvX31BqVUa/oKMoYX9w0MOiqiwhqkfO
-KJwGRXa/ghgntNWutMtQ5mv0TIZxMOmm3xaG4Nj/QN370EKIf6MzOi5cHkERgWPO
-GHFrK+ymircxXDpqR+DDeVnWIBqv8mqYqnK8V0rSS527EPywTEHl7R09XiidnMy/
-s1Hap0flhFMCAwEAAaOB9DCB8TAfBgNVHSMEGDAWgBStvZh6NLQm9/rEJlTvA73g
-JMtUGjAdBgNVHQ4EFgQUu69+Aj36pvE8hI6t7jiY7NkyMtQwDgYDVR0PAQH/BAQD
-AgGGMA8GA1UdEwEB/wQFMAMBAf8wEQYDVR0gBAowCDAGBgRVHSAAMEQGA1UdHwQ9
-MDswOaA3oDWGM2h0dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9BZGRUcnVzdEV4dGVy
-bmFsQ0FSb290LmNybDA1BggrBgEFBQcBAQQpMCcwJQYIKwYBBQUHMAGGGWh0dHA6
-Ly9vY3NwLnVzZXJ0cnVzdC5jb20wDQYJKoZIhvcNAQEMBQADggEBAGS/g/FfmoXQ
-zbihKVcN6Fr30ek+8nYEbvFScLsePP9NDXRqzIGCJdPDoCpdTPW6i6FtxFQJdcfj
-Jw5dhHk3QBN39bSsHNA7qxcS1u80GH4r6XnTq1dFDK8o+tDb5VCViLvfhVdpfZLY
-Uspzgb8c8+a4bmYRBbMelC1/kZWSWfFMzqORcUx8Rww7Cxn2obFshj5cqsQugsv5
-B5a6SE2Q8pTIqXOi6wZ7I53eovNNVZ96YUWYGGjHXkBrI/V5eu+MtWuLt29G9Hvx
-PUsE2JOAWVrgQSQdso8VYFhH2+9uRv0V9dlfmrPb2LjkQLPNlzmuhbsdjrzch5vR
-pu/xO28QOG8=
------END CERTIFICATE-----`
-
-const addTrustRoot = `-----BEGIN CERTIFICATE-----
-MIIENjCCAx6gAwIBAgIBATANBgkqhkiG9w0BAQUFADBvMQswCQYDVQQGEwJTRTEU
-MBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFkZFRydXN0IEV4dGVybmFs
-IFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBFeHRlcm5hbCBDQSBSb290
-MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFowbzELMAkGA1UEBhMCU0Ux
-FDASBgNVBAoTC0FkZFRydXN0IEFCMSYwJAYDVQQLEx1BZGRUcnVzdCBFeHRlcm5h
-bCBUVFAgTmV0d29yazEiMCAGA1UEAxMZQWRkVHJ1c3QgRXh0ZXJuYWwgQ0EgUm9v
-dDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALf3GjPm8gAELTngTlvt
-H7xsD821+iO2zt6bETOXpClMfZOfvUq8k+0DGuOPz+VtUFrWlymUWoCwSXrbLpX9
-uMq/NzgtHj6RQa1wVsfwTz/oMp50ysiQVOnGXw94nZpAPA6sYapeFI+eh6FqUNzX
-mk6vBbOmcZSccbNQYArHE504B4YCqOmoaSYYkKtMsE8jqzpPhNjfzp/haW+710LX
-a0Tkx63ubUFfclpxCDezeWWkWaCUN/cALw3CknLa0Dhy2xSoRcRdKn23tNbE7qzN
-E0S3ySvdQwAl+mG5aWpYIxG3pzOPVnVZ9c0p10a3CitlttNCbxWyuHv77+ldU9U0
-WicCAwEAAaOB3DCB2TAdBgNVHQ4EFgQUrb2YejS0Jvf6xCZU7wO94CTLVBowCwYD
-VR0PBAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wgZkGA1UdIwSBkTCBjoAUrb2YejS0
-Jvf6xCZU7wO94CTLVBqhc6RxMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRU
-cnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsx
-IjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3SCAQEwDQYJKoZIhvcN
-AQEFBQADggEBALCb4IUlwtYj4g+WBpKdQZic2YR5gdkeWxQHIzZlj7DYd7usQWxH
-YINRsPkyPef89iYTx4AWpb9a/IfPeHmJIZriTAcKhjW88t5RxNKWt9x+Tu5w/Rw5
-6wwCURQtjr0W4MHfRnXnJK3s9EK0hZNwEGe6nQY1ShjTK3rMUUKhemPR5ruhxSvC
-Nr4TDea9Y355e6cJDUCrat2PisP29owaQgVR1EX1n6diIWgVIEM8med8vSTYqZEX
-c4g/VhsxOBi0cQ+azcgOno4uG+GMmIPLHzHxREzGBHNJdmAPx/i9F4BrLunMTA5a
-mnkPIAou1Z5jJh5VkpTYghdae9C8x49OhgQ=
+const trustAsiaLeaf = `-----BEGIN CERTIFICATE-----
+MIIEwTCCBEegAwIBAgIQBOjomZfHfhgz2bVYZVuf2DAKBggqhkjOPQQDAzBaMQsw
+CQYDVQQGEwJDTjElMCMGA1UEChMcVHJ1c3RBc2lhIFRlY2hub2xvZ2llcywgSW5j
+LjEkMCIGA1UEAxMbVHJ1c3RBc2lhIEVDQyBPViBUTFMgUHJvIENBMB4XDTE5MDUx
+NzAwMDAwMFoXDTIwMDcyODEyMDAwMFowgY0xCzAJBgNVBAYTAkNOMRIwEAYDVQQI
+DAnnpo/lu7rnnIExEjAQBgNVBAcMCeWOpumXqOW4gjEqMCgGA1UECgwh5Y6m6Zeo
+5Y+B546W5Y+B56eR5oqA5pyJ6ZmQ5YWs5Y+4MRgwFgYDVQQLDA/nn6Xor4bkuqfm
+nYPpg6gxEDAOBgNVBAMMByoudG0uY24wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AARx/MDQ0oGnCLagQIzjIz57iqFYFmz4/W6gaU6N+GHBkzyvQU8aX02QkdlTTNYL
+TCoGFJxHB0XlZVSxrqoIPlNKo4ICuTCCArUwHwYDVR0jBBgwFoAULdRyBx6HyIH/
++LOvuexyH5p/3PwwHQYDVR0OBBYEFGTyf5adc5smW8NvDZyummJwZRLEMBkGA1Ud
+EQQSMBCCByoudG0uY26CBXRtLmNuMA4GA1UdDwEB/wQEAwIHgDAdBgNVHSUEFjAU
+BggrBgEFBQcDAQYIKwYBBQUHAwIwRgYDVR0fBD8wPTA7oDmgN4Y1aHR0cDovL2Ny
+bC5kaWdpY2VydC1jbi5jb20vVHJ1c3RBc2lhRUNDT1ZUTFNQcm9DQS5jcmwwTAYD
+VR0gBEUwQzA3BglghkgBhv1sAQEwKjAoBggrBgEFBQcCARYcaHR0cHM6Ly93d3cu
+ZGlnaWNlcnQuY29tL0NQUzAIBgZngQwBAgIwfgYIKwYBBQUHAQEEcjBwMCcGCCsG
+AQUFBzABhhtodHRwOi8vb2NzcC5kaWdpY2VydC1jbi5jb20wRQYIKwYBBQUHMAKG
+OWh0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LWNuLmNvbS9UcnVzdEFzaWFFQ0NPVlRM
+U1Byb0NBLmNydDAMBgNVHRMBAf8EAjAAMIIBAwYKKwYBBAHWeQIEAgSB9ASB8QDv
+AHUA7ku9t3XOYLrhQmkfq+GeZqMPfl+wctiDAMR7iXqo/csAAAFqxGMTnwAABAMA
+RjBEAiAz13zKEoyqd4e/96SK/fxfjl7uR+xhfoDZeyA1BvtfOwIgTY+8nJMGekv8
+leIVdW6AGh7oqH31CIGTAbNJJWzaSFYAdgCHdb/nWXz4jEOZX73zbv9WjUdWNv9K
+tWDBtOr/XqCDDwAAAWrEYxTCAAAEAwBHMEUCIQDlWm7+limbRiurcqUwXav3NSmx
+x/aMnolLbh6+f+b1XAIgQfinHwLw6pDr4R9UkndUsX8QFF4GXS3/IwRR8HCp+pIw
+CgYIKoZIzj0EAwMDaAAwZQIwHg8JmjRtcq+OgV0vVmdVBPqehi1sQJ9PZ+51CG+Z
+0GOu+2HwS/fyLRViwSc/MZoVAjEA7NgbgpPN4OIsZn2XjMGxemtVxGFS6ZR+1364
+EEeHB9vhZAEjQSePAfjR9aAGhXRa
 -----END CERTIFICATE-----`
 
 const selfSigned = `-----BEGIN CERTIFICATE-----
@@ -1508,33 +1494,36 @@ ePBQCV1F9sE2q4ZrnsT9TZoNrSe/bMDjzA==
 -----END CERTIFICATE-----`
 
 var unknownAuthorityErrorTests = []struct {
+	name     string
 	cert     string
 	expected string
 }{
-	{selfSignedWithCommonName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"test\")"},
-	{selfSignedNoCommonNameWithOrgName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"ca\")"},
-	{selfSignedNoCommonNameNoOrgName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"serial:0\")"},
+	{"self-signed, cn", selfSignedWithCommonName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"test\")"},
+	{"self-signed, no cn, org", selfSignedNoCommonNameWithOrgName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"ca\")"},
+	{"self-signed, no cn, no org", selfSignedNoCommonNameNoOrgName, "x509: certificate signed by unknown authority (possibly because of \"empty\" while trying to verify candidate authority certificate \"serial:0\")"},
 }
 
 func TestUnknownAuthorityError(t *testing.T) {
 	for i, tt := range unknownAuthorityErrorTests {
-		der, _ := pem.Decode([]byte(tt.cert))
-		if der == nil {
-			t.Errorf("#%d: Unable to decode PEM block", i)
-		}
-		c, err := ParseCertificate(der.Bytes)
-		if err != nil {
-			t.Errorf("#%d: Unable to parse certificate -> %v", i, err)
-		}
-		uae := &UnknownAuthorityError{
-			Cert:     c,
-			hintErr:  fmt.Errorf("empty"),
-			hintCert: c,
-		}
-		actual := uae.Error()
-		if actual != tt.expected {
-			t.Errorf("#%d: UnknownAuthorityError.Error() response invalid actual: %s expected: %s", i, actual, tt.expected)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			der, _ := pem.Decode([]byte(tt.cert))
+			if der == nil {
+				t.Fatalf("#%d: Unable to decode PEM block", i)
+			}
+			c, err := ParseCertificate(der.Bytes)
+			if err != nil {
+				t.Fatalf("#%d: Unable to parse certificate -> %v", i, err)
+			}
+			uae := &UnknownAuthorityError{
+				Cert:     c,
+				hintErr:  fmt.Errorf("empty"),
+				hintCert: c,
+			}
+			actual := uae.Error()
+			if actual != tt.expected {
+				t.Errorf("#%d: UnknownAuthorityError.Error() response invalid actual: %s expected: %s", i, actual, tt.expected)
+			}
+		})
 	}
 }
 
@@ -1852,10 +1841,10 @@ func TestSystemRootsError(t *testing.T) {
 	opts := VerifyOptions{
 		Intermediates: NewCertPool(),
 		DNSName:       "www.google.com",
-		CurrentTime:   time.Unix(1395785200, 0),
+		CurrentTime:   time.Unix(1677615892, 0),
 	}
 
-	if ok := opts.Intermediates.AppendCertsFromPEM([]byte(giag2Intermediate)); !ok {
+	if ok := opts.Intermediates.AppendCertsFromPEM([]byte(gtsIntermediate)); !ok {
 		t.Fatalf("failed to parse intermediate")
 	}
 
@@ -1880,7 +1869,40 @@ func TestSystemRootsErrorUnwrap(t *testing.T) {
 	}
 }
 
+func macosMajorVersion(t *testing.T) (int, error) {
+	cmd := testenv.Command(t, "sw_vers", "-productVersion")
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			return 0, fmt.Errorf("%v: %v\n%s", cmd, err, ee.Stderr)
+		}
+		return 0, fmt.Errorf("%v: %v", cmd, err)
+	}
+	before, _, ok := strings.Cut(string(out), ".")
+	major, err := strconv.Atoi(before)
+	if !ok || err != nil {
+		return 0, fmt.Errorf("%v: unexpected output: %q", cmd, out)
+	}
+
+	return major, nil
+}
+
 func TestIssue51759(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("only affects darwin")
+	}
+
+	testenv.MustHaveExecPath(t, "sw_vers")
+	if vers, err := macosMajorVersion(t); err != nil {
+		if builder := testenv.Builder(); builder != "" {
+			t.Fatalf("unable to determine macOS version: %s", err)
+		} else {
+			t.Skip("unable to determine macOS version")
+		}
+	} else if vers < 11 {
+		t.Skip("behavior only enforced in macOS 11 and after")
+	}
+
 	// badCertData contains a cert that we parse as valid
 	// but that macOS SecCertificateCreateWithData rejects.
 	const badCertData = "0\x82\x01U0\x82\x01\a\xa0\x03\x02\x01\x02\x02\x01\x020\x05\x06\x03+ep0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260\x1e\x17\r220112235755Z\x17\r220313235755Z0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260*0\x05\x06\x03+ep\x03!\x00bA\xd8e\xadW\xcb\xefZ\x89\xb5\"\x1eR\x9d\xba\x0e:\x1042Q@\u007f\xbd\xfb{ks\x04\xd1£\x020\x000\x05\x06\x03+ep\x03A\x00[\xa7\x06y\x86(\x94\x97\x9eLwA\x00\x01x\xaa\xbc\xbd Ê]\n(΅!ف0\xf5\x9a%I\x19<\xffo\xf1\xeaaf@\xb1\xa7\xaf\xfd\xe9R\xc7\x0f\x8d&\xd5\xfc\x0f;Ϙ\x82\x84a\xbc\r"
@@ -1891,9 +1913,10 @@ func TestIssue51759(t *testing.T) {
 
 	t.Run("leaf", func(t *testing.T) {
 		opts := VerifyOptions{}
+		expectedErr := "invalid leaf certificate"
 		_, err = badCert.Verify(opts)
-		if err == nil {
-			t.Fatal("expected error")
+		if err == nil || err.Error() != expectedErr {
+			t.Fatalf("unexpected error: want %q, got %q", expectedErr, err)
 		}
 	})
 
@@ -1907,9 +1930,10 @@ func TestIssue51759(t *testing.T) {
 			Intermediates: NewCertPool(),
 		}
 		opts.Intermediates.AddCert(badCert)
+		expectedErr := "SecCertificateCreateWithData: invalid certificate"
 		_, err = goodCert.Verify(opts)
-		if err == nil {
-			t.Fatal("expected error")
+		if err == nil || err.Error() != expectedErr {
+			t.Fatalf("unexpected error: want %q, got %q", expectedErr, err)
 		}
 	})
 }
@@ -1919,10 +1943,17 @@ type trustGraphEdge struct {
 	Subject        string
 	Type           int
 	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
+}
+
+type rootDescription struct {
+	Subject        string
+	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
 }
 
 type trustGraphDescription struct {
-	Roots []string
+	Roots []rootDescription
 	Leaf  string
 	Graph []trustGraphEdge
 }
@@ -1971,19 +2002,23 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 
 	certs := map[string]*Certificate{}
 	keys := map[string]crypto.Signer{}
-	roots := []*Certificate{}
+	rootPool := NewCertPool()
 	for _, r := range d.Roots {
 		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			t.Fatalf("failed to generate test key: %s", err)
 		}
-		root := genCertEdge(t, r, k, nil, rootCertificate, nil, nil)
-		roots = append(roots, root)
-		certs[r] = root
-		keys[r] = k
+		root := genCertEdge(t, r.Subject, k, r.MutateTemplate, rootCertificate, nil, nil)
+		if r.Constraint != nil {
+			rootPool.AddCertWithConstraint(root, r.Constraint)
+		} else {
+			rootPool.AddCert(root)
+		}
+		certs[r.Subject] = root
+		keys[r.Subject] = k
 	}
 
-	intermediates := []*Certificate{}
+	intermediatePool := NewCertPool()
 	var leaf *Certificate
 	for _, e := range d.Graph {
 		issuerCert, ok := certs[e.Issuer]
@@ -2009,16 +2044,12 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 		if e.Subject == d.Leaf {
 			leaf = cert
 		} else {
-			intermediates = append(intermediates, cert)
+			if e.Constraint != nil {
+				intermediatePool.AddCertWithConstraint(cert, e.Constraint)
+			} else {
+				intermediatePool.AddCert(cert)
+			}
 		}
-	}
-
-	rootPool, intermediatePool := NewCertPool(), NewCertPool()
-	for i := len(roots) - 1; i >= 0; i-- {
-		rootPool.AddCert(roots[i])
-	}
-	for i := len(intermediates) - 1; i >= 0; i-- {
-		intermediatePool.AddCert(intermediates[i])
 	}
 
 	return rootPool, intermediatePool, leaf
@@ -2072,7 +2103,7 @@ func TestPathBuilding(t *testing.T) {
 			//       +----+
 			name: "bad EKU",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",
 				Graph: []trustGraphEdge{
 					{
@@ -2148,7 +2179,7 @@ func TestPathBuilding(t *testing.T) {
 			//       +----+
 			name: "bad EKU",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",
 				Graph: []trustGraphEdge{
 					{
@@ -2230,7 +2261,7 @@ func TestPathBuilding(t *testing.T) {
 			//            +----+
 			name: "all paths",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",
 				Graph: []trustGraphEdge{
 					{
@@ -2294,7 +2325,7 @@ func TestPathBuilding(t *testing.T) {
 			//       +----+
 			name: "ignore cross-sig loops",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",
 				Graph: []trustGraphEdge{
 					{
@@ -2347,7 +2378,7 @@ func TestPathBuilding(t *testing.T) {
 			// the leaf has SANs.
 			name: "leaf with same subject, key, as parent but with SAN",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "root",
 				Graph: []trustGraphEdge{
 					{
@@ -2369,7 +2400,7 @@ func TestPathBuilding(t *testing.T) {
 			// through C should be ignored, because it has invalid EKU nesting.
 			name: "ignore invalid EKU path",
 			graph: trustGraphDescription{
-				Roots: []string{"root"},
+				Roots: []rootDescription{{Subject: "root"}},
 				Leaf:  "leaf",
 				Graph: []trustGraphEdge{
 					{
@@ -2412,6 +2443,142 @@ func TestPathBuilding(t *testing.T) {
 				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
 			},
 		},
+		{
+			// A name constraint on the root should apply to any names that appear
+			// on the intermediate, meaning there is no valid chain.
+			name: "constrained root, invalid intermediate",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{
+					{
+						Subject: "root",
+						MutateTemplate: func(t *Certificate) {
+							t.PermittedDNSDomains = []string{"example.com"}
+						},
+					},
+				},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.DNSNames = []string{"beep.com"}
+						},
+					},
+					{
+						Issuer:  "inter",
+						Subject: "leaf",
+						Type:    leafCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.DNSNames = []string{"www.example.com"}
+						},
+					},
+				},
+			},
+			expectedErr: "x509: a root or intermediate certificate is not authorized to sign for this name: DNS name \"beep.com\" is not permitted by any constraint",
+		},
+		{
+			// A name constraint on the intermediate does not apply to the intermediate
+			// itself, so this is a valid chain.
+			name: "constrained intermediate, non-matching SAN",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root"}},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.DNSNames = []string{"beep.com"}
+							t.PermittedDNSDomains = []string{"example.com"}
+						},
+					},
+					{
+						Issuer:  "inter",
+						Subject: "leaf",
+						Type:    leafCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.DNSNames = []string{"www.example.com"}
+						},
+					},
+				},
+			},
+			expectedChains: []string{"CN=leaf -> CN=inter -> CN=root"},
+		},
+		{
+			// A code constraint on the root, applying to one of two intermediates in the graph, should
+			// result in only one valid chain.
+			name: "code constrained root, two paths, one valid",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "inter a" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{"CN=leaf -> CN=inter c -> CN=inter b -> CN=root"},
+		},
+		{
+			// A code constraint on the root, applying to the only path, should result in an error.
+			name: "code constrained root, one invalid path",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "leaf" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedErr: "x509: certificate signed by unknown authority (possibly because of \"bad\" while trying to verify candidate authority certificate \"root\")",
+		},
 	}
 
 	for _, tc := range tests {
@@ -2423,6 +2590,9 @@ func TestPathBuilding(t *testing.T) {
 			})
 			if err != nil && err.Error() != tc.expectedErr {
 				t.Fatalf("unexpected error: got %q, want %q", err, tc.expectedErr)
+			}
+			if len(tc.expectedChains) == 0 {
+				return
 			}
 			gotChains := chainsToStrings(chains)
 			if !reflect.DeepEqual(gotChains, tc.expectedChains) {

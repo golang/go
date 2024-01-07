@@ -255,8 +255,8 @@ func TestGcPacer(t *testing.T) {
 					// After the 12th GC, the heap will stop growing. Now, just make sure that:
 					// 1. Utilization isn't varying _too_ much, and
 					// 2. The pacer is mostly keeping up with the goal.
-					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
-					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.3)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.025)
+					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.275)
 				}
 			},
 		},
@@ -417,7 +417,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if peak := c[n-1].heapPeak; peak >= (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if peak := c[n-1].heapPeak; peak >= applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("peak heap size reaches heap limit: %d", peak)
 				}
 				if n >= 25 {
@@ -446,7 +446,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -510,7 +510,7 @@ func TestGcPacer(t *testing.T) {
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
 				if n < 10 {
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -550,7 +550,7 @@ func TestGcPacer(t *testing.T) {
 				n := len(c)
 				if n > 12 {
 					// We're trying to saturate the memory limit.
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -581,7 +581,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -1017,6 +1017,19 @@ func (f float64Stream) limit(min, max float64) float64Stream {
 		}
 		return v
 	}
+}
+
+func applyMemoryLimitHeapGoalHeadroom(goal uint64) uint64 {
+	headroom := goal / 100 * MemoryLimitHeapGoalHeadroomPercent
+	if headroom < MemoryLimitMinHeapGoalHeadroom {
+		headroom = MemoryLimitMinHeapGoalHeadroom
+	}
+	if goal < headroom || goal-headroom < headroom {
+		goal = headroom
+	} else {
+		goal -= headroom
+	}
+	return goal
 }
 
 func TestIdleMarkWorkerCount(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"math"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
@@ -183,7 +184,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		i := v.Aux.(s390x.RotateParams)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
-		p.SetRestArgs([]obj.Addr{
+		p.AddRestSourceArgs([]obj.Addr{
 			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
 			{Type: obj.TYPE_REG, Reg: r2},
@@ -195,7 +196,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		i := v.Aux.(s390x.RotateParams)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
-		p.SetRestArgs([]obj.Addr{
+		p.AddRestSourceArgs([]obj.Addr{
 			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
 			{Type: obj.TYPE_REG, Reg: r2},
@@ -566,7 +567,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 	case ssa.OpS390XLoweredPanicBoundsA, ssa.OpS390XLoweredPanicBoundsB, ssa.OpS390XLoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -625,7 +627,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(s390x.AMVC)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = vo.Val64()
-		p.SetFrom3(obj.Addr{
+		p.AddRestSource(obj.Addr{
 			Type:   obj.TYPE_MEM,
 			Reg:    v.Args[1].Reg(),
 			Offset: vo.Off64(),
@@ -662,7 +664,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		mvc := s.Prog(s390x.AMVC)
 		mvc.From.Type = obj.TYPE_CONST
 		mvc.From.Offset = 256
-		mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
+		mvc.AddRestSource(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 		mvc.To.Type = obj.TYPE_MEM
 		mvc.To.Reg = v.Args[0].Reg()
 
@@ -689,7 +691,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			mvc := s.Prog(s390x.AMVC)
 			mvc.From.Type = obj.TYPE_CONST
 			mvc.From.Offset = v.AuxInt
-			mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
+			mvc.AddRestSource(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 			mvc.To.Type = obj.TYPE_MEM
 			mvc.To.Reg = v.Args[0].Reg()
 		}
@@ -900,7 +902,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
 		p.Reg = s390x.REG_R3
-		p.SetFrom3Const(0)
+		p.AddRestSourceConst(0)
 		if b.Succs[0].Block() != next {
 			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
@@ -937,17 +939,17 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.SetFrom3Reg(b.Controls[1].Reg())
+		p.AddRestSourceReg(b.Controls[1].Reg())
 	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.SetFrom3Const(int64(int8(b.AuxInt)))
+		p.AddRestSourceConst(int64(int8(b.AuxInt)))
 	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.SetFrom3Const(int64(uint8(b.AuxInt)))
+		p.AddRestSourceConst(int64(uint8(b.AuxInt)))
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

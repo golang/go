@@ -130,6 +130,9 @@ func TestPositions(t *testing.T) {
 		if f.LineCount() != len(test.lines) {
 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
 		}
+		if !reflect.DeepEqual(f.Lines(), test.lines) {
+			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
+		}
 		verifyPositions(t, fset, f, test.lines)
 
 		// add lines with SetLinesForContent and verify all positions

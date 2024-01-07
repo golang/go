@@ -57,6 +57,7 @@ var (
 
 // Comment about exported function.
 func ExportedFunc(a int) bool {
+	// BUG(me): function body note
 	return true != false
 }
 
@@ -236,6 +237,7 @@ type ExportedFormattedType struct {
 	//	a.ExportedField = 123
 	//
 	// Text after pre-formatted block.
+	//ignore:directive
 	ExportedField int
 }
 

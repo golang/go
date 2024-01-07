@@ -100,7 +100,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 }
 
 func pkgFiles(path string) ([]*syntax.File, error) {
-	filenames, err := pkgFilenames(path) // from stdlib_test.go
+	filenames, err := pkgFilenames(path, true) // from stdlib_test.go
 	if err != nil {
 		return nil, err
 	}

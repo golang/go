@@ -15,8 +15,7 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
 # Even though ./x looks like a package path, the real package should be
 # the implicit '.'.
 ! go test --answer=42 ./x
-stderr '^no Go files in .+$'
-! stderr '/x'
+stderr '^no Go files in '$PWD'$'
 
 # However, *flags* that appear after unrecognized flags should still be
 # interpreted as flags, under the (possibly-erroneous) assumption that

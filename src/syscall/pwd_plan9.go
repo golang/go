@@ -11,7 +11,10 @@
 
 package syscall
 
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 var (
 	wdmu  sync.Mutex // guards following
@@ -19,6 +22,12 @@ var (
 	wdStr string
 )
 
+// Ensure current working directory seen by this goroutine matches
+// the most recent Chdir called in any goroutine. It's called internally
+// before executing any syscall which uses a relative pathname. Must
+// be called with the goroutine locked to the OS thread, to prevent
+// rescheduling on a different thread (potentially with a different
+// working directory) before the syscall is executed.
 func Fixwd() {
 	wdmu.Lock()
 	defer wdmu.Unlock()
@@ -39,13 +48,17 @@ func fixwdLocked() {
 	}
 }
 
-func fixwd(paths ...string) {
+// If any of the paths is relative, call Fixwd and return true
+// (locked to OS thread). Otherwise return false.
+func fixwd(paths ...string) bool {
 	for _, path := range paths {
 		if path != "" && path[0] != '/' && path[0] != '#' {
+			runtime.LockOSThread()
 			Fixwd()
-			return
+			return true
 		}
 	}
+	return false
 }
 
 // goroutine-specific getwd
@@ -75,10 +88,15 @@ func Getwd() (wd string, err error) {
 }
 
 func Chdir(path string) error {
-	fixwd(path)
+	// If Chdir is to a relative path, sync working dir first
+	if fixwd(path) {
+		defer runtime.UnlockOSThread()
+	}
 	wdmu.Lock()
 	defer wdmu.Unlock()
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := chdir(path); err != nil {
 		return err
 	}

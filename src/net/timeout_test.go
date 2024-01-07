@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -11,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"net/internal/socktest"
 	"os"
 	"runtime"
 	"sync"
@@ -19,76 +16,121 @@ import (
 	"time"
 )
 
-var dialTimeoutTests = []struct {
-	timeout time.Duration
-	delta   time.Duration // for deadline
+func init() {
+	// Install a hook to ensure that a 1ns timeout will always
+	// be exceeded by the time Dial gets to the relevant system call.
+	//
+	// Without this, systems with a very large timer granularity — such as
+	// Windows — may be able to accept connections without measurably exceeding
+	// even an implausibly short deadline.
+	testHookStepTime = func() {
+		now := time.Now()
+		for time.Since(now) == 0 {
+			time.Sleep(1 * time.Nanosecond)
+		}
+	}
+}
 
-	guard time.Duration
-	max   time.Duration
+var dialTimeoutTests = []struct {
+	initialTimeout time.Duration
+	initialDelta   time.Duration // for deadline
 }{
 	// Tests that dial timeouts, deadlines in the past work.
-	{-5 * time.Second, 0, -5 * time.Second, 100 * time.Millisecond},
-	{0, -5 * time.Second, -5 * time.Second, 100 * time.Millisecond},
-	{-5 * time.Second, 5 * time.Second, -5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
-	{-1 << 63, 0, time.Second, 100 * time.Millisecond},
-	{0, -1 << 63, time.Second, 100 * time.Millisecond},
+	{-5 * time.Second, 0},
+	{0, -5 * time.Second},
+	{-5 * time.Second, 5 * time.Second}, // timeout over deadline
+	{-1 << 63, 0},
+	{0, -1 << 63},
 
-	{50 * time.Millisecond, 0, 100 * time.Millisecond, time.Second},
-	{0, 50 * time.Millisecond, 100 * time.Millisecond, time.Second},
-	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond, time.Second}, // timeout over deadline
+	{1 * time.Millisecond, 0},
+	{0, 1 * time.Millisecond},
+	{1 * time.Millisecond, 5 * time.Second}, // timeout over deadline
 }
 
 func TestDialTimeout(t *testing.T) {
-	// Cannot use t.Parallel - modifies global hooks.
-	origTestHookDialChannel := testHookDialChannel
-	defer func() { testHookDialChannel = origTestHookDialChannel }()
-	defer sw.Set(socktest.FilterConnect, nil)
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
 
-	for i, tt := range dialTimeoutTests {
-		switch runtime.GOOS {
-		case "plan9", "windows":
-			testHookDialChannel = func() { time.Sleep(tt.guard) }
-			if runtime.GOOS == "plan9" {
-				break
-			}
-			fallthrough
-		default:
-			sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
-				time.Sleep(tt.guard)
-				return nil, errTimedout
-			})
-		}
+	t.Parallel()
 
-		ch := make(chan error)
-		d := Dialer{Timeout: tt.timeout}
-		if tt.delta != 0 {
-			d.Deadline = time.Now().Add(tt.delta)
+	ln := newLocalListener(t, "tcp")
+	defer func() {
+		if err := ln.Close(); err != nil {
+			t.Error(err)
 		}
-		max := time.NewTimer(tt.max)
-		defer max.Stop()
-		go func() {
-			// This dial never starts to send any TCP SYN
-			// segment because of above socket filter and
-			// test hook.
-			c, err := d.Dial("tcp", "127.0.0.1:0")
-			if err == nil {
-				err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
+	}()
+
+	for _, tt := range dialTimeoutTests {
+		t.Run(fmt.Sprintf("%v/%v", tt.initialTimeout, tt.initialDelta), func(t *testing.T) {
+			// We don't run these subtests in parallel because we don't know how big
+			// the kernel's accept queue is, and we don't want to accidentally saturate
+			// it with concurrent calls. (That could cause the Dial to fail with
+			// ECONNREFUSED or ECONNRESET instead of a timeout error.)
+			d := Dialer{Timeout: tt.initialTimeout}
+			delta := tt.initialDelta
+
+			var (
+				beforeDial time.Time
+				afterDial  time.Time
+				err        error
+			)
+			for {
+				if delta != 0 {
+					d.Deadline = time.Now().Add(delta)
+				}
+
+				beforeDial = time.Now()
+
+				var c Conn
+				c, err = d.Dial(ln.Addr().Network(), ln.Addr().String())
+				afterDial = time.Now()
+
+				if err != nil {
+					break
+				}
+
+				// Even though we're not calling Accept on the Listener, the kernel may
+				// spuriously accept connections on its behalf. If that happens, we will
+				// close the connection (to try to get it out of the kernel's accept
+				// queue) and try a shorter timeout.
+				//
+				// We assume that we will reach a point where the call actually does
+				// time out, although in theory (since this socket is on a loopback
+				// address) a sufficiently clever kernel could notice that no Accept
+				// call is pending and bypass both the queue and the timeout to return
+				// another error immediately.
+				t.Logf("closing spurious connection from Dial")
 				c.Close()
-			}
-			ch <- err
-		}()
 
-		select {
-		case <-max.C:
-			t.Fatalf("#%d: Dial didn't return in an expected time", i)
-		case err := <-ch:
+				if delta <= 1 && d.Timeout <= 1 {
+					t.Fatalf("can't reduce Timeout or Deadline")
+				}
+				if delta > 1 {
+					delta /= 2
+					t.Logf("reducing Deadline delta to %v", delta)
+				}
+				if d.Timeout > 1 {
+					d.Timeout /= 2
+					t.Logf("reducing Timeout to %v", d.Timeout)
+				}
+			}
+
+			if d.Deadline.IsZero() || afterDial.Before(d.Deadline) {
+				delay := afterDial.Sub(beforeDial)
+				if delay < d.Timeout {
+					t.Errorf("Dial returned after %v; want ≥%v", delay, d.Timeout)
+				}
+			}
+
 			if perr := parseDialError(err); perr != nil {
-				t.Errorf("#%d: %v", i, perr)
+				t.Errorf("unexpected error from Dial: %v", perr)
 			}
 			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-				t.Fatalf("#%d: %v", i, err)
+				t.Errorf("Dial: %v, want timeout", err)
 			}
-		}
+		})
 	}
 }
 
@@ -200,35 +242,22 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go func() {
-		if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
-			t.Error(err)
-		}
-		if err := ln.(*TCPListener).SetDeadline(time.Now().Add(10 * time.Millisecond)); err != nil {
-			t.Error(err)
-		}
-		c, err := ln.Accept()
-		if err == nil {
-			c.Close()
-		}
-		ch <- err
-	}()
+	if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
+		t.Error(err)
+	}
+	if err := ln.(*TCPListener).SetDeadline(time.Now().Add(10 * time.Millisecond)); err != nil {
+		t.Error(err)
+	}
+	c, err := ln.Accept()
+	if err == nil {
+		c.Close()
+	}
 
-	select {
-	case <-max.C:
-		ln.Close()
-		<-ch // wait for tester goroutine to stop
-		t.Fatal("Accept didn't return in an expected time")
-	case err := <-ch:
-		if perr := parseAcceptError(err); perr != nil {
-			t.Error(perr)
-		}
-		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
-		}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
+	}
+	if !isDeadlineExceeded(err) {
+		t.Fatal(err)
 	}
 }
 
@@ -540,7 +569,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 			t.Error(err)
 		}
 		maxch <- time.NewTimer(100 * time.Millisecond)
-		var b [1]byte
+		var b [1024]byte
 		for {
 			if _, err := c.Write(b[:]); err != nil {
 				ch <- err
@@ -646,7 +675,7 @@ const (
 	minDynamicTimeout = 1 * time.Millisecond
 
 	// maxDynamicTimeout is the maximum timeout to attempt for
-	// tests that automatically increase timeouts until succeess.
+	// tests that automatically increase timeouts until success.
 	//
 	// This should be a strict upper bound on the latency required to hit a
 	// timeout accurately, even on a slow or heavily-loaded machine. If a test
@@ -823,10 +852,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		t.Logf("SetWriteDeadline(+%v)", d)
 		t0 := time.Now()
 		deadline := t0.Add(d)
-		if err = c.SetWriteDeadline(deadline); err != nil {
+		if err := c.SetWriteDeadline(deadline); err != nil {
 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
 		}
 		var n int64
+		var err error
 		for {
 			var dn int
 			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
@@ -836,8 +866,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 			}
 		}
 		t1 := time.Now()
-
-		if err == nil || !err.(Error).Timeout() {
+		// Inv: err != nil
+		if !err.(Error).Timeout() {
 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
 		}
 		if perr := parseWriteError(err); perr != nil {
@@ -909,10 +939,6 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 }
 
 func testVariousDeadlines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9; see golang.org/issue/26945")
-	}
-
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()

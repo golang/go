@@ -74,11 +74,14 @@ func _() {
 	_ = x[SyncStmtsEnd-64]
 	_ = x[SyncLabel-65]
 	_ = x[SyncOptLabel-66]
+	_ = x[SyncMultiExpr-67]
+	_ = x[SyncRType-68]
+	_ = x[SyncConvRTTI-69]
 }
 
-const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprExprTypeAssignOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
+const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprExprTypeAssignOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabelMultiExprRTypeConvRTTI"
 
-var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 226, 232, 234, 241, 248, 252, 260, 269, 279, 296, 305, 313, 318, 327, 333, 340, 350, 359, 369, 379, 389, 394, 405, 416, 424, 432, 437, 445, 450, 458}
+var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 226, 232, 234, 241, 248, 252, 260, 269, 279, 296, 305, 313, 318, 327, 333, 340, 350, 359, 369, 379, 389, 394, 405, 416, 424, 432, 437, 445, 450, 458, 467, 472, 480}
 
 func (i SyncMarker) String() string {
 	i -= 1

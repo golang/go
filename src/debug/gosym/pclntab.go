@@ -29,7 +29,7 @@ const (
 
 // A LineTable is a data structure mapping program counters to line numbers.
 //
-// In Go 1.1 and earlier, each function (represented by a Func) had its own LineTable,
+// In Go 1.1 and earlier, each function (represented by a [Func]) had its own LineTable,
 // and the line number corresponded to a numbering of all source lines in the
 // program, across all files. That absolute line number would then have to be
 // converted separately to a file name and line number within the file.
@@ -39,7 +39,7 @@ const (
 // numbers, just line numbers within specific files.
 //
 // For the most part, LineTable's methods should be treated as an internal
-// detail of the package; callers should use the methods on Table instead.
+// detail of the package; callers should use the methods on [Table] instead.
 type LineTable struct {
 	Data []byte
 	PC   uint64

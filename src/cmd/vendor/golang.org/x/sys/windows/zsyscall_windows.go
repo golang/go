@@ -55,6 +55,7 @@ var (
 	moduser32   = NewLazySystemDLL("user32.dll")
 	moduserenv  = NewLazySystemDLL("userenv.dll")
 	modversion  = NewLazySystemDLL("version.dll")
+	modwinmm    = NewLazySystemDLL("winmm.dll")
 	modwintrust = NewLazySystemDLL("wintrust.dll")
 	modws2_32   = NewLazySystemDLL("ws2_32.dll")
 	modwtsapi32 = NewLazySystemDLL("wtsapi32.dll")
@@ -86,6 +87,7 @@ var (
 	procDeleteService                                        = modadvapi32.NewProc("DeleteService")
 	procDeregisterEventSource                                = modadvapi32.NewProc("DeregisterEventSource")
 	procDuplicateTokenEx                                     = modadvapi32.NewProc("DuplicateTokenEx")
+	procEnumDependentServicesW                               = modadvapi32.NewProc("EnumDependentServicesW")
 	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
 	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
 	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
@@ -182,10 +184,12 @@ var (
 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
 	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
+	procAddDllDirectory                                      = modkernel32.NewProc("AddDllDirectory")
 	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
 	procCancelIo                                             = modkernel32.NewProc("CancelIo")
 	procCancelIoEx                                           = modkernel32.NewProc("CancelIoEx")
 	procCloseHandle                                          = modkernel32.NewProc("CloseHandle")
+	procClosePseudoConsole                                   = modkernel32.NewProc("ClosePseudoConsole")
 	procConnectNamedPipe                                     = modkernel32.NewProc("ConnectNamedPipe")
 	procCreateDirectoryW                                     = modkernel32.NewProc("CreateDirectoryW")
 	procCreateEventExW                                       = modkernel32.NewProc("CreateEventExW")
@@ -200,6 +204,7 @@ var (
 	procCreateNamedPipeW                                     = modkernel32.NewProc("CreateNamedPipeW")
 	procCreatePipe                                           = modkernel32.NewProc("CreatePipe")
 	procCreateProcessW                                       = modkernel32.NewProc("CreateProcessW")
+	procCreatePseudoConsole                                  = modkernel32.NewProc("CreatePseudoConsole")
 	procCreateSymbolicLinkW                                  = modkernel32.NewProc("CreateSymbolicLinkW")
 	procCreateToolhelp32Snapshot                             = modkernel32.NewProc("CreateToolhelp32Snapshot")
 	procDefineDosDeviceW                                     = modkernel32.NewProc("DefineDosDeviceW")
@@ -249,6 +254,7 @@ var (
 	procGetFileAttributesW                                   = modkernel32.NewProc("GetFileAttributesW")
 	procGetFileInformationByHandle                           = modkernel32.NewProc("GetFileInformationByHandle")
 	procGetFileInformationByHandleEx                         = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetFileTime                                          = modkernel32.NewProc("GetFileTime")
 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
@@ -325,7 +331,9 @@ var (
 	procReadProcessMemory                                    = modkernel32.NewProc("ReadProcessMemory")
 	procReleaseMutex                                         = modkernel32.NewProc("ReleaseMutex")
 	procRemoveDirectoryW                                     = modkernel32.NewProc("RemoveDirectoryW")
+	procRemoveDllDirectory                                   = modkernel32.NewProc("RemoveDllDirectory")
 	procResetEvent                                           = modkernel32.NewProc("ResetEvent")
+	procResizePseudoConsole                                  = modkernel32.NewProc("ResizePseudoConsole")
 	procResumeThread                                         = modkernel32.NewProc("ResumeThread")
 	procSetCommTimeouts                                      = modkernel32.NewProc("SetCommTimeouts")
 	procSetConsoleCursorPosition                             = modkernel32.NewProc("SetConsoleCursorPosition")
@@ -467,6 +475,8 @@ var (
 	procGetFileVersionInfoSizeW                              = modversion.NewProc("GetFileVersionInfoSizeW")
 	procGetFileVersionInfoW                                  = modversion.NewProc("GetFileVersionInfoW")
 	procVerQueryValueW                                       = modversion.NewProc("VerQueryValueW")
+	proctimeBeginPeriod                                      = modwinmm.NewProc("timeBeginPeriod")
+	proctimeEndPeriod                                        = modwinmm.NewProc("timeEndPeriod")
 	procWinVerifyTrustEx                                     = modwintrust.NewProc("WinVerifyTrustEx")
 	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
 	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
@@ -474,6 +484,9 @@ var (
 	procWSAEnumProtocolsW                                    = modws2_32.NewProc("WSAEnumProtocolsW")
 	procWSAGetOverlappedResult                               = modws2_32.NewProc("WSAGetOverlappedResult")
 	procWSAIoctl                                             = modws2_32.NewProc("WSAIoctl")
+	procWSALookupServiceBeginW                               = modws2_32.NewProc("WSALookupServiceBeginW")
+	procWSALookupServiceEnd                                  = modws2_32.NewProc("WSALookupServiceEnd")
+	procWSALookupServiceNextW                                = modws2_32.NewProc("WSALookupServiceNextW")
 	procWSARecv                                              = modws2_32.NewProc("WSARecv")
 	procWSARecvFrom                                          = modws2_32.NewProc("WSARecvFrom")
 	procWSASend                                              = modws2_32.NewProc("WSASend")
@@ -725,6 +738,14 @@ func DeregisterEventSource(handle Handle) (err error) {
 
 func DuplicateTokenEx(existingToken Token, desiredAccess uint32, tokenAttributes *SecurityAttributes, impersonationLevel uint32, tokenType uint32, newToken *Token) (err error) {
 	r1, _, e1 := syscall.Syscall6(procDuplicateTokenEx.Addr(), 6, uintptr(existingToken), uintptr(desiredAccess), uintptr(unsafe.Pointer(tokenAttributes)), uintptr(impersonationLevel), uintptr(tokenType), uintptr(unsafe.Pointer(newToken)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func EnumDependentServices(service Handle, activityState uint32, services *ENUM_SERVICE_STATUS, buffSize uint32, bytesNeeded *uint32, servicesReturned *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procEnumDependentServicesW.Addr(), 6, uintptr(service), uintptr(activityState), uintptr(unsafe.Pointer(services)), uintptr(buffSize), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(servicesReturned)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -1586,6 +1607,15 @@ func GetIfEntry(pIfRow *MibIfRow) (errcode error) {
 	return
 }
 
+func AddDllDirectory(path *uint16) (cookie uintptr, err error) {
+	r0, _, e1 := syscall.Syscall(procAddDllDirectory.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	cookie = uintptr(r0)
+	if cookie == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func AssignProcessToJobObject(job Handle, process Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procAssignProcessToJobObject.Addr(), 2, uintptr(job), uintptr(process), 0)
 	if r1 == 0 {
@@ -1615,6 +1645,11 @@ func CloseHandle(handle Handle) (err error) {
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func ClosePseudoConsole(console Handle) {
+	syscall.Syscall(procClosePseudoConsole.Addr(), 1, uintptr(console), 0, 0)
 	return
 }
 
@@ -1743,6 +1778,14 @@ func CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityA
 	r1, _, e1 := syscall.Syscall12(procCreateProcessW.Addr(), 10, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
+	}
+	return
+}
+
+func createPseudoConsole(size uint32, in Handle, out Handle, flags uint32, pconsole *Handle) (hr error) {
+	r0, _, _ := syscall.Syscall6(procCreatePseudoConsole.Addr(), 5, uintptr(size), uintptr(in), uintptr(out), uintptr(flags), uintptr(unsafe.Pointer(pconsole)), 0)
+	if r0 != 0 {
+		hr = syscall.Errno(r0)
 	}
 	return
 }
@@ -2154,6 +2197,14 @@ func GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, 
 	return
 }
 
+func GetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileTime.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func GetFileType(filehandle Handle) (n uint32, err error) {
 	r0, _, e1 := syscall.Syscall(procGetFileType.Addr(), 1, uintptr(filehandle), 0, 0)
 	n = uint32(r0)
@@ -2355,11 +2406,8 @@ func GetShortPathName(longpath *uint16, shortpath *uint16, buflen uint32) (n uin
 	return
 }
 
-func GetStartupInfo(startupInfo *StartupInfo) (err error) {
-	r1, _, e1 := syscall.Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
+func getStartupInfo(startupInfo *StartupInfo) {
+	syscall.Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
 	return
 }
 
@@ -2842,10 +2890,26 @@ func RemoveDirectory(path *uint16) (err error) {
 	return
 }
 
+func RemoveDllDirectory(cookie uintptr) (err error) {
+	r1, _, e1 := syscall.Syscall(procRemoveDllDirectory.Addr(), 1, uintptr(cookie), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func ResetEvent(event Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procResetEvent.Addr(), 1, uintptr(event), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
+	}
+	return
+}
+
+func resizePseudoConsole(pconsole Handle, size uint32) (hr error) {
+	r0, _, _ := syscall.Syscall(procResizePseudoConsole.Addr(), 2, uintptr(pconsole), uintptr(size), 0)
+	if r0 != 0 {
+		hr = syscall.Errno(r0)
 	}
 	return
 }
@@ -3504,12 +3568,8 @@ func EnumProcessModulesEx(process Handle, module *Handle, cb uint32, cbNeeded *u
 	return
 }
 
-func EnumProcesses(processIds []uint32, bytesReturned *uint32) (err error) {
-	var _p0 *uint32
-	if len(processIds) > 0 {
-		_p0 = &processIds[0]
-	}
-	r1, _, e1 := syscall.Syscall(procEnumProcesses.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(len(processIds)), uintptr(unsafe.Pointer(bytesReturned)))
+func enumProcesses(processIds *uint32, nSize uint32, bytesReturned *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procEnumProcesses.Addr(), 3, uintptr(unsafe.Pointer(processIds)), uintptr(nSize), uintptr(unsafe.Pointer(bytesReturned)))
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -3812,9 +3872,9 @@ func setupUninstallOEMInf(infFileName *uint16, flags SUOI, reserved uintptr) (er
 	return
 }
 
-func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) {
+func commandLineToArgv(cmd *uint16, argc *int32) (argv **uint16, err error) {
 	r0, _, e1 := syscall.Syscall(procCommandLineToArgvW.Addr(), 2, uintptr(unsafe.Pointer(cmd)), uintptr(unsafe.Pointer(argc)), 0)
-	argv = (*[8192]*[8192]uint16)(unsafe.Pointer(r0))
+	argv = (**uint16)(unsafe.Pointer(r0))
 	if argv == nil {
 		err = errnoErr(e1)
 	}
@@ -4009,6 +4069,22 @@ func _VerQueryValue(block unsafe.Pointer, subBlock *uint16, pointerToBufferPoint
 	return
 }
 
+func TimeBeginPeriod(period uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
+	if r1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func TimeEndPeriod(period uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
+	if r1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func WinVerifyTrustEx(hwnd HWND, actionId *GUID, data *WinTrustData) (ret error) {
 	r0, _, _ := syscall.Syscall(procWinVerifyTrustEx.Addr(), 3, uintptr(hwnd), uintptr(unsafe.Pointer(actionId)), uintptr(unsafe.Pointer(data)))
 	if r0 != 0 {
@@ -4061,6 +4137,30 @@ func WSAGetOverlappedResult(h Handle, o *Overlapped, bytes *uint32, wait bool, f
 
 func WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) {
 	r1, _, e1 := syscall.Syscall9(procWSAIoctl.Addr(), 9, uintptr(s), uintptr(iocc), uintptr(unsafe.Pointer(inbuf)), uintptr(cbif), uintptr(unsafe.Pointer(outbuf)), uintptr(cbob), uintptr(unsafe.Pointer(cbbr)), uintptr(unsafe.Pointer(overlapped)), uintptr(completionRoutine))
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceBegin(querySet *WSAQUERYSET, flags uint32, handle *Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSALookupServiceBeginW.Addr(), 3, uintptr(unsafe.Pointer(querySet)), uintptr(flags), uintptr(unsafe.Pointer(handle)))
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceEnd(handle Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSALookupServiceEnd.Addr(), 1, uintptr(handle), 0, 0)
+	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSALookupServiceNext(handle Handle, flags uint32, size *int32, querySet *WSAQUERYSET) (err error) {
+	r1, _, e1 := syscall.Syscall6(procWSALookupServiceNextW.Addr(), 4, uintptr(handle), uintptr(flags), uintptr(unsafe.Pointer(size)), uintptr(unsafe.Pointer(querySet)), 0, 0)
 	if r1 == socket_error {
 		err = errnoErr(e1)
 	}

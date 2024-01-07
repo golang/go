@@ -155,6 +155,8 @@ const (
 	_Imag
 	_Len
 	_Make
+	_Max
+	_Min
 	_New
 	_Panic
 	_Print
@@ -193,6 +195,9 @@ var predeclaredFuncs = [...]struct {
 	_Imag:    {"imag", 1, false, expression},
 	_Len:     {"len", 1, false, expression},
 	_Make:    {"make", 1, true, expression},
+	// To disable max/min, remove the next two lines.
+	_Max:     {"max", 1, true, expression},
+	_Min:     {"min", 1, true, expression},
 	_New:     {"new", 1, false, expression},
 	_Panic:   {"panic", 1, false, statement},
 	_Print:   {"print", 0, true, statement},
@@ -262,7 +267,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ, _ := obj.Type().(*Named); typ != nil {
+	if typ := asNamed(obj.Type()); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe

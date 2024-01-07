@@ -11,9 +11,11 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
+
+// This matches the value in syscall/syscall_windows.go.
+const _UTIME_OMIT = -1
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
@@ -160,7 +162,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) error {
-	f, e := OpenFile(name, O_WRONLY|O_CREATE, 0666)
+	f, e := OpenFile(name, O_WRONLY, 0666)
 	if e != nil {
 		return e
 	}
@@ -257,7 +259,7 @@ func tempDir() string {
 			// Otherwise remove terminating \.
 			n--
 		}
-		return string(utf16.Decode(b[:n]))
+		return syscall.UTF16ToString(b[:n])
 	}
 }
 
@@ -375,12 +377,6 @@ func normaliseLinkPath(path string) (string, error) {
 
 	// handle paths, like \??\Volume{abc}\...
 
-	err := windows.LoadGetFinalPathNameByHandle()
-	if err != nil {
-		// we must be using old version of Windows
-		return "", err
-	}
-
 	h, err := openSymlink(path)
 	if err != nil {
 		return "", err
@@ -410,7 +406,7 @@ func normaliseLinkPath(path string) (string, error) {
 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path: " + s)
 }
 
-func readlink(path string) (string, error) {
+func readReparseLink(path string) (string, error) {
 	h, err := openSymlink(path)
 	if err != nil {
 		return "", err
@@ -442,10 +438,8 @@ func readlink(path string) (string, error) {
 	}
 }
 
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
-	s, err := readlink(fixLongPath(name))
+func readlink(name string) (string, error) {
+	s, err := readReparseLink(fixLongPath(name))
 	if err != nil {
 		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}

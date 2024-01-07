@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/par"
@@ -163,16 +164,19 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	if cfg.BuildMod == "vendor" {
-		mod := MainModules.mustGetSingleMainModule()
-		if modRoot := MainModules.ModRoot(mod); modRoot != "" {
-			walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
-			walkPkgs(filepath.Join(modRoot, "vendor"), "", pruneVendor)
+		for _, mod := range MainModules.Versions() {
+			if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+				walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+			}
+		}
+		if HasModRoot() {
+			walkPkgs(VendorDir(), "", pruneVendor)
 		}
 		return
 	}
 
 	for _, mod := range modules {
-		if !treeCanMatch(mod.Path) {
+		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
 			continue
 		}
 
@@ -209,8 +213,6 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		}
 		walkPkgs(root, modPrefix, prune)
 	}
-
-	return
 }
 
 // walkFromIndex matches packages in a module using the module index. modroot

@@ -31,9 +31,9 @@ func Swapper(slice any) func(i, j int) {
 		}
 	}
 
-	typ := v.Type().Elem().(*rtype)
+	typ := v.Type().Elem().common()
 	size := typ.Size()
-	hasPtr := typ.ptrdata != 0
+	hasPtr := typ.PtrBytes != 0
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {

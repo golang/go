@@ -13,7 +13,7 @@ import (
 	"testing/quick"
 )
 
-// slowestRGBA is a draw.Image like image.RGBA but it is a different type and
+// slowestRGBA is a draw.Image like image.RGBA, but it is a different type and
 // therefore does not trigger the draw.go fastest code paths.
 //
 // Unlike slowerRGBA, it does not implement the draw.RGBA64Image interface.
@@ -484,7 +484,7 @@ func TestDraw(t *testing.T) {
 				}
 
 				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
-				golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+				golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.Point{}, test.mask, image.Point{}, test.op)
 				b := dst.Bounds()
 				if !b.Eq(golden.Bounds()) {
 					t.Errorf("draw %v %s on %T: bounds %v versus %v",
@@ -492,7 +492,7 @@ func TestDraw(t *testing.T) {
 					continue
 				}
 				// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
-				DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+				DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.Point{}, test.mask, image.Point{}, test.op)
 				if image.Pt(8, 8).In(r) {
 					// Check that the resultant pixel at (8, 8) matches what we expect
 					// (the expected value can be verified by hand).
@@ -527,13 +527,13 @@ func TestDrawOverlap(t *testing.T) {
 				src := m.SubImage(image.Rect(5+xoff, 5+yoff, 10+xoff, 10+yoff)).(*image.RGBA)
 				b := dst.Bounds()
 				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
-				golden := makeGolden(dst, b, src, src.Bounds().Min, nil, image.ZP, op)
+				golden := makeGolden(dst, b, src, src.Bounds().Min, nil, image.Point{}, op)
 				if !b.Eq(golden.Bounds()) {
 					t.Errorf("drawOverlap xoff=%d,yoff=%d: bounds %v versus %v", xoff, yoff, dst.Bounds(), golden.Bounds())
 					continue
 				}
 				// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
-				DrawMask(dst, b, src, src.Bounds().Min, nil, image.ZP, op)
+				DrawMask(dst, b, src, src.Bounds().Min, nil, image.Point{}, op)
 				// Check that the resultant dst image matches the golden output.
 				for y := b.Min.Y; y < b.Max.Y; y++ {
 					for x := b.Min.X; x < b.Max.X; x++ {
@@ -596,7 +596,7 @@ func TestFill(t *testing.T) {
 		// Draw 1 pixel at a time.
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			for x := b.Min.X; x < b.Max.X; x++ {
-				DrawMask(m, image.Rect(x, y, x+1, y+1), src, image.ZP, nil, image.ZP, Src)
+				DrawMask(m, image.Rect(x, y, x+1, y+1), src, image.Point{}, nil, image.Point{}, Src)
 			}
 		}
 		check("pixel")
@@ -604,20 +604,20 @@ func TestFill(t *testing.T) {
 		c = color.RGBA{0, 22, 0, 255}
 		src = &image.Uniform{C: c}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
-			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
+			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.Point{}, nil, image.Point{}, Src)
 		}
 		check("row")
 		// Draw 1 column at a time.
 		c = color.RGBA{0, 0, 33, 255}
 		src = &image.Uniform{C: c}
 		for x := b.Min.X; x < b.Max.X; x++ {
-			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
+			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.Point{}, nil, image.Point{}, Src)
 		}
 		check("column")
 		// Draw the whole image at once.
 		c = color.RGBA{44, 55, 66, 77}
 		src = &image.Uniform{C: c}
-		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
+		DrawMask(m, b, src, image.Point{}, nil, image.Point{}, Src)
 		check("whole")
 	}
 }

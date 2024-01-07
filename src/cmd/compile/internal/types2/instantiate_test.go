@@ -107,7 +107,7 @@ func TestInstantiateEquality(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg := mustTypecheck(".", test.src, nil, nil)
+		pkg := mustTypecheck(test.src, nil, nil)
 
 		t.Run(pkg.Name(), func(t *testing.T) {
 			ctxt := NewContext()
@@ -133,8 +133,8 @@ func TestInstantiateEquality(t *testing.T) {
 
 func TestInstantiateNonEquality(t *testing.T) {
 	const src = "package p; type T[P any] int"
-	pkg1 := mustTypecheck(".", src, nil, nil)
-	pkg2 := mustTypecheck(".", src, nil, nil)
+	pkg1 := mustTypecheck(src, nil, nil)
+	pkg2 := mustTypecheck(src, nil, nil)
 	// We consider T1 and T2 to be distinct types, so their instances should not
 	// be deduplicated by the context.
 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
@@ -179,7 +179,7 @@ var X T[int]
 
 	for _, test := range tests {
 		src := prefix + test.decl
-		pkg := mustTypecheck(".", src, nil, nil)
+		pkg := mustTypecheck(src, nil, nil)
 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
 		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
 		m, _ := obj.(*Func)
@@ -201,7 +201,7 @@ func (T[P]) m() {}
 
 var _ T[int]
 `
-	pkg := mustTypecheck(".", src, nil, nil)
+	pkg := mustTypecheck(src, nil, nil)
 	typ := pkg.Scope().Lookup("T").Type().(*Named)
 	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
 	if obj == nil {

@@ -1,3 +1,5 @@
+env GOOS=linux
+
 env GOARCH=amd64
 env GOAMD64=v3
 go list -f '{{context.ToolTags}}'

@@ -16,7 +16,7 @@ therefore cannot be affected by this package.
 Synchronous signals are signals triggered by errors in program
 execution: SIGBUS, SIGFPE, and SIGSEGV. These are only considered
 synchronous when caused by program execution, not when sent using
-os.Process.Kill or the kill program or some similar mechanism. In
+[os.Process.Kill] or the kill program or some similar mechanism. In
 general, except as discussed below, Go programs will convert a
 synchronous signal into a run-time panic.
 
@@ -52,7 +52,7 @@ generally be honored. However, some signals are explicitly unblocked:
 the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
 and, on Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
 (SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
-started by os.Exec, or by the os/exec package, will inherit the
+started by [os.Exec], or by [os/exec], will inherit the
 modified signal mask.
 
 # Changing the behavior of signals in Go programs
@@ -210,8 +210,8 @@ before raising the signal.
 # Windows
 
 On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
-the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
-will cause os.Interrupt to be sent on the channel, and the program will
+the program to exit. If Notify is called for [os.Interrupt], ^C or ^BREAK
+will cause [os.Interrupt] to be sent on the channel, and the program will
 not exit. If Reset is called, or Stop is called on all channels passed
 to Notify, then the default behavior will be restored.
 

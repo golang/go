@@ -9,5 +9,5 @@ func f[P interface{ m(R) }, R any]() {}
 type T = interface { m(int) }
 
 func _() {
-	_ = f /* ERROR "cannot infer R" */ [T] // don't crash in type inference
+	_ = f[T]
 }

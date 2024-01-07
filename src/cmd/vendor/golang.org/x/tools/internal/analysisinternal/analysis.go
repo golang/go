@@ -15,10 +15,6 @@ import (
 	"strconv"
 )
 
-// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
-// in Go 1.18+.
-var DiagnoseFuzzTests bool = false
-
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
 	// Get the end position for the type error.
 	offset, end := fset.PositionFor(start, false).Offset, start
@@ -46,7 +42,7 @@ func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		case u.Info()&types.IsString != 0:
 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
 		default:
-			panic("unknown basic type")
+			panic(fmt.Sprintf("unknown basic type %v", u))
 		}
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")

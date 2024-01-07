@@ -59,7 +59,10 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)builtin-[a-zA-Z0-9_]*`),
 	re(`-f(no-)?common`),
 	re(`-f(no-)?constant-cfstrings`),
+	re(`-fdebug-prefix-map=([^@]+)=([^@]+)`),
 	re(`-fdiagnostics-show-note-include-stack`),
+	re(`-ffile-prefix-map=([^@]+)=([^@]+)`),
+	re(`-fno-canonical-system-headers`),
 	re(`-f(no-)?eliminate-unused-debug-types`),
 	re(`-f(no-)?exceptions`),
 	re(`-f(no-)?fast-math`),
@@ -114,6 +117,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-mthumb(-interwork)?`),
 	re(`-mthreads`),
 	re(`-mwindows`),
+	re(`-no-canonical-prefixes`),
 	re(`--param=ssp-buffer-size=[0-9]*`),
 	re(`-pedantic(-errors)?`),
 	re(`-pipe`),
@@ -180,10 +184,10 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-berok`),
 	re(`-Wl,-Bstatic`),
 	re(`-Wl,-Bsymbolic-functions`),
-	re(`-Wl,-O([^@,\-][^,]*)?`),
+	re(`-Wl,-O[0-9]+`),
 	re(`-Wl,-d[ny]`),
 	re(`-Wl,--disable-new-dtags`),
-	re(`-Wl,-e[=,][a-zA-Z0-9]*`),
+	re(`-Wl,-e[=,][a-zA-Z0-9]+`),
 	re(`-Wl,--enable-new-dtags`),
 	re(`-Wl,--end-group`),
 	re(`-Wl,--(no-)?export-dynamic`),
@@ -192,7 +196,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--hash-style=(sysv|gnu|both)`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
-	re(`-Wl,-R([^@\-][^,@]*$)`),
+	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
 	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
 	re(`-Wl,-s`),
@@ -230,32 +234,55 @@ var validLinkerFlagsWithNextArg = []string{
 }
 
 func checkCompilerFlags(name, source string, list []string) error {
-	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg)
+	checkOverrides := true
+	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
-	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
+	checkOverrides := true
+	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
 }
 
-func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
+// checkCompilerFlagsForInternalLink returns an error if 'list'
+// contains a flag or flags that may not be fully supported by
+// internal linking (meaning that we should punt the link to the
+// external linker).
+func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
+	checkOverrides := false
+	if err := checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
+		return err
+	}
+	// Currently the only flag on the allow list that causes problems
+	// for the linker is "-flto"; check for it manually here.
+	for _, fl := range list {
+		if strings.HasPrefix(fl, "-flto") {
+			return fmt.Errorf("flag %q triggers external linking", fl)
+		}
+	}
+	return nil
+}
+
+func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
 		disallow *regexp.Regexp
 	)
-	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
-		r, err := regexp.Compile(env)
-		if err != nil {
-			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
+	if checkOverrides {
+		if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+			r, err := regexp.Compile(env)
+			if err != nil {
+				return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
+			}
+			allow = r
 		}
-		allow = r
-	}
-	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
-		r, err := regexp.Compile(env)
-		if err != nil {
-			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
+		if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+			r, err := regexp.Compile(env)
+			if err != nil {
+				return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
+			}
+			disallow = r
 		}
-		disallow = r
 	}
 
 Args:

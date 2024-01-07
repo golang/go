@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"html/template"
 	"internal/trace"
+	"internal/trace/traceviewer"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -494,7 +494,7 @@ func (region *regionDesc) duration() time.Duration {
 func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping time.Duration) {
 	for _, ev := range evs {
 		// make sure we only consider the global GC events.
-		if typ := ev.Type; typ != trace.EvGCStart && typ != trace.EvGCSTWStart {
+		if typ := ev.Type; typ != trace.EvGCStart {
 			continue
 		}
 
@@ -808,122 +808,9 @@ func newRegionFilter(r *http.Request) (*regionFilter, error) {
 	}, nil
 }
 
-type durationHistogram struct {
-	Count                int
-	Buckets              []int
-	MinBucket, MaxBucket int
-}
-
-// Five buckets for every power of 10.
-var logDiv = math.Log(math.Pow(10, 1.0/5))
-
-func (h *durationHistogram) add(d time.Duration) {
-	var bucket int
-	if d > 0 {
-		bucket = int(math.Log(float64(d)) / logDiv)
-	}
-	if len(h.Buckets) <= bucket {
-		h.Buckets = append(h.Buckets, make([]int, bucket-len(h.Buckets)+1)...)
-		h.Buckets = h.Buckets[:cap(h.Buckets)]
-	}
-	h.Buckets[bucket]++
-	if bucket < h.MinBucket || h.MaxBucket == 0 {
-		h.MinBucket = bucket
-	}
-	if bucket > h.MaxBucket {
-		h.MaxBucket = bucket
-	}
-	h.Count++
-}
-
-func (h *durationHistogram) BucketMin(bucket int) time.Duration {
-	return time.Duration(math.Exp(float64(bucket) * logDiv))
-}
-
-func niceDuration(d time.Duration) string {
-	var rnd time.Duration
-	var unit string
-	switch {
-	case d < 10*time.Microsecond:
-		rnd, unit = time.Nanosecond, "ns"
-	case d < 10*time.Millisecond:
-		rnd, unit = time.Microsecond, "µs"
-	case d < 10*time.Second:
-		rnd, unit = time.Millisecond, "ms"
-	default:
-		rnd, unit = time.Second, "s "
-	}
-	return fmt.Sprintf("%d%s", d/rnd, unit)
-}
-
-func (h *durationHistogram) ToHTML(urlmaker func(min, max time.Duration) string) template.HTML {
-	if h == nil || h.Count == 0 {
-		return template.HTML("")
-	}
-
-	const barWidth = 400
-
-	maxCount := 0
-	for _, count := range h.Buckets {
-		if count > maxCount {
-			maxCount = count
-		}
-	}
-
-	w := new(strings.Builder)
-	fmt.Fprintf(w, `<table>`)
-	for i := h.MinBucket; i <= h.MaxBucket; i++ {
-		// Tick label.
-		if h.Buckets[i] > 0 {
-			fmt.Fprintf(w, `<tr><td class="histoTime" align="right"><a href=%s>%s</a></td>`, urlmaker(h.BucketMin(i), h.BucketMin(i+1)), niceDuration(h.BucketMin(i)))
-		} else {
-			fmt.Fprintf(w, `<tr><td class="histoTime" align="right">%s</td>`, niceDuration(h.BucketMin(i)))
-		}
-		// Bucket bar.
-		width := h.Buckets[i] * barWidth / maxCount
-		fmt.Fprintf(w, `<td><div style="width:%dpx;background:blue;position:relative">&nbsp;</div></td>`, width)
-		// Bucket count.
-		fmt.Fprintf(w, `<td align="right"><div style="position:relative">%d</div></td>`, h.Buckets[i])
-		fmt.Fprintf(w, "</tr>\n")
-
-	}
-	// Final tick label.
-	fmt.Fprintf(w, `<tr><td align="right">%s</td></tr>`, niceDuration(h.BucketMin(h.MaxBucket+1)))
-	fmt.Fprintf(w, `</table>`)
-	return template.HTML(w.String())
-}
-
-func (h *durationHistogram) String() string {
-	const barWidth = 40
-
-	labels := []string{}
-	maxLabel := 0
-	maxCount := 0
-	for i := h.MinBucket; i <= h.MaxBucket; i++ {
-		// TODO: This formatting is pretty awful.
-		label := fmt.Sprintf("[%-12s%-11s)", h.BucketMin(i).String()+",", h.BucketMin(i+1))
-		labels = append(labels, label)
-		if len(label) > maxLabel {
-			maxLabel = len(label)
-		}
-		count := h.Buckets[i]
-		if count > maxCount {
-			maxCount = count
-		}
-	}
-
-	w := new(strings.Builder)
-	for i := h.MinBucket; i <= h.MaxBucket; i++ {
-		count := h.Buckets[i]
-		bar := count * barWidth / maxCount
-		fmt.Fprintf(w, "%*s %-*s %d\n", maxLabel, labels[i-h.MinBucket], barWidth, strings.Repeat("█", bar), count)
-	}
-	return w.String()
-}
-
 type regionStats struct {
 	regionTypeID
-	Histogram durationHistogram
+	Histogram traceviewer.TimeHistogram
 }
 
 func (s *regionStats) UserRegionURL() func(min, max time.Duration) string {
@@ -933,7 +820,7 @@ func (s *regionStats) UserRegionURL() func(min, max time.Duration) string {
 }
 
 func (s *regionStats) add(region regionDesc) {
-	s.Histogram.add(region.duration())
+	s.Histogram.Add(region.duration())
 }
 
 var templUserRegionTypes = template.Must(template.New("").Parse(`
@@ -966,8 +853,8 @@ var templUserRegionTypes = template.Must(template.New("").Parse(`
 
 type taskStats struct {
 	Type      string
-	Count     int               // Complete + incomplete tasks
-	Histogram durationHistogram // Complete tasks only
+	Count     int                       // Complete + incomplete tasks
+	Histogram traceviewer.TimeHistogram // Complete tasks only
 }
 
 func (s *taskStats) UserTaskURL(complete bool) func(min, max time.Duration) string {
@@ -979,7 +866,7 @@ func (s *taskStats) UserTaskURL(complete bool) func(min, max time.Duration) stri
 func (s *taskStats) add(task *taskDesc) {
 	s.Count++
 	if task.complete() {
-		s.Histogram.add(task.duration())
+		s.Histogram.Add(task.duration())
 	}
 }
 
@@ -1169,7 +1056,7 @@ func isUserAnnotationEvent(ev *trace.Event) (taskID uint64, ok bool) {
 var templUserRegionType = template.Must(template.New("").Funcs(template.FuncMap{
 	"prettyDuration": func(nsec int64) template.HTML {
 		d := time.Duration(nsec) * time.Nanosecond
-		return template.HTML(niceDuration(d))
+		return template.HTML(d.String())
 	},
 	"percent": func(dividend, divisor int64) template.HTML {
 		if divisor == 0 {

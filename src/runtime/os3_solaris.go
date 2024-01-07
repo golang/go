@@ -17,7 +17,7 @@ import (
 
 //go:cgo_import_dynamic libc____errno ___errno "libc.so"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.so"
-//go:cgo_import_dynamic libc_exit exit "libc.so"
+//go:cgo_import_dynamic libc_exit _exit "libc.so"
 //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
 //go:cgo_import_dynamic libc_kill kill "libc.so"
 //go:cgo_import_dynamic libc_madvise madvise "libc.so"
@@ -133,6 +133,10 @@ func getPageSize() uintptr {
 }
 
 func osinit() {
+	// Call miniterrno so that we can safely make system calls
+	// before calling minit on m0.
+	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
+
 	ncpu = getncpu()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
@@ -194,11 +198,11 @@ func exitThread(wait *atomic.Uint32) {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -227,6 +231,7 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -570,8 +575,9 @@ func pipe2(flags int32) (r, w int32, errno int32) {
 }
 
 //go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	r1, err := sysvicall3Err(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
+	return int32(r1), int32(err)
 }
 
 func osyield1()
@@ -601,8 +607,9 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	sysauxv(auxv[:])
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	pairs := sysauxv(auxvp[:])
+	auxv = auxvp[: pairs*2 : pairs*2]
 }
 
 const (
@@ -611,8 +618,9 @@ const (
 	_AT_SUN_EXECNAME = 2014 // exec() path name
 )
 
-func sysauxv(auxv []uintptr) {
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+func sysauxv(auxv []uintptr) (pairs int) {
+	var i int
+	for i = 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_PAGESZ:
@@ -621,6 +629,7 @@ func sysauxv(auxv []uintptr) {
 			executablePath = gostringnocopy((*byte)(unsafe.Pointer(val)))
 		}
 	}
+	return i / 2
 }
 
 // sigPerThreadSyscall is only used on linux, so we assign a bogus signal

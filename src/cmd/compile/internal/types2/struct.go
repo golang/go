@@ -127,7 +127,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// spec: "An embedded type must be specified as a type name T or as a
 			// pointer to a non-interface type name *T, and T itself may not be a
 			// pointer type."
-			pos := syntax.StartPos(f.Type)
+			pos := syntax.StartPos(f.Type) // position of type, for errors
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
@@ -135,7 +135,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				addInvalid(name, pos)
 				continue
 			}
-			add(name, true, pos)
+			add(name, true, name.Pos()) // struct{p.T} field has position of T
 
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
@@ -147,7 +147,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				t, isPtr := deref(embeddedTyp)
 				switch u := under(t).(type) {
 				case *Basic:
-					if t == Typ[Invalid] {
+					if !isValid(t) {
 						// error was reported before
 						return
 					}

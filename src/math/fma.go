@@ -132,6 +132,11 @@ func FMA(x, y, z float64) float64 {
 		ps, pe, pm1, pm2, zs, ze, zm1, zm2 = zs, ze, zm1, zm2, ps, pe, pm1, pm2
 	}
 
+	// Special case: if p == -z the result is always +0 since neither operand is zero.
+	if ps != zs && pe == ze && pm1 == zm1 && pm2 == zm2 {
+		return 0
+	}
+
 	// Align significands
 	zm1, zm2 = shrcompress(zm1, zm2, uint(pe-ze))
 

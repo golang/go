@@ -285,10 +285,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 	case ssa.OpWasmLoweredWB:
-		getValue64(s, v.Args[0])
-		getValue64(s, v.Args[1])
-		p := s.Prog(wasm.ACALLNORESUME) // TODO(neelance): If possible, turn this into a simple wasm.ACall).
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: v.Aux.(*obj.LSym)}
+		p := s.Prog(wasm.ACall)
+		// AuxInt encodes how many buffer entries we need.
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.GCWriteBarrier[v.AuxInt-1]}
+		setReg(s, v.Reg0()) // move result from wasm stack to register local
 
 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
 		getValue32(s, v.Args[0])

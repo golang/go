@@ -10,6 +10,7 @@ package comment
 var stdPkgs = []string{
 	"bufio",
 	"bytes",
+	"cmp",
 	"context",
 	"crypto",
 	"embed",
@@ -23,6 +24,7 @@ var stdPkgs = []string{
 	"image",
 	"io",
 	"log",
+	"maps",
 	"math",
 	"mime",
 	"net",
@@ -32,6 +34,7 @@ var stdPkgs = []string{
 	"reflect",
 	"regexp",
 	"runtime",
+	"slices",
 	"sort",
 	"strconv",
 	"strings",

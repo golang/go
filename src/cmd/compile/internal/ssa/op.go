@@ -238,13 +238,9 @@ func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
 	return a.abiInfo.InParam(int(which)).Registers
 }
 
-// NameOfResult returns the type of result which (indexed 0, 1, etc).
+// NameOfResult returns the ir.Name of result which (indexed 0, 1, etc).
 func (a *AuxCall) NameOfResult(which int64) *ir.Name {
-	name := a.abiInfo.OutParam(int(which)).Name
-	if name == nil {
-		return nil
-	}
-	return name.(*ir.Name)
+	return a.abiInfo.OutParam(int(which)).Name
 }
 
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
@@ -372,7 +368,7 @@ const (
 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
 	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
 	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
-	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is a int8 immediate
+	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
 	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 

@@ -95,6 +95,18 @@ var builtinCalls = []struct {
 	// go.dev/issue/45667
 	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
 
+	{"max", `               _ = max(0        )`, `invalid type`}, // constant
+	{"max", `var x int    ; _ = max(x        )`, `func(int) int`},
+	{"max", `var x int    ; _ = max(0, x     )`, `func(int, int) int`},
+	{"max", `var x string ; _ = max("a", x   )`, `func(string, string) string`},
+	{"max", `var x float32; _ = max(0, 1.0, x)`, `func(float32, float32, float32) float32`},
+
+	{"min", `               _ = min(0        )`, `invalid type`}, // constant
+	{"min", `var x int    ; _ = min(x        )`, `func(int) int`},
+	{"min", `var x int    ; _ = min(0, x     )`, `func(int, int) int`},
+	{"min", `var x string ; _ = min("a", x   )`, `func(string, string) string`},
+	{"min", `var x float32; _ = min(0, 1.0, x)`, `func(float32, float32, float32) float32`},
+
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 
@@ -174,7 +186,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 
 	uses := make(map[*syntax.Name]Object)
 	types := make(map[syntax.Expr]TypeAndValue)
-	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
+	mustTypecheck(src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

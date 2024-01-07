@@ -25,6 +25,7 @@ const Doc = "check //go:build and // +build directives"
 var Analyzer = &analysis.Analyzer{
 	Name: "buildtag",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildtag",
 	Run:  runBuildTag,
 }
 
@@ -39,7 +40,7 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
 	}
 	for _, name := range pass.IgnoredFiles {
 		if strings.HasSuffix(name, ".go") {
-			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
+			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments|parser.SkipObjectResolution)
 			if err != nil {
 				// Not valid Go source code - not our job to diagnose, so ignore.
 				return nil, nil

@@ -152,7 +152,7 @@ type _ struct {
 	List[int]
 
 	int8 /* ERROR "int8 redeclared" */
-	* /* ERROR "int16 redeclared" */ int16
+	*int16 /* ERROR "int16 redeclared" */
 	List /* ERROR "List redeclared" */ [int]
 }
 
@@ -166,17 +166,17 @@ type _ struct {
 // func _[T interface{ m(); ~int }]() {
 // 	type L T
 // 	var x L
-// 
+//
 // 	// m is not defined on L (it is not "inherited" from
 // 	// its underlying type).
 // 	x.m /* ERROR "x.m undefined" */ ()
-// 
+//
 // 	// But the properties of T, such that as that it supports
 // 	// the operations of the types given by its type bound,
 // 	// are also the properties of L.
 // 	x++
 // 	_ = x - x
-// 
+//
 // 	// On the other hand, if we define a local alias for T,
 // 	// that alias stands for T as expected.
 // 	type A = T

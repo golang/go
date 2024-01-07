@@ -47,7 +47,7 @@ func TestAtomicAlignment(t *testing.T) {
 		varDesc[i] = v[1]
 	}
 
-	// Check all of our alignemnts. This is the actual core of the test.
+	// Check all of our alignments. This is the actual core of the test.
 	for i, d := range runtime.AtomicFields {
 		if d%8 != 0 {
 			t.Errorf("field alignment of %s failed: offset is %d", fieldDesc[i], d)

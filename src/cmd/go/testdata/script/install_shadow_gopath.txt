@@ -1,8 +1,6 @@
 # Tests Issue #3562
 # go get foo.io (not foo.io/subdir) was not working consistently.
 
-[!net] skip
-
 env GO111MODULE=off
 env GOPATH=$WORK/gopath1${:}$WORK/gopath2
 

@@ -389,13 +389,6 @@ func addAt(z, x nat, i int) {
 	}
 }
 
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
-
 // karatsubaLen computes an approximation to the maximum k <= n such that
 // k = p<<i for a number p <= threshold and an i >= 0. Thus, the
 // result is the largest number that can be divided repeatedly by 2 before

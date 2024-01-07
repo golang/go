@@ -1,0 +1,69 @@
+# Regression test for https://go.dev/issue/60313: 'go mod tidy' did not preserve
+# dependencies needed to prevent 'ambiguous import' errors in external test
+# dependencies.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+-- go.mod --
+module example
+
+go 1.21
+
+require (
+	example.net/a v0.1.0
+	example.net/b v0.1.0
+)
+
+require example.net/outer/inner v0.1.0 // indirect
+
+replace (
+	example.net/a v0.1.0 => ./a
+	example.net/b v0.1.0 => ./b
+	example.net/outer v0.1.0 => ./outer
+	example.net/outer/inner v0.1.0 => ./inner
+)
+-- example.go --
+package example
+
+import (
+	_ "example.net/a"
+	_ "example.net/b"
+)
+-- a/go.mod --
+module example.net/a
+
+go 1.21
+
+require example.net/outer/inner v0.1.0
+-- a/a.go --
+package a
+-- a/a_test.go --
+package a_test
+
+import _ "example.net/outer/inner"
+-- b/go.mod --
+module example.net/b
+
+go 1.21
+
+require example.net/outer v0.1.0
+-- b/b.go --
+package b
+-- b/b_test.go --
+package b_test
+
+import _ "example.net/outer/inner"
+-- inner/go.mod --
+module example.net/outer/inner
+
+go 1.21
+-- inner/inner.go --
+package inner
+-- outer/go.mod --
+module example.net/outer
+
+go 1.21
+-- outer/inner/inner.go --
+package inner

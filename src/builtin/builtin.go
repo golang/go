@@ -10,6 +10,8 @@ for the language's special identifiers.
 */
 package builtin
 
+import "cmp"
+
 // bool is the set of boolean values, true and false.
 type bool bool
 
@@ -206,6 +208,18 @@ func cap(v Type) int
 //	unbuffered.
 func make(t Type, size ...IntegerType) Type
 
+// The max built-in function returns the largest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// max will return NaN.
+func max[T cmp.Ordered](x T, y ...T) T
+
+// The min built-in function returns the smallest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// min will return NaN.
+func min[T cmp.Ordered](x T, y ...T) T
+
 // The new built-in function allocates memory. The first argument is a type,
 // not a value, and the value returned is a pointer to a newly
 // allocated zero value of that type.
@@ -270,9 +284,10 @@ func panic(v any)
 // by restoring normal execution and retrieves the error value passed to the
 // call of panic. If recover is called outside the deferred function it will
 // not stop a panicking sequence. In this case, or when the goroutine is not
-// panicking, or if the argument supplied to panic was nil, recover returns
-// nil. Thus the return value from recover reports whether the goroutine is
-// panicking.
+// panicking, recover returns nil.
+//
+// Prior to Go 1.21, recover would also return nil if panic is called with
+// a nil argument. See [panic] for details.
 func recover() any
 
 // The print built-in function formats its arguments in an

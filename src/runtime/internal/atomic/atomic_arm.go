@@ -11,6 +11,10 @@ import (
 	"unsafe"
 )
 
+const (
+	offsetARMHasV7Atomics = unsafe.Offsetof(cpu.ARM.HasV7Atomics)
+)
+
 // Export some functions via linkname to assembly in sync/atomic.
 //
 //go:linkname Xchg

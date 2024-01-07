@@ -1,110 +1,29 @@
 # Test support for declaring needed Go version in module.
 
 env GO111MODULE=on
+env TESTGO_VERSION=go1.21
 
-go list
-go build
-go build sub.1
-go build subver.1
-! stderr 'module requires'
-! go build badsub.1
-stderr '^note: module requires Go 1.11111$'
-
-go build versioned.1
-go mod edit -require versioned.1@v1.1.0
-! go build versioned.1
-stderr '^note: module requires Go 1.99999$'
-
-[short] stop
-
-# The message should be printed even if the compiler emits no output.
-go build -o $WORK/nooutput.exe nooutput.go
-! go build -toolexec=$WORK/nooutput.exe versioned.1
-stderr '^# versioned.1\nnote: module requires Go 1.99999$'
+! go list
+stderr -count=1 '^go: sub@v1.0.0: module ./sub requires go >= 1.999 \(running go 1.21\)$'
+! go build sub
+stderr -count=1 '^go: sub@v1.0.0: module ./sub requires go >= 1.999 \(running go 1.21\)$'
 
 -- go.mod --
 module m
-go 1.999
+go 1.1
 require (
-	sub.1 v1.0.0
-	subver.1 v1.0.0
-	badsub.1 v1.0.0
-	versioned.1 v1.0.0
+	sub v1.0.0
 )
 replace (
-	sub.1 => ./sub
-	subver.1 => ./subver
-	badsub.1 => ./badsub
-	versioned.1 v1.0.0 => ./versioned1
-	versioned.1 v1.1.0 => ./versioned2
+	sub => ./sub
 )
 
 -- x.go --
 package x
 
 -- sub/go.mod --
-module m
-go 1.11
+module sub
+go 1.999
 
 -- sub/x.go --
 package x
-
--- subver/go.mod --
-module m
-go 1.11111
-
--- subver/x.go --
-package x
-
--- badsub/go.mod --
-module m
-go 1.11111
-
--- badsub/x.go --
-package x
-invalid syntax
-
--- versioned1/go.mod --
-module versioned
-go 1.0
-
--- versioned1/x.go --
-package x
-
--- versioned2/go.mod --
-module versioned
-go 1.99999
-
--- versioned2/x.go --
-package x
-invalid syntax
-
--- nooutput.go --
-// +build ignore
-
-package main
-
-import (
-	"bytes"
-	"os"
-	"os/exec"
-	"strings"
-)
-
-func main() {
-	stderr := new(bytes.Buffer)
-	stdout := new(bytes.Buffer)
-
-	cmd := exec.Command(os.Args[1], os.Args[2:]...)
-	cmd.Stderr = stderr
-	cmd.Stdout = stdout
-
-	err := cmd.Run()
-	if strings.HasPrefix(os.Args[2], "-V") {
-		os.Stderr.Write(stderr.Bytes())
-		os.Stdout.Write(stdout.Bytes())
-	}
-	if err != nil {
-		os.Exit(1)
-	}
-}

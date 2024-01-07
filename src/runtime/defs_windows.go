@@ -27,6 +27,7 @@ const (
 	_CTRL_SHUTDOWN_EVENT = 0x6
 
 	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
+	_EXCEPTION_IN_PAGE_ERROR        = 0xc0000006
 	_EXCEPTION_BREAKPOINT           = 0x80000003
 	_EXCEPTION_ILLEGAL_INSTRUCTION  = 0xc000001d
 	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
@@ -40,8 +41,9 @@ const (
 	_INFINITE     = 0xffffffff
 	_WAIT_TIMEOUT = 0x102
 
-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
+	_EXCEPTION_CONTINUE_EXECUTION  = -0x1
+	_EXCEPTION_CONTINUE_SEARCH     = 0x0
+	_EXCEPTION_CONTINUE_SEARCH_SEH = 0x1
 )
 
 type systeminfo struct {
@@ -66,7 +68,7 @@ type exceptionrecord struct {
 	exceptioncode        uint32
 	exceptionflags       uint32
 	exceptionrecord      *exceptionrecord
-	exceptionaddress     *byte
+	exceptionaddress     uintptr
 	numberparameters     uint32
 	exceptioninformation [15]uintptr
 }

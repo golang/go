@@ -1,5 +1,6 @@
-// +build amd64,!gcflags_noopt arm64,!gcflags_noopt
 // errorcheck -0 -d=ssa/late_fuse/debug=1
+
+//go:build (amd64 && !gcflags_noopt) || (arm64 && !gcflags_noopt)
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

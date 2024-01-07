@@ -29,7 +29,7 @@ func sortComments(list []*CommentGroup) {
 }
 
 // A CommentMap maps an AST node to a list of comment groups
-// associated with it. See NewCommentMap for a description of
+// associated with it. See [NewCommentMap] for a description of
 // the association.
 type CommentMap map[Node][]*CommentGroup
 

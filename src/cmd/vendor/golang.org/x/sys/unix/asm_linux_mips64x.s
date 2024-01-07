@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (mips64 || mips64le) && gc
-// +build linux
-// +build mips64 mips64le
-// +build gc
 
 #include "textflag.h"
 

@@ -44,7 +44,7 @@ func testGoArch() string {
 
 func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false
@@ -114,7 +114,7 @@ func TestInlineLines(t *testing.T) {
 		t.Skip("only runs for amd64 unless -arch explicitly supplied")
 	}
 
-	want := [][]int{{3}, {3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
+	want := [][]int{{3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
 	testInlineStack(t, "inline-dump.go", "f", want)
 }
 

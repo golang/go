@@ -4,7 +4,7 @@ env GO111MODULE=on
 # When a sum is needed to load the build list, we get an error for the
 # specific module. The .mod file is not downloaded, and go.sum is not written.
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 ! exists go.sum
 
@@ -12,7 +12,7 @@ stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod dow
 # we should see the same error.
 cp go.sum.h2only go.sum
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 cmp go.sum go.sum.h2only
 rm go.sum
@@ -21,7 +21,7 @@ rm go.sum
 cp go.mod go.mod.orig
 go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod
 ! exists go.sum
 cp go.mod.orig go.mod

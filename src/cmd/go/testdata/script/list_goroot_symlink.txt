@@ -6,6 +6,8 @@
 
 [short] skip 'copies the cmd/go binary'
 [!symlink] skip 'tests symlink-specific behavior'
+[GOOS:darwin] skip 'Lstat on darwin does not conform to POSIX pathname resolution; see #59586'
+[GOOS:ios] skip 'Lstat on ios does not conform to POSIX pathname resolution; see #59586'
 
 # Ensure that the relative path to $WORK/lib/goroot/src from $PWD is a different
 # number of ".." hops than the relative path to it from $WORK/share/goroot/src.

@@ -119,8 +119,8 @@ func TestResolveIdents(t *testing.T) {
 	// parse package files
 	fset := token.NewFileSet()
 	var files []*ast.File
-	for i, src := range sources {
-		files = append(files, mustParse(fset, fmt.Sprintf("sources[%d]", i), src))
+	for _, src := range sources {
+		files = append(files, mustParse(fset, src))
 	}
 
 	// resolve and type-check package AST

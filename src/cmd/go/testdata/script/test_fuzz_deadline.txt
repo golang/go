@@ -1,5 +1,6 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # The fuzz function should be able to detect whether -timeout
 # was set with T.Deadline. Note there is no F.Deadline, and

@@ -82,8 +82,8 @@
 (Ctz32 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
 (Ctz64 <t> x) && buildcfg.GOAMD64 <  3 => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
 (Ctz32 x)     && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
-(Ctz16 x) => (BSFL (BTSLconst <typ.UInt32> [16] x))
-(Ctz8  x) => (BSFL (BTSLconst <typ.UInt32> [ 8] x))
+(Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [1<<16] x))
+(Ctz8  x) => (BSFL (ORLconst <typ.UInt32> [1<<8 ] x))
 
 (Ctz64NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
 (Ctz32NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
@@ -110,6 +110,7 @@
 (BitLen8 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVBQZX <x.Type> x))))
 
 (Bswap(64|32) ...) => (BSWAP(Q|L) ...)
+(Bswap16 x) => (ROLWconst [8] x)
 
 (PopCount(64|32) ...) => (POPCNT(Q|L) ...)
 (PopCount16 x) => (POPCNTL (MOVWQZX <typ.UInt32> x))
@@ -170,6 +171,20 @@
 (Cvt64Fto32F ...) => (CVTSD2SS ...)
 
 (Round(32|64)F ...) => (Copy ...)
+
+// Floating-point min is tricky, as the hardware op isn't right for various special
+// cases (-0 and NaN). We use two hardware ops organized just right to make the
+// result come out how we want it. See https://github.com/golang/go/issues/59488#issuecomment-1553493207
+// (although that comment isn't exactly right, as the value overwritten is not simulated correctly).
+//    t1 = MINSD x, y   => incorrect if x==NaN or x==-0,y==+0
+//    t2 = MINSD t1, x  => fixes x==NaN case
+//   res = POR t1, t2   => fixes x==-0,y==+0 case
+// Note that this trick depends on the special property that (NaN OR x) produces a NaN (although
+// it might not produce the same NaN as the input).
+(Min(64|32)F <t> x y) => (POR (MINS(D|S) <t> (MINS(D|S) <t> x y) x) (MINS(D|S) <t> x y))
+// Floating-point max is even trickier. Punt to using min instead.
+// max(x,y) == -min(-x,-y)
+(Max(64|32)F <t> x y) => (Neg(64|32)F <t> (Min(64|32)F <t> (Neg(64|32)F <t> x) (Neg(64|32)F <t> y)))
 
 (CvtBoolToUint8 ...) => (Copy ...)
 
@@ -234,12 +249,10 @@
 (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
 
 // Lowering stores
-// These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVSSstore ptr val mem)
-
-(Store {t} ptr val mem) && t.Size() == 8 => (MOVQstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 => (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVQstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 
@@ -290,10 +303,13 @@
 (Move [10] dst src mem) =>
 	(MOVWstore [8] dst (MOVWload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
+(Move [11] dst src mem) =>
+	(MOVLstore [7] dst (MOVLload [7] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
 (Move [12] dst src mem) =>
 	(MOVLstore [8] dst (MOVLload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
-(Move [s] dst src mem) && s == 11 || s >= 13 && s <= 15 =>
+(Move [s] dst src mem) && s >= 13 && s <= 15 =>
 	(MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
@@ -367,7 +383,23 @@
 			(MOVQstoreconst [makeValAndOff(0,8)] destptr
 				(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))))
 
-(Zero [s] destptr mem) && s > 8 && s < 16 && config.useSSE =>
+(Zero [9] destptr mem) && config.useSSE =>
+	(MOVBstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [10] destptr mem) && config.useSSE =>
+	(MOVWstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [11] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,7)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [12] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [s] destptr mem) && s > 12 && s < 16 && config.useSSE =>
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
@@ -646,29 +678,16 @@
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTS(Q|L) x y)
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
-
-// Convert ORconst into BTS, if the code gets smaller, with boundary being
-// (ORL $40,AX is 3 bytes, ORL $80,AX is 6 bytes).
-((ORQ|XORQ)const [c] x) && isUint64PowerOfTwo(int64(c)) && uint64(c) >= 128
-    => (BT(S|C)Qconst [int8(log32(c))] x)
-((ORL|XORL)const [c] x) && isUint32PowerOfTwo(int64(c)) && uint64(c) >= 128
-    => (BT(S|C)Lconst [int8(log32(c))] x)
-((ORQ|XORQ) (MOVQconst [c]) x) && isUint64PowerOfTwo(c) && uint64(c) >= 128
-    => (BT(S|C)Qconst [int8(log64(c))] x)
-((ORL|XORL) (MOVLconst [c]) x) && isUint32PowerOfTwo(int64(c)) && uint64(c) >= 128
-    => (BT(S|C)Lconst [int8(log32(c))] x)
+// Note: only convert OR/XOR to BTS/BTC if the constant wouldn't fit in
+// the constant field of the OR/XOR instruction. See issue 61694.
+((OR|XOR)Q (MOVQconst [c]) x) && isUint64PowerOfTwo(c) && uint64(c) >= 1<<31 => (BT(S|C)Qconst [int8(log64(c))] x)
 
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
 (ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
-(ANDQconst [c] x) && isUint64PowerOfTwo(int64(^c)) && uint64(^c) >= 128
-    => (BTRQconst [int8(log32(^c))] x)
-(ANDLconst [c] x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
-    => (BTRLconst [int8(log32(^c))] x)
-(ANDQ (MOVQconst [c]) x) && isUint64PowerOfTwo(^c) && uint64(^c) >= 128
-    => (BTRQconst [int8(log64(^c))] x)
-(ANDL (MOVLconst [c]) x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
-    => (BTRLconst [int8(log32(^c))] x)
+// Note: only convert AND to BTR if the constant wouldn't fit in
+// the constant field of the AND instruction. See issue 61694.
+(ANDQ (MOVQconst [c]) x) && isUint64PowerOfTwo(^c) && uint64(^c) >= 1<<31 => (BTRQconst [int8(log64(^c))] x)
 
 // Special-case bit patterns on first/last bit.
 // generic.rules changes ANDs of high-part/low-part masks into a couple of shifts,
@@ -682,9 +701,9 @@
 
 // Special case resetting first/last bit
 (SHL(L|Q)const [1] (SHR(L|Q)const [1] x))
-	=> (BTR(L|Q)const [0] x)
+	=> (AND(L|Q)const [-2] x)
 (SHRLconst [1] (SHLLconst [1] x))
-	=> (BTRLconst [31] x)
+	=> (ANDLconst [0x7fffffff] x)
 (SHRQconst [1] (SHLQconst [1] x))
 	=> (BTRQconst [63] x)
 
@@ -718,10 +737,10 @@
     => (SET(B|AE)store [off] {sym} ptr (BTLconst [31] x) mem)
 
 // Fold combinations of bit ops on same bit. An example is math.Copysign(c,-1)
-(BTS(Q|L)const [c] (BTR(Q|L)const [c] x)) => (BTS(Q|L)const [c] x)
-(BTS(Q|L)const [c] (BTC(Q|L)const [c] x)) => (BTS(Q|L)const [c] x)
-(BTR(Q|L)const [c] (BTS(Q|L)const [c] x)) => (BTR(Q|L)const [c] x)
-(BTR(Q|L)const [c] (BTC(Q|L)const [c] x)) => (BTR(Q|L)const [c] x)
+(BTSQconst [c] (BTRQconst [c] x)) => (BTSQconst [c] x)
+(BTSQconst [c] (BTCQconst [c] x)) => (BTSQconst [c] x)
+(BTRQconst [c] (BTSQconst [c] x)) => (BTRQconst [c] x)
+(BTRQconst [c] (BTCQconst [c] x)) => (BTRQconst [c] x)
 
 // Fold boolean negation into SETcc.
 (XORLconst [1] (SETNE x)) => (SETEQ x)
@@ -746,7 +765,7 @@
 // (SETEQF x) => (ANDQ (SETEQ <typ.Int8> x) (SETORD <typ.Int8> x))
 
 // fold constants into instructions
-(ADDQ x (MOVQconst [c])) && is32Bit(c) => (ADDQconst [int32(c)] x)
+(ADDQ x (MOVQconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDQconst [int32(c)] x)
 (ADDQ x (MOVLconst [c])) => (ADDQconst [c] x)
 (ADDL x (MOVLconst [c])) => (ADDLconst [c] x)
 
@@ -764,31 +783,6 @@
 (AND(L|Q)const [c] (AND(L|Q)const [d] x)) => (AND(L|Q)const [c & d] x)
 (XOR(L|Q)const [c] (XOR(L|Q)const [d] x)) => (XOR(L|Q)const [c ^ d] x)
 (OR(L|Q)const  [c] (OR(L|Q)const  [d] x)) => (OR(L|Q)const  [c | d] x)
-
-(BTRLconst [c] (ANDLconst [d] x)) => (ANDLconst [d &^ (1<<uint32(c))] x)
-(ANDLconst [c] (BTRLconst [d] x)) => (ANDLconst [c &^ (1<<uint32(d))] x)
-(BTRLconst [c] (BTRLconst [d] x)) => (ANDLconst [^(1<<uint32(c) | 1<<uint32(d))] x)
-
-(BTCLconst [c] (XORLconst [d] x)) => (XORLconst [d ^ 1<<uint32(c)] x)
-(XORLconst [c] (BTCLconst [d] x)) => (XORLconst [c ^ 1<<uint32(d)] x)
-(BTCLconst [c] (BTCLconst [d] x)) => (XORLconst [1<<uint32(c) | 1<<uint32(d)] x)
-
-(BTSLconst [c] (ORLconst  [d] x)) => (ORLconst [d | 1<<uint32(c)] x)
-(ORLconst  [c] (BTSLconst [d] x)) => (ORLconst [c | 1<<uint32(d)] x)
-(BTSLconst [c] (BTSLconst [d] x)) => (ORLconst [1<<uint32(c) | 1<<uint32(d)] x)
-
-(BTRQconst [c] (ANDQconst [d] x)) && is32Bit(int64(d) &^ (1<<uint32(c)))     => (ANDQconst [d &^ (1<<uint32(c))] x)
-(ANDQconst [c] (BTRQconst [d] x)) && is32Bit(int64(c) &^ (1<<uint32(d)))     => (ANDQconst [c &^ (1<<uint32(d))] x)
-(BTRQconst [c] (BTRQconst [d] x)) && is32Bit(^(1<<uint32(c) | 1<<uint32(d))) => (ANDQconst [^(1<<uint32(c) | 1<<uint32(d))] x)
-
-(BTCQconst [c] (XORQconst [d] x)) && is32Bit(int64(d) ^ 1<<uint32(c))     => (XORQconst [d ^ 1<<uint32(c)] x)
-(XORQconst [c] (BTCQconst [d] x)) && is32Bit(int64(c) ^ 1<<uint32(d))     => (XORQconst [c ^ 1<<uint32(d)] x)
-(BTCQconst [c] (BTCQconst [d] x)) && is32Bit(1<<uint32(c) ^ 1<<uint32(d)) => (XORQconst [1<<uint32(c) ^ 1<<uint32(d)] x)
-
-(BTSQconst [c] (ORQconst  [d] x)) && is32Bit(int64(d) | 1<<uint32(c))     => (ORQconst [d | 1<<uint32(c)] x)
-(ORQconst  [c] (BTSQconst [d] x)) && is32Bit(int64(c) | 1<<uint32(d))     => (ORQconst [c | 1<<uint32(d)] x)
-(BTSQconst [c] (BTSQconst [d] x)) && is32Bit(1<<uint32(c) | 1<<uint32(d)) => (ORQconst [1<<uint32(c) | 1<<uint32(d)] x)
-
 
 (MULLconst [c] (MULLconst [d] x)) => (MULLconst [c * d] x)
 (MULQconst [c] (MULQconst [d] x)) && is32Bit(int64(c)*int64(d)) => (MULQconst [c * d] x)
@@ -1409,11 +1403,8 @@
 (NOTQ (MOVQconst [c])) => (MOVQconst [^c])
 (NOTL (MOVLconst [c])) => (MOVLconst [^c])
 (BTSQconst [c] (MOVQconst [d])) => (MOVQconst [d|(1<<uint32(c))])
-(BTSLconst [c] (MOVLconst [d])) => (MOVLconst [d|(1<<uint32(c))])
 (BTRQconst [c] (MOVQconst [d])) => (MOVQconst [d&^(1<<uint32(c))])
-(BTRLconst [c] (MOVLconst [d])) => (MOVLconst [d&^(1<<uint32(c))])
 (BTCQconst [c] (MOVQconst [d])) => (MOVQconst [d^(1<<uint32(c))])
-(BTCLconst [c] (MOVLconst [d])) => (MOVLconst [d^(1<<uint32(c))])
 
 // If c or d doesn't fit into 32 bits, then we can't construct ORQconst,
 // but we can still constant-fold.
@@ -1471,403 +1462,13 @@
 // Convert LEAQ1 back to ADDQ if we can
 (LEAQ1 [0] x y) && v.Aux == nil => (ADDQ x y)
 
-// Combining byte loads into larger (unaligned) loads.
-// There are many ways these combinations could occur.  This is
-// designed to match the way encoding/binary.LittleEndian does it.
-
-// Little-endian loads
-
-(OR(L|Q)                  x0:(MOVBload [i0] {s} p mem)
-    sh:(SHL(L|Q)const [8] x1:(MOVBload [i1] {s} p mem)))
-  && i1 == i0+1
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVWload [i0] {s} p mem)
-
-(OR(L|Q)                  x0:(MOVBload [i] {s} p0 mem)
-    sh:(SHL(L|Q)const [8] x1:(MOVBload [i] {s} p1 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVWload [i] {s} p0 mem)
-
-(OR(L|Q)                   x0:(MOVWload [i0] {s} p mem)
-    sh:(SHL(L|Q)const [16] x1:(MOVWload [i1] {s} p mem)))
-  && i1 == i0+2
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVLload [i0] {s} p mem)
-
-(OR(L|Q)                   x0:(MOVWload [i] {s} p0 mem)
-    sh:(SHL(L|Q)const [16] x1:(MOVWload [i] {s} p1 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVLload [i] {s} p0 mem)
-
-(ORQ                   x0:(MOVLload [i0] {s} p mem)
-    sh:(SHLQconst [32] x1:(MOVLload [i1] {s} p mem)))
-  && i1 == i0+4
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVQload [i0] {s} p mem)
-
-(ORQ                   x0:(MOVLload [i] {s} p0 mem)
-    sh:(SHLQconst [32] x1:(MOVLload [i] {s} p1 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 4)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVQload [i] {s} p0 mem)
-
-(OR(L|Q)
-    s1:(SHL(L|Q)const [j1] x1:(MOVBload [i1] {s} p mem))
-    or:(OR(L|Q)
-        s0:(SHL(L|Q)const [j0] x0:(MOVBload [i0] {s} p mem))
-	y))
-  && i1 == i0+1
-  && j1 == j0+8
-  && j0 % 16 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (OR(L|Q) <v.Type> (SHL(L|Q)const <v.Type> [j0] (MOVWload [i0] {s} p mem)) y)
-
-(OR(L|Q)
-    s1:(SHL(L|Q)const [j1] x1:(MOVBload [i] {s} p1 mem))
-    or:(OR(L|Q)
-        s0:(SHL(L|Q)const [j0] x0:(MOVBload [i] {s} p0 mem))
-	y))
-  && j1 == j0+8
-  && j0 % 16 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (OR(L|Q) <v.Type> (SHL(L|Q)const <v.Type> [j0] (MOVWload [i] {s} p0 mem)) y)
-
-(ORQ
-    s1:(SHLQconst [j1] x1:(MOVWload [i1] {s} p mem))
-    or:(ORQ
-        s0:(SHLQconst [j0] x0:(MOVWload [i0] {s} p mem))
-	y))
-  && i1 == i0+2
-  && j1 == j0+16
-  && j0 % 32 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLload [i0] {s} p mem)) y)
-
-(ORQ
-    s1:(SHLQconst [j1] x1:(MOVWload [i] {s} p1 mem))
-    or:(ORQ
-        s0:(SHLQconst [j0] x0:(MOVWload [i] {s} p0 mem))
-	y))
-  && j1 == j0+16
-  && j0 % 32 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j0] (MOVLload [i] {s} p0 mem)) y)
-
-// Big-endian loads
-
-(OR(L|Q)
-                           x1:(MOVBload [i1] {s} p mem)
-    sh:(SHL(L|Q)const [8]  x0:(MOVBload [i0] {s} p mem)))
-  && i1 == i0+1
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (ROLWconst <v.Type> [8] (MOVWload [i0] {s} p mem))
-
-(OR(L|Q)
-                           x1:(MOVBload [i] {s} p1 mem)
-    sh:(SHL(L|Q)const [8]  x0:(MOVBload [i] {s} p0 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (ROLWconst <v.Type> [8] (MOVWload [i] {s} p0 mem))
-
-(OR(L|Q)
-                            r1:(ROLWconst [8] x1:(MOVWload [i1] {s} p mem))
-    sh:(SHL(L|Q)const [16]  r0:(ROLWconst [8] x0:(MOVWload [i0] {s} p mem))))
-  && i1 == i0+2
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, r0, r1, sh)
-  => @mergePoint(b,x0,x1) (BSWAPL <v.Type> (MOVLload [i0] {s} p mem))
-
-(OR(L|Q)
-                            r1:(ROLWconst [8] x1:(MOVWload [i] {s} p1 mem))
-    sh:(SHL(L|Q)const [16]  r0:(ROLWconst [8] x0:(MOVWload [i] {s} p0 mem))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, r0, r1, sh)
-  => @mergePoint(b,x0,x1) (BSWAPL <v.Type> (MOVLload [i] {s} p0 mem))
-
-(ORQ
-                        r1:(BSWAPL x1:(MOVLload [i1] {s} p mem))
-    sh:(SHLQconst [32]  r0:(BSWAPL x0:(MOVLload [i0] {s} p mem))))
-  && i1 == i0+4
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, r0, r1, sh)
-  => @mergePoint(b,x0,x1) (BSWAPQ <v.Type> (MOVQload [i0] {s} p mem))
-
-(ORQ
-                        r1:(BSWAPL x1:(MOVLload [i] {s} p1 mem))
-    sh:(SHLQconst [32]  r0:(BSWAPL x0:(MOVLload [i] {s} p0 mem))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p0, p1, 4)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, r0, r1, sh)
-  => @mergePoint(b,x0,x1) (BSWAPQ <v.Type> (MOVQload [i] {s} p0 mem))
-
-(OR(L|Q)
-    s0:(SHL(L|Q)const [j0] x0:(MOVBload [i0] {s} p mem))
-    or:(OR(L|Q)
-        s1:(SHL(L|Q)const [j1] x1:(MOVBload [i1] {s} p mem))
-	y))
-  && i1 == i0+1
-  && j1 == j0-8
-  && j1 % 16 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (OR(L|Q) <v.Type> (SHL(L|Q)const <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i0] {s} p mem))) y)
-
-(OR(L|Q)
-    s0:(SHL(L|Q)const [j0] x0:(MOVBload [i] {s} p0 mem))
-    or:(OR(L|Q)
-        s1:(SHL(L|Q)const [j1] x1:(MOVBload [i] {s} p1 mem))
-	y))
-  && j1 == j0-8
-  && j1 % 16 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (OR(L|Q) <v.Type> (SHL(L|Q)const <v.Type> [j1] (ROLWconst <typ.UInt16> [8] (MOVWload [i] {s} p0 mem))) y)
-
-(ORQ
-    s0:(SHLQconst [j0] r0:(ROLWconst [8] x0:(MOVWload [i0] {s} p mem)))
-    or:(ORQ
-        s1:(SHLQconst [j1] r1:(ROLWconst [8] x1:(MOVWload [i1] {s} p mem)))
-	y))
-  && i1 == i0+2
-  && j1 == j0-16
-  && j1 % 32 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, r0, r1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLload [i0] {s} p mem))) y)
-
-(ORQ
-    s0:(SHLQconst [j0] r0:(ROLWconst [8] x0:(MOVWload [i] {s} p0 mem)))
-    or:(ORQ
-        s1:(SHLQconst [j1] r1:(ROLWconst [8] x1:(MOVWload [i] {s} p1 mem)))
-	y))
-  && j1 == j0-16
-  && j1 % 32 == 0
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && r0.Uses == 1
-  && r1.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && or.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0, x1, r0, r1, s0, s1, or)
-  => @mergePoint(b,x0,x1,y) (ORQ <v.Type> (SHLQconst <v.Type> [j1] (BSWAPL <typ.UInt32> (MOVLload [i] {s} p0 mem))) y)
-
-// Combine 2 byte stores + shift into rolw 8 + word store
-(MOVBstore [i] {s} p w
-  x0:(MOVBstore [i-1] {s} p (SHRWconst [8] w) mem))
-  && x0.Uses == 1
-  && clobber(x0)
-  => (MOVWstore [i-1] {s} p (ROLWconst <w.Type> [8] w) mem)
-(MOVBstore [i] {s} p1 w
-  x0:(MOVBstore [i] {s} p0 (SHRWconst [8] w) mem))
-  && x0.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x0)
-  => (MOVWstore [i] {s} p0 (ROLWconst <w.Type> [8] w) mem)
-
-// Combine stores + shifts into bswap and larger (unaligned) stores
-(MOVBstore [i] {s} p w
-  x2:(MOVBstore [i-1] {s} p (SHRLconst [8] w)
-  x1:(MOVBstore [i-2] {s} p (SHRLconst [16] w)
-  x0:(MOVBstore [i-3] {s} p (SHRLconst [24] w) mem))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && clobber(x0, x1, x2)
-  => (MOVLstore [i-3] {s} p (BSWAPL <w.Type> w) mem)
-(MOVBstore [i] {s} p3 w
-  x2:(MOVBstore [i] {s} p2 (SHRLconst [8] w)
-  x1:(MOVBstore [i] {s} p1 (SHRLconst [16] w)
-  x0:(MOVBstore [i] {s} p0 (SHRLconst [24] w) mem))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && sequentialAddresses(p1, p2, 1)
-  && sequentialAddresses(p2, p3, 1)
-  && clobber(x0, x1, x2)
-  => (MOVLstore [i] {s} p0 (BSWAPL <w.Type> w) mem)
-
-(MOVBstore [i] {s} p w
-  x6:(MOVBstore [i-1] {s} p (SHRQconst [8] w)
-  x5:(MOVBstore [i-2] {s} p (SHRQconst [16] w)
-  x4:(MOVBstore [i-3] {s} p (SHRQconst [24] w)
-  x3:(MOVBstore [i-4] {s} p (SHRQconst [32] w)
-  x2:(MOVBstore [i-5] {s} p (SHRQconst [40] w)
-  x1:(MOVBstore [i-6] {s} p (SHRQconst [48] w)
-  x0:(MOVBstore [i-7] {s} p (SHRQconst [56] w) mem))))))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && x3.Uses == 1
-  && x4.Uses == 1
-  && x5.Uses == 1
-  && x6.Uses == 1
-  && clobber(x0, x1, x2, x3, x4, x5, x6)
-  => (MOVQstore [i-7] {s} p (BSWAPQ <w.Type> w) mem)
-(MOVBstore [i] {s} p7 w
-  x6:(MOVBstore [i] {s} p6 (SHRQconst [8] w)
-  x5:(MOVBstore [i] {s} p5 (SHRQconst [16] w)
-  x4:(MOVBstore [i] {s} p4 (SHRQconst [24] w)
-  x3:(MOVBstore [i] {s} p3 (SHRQconst [32] w)
-  x2:(MOVBstore [i] {s} p2 (SHRQconst [40] w)
-  x1:(MOVBstore [i] {s} p1 (SHRQconst [48] w)
-  x0:(MOVBstore [i] {s} p0 (SHRQconst [56] w) mem))))))))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && x3.Uses == 1
-  && x4.Uses == 1
-  && x5.Uses == 1
-  && x6.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && sequentialAddresses(p1, p2, 1)
-  && sequentialAddresses(p2, p3, 1)
-  && sequentialAddresses(p3, p4, 1)
-  && sequentialAddresses(p4, p5, 1)
-  && sequentialAddresses(p5, p6, 1)
-  && sequentialAddresses(p6, p7, 1)
-  && clobber(x0, x1, x2, x3, x4, x5, x6)
-  => (MOVQstore [i] {s} p0 (BSWAPQ <w.Type> w) mem)
-
-// Combine constant stores into larger (unaligned) stores.
-(MOVBstoreconst [c] {s} p1 x:(MOVBstoreconst [a] {s} p0 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off()))
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
-(MOVBstoreconst [a] {s} p0 x:(MOVBstoreconst [c] {s} p1 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+1-c.Off()))
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
-(MOVWstoreconst [c] {s} p1 x:(MOVWstoreconst [a] {s} p0 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off()))
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
-(MOVWstoreconst [a] {s} p0 x:(MOVWstoreconst [c] {s} p1 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+2-c.Off()))
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
-(MOVLstoreconst [c] {s} p1 x:(MOVLstoreconst [a] {s} p0 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off()))
-  && clobber(x)
-  => (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
-(MOVLstoreconst [a] {s} p0 x:(MOVLstoreconst [c] {s} p1 mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, int64(a.Off()+4-c.Off()))
-  && clobber(x)
-  => (MOVQstore [a.Off()] {s} p0 (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
 (MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
   && config.useSSE
   && x.Uses == 1
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
@@ -1876,118 +1477,9 @@
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
-
-// Combine stores into larger (unaligned) stores. Little endian.
-(MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i-1] {s} p w mem)
-(MOVBstore [i] {s} p w x:(MOVBstore [i+1] {s} p (SHR(W|L|Q)const [8] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i] {s} p w mem)
-(MOVBstore [i] {s} p (SHR(L|Q)const [j] w) x:(MOVBstore [i-1] {s} p w0:(SHR(L|Q)const [j-8] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i-1] {s} p w0 mem)
-(MOVBstore [i] {s} p1 (SHR(W|L|Q)const [8] w) x:(MOVBstore [i] {s} p0 w mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w mem)
-(MOVBstore [i] {s} p0 w x:(MOVBstore [i] {s} p1 (SHR(W|L|Q)const [8] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w mem)
-(MOVBstore [i] {s} p1 (SHR(L|Q)const [j] w) x:(MOVBstore [i] {s} p0 w0:(SHR(L|Q)const [j-8] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w0 mem)
-
-(MOVWstore [i] {s} p (SHR(L|Q)const [16] w) x:(MOVWstore [i-2] {s} p w mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVLstore [i-2] {s} p w mem)
-(MOVWstore [i] {s} p (SHR(L|Q)const [j] w) x:(MOVWstore [i-2] {s} p w0:(SHR(L|Q)const [j-16] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVLstore [i-2] {s} p w0 mem)
-(MOVWstore [i] {s} p1 (SHR(L|Q)const [16] w) x:(MOVWstore [i] {s} p0 w mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstore [i] {s} p0 w mem)
-(MOVWstore [i] {s} p1 (SHR(L|Q)const [j] w) x:(MOVWstore [i] {s} p0 w0:(SHR(L|Q)const [j-16] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstore [i] {s} p0 w0 mem)
-
-(MOVLstore [i] {s} p (SHRQconst [32] w) x:(MOVLstore [i-4] {s} p w mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVQstore [i-4] {s} p w mem)
-(MOVLstore [i] {s} p (SHRQconst [j] w) x:(MOVLstore [i-4] {s} p w0:(SHRQconst [j-32] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVQstore [i-4] {s} p w0 mem)
-(MOVLstore [i] {s} p1 (SHRQconst [32] w) x:(MOVLstore [i] {s} p0 w mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 4)
-  && clobber(x)
-  => (MOVQstore [i] {s} p0 w mem)
-(MOVLstore [i] {s} p1 (SHRQconst [j] w) x:(MOVLstore [i] {s} p0 w0:(SHRQconst [j-32] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 4)
-  && clobber(x)
-  => (MOVQstore [i] {s} p0 w0 mem)
-
-(MOVBstore  [c3] {s}  p3 (SHRQconst [56]  w)
-  x1:(MOVWstore [c2]  {s} p2  (SHRQconst [40] w)
-  x2:(MOVLstore [c1] {s} p1  (SHRQconst [8] w)
-  x3:(MOVBstore [c0] {s} p0  w mem))))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && x3.Uses == 1
-  && sequentialAddresses(p0, p1, int64(1 + c0 - c1))
-  && sequentialAddresses(p0, p2, int64(5 + c0 - c2))
-  && sequentialAddresses(p0, p3, int64(7 + c0 - c3))
-  && clobber(x1, x2, x3)
-  => (MOVQstore [c0] {s} p0 w mem)
-
-(MOVBstore [i] {s} p
-  x1:(MOVBload [j] {s2} p2 mem)
-    mem2:(MOVBstore [i-1] {s} p
-      x2:(MOVBload [j-1] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVWstore [i-1] {s} p (MOVWload [j-1] {s2} p2 mem) mem)
-
-(MOVWstore [i] {s} p
-  x1:(MOVWload [j] {s2} p2 mem)
-    mem2:(MOVWstore [i-2] {s} p
-      x2:(MOVWload [j-2] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVLstore [i-2] {s} p (MOVLload [j-2] {s2} p2 mem) mem)
-
-(MOVLstore [i] {s} p
-  x1:(MOVLload [j] {s2} p2 mem)
-    mem2:(MOVLstore [i-4] {s} p
-      x2:(MOVLload [j-4] {s2} p2 mem) mem))
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && mem2.Uses == 1
-  && clobber(x1, x2, mem2)
-  => (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
 
 // Merge load and op
 // TODO: add indexed variants?
@@ -2001,6 +1493,8 @@
 (MOVQstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Qload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
 (MOVQstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)Q l:(MOVQload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
 	((ADD|SUB|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
+(MOVQstore {sym} [off] ptr x:(BT(S|R|C)Qconst [c] l:(MOVQload {sym} [off] ptr mem)) mem) && x.Uses == 1 && l.Uses == 1 && clobber(x, l) =>
+	(BT(S|R|C)Qconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
 (MOV(Q|L|B)atomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) =>
@@ -2190,32 +1684,12 @@
 (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
 
 // CPUID feature: MOVBE.
-(MOV(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
-(BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
-(BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
-(MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+(MOV(Q|L)store   [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
+(MOVBE(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1                          => (MOV(Q|L)store   [i] {s} p w mem)
+(BSWAP(Q|L) x:(MOV(Q|L)load   [i] {s} p mem))  && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => @x.Block (MOVBE(Q|L)load [i] {s} p mem)
+(BSWAP(Q|L) x:(MOVBE(Q|L)load [i] {s} p mem))  && x.Uses == 1                          => @x.Block (MOV(Q|L)load   [i] {s} p mem)
 (MOVWstore [i] {s} p x:(ROLWconst [8] w) mem)   && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBEWstore [i] {s} p w mem)
 (MOVBEWstore [i] {s} p x:(ROLWconst [8] w) mem) && x.Uses == 1 => (MOVWstore [i] {s} p w mem)
-
-(ORQ                   x0:(MOVBELload [i0] {s} p mem)
-    sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
-  && i0 == i1+4
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVBEQload [i1] {s} p mem)
-
-(ORQ                   x0:(MOVBELload [i] {s} p0 mem)
-    sh:(SHLQconst [32] x1:(MOVBELload [i] {s} p1 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && sh.Uses == 1
-  && sequentialAddresses(p1, p0, 4)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, sh)
-  => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
 
 (SAR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l) => (SARX(Q|L)load [off] {sym} ptr x mem)
 (SHL(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l) => (SHLX(Q|L)load [off] {sym} ptr x mem)

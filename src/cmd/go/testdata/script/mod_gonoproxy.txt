@@ -36,13 +36,14 @@ env GOPROXY=off
 stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
 
 # GONOPROXY bypasses proxy
-[!net] skip
+[!net:rsc.io] skip
 [!git] skip
 env GOPRIVATE=none
 env GONOPROXY='*/fortune'
 ! go get rsc.io/fortune # does not exist in real world, only on test proxy
 stderr 'git ls-remote'
 
+[!net:golang.org] skip
 env GOSUMDB=
 env GONOPROXY=
 env GOPRIVATE='*/x'

@@ -14,10 +14,12 @@ import (
 func TestMustLinkExternal(t *testing.T) {
 	for _, goos := range okgoos {
 		for _, goarch := range okgoarch {
-			got := mustLinkExternal(goos, goarch)
-			want := platform.MustLinkExternal(goos, goarch)
-			if got != want {
-				t.Errorf("mustLinkExternal(%q, %q) = %v; want %v", goos, goarch, got, want)
+			for _, cgoEnabled := range []bool{true, false} {
+				got := mustLinkExternal(goos, goarch, cgoEnabled)
+				want := platform.MustLinkExternal(goos, goarch, cgoEnabled)
+				if got != want {
+					t.Errorf("mustLinkExternal(%q, %q, %v) = %v; want %v", goos, goarch, cgoEnabled, got, want)
+				}
 			}
 		}
 	}

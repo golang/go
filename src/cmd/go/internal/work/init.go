@@ -37,7 +37,7 @@ func BuildInit() {
 	instrumentInit()
 	buildModeInit()
 	if err := fsys.Init(base.Cwd()); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 
 	// Make sure -pkgdir is absolute, because we run commands
@@ -229,30 +229,12 @@ func buildModeInit() {
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		switch cfg.Goos {
-		case "android":
-			codegenArg = "-shared"
+		ldBuildmode = "exe"
+		if platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
 			ldBuildmode = "pie"
-		case "windows":
-			if cfg.BuildRace {
-				ldBuildmode = "exe"
-			} else {
-				ldBuildmode = "pie"
-			}
-		case "ios":
-			codegenArg = "-shared"
-			ldBuildmode = "pie"
-		case "darwin":
-			switch cfg.Goarch {
-			case "arm64":
+			if cfg.Goos != "windows" && !gccgo {
 				codegenArg = "-shared"
 			}
-			fallthrough
-		default:
-			ldBuildmode = "exe"
-		}
-		if gccgo {
-			codegenArg = ""
 		}
 	case "exe":
 		pkgsFilter = pkgsMain
@@ -264,8 +246,8 @@ func buildModeInit() {
 			pkgsFilter = oneMainPkg
 		}
 	case "pie":
-		if cfg.BuildRace {
-			base.Fatalf("-buildmode=pie not supported when -race is enabled")
+		if cfg.BuildRace && !platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
+			base.Fatalf("-buildmode=pie not supported when -race is enabled on %s/%s", cfg.Goos, cfg.Goarch)
 		}
 		if gccgo {
 			codegenArg = "-fPIE"
@@ -301,7 +283,7 @@ func buildModeInit() {
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
 	}
 
-	if !platform.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+	if cfg.BuildBuildmode != "default" && !platform.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
 		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
 	}
 
@@ -414,7 +396,7 @@ func compilerVersion() (version, error) {
 }
 
 // compilerRequiredAsanVersion is a copy of the function defined in
-// misc/cgo/testsanitizers/cc_test.go
+// cmd/cgo/internal/testsanitizers/cc_test.go
 // compilerRequiredAsanVersion reports whether the compiler is the version
 // required by Asan.
 func compilerRequiredAsanVersion() error {

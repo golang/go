@@ -7,8 +7,7 @@
 skip 'skipping test that depends on an unreliable third-party server; see https://go.dev/issue/54503'
 	# TODO(#54043): Make this test hermetic and re-enable it.
 
-[short] skip
-[!net] skip
+[!net:gopkg.in] skip
 [!git] skip
 
 env GO111MODULE=on

@@ -86,13 +86,19 @@ func hexEscapeNonASCII(s string) string {
 		return s
 	}
 	b := make([]byte, 0, newLen)
+	var pos int
 	for i := 0; i < len(s); i++ {
 		if s[i] >= utf8.RuneSelf {
+			if pos < i {
+				b = append(b, s[pos:i]...)
+			}
 			b = append(b, '%')
 			b = strconv.AppendInt(b, int64(s[i]), 16)
-		} else {
-			b = append(b, s[i])
+			pos = i + 1
 		}
+	}
+	if pos < len(s) {
+		b = append(b, s[pos:]...)
 	}
 	return string(b)
 }

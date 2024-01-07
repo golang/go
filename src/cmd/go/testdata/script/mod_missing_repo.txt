@@ -2,7 +2,7 @@
 # subgroups could not be fetched because the server returned bogus go-import
 # tags for prefixes of the module path.
 
-[!net] skip
+[short] skip
 [!git] skip
 
 env GO111MODULE=on

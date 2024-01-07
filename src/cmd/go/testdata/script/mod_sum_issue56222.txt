@@ -1,0 +1,91 @@
+# Regression test for #56222: 'go get -t' and 'go mod tidy'
+# should save enough checksums to run 'go test' on the named
+# packages or any package in "all" respectively.
+
+# 'go mod tidy' in a module at go 1.21 or higher should preserve
+# checksums needed to run 'go test all'.
+cd m1
+go mod tidy
+
+go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
+stdout 1.18
+[!short] go test -o $devnull -c all
+
+cat go.sum
+replace 'example.com/generics v1.0.0/go.mod' 'example.com/notgenerics v1.0.0/go.mod' go.sum
+
+! go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
+stderr '^go: can''t load test package: \.\.'${/}m2${/}q${/}'q_test.go:3:8: example\.com/generics@v1\.0\.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example\.com/generics$'
+
+go mod download -json example.com/generics
+stdout '"GoModSum":'
+go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
+stdout 1.18
+
+
+# At go 1.20 or earlier, 'go mod tidy' should preserve the historical go.sum
+# contents, but 'go test' should flag the missing checksums (instead of trying
+# to build the test dependency with the wrong language version).
+
+go mod tidy -go=1.20
+! go test -o $devnull -c all
+stderr '^# example.com/m2/q\n'..${/}m2${/}q${/}'q_test.go:3:8: example.com/generics@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/generics$'
+
+go mod download -json example.com/generics
+go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
+stdout 1.18
+
+
+# Even at go 1.20 or earlier, 'go mod tidy' shouldn't need go.mod files or
+# checksums that it won't record.
+
+go mod tidy -go=1.20
+go clean -modcache  # Remove checksums from the module cache, so that only go.sum is used.
+
+# Issue 60667: 'go list' without -mod=mod shouldn't report the checksums as
+# dirty either.
+go list -m -u all
+
+env OLDSUMDB=$GOSUMDB
+env GOSUMDB=bad
+go mod tidy
+
+env GOSUMDB=$OLDSUMDB
+
+
+# Regardless of the go version in go.mod, 'go get -t' should fetch
+# enough checksums to run 'go test' on the named package.
+
+rm p
+go mod tidy -go=1.20
+go list -m all
+! stdout example.com/generics
+go get -t example.com/m2/q@v1.0.0
+go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
+stdout 1.18
+[!short] go test -o $devnull -c example.com/m2/q
+
+
+-- m1/go.mod --
+module example.com/m1
+
+go 1.21
+
+require example.com/m2 v1.0.0
+replace example.com/m2 => ../m2
+-- m1/p/p.go --
+package p
+
+import _ "example.com/m2/q"
+-- m2/go.mod --
+module example.com/m2
+
+go 1.19
+
+require example.com/generics v1.0.0
+-- m2/q/q.go --
+package q
+-- m2/q/q_test.go --
+package q
+
+import _ "example.com/generics"

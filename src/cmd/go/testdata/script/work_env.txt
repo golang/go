@@ -1,7 +1,7 @@
 go env GOWORK
 stdout '^'$GOPATH'[\\/]src[\\/]go.work$'
 go env
-stdout '^(set )?GOWORK="?'$GOPATH'[\\/]src[\\/]go.work"?$'
+stdout '^(set )?GOWORK=''?'$GOPATH'[\\/]src[\\/]go.work''?$'
 
 cd ..
 go env GOWORK

@@ -34,10 +34,13 @@ import (
 	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -50,12 +53,14 @@ var (
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
 )
 
-func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
+func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode syntax.Mode) ([]*syntax.File, []error) {
 	var files []*syntax.File
 	var errlist []error
 	errh := func(err error) { errlist = append(errlist, err) }
-	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, errh, nil, mode)
+	for i, filename := range filenames {
+		base := syntax.NewFileBase(filename)
+		r := bytes.NewReader(srcs[i])
+		file, err := syntax.Parse(base, r, errh, nil, mode)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -83,30 +88,10 @@ func absDiff(x, y uint) uint {
 	return x - y
 }
 
-// Note: parseFlags is identical to the version in go/types which is
-//       why it has a src argument even though here it is always nil.
-
-// parseFlags parses flags from the first line of the given source
-// (from src if present, or by reading from the file) if the line
-// starts with "//" (line comment) followed by "-" (possibly with
-// spaces between). Otherwise the line is ignored.
-func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
-	// If there is no src, read from the file.
-	const maxLen = 256
-	if len(src) == 0 {
-		f, err := os.Open(filename)
-		if err != nil {
-			return err
-		}
-
-		var buf [maxLen]byte
-		n, err := f.Read(buf[:])
-		if err != nil {
-			return err
-		}
-		src = buf[:n]
-	}
-
+// parseFlags parses flags from the first line of the given source if the line
+// starts with "//" (line comment) followed by "-" (possibly with spaces
+// between). Otherwise the line is ignored.
+func parseFlags(src []byte, flags *flag.FlagSet) error {
 	// we must have a line comment that starts with a "-"
 	const prefix = "//"
 	if !bytes.HasPrefix(src, []byte(prefix)) {
@@ -117,6 +102,7 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 		return nil // comment doesn't start with a "-"
 	}
 	end := bytes.Index(src, []byte("\n"))
+	const maxLen = 256
 	if end < 0 || end > maxLen {
 		return fmt.Errorf("flags comment line too long")
 	}
@@ -124,26 +110,37 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 	return flags.Parse(strings.Fields(string(src[:end])))
 }
 
-func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+// testFiles type-checks the package consisting of the given files, and
+// compares the resulting errors with the ERROR annotations in the source.
+// Except for manual tests, each package is type-checked twice, once without
+// use of Alias types, and once with Alias types.
+//
+// The srcs slice contains the file content for the files named in the
+// filenames slice. The colDelta parameter specifies the tolerance for position
+// mismatch when comparing errors. The manual parameter specifies whether this
+// is a 'manual' test.
+//
+// If provided, opts may be used to mutate the Config before type-checking.
+func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+	// Alias types are disabled by default
+	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+	if !manual {
+		t.Setenv("GODEBUG", "gotypesalias=1")
+		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+	}
+}
+
+func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
-	var conf Config
-	flags := flag.NewFlagSet("", flag.PanicOnError)
-	flags.StringVar(&conf.GoVersion, "lang", "", "")
-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	if err := parseFlags(filenames[0], nil, flags); err != nil {
-		t.Fatal(err)
-	}
-
-	files, errlist := parseFiles(t, filenames, 0)
-
+	// parse files
+	files, errlist := parseFiles(t, filenames, srcs, 0)
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].PkgName.Value
 	}
-
 	listErrors := manual && !*verifyErrors
 	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
@@ -152,7 +149,8 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		}
 	}
 
-	// typecheck and collect typechecker errors
+	// set up typechecker
+	var conf Config
 	conf.Trace = manual && testing.Verbose()
 	conf.Importer = defaultImporter()
 	conf.Error = func(err error) {
@@ -165,24 +163,62 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		}
 		errlist = append(errlist, err)
 	}
-	conf.Check(pkgName, files, nil)
 
+	// apply custom configuration
+	for _, opt := range opts {
+		opt(&conf)
+	}
+
+	// apply flag setting (overrides custom configuration)
+	var goexperiment, gotypesalias string
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.StringVar(&goexperiment, "goexperiment", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.StringVar(&gotypesalias, "gotypesalias", "", "")
+	if err := parseFlags(srcs[0], flags); err != nil {
+		t.Fatal(err)
+	}
+
+	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := buildcfg.Experiment
+	defer func() {
+		buildcfg.Experiment = old
+	}()
+	buildcfg.Experiment = *exp
+
+	// By default, gotypesalias is not set.
+	if gotypesalias != "" {
+		t.Setenv("GODEBUG", "gotypesalias="+gotypesalias)
+	}
+
+	// Provide Config.Info with all maps so that info recording is tested.
+	info := Info{
+		Types:        make(map[syntax.Expr]TypeAndValue),
+		Instances:    make(map[*syntax.Name]Instance),
+		Defs:         make(map[*syntax.Name]Object),
+		Uses:         make(map[*syntax.Name]Object),
+		Implicits:    make(map[syntax.Node]Object),
+		Selections:   make(map[*syntax.SelectorExpr]*Selection),
+		Scopes:       make(map[syntax.Node]*Scope),
+		FileVersions: make(map[*syntax.PosBase]string),
+	}
+
+	// typecheck
+	conf.Check(pkgName, files, &info)
 	if listErrors {
 		return
 	}
 
 	// collect expected errors
 	errmap := make(map[string]map[uint][]syntax.Error)
-	for _, filename := range filenames {
-		f, err := os.Open(filename)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
+	for i, filename := range filenames {
+		if m := syntax.CommentMap(bytes.NewReader(srcs[i]), regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
 			errmap[filename] = m
 		}
-		f.Close()
 	}
 
 	// match against found errors
@@ -280,6 +316,13 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 }
 
+// boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.
+// For accessing unexported fields.
+func boolFieldAddr(conf *Config, name string) *bool {
+	v := reflect.Indirect(reflect.ValueOf(conf))
+	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
+}
+
 // TestManual is for manual testing of a package - either provided
 // as a list of filenames belonging to the package, or a directory
 // name containing the package files - after the test arguments
@@ -314,19 +357,50 @@ func TestManual(t *testing.T) {
 		}
 		testDir(t, filenames[0], 0, true)
 	} else {
-		testFiles(t, filenames, 0, true)
+		testPkg(t, filenames, 0, true)
 	}
 }
 
-// TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+func TestLongConstants(t *testing.T) {
+	format := `package longconst; const _ = %s /* ERROR "constant overflow" */; const _ = %s // ERROR "excessively long constant"`
+	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+	testFiles(t, []string{"longconst.go"}, [][]byte{[]byte(src)}, 0, false)
+}
+
+func withSizes(sizes Sizes) func(*Config) {
+	return func(cfg *Config) {
+		cfg.Sizes = sizes
+	}
+}
+
+// TestIndexRepresentability tests that constant index operands must
+// be representable as int even if they already have a type that can
+// represent larger values.
+func TestIndexRepresentability(t *testing.T) {
+	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
+	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+}
+
+func TestIssue47243_TypedRHS(t *testing.T) {
+	// The RHS of the shift expression below overflows uint on 32bit platforms,
+	// but this is OK as it is explicitly typed.
+	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)
+	testFiles(t, []string{"p.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
+}
 
 func TestCheck(t *testing.T) {
+	old := buildcfg.Experiment.RangeFunc
+	defer func() {
+		buildcfg.Experiment.RangeFunc = old
+	}()
+	buildcfg.Experiment.RangeFunc = true
+
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
 }
 func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
 func TestExamples(t *testing.T) {
-	testDirFiles(t, "../../../../internal/types/testdata/examples", 50, false)
+	testDirFiles(t, "../../../../internal/types/testdata/examples", 125, false)
 } // TODO(gri) narrow column tolerance
 func TestFixedbugs(t *testing.T) {
 	testDirFiles(t, "../../../../internal/types/testdata/fixedbugs", 100, false)
@@ -351,7 +425,7 @@ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 			testDir(t, path, colDelta, manual)
 		} else {
 			t.Run(filepath.Base(path), func(t *testing.T) {
-				testFiles(t, []string{path}, colDelta, manual)
+				testPkg(t, []string{path}, colDelta, manual)
 			})
 		}
 	}
@@ -370,6 +444,18 @@ func testDir(t *testing.T, dir string, colDelta uint, manual bool) {
 	}
 
 	t.Run(filepath.Base(dir), func(t *testing.T) {
-		testFiles(t, filenames, colDelta, manual)
+		testPkg(t, filenames, colDelta, manual)
 	})
+}
+
+func testPkg(t *testing.T, filenames []string, colDelta uint, manual bool) {
+	srcs := make([][]byte, len(filenames))
+	for i, filename := range filenames {
+		src, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("could not read %s: %v", filename, err)
+		}
+		srcs[i] = src
+	}
+	testFiles(t, filenames, srcs, colDelta, manual)
 }

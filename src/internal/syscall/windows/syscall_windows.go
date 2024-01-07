@@ -7,7 +7,6 @@ package windows
 import (
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -17,17 +16,13 @@ func UTF16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	s := unsafe.Slice(p, n)
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
 
 const (
@@ -127,12 +122,29 @@ type IpAdapterAddresses struct {
 	/* more fields might be present here. */
 }
 
+type SecurityAttributes struct {
+	Length             uint16
+	SecurityDescriptor uintptr
+	InheritHandle      bool
+}
+
 type FILE_BASIC_INFO struct {
-	CreationTime   syscall.Filetime
-	LastAccessTime syscall.Filetime
-	LastWriteTime  syscall.Filetime
-	ChangedTime    syscall.Filetime
+	CreationTime   int64
+	LastAccessTime int64
+	LastWriteTime  int64
+	ChangedTime    int64
 	FileAttributes uint32
+
+	// Pad out to 8-byte alignment.
+	//
+	// Without this padding, TestChmod fails due to an argument validation error
+	// in SetFileInformationByHandle on windows/386.
+	//
+	// https://learn.microsoft.com/en-us/cpp/build/reference/zp-struct-member-alignment?view=msvc-170
+	// says that “The C/C++ headers in the Windows SDK assume the platform's
+	// default alignment is used.” What we see here is padding rather than
+	// alignment, but maybe it is related.
+	_ uint32
 }
 
 const (
@@ -149,7 +161,7 @@ const (
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
-//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
 //sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
 
@@ -332,7 +344,11 @@ const MB_ERR_INVALID_CHARS = 8
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	GetCurrentThread() (pseudoHandle syscall.Handle, err error) = kernel32.GetCurrentThread
 
-const STYPE_DISKTREE = 0x00
+// Constants from lmshare.h
+const (
+	STYPE_DISKTREE  = 0x00
+	STYPE_TEMPORARY = 0x40000000
+)
 
 type SHARE_INFO_2 struct {
 	Netname     *uint16
@@ -360,18 +376,15 @@ const (
 
 //sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
 
-func LoadGetFinalPathNameByHandle() error {
-	return procGetFinalPathNameByHandleW.Find()
-}
-
 func ErrorLoadingGetTempPath2() error {
 	return procGetTempPath2W.Find()
 }
 
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
-//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+//sys	ProcessPrng(buf []byte) (err error) = bcryptprimitives.ProcessPrng
 
 type FILE_ID_BOTH_DIR_INFO struct {
 	NextEntryOffset uint32
@@ -391,4 +404,42 @@ type FILE_ID_BOTH_DIR_INFO struct {
 	FileName        [1]uint16
 }
 
+type FILE_FULL_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	FileName        [1]uint16
+}
+
 //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+//sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+
+//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
+
+type SERVICE_STATUS struct {
+	ServiceType             uint32
+	CurrentState            uint32
+	ControlsAccepted        uint32
+	Win32ExitCode           uint32
+	ServiceSpecificExitCode uint32
+	CheckPoint              uint32
+	WaitHint                uint32
+}
+
+const (
+	SERVICE_RUNNING      = 4
+	SERVICE_QUERY_STATUS = 4
+)
+
+//sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
+//sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
+//sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW

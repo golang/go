@@ -110,16 +110,15 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 			}
 		}
 		for _, v := range b.Values {
-			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects) && !live[v.ID] {
+			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects || opcodeTable[v.Op].nilCheck) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
 					liveOrderStmts = append(liveOrderStmts, v)
 				}
 			}
-			if v.Type.IsVoid() && !live[v.ID] {
-				// The only Void ops are nil checks and inline marks.  We must keep these.
-				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
+			if v.Op == OpInlMark {
+				if !liveInlIdx[int(v.AuxInt)] {
 					// We don't need marks for bodies that
 					// have been completely optimized away.
 					// TODO: save marks only for bodies which
@@ -290,20 +289,6 @@ func deadcode(f *Func) {
 		b.truncateValues(i)
 	}
 
-	// Remove dead blocks from WBLoads list.
-	i = 0
-	for _, b := range f.WBLoads {
-		if reachable[b.ID] {
-			f.WBLoads[i] = b
-			i++
-		}
-	}
-	clearWBLoads := f.WBLoads[i:]
-	for j := range clearWBLoads {
-		clearWBLoads[j] = nil
-	}
-	f.WBLoads = f.WBLoads[:i]
-
 	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {
@@ -327,6 +312,8 @@ func deadcode(f *Func) {
 
 // removeEdge removes the i'th outgoing edge from b (and
 // the corresponding incoming edge from b.Succs[i].b).
+// Note that this potentially reorders successors of b, so it
+// must be used very carefully.
 func (b *Block) removeEdge(i int) {
 	e := b.Succs[i]
 	c := e.b
@@ -344,7 +331,6 @@ func (b *Block) removeEdge(i int) {
 			continue
 		}
 		c.removePhiArg(v, j)
-		phielimValue(v)
 		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.

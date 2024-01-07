@@ -6,24 +6,20 @@
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution on unsigned 64-bit integers.
-// Each different instance of a hash table or data structure should use its own Seed.
+// Each different instance of a hash table or data structure should use its own [Seed].
 //
 // The hash functions are not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
 package maphash
 
-import (
-	"unsafe"
-)
-
 // A Seed is a random value that selects the specific hash function
-// computed by a Hash. If two Hashes use the same Seeds, they
+// computed by a [Hash]. If two Hashes use the same Seeds, they
 // will compute the same hash values for any given input.
 // If two Hashes use different Seeds, they are very likely to compute
 // distinct hash values for any given input.
 //
-// A Seed must be initialized by calling MakeSeed.
-// The zero seed is uninitialized and not valid for use with Hash's SetSeed method.
+// A Seed must be initialized by calling [MakeSeed].
+// The zero seed is uninitialized and not valid for use with [Hash]'s SetSeed method.
 //
 // Each Seed value is local to a single process and cannot be serialized
 // or otherwise recreated in a different process.
@@ -44,17 +40,15 @@ func Bytes(seed Seed, b []byte) uint64 {
 	if state == 0 {
 		panic("maphash: use of uninitialized Seed")
 	}
-	if len(b) == 0 {
-		return rthash(nil, 0, state) // avoid &b[0] index panic below
-	}
+
 	if len(b) > bufSize {
 		b = b[:len(b):len(b)] // merge len and cap calculations when reslicing
 		for len(b) > bufSize {
-			state = rthash(&b[0], bufSize, state)
+			state = rthash(b[:bufSize], state)
 			b = b[bufSize:]
 		}
 	}
-	return rthash(&b[0], len(b), state)
+	return rthash(b, state)
 }
 
 // String returns the hash of s with the given seed.
@@ -71,12 +65,10 @@ func String(seed Seed, s string) uint64 {
 		panic("maphash: use of uninitialized Seed")
 	}
 	for len(s) > bufSize {
-		p := (*byte)(unsafe.StringData(s))
-		state = rthash(p, bufSize, state)
+		state = rthashString(s[:bufSize], state)
 		s = s[bufSize:]
 	}
-	p := (*byte)(unsafe.StringData(s))
-	return rthash(p, len(s), state)
+	return rthashString(s, state)
 }
 
 // A Hash computes a seeded hash of a byte sequence.
@@ -130,7 +122,7 @@ func (h *Hash) initSeed() {
 }
 
 // WriteByte adds b to the sequence of bytes hashed by h.
-// It never fails; the error result is for implementing io.ByteWriter.
+// It never fails; the error result is for implementing [io.ByteWriter].
 func (h *Hash) WriteByte(b byte) error {
 	if h.n == len(h.buf) {
 		h.flush()
@@ -141,7 +133,7 @@ func (h *Hash) WriteByte(b byte) error {
 }
 
 // Write adds b to the sequence of bytes hashed by h.
-// It always writes all of b and never fails; the count and error result are for implementing io.Writer.
+// It always writes all of b and never fails; the count and error result are for implementing [io.Writer].
 func (h *Hash) Write(b []byte) (int, error) {
 	size := len(b)
 	// Deal with bytes left over in h.buf.
@@ -162,7 +154,7 @@ func (h *Hash) Write(b []byte) (int, error) {
 	if len(b) > bufSize {
 		h.initSeed()
 		for len(b) > bufSize {
-			h.state.s = rthash(&b[0], bufSize, h.state.s)
+			h.state.s = rthash(b[:bufSize], h.state.s)
 			b = b[bufSize:]
 		}
 	}
@@ -173,7 +165,7 @@ func (h *Hash) Write(b []byte) (int, error) {
 }
 
 // WriteString adds the bytes of s to the sequence of bytes hashed by h.
-// It always writes all of s and never fails; the count and error result are for implementing io.StringWriter.
+// It always writes all of s and never fails; the count and error result are for implementing [io.StringWriter].
 func (h *Hash) WriteString(s string) (int, error) {
 	// WriteString mirrors Write. See Write for comments.
 	size := len(s)
@@ -189,8 +181,7 @@ func (h *Hash) WriteString(s string) (int, error) {
 	if len(s) > bufSize {
 		h.initSeed()
 		for len(s) > bufSize {
-			ptr := (*byte)(unsafe.StringData(s))
-			h.state.s = rthash(ptr, bufSize, h.state.s)
+			h.state.s = rthashString(s[:bufSize], h.state.s)
 			s = s[bufSize:]
 		}
 	}
@@ -205,10 +196,10 @@ func (h *Hash) Seed() Seed {
 	return h.seed
 }
 
-// SetSeed sets h to use seed, which must have been returned by MakeSeed
-// or by another Hash's Seed method.
-// Two Hash objects with the same seed behave identically.
-// Two Hash objects with different seeds will very likely behave differently.
+// SetSeed sets h to use seed, which must have been returned by [MakeSeed]
+// or by another [Hash.Seed] method.
+// Two [Hash] objects with the same seed behave identically.
+// Two [Hash] objects with different seeds will very likely behave differently.
 // Any bytes added to h before this call will be discarded.
 func (h *Hash) SetSeed(seed Seed) {
 	if seed.s == 0 {
@@ -233,27 +224,27 @@ func (h *Hash) flush() {
 		panic("maphash: flush of partially full buffer")
 	}
 	h.initSeed()
-	h.state.s = rthash(&h.buf[0], h.n, h.state.s)
+	h.state.s = rthash(h.buf[:h.n], h.state.s)
 	h.n = 0
 }
 
 // Sum64 returns h's current 64-bit value, which depends on
 // h's seed and the sequence of bytes added to h since the
-// last call to Reset or SetSeed.
+// last call to [Hash.Reset] or [Hash.SetSeed].
 //
 // All bits of the Sum64 result are close to uniformly and
 // independently distributed, so it can be safely reduced
 // by using bit masking, shifting, or modular arithmetic.
 func (h *Hash) Sum64() uint64 {
 	h.initSeed()
-	return rthash(&h.buf[0], h.n, h.state.s)
+	return rthash(h.buf[:h.n], h.state.s)
 }
 
 // MakeSeed returns a new random seed.
 func MakeSeed() Seed {
 	var s uint64
 	for {
-		s = runtime_fastrand64()
+		s = randUint64()
 		// We use seed 0 to indicate an uninitialized seed/hash,
 		// so keep trying until we get a non-zero seed.
 		if s != 0 {
@@ -263,31 +254,9 @@ func MakeSeed() Seed {
 	return Seed{s: s}
 }
 
-//go:linkname runtime_fastrand64 runtime.fastrand64
-func runtime_fastrand64() uint64
-
-func rthash(ptr *byte, len int, seed uint64) uint64 {
-	if len == 0 {
-		return seed
-	}
-	// The runtime hasher only works on uintptr. For 64-bit
-	// architectures, we use the hasher directly. Otherwise,
-	// we use two parallel hashers on the lower and upper 32 bits.
-	if unsafe.Sizeof(uintptr(0)) == 8 {
-		return uint64(runtime_memhash(unsafe.Pointer(ptr), uintptr(seed), uintptr(len)))
-	}
-	lo := runtime_memhash(unsafe.Pointer(ptr), uintptr(seed), uintptr(len))
-	hi := runtime_memhash(unsafe.Pointer(ptr), uintptr(seed>>32), uintptr(len))
-	return uint64(hi)<<32 | uint64(lo)
-}
-
-//go:linkname runtime_memhash runtime.memhash
-//go:noescape
-func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
-
 // Sum appends the hash's current 64-bit value to b.
-// It exists for implementing hash.Hash.
-// For direct calls, it is more efficient to use Sum64.
+// It exists for implementing [hash.Hash].
+// For direct calls, it is more efficient to use [Hash.Sum64].
 func (h *Hash) Sum(b []byte) []byte {
 	x := h.Sum64()
 	return append(b,

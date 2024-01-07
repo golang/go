@@ -322,8 +322,5 @@ func stripAt(s string) (string, int) {
 func typeOf(n Node) string {
 	const prefix = "*syntax."
 	k := fmt.Sprintf("%T", n)
-	if strings.HasPrefix(k, prefix) {
-		return k[len(prefix):]
-	}
-	return k
+	return strings.TrimPrefix(k, prefix)
 }

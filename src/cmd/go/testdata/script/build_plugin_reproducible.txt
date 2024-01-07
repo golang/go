@@ -1,0 +1,11 @@
+[!buildmode:plugin] skip
+[short] skip
+
+go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
+go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go
+cmp -q a.so b.so
+
+-- main.go --
+package main
+
+func main() {}

@@ -1,0 +1,141 @@
+
+# Testcase related to #58770 and #24570. This is intended to ensure
+# that coverage collection works in situations where we're testing a
+# collection of packages and supplying a -coverpkg pattern that
+# matches some but not all of the collection. In addition, some of the
+# packages have Go code but no tests, and other packages have tests
+# but no Go code. Package breakdown:
+#
+# Package         Code?           Tests?          Stmts           Imports
+# a               yes             yes             2               f
+# b               yes             yes             1               a, d
+# c               yes             yes             3               ---
+# d               yes             no              1               ---
+# e               no              yes             0               a, b
+# f               yes             no              3               ---
+#
+
+[short] skip
+[!GOEXPERIMENT:coverageredesign] skip
+
+# Test all packages with -coverpkg=./...
+go test -coverprofile=cov.p -coverpkg=./... ./...
+stdout '^ok\s+M/a\s+\S+\s+coverage: 50.0% of statements in ./...'
+stdout '^ok\s+M/b\s+\S+\s+coverage: 60.0% of statements in ./...'
+stdout '^ok\s+M/c\s+\S+\s+coverage: 30.0% of statements in ./...'
+stdout '^\s*M/d\s+coverage: 0.0% of statements'
+stdout '^\s*M/f\s+coverage: 0.0% of statements'
+
+# Test just the test-only package ./e but with -coverpkg=./...
+# Total number of statements should be 7 (e.g. a/b/d/f but not c)
+# and covered percent should be 6/7 (we hit everything in the
+# coverpkg pattern except the func in "d").
+go test -coverprofile=bar.p -coverpkg=./... ./e
+stdout '^ok\s+M/e\s+\S+\s+coverage: 85.7% of statements in ./...'
+
+# Test b and f with -coverpkg set to a/d/f. Total of 6 statements
+# in a/d/f, again we hit everything except DFunc.
+go test -coverprofile=baz.p -coverpkg=./a,./d,./f ./b ./f
+stdout '^ok\s+M/b\s+\S+\s+coverage: 83.3% of statements in ./a, ./d, ./f'
+stdout '^\s*M/f\s+coverage: 0.0% of statements'
+
+-- a/a.go --
+package a
+
+import "M/f"
+
+var G int
+
+func AFunc() int {
+	G = 1
+	return f.Id()
+}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestA(t *testing.T) {
+	if AFunc() != 42 {
+		t.Fatalf("bad!")
+	}
+}
+-- b/b.go --
+package b
+
+import (
+	"M/a"
+	"M/d"
+)
+
+func BFunc() int {
+	return -d.FortyTwo + a.AFunc()
+}
+-- b/b_test.go --
+package b
+
+import "testing"
+
+func TestB(t *testing.T) {
+	if BFunc() == 1010101 {
+		t.Fatalf("bad!")
+	}
+}
+-- c/c.go --
+package c
+
+var G int
+
+func CFunc(x, y int) int {
+	G += x
+	G -= y
+	return x + y
+}
+-- c/c_test.go --
+package c
+
+import "testing"
+
+func TestC(t *testing.T) {
+	if CFunc(10, 10) == 1010101 {
+		t.Fatalf("bad!")
+	}
+}
+-- d/d.go --
+package d
+
+const FortyTwo = 42
+
+func DFunc() int {
+  return FortyTwo
+}
+
+-- e/e_test.go --
+package e
+
+import (
+	"M/a"
+	"M/b"
+	"testing"
+)
+
+func TestBlah(t *testing.T) {
+	if b.BFunc() == 1010101 {
+		t.Fatalf("bad")
+	}
+	a.AFunc()
+}
+-- f/f.go --
+package f
+
+var F int
+
+func Id() int {
+	F += 9
+	F *= 2
+	return 42
+}
+-- go.mod --
+module M
+
+go 1.21

@@ -190,5 +190,5 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 }
 
 // Disable/enable preemption, implemented in runtime.
-func runtime_procPin()
+func runtime_procPin() int
 func runtime_procUnpin()

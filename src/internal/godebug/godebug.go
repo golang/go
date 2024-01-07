@@ -29,9 +29,16 @@
 // documentation for details.
 package godebug
 
+// Note: Be careful about new imports here. Any package
+// that internal/godebug imports cannot itself import internal/godebug,
+// meaning it cannot introduce a GODEBUG setting of its own.
+// We keep imports to the absolute bare minimum.
 import (
+	"internal/bisect"
+	"internal/godebugs"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 	_ "unsafe" // go:linkname
 )
 
@@ -43,24 +50,46 @@ type Setting struct {
 }
 
 type setting struct {
-	value          atomic.Pointer[string]
+	value          atomic.Pointer[value]
 	nonDefaultOnce sync.Once
-	nonDefault     atomic.Int64
+	nonDefault     atomic.Uint64
+	info           *godebugs.Info
+}
+
+type value struct {
+	text   string
+	bisect *bisect.Matcher
 }
 
 // New returns a new Setting for the $GODEBUG setting with the given name.
+//
+// GODEBUGs meant for use by end users must be listed in ../godebugs/table.go,
+// which is used for generating and checking various documentation.
+// If the name is not listed in that table, New will succeed but calling Value
+// on the returned Setting will panic.
+// To disable that panic for access to an undocumented setting,
+// prefix the name with a #, as in godebug.New("#gofsystrace").
+// The # is a signal to New but not part of the key used in $GODEBUG.
 func New(name string) *Setting {
 	return &Setting{name: name}
 }
 
 // Name returns the name of the setting.
 func (s *Setting) Name() string {
+	if s.name != "" && s.name[0] == '#' {
+		return s.name[1:]
+	}
 	return s.name
+}
+
+// Undocumented reports whether this is an undocumented setting.
+func (s *Setting) Undocumented() bool {
+	return s.name != "" && s.name[0] == '#'
 }
 
 // String returns a printable form for the setting: name=value.
 func (s *Setting) String() string {
-	return s.name + "=" + s.Value()
+	return s.Name() + "=" + s.Value()
 }
 
 // IncNonDefault increments the non-default behavior counter
@@ -69,20 +98,16 @@ func (s *Setting) String() string {
 // /godebug/non-default-behavior/<name>:events.
 //
 // Note that Value must be called at least once before IncNonDefault.
-//
-// Any GODEBUG setting that can call IncNonDefault must be listed
-// in three more places:
-//
-//	- the table in ../runtime/metrics.go (search for non-default-behavior)
-//	- the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
-//	- the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
 func (s *Setting) IncNonDefault() {
 	s.nonDefaultOnce.Do(s.register)
 	s.nonDefault.Add(1)
 }
 
 func (s *Setting) register() {
-	registerMetric("/godebug/non-default-behavior/"+s.name+":events", s.nonDefault.Load)
+	if s.info == nil || s.info.Opaque {
+		panic("godebug: unexpected IncNonDefault of " + s.name)
+	}
+	registerMetric("/godebug/non-default-behavior/"+s.Name()+":events", s.nonDefault.Load)
 }
 
 // cache is a cache of all the GODEBUG settings,
@@ -100,7 +125,7 @@ func (s *Setting) register() {
 // Once entered into the map, the name is never removed.
 var cache sync.Map // name string -> value *atomic.Pointer[string]
 
-var empty string
+var empty value
 
 // Value returns the current value for the GODEBUG setting s.
 //
@@ -111,9 +136,16 @@ var empty string
 // caching of Value's result.
 func (s *Setting) Value() string {
 	s.once.Do(func() {
-		s.setting = lookup(s.name)
+		s.setting = lookup(s.Name())
+		if s.info == nil && !s.Undocumented() {
+			panic("godebug: Value of name not listed in godebugs.All: " + s.name)
+		}
 	})
-	return *s.value.Load()
+	v := *s.value.Load()
+	if v.bisect != nil && !v.bisect.Stack(&stderr) {
+		return ""
+	}
+	return v.text
 }
 
 // lookup returns the unique *setting value for the given name.
@@ -122,6 +154,7 @@ func lookup(name string) *setting {
 		return v.(*setting)
 	}
 	s := new(setting)
+	s.info = godebugs.Lookup(name)
 	s.value.Store(&empty)
 	if v, loaded := cache.LoadOrStore(name, s); loaded {
 		// Lost race: someone else created it. Use theirs.
@@ -145,13 +178,17 @@ func setUpdate(update func(string, string))
 // It forwards registrations to runtime/metrics.
 //
 //go:linkname registerMetric
-func registerMetric(name string, read func() int64)
+func registerMetric(name string, read func() uint64)
 
-// setNewNonDefaultInc is provided by package runtime.
+// setNewIncNonDefault is provided by package runtime.
 // The runtime can do
+//
 //	inc := newNonDefaultInc(name)
+//
 // instead of
+//
 //	inc := godebug.New(name).IncNonDefault
+//
 // since it cannot import godebug.
 //
 //go:linkname setNewIncNonDefault
@@ -199,6 +236,9 @@ func update(def, env string) {
 // Later settings override earlier ones.
 // Parse only updates settings k=v for which did[k] = false.
 // It also sets did[k] = true for settings that it updates.
+// Each value v can also have the form v#pattern,
+// in which case the GODEBUG is only enabled for call stacks
+// matching pattern, for use with golang.org/x/tools/cmd/bisect.
 func parse(did map[string]bool, s string) {
 	// Scan the string backward so that later settings are used
 	// and earlier settings are ignored.
@@ -210,10 +250,18 @@ func parse(did map[string]bool, s string) {
 	for i := end - 1; i >= -1; i-- {
 		if i == -1 || s[i] == ',' {
 			if eq >= 0 {
-				name, value := s[i+1:eq], s[eq+1:end]
+				name, arg := s[i+1:eq], s[eq+1:end]
 				if !did[name] {
 					did[name] = true
-					lookup(name).value.Store(&value)
+					v := &value{text: arg}
+					for j := 0; j < len(arg); j++ {
+						if arg[j] == '#' {
+							v.text = arg[:j]
+							v.bisect, _ = bisect.New(arg[j+1:])
+							break
+						}
+					}
+					lookup(name).value.Store(v)
 				}
 			}
 			eq = -1
@@ -223,3 +271,20 @@ func parse(did map[string]bool, s string) {
 		}
 	}
 }
+
+type runtimeStderr struct{}
+
+var stderr runtimeStderr
+
+func (*runtimeStderr) Write(b []byte) (int, error) {
+	if len(b) > 0 {
+		write(2, unsafe.Pointer(&b[0]), int32(len(b)))
+	}
+	return len(b), nil
+}
+
+// Since we cannot import os or syscall, use the runtime's write function
+// to print to standard error.
+//
+//go:linkname write runtime.write
+func write(fd uintptr, p unsafe.Pointer, n int32) int32

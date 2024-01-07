@@ -139,6 +139,8 @@ func init() {
 		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
 		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
+		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
@@ -179,6 +181,7 @@ func init() {
 		{name: "NEG", argLength: 1, reg: gp11},                 // -arg0
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
 
@@ -231,6 +234,10 @@ func init() {
 		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
 		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
 		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+
+		// moves (no conversion)
+		{name: "MOVWfpgp", argLength: 1, reg: fpgp, asm: "MOVW"}, // move float32 to int32 (no conversion)
+		{name: "MOVWgpfp", argLength: 1, reg: gpfp, asm: "MOVW"}, // move int32 to float32 (no conversion)
 
 		// conversions
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
@@ -394,11 +401,12 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
 		// It saves all GP registers if necessary,
 		// but clobbers R31 (LR) because it's a call
 		// and R23 (REGTMP).
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in R25.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

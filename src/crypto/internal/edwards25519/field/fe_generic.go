@@ -156,7 +156,7 @@ func feMulGeneric(v, a, b *Element) {
 	rr4 := r4.lo&maskLow51Bits + c3
 
 	// Now all coefficients fit into 64-bit registers but are still too large to
-	// be passed around as a Element. We therefore do one last carry chain,
+	// be passed around as an Element. We therefore do one last carry chain,
 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
 	*v = Element{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()

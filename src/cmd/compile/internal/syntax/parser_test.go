@@ -70,6 +70,18 @@ func TestStdLib(t *testing.T) {
 			filepath.Join(goroot, "src"),
 			filepath.Join(goroot, "misc"),
 		} {
+			if filepath.Base(dir) == "misc" {
+				// cmd/distpack deletes GOROOT/misc, so skip that directory if it isn't present.
+				// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+				// suppress false-positive skips.
+				if _, err := os.Stat(dir); os.IsNotExist(err) {
+					if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+						fmt.Printf("%s not present; skipping\n", dir)
+						continue
+					}
+				}
+			}
+
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {
 					// Always report skipped files since regexp
@@ -360,5 +372,24 @@ func TestLineDirectives(t *testing.T) {
 		if col := pos.RelCol(); col != test.col {
 			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
 		}
+	}
+}
+
+// Test that typical uses of UnpackListExpr don't allocate.
+func TestUnpackListExprAllocs(t *testing.T) {
+	var x Expr = NewName(Pos{}, "x")
+	allocs := testing.AllocsPerRun(1000, func() {
+		list := UnpackListExpr(x)
+		if len(list) != 1 || list[0] != x {
+			t.Fatalf("unexpected result")
+		}
+	})
+
+	if allocs > 0 {
+		errorf := t.Errorf
+		if testenv.OptimizationOff() {
+			errorf = t.Logf // noopt builder disables inlining
+		}
+		errorf("UnpackListExpr allocated %v times", allocs)
 	}
 }

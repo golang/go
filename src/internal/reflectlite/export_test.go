@@ -14,18 +14,18 @@ func Field(v Value, i int) Value {
 	if v.kind() != Struct {
 		panic(&ValueError{"reflect.Value.Field", v.kind()})
 	}
-	tt := (*structType)(unsafe.Pointer(v.typ))
-	if uint(i) >= uint(len(tt.fields)) {
+	tt := (*structType)(unsafe.Pointer(v.typ()))
+	if uint(i) >= uint(len(tt.Fields)) {
 		panic("reflect: Field index out of range")
 	}
-	field := &tt.fields[i]
-	typ := field.typ
+	field := &tt.Fields[i]
+	typ := field.Typ
 
 	// Inherit permission bits from v, but clear flagEmbedRO.
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
-	if !field.name.isExported() {
-		if field.embedded() {
+	if !field.Name.IsExported() {
+		if field.Embedded() {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -36,27 +36,27 @@ func Field(v Value, i int) Value {
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still the correct address.
-	ptr := add(v.ptr, field.offset, "same as non-reflect &v.field")
+	ptr := add(v.ptr, field.Offset, "same as non-reflect &v.field")
 	return Value{typ, ptr, fl}
 }
 
 func TField(typ Type, i int) Type {
-	t := typ.(*rtype)
+	t := typ.(rtype)
 	if t.Kind() != Struct {
 		panic("reflect: Field of non-struct type")
 	}
-	tt := (*structType)(unsafe.Pointer(t))
+	tt := (*structType)(unsafe.Pointer(t.Type))
 
 	return StructFieldType(tt, i)
 }
 
 // Field returns the i'th struct field.
 func StructFieldType(t *structType, i int) Type {
-	if i < 0 || i >= len(t.fields) {
+	if i < 0 || i >= len(t.Fields) {
 		panic("reflect: Field index out of bounds")
 	}
-	p := &t.fields[i]
-	return toType(p.typ)
+	p := &t.Fields[i]
+	return toType(p.Typ)
 }
 
 // Zero returns a Value representing the zero value for the specified type.
@@ -68,7 +68,7 @@ func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")
 	}
-	t := typ.(*rtype)
+	t := typ.common()
 	fl := flag(t.Kind())
 	if ifaceIndir(t) {
 		return Value{t, unsafe_New(t), fl | flagIndir}
@@ -104,12 +104,12 @@ func FirstMethodNameBytes(t Type) *byte {
 	if ut == nil {
 		panic("type has no methods")
 	}
-	m := ut.methods()[0]
-	mname := t.(*rtype).nameOff(m.name)
-	if *mname.data(0, "name flag field")&(1<<2) == 0 {
+	m := ut.Methods()[0]
+	mname := t.(rtype).nameOff(m.Name)
+	if *mname.DataChecked(0, "name flag field")&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}
-	return mname.bytes
+	return mname.Bytes
 }
 
 type Buffer struct {

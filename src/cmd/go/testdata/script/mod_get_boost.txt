@@ -1,0 +1,96 @@
+# If 'go get -u' finds an upgrade candidate that isn't viable,
+# but some other upgraded module's requirement moves past it
+# (for example, to a higher prerelease), then we should accept
+# the transitive upgrade instead of trying lower roots.
+
+go get -v -u . example.net/b@v0.1.0
+cmp go.mod go.mod.want
+
+-- go.mod --
+module example
+
+go 1.17
+
+require (
+	example.net/a v0.1.0
+	example.net/b v0.1.0
+	example.net/c v0.1.0
+)
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0-pre => ./a2p
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.2.0 => ./b
+	example.net/c v0.1.0 => ./c1
+	example.net/c v0.2.0 => ./c2
+)
+-- go.mod.want --
+module example
+
+go 1.17
+
+require (
+	example.net/a v0.2.0-pre
+	example.net/b v0.1.0
+	example.net/c v0.2.0
+)
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0-pre => ./a2p
+	example.net/b v0.1.0 => ./b
+	example.net/b v0.2.0 => ./b
+	example.net/c v0.1.0 => ./c1
+	example.net/c v0.2.0 => ./c2
+)
+-- example.go --
+package example
+
+import (
+	_ "example.net/a"
+	_ "example.net/b"
+	_ "example.net/c"
+)
+-- a1/go.mod --
+module example.net/a
+
+go 1.17
+
+require example.net/b v0.2.0
+-- a1/a.go --
+package a
+
+import _ "example.net/b"
+-- a2p/go.mod --
+module example.net/a
+
+go 1.17
+-- a2p/a.go --
+package a
+-- b/go.mod --
+module example.net/b
+
+go 1.17
+-- b/b.go --
+package b
+-- c1/go.mod --
+module example.net/c
+
+go 1.17
+
+require example.net/a v0.1.0
+-- c1/c.go --
+package c
+
+import _ "example.net/a"
+-- c2/go.mod --
+module example.net/c
+
+go 1.17
+
+require example.net/a v0.2.0-pre
+-- c2/c.go --
+package c
+
+import _ "example.net/c"

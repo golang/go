@@ -80,7 +80,7 @@ stdout '^rsc.io/quote v1.4.0'
 cp go.mod.orig go.mod
 
 ! go list example
-stderr '^package example is not in GOROOT \(.*\)$'
+stderr '^package example is not in std \(.*\)$'
 ! go get example
 stderr '^go: malformed module path "example": missing dot in first path element$'
 

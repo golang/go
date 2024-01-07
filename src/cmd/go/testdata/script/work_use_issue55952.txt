@@ -1,5 +1,5 @@
 ! go list .
-stderr '^go: cannot load module listed in go\.work file: open .+go\.mod:'
+stderr '^go: cannot load module y listed in go\.work file: open y'${/}'go\.mod:'
 
 -- go.work --
 use ./y

@@ -307,15 +307,15 @@ var _ int = f7 /* ERROR "cannot use" */ ([]float64{}...)
 var _ float64 = f7([]float64{}...)
 var _ = f7[float64](1, 2.3)
 var _ = f7(float64(1), 2.3)
-var _ = f7(1, 2.3 /* ERROR "does not match" */ )
-var _ = f7(1.2, 3 /* ERROR "does not match" */ )
+var _ = f7(1, 2.3)
+var _ = f7(1.2, 3)
 
 func f8[A, B any](A, B, ...B) int { panic(0) }
 
 var _ = f8(1) /* ERROR "not enough arguments" */
 var _ = f8(1, 2.3)
 var _ = f8(1, 2.3, 3.4, 4.5)
-var _ = f8(1, 2.3, 3.4, 4 /* ERROR "does not match" */ )
+var _ = f8(1, 2.3, 3.4, 4)
 var _ = f8[int, float64](1, 2.3, 3.4, 4)
 
 var _ = f8[int, float64](0, 0, nil...) // test case for #18268

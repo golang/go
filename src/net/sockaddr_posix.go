@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -31,4 +31,28 @@ type sockaddr interface {
 
 	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
 	toLocal(net string) sockaddr
+}
+
+func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
+	switch fd.family {
+	case syscall.AF_INET, syscall.AF_INET6:
+		switch fd.sotype {
+		case syscall.SOCK_STREAM:
+			return sockaddrToTCP
+		case syscall.SOCK_DGRAM:
+			return sockaddrToUDP
+		case syscall.SOCK_RAW:
+			return sockaddrToIP
+		}
+	case syscall.AF_UNIX:
+		switch fd.sotype {
+		case syscall.SOCK_STREAM:
+			return sockaddrToUnix
+		case syscall.SOCK_DGRAM:
+			return sockaddrToUnixgram
+		case syscall.SOCK_SEQPACKET:
+			return sockaddrToUnixpacket
+		}
+	}
+	return func(syscall.Sockaddr) Addr { return nil }
 }

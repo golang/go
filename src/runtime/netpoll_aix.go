@@ -88,6 +88,9 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	lock(&mtxset)
 	unlock(&mtxpoll)
 
+	// We don't worry about pd.fdseq here,
+	// as mtxset protects us from stale pollDescs.
+
 	pd.user = uint32(len(pfds))
 	pfds = append(pfds, pollfd{fd: int32(fd)})
 	pds = append(pds, pd)
@@ -151,13 +154,13 @@ func netpollBreak() {
 // delay > 0: block for up to that many nanoseconds
 //
 //go:nowritebarrierrec
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	var timeout uintptr
 	if delay < 0 {
 		timeout = ^uintptr(0)
 	} else if delay == 0 {
 		// TODO: call poll with timeout == 0
-		return gList{}
+		return gList{}, 0
 	} else if delay < 1e6 {
 		timeout = 1
 	} else if delay < 1e15 {
@@ -183,7 +186,7 @@ retry:
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
 		if timeout > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
@@ -203,6 +206,7 @@ retry:
 		n--
 	}
 	var toRun gList
+	delta := int32(0)
 	for i := 1; i < len(pfds) && n > 0; i++ {
 		pfd := &pfds[i]
 
@@ -216,11 +220,11 @@ retry:
 			pfd.events &= ^_POLLOUT
 		}
 		if mode != 0 {
-			pds[i].setEventErr(pfd.revents == _POLLERR)
-			netpollready(&toRun, pds[i], mode)
+			pds[i].setEventErr(pfd.revents == _POLLERR, 0)
+			delta += netpollready(&toRun, pds[i], mode)
 			n--
 		}
 	}
 	unlock(&mtxset)
-	return toRun
+	return toRun, delta
 }

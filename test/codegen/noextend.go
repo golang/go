@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math/bits"
+
 var sval64 [8]int64
 var sval32 [8]int32
 var sval16 [8]int16
@@ -184,4 +186,100 @@ func cmp64(u8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) bool {
 		return true
 	}
 	return false
+}
+
+// no unsign extension following 32 bits ops
+
+func noUnsignEXT(t1, t2, t3, t4 uint32, k int64) uint64 {
+	var ret uint64
+
+	// arm64:"RORW",-"MOVWU"
+	ret += uint64(bits.RotateLeft32(t1, 7))
+
+	// arm64:"MULW",-"MOVWU"
+	ret *= uint64(t1 * t2)
+
+	// arm64:"MNEGW",-"MOVWU"
+	ret += uint64(-t1 * t3)
+
+	// arm64:"UDIVW",-"MOVWU"
+	ret += uint64(t1 / t4)
+
+	// arm64:-"MOVWU"
+	ret += uint64(t2 % t3)
+
+	// arm64:"MSUBW",-"MOVWU"
+	ret += uint64(t1 - t2*t3)
+
+	// arm64:"MADDW",-"MOVWU"
+	ret += uint64(t3*t4 + t2)
+
+	// arm64:"REVW",-"MOVWU"
+	ret += uint64(bits.ReverseBytes32(t1))
+
+	// arm64:"RBITW",-"MOVWU"
+	ret += uint64(bits.Reverse32(t1))
+
+	// arm64:"CLZW",-"MOVWU"
+	ret += uint64(bits.LeadingZeros32(t1))
+
+	// arm64:"REV16W",-"MOVWU"
+	ret += uint64(((t1 & 0xff00ff00) >> 8) | ((t1 & 0x00ff00ff) << 8))
+
+	// arm64:"EXTRW",-"MOVWU"
+	ret += uint64((t1 << 25) | (t2 >> 7))
+
+	return ret
+}
+
+// no sign extension when the upper bits of the result are zero
+
+func noSignEXT(x int) int64 {
+	t1 := int32(x)
+
+	var ret int64
+
+	// arm64:-"MOVW"
+	ret += int64(t1 & 1)
+
+	// arm64:-"MOVW"
+	ret += int64(int32(x & 0x7fffffff))
+
+	// arm64:-"MOVH"
+	ret += int64(int16(x & 0x7fff))
+
+	// arm64:-"MOVB"
+	ret += int64(int8(x & 0x7f))
+
+	return ret
+}
+
+// corner cases that sign extension must not be omitted
+
+func shouldSignEXT(x int) int64 {
+	t1 := int32(x)
+
+	var ret int64
+
+	// arm64:"MOVW"
+	ret += int64(t1 & (-1))
+
+	// arm64:"MOVW"
+	ret += int64(int32(x & 0x80000000))
+
+	// arm64:"MOVW"
+	ret += int64(int32(x & 0x1100000011111111))
+
+	// arm64:"MOVH"
+	ret += int64(int16(x & 0x1100000000001111))
+
+	// arm64:"MOVB"
+	ret += int64(int8(x & 0x1100000000000011))
+
+	return ret
+}
+
+func noIntermediateExtension(a, b, c uint32) uint32 {
+	// arm64:-"MOVWU"
+	return a*b*9 + c
 }

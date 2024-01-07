@@ -3,10 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package reflectlite implements lightweight version of reflect, not using
-// any package except for "runtime" and "unsafe".
+// any package except for "runtime", "unsafe", and "internal/abi"
 package reflectlite
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 // Type is the representation of a Go type.
 //
@@ -60,7 +63,7 @@ type Type interface {
 	// It panics if the type's Kind is not Ptr.
 	Elem() Type
 
-	common() *rtype
+	common() *abi.Type
 	uncommon() *uncommonType
 }
 
@@ -72,215 +75,64 @@ type Type interface {
 
 // A Kind represents the specific kind of type that a Type represents.
 // The zero Kind is not a valid kind.
-type Kind uint
+type Kind = abi.Kind
+
+const Ptr = abi.Pointer
 
 const (
-	Invalid Kind = iota
-	Bool
-	Int
-	Int8
-	Int16
-	Int32
-	Int64
-	Uint
-	Uint8
-	Uint16
-	Uint32
-	Uint64
-	Uintptr
-	Float32
-	Float64
-	Complex64
-	Complex128
-	Array
-	Chan
-	Func
-	Interface
-	Map
-	Pointer
-	Slice
-	String
-	Struct
-	UnsafePointer
+	// Import-and-export these constants as necessary
+	Interface = abi.Interface
+	Slice     = abi.Slice
+	String    = abi.String
+	Struct    = abi.Struct
 )
 
-const Ptr = Pointer
+type nameOff = abi.NameOff
+type typeOff = abi.TypeOff
+type textOff = abi.TextOff
 
-// tflag is used by an rtype to signal what extra type information is
-// available in the memory directly following the rtype value.
-//
-// tflag values must be kept in sync with copies in:
-//
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	runtime/type.go
-type tflag uint8
-
-const (
-	// tflagUncommon means that there is a pointer, *uncommonType,
-	// just beyond the outer type structure.
-	//
-	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
-	// then t has uncommonType data and it can be accessed as:
-	//
-	//	type tUncommon struct {
-	//		structType
-	//		u uncommonType
-	//	}
-	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
-	tflagUncommon tflag = 1 << 0
-
-	// tflagExtraStar means the name in the str field has an
-	// extraneous '*' prefix. This is because for most types T in
-	// a program, the type *T also exists and reusing the str data
-	// saves binary size.
-	tflagExtraStar tflag = 1 << 1
-
-	// tflagNamed means the type has a name.
-	tflagNamed tflag = 1 << 2
-
-	// tflagRegularMemory means that equal and hash functions can treat
-	// this type as a single region of t.size bytes.
-	tflagRegularMemory tflag = 1 << 3
-)
-
-// rtype is the common implementation of most values.
-// It is embedded in other struct types.
-//
-// rtype must be kept in sync with ../runtime/type.go:/^type._type.
 type rtype struct {
-	size       uintptr
-	ptrdata    uintptr // number of bytes in the type that can contain pointers
-	hash       uint32  // hash of type; avoids computation in hash tables
-	tflag      tflag   // extra type information flags
-	align      uint8   // alignment of variable with this type
-	fieldAlign uint8   // alignment of struct field with this type
-	kind       uint8   // enumeration for C
-	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B) -> ==?
-	equal     func(unsafe.Pointer, unsafe.Pointer) bool
-	gcdata    *byte   // garbage collection data
-	str       nameOff // string form
-	ptrToThis typeOff // type for pointer to this type, may be zero
-}
-
-// Method on non-interface type
-type method struct {
-	name nameOff // name of method
-	mtyp typeOff // method type (without receiver)
-	ifn  textOff // fn used in interface call (one-word receiver)
-	tfn  textOff // fn used for normal method call
+	*abi.Type
 }
 
 // uncommonType is present only for defined types or types with methods
 // (if T is a defined type, the uncommonTypes for T and *T have methods).
 // Using a pointer to this struct reduces the overall size required
 // to describe a non-defined type with no methods.
-type uncommonType struct {
-	pkgPath nameOff // import path; empty for built-in types like int, string
-	mcount  uint16  // number of methods
-	xcount  uint16  // number of exported methods
-	moff    uint32  // offset from this uncommontype to [mcount]method
-	_       uint32  // unused
-}
-
-// chanDir represents a channel type's direction.
-type chanDir int
-
-const (
-	recvDir chanDir             = 1 << iota // <-chan
-	sendDir                                 // chan<-
-	bothDir = recvDir | sendDir             // chan
-)
+type uncommonType = abi.UncommonType
 
 // arrayType represents a fixed array type.
-type arrayType struct {
-	rtype
-	elem  *rtype // array element type
-	slice *rtype // slice type
-	len   uintptr
-}
+type arrayType = abi.ArrayType
 
 // chanType represents a channel type.
-type chanType struct {
-	rtype
-	elem *rtype  // channel element type
-	dir  uintptr // channel direction (chanDir)
-}
+type chanType = abi.ChanType
 
-// funcType represents a function type.
-//
-// A *rtype for each in and out parameter is stored in an array that
-// directly follows the funcType (and possibly its uncommonType). So
-// a function type with one method, one input, and one output is:
-//
-//	struct {
-//		funcType
-//		uncommonType
-//		[2]*rtype    // [0] is in, [1] is out
-//	}
-type funcType struct {
-	rtype
-	inCount  uint16
-	outCount uint16 // top bit is set if last input parameter is ...
-}
+type funcType = abi.FuncType
 
-// imethod represents a method on an interface type
-type imethod struct {
-	name nameOff // name of method
-	typ  typeOff // .(*FuncType) underneath
-}
-
-// interfaceType represents an interface type.
-type interfaceType struct {
-	rtype
-	pkgPath name      // import path
-	methods []imethod // sorted by hash
-}
+type interfaceType = abi.InterfaceType
 
 // mapType represents a map type.
 type mapType struct {
 	rtype
-	key    *rtype // map key type
-	elem   *rtype // map element (value) type
-	bucket *rtype // internal bucket structure
+	Key    *abi.Type // map key type
+	Elem   *abi.Type // map element (value) type
+	Bucket *abi.Type // internal bucket structure
 	// function for hashing keys (ptr to key, seed) -> hash
-	hasher     func(unsafe.Pointer, uintptr) uintptr
-	keysize    uint8  // size of key slot
-	valuesize  uint8  // size of value slot
-	bucketsize uint16 // size of bucket
-	flags      uint32
+	Hasher     func(unsafe.Pointer, uintptr) uintptr
+	KeySize    uint8  // size of key slot
+	ValueSize  uint8  // size of value slot
+	BucketSize uint16 // size of bucket
+	Flags      uint32
 }
 
 // ptrType represents a pointer type.
-type ptrType struct {
-	rtype
-	elem *rtype // pointer element (pointed at) type
-}
+type ptrType = abi.PtrType
 
 // sliceType represents a slice type.
-type sliceType struct {
-	rtype
-	elem *rtype // slice element type
-}
-
-// Struct field
-type structField struct {
-	name   name    // name is always non-empty
-	typ    *rtype  // type of field
-	offset uintptr // byte offset of field
-}
-
-func (f *structField) embedded() bool {
-	return f.name.embedded()
-}
+type sliceType = abi.SliceType
 
 // structType represents a struct type.
-type structType struct {
-	rtype
-	pkgPath name
-	fields  []structField // sorted by offset
-}
+type structType = abi.StructType
 
 // name is an encoded type name with optional extra data.
 //
@@ -355,21 +207,21 @@ func (n name) tag() string {
 	return unsafe.String(n.data(1+i+l+i2, "non-empty string"), l2)
 }
 
-func (n name) pkgPath() string {
-	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
+func pkgPath(n abi.Name) string {
+	if n.Bytes == nil || *n.DataChecked(0, "name flag field")&(1<<2) == 0 {
 		return ""
 	}
-	i, l := n.readVarint(1)
+	i, l := n.ReadVarint(1)
 	off := 1 + i + l
-	if n.hasTag() {
-		i2, l2 := n.readVarint(off)
+	if n.HasTag() {
+		i2, l2 := n.ReadVarint(off)
 		off += i2 + l2
 	}
 	var nameOff int32
 	// Note that this field may not be aligned in memory,
 	// so we cannot use a direct int32 assignment here.
-	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off, "name offset field")))[:])
-	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n.bytes), nameOff))}
+	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.DataChecked(off, "name offset field")))[:])
+	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n.Bytes), nameOff))}
 	return pkgPathName.name()
 }
 
@@ -378,193 +230,71 @@ func (n name) pkgPath() string {
  * The compiler does not know about the data structures and methods below.
  */
 
-const (
-	kindDirectIface = 1 << 5
-	kindGCProg      = 1 << 6 // Type.gc points to GC program
-	kindMask        = (1 << 5) - 1
-)
-
-// String returns the name of k.
-func (k Kind) String() string {
-	if int(k) < len(kindNames) {
-		return kindNames[k]
-	}
-	return kindNames[0]
-}
-
-var kindNames = []string{
-	Invalid:       "invalid",
-	Bool:          "bool",
-	Int:           "int",
-	Int8:          "int8",
-	Int16:         "int16",
-	Int32:         "int32",
-	Int64:         "int64",
-	Uint:          "uint",
-	Uint8:         "uint8",
-	Uint16:        "uint16",
-	Uint32:        "uint32",
-	Uint64:        "uint64",
-	Uintptr:       "uintptr",
-	Float32:       "float32",
-	Float64:       "float64",
-	Complex64:     "complex64",
-	Complex128:    "complex128",
-	Array:         "array",
-	Chan:          "chan",
-	Func:          "func",
-	Interface:     "interface",
-	Map:           "map",
-	Ptr:           "ptr",
-	Slice:         "slice",
-	String:        "string",
-	Struct:        "struct",
-	UnsafePointer: "unsafe.Pointer",
-}
-
-func (t *uncommonType) methods() []method {
-	if t.mcount == 0 {
-		return nil
-	}
-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
-}
-
-func (t *uncommonType) exportedMethods() []method {
-	if t.xcount == 0 {
-		return nil
-	}
-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
-}
-
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 
 // resolveTypeOff resolves an *rtype offset from a base type.
 // The (*rtype).typeOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
-type nameOff int32 // offset to a name
-type typeOff int32 // offset to an *rtype
-type textOff int32 // offset from top of text section
-
-func (t *rtype) nameOff(off nameOff) name {
-	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+func (t rtype) nameOff(off nameOff) abi.Name {
+	return abi.Name{Bytes: (*byte)(resolveNameOff(unsafe.Pointer(t.Type), int32(off)))}
 }
 
-func (t *rtype) typeOff(off typeOff) *rtype {
-	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
+func (t rtype) typeOff(off typeOff) *abi.Type {
+	return (*abi.Type)(resolveTypeOff(unsafe.Pointer(t.Type), int32(off)))
 }
 
-func (t *rtype) uncommon() *uncommonType {
-	if t.tflag&tflagUncommon == 0 {
-		return nil
-	}
-	switch t.Kind() {
-	case Struct:
-		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
-	case Ptr:
-		type u struct {
-			ptrType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Func:
-		type u struct {
-			funcType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Slice:
-		type u struct {
-			sliceType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Array:
-		type u struct {
-			arrayType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Chan:
-		type u struct {
-			chanType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Map:
-		type u struct {
-			mapType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Interface:
-		type u struct {
-			interfaceType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	default:
-		type u struct {
-			rtype
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	}
+func (t rtype) uncommon() *uncommonType {
+	return t.Uncommon()
 }
 
-func (t *rtype) String() string {
-	s := t.nameOff(t.str).name()
-	if t.tflag&tflagExtraStar != 0 {
+func (t rtype) String() string {
+	s := t.nameOff(t.Str).Name()
+	if t.TFlag&abi.TFlagExtraStar != 0 {
 		return s[1:]
 	}
 	return s
 }
 
-func (t *rtype) Size() uintptr { return t.size }
+func (t rtype) common() *abi.Type { return t.Type }
 
-func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
-
-func (t *rtype) pointers() bool { return t.ptrdata != 0 }
-
-func (t *rtype) common() *rtype { return t }
-
-func (t *rtype) exportedMethods() []method {
+func (t rtype) exportedMethods() []abi.Method {
 	ut := t.uncommon()
 	if ut == nil {
 		return nil
 	}
-	return ut.exportedMethods()
+	return ut.ExportedMethods()
 }
 
-func (t *rtype) NumMethod() int {
-	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
+func (t rtype) NumMethod() int {
+	tt := t.Type.InterfaceType()
+	if tt != nil {
 		return tt.NumMethod()
 	}
 	return len(t.exportedMethods())
 }
 
-func (t *rtype) PkgPath() string {
-	if t.tflag&tflagNamed == 0 {
+func (t rtype) PkgPath() string {
+	if t.TFlag&abi.TFlagNamed == 0 {
 		return ""
 	}
 	ut := t.uncommon()
 	if ut == nil {
 		return ""
 	}
-	return t.nameOff(ut.pkgPath).name()
+	return t.nameOff(ut.PkgPath).Name()
 }
 
-func (t *rtype) hasName() bool {
-	return t.tflag&tflagNamed != 0
-}
-
-func (t *rtype) Name() string {
-	if !t.hasName() {
+func (t rtype) Name() string {
+	if !t.HasName() {
 		return ""
 	}
 	s := t.String()
@@ -582,112 +312,76 @@ func (t *rtype) Name() string {
 	return s[i+1:]
 }
 
-func (t *rtype) chanDir() chanDir {
-	if t.Kind() != Chan {
-		panic("reflect: chanDir of non-chan type")
-	}
-	tt := (*chanType)(unsafe.Pointer(t))
-	return chanDir(tt.dir)
+func toRType(t *abi.Type) rtype {
+	return rtype{t}
 }
 
-func (t *rtype) Elem() Type {
-	switch t.Kind() {
-	case Array:
-		tt := (*arrayType)(unsafe.Pointer(t))
-		return toType(tt.elem)
-	case Chan:
-		tt := (*chanType)(unsafe.Pointer(t))
-		return toType(tt.elem)
-	case Map:
-		tt := (*mapType)(unsafe.Pointer(t))
-		return toType(tt.elem)
-	case Ptr:
-		tt := (*ptrType)(unsafe.Pointer(t))
-		return toType(tt.elem)
-	case Slice:
-		tt := (*sliceType)(unsafe.Pointer(t))
-		return toType(tt.elem)
+func elem(t *abi.Type) *abi.Type {
+	et := t.Elem()
+	if et != nil {
+		return et
 	}
-	panic("reflect: Elem of invalid type")
+	panic("reflect: Elem of invalid type " + toRType(t).String())
 }
 
-func (t *rtype) In(i int) Type {
-	if t.Kind() != Func {
+func (t rtype) Elem() Type {
+	return toType(elem(t.common()))
+}
+
+func (t rtype) In(i int) Type {
+	tt := t.Type.FuncType()
+	if tt == nil {
 		panic("reflect: In of non-func type")
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return toType(tt.in()[i])
+	return toType(tt.InSlice()[i])
 }
 
-func (t *rtype) Key() Type {
-	if t.Kind() != Map {
+func (t rtype) Key() Type {
+	tt := t.Type.MapType()
+	if tt == nil {
 		panic("reflect: Key of non-map type")
 	}
-	tt := (*mapType)(unsafe.Pointer(t))
-	return toType(tt.key)
+	return toType(tt.Key)
 }
 
-func (t *rtype) Len() int {
-	if t.Kind() != Array {
+func (t rtype) Len() int {
+	tt := t.Type.ArrayType()
+	if tt == nil {
 		panic("reflect: Len of non-array type")
 	}
-	tt := (*arrayType)(unsafe.Pointer(t))
-	return int(tt.len)
+	return int(tt.Len)
 }
 
-func (t *rtype) NumField() int {
-	if t.Kind() != Struct {
+func (t rtype) NumField() int {
+	tt := t.Type.StructType()
+	if tt == nil {
 		panic("reflect: NumField of non-struct type")
 	}
-	tt := (*structType)(unsafe.Pointer(t))
-	return len(tt.fields)
+	return len(tt.Fields)
 }
 
-func (t *rtype) NumIn() int {
-	if t.Kind() != Func {
+func (t rtype) NumIn() int {
+	tt := t.Type.FuncType()
+	if tt == nil {
 		panic("reflect: NumIn of non-func type")
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return int(tt.inCount)
+	return int(tt.InCount)
 }
 
-func (t *rtype) NumOut() int {
-	if t.Kind() != Func {
+func (t rtype) NumOut() int {
+	tt := t.Type.FuncType()
+	if tt == nil {
 		panic("reflect: NumOut of non-func type")
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return len(tt.out())
+	return tt.NumOut()
 }
 
-func (t *rtype) Out(i int) Type {
-	if t.Kind() != Func {
+func (t rtype) Out(i int) Type {
+	tt := t.Type.FuncType()
+	if tt == nil {
 		panic("reflect: Out of non-func type")
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return toType(tt.out()[i])
-}
-
-func (t *funcType) in() []*rtype {
-	uadd := unsafe.Sizeof(*t)
-	if t.tflag&tflagUncommon != 0 {
-		uadd += unsafe.Sizeof(uncommonType{})
-	}
-	if t.inCount == 0 {
-		return nil
-	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount:t.inCount]
-}
-
-func (t *funcType) out() []*rtype {
-	uadd := unsafe.Sizeof(*t)
-	if t.tflag&tflagUncommon != 0 {
-		uadd += unsafe.Sizeof(uncommonType{})
-	}
-	outCount := t.outCount & (1<<15 - 1)
-	if outCount == 0 {
-		return nil
-	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount : t.inCount+outCount]
+	return toType(tt.OutSlice()[i])
 }
 
 // add returns p+x.
@@ -701,47 +395,49 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
-// NumMethod returns the number of interface methods in the type's method set.
-func (t *interfaceType) NumMethod() int { return len(t.methods) }
-
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	return toType(eface.typ)
+	// Noescape so this doesn't make i to escape. See the comment
+	// at Value.typ for why this is safe.
+	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
 }
 
-func (t *rtype) Implements(u Type) bool {
+func (t rtype) Implements(u Type) bool {
 	if u == nil {
 		panic("reflect: nil type passed to Type.Implements")
 	}
 	if u.Kind() != Interface {
 		panic("reflect: non-interface type passed to Type.Implements")
 	}
-	return implements(u.(*rtype), t)
+	return implements(u.common(), t.common())
 }
 
-func (t *rtype) AssignableTo(u Type) bool {
+func (t rtype) AssignableTo(u Type) bool {
 	if u == nil {
 		panic("reflect: nil type passed to Type.AssignableTo")
 	}
-	uu := u.(*rtype)
-	return directlyAssignable(uu, t) || implements(uu, t)
+	uu := u.common()
+	tt := t.common()
+	return directlyAssignable(uu, tt) || implements(uu, tt)
 }
 
-func (t *rtype) Comparable() bool {
-	return t.equal != nil
+func (t rtype) Comparable() bool {
+	return t.Equal != nil
 }
 
 // implements reports whether the type V implements the interface type T.
-func implements(T, V *rtype) bool {
-	if T.Kind() != Interface {
+func implements(T, V *abi.Type) bool {
+	t := T.InterfaceType()
+	if t == nil {
 		return false
 	}
-	t := (*interfaceType)(unsafe.Pointer(T))
-	if len(t.methods) == 0 {
+	if len(t.Methods) == 0 {
 		return true
 	}
+	rT := toRType(T)
+	rV := toRType(V)
 
 	// The same algorithm applies in both cases, but the
 	// method tables for an interface type and a concrete type
@@ -758,26 +454,26 @@ func implements(T, V *rtype) bool {
 	if V.Kind() == Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
 		i := 0
-		for j := 0; j < len(v.methods); j++ {
-			tm := &t.methods[i]
-			tmName := t.nameOff(tm.name)
-			vm := &v.methods[j]
-			vmName := V.nameOff(vm.name)
-			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
-				if !tmName.isExported() {
-					tmPkgPath := tmName.pkgPath()
+		for j := 0; j < len(v.Methods); j++ {
+			tm := &t.Methods[i]
+			tmName := rT.nameOff(tm.Name)
+			vm := &v.Methods[j]
+			vmName := rV.nameOff(vm.Name)
+			if vmName.Name() == tmName.Name() && rV.typeOff(vm.Typ) == rT.typeOff(tm.Typ) {
+				if !tmName.IsExported() {
+					tmPkgPath := pkgPath(tmName)
 					if tmPkgPath == "" {
-						tmPkgPath = t.pkgPath.name()
+						tmPkgPath = t.PkgPath.Name()
 					}
-					vmPkgPath := vmName.pkgPath()
+					vmPkgPath := pkgPath(vmName)
 					if vmPkgPath == "" {
-						vmPkgPath = v.pkgPath.name()
+						vmPkgPath = v.PkgPath.Name()
 					}
 					if tmPkgPath != vmPkgPath {
 						continue
 					}
 				}
-				if i++; i >= len(t.methods) {
+				if i++; i >= len(t.Methods) {
 					return true
 				}
 			}
@@ -785,32 +481,32 @@ func implements(T, V *rtype) bool {
 		return false
 	}
 
-	v := V.uncommon()
+	v := V.Uncommon()
 	if v == nil {
 		return false
 	}
 	i := 0
-	vmethods := v.methods()
-	for j := 0; j < int(v.mcount); j++ {
-		tm := &t.methods[i]
-		tmName := t.nameOff(tm.name)
+	vmethods := v.Methods()
+	for j := 0; j < int(v.Mcount); j++ {
+		tm := &t.Methods[i]
+		tmName := rT.nameOff(tm.Name)
 		vm := vmethods[j]
-		vmName := V.nameOff(vm.name)
-		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
-			if !tmName.isExported() {
-				tmPkgPath := tmName.pkgPath()
+		vmName := rV.nameOff(vm.Name)
+		if vmName.Name() == tmName.Name() && rV.typeOff(vm.Mtyp) == rT.typeOff(tm.Typ) {
+			if !tmName.IsExported() {
+				tmPkgPath := pkgPath(tmName)
 				if tmPkgPath == "" {
-					tmPkgPath = t.pkgPath.name()
+					tmPkgPath = t.PkgPath.Name()
 				}
-				vmPkgPath := vmName.pkgPath()
+				vmPkgPath := pkgPath(vmName)
 				if vmPkgPath == "" {
-					vmPkgPath = V.nameOff(v.pkgPath).name()
+					vmPkgPath = rV.nameOff(v.PkgPath).Name()
 				}
 				if tmPkgPath != vmPkgPath {
 					continue
 				}
 			}
-			if i++; i >= len(t.methods) {
+			if i++; i >= len(t.Methods) {
 				return true
 			}
 		}
@@ -823,7 +519,7 @@ func implements(T, V *rtype) bool {
 // https://golang.org/doc/go_spec.html#Assignability
 // Ignoring the interface rules (implemented elsewhere)
 // and the ideal constant rules (no ideal constants at run time).
-func directlyAssignable(T, V *rtype) bool {
+func directlyAssignable(T, V *abi.Type) bool {
 	// x's type V is identical to T?
 	if T == V {
 		return true
@@ -831,7 +527,7 @@ func directlyAssignable(T, V *rtype) bool {
 
 	// Otherwise at least one of T and V must not be defined
 	// and they must have the same kind.
-	if T.hasName() && V.hasName() || T.Kind() != V.Kind() {
+	if T.HasName() && V.HasName() || T.Kind() != V.Kind() {
 		return false
 	}
 
@@ -839,19 +535,19 @@ func directlyAssignable(T, V *rtype) bool {
 	return haveIdenticalUnderlyingType(T, V, true)
 }
 
-func haveIdenticalType(T, V Type, cmpTags bool) bool {
+func haveIdenticalType(T, V *abi.Type, cmpTags bool) bool {
 	if cmpTags {
 		return T == V
 	}
 
-	if T.Name() != V.Name() || T.Kind() != V.Kind() {
+	if toRType(T).Name() != toRType(V).Name() || T.Kind() != V.Kind() {
 		return false
 	}
 
-	return haveIdenticalUnderlyingType(T.common(), V.common(), false)
+	return haveIdenticalUnderlyingType(T, V, false)
 }
 
-func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 	if T == V {
 		return true
 	}
@@ -863,30 +559,30 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 
 	// Non-composite types of equal kind have same underlying type
 	// (the predefined instance of the type).
-	if Bool <= kind && kind <= Complex128 || kind == String || kind == UnsafePointer {
+	if abi.Bool <= kind && kind <= abi.Complex128 || kind == abi.String || kind == abi.UnsafePointer {
 		return true
 	}
 
 	// Composite types.
 	switch kind {
-	case Array:
+	case abi.Array:
 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Chan:
+	case abi.Chan:
 		// Special case:
 		// x is a bidirectional channel value, T is a channel type,
 		// and x's type V and T have identical element types.
-		if V.chanDir() == bothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
+		if V.ChanDir() == abi.BothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
 			return true
 		}
 
 		// Otherwise continue test for identical underlying type.
-		return V.chanDir() == T.chanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+		return V.ChanDir() == T.ChanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Func:
+	case abi.Func:
 		t := (*funcType)(unsafe.Pointer(T))
 		v := (*funcType)(unsafe.Pointer(V))
-		if t.outCount != v.outCount || t.inCount != v.inCount {
+		if t.OutCount != v.OutCount || t.InCount != v.InCount {
 			return false
 		}
 		for i := 0; i < t.NumIn(); i++ {
@@ -904,44 +600,44 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	case Interface:
 		t := (*interfaceType)(unsafe.Pointer(T))
 		v := (*interfaceType)(unsafe.Pointer(V))
-		if len(t.methods) == 0 && len(v.methods) == 0 {
+		if len(t.Methods) == 0 && len(v.Methods) == 0 {
 			return true
 		}
 		// Might have the same methods but still
 		// need a run time conversion.
 		return false
 
-	case Map:
+	case abi.Map:
 		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Ptr, Slice:
+	case Ptr, abi.Slice:
 		return haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Struct:
+	case abi.Struct:
 		t := (*structType)(unsafe.Pointer(T))
 		v := (*structType)(unsafe.Pointer(V))
-		if len(t.fields) != len(v.fields) {
+		if len(t.Fields) != len(v.Fields) {
 			return false
 		}
-		if t.pkgPath.name() != v.pkgPath.name() {
+		if t.PkgPath.Name() != v.PkgPath.Name() {
 			return false
 		}
-		for i := range t.fields {
-			tf := &t.fields[i]
-			vf := &v.fields[i]
-			if tf.name.name() != vf.name.name() {
+		for i := range t.Fields {
+			tf := &t.Fields[i]
+			vf := &v.Fields[i]
+			if tf.Name.Name() != vf.Name.Name() {
 				return false
 			}
-			if !haveIdenticalType(tf.typ, vf.typ, cmpTags) {
+			if !haveIdenticalType(tf.Typ, vf.Typ, cmpTags) {
 				return false
 			}
-			if cmpTags && tf.name.tag() != vf.name.tag() {
+			if cmpTags && tf.Name.Tag() != vf.Name.Tag() {
 				return false
 			}
-			if tf.offset != vf.offset {
+			if tf.Offset != vf.Offset {
 				return false
 			}
-			if tf.embedded() != vf.embedded() {
+			if tf.Embedded() != vf.Embedded() {
 				return false
 			}
 		}
@@ -951,24 +647,19 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	return false
 }
 
-type structTypeUncommon struct {
-	structType
-	u uncommonType
-}
-
 // toType converts from a *rtype to a Type that can be returned
 // to the client of package reflect. In gc, the only concern is that
 // a nil *rtype must be replaced by a nil Type, but in gccgo this
 // function takes care of ensuring that multiple *rtype for the same
 // type are coalesced into a single Type.
-func toType(t *rtype) Type {
+func toType(t *abi.Type) Type {
 	if t == nil {
 		return nil
 	}
-	return t
+	return toRType(t)
 }
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *rtype) bool {
-	return t.kind&kindDirectIface == 0
+func ifaceIndir(t *abi.Type) bool {
+	return t.Kind_&abi.KindDirectIface == 0
 }

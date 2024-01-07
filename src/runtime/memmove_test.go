@@ -338,6 +338,29 @@ func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
 	})
 }
 
+func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
+	for _, n := range []int{16, 64, 256, 4096, 65536} {
+		buf := make([]byte, (n+8)*2)
+		x := buf[:len(buf)/2]
+		y := buf[len(buf)/2:]
+		for _, off := range []int{0, 1, 4, 7} {
+			b.Run(fmt.Sprint("f_", n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					copy(x[off:n+off], y[off:n+off])
+				}
+			})
+
+			b.Run(fmt.Sprint("b_", n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					copy(y[off:n+off], x[off:n+off])
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
 	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
 		x := make([]byte, n+1)
@@ -400,6 +423,32 @@ func BenchmarkMemclr(b *testing.B) {
 	}
 }
 
+func BenchmarkMemclrUnaligned(b *testing.B) {
+	for _, off := range []int{0, 1, 4, 7} {
+		for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
+			x := make([]byte, n+off)
+			b.Run(fmt.Sprint(off, n), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					MemclrBytes(x[off:])
+				}
+			})
+		}
+	}
+
+	for _, off := range []int{0, 1, 4, 7} {
+		for _, m := range []int{1, 4, 8, 16, 64} {
+			x := make([]byte, (m<<20)+off)
+			b.Run(fmt.Sprint(off, m, "M"), func(b *testing.B) {
+				b.SetBytes(int64(m << 20))
+				for i := 0; i < b.N; i++ {
+					MemclrBytes(x[off:])
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkGoMemclr(b *testing.B) {
 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
 		x := make([]byte, n)
@@ -439,9 +488,7 @@ func BenchmarkMemclrRange(b *testing.B) {
 		maxLen := 0
 
 		for _, clrLen := range t.data {
-			if clrLen > maxLen {
-				maxLen = clrLen
-			}
+			maxLen = max(maxLen, clrLen)
 			if clrLen < minLen || minLen == 0 {
 				minLen = clrLen
 			}

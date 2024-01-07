@@ -16,13 +16,13 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if elem.ptrdata != 0 && uintptr(p)&(uintptr(elem.align)-1) != 0 {
+	if elem.PtrBytes != 0 && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
 		throw("checkptr: misaligned pointer conversion")
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
 	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
-	if checkptrStraddles(p, n*elem.size) {
+	if checkptrStraddles(p, n*elem.Size_) {
 		throw("checkptr: converted pointer straddles multiple allocations")
 	}
 }

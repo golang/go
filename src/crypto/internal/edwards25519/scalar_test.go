@@ -14,6 +14,16 @@ import (
 	"testing/quick"
 )
 
+// quickCheckConfig returns a quick.Config that scales the max count by the
+// given factor if the -short flag is not set.
+func quickCheckConfig(slowScale int) *quick.Config {
+	cfg := new(quick.Config)
+	if !testing.Short() {
+		cfg.MaxCountScale = float64(slowScale)
+	}
+	return cfg
+}
+
 var scOneBytes = [32]byte{1}
 var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
 var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
@@ -53,15 +63,11 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(val)
 }
 
-// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
-// times. The default value of -quickchecks is 100.
-var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
-
 func TestScalarGenerate(t *testing.T) {
 	f := func(sc Scalar) bool {
 		return isReduced(sc.Bytes())
 	}
-	if err := quick.Check(f, quickCheckConfig1024); err != nil {
+	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
 		t.Errorf("generated unreduced scalar: %v", err)
 	}
 }
@@ -76,7 +82,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 		repr := sc.Bytes()
 		return bytes.Equal(in[:], repr) && isReduced(repr)
 	}
-	if err := quick.Check(f1, quickCheckConfig1024); err != nil {
+	if err := quick.Check(f1, quickCheckConfig(1024)); err != nil {
 		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
 	}
 
@@ -86,7 +92,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 		}
 		return sc1 == sc2
 	}
-	if err := quick.Check(f2, quickCheckConfig1024); err != nil {
+	if err := quick.Check(f2, quickCheckConfig(1024)); err != nil {
 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
 	}
 
@@ -115,7 +121,7 @@ func TestScalarSetUniformBytes(t *testing.T) {
 		inBig := bigIntFromLittleEndianBytes(in[:])
 		return inBig.Mod(inBig, mod).Cmp(scBig) == 0
 	}
-	if err := quick.Check(f, quickCheckConfig1024); err != nil {
+	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }
@@ -175,7 +181,7 @@ func TestScalarMultiplyDistributesOverAdd(t *testing.T) {
 		return t1 == t2 && isReduced(reprT1) && isReduced(reprT2)
 	}
 
-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig1024); err != nil {
+	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }
@@ -194,7 +200,7 @@ func TestScalarAddLikeSubNeg(t *testing.T) {
 		return t1 == t2 && isReduced(t1.Bytes())
 	}
 
-	if err := quick.Check(addLikeSubNeg, quickCheckConfig1024); err != nil {
+	if err := quick.Check(addLikeSubNeg, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }

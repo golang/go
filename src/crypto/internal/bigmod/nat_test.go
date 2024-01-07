@@ -5,13 +5,23 @@
 package bigmod
 
 import (
+	"fmt"
 	"math/big"
 	"math/bits"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/quick"
 )
+
+func (n *Nat) String() string {
+	var limbs []string
+	for i := range n.limbs {
+		limbs = append(limbs, fmt.Sprintf("%016X", n.limbs[len(n.limbs)-1-i]))
+	}
+	return "{" + strings.Join(limbs, " ") + "}"
+}
 
 // Generate generates an even nat. It's used by testing/quick to produce random
 // *nat values for quick.Check invocations.
@@ -54,21 +64,23 @@ func TestModSubThenAddIdentity(t *testing.T) {
 	}
 }
 
-func testMontgomeryRoundtrip(a *Nat) bool {
-	one := &Nat{make([]uint, len(a.limbs))}
-	one.limbs[0] = 1
-	aPlusOne := new(big.Int).SetBytes(natBytes(a))
-	aPlusOne.Add(aPlusOne, big.NewInt(1))
-	m := NewModulusFromBig(aPlusOne)
-	monty := new(Nat).set(a)
-	monty.montgomeryRepresentation(m)
-	aAgain := new(Nat).set(monty)
-	aAgain.montgomeryMul(monty, one, m)
-	return a.Equal(aAgain) == 1
-}
-
 func TestMontgomeryRoundtrip(t *testing.T) {
-	err := quick.Check(testMontgomeryRoundtrip, &quick.Config{})
+	err := quick.Check(func(a *Nat) bool {
+		one := &Nat{make([]uint, len(a.limbs))}
+		one.limbs[0] = 1
+		aPlusOne := new(big.Int).SetBytes(natBytes(a))
+		aPlusOne.Add(aPlusOne, big.NewInt(1))
+		m, _ := NewModulusFromBig(aPlusOne)
+		monty := new(Nat).set(a)
+		monty.montgomeryRepresentation(m)
+		aAgain := new(Nat).set(monty)
+		aAgain.montgomeryMul(monty, one, m)
+		if a.Equal(aAgain) != 1 {
+			t.Errorf("%v != %v", a, aAgain)
+			return false
+		}
+		return true
+	}, &quick.Config{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,30 +96,30 @@ func TestShiftIn(t *testing.T) {
 	}{{
 		m:        []byte{13},
 		x:        []byte{0},
-		y:        0x7FFF_FFFF_FFFF_FFFF,
-		expected: []byte{7},
+		y:        0xFFFF_FFFF_FFFF_FFFF,
+		expected: []byte{2},
 	}, {
 		m:        []byte{13},
 		x:        []byte{7},
-		y:        0x7FFF_FFFF_FFFF_FFFF,
-		expected: []byte{11},
+		y:        0xFFFF_FFFF_FFFF_FFFF,
+		expected: []byte{10},
 	}, {
 		m:        []byte{0x06, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d},
 		x:        make([]byte, 9),
-		y:        0x7FFF_FFFF_FFFF_FFFF,
-		expected: []byte{0x00, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		y:        0xFFFF_FFFF_FFFF_FFFF,
+		expected: []byte{0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 	}, {
 		m:        []byte{0x06, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d},
-		x:        []byte{0x00, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		x:        []byte{0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		y:        0,
-		expected: []byte{0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08},
+		expected: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06},
 	}}
 
 	for i, tt := range examples {
 		m := modulusFromBytes(tt.m)
 		got := natFromBytes(tt.x).ExpandFor(m).shiftIn(uint(tt.y), m)
-		if got.Equal(natFromBytes(tt.expected).ExpandFor(m)) != 1 {
-			t.Errorf("%d: got %x, expected %x", i, got, tt.expected)
+		if exp := natFromBytes(tt.expected).ExpandFor(m); got.Equal(exp) != 1 {
+			t.Errorf("%d: got %v, expected %v", i, got, exp)
 		}
 	}
 }
@@ -181,12 +193,12 @@ func TestSetBytes(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil && tt.fail {
+		if tt.fail {
 			t.Errorf("%d: unexpected success", i)
 			continue
 		}
 		if expected := natFromBytes(tt.b).ExpandFor(m); got.Equal(expected) != yes {
-			t.Errorf("%d: got %x, expected %x", i, got, expected)
+			t.Errorf("%d: got %v, expected %v", i, got, expected)
 		}
 	}
 
@@ -228,7 +240,7 @@ func TestExpand(t *testing.T) {
 	for i, tt := range examples {
 		got := (&Nat{tt.in}).expand(tt.n)
 		if len(got.limbs) != len(tt.out) || got.Equal(&Nat{tt.out}) != 1 {
-			t.Errorf("%d: got %x, expected %x", i, got, tt.out)
+			t.Errorf("%d: got %v, expected %v", i, got, tt.out)
 		}
 	}
 }
@@ -287,26 +299,68 @@ func TestExp(t *testing.T) {
 	}
 }
 
+func TestExpShort(t *testing.T) {
+	m := modulusFromBytes([]byte{13})
+	x := &Nat{[]uint{3}}
+	out := &Nat{[]uint{0}}
+	out.ExpShort(x, 12, m)
+	expected := &Nat{[]uint{1}}
+	if out.Equal(expected) != 1 {
+		t.Errorf("%+v != %+v", out, expected)
+	}
+}
+
+// TestMulReductions tests that Mul reduces results equal or slightly greater
+// than the modulus. Some Montgomery algorithms don't and need extra care to
+// return correct results. See https://go.dev/issue/13907.
+func TestMulReductions(t *testing.T) {
+	// Two short but multi-limb primes.
+	a, _ := new(big.Int).SetString("773608962677651230850240281261679752031633236267106044359907", 10)
+	b, _ := new(big.Int).SetString("180692823610368451951102211649591374573781973061758082626801", 10)
+	n := new(big.Int).Mul(a, b)
+
+	N, _ := NewModulusFromBig(n)
+	A := NewNat().setBig(a).ExpandFor(N)
+	B := NewNat().setBig(b).ExpandFor(N)
+
+	if A.Mul(B, N).IsZero() != 1 {
+		t.Error("a * b mod (a * b) != 0")
+	}
+
+	i := new(big.Int).ModInverse(a, b)
+	N, _ = NewModulusFromBig(b)
+	A = NewNat().setBig(a).ExpandFor(N)
+	I := NewNat().setBig(i).ExpandFor(N)
+	one := NewNat().setBig(big.NewInt(1)).ExpandFor(N)
+
+	if A.Mul(I, N).Equal(one) != 1 {
+		t.Error("a * inv(a) mod b != 1")
+	}
+}
+
 func natBytes(n *Nat) []byte {
 	return n.Bytes(maxModulus(uint(len(n.limbs))))
 }
 
 func natFromBytes(b []byte) *Nat {
+	// Must not use Nat.SetBytes as it's used in TestSetBytes.
 	bb := new(big.Int).SetBytes(b)
 	return NewNat().setBig(bb)
 }
 
 func modulusFromBytes(b []byte) *Modulus {
 	bb := new(big.Int).SetBytes(b)
-	return NewModulusFromBig(bb)
+	m, _ := NewModulusFromBig(bb)
+	return m
 }
 
 // maxModulus returns the biggest modulus that can fit in n limbs.
 func maxModulus(n uint) *Modulus {
-	m := big.NewInt(1)
-	m.Lsh(m, n*_W)
-	m.Sub(m, big.NewInt(1))
-	return NewModulusFromBig(m)
+	b := big.NewInt(1)
+	b.Lsh(b, n*_W)
+	b.Sub(b, big.NewInt(1))
+	m, _ := NewModulusFromBig(b)
+	return m
 }
 
 func makeBenchmarkModulus() *Modulus {
@@ -316,7 +370,7 @@ func makeBenchmarkModulus() *Modulus {
 func makeBenchmarkValue() *Nat {
 	x := make([]uint, 32)
 	for i := 0; i < 32; i++ {
-		x[i] = _MASK - 1
+		x[i]--
 	}
 	return &Nat{limbs: x}
 }
@@ -408,5 +462,19 @@ func BenchmarkExp(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		out.Exp(x, e, m)
+	}
+}
+
+func TestNewModFromBigZero(t *testing.T) {
+	expected := "modulus must be >= 0"
+	_, err := NewModulusFromBig(big.NewInt(0))
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulusFromBig(0) got %q, want %q", err, expected)
+	}
+
+	expected = "modulus must be odd"
+	_, err = NewModulusFromBig(big.NewInt(2))
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
 	}
 }

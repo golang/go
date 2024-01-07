@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build 386 || amd64 || s390x || arm || arm64 || loong64 || ppc64 || ppc64le || mips || mipsle || mips64 || mips64le || riscv64 || wasm
+//go:build 386 || (amd64 && !plan9) || s390x || arm || arm64 || loong64 || ppc64 || ppc64le || mips || mipsle || mips64 || mips64le || riscv64 || wasm
 
 package bytealg
 

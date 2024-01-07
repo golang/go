@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -62,29 +63,53 @@ func (f *File) ParseGo(abspath string, src []byte) {
 	// In ast1, find the import "C" line and get any extra C preamble.
 	sawC := false
 	for _, decl := range ast1.Decls {
-		d, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
+		switch decl := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range decl.Specs {
+				s, ok := spec.(*ast.ImportSpec)
+				if !ok || s.Path.Value != `"C"` {
+					continue
+				}
+				sawC = true
+				if s.Name != nil {
+					error_(s.Path.Pos(), `cannot rename import "C"`)
+				}
+				cg := s.Doc
+				if cg == nil && len(decl.Specs) == 1 {
+					cg = decl.Doc
+				}
+				if cg != nil {
+					if strings.ContainsAny(abspath, "\r\n") {
+						// This should have been checked when the file path was first resolved,
+						// but we double check here just to be sure.
+						fatalf("internal error: ParseGo: abspath contains unexpected newline character: %q", abspath)
+					}
+					f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), abspath)
+					f.Preamble += commentText(cg) + "\n"
+					f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
+				}
+			}
+
+		case *ast.FuncDecl:
+			// Also, reject attempts to declare methods on C.T or *C.T.
+			// (The generated code would otherwise accept this
+			// invalid input; see issue #57926.)
+			if decl.Recv != nil && len(decl.Recv.List) > 0 {
+				recvType := decl.Recv.List[0].Type
+				if recvType != nil {
+					t := recvType
+					if star, ok := unparen(t).(*ast.StarExpr); ok {
+						t = star.X
+					}
+					if sel, ok := unparen(t).(*ast.SelectorExpr); ok {
+						var buf strings.Builder
+						format.Node(&buf, fset, recvType)
+						error_(sel.Pos(), `cannot define new methods on non-local type %s`, &buf)
+					}
+				}
+			}
 		}
-		for _, spec := range d.Specs {
-			s, ok := spec.(*ast.ImportSpec)
-			if !ok || s.Path.Value != `"C"` {
-				continue
-			}
-			sawC = true
-			if s.Name != nil {
-				error_(s.Path.Pos(), `cannot rename import "C"`)
-			}
-			cg := s.Doc
-			if cg == nil && len(d.Specs) == 1 {
-				cg = d.Doc
-			}
-			if cg != nil {
-				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), abspath)
-				f.Preamble += commentText(cg) + "\n"
-				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
-			}
-		}
+
 	}
 	if !sawC {
 		error_(ast1.Package, `cannot find import "C"`)
@@ -541,4 +566,12 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 			f.walk(s, context, visit)
 		}
 	}
+}
+
+// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
+func unparen(x ast.Expr) ast.Expr {
+	if p, isParen := x.(*ast.ParenExpr); isParen {
+		x = unparen(p.X)
+	}
+	return x
 }

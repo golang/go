@@ -1072,6 +1072,7 @@ type EncodeQueryTest struct {
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, ""},
+	{Values{}, ""},
 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
 	{Values{
@@ -1116,7 +1117,6 @@ func TestResolvePath(t *testing.T) {
 }
 
 func BenchmarkResolvePath(b *testing.B) {
-	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		resolvePath("a/b/c", ".././d")

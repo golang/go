@@ -69,6 +69,7 @@ func (c *context) set_lr(x uintptr) {}
 
 func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
+func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
 
 func prepareContextForSigResume(c *context) {
 	c.r8 = c.rsp
@@ -79,6 +80,7 @@ func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")
 	print("rbx     ", hex(r.rbx), "\n")
 	print("rcx     ", hex(r.rcx), "\n")
+	print("rdx     ", hex(r.rdx), "\n")
 	print("rdi     ", hex(r.rdi), "\n")
 	print("rsi     ", hex(r.rsi), "\n")
 	print("rbp     ", hex(r.rbp), "\n")
@@ -96,4 +98,19 @@ func dumpregs(r *context) {
 	print("cs      ", hex(r.segcs), "\n")
 	print("fs      ", hex(r.segfs), "\n")
 	print("gs      ", hex(r.seggs), "\n")
+}
+
+type _DISPATCHER_CONTEXT struct {
+	controlPc        uint64
+	imageBase        uint64
+	functionEntry    uintptr
+	establisherFrame uint64
+	targetIp         uint64
+	context          *context
+	languageHandler  uintptr
+	handlerData      uintptr
+}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return c.context
 }

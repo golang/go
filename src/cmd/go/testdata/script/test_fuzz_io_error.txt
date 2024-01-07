@@ -7,6 +7,7 @@
 # due to ^C and EOF errors which are more common. We don't report those.
 [short] skip
 [!fuzz] skip
+env GOCACHE=$WORK/cache
 
 # If the I/O error occurs before F.Fuzz is called, the coordinator should
 # stop the worker and say that.

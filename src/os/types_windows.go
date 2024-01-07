@@ -32,10 +32,11 @@ type fileStat struct {
 
 	// used to implement SameFile
 	sync.Mutex
-	path  string
-	vol   uint32
-	idxhi uint32
-	idxlo uint32
+	path             string
+	vol              uint32
+	idxhi            uint32
+	idxlo            uint32
+	appendNameToPath bool
 }
 
 // newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
@@ -99,6 +100,20 @@ func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileSta
 	}
 }
 
+// newFileStatFromFileFullDirInfo copies all required information
+// from windows.FILE_FULL_DIR_INFO d into the newly created fileStat.
+func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   uint32(d.EndOfFile >> 32),
+		FileSizeLow:    uint32(d.EndOfFile),
+		ReparseTag:     d.EaSize,
+	}
+}
+
 // newFileStatFromWin32finddata copies all required information
 // from syscall.Win32finddata d into the newly created fileStat.
 func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
@@ -118,6 +133,16 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 		fs.ReparseTag = d.Reserved0
 	}
 	return fs
+}
+
+// isReparseTagNameSurrogate determines whether a tag's associated
+// reparse point is a surrogate for another named entity (for example, a mounted folder).
+//
+// See https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
+// and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+func (fs *fileStat) isReparseTagNameSurrogate() bool {
+	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
+	return fs.ReparseTag&0x20000000 != 0
 }
 
 func (fs *fileStat) isSymlink() bool {
@@ -160,7 +185,23 @@ func (fs *fileStat) Mode() (m FileMode) {
 		m |= ModeDevice | ModeCharDevice
 	}
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && m&ModeType == 0 {
-		m |= ModeIrregular
+		if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
+			// If the Data Deduplication service is enabled on Windows Server, its
+			// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
+			// whenever that job runs.
+			//
+			// However, DEDUP reparse points remain similar in most respects to
+			// regular files: they continue to support random-access reads and writes
+			// of persistent data, and they shouldn't add unexpected latency or
+			// unavailability in the way that a network filesystem might.
+			//
+			// Go programs may use ModeIrregular to filter out unusual files (such as
+			// raw device files on Linux, POSIX FIFO special files, and so on), so
+			// to avoid files changing unpredictably from regular to irregular we will
+			// consider DEDUP files to be close enough to regular to treat as such.
+		} else {
+			m |= ModeIrregular
+		}
 	}
 	return m
 }
@@ -188,7 +229,13 @@ func (fs *fileStat) loadFileId() error {
 		// already done
 		return nil
 	}
-	pathp, err := syscall.UTF16PtrFromString(fs.path)
+	var path string
+	if fs.appendNameToPath {
+		path = fixLongPath(fs.path + `\` + fs.name)
+	} else {
+		path = fs.path
+	}
+	pathp, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return err
 	}
