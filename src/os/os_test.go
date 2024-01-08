@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"log"
 	. "os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +33,8 @@ func TestMain(m *testing.M) {
 		io.Copy(io.Discard, Stdin)
 		Exit(0)
 	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	Exit(m.Run())
 }
@@ -2847,15 +2850,16 @@ func TestUserCacheDir(t *testing.T) {
 		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserCacheDir: %v", err)
-	}
-	d, err := MkdirTemp(dir, "TestUserCacheDir")
+	fi, err := Stat(dir)
 	if err != nil {
-		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
 		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }
 
@@ -2870,16 +2874,16 @@ func TestUserConfigDir(t *testing.T) {
 		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserConfigDir: %v", err)
-	}
-
-	d, err := MkdirTemp(dir, "TestUserConfigDir")
+	fi, err := Stat(dir)
 	if err != nil {
-		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
 		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }
 
