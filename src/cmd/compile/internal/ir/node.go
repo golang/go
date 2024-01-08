@@ -152,7 +152,7 @@ const (
 	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
 	// Prior to walk, they are: X(Args), where Args is all regular arguments.
 	// After walk, if any argument whose evaluation might requires temporary variable,
-	// that temporary variable will be pushed to Init, Args will contains an updated
+	// that temporary variable will be pushed to Init, Args will contain an updated
 	// set of arguments.
 	OCALLFUNC  // X(Args) (function call f(args))
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
