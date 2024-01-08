@@ -289,7 +289,6 @@ func main() {
 }
 `
 
-
 // TestGdbCoreCrashThreadBacktrace tests that runtime could let the fault thread to crash process
 // and make fault thread as number one thread while gdb in a core file
 func TestGdbCoreCrashThreadBacktrace(t *testing.T) {
