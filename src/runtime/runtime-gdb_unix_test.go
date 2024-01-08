@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
-	_ "unsafe" // for go:linkname
 )
 
 func canGenerateCore(t *testing.T) bool {
@@ -256,9 +255,16 @@ import (
 	"os"
 	"runtime/debug"
 	"syscall"
+	_ "unsafe" // for go:linkname
 )
 
+//go:linkname totalSleepTimeUs runtime.totalSleepTimeUs
+var totalSleepTimeUs int
+
 func enableCore() {
+	// give enough time to crash even on a slow machine
+	totalSleepTimeUs = 60 * 1000 * 1000
+
 	debug.SetTraceback("crash")
 
 	var lim syscall.Rlimit
@@ -283,8 +289,6 @@ func main() {
 }
 `
 
-//go:linkname totalSleepTimeUs runtime.totalSleepTimeUs
-var totalSleepTimeUs int
 
 // TestGdbCoreCrashThreadBacktrace tests that runtime could let the fault thread to crash process
 // and make fault thread as number one thread while gdb in a core file
@@ -309,7 +313,6 @@ func TestGdbCoreCrashThreadBacktrace(t *testing.T) {
 
 	coreUsesPID := canGenerateCore(t)
 
-	totalSleepTimeUs = 60 * 1000 * 1000
 	// Build the source code.
 	dir := t.TempDir()
 	src := filepath.Join(dir, "main.go")
