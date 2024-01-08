@@ -136,9 +136,20 @@ packages that do not have their own test files. Prior to Go 1.22 a
 
 <h3 id="vet">Vet</h3>
 
-<!-- <p><\!-- CL 539016 -\-> -->
-<!--   TODO: <a href="https://go.dev/cl/539016">https://go.dev/cl/539016</a>: go/analysis/passes/loopclosure: disable checker after go1.22.; loopclosure was modified to only not report in files with GoVersion after 1.22. -->
-<!-- </p> -->
+<h4 id="vet-loopclosure">References to loop variables</h4>
+
+<p><!-- CL 539016, https://go.dev/issue/63888: cmd/vet: do not report variable capture for loop variables with the new lifetime rules -->
+  The behavior of the <code>vet</code> tool has changed to match
+  the new semantics (see above) of loop variables in Go 1.22.
+  When analyzing a file that requires Go 1.22 or newer
+  (due to its go.mod file or a per-file build constraint),
+  <code>vet</code>code> no longer reports references to
+  loop variables from within a function literal that
+  might outlive the iteration of the loop.
+  In Go 1.22, loop variables are created anew for each iteration,
+  so such references are no longer at risk of using a variable
+  after it has been updated by the loop.
+</p>
 
 <h4 id="vet-appends">New warnings for missing values after append</h4>
 
@@ -393,7 +404,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
 </p>
 
 <p>
-  This change breaks backwards compatiblity in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
+  This change breaks backwards compatibility in small ways, some obvious&mdash;patterns with "{" and "}" behave differently&mdash;
   and some less so&mdash;treatment of escaped paths has been improved.
   The change is controlled by a <a href="/doc/godebug"><code>GODEBUG</code></a> field named <code>httpmuxgo121</code>.
   Set <code>httpmuxgo121=1</code> to restore the old behavior.
@@ -566,18 +577,17 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
       <code>Importer</code>,
       <code>Package</code>,
       <code>NewPackage</code>.
-    </p>
-    <p>
-      Identifiers cannot be accurately resolved without type information.
+
+      In general, identifiers cannot be accurately resolved without type information.
       Consider, for example, the identifier <code>K</code>
       in <code>T{K: ""}</code>: it could be the name of a local variable
       if T is a map type, or the name of a field if T is a struct type.
-    </p>
-    <p>
+
       New programs should use the <a href='/pkg/go/types'>go/types</a>
-      package to resolve identifiers;
-      see <code>Object</code>, <code>Info.Uses</code>,
-      and <code>Info.Defs</code> for details.
+      package to resolve identifiers; see
+      <a href='https://pkg.go.dev/go/types#Object'><code>Object</code></a>,
+      <a href='https://pkg.go.dev/go/types#Info.Uses'><code>Info.Uses</code></a>, and
+      <a href='https://pkg.go.dev/go/types#Info.Defs'><code>Info.Defs</code></a> for details.
     </p>
 
     <p><!-- https://go.dev/issue/60061 -->
@@ -650,17 +660,15 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
   </dd>
 </dl><!-- go/version -->
 
-<!-- <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt> -->
-<!--   <dd> -->
-<!--     <p><\!-- https://go.dev/issue/61619 -\-> -->
-<!--       TODO: <a href="https://go.dev/issue/61619">https://go.dev/issue/61619</a>: allow actions in JS template literals -->
-<!--     </p> -->
-
-<!--     <p><\!-- CL 507995 -\-> -->
-<!--       TODO: <a href="https://go.dev/cl/507995">https://go.dev/cl/507995</a>: html/template: support parsing complex JS template literals; modified api/next/61619.txt -->
-<!--     </p> -->
-<!--   </dd> -->
-<!-- </dl><\!-- html/template -\-> -->
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61619, CL 507995 -->
+      Javascript template literals may now contain Go template actions, and parsing a template containing one will
+      no longer return <code>ErrJSTemplate</code>. Similarly the GODEBUG setting <code>jstmpllitinterp</code> no
+      longer has any effect.
+    </p>
+  </dd>
+</dl><!-- html/template -->
 
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
@@ -943,7 +951,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
     <p><!-- https://go.dev/issue/60797 -->
       The <code>syscall</code> package has been <a href="https://golang.org/s/go1.4-syscall">frozen</a> since Go 1.4 and was marked as deprecated in Go 1.11, causing many editors to warn about any use of the package.
       However, some non-deprecated functionality requires use of the <code>syscall</code> package, such as the <a href="/pkg/os/exec#Cmd"><code>os/exec.Cmd.SysProcAttr</code></a> field.
-      To avoid unnecesary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
+      To avoid unnecessary complaints on such code, the <code>syscall</code> package is no longer marked as deprecated.
       The package remains frozen to most new functionality, and new code remains encouraged to use <a href="/pkg/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a> or <a href="/pkg/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> where possible.
     </p>
 

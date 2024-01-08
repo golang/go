@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
-  - type: input
+  - type: textarea
     id: govulncheck-version
     attributes:
       label: govulncheck version
@@ -25,9 +25,9 @@ body:
     validations:
       required: true
   - type: textarea
-    id: os-and-processor
+    id: go-env
     attributes:
-      label: "What operating system and processor architecture are you using (`go env`)?"
+      label: "Output of `go env` in your module/workspace:"
       render: shell
     validations:
       required: true
@@ -39,14 +39,14 @@ body:
     validations:
       required: true
   - type: textarea
-    id: expected-behavior
+    id: actual-behavior
     attributes:
-      label: "What did you expect to see?"
+      label: "What did you see happen?"
     validations:
       required: true
   - type: textarea
-    id: actual-behavior
+    id: expected-behavior
     attributes:
-      label: "What did you see instead?"
+      label: "What did you expect to see?"
     validations:
       required: true

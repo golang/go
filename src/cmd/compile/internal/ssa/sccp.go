@@ -535,6 +535,13 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 	case BlockJumpTable:
 		// Remove everything but the known taken branch.
 		idx := int(constVal.AuxInt)
+		if idx < 0 || idx >= len(block.Succs) {
+			// This can only happen in unreachable code,
+			// as an invariant of jump tables is that their
+			// input index is in range.
+			// See issue 64826.
+			return false
+		}
 		block.swapSuccessorsByIdx(0, idx)
 		for len(block.Succs) > 1 {
 			block.removeEdge(1)

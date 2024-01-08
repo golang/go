@@ -153,6 +153,7 @@ func TestParseHexUint(t *testing.T) {
 		{"00000000000000000", 0, "http chunk length too large"}, // could accept if we wanted
 		{"10000000000000000", 0, "http chunk length too large"},
 		{"00000000000000001", 0, "http chunk length too large"}, // could accept if we wanted
+		{"", 0, "empty hex number for chunk length"},
 	}
 	for i := uint64(0); i <= 1234; i++ {
 		tests = append(tests, testCase{in: fmt.Sprintf("%x", i), want: i})

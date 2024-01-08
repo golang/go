@@ -263,6 +263,9 @@ type FlushAfterChunkWriter struct {
 }
 
 func parseHexUint(v []byte) (n uint64, err error) {
+	if len(v) == 0 {
+		return 0, errors.New("empty hex number for chunk length")
+	}
 	for i, b := range v {
 		switch {
 		case '0' <= b && b <= '9':

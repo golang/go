@@ -11,8 +11,9 @@ import (
 )
 
 func maxListenerBacklog() int {
-	// TODO: Implement this
-	// NOTE: Never return a number bigger than 1<<16 - 1. See issue 5030.
+	// When the socket backlog is SOMAXCONN, Windows will set the backlog to
+	// "a reasonable maximum value".
+	// See: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
 	return syscall.SOMAXCONN
 }
 

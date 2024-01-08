@@ -53,7 +53,8 @@ func init() {
 // Default returns the default [Logger].
 func Default() *Logger { return defaultLogger.Load() }
 
-// SetDefault makes l the default [Logger].
+// SetDefault makes l the default [Logger], which is used by
+// the top-level functions [Info], [Debug] and so on.
 // After this call, output from the log package's default Logger
 // (as with [log.Print], etc.) will be logged using l's Handler,
 // at a level controlled by [SetLogLoggerLevel].

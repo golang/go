@@ -957,16 +957,16 @@ func (w *Walker) emitType(obj *types.TypeName) {
 	if w.isDeprecated(obj) {
 		w.emitf("type %s //deprecated", name)
 	}
+	typ := obj.Type()
+	if obj.IsAlias() {
+		w.emitf("type %s = %s", name, w.typeString(typ))
+		return
+	}
 	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
 		var buf bytes.Buffer
 		buf.WriteString(name)
 		w.writeTypeParams(&buf, tparams, true)
 		name = buf.String()
-	}
-	typ := obj.Type()
-	if obj.IsAlias() {
-		w.emitf("type %s = %s", name, w.typeString(typ))
-		return
 	}
 	switch typ := typ.Underlying().(type) {
 	case *types.Struct:

@@ -1914,7 +1914,7 @@ func needKeyUpdate(t *abi.Type) bool {
 	case Float32, Float64, Complex64, Complex128, Interface, String:
 		// Float keys can be updated from +0 to -0.
 		// String keys can be updated to use a smaller backing store.
-		// Interfaces might have floats of strings in them.
+		// Interfaces might have floats or strings in them.
 		return true
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))

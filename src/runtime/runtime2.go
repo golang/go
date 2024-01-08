@@ -1127,6 +1127,7 @@ const (
 	waitReasonFlushProcCaches                         // "flushing proc caches"
 	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
 	waitReasonTraceProcStatus                         // "trace proc status"
+	waitReasonPageTraceFlush                          // "page trace flush"
 	waitReasonCoroutine                               // "coroutine"
 )
 
@@ -1166,6 +1167,7 @@ var waitReasonStrings = [...]string{
 	waitReasonFlushProcCaches:       "flushing proc caches",
 	waitReasonTraceGoroutineStatus:  "trace goroutine status",
 	waitReasonTraceProcStatus:       "trace proc status",
+	waitReasonPageTraceFlush:        "page trace flush",
 	waitReasonCoroutine:             "coroutine",
 }
 
