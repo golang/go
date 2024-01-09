@@ -100,18 +100,22 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.IsNil() != v2.IsNil() {
 			return false
 		}
-		if v1.Len() != v2.Len() {
+		len := v1.Len()
+		if len != v2.Len() {
 			return false
 		}
-		if v1.UnsafePointer() == v2.UnsafePointer() {
+		v1ptr := v1.UnsafePointer()
+		v2ptr := v2.UnsafePointer()
+		if v1ptr == v2ptr {
 			return true
 		}
 		// Special case raw memory. Particularly, []byte is very common and is handled here.
-		typ := (*abi.SliceType)(unsafe.Pointer(v1.typ()))
-		if isDeepEqualRawMemory(typ.Elem) {
+		elem := v1.typ().Elem()
+		if isDeepEqualRawMemory(elem) {
+			size := elem.Size_ * uintptr(len)
 			return bytealg.Equal(
-				unsafe.Slice(*(**byte)(v1.ptr), v1.typ_.Elem().Size_*uintptr(v1.Len())),
-				unsafe.Slice(*(**byte)(v2.ptr), v2.typ_.Elem().Size_*uintptr(v2.Len())),
+				unsafe.Slice((*byte)(v1ptr), size),
+				unsafe.Slice((*byte)(v2ptr), size),
 			)
 		}
 		for i := 0; i < v1.Len(); i++ {
@@ -180,31 +184,21 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	}
 }
 
-// isDeepEqualRawMemory return
-// whether DeepEqual can treat a type of data
-// as a single typ.size byte area to
-// compare whether the depth is equal
+// isDeepEqualRawMemory reports
+// DeepEqual can determine whether depths is equal
+// by comparing byte by byte equality
 func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
 	// Note: Here is an incorrect implementation :
 	//
 	//	return typ.TFlag==abi.TFlagRegularMemory
 	//
-	// The reason is that DeepEqual
-	// cannot treat a pointer as a single area of a pointer size,
-	// because when DeepEqual
-	// compares two previously compared pointer values a second time and later,
+	// The reason is DeepEqual can't
+	// determine whether two pointer values are equal in depth by comparing them byte by byte
+	// because when deeequal
+	// perform a second and subsequent comparison of two previously compared pointer values,
 	// it treats them as equal
 
-	// TODO: Find a way to quickly determine whether a struct contains Pointer
-	// Make struct do not have Pointer return true
-
-	switch typ.Kind() {
-	case abi.Int8, abi.Int16, abi.Int32, abi.Int64, abi.Uintptr, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uint64, abi.Bool:
-		return true
-	case abi.Array:
-		return isDeepEqualRawMemory(typ.Elem())
-	}
-	return false
+	return typ.PtrBytes == 0 && typ.TFlag&abi.TFlagRegularMemory != 0
 }
 
 // DeepEqual reports whether x and y are “deeply equal,” defined as follows.

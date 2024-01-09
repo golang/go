@@ -1087,6 +1087,7 @@ var deepEqualTests = []DeepEqualTest{
 	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
 	{[]int32{1, 2, 3}, []int32{1, 2, 3}, true},
 	{p1, p2, true},
+	{ptr(1), ptr(1), true},
 
 	// Inequalities
 	{1, 2, false},
@@ -1146,6 +1147,10 @@ var deepEqualTests = []DeepEqualTest{
 	{&loopy1, &loopy2, true},
 	{&cycleMap1, &cycleMap2, true},
 	{&cycleMap1, &cycleMap3, false},
+}
+
+func ptr[T any](a T) *T {
+	return &a
 }
 
 func TestDeepEqual(t *testing.T) {
