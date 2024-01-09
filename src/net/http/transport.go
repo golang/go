@@ -137,6 +137,7 @@ type Transport struct {
 	// A RoundTrip call that initiates a dial may end up using
 	// a connection dialed previously when the earlier connection
 	// becomes idle before the later DialContext completes.
+	// If non-nil, automatic HTTP/2 support is disabled. See ForceAttemptHTTP2.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// Dial specifies the dial function for creating unencrypted TCP connections.
@@ -149,6 +150,7 @@ type Transport struct {
 	// Deprecated: Use DialContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
 	// If both are set, DialContext takes priority.
+	// If non-nil, automatic HTTP/2 support is disabled. See ForceAttemptHTTP2.
 	Dial func(network, addr string) (net.Conn, error)
 
 	// DialTLSContext specifies an optional dial function for creating
@@ -161,6 +163,8 @@ type Transport struct {
 	// requests and the TLSClientConfig and TLSHandshakeTimeout
 	// are ignored. The returned net.Conn is assumed to already be
 	// past the TLS handshake.
+	//
+	// If non-nil, automatic HTTP/2 support is disabled. See ForceAttemptHTTP2.
 	DialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// DialTLS specifies an optional dial function for creating
@@ -169,12 +173,13 @@ type Transport struct {
 	// Deprecated: Use DialTLSContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
 	// If both are set, DialTLSContext takes priority.
+	// If non-nil, automatic HTTP/2 support is disabled. See ForceAttemptHTTP2.
 	DialTLS func(network, addr string) (net.Conn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client.
 	// If nil, the default configuration is used.
-	// If non-nil, HTTP/2 support may not be enabled by default.
+	// If non-nil, automatic HTTP/2 support is disabled. See ForceAttemptHTTP2.
 	TLSClientConfig *tls.Config
 
 	// TLSHandshakeTimeout specifies the maximum amount of time to
