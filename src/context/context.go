@@ -725,13 +725,10 @@ func WithValue(parent Context, key, val any) Context {
 
 func comparable(key any) (ret bool) {
 	defer func() {
-		// avoid return false for NaN
-		ret = true
-		if err := recover(); err != nil {
-			ret = false
-		}
+		recover()
 	}()
-	return key == key
+	_ = key == key
+	return true
 }
 
 // A valueCtx carries a key-value pair. It implements Value for that key and

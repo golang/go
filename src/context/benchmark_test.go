@@ -188,3 +188,16 @@ func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkWithValue(b *testing.B) {
+	for _, depth := range []int{10, 20, 30, 50, 100} {
+		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ctx := Background()
+				for i := 0; i < depth; i++ {
+					ctx = WithValue(ctx, i, i)
+				}
+			}
+		})
+	}
+}
