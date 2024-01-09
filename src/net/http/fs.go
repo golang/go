@@ -9,6 +9,8 @@ package http
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
+	"internal/intern"
 	"internal/safefilepath"
 	"io"
 	"io/fs"
@@ -19,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,6 +70,18 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
 	return originalErr
 }
 
+var httpDirCache = godebug.New("httpdircache")
+
+var enanleDirCache bool = true
+
+var test bool
+
+func init() {
+	if httpDirCache.Value() == "0" {
+		enanleDirCache = false
+	}
+}
+
 // Open implements FileSystem using os.Open, opening files for reading rooted
 // and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
@@ -79,6 +94,24 @@ func (d Dir) Open(name string) (File, error) {
 		dir = "."
 	}
 	fullName := filepath.Join(dir, path)
+	if enanleDirCache {
+		v, ok := dirOpenCache.Load(fullName)
+		if ok {
+			return v.(*intern.Value).Get().(*dirOpenCacheEntry).Copy(), nil
+		}
+		entry, err := newdirOpenCacheEntry(fullName)
+		if err != nil {
+			return nil, err
+		}
+		runtime.SetFinalizer(entry, func(entry *dirOpenCacheEntry) {
+			// If the cache has no reference, delete it
+			dirOpenCache.Delete(entry.path)
+			entry.fd.Close()
+		})
+		ret, _ := dirOpenCache.LoadOrStore(fullName, intern.Get(entry))
+		return ret.(*intern.Value).Get().(*dirOpenCacheEntry).Copy(), nil
+	}
+	httpDirCache.IncNonDefault()
 	f, err := os.Open(fullName)
 	if err != nil {
 		return nil, mapOpenError(err, fullName, filepath.Separator, os.Stat)

@@ -1668,3 +1668,7 @@ func (grw gzipResponseWriter) Flush() {
 		fw.Flush()
 	}
 }
+
+func init() {
+	*Test = true
+}
