@@ -1056,17 +1056,17 @@ func elfdynhash(ctxt *Link) {
 	}
 
 	s = ldr.CreateSymForUpdate(".dynamic", 0)
+
+	var dtFlags1 elf.DynFlag1
 	if *flagBindNow {
+		dtFlags1 |= elf.DF_1_NOW
 		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS, uint64(elf.DF_BIND_NOW))
 	}
-	switch {
-	case ctxt.BuildMode == BuildModePIE && *flagBindNow:
-		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(elf.DF_1_PIE)|uint64(elf.DF_1_NOW))
-	case ctxt.BuildMode == BuildModePIE && !*flagBindNow:
-		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(elf.DF_1_PIE))
-	case ctxt.BuildMode != BuildModePIE && *flagBindNow:
-		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(elf.DF_1_NOW))
+	if ctxt.BuildMode == BuildModePIE {
+		dtFlags1 |= elf.DF_1_PIE
 	}
+	Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(dtFlags1))
+
 	elfverneed = nfile
 	if elfverneed != 0 {
 		elfWriteDynEntSym(ctxt, s, elf.DT_VERNEED, gnuVersionR.Sym())

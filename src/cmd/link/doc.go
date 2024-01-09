@@ -48,7 +48,7 @@ Flags:
 	-aslr
 		Enable ASLR for buildmode=c-shared on windows (default true).
 	-bindnow
-		Mark ELF object for immediate function binding (default false).
+		Mark a dynamically linked ELF object for immediate function binding (default false).
 	-buildid id
 		Record id as Go toolchain build id.
 	-buildmode mode
