@@ -1378,7 +1378,11 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 }
 
 // FormValue returns the first value for the named component of the query.
-// POST, PUT, and PATCH body parameters take precedence over URL query string values.
+// The precedence order:
+//  1. application/x-www-form-urlencoded form body (POST, PUT, PATCH only)
+//  2. query parameters (always)
+//  3. multipart/form-data form body (always)
+//
 // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, FormValue returns the empty string.
