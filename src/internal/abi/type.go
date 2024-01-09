@@ -723,10 +723,23 @@ const (
 	TraceArgsMaxLen = (TraceArgsMaxDepth*3+2)*TraceArgsLimit + 1
 )
 
+// Populate the data.
+// The data is a stream of bytes, which contains the offsets and sizes of the
+// non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
+// arguments, along with special "operators". Specifically,
+//   - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
+//     size (1 byte)
+//   - special operators:
+//   - 0xff - end of sequence
+//   - 0xfe - print { (at the start of an aggregate-typed argument)
+//   - 0xfd - print } (at the end of an aggregate-typed argument)
+//   - 0xfc - print ... (more args/fields/elements)
+//   - 0xfb - print _ (offset too large)
 const (
 	TraceArgsEndSeq         = 0xff
 	TraceArgsStartAgg       = 0xfe
 	TraceArgsEndAgg         = 0xfd
 	TraceArgsDotdotdot      = 0xfc
 	TraceArgsOffsetTooLarge = 0xfb
+	TraceArgsSpecial        = 0xf0 // above this are operators, below this are ordinary offsets
 )

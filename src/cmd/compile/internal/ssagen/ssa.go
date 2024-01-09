@@ -7095,30 +7095,13 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
 	}
 
-	// Populate the data.
-	// The data is a stream of bytes, which contains the offsets and sizes of the
-	// non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
-	// arguments, along with special "operators". Specifically,
-	// - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
-	//   size (1 byte)
-	// - special operators:
-	//   - 0xff - end of sequence
-	//   - 0xfe - print { (at the start of an aggregate-typed argument)
-	//   - 0xfd - print } (at the end of an aggregate-typed argument)
-	//   - 0xfc - print ... (more args/fields/elements)
-	//   - 0xfb - print _ (offset too large)
-	// These constants need to be in sync with runtime.traceback.go:printArgs.
-	const (
-		_special = 0xf0 // above this are operators, below this are ordinary offsets
-	)
-
 	wOff := 0
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
 	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
-		if offset >= _special {
+		if offset >= rtabi.TraceArgsSpecial {
 			writebyte(rtabi.TraceArgsOffsetTooLarge)
 		} else {
 			writebyte(uint8(offset))
