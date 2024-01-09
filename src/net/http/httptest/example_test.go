@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"time"
 )
 
 func ExampleResponseRecorder() {
@@ -32,6 +34,32 @@ func ExampleResponseRecorder() {
 	// 200
 	// text/html; charset=utf-8
 	// <html><body>Hello World!</body></html>
+}
+
+func ExampleResponseRecorder_requestController() {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		rc := http.NewResponseController(w)
+		rc.SetReadDeadline(time.Now().Add(1 * time.Second))
+		rc.SetWriteDeadline(time.Now().Add(3 * time.Second))
+
+		io.WriteString(w, "<html><body>Hello, with deadlines!</body></html>")
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com/bar", strings.NewReader("bar"))
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	resp := w.Result()
+	body, _ := io.ReadAll(resp.Body)
+
+	fmt.Println(resp.StatusCode)
+	fmt.Println(resp.Header.Get("Content-Type"))
+	fmt.Println(string(body))
+
+	// Output:
+	// 200
+	// text/html; charset=utf-8
+	// <html><body>Hello, with deadlines!</body></html>
 }
 
 func ExampleServer() {

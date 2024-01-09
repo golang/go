@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestRecorder(t *testing.T) {
@@ -367,5 +368,32 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 			rw := NewRecorder()
 			handler(rw, r)
 		})
+	}
+}
+
+func TestRecorderSetWriteDeadline(t *testing.T) {
+	rw := NewRecorder()
+	rc := http.NewResponseController(rw)
+
+	expected := time.Now().Add(1 * time.Second)
+	if err := rc.SetWriteDeadline(expected); err != nil {
+		t.Errorf(`"ResponseController.WriteDeadline(): got unexpected error %q`, err)
+	}
+
+	if rw.WriteDeadline != expected {
+		t.Errorf(`"ResponseRecorder.WriteDeadline: got %q want %q`, rw.WriteDeadline, expected)
+	}
+}
+
+func TestRecorderSetReadDeadline(t *testing.T) {
+	rw := NewRecorder()
+
+	expected := time.Now().Add(1 * time.Second)
+	if err := rw.SetReadDeadline(expected); err != nil {
+		t.Errorf(`"ResponseRecorder.SetReadDeadline(): got unexpected error %q`, err)
+	}
+
+	if rw.ReadDeadline != expected {
+		t.Errorf(`"ResponseRecorder.ReadDeadline: got %q want %q`, rw.ReadDeadline, expected)
 	}
 }
