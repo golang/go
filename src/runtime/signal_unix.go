@@ -599,9 +599,6 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 // GOTRACEBACK=crash when a signal is received.
 var crashing atomic.Int32
 
-// declared as global for dynamic change in TestGdbCoreCrashThreadBacktrace, see issue 64752.
-var totalSleepTimeUs = 5 * 1000 * 1000
-
 // testSigtrap and testSigusr1 are used by the runtime tests. If
 // non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
 // normal behavior on this signal is suppressed.
@@ -755,6 +752,9 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if docrash {
+		var crashSleepMicros uint32 = 5000
+		var watchdogTimeoutMicros uint32 = 2000 * crashSleepMicros
+
 		isCrashThread := false
 		if crashing.CompareAndSwap(0, 1) {
 			isCrashThread = true
@@ -772,20 +772,35 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 			// The faulting m is crashing first so it is the faulting thread in the core dump (see issue #63277):
 			// in expected operation, the first m will wait until the last m has received the SIGQUIT,
 			// and then run crash/exit and the process is gone.
-			// However, if it spends more than 5 seconds to send SIGQUIT to all ms,
-			// any of ms may crash/exit the process after waiting for 5 seconds.
+			// However, if it spends more than 10 seconds to send SIGQUIT to all ms,
+			// any of ms may crash/exit the process after waiting for 10 seconds.
 			print("\n-----\n\n")
 			raiseproc(_SIGQUIT)
 		}
 		if isCrashThread {
-			perLoopSleepTimeUs := 5000
-			i := totalSleepTimeUs / perLoopSleepTimeUs
-			for (crashing.Load() < mcount()-int32(extraMLength.Load())) && i > 0 {
-				i--
-				usleep(uint32(perLoopSleepTimeUs))
+			// Sleep for short intervals so that we can crash quickly after all ms have received SIGQUIT.
+			// Reset the timer whenever we see more ms received SIGQUIT
+			// to make it have enough time to crash (see issue #64752).
+			timeout := watchdogTimeoutMicros
+			maxCrashing := crashing.Load()
+			for timeout > 0 && (crashing.Load() < mcount()-int32(extraMLength.Load())) {
+				usleep(crashSleepMicros)
+				timeout -= crashSleepMicros
+
+				if c := crashing.Load(); c > maxCrashing {
+					// We make progress, so reset the watchdog timeout
+					maxCrashing = c
+					timeout = watchdogTimeoutMicros
+				}
 			}
 		} else {
-			usleep(uint32(totalSleepTimeUs))
+			maxCrashing := int32(0)
+			c := crashing.Load()
+			for c > maxCrashing {
+				maxCrashing = c
+				usleep(watchdogTimeoutMicros)
+				c = crashing.Load()
+			}
 		}
 		printDebugLog()
 		crash()

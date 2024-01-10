@@ -255,16 +255,9 @@ import (
 	"os"
 	"runtime/debug"
 	"syscall"
-	_ "unsafe" // for go:linkname
 )
 
-//go:linkname totalSleepTimeUs runtime.totalSleepTimeUs
-var totalSleepTimeUs int
-
 func enableCore() {
-	// give enough time to crash even on a slow machine
-	totalSleepTimeUs = 60 * 1000 * 1000
-
 	debug.SetTraceback("crash")
 
 	var lim syscall.Rlimit
