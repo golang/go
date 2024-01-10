@@ -1037,3 +1037,34 @@ func TestAliasNames(t *testing.T) {
 		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
 	}
 }
+
+func TestRuntimeComparable(t *testing.T) {
+	type args struct {
+		a any
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"int", args{1}, true},
+		{"NaN", args{math.NaN()}, true},
+		{"int ptr", args{new(int)}, true},
+		{"error interface implement", args{err{}}, true},
+		{"func", args{func() {}}, false},
+		{"map[string]string", args{make(map[string]string)}, false},
+		{"[]int", args{[]int{}}, false},
+		{"interface{}([]int{})", args{interface{}([]int{})}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RuntimeComparable(tt.args.a); got != tt.want {
+				t.Errorf("RuntimeComparable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type err struct{}
+
+func (err) Error() {}
