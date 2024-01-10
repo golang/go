@@ -46,12 +46,13 @@ func Is(err, target error) bool {
 		return err == target
 	}
 
-	return is(err, target)
+	isComparable := reflectlite.TypeOf(target).Comparable()
+	return is(err, target, isComparable)
 }
 
-func is(err, target error) bool {
+func is(err, target error, targetComparable bool) bool {
 	for {
-		if safeCompare(err, target) {
+		if targetComparable && err == target {
 			return true
 		}
 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
@@ -65,7 +66,7 @@ func is(err, target error) bool {
 			}
 		case interface{ Unwrap() []error }:
 			for _, err := range x.Unwrap() {
-				if is(err, target) {
+				if is(err, target, targetComparable) {
 					return true
 				}
 			}
@@ -74,13 +75,6 @@ func is(err, target error) bool {
 			return false
 		}
 	}
-}
-
-func safeCompare(a, b error) bool {
-	defer func() {
-		recover()
-	}()
-	return a == b
 }
 
 // As finds the first error in err's tree that matches target, and if one is found, sets
