@@ -878,7 +878,17 @@ func (ctxt *Link) linksetup() {
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
-			sb.AddUint8(uint8(buildcfg.GOARM))
+			sb.AddUint8(uint8(buildcfg.GOARM.Version))
+
+			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
+			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
+			sb2.SetType(sym.SDATA)
+			sb2.SetSize(0)
+			if buildcfg.GOARM.SoftFloat {
+				sb2.AddUint8(1)
+			} else {
+				sb2.AddUint8(0)
+			}
 		}
 
 		// Set runtime.disableMemoryProfiling bool if

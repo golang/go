@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/chacha8rand"
 	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -482,6 +483,7 @@ type g struct {
 	// inMarkAssist indicates whether the goroutine is in mark assist.
 	// Used by the execution tracer.
 	inMarkAssist bool
+	coroexit     bool // argument to coroswitch_m
 
 	raceignore    int8  // ignore race detection events
 	nocgocallback bool  // whether disable callback from C
@@ -505,6 +507,8 @@ type g struct {
 	labels        unsafe.Pointer // profiler labels
 	timer         *timer         // cached timer for time.Sleep
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
+
+	coroarg *coro // argument during coroutine transfers
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
@@ -577,7 +581,6 @@ type m struct {
 	isExtraInC    bool          // m is an extra m that is not executing Go code
 	isExtraInSig  bool          // m is an extra m in a signal handler
 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
-	fastrand      uint64
 	needextram    bool
 	traceback     uint8
 	ncgocall      uint64        // number of cgo calls in total
@@ -631,6 +634,9 @@ type m struct {
 	dlogPerM
 
 	mOS
+
+	chacha8   chacha8rand.State
+	cheaprand uint64
 
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
@@ -857,7 +863,7 @@ type schedt struct {
 	sysmonwait atomic.Bool
 	sysmonnote note
 
-	// safepointFn should be called on each P at the next GC
+	// safePointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
 	safePointFn   func(*p)
 	safePointWait int32
@@ -1009,27 +1015,6 @@ type forcegcstate struct {
 	idle atomic.Bool
 }
 
-// extendRandom extends the random numbers in r[:n] to the whole slice r.
-// Treats n<0 as n==0.
-func extendRandom(r []byte, n int) {
-	if n < 0 {
-		n = 0
-	}
-	for n < len(r) {
-		// Extend random bits using hash function & time seed
-		w := n
-		if w > 16 {
-			w = 16
-		}
-		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
-		for i := 0; i < goarch.PtrSize && n < len(r); i++ {
-			r[n] = byte(h)
-			n++
-			h >>= 8
-		}
-	}
-}
-
 // A _defer holds an entry on the list of deferred calls.
 // If you add a field here, add code to clear it in deferProcStack.
 // This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
@@ -1142,6 +1127,8 @@ const (
 	waitReasonFlushProcCaches                         // "flushing proc caches"
 	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
 	waitReasonTraceProcStatus                         // "trace proc status"
+	waitReasonPageTraceFlush                          // "page trace flush"
+	waitReasonCoroutine                               // "coroutine"
 )
 
 var waitReasonStrings = [...]string{
@@ -1180,6 +1167,8 @@ var waitReasonStrings = [...]string{
 	waitReasonFlushProcCaches:       "flushing proc caches",
 	waitReasonTraceGoroutineStatus:  "trace goroutine status",
 	waitReasonTraceProcStatus:       "trace proc status",
+	waitReasonPageTraceFlush:        "page trace flush",
+	waitReasonCoroutine:             "coroutine",
 }
 
 func (w waitReason) String() string {
@@ -1238,7 +1227,9 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 
-	goarm uint8 // set by cmd/link on arm systems
+	// set by cmd/link on arm systems
+	goarm       uint8
+	goarmsoftfp uint8
 )
 
 // Set by the linker so the runtime can determine the buildmode.

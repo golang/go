@@ -99,6 +99,8 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
 		case types2.UntypedString:
 			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		case types2.UntypedRune:
+			typ = types2.Typ[types2.Int32] // range over rune
 		default:
 			return nil
 		}

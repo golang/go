@@ -1,2 +1,0 @@
-pkg net, method (*TCPConn) WriteTo(io.Writer) (int64, error) #58808
-pkg os, method (*File) WriteTo(io.Writer) (int64, error) #58808

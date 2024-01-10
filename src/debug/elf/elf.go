@@ -13,7 +13,7 @@
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
- * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
  * llvm/BinaryFormat/ELF.h - ELF constants and structures
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.

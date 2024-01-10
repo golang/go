@@ -518,7 +518,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	if lhs == nil || len(lhs) == 1 {
 		assert(lhs == nil || lhs[0] == obj)
 		var x operand
-		check.expr(obj.typ, &x, init)
+		check.expr(newTarget(obj.typ, obj.name), &x, init)
 		check.initVar(obj, &x, "variable declaration")
 		return
 	}
@@ -638,8 +638,9 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized interfaces).
+	scopePos := list.Pos()
 	for _, f := range list.List {
-		tparams = check.declareTypeParams(tparams, f.Names)
+		tparams = check.declareTypeParams(tparams, f.Names, scopePos)
 	}
 
 	// Set the type parameters before collecting the type constraints because
@@ -708,7 +709,7 @@ func (check *Checker) bound(x ast.Expr) Type {
 	return check.typ(x)
 }
 
-func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
+func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident, scopePos token.Pos) []*TypeParam {
 	// Use Typ[Invalid] for the type constraint to ensure that a type
 	// is present even if the actual constraint has not been assigned
 	// yet.
@@ -717,8 +718,8 @@ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident
 	//           are not properly set yet.
 	for _, name := range names {
 		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
+		tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tpar as a side-effect
+		check.declare(check.scope, name, tname, scopePos)
 		tparams = append(tparams, tpar)
 	}
 
@@ -834,6 +835,11 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	obj.color_ = saved
+
+	// Set the scope's extent to the complete "func (...) { ... }"
+	// so that Scope.Innermost works correctly.
+	sig.scope.pos = fdecl.Pos()
+	sig.scope.end = fdecl.End()
 
 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
 		check.softErrorf(fdecl.Name, BadDecl, "generic function is missing function body")

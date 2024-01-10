@@ -7133,7 +7133,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
-	// Write one non-aggrgate arg/field/element.
+	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
 		if offset >= _special {
 			writebyte(_offsetTooLarge)
@@ -7578,9 +7578,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		for i, b := range f.Blocks {
 			idToIdx[b.ID] = i
 		}
-		// Note that at this moment, Prog.Pc is a sequence number; it's
-		// not a real PC until after assembly, so this mapping has to
-		// be done later.
+		// Register a callback that will be used later to fill in PCs into location
+		// lists. At the moment, Prog.Pc is a sequence number; it's not a real PC
+		// until after assembly, so the translation needs to be deferred.
 		debugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:

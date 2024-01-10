@@ -155,10 +155,17 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		e.discard(call.X)
 		e.discard(call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+	case ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
-		for i := range call.Args {
-			e.discard(call.Args[i])
+		for _, arg := range call.Args {
+			e.discard(arg)
+		}
+		e.discard(call.RType)
+
+	case ir.OMIN, ir.OMAX:
+		call := call.(*ir.CallExpr)
+		for _, arg := range call.Args {
+			argument(ks[0], arg)
 		}
 		e.discard(call.RType)
 

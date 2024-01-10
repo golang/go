@@ -907,14 +907,14 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
 		if header == nil {
 			maxIterBytes = dataSize
 		}
-		off := alignUp(uintptr(fastrand())%dataSize, goarch.PtrSize)
+		off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
 		size := dataSize - off
 		if size == 0 {
 			off -= goarch.PtrSize
 			size += goarch.PtrSize
 		}
 		interior := x + off
-		size -= alignDown(uintptr(fastrand())%size, goarch.PtrSize)
+		size -= alignDown(uintptr(cheaprand())%size, goarch.PtrSize)
 		if size == 0 {
 			size = goarch.PtrSize
 		}

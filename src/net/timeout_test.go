@@ -242,35 +242,22 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
-	max := time.NewTimer(time.Second)
-	defer max.Stop()
-	ch := make(chan error)
-	go func() {
-		if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
-			t.Error(err)
-		}
-		if err := ln.(*TCPListener).SetDeadline(time.Now().Add(10 * time.Millisecond)); err != nil {
-			t.Error(err)
-		}
-		c, err := ln.Accept()
-		if err == nil {
-			c.Close()
-		}
-		ch <- err
-	}()
+	if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
+		t.Error(err)
+	}
+	if err := ln.(*TCPListener).SetDeadline(time.Now().Add(10 * time.Millisecond)); err != nil {
+		t.Error(err)
+	}
+	c, err := ln.Accept()
+	if err == nil {
+		c.Close()
+	}
 
-	select {
-	case <-max.C:
-		ln.Close()
-		<-ch // wait for tester goroutine to stop
-		t.Fatal("Accept didn't return in an expected time")
-	case err := <-ch:
-		if perr := parseAcceptError(err); perr != nil {
-			t.Error(perr)
-		}
-		if !isDeadlineExceeded(err) {
-			t.Fatal(err)
-		}
+	if perr := parseAcceptError(err); perr != nil {
+		t.Error(perr)
+	}
+	if !isDeadlineExceeded(err) {
+		t.Fatal(err)
 	}
 }
 

@@ -514,10 +514,20 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 	// Determine version.
 
 	if module.IsPseudoVersion(statVers) {
+		// Validate the go.mod location and major version before
+		// we check for an ancestor tagged with the pseude-version base.
+		//
+		// We can rule out an invalid subdirectory or major version with only
+		// shallow commit information, but checking the pseudo-version base may
+		// require downloading a (potentially more expensive) full history.
+		revInfo, err = checkCanonical(statVers)
+		if err != nil {
+			return revInfo, err
+		}
 		if err := r.validatePseudoVersion(ctx, info, statVers); err != nil {
 			return nil, err
 		}
-		return checkCanonical(statVers)
+		return revInfo, nil
 	}
 
 	// statVers is not a pseudo-version, so we need to either resolve it to a

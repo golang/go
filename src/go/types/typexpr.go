@@ -454,7 +454,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 		// errors.
 		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
 
-		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+		if check.validateTArgLen(ix.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
 			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()

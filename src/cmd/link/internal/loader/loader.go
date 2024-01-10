@@ -988,7 +988,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
 	return l.attrExternal.Has(l.extIndex(i))
 }
 
-// SetAttrExternal sets the "external" property for an host object
+// SetAttrExternal sets the "external" property for a host object
 // symbol (see AttrExternal).
 func (l *Loader) SetAttrExternal(i Sym, v bool) {
 	if !l.IsExternal(i) {

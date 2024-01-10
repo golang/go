@@ -1620,8 +1620,17 @@ func TestFileChdir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %s", err)
 	}
-	if !equal(wdNew, wd) {
-		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+
+	wdInfo, err := fd.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newInfo, err := Stat(wdNew)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !SameFile(wdInfo, newInfo) {
+		t.Fatalf("fd.Chdir failed: got %s, want %s", wdNew, wd)
 	}
 }
 
@@ -3319,5 +3328,29 @@ func TestPipeCloseRace(t *testing.T) {
 	}
 	if nils != 2 || errs != 2 {
 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
+	}
+}
+
+func TestRandomLen(t *testing.T) {
+	for range 5 {
+		dir, err := MkdirTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(dir)
+		if len(base) > 10 {
+			t.Errorf("MkdirTemp returned len %d: %s", len(base), base)
+		}
+	}
+	for range 5 {
+		f, err := CreateTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(f.Name())
+		f.Close()
+		if len(base) > 10 {
+			t.Errorf("CreateTemp returned len %d: %s", len(base), base)
+		}
 	}
 }

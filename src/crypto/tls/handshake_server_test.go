@@ -27,6 +27,7 @@ import (
 )
 
 func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
+	t.Helper()
 	testClientHelloFailure(t, serverConfig, m, "")
 }
 
@@ -52,23 +53,32 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 	ctx := context.Background()
 	conn := Server(s, serverConfig)
 	ch, err := conn.readClientHello(ctx)
-	hs := serverHandshakeState{
-		c:           conn,
-		ctx:         ctx,
-		clientHello: ch,
-	}
-	if err == nil {
+	if err == nil && conn.vers == VersionTLS13 {
+		hs := serverHandshakeStateTLS13{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
 		err = hs.processClientHello()
-	}
-	if err == nil {
-		err = hs.pickCipherSuite()
+	} else if err == nil {
+		hs := serverHandshakeState{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
+		err = hs.processClientHello()
+		if err == nil {
+			err = hs.pickCipherSuite()
+		}
 	}
 	s.Close()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {
+			t.Helper()
 			t.Errorf("Got error: %s; expected to succeed", err)
 		}
 	} else if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
+		t.Helper()
 		t.Errorf("Got error: %v; expected to match substring '%s'", err, expectedSubStr)
 	}
 }

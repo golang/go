@@ -227,6 +227,9 @@ const (
 	PPPIOCUNBRIDGECHAN               = 0x7434
 	PPPIOCXFERUNIT                   = 0x744e
 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
+	PTRACE_GETFDPIC                  = 0x21
+	PTRACE_GETFDPIC_EXEC             = 0x0
+	PTRACE_GETFDPIC_INTERP           = 0x1
 	RLIMIT_AS                        = 0x9
 	RLIMIT_MEMLOCK                   = 0x8
 	RLIMIT_NOFILE                    = 0x7

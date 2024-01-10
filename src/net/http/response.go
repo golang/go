@@ -29,7 +29,7 @@ var respExcludeHeader = map[string]bool{
 
 // Response represents the response from an HTTP request.
 //
-// The Client and Transport return Responses from servers once
+// The [Client] and [Transport] return Responses from servers once
 // the response headers have been received. The response body
 // is streamed on demand as the Body field is read.
 type Response struct {
@@ -126,13 +126,13 @@ func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
 }
 
-// ErrNoLocation is returned by Response's Location method
+// ErrNoLocation is returned by the [Response.Location] method
 // when no Location header is present.
 var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
 // if present. Relative redirects are resolved relative to
-// the Response's Request. ErrNoLocation is returned if no
+// [Response.Request]. [ErrNoLocation] is returned if no
 // Location header is present.
 func (r *Response) Location() (*url.URL, error) {
 	lv := r.Header.Get("Location")
@@ -146,8 +146,8 @@ func (r *Response) Location() (*url.URL, error) {
 }
 
 // ReadResponse reads and returns an HTTP response from r.
-// The req parameter optionally specifies the Request that corresponds
-// to this Response. If nil, a GET request is assumed.
+// The req parameter optionally specifies the [Request] that corresponds
+// to this [Response]. If nil, a GET request is assumed.
 // Clients must call resp.Body.Close when finished reading resp.Body.
 // After that call, clients can inspect resp.Trailer to find key/value
 // pairs included in the response trailer.

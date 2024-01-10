@@ -304,11 +304,13 @@ type ConnectionState struct {
 // ExportKeyingMaterial returns length bytes of exported key material in a new
 // slice as defined in RFC 5705. If context is nil, it is not used as part of
 // the seed. If the connection was set to allow renegotiation via
-// Config.Renegotiation, this function will return an error.
+// Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
+// Extended Master Secret, this function will return an error.
 //
-// There are conditions in which the returned values might not be unique to a
-// connection. See the Security Considerations sections of RFC 5705 and RFC 7627,
-// and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
+// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
+// in Go 1.22 due to security issues (see the Security Considerations sections
+// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
+// tlsunsafeekm=1.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
@@ -1006,12 +1008,17 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
+var tlsrsakex = godebug.New("tlsrsakex")
+
 func (c *Config) cipherSuites() []uint16 {
 	if needFIPS() {
 		return fipsCipherSuites(c)
 	}
 	if c.CipherSuites != nil {
 		return c.CipherSuites
+	}
+	if tlsrsakex.Value() == "1" {
+		return defaultCipherSuitesWithRSAKex
 	}
 	return defaultCipherSuites
 }
@@ -1028,7 +1035,7 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
-var tls10godebug = godebug.New("tls10server")
+var tls10server = godebug.New("tls10server")
 
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
@@ -1037,9 +1044,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
-			if !isClient && tls10godebug.Value() == "1" {
-				tls10godebug.IncNonDefault()
-			} else {
+			if isClient || tls10server.Value() != "1" {
 				continue
 			}
 		}

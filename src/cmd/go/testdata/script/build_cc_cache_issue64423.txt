@@ -1,0 +1,121 @@
+# Regression test for https://go.dev/issue/64423:
+#
+# When we parse the version for a Clang binary, we should accept
+# an arbitrary vendor prefix, which (as of 2023) may be injected
+# by defining CLANG_VENDOR when building clang itself.
+#
+# Since we don't want to actually rebuild the Clang toolchain in
+# this test, we instead simulate it by injecting a fake "clang"
+# binary that runs the real one as a subprocess.
+
+[!cgo] skip
+[short] skip 'builds and links a fake clang binary'
+[!cc:clang] skip 'test is specific to clang version parsing'
+
+# Save the location of the real clang command for our fake one to use.
+go run ./which clang
+cp stdout $WORK/.realclang
+
+# Build a fake clang and ensure that it is the one in $PATH.
+mkdir $WORK/bin
+go build -o $WORK/bin/clang$GOEXE ./fakeclang
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
+
+# Force CGO_ENABLED=1 so that the following commands should error
+# out if the fake clang doesn't work.
+env CGO_ENABLED=1
+
+# The bug in https://go.dev/issue/64423 resulted in cache keys that
+# didn't contain any information about the C compiler.
+# Since the bug was in cache key computation, isolate the cache:
+# if we change the way caching works, we want the test to fail
+# instead of accidentally reusing the cached information from a
+# previous test run.
+env GOCACHE=$WORK${/}.cache
+mkdir $GOCACHE
+
+go build -x runtime/cgo
+
+	# Tell our fake clang to stop working.
+	# Previously, 'go build -x runtime/cgo' would continue to
+	# succeed because both the broken clang and the non-broken one
+	# resulted in a cache key with no clang version information.
+env GO_BREAK_CLANG=1
+! go build -x runtime/cgo
+stderr '# runtime/cgo\nGO_BREAK_CLANG is set'
+
+-- go.mod --
+module example/issue64423
+go 1.20
+-- which/main.go --
+package main
+
+import (
+	"os"
+	"os/exec"
+)
+
+func main() {
+	path, err := exec.LookPath(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout.WriteString(path)
+}
+-- fakeclang/main.go --
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	if os.Getenv("GO_BREAK_CLANG") != "" {
+		os.Stderr.WriteString("GO_BREAK_CLANG is set\n")
+		os.Exit(1)
+	}
+
+	b, err := os.ReadFile(filepath.Join(os.Getenv("WORK"), ".realclang"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	clang := string(bytes.TrimSpace(b))
+	cmd := exec.Command(clang, os.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	r := bufio.NewReader(stderr)
+	for {
+		line, err := r.ReadString('\n')
+		if line != "" {
+			if strings.Contains(line, "clang version") {
+				// Simulate a clang version string with an arbitrary vendor prefix.
+				const vendorString = "Gopher Solutions Unlimited "
+				os.Stderr.WriteString(vendorString)
+			}
+			os.Stderr.WriteString(line)
+		}
+		if err != nil {
+			break
+		}
+	}
+	os.Stderr.Close()
+
+	if err := cmd.Wait(); err != nil {
+		os.Exit(1)
+	}
+}

@@ -440,14 +440,14 @@ func typeAssert(s *abi.TypeAssert, t *_type) *itab {
 
 	// Maybe update the cache, so the next time the generated code
 	// doesn't need to call into the runtime.
-	if fastrand()&1023 != 0 {
+	if cheaprand()&1023 != 0 {
 		// Only bother updating the cache ~1 in 1000 times.
 		return tab
 	}
 	// Load the current cache.
 	oldC := (*abi.TypeAssertCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
 
-	if fastrand()&uint32(oldC.Mask) != 0 {
+	if cheaprand()&uint32(oldC.Mask) != 0 {
 		// As cache gets larger, choose to update it less often
 		// so we can amortize the cost of building a new cache.
 		return tab
@@ -540,7 +540,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 
 	// Maybe update the cache, so the next time the generated code
 	// doesn't need to call into the runtime.
-	if fastrand()&1023 != 0 {
+	if cheaprand()&1023 != 0 {
 		// Only bother updating the cache ~1 in 1000 times.
 		// This ensures we don't waste memory on switches, or
 		// switch arguments, that only happen a few times.
@@ -549,7 +549,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 	// Load the current cache.
 	oldC := (*abi.InterfaceSwitchCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
 
-	if fastrand()&uint32(oldC.Mask) != 0 {
+	if cheaprand()&uint32(oldC.Mask) != 0 {
 		// As cache gets larger, choose to update it less often
 		// so we can amortize the cost of building a new cache
 		// (that cost is linear in oldc.Mask).
@@ -567,7 +567,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 	return case_, tab
 }
 
-// buildInterfaceSwitchCache constructs a interface switch cache
+// buildInterfaceSwitchCache constructs an interface switch cache
 // containing all the entries from oldC plus the new entry
 // (typ,case_,tab).
 func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {

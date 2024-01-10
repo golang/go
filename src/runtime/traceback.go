@@ -1322,7 +1322,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_handleAsyncEvent {
+	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
 		return false
 	}
 	if f.funcID == abi.FuncID_runfinq {

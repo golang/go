@@ -190,7 +190,8 @@ type CallExpr struct {
 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
-	NoInline  bool
+	GoDefer   bool // whether this call is part of a go or defer statement
+	NoInline  bool // whether this call must not be inlined
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -349,7 +350,7 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 	return n
 }
 
-// A StructKeyExpr is an Field: Value composite literal key.
+// A StructKeyExpr is a Field: Value composite literal key.
 type StructKeyExpr struct {
 	miniExpr
 	Field *types.Field
@@ -922,6 +923,8 @@ FindRHS:
 // NB: global variables are always considered to be re-assigned.
 // TODO: handle initial declaration not including an assignment and
 // followed by a single assignment?
+// NOTE: any changes made here should also be made in the corresponding
+// code in the ReassignOracle.Init method.
 func Reassigned(name *Name) bool {
 	if name.Op() != ONAME {
 		base.Fatalf("reassigned %v", name)

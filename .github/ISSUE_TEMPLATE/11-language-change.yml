@@ -1,0 +1,165 @@
+name: Language Change Proposals
+description: Changes to the language
+labels: ["Proposal", "v2", "LanguageChange"]
+title: "proposal: Go 2: proposal title"
+
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+       ## Our process for evaluating language changes can be found [here](https://go.googlesource.com/proposal/+/refs/heads/master#language-changes)
+
+  - type: dropdown
+    id: author-go-experience
+    attributes:
+      label: "Go Programming Experience"
+      description: "Would you consider yourself a novice, intermediate, or experienced Go programmer?"
+      options:
+        - "Novice"
+        - "Intermediate"
+        - "Experienced"
+      default: 1
+
+  - type: input
+    id: author-other-languages-experience
+    attributes:
+      label: "Other Languages Experience"
+      description: "What other languages do you have experience with?"
+      placeholder: "Go, Python, JS, Rust"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: related-idea
+    attributes:
+      label: "Related Idea"
+      options:
+        - label: "Has this idea, or one like it, been proposed before?"
+        - label: "Does this affect error handling?"
+        - label: "Is this about generics?"
+        - label: "Is this change backward compatible? Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit"
+
+  - type: textarea
+    id: related-proposals
+    attributes:
+      label: Has this idea, or one like it, been proposed before?
+      description: If so, how does this proposal differ?
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. Mention the related proposals 
+        2. then describe how this proposal differs       
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-handling-proposal
+    attributes:
+      label: Does this affect error handling?
+      description: If so, how does this differ from previous error handling proposals?
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1.how does this differ from previous error handling proposals?
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: generics-proposal
+    attributes:
+      label: Is this about generics?
+      description: If so, how does this relate to the accepted design and other generics proposals?
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. how does this relate to the accepted design and other generics proposals?
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal"
+      description: "What is the proposed change? Who does this proposal help, and why? Please describe as precisely as possible the change to the language."
+    validations:
+      required: true
+
+  - type: textarea
+    id: language-spec-changes
+    attributes:
+      label: "Language Spec Changes"
+      description: "What would change in the language spec?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: informal-change
+    attributes:
+      label: "Informal Change"
+      description: "Please also describe the change informally, as in a class teaching Go."
+    validations:
+      required: false
+
+  - type: textarea
+    id: go-backwards-compatiblity
+    attributes:
+      label: Is this change backward compatible?
+      description: Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
+      placeholder: |
+       Yes or No
+
+       If yes, 
+        1. Show example code before and after the change.
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: orthogonality
+    attributes:
+      label: "Orthogonality: How does this change interact or overlap with existing features?"
+      description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: learning-curve
+    attributes:
+      label: "Would this change make Go easier or harder to learn, and why?"
+
+  - type: textarea
+    id: cost-description
+    attributes:
+      label: "Cost Description"
+      description: "What is the cost of this proposal? (Every language change has a cost)"
+
+  - type: input
+    id: go-toolchain
+    attributes:
+      label: Changes to Go ToolChain
+      description: "How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? "
+    validations:
+      required: false
+
+  - type: input
+    id: perf-costs
+    attributes:
+      label: Performance Costs
+      description: "What is the compile time cost? What is the run time cost? "
+    validations:
+      required: false
+
+  - type: textarea
+    id: prototype
+    attributes:
+      label: "Prototype"
+      description: "Can you describe a possible implementation?"
+    validations:
+      required: false
+

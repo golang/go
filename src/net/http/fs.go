@@ -25,12 +25,12 @@ import (
 	"time"
 )
 
-// A Dir implements FileSystem using the native file system restricted to a
+// A Dir implements [FileSystem] using the native file system restricted to a
 // specific directory tree.
 //
-// While the FileSystem.Open method takes '/'-separated paths, a Dir's string
+// While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
 // value is a directory path on the native file system, not a URL, so it is separated
-// by filepath.Separator, which isn't necessarily '/'.
+// by [filepath.Separator], which isn't necessarily '/'.
 //
 // Note that Dir could expose sensitive files and directories. Dir will follow
 // symlinks pointing out of the directory tree, which can be especially dangerous
@@ -67,7 +67,7 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
 	return originalErr
 }
 
-// Open implements FileSystem using os.Open, opening files for reading rooted
+// Open implements [FileSystem] using [os.Open], opening files for reading rooted
 // and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
 	path, err := safefilepath.FromFS(path.Clean("/" + name))
@@ -89,18 +89,18 @@ func (d Dir) Open(name string) (File, error) {
 // A FileSystem implements access to a collection of named files.
 // The elements in a file path are separated by slash ('/', U+002F)
 // characters, regardless of host operating system convention.
-// See the FileServer function to convert a FileSystem to a Handler.
+// See the [FileServer] function to convert a FileSystem to a [Handler].
 //
-// This interface predates the fs.FS interface, which can be used instead:
-// the FS adapter function converts an fs.FS to a FileSystem.
+// This interface predates the [fs.FS] interface, which can be used instead:
+// the [FS] adapter function converts an fs.FS to a FileSystem.
 type FileSystem interface {
 	Open(name string) (File, error)
 }
 
-// A File is returned by a FileSystem's Open method and can be
-// served by the FileServer implementation.
+// A File is returned by a [FileSystem]'s Open method and can be
+// served by the [FileServer] implementation.
 //
-// The methods should behave the same as those on an *os.File.
+// The methods should behave the same as those on an [*os.File].
 type File interface {
 	io.Closer
 	io.Reader
@@ -167,7 +167,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 }
 
 // ServeContent replies to the request using the content in the
-// provided ReadSeeker. The main benefit of ServeContent over io.Copy
+// provided ReadSeeker. The main benefit of ServeContent over [io.Copy]
 // is that it handles Range requests properly, sets the MIME type, and
 // handles If-Match, If-Unmodified-Since, If-None-Match, If-Modified-Since,
 // and If-Range requests.
@@ -175,7 +175,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 // If the response's Content-Type header is not set, ServeContent
 // first tries to deduce the type from name's file extension and,
 // if that fails, falls back to reading the first block of the content
-// and passing it to DetectContentType.
+// and passing it to [DetectContentType].
 // The name is otherwise unused; in particular it can be empty and is
 // never sent in the response.
 //
@@ -190,7 +190,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 // If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
 // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
-// Note that *os.File implements the io.ReadSeeker interface.
+// Note that [*os.File] implements the [io.ReadSeeker] interface.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
 	sizeFunc := func() (int64, error) {
 		size, err := content.Seek(0, io.SeekEnd)
@@ -746,13 +746,13 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 //
 // As a precaution, ServeFile will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
-// might unsafely use filepath.Join on r.URL.Path without sanitizing
+// might unsafely use [filepath.Join] on r.URL.Path without sanitizing
 // it and then use that filepath.Join result as the name argument.
 //
 // As another special case, ServeFile redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
-// use ServeContent.
+// use [ServeContent].
 //
 // Outside of those two special cases, ServeFile does not use
 // r.URL.Path for selecting the file or directory to serve; only the
@@ -777,11 +777,11 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 // If the provided file or directory name is a relative path, it is
 // interpreted relative to the current directory and may ascend to
 // parent directories. If the provided name is constructed from user
-// input, it should be sanitized before calling ServeFile.
+// input, it should be sanitized before calling [ServeFile].
 //
 // As a precaution, ServeFile will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
-// might unsafely use filepath.Join on r.URL.Path without sanitizing
+// might unsafely use [filepath.Join] on r.URL.Path without sanitizing
 // it and then use that filepath.Join result as the name argument.
 //
 // As another special case, ServeFile redirects any request where r.URL.Path
@@ -895,9 +895,9 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
 	return list, nil
 }
 
-// FS converts fsys to a FileSystem implementation,
-// for use with FileServer and NewFileTransport.
-// The files provided by fsys must implement io.Seeker.
+// FS converts fsys to a [FileSystem] implementation,
+// for use with [FileServer] and [NewFileTransport].
+// The files provided by fsys must implement [io.Seeker].
 func FS(fsys fs.FS) FileSystem {
 	return ioFS{fsys}
 }
@@ -910,11 +910,11 @@ func FS(fsys fs.FS) FileSystem {
 // "index.html".
 //
 // To use the operating system's file system implementation,
-// use http.Dir:
+// use [http.Dir]:
 //
 //	http.Handle("/", http.FileServer(http.Dir("/tmp")))
 //
-// To use an fs.FS implementation, use http.FileServerFS instead.
+// To use an [fs.FS] implementation, use [http.FileServerFS] instead.
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }

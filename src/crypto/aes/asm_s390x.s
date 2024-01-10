@@ -127,7 +127,7 @@ crypt:
 	MOVD	src_base+56(FP), R6 // src
 	MOVD	src_len+64(FP), R7  // len
 loop:
-	KMCTR	R6, R2, R4          // cipher message with counter (KMCTR)
+	KMCTR	R4, R2, R6          // cipher message with counter (KMCTR)
 	BVS	loop                // branch back if interrupted
 	RET
 crash:
@@ -180,7 +180,7 @@ TEXT ·kmaGCM(SB),NOSPLIT,$112-120
 	MVC	$8, 24(R8), 104(R1)
 
 kma:
-	KMA	R6, R2, R4	 // Cipher Message with Authentication
+	KMA	R2, R6, R4       // Cipher Message with Authentication
 	BVS	kma
 
 	MOVD	tag+104(FP), R2

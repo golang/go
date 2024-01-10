@@ -244,8 +244,15 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
 	}
 
 	if x == nil {
+		var target *target
+		// avoid calling syntax.String if not needed
+		if T != nil {
+			if _, ok := under(T).(*Signature); ok {
+				target = newTarget(T, syntax.String(lhs))
+			}
+		}
 		x = new(operand)
-		check.expr(T, x, rhs)
+		check.expr(target, x, rhs)
 	}
 
 	context := "assignment"
@@ -369,7 +376,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	if l == r && !isCall {
 		var x operand
 		for i, lhs := range lhs {
-			check.expr(lhs.typ, &x, orig_rhs[i])
+			desc := lhs.name
+			if returnStmt != nil && desc == "" {
+				desc = "result variable"
+			}
+			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return

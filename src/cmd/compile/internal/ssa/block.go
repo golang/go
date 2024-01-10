@@ -297,6 +297,8 @@ func (b *Block) removePred(i int) {
 // removeSucc removes the ith output edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding predecessor edge.
+// Note that this potentially reorders successors of b, so it
+// must be used very carefully.
 func (b *Block) removeSucc(i int) {
 	n := len(b.Succs) - 1
 	if i != n {
@@ -323,6 +325,19 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
+// Swaps b.Succs[x] and b.Succs[y].
+func (b *Block) swapSuccessorsByIdx(x, y int) {
+	if x == y {
+		return
+	}
+	ex := b.Succs[x]
+	ey := b.Succs[y]
+	b.Succs[x] = ey
+	b.Succs[y] = ex
+	ex.b.Preds[ex.i].i = y
+	ey.b.Preds[ey.i].i = x
+}
+
 // removePhiArg removes the ith arg from phi.
 // It must be called after calling b.removePred(i) to
 // adjust the corresponding phi value of the block:
@@ -339,7 +354,7 @@ func (b *Block) swapSuccessors() {
 func (b *Block) removePhiArg(phi *Value, i int) {
 	n := len(b.Preds)
 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
-		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
+		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
 	}
 	phi.Args[i].Uses--
 	phi.Args[i] = phi.Args[n]

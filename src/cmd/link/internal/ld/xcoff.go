@@ -1140,7 +1140,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 		putaixsym(ctxt, s, TextSym)
 	}
 
-	if ctxt.Debugvlog != 0 || *flagN {
+	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("symsize = %d\n", uint32(symSize))
 	}
 	xfile.updatePreviousFile(ctxt, true)

@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 
@@ -825,7 +826,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > zeroValSize:
+	case t.Elem().Size() > abi.ZeroValSize:
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:

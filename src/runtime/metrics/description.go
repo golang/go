@@ -441,7 +441,7 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/sync/mutex/wait/total:seconds",
-		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex or sync.RWMutex. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
+		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
 		Kind:        KindFloat64,
 		Cumulative:  true,
 	},

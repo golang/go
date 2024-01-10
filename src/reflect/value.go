@@ -1598,24 +1598,23 @@ func (v Value) IsZero() bool {
 	case Complex64, Complex128:
 		return v.Complex() == 0
 	case Array:
-		array := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
-		// Avoid performance degradation of small benchmarks.
+		if v.flag&flagIndir == 0 {
+			return v.ptr == nil
+		}
+		typ := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if array.Equal != nil && array.Size() <= maxZero {
-			if v.flag&flagIndir == 0 {
-				return v.ptr == nil
-			}
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
-			return array.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
-		if array.TFlag&abi.TFlagRegularMemory != 0 {
+		if typ.TFlag&abi.TFlagRegularMemory != 0 {
 			// For some types where the zero value is a value where all bits of this type are 0
 			// optimize it.
-			return isZero(unsafe.Slice(((*byte)(v.ptr)), array.Size()))
+			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
 		}
-		n := int(array.Len)
+		n := int(typ.Len)
 		for i := 0; i < n; i++ {
 			if !v.Index(i).IsZero() {
 				return false
@@ -1632,7 +1631,7 @@ func (v Value) IsZero() bool {
 		}
 		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if typ.Equal != nil && typ.Size() <= maxZero {
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// See noescape justification above.
 			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
@@ -1663,7 +1662,7 @@ func isZero(b []byte) bool {
 		return true
 	}
 	const n = 32
-	// Align memory addresses to 8 bytes
+	// Align memory addresses to 8 bytes.
 	for uintptr(unsafe.Pointer(&b[0]))%8 != 0 {
 		if b[0] != 0 {
 			return false
@@ -1690,7 +1689,14 @@ func isZero(b []byte) bool {
 		w = w[1:]
 	}
 	for len(w) >= n {
-		if w[0] != 0 || w[1] != 0 || w[2] != 0 || w[3] != 0 || w[4] != 0 || w[5] != 0 || w[6] != 0 || w[7] != 0 || w[8] != 0 || w[9] != 0 || w[10] != 0 || w[11] != 0 || w[12] != 0 || w[13] != 0 || w[14] != 0 || w[15] != 0 || w[16] != 0 || w[17] != 0 || w[18] != 0 || w[19] != 0 || w[20] != 0 || w[21] != 0 || w[22] != 0 || w[23] != 0 || w[24] != 0 || w[25] != 0 || w[26] != 0 || w[27] != 0 || w[28] != 0 || w[29] != 0 || w[30] != 0 || w[31] != 0 {
+		if w[0] != 0 || w[1] != 0 || w[2] != 0 || w[3] != 0 ||
+			w[4] != 0 || w[5] != 0 || w[6] != 0 || w[7] != 0 ||
+			w[8] != 0 || w[9] != 0 || w[10] != 0 || w[11] != 0 ||
+			w[12] != 0 || w[13] != 0 || w[14] != 0 || w[15] != 0 ||
+			w[16] != 0 || w[17] != 0 || w[18] != 0 || w[19] != 0 ||
+			w[20] != 0 || w[21] != 0 || w[22] != 0 || w[23] != 0 ||
+			w[24] != 0 || w[25] != 0 || w[26] != 0 || w[27] != 0 ||
+			w[28] != 0 || w[29] != 0 || w[30] != 0 || w[31] != 0 {
 			return false
 		}
 		w = w[n:]
@@ -3271,7 +3277,7 @@ func Zero(typ Type) Value {
 	fl := flag(t.Kind())
 	if t.IfaceIndir() {
 		var p unsafe.Pointer
-		if t.Size() <= maxZero {
+		if t.Size() <= abi.ZeroValSize {
 			p = unsafe.Pointer(&zeroVal[0])
 		} else {
 			p = unsafe_New(t)
@@ -3281,11 +3287,8 @@ func Zero(typ Type) Value {
 	return Value{t, nil, fl}
 }
 
-// must match declarations in runtime/map.go.
-const maxZero = 1024
-
 //go:linkname zeroVal runtime.zeroVal
-var zeroVal [maxZero]byte
+var zeroVal [abi.ZeroValSize]byte
 
 // New returns a Value representing a pointer to a new zero value
 // for the specified type. That is, the returned Value's Type is PointerTo(typ).

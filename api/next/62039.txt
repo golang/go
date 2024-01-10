@@ -1,3 +1,0 @@
-pkg go/version, func Compare(string, string) int #62039
-pkg go/version, func IsValid(string) bool #62039
-pkg go/version, func Lang(string) string #62039

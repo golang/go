@@ -931,7 +931,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 				cache.inUse++
 				if cache.inUse == 1 {
 					e := &cache.entries[ck]
-					ci := fastrandn(uint32(len(cache.entries[ck])))
+					ci := cheaprandn(uint32(len(cache.entries[ck])))
 					e[ci] = e[0]
 					e[0] = pcvalueCacheEnt{
 						targetpc: targetpc,

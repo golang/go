@@ -1,6 +1,0 @@
-pkg go/types, func NewAlias(*TypeName, Type) *Alias #63223
-pkg go/types, func Unalias(Type) Type #63223
-pkg go/types, method (*Alias) Obj() *TypeName #63223
-pkg go/types, method (*Alias) String() string #63223
-pkg go/types, method (*Alias) Underlying() Type #63223
-pkg go/types, type Alias struct #63223

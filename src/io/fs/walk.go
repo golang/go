@@ -9,12 +9,12 @@ import (
 	"path"
 )
 
-// SkipDir is used as a return value from WalkDirFuncs to indicate that
+// SkipDir is used as a return value from [WalkDirFunc] to indicate that
 // the directory named in the call is to be skipped. It is not returned
 // as an error by any function.
 var SkipDir = errors.New("skip this directory")
 
-// SkipAll is used as a return value from WalkDirFuncs to indicate that
+// SkipAll is used as a return value from [WalkDirFunc] to indicate that
 // all remaining files and directories are to be skipped. It is not returned
 // as an error by any function.
 var SkipAll = errors.New("skip everything and stop the walk")

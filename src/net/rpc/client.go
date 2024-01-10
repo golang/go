@@ -53,13 +53,13 @@ type Client struct {
 
 // A ClientCodec implements writing of RPC requests and
 // reading of RPC responses for the client side of an RPC session.
-// The client calls WriteRequest to write a request to the connection
-// and calls ReadResponseHeader and ReadResponseBody in pairs
-// to read responses. The client calls Close when finished with the
+// The client calls [ClientCodec.WriteRequest] to write a request to the connection
+// and calls [ClientCodec.ReadResponseHeader] and [ClientCodec.ReadResponseBody] in pairs
+// to read responses. The client calls [ClientCodec.Close] when finished with the
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
-// See NewClient's comment for information about concurrent access.
+// See [NewClient]'s comment for information about concurrent access.
 type ClientCodec interface {
 	WriteRequest(*Request, any) error
 	ReadResponseHeader(*Response) error
@@ -181,7 +181,7 @@ func (call *Call) done() {
 	}
 }
 
-// NewClient returns a new Client to handle requests to the
+// NewClient returns a new [Client] to handle requests to the
 // set of services at the other end of the connection.
 // It adds a buffer to the write side of the connection so
 // the header and payload are sent as a unit.
@@ -196,7 +196,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	return NewClientWithCodec(client)
 }
 
-// NewClientWithCodec is like NewClient but uses the specified
+// NewClientWithCodec is like [NewClient] but uses the specified
 // codec to encode requests and decode responses.
 func NewClientWithCodec(codec ClientCodec) *Client {
 	client := &Client{
@@ -279,7 +279,7 @@ func Dial(network, address string) (*Client, error) {
 }
 
 // Close calls the underlying codec's Close method. If the connection is already
-// shutting down, ErrShutdown is returned.
+// shutting down, [ErrShutdown] is returned.
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
@@ -291,7 +291,7 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
-// Go invokes the function asynchronously. It returns the Call structure representing
+// Go invokes the function asynchronously. It returns the [Call] structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.

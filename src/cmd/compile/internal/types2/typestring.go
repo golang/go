@@ -331,8 +331,6 @@ func (w *typeWriter) typ(typ Type) {
 		if w.ctxt != nil {
 			// TODO(gri) do we need to print the alias type name, too?
 			w.typ(Unalias(t.obj.typ))
-		} else {
-			w.string(fmt.Sprintf(" /* = %s */", Unalias(t.obj.typ)))
 		}
 
 	default:
