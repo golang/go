@@ -348,6 +348,17 @@ const (
 	R_LOONG64_GOT_HI
 	R_LOONG64_GOT_LO
 
+	// 64-bit in-place addition.
+	R_LOONG64_ADD64
+	// 64-bit in-place subtraction.
+	R_LOONG64_SUB64
+
+	// R_JMP16LOONG64 resolves to 18-bit PC-relative target address of a JMP instructions.
+	R_JMP16LOONG64
+
+	// R_JMP21LOONG64 resolves to 23-bit PC-relative target address of a JMP instructions.
+	R_JMP21LOONG64
+
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.
 	R_JMPLOONG64
