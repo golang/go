@@ -171,6 +171,7 @@ func (subst *subster) typ(typ Type) Type {
 		if mcopied || ecopied {
 			iface := subst.check.newInterface()
 			iface.embeddeds = embeddeds
+			iface.embedPos = t.embedPos
 			iface.implicit = t.implicit
 			iface.complete = t.complete
 			// If we've changed the interface type, we may need to replace its
