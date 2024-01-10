@@ -521,7 +521,9 @@ func runtimeComparable(t *abi.Type, ptr unsafe.Pointer) bool {
 	case abi.Struct:
 		field := t.StructType().Fields
 		for _, v := range field {
-			toRType(v.Typ).Comparable()
+			if !toRType(v.Typ).Comparable() {
+				return false
+			}
 		}
 		return true
 	default:

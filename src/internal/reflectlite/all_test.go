@@ -1055,6 +1055,7 @@ func TestRuntimeComparable(t *testing.T) {
 		{"map[string]string", args{make(map[string]string)}, false},
 		{"[]int", args{[]int{}}, false},
 		{"interface{}([]int{})", args{interface{}([]int{})}, false},
+		{"struct{ _ []string }", args{unComparable{}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1068,3 +1069,5 @@ func TestRuntimeComparable(t *testing.T) {
 type err struct{}
 
 func (err) Error() {}
+
+type unComparable struct{ _ []string }
