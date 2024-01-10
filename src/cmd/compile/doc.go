@@ -298,17 +298,18 @@ the function is accessed from outside the package.
     //go:wasmimport importmodule importname
 
 The //go:wasmimport is a wasm-only directive that declares a dependency
-on a external function provided by a wasm module. It replaces any Go
-function calls of the function with a `CALL` instruction to the function
-identified by ``importmodule`` and ``importname`` during compilation.
+on an external function provided by a wasm module. It replaces any Go
+function calls to the annotated function with a `CALL` instruction to
+the wasm function identified by ``importmodule`` and ``importname`` during
+compilation.
 
     //go:wasmimport a_module f
     func g()
 
-The parameters and return values to the Go function are translated to
+The types of parameters and return values to the Go function are translated to
 Wasm according to the following table:
 
-    Go value        Wasm value
+    Go types        Wasm types
     int32, uint32   i32
     int64, uint64   i64
     float32         f32
