@@ -1076,3 +1076,20 @@ func TestIssue59831(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue64759(t *testing.T) {
+	const src = `
+//go:build go1.18
+package p
+
+func f[S ~[]E, E any](S) {}
+
+func _() {
+	f([]string{})
+}
+`
+	// Per the go:build directive, the source must typecheck
+	// even though the (module) Go version is set to go1.17.
+	conf := Config{GoVersion: "go1.17"}
+	mustTypecheck(src, &conf, nil)
+}
