@@ -28,7 +28,7 @@ import (
 // specific directory tree.
 //
 // While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
-// value is a filename on the native file system, not a URL, so it is separated
+// value is a directory path on the native file system, not a URL, so it is separated
 // by [filepath.Separator], which isn't necessarily '/'.
 //
 // Note that Dir could expose sensitive files and directories. Dir will follow
@@ -665,11 +665,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				localRedirect(w, r, path.Base(url)+"/")
 				return
 			}
-		} else {
-			if url[len(url)-1] == '/' {
-				localRedirect(w, r, "../"+path.Base(url))
+		} else if url[len(url)-1] == '/' {
+			base := path.Base(url)
+			if base == "/" || base == "." {
+				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
+				msg := "http: attempting to traverse a non-directory"
+				Error(w, msg, StatusInternalServerError)
 				return
 			}
+			localRedirect(w, r, "../"+base)
+			return
 		}
 	}
 
