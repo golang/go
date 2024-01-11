@@ -175,6 +175,10 @@ func TestSymbol(t *testing.T) {
 		t.Errorf("same value not equal")
 	}
 
+	if js.Global().Call("Symbol").Equal(js.Global().Call("Symbol")) {
+		t.Errorf("different Symbol instance is equal")
+	}
+
 	if iterSym := js.Global().Get("Symbol").Get("iterator"); iterSym.IsUndefined() {
 		t.Errorf("Symbol.iterator is undefined")
 	} else {
