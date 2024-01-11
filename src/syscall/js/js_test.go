@@ -184,7 +184,7 @@ func TestSymbol(t *testing.T) {
 			if i > 3 {
 				return object{"done": true, "value": nil}
 			}
-			i = i + 1
+			i++
 			return object{"done": false, "value": 10 - i}
 		}))
 		o.SetSymbol(iterSym, js.FuncOf(func(this js.Value, args []js.Value) any {
