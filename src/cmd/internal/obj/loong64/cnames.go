@@ -25,7 +25,6 @@ var cnames0 = []string{
 	"LACON",
 	"LECON",
 	"DACON",
-	"STCON",
 	"SBRA",
 	"LBRA",
 	"SAUTO",
