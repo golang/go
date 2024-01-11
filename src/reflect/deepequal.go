@@ -184,19 +184,18 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	}
 }
 
-// isDeepEqualRawMemory reports
-// DeepEqual can determine whether depths is equal
-// by comparing byte by byte equality
+// isDeepEqualRawMemory reports whether DeepEqual can compare
+// two instances of a type by just comparing their raw memory contents.
 func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
 	// Note: Here is an incorrect implementation :
 	//
-	//	return typ.TFlag==abi.TFlagRegularMemory
+	//	return typ.TFlag&abi.TFlagRegularMemory != 0
 	//
-	// The reason is DeepEqual can't
-	// determine whether two pointer values are equal in depth by comparing them byte by byte
-	// because when deeequal
-	// perform a second and subsequent comparison of two previously compared pointer values,
-	// it treats them as equal
+	// The reason is DeepEqual can't determine whether two pointer values are equal by comparing them byte by byte.
+	// Doing so would report unequal when it shouldn't,
+	// in the case where two pointers are different but point to the same contents 
+	// (e.g. two *int32s that point to different int32s,
+	// both of which contain the same value).
 
 	return typ.PtrBytes == 0 && typ.TFlag&abi.TFlagRegularMemory != 0
 }

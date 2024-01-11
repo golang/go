@@ -119,14 +119,6 @@ func BenchmarkMapsDeepEqual(b *testing.B) {
 	}
 }
 
-func BenchmarkBigSliceDeepEqual(b *testing.B) {
-	var s1, s2 = make([]int16, 10240), make([]int16, 10240)
-	s2[2] = 9
-	for i := 0; i < b.N; i++ {
-		DeepEqual(s1, s2)
-	}
-}
-
 func BenchmarkIsZero(b *testing.B) {
 	type Int4 struct {
 		a, b, c, d int

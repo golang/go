@@ -1087,7 +1087,8 @@ var deepEqualTests = []DeepEqualTest{
 	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
 	{[]int32{1, 2, 3}, []int32{1, 2, 3}, true},
 	{p1, p2, true},
-	{ptr(1), ptr(1), true},
+	{[]*int{ptr(1), ptr(2)}, []*int{ptr(1), ptr(2)}, true},
+	{[]int32{1, 2, 3, 4}[:3], []int32{1, 2, 3, 5}[:3], true},
 
 	// Inequalities
 	{1, 2, false},
@@ -1110,6 +1111,8 @@ var deepEqualTests = []DeepEqualTest{
 	{[][]int{{1}}, [][]int{{2}}, false},
 	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
 	{[]int32{1, 2, 3}, []int32{2, 1, 3}, false},
+	{[]*int{ptr(1), ptr(2)}, []*int{ptr(2), ptr(1)}, false},
+	{[]int32{1, 2, 3, 4}, []int32{1, 2, 3, 5}, false},
 
 	// Fun with floating point.
 	{math.NaN(), math.NaN(), false},
@@ -1290,6 +1293,8 @@ var deepEqualPerfTests = []struct {
 
 	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
 	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+
+	{x: make([]int16, 10240), y: make([]int16, 10240)},
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
