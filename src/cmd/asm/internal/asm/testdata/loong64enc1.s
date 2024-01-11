@@ -124,16 +124,12 @@ lable2:
 	BNE	R4, R0, 1(PC)		// 80040044
 	BNE	R0, R4, 1(PC)		// 80040044
 	BLTU	R4, 1(PC)		// 80040068
-	MOVW	y+8(FP), F4		// 6440002b
 	MOVF	y+8(FP), F4		// 6440002b
 	MOVD	y+8(FP), F4		// 6440802b
-	MOVW	1(F5), F4		// a404002b
 	MOVF	1(F5), F4		// a404002b
 	MOVD	1(F5), F4		// a404802b
-	MOVW	F4, result+16(FP)	// 6460402b
 	MOVF	F4, result+16(FP)	// 6460402b
 	MOVD	F4, result+16(FP)	// 6460c02b
-	MOVW	F4, 1(F5)		// a404402b
 	MOVF	F4, 1(F5)		// a404402b
 	MOVD	F4, 1(F5)		// a404c02b
 	MOVW	R4, F5			// 85a41401
