@@ -177,15 +177,15 @@ func TestSymbol(t *testing.T) {
 
 	if iterSym := js.Global().Get("Symbol").Get("iterator"); iterSym.IsUndefined() {
 		t.Errorf("Symbol.iterator is undefined")
-	}else{
+	} else {
 		o := js.Global().Call("Object")
 		i := 0
 		o.Set("next", js.FuncOf(func(this js.Value, args []js.Value) any {
 			if i > 3 {
-				return object{ "done": true, "value": nil }
+				return object{"done": true, "value": nil}
 			}
 			i = i + 1
-			return object{ "done": false, "value": 10 - i }
+			return object{"done": false, "value": 10 - i}
 		}))
 		o.SetSymbol(iterSym, js.FuncOf(func(this js.Value, args []js.Value) any {
 			return o
