@@ -332,7 +332,7 @@ func (v Value) GetSymbol(s Value) Value {
 		panic(&ValueError{"Value.GetSymbol", vType})
 	}
 	if sType := s.Type(); sType != TypeSymbol {
-		panic("syscall/js: Value.GetSymbol: arguement 1 is not a symbol, got " + sType.String())
+		panic("syscall/js: Value.GetSymbol: argument 1 is not a symbol, got " + sType.String())
 	}
 	r := makeValue(valueGetRef(v.ref, s.ref))
 	runtime.KeepAlive(v)
@@ -350,7 +350,7 @@ func (v Value) SetSymbol(s Value, x any) {
 		panic(&ValueError{"Value.SetSymbol", vType})
 	}
 	if sType := s.Type(); sType != TypeSymbol {
-		panic("syscall/js: Value.SetSymbol: arguement 1 is not a symbol, got " + sType.String())
+		panic("syscall/js: Value.SetSymbol: argument 1 is not a symbol, got " + sType.String())
 	}
 	xv := ValueOf(x)
 	valueSetRef(v.ref, s.ref, xv.ref)
@@ -369,7 +369,7 @@ func (v Value) DeleteSymbol(s Value) {
 		panic(&ValueError{"Value.DeleteSymbol", vType})
 	}
 	if sType := s.Type(); sType != TypeSymbol {
-		panic("syscall/js: Value.DeleteSymbol: arguement 1 is not a symbol, got " + sType.String())
+		panic("syscall/js: Value.DeleteSymbol: argument 1 is not a symbol, got " + sType.String())
 	}
 	valueDeleteRef(v.ref, s.ref)
 	runtime.KeepAlive(v)
