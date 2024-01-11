@@ -1014,6 +1014,12 @@ func isDomainOrSubdomain(sub, parent string) bool {
 	if sub == parent {
 		return true
 	}
+	// If sub contains a :, it's probably an IPv6 address (and is definitely not a hostname).
+	// Don't check the suffix in this case, to avoid matching the contents of a IPv6 zone.
+	// For example, "::1%.www.example.com" is not a subdomain of "www.example.com".
+	if strings.ContainsAny(sub, ":%") {
+		return false
+	}
 	// If sub is "foo.example.com" and parent is "example.com",
 	// that means sub must end in "."+parent.
 	// Do it without allocating.

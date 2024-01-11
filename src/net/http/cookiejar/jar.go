@@ -362,6 +362,13 @@ func jarKey(host string, psl PublicSuffixList) string {
 
 // isIP reports whether host is an IP address.
 func isIP(host string) bool {
+	if strings.ContainsAny(host, ":%") {
+		// Probable IPv6 address.
+		// Hostnames can't contain : or %, so this is definitely not a valid host.
+		// Treating it as an IP is the more conservative option, and avoids the risk
+		// of interpeting ::1%.www.example.com as a subtomain of www.example.com.
+		return true
+	}
 	return net.ParseIP(host) != nil
 }
 
