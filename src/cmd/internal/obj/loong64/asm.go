@@ -1453,8 +1453,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 14: // movwu r,r
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
-		o1 = OP_16IRR(c.opirr(-ASLLV), uint32(32)&0x3f, uint32(p.From.Reg), uint32(p.To.Reg))
-		o2 = OP_16IRR(c.opirr(-ASRLV), uint32(32)&0x3f, uint32(p.To.Reg), uint32(p.To.Reg))
+		o1 = OP_16IRR(c.opirr(ASLLV), uint32(32)&0x3f, uint32(p.From.Reg), uint32(p.To.Reg))
+		o2 = OP_16IRR(c.opirr(ASRLV), uint32(32)&0x3f, uint32(p.To.Reg), uint32(p.To.Reg))
 
 	case 15: // teq $c r,r
 		v := c.regoff(&p.From)
@@ -2169,17 +2169,13 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case -AMOVD:
 		return 0x0ae << 22
 
-	case ASLLV,
-		-ASLLV:
+	case ASLLV:
 		return 0x0041 << 16
-	case ASRLV,
-		-ASRLV:
+	case ASRLV:
 		return 0x0045 << 16
-	case ASRAV,
-		-ASRAV:
+	case ASRAV:
 		return 0x0049 << 16
-	case AROTRV,
-		-AROTRV:
+	case AROTRV:
 		return 0x004d << 16
 	case -ALL:
 		return 0x020 << 24
