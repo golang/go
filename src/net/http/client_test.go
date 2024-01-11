@@ -1711,6 +1711,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"authorization", "http://foo.com/", "https://foo.com/", true},
 		{"authorization", "http://foo.com:1234/", "http://foo.com:4321/", true},
 		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
+		{"authorization", "http://foo.com/", "http://[::1%25.foo.com]/", false},
 
 		// But subdomains should work:
 		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
