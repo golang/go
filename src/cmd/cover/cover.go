@@ -69,6 +69,7 @@ var (
 	output           = flag.String("o", "", "file for output")
 	outfilelist      = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
 	htmlOut          = flag.String("html", "", "generate HTML representation of coverage profile")
+	css              = flag.String("css", "", "CSS file for HTML representation of coverage profile")
 	funcOut          = flag.String("func", "", "output coverage profile information for each function")
 	pkgcfg           = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
 	pkgconfig        covcmd.CoverPkgConfig
@@ -110,7 +111,7 @@ func main() {
 
 	// Output HTML or function coverage information.
 	if *htmlOut != "" {
-		err = htmlOutput(profile, *output)
+		err = htmlOutput(profile, *css, *output)
 	} else {
 		err = funcOutput(profile, *output)
 	}
@@ -129,6 +130,10 @@ func parseFlags() error {
 			return fmt.Errorf("too many options")
 		}
 		profile = *funcOut
+	}
+
+	if *css != "" && *htmlOut == "" {
+		return fmt.Errorf("-css option requires -html")
 	}
 
 	// Must either display a profile or rewrite Go source.
