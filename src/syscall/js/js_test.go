@@ -30,6 +30,8 @@ var dummys = js.Global().Call("eval", `({
 	someFloat: 42.123,
 	someArray: [41, 42, 43],
 	someDate: new Date(),
+	someSymbol: Symbol.iterator,
+	someSymbolFor: Symbol.for("someSymbolFor"),
 	add: function(a, b) {
 		return a + b;
 	},
@@ -97,7 +99,7 @@ func TestString(t *testing.T) {
 	if got, want := js.ValueOf(42.5).String(), "<number: 42.5>"; got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
-	if got, want := js.Global().Call("Symbol").String(), "<symbol>"; got != want {
+	if got, want := js.Global().Call("Symbol").String(), "<symbol: Symbol()>"; got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
 	if got, want := js.Global().String(), "<object>"; got != want {
@@ -156,6 +158,54 @@ func TestFloat(t *testing.T) {
 	}
 	if !dummys.Get("someFloat").Equal(dummys.Get("someFloat")) {
 		t.Errorf("same value not equal")
+	}
+}
+
+func TestSymbol(t *testing.T) {
+	if got, want := dummys.Get("someSymbol"), js.Global().Get("Symbol").Get("iterator"); !got.Equal(want) {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if !dummys.Get("someSymbol").Equal(dummys.Get("someSymbol")) {
+		t.Errorf("same value not equal")
+	}
+	if got, want := dummys.Get("someSymbolFor"), js.Global().Get("Symbol").Call("for", "someSymbolFor"); !got.Equal(want) {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if !dummys.Get("someSymbolFor").Equal(dummys.Get("someSymbolFor")) {
+		t.Errorf("same value not equal")
+	}
+
+	if iterSym := js.Global().Get("Symbol").Get("iterator"); iterSym.IsUndefined() {
+		t.Errorf("Symbol.iterator is undefined")
+	}else{
+		o := js.Global().Call("Object")
+		i := 0
+		o.Set("next", js.FuncOf(func(this js.Value, args []js.Value) any {
+			if i > 3 {
+				return object{ "done": true, "value": nil }
+			}
+			i = i + 1
+			return object{ "done": false, "value": 10 - i }
+		}))
+		o.SetSymbol(iterSym, js.FuncOf(func(this js.Value, args []js.Value) any {
+			return o
+		}))
+		r := js.Global().Call("eval", `(function(o){
+			if (typeof o[Symbol.iterator] !== "function") {
+				return "object is not iterable"
+			}
+			let i = 0
+			for (let got of o) {
+				i++
+				let want = 10 - i
+				if (got !== want) {
+					return "got " + got + " at iteration #" + i + ", want " + want
+				}
+			}
+		})`).Invoke(o)
+		if !r.IsUndefined() {
+			t.Error(r.String())
+		}
 	}
 }
 
