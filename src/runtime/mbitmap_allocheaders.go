@@ -886,6 +886,7 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
 			gctyp.Size_ = typ.Size_
 			gctyp.PtrBytes = typ.PtrBytes
 			gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
+			gctyp.TFlag = abi.TFlagUnrolledBitmap
 
 			// Expand the GC program into space reserved at the end of the new span.
 			runGCProg(addb(typ.GCData, 4), gctyp.GCData)
