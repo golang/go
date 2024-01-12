@@ -24,14 +24,13 @@ type CloneFuncTable[S ~[]E, E any] struct {
 	name string
 }
 
-var cloneFuncs = []CloneFuncTable[[]byte, byte]{
-	{Clone0[[]byte, byte], "Clone0"},
-	{Clone1[[]byte, byte], "Clone1"},
-}
-
 func BenchmarkCloneX(b *testing.B) {
 	b.ReportAllocs()
 	x := []byte("hello world")
+	var cloneFuncs = []CloneFuncTable[[]byte, byte]{
+		{Clone0[[]byte, byte], "Clone0"},
+		{Clone1[[]byte, byte], "Clone1"},
+	}
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
 			b.ReportAllocs()
