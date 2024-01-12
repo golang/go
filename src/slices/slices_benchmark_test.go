@@ -13,11 +13,31 @@ type cloneTest struct {
 var cloneTests = []cloneTest{
 	{
 		input: []byte{'a', 'b', 'c', 'd', 'e'},
-		desc:  "non-empty slice",
+		desc:  "abcde",
 	},
 	{
-		input: []byte(nil),
+		input: []byte("abcdefghijklmnopqrstuvwxyz"),
+		desc:  "abcdefghijklmnopqrstuvwxyz",
+	},
+	{
+		input: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+		desc:  "1234567890",
+	},
+	{
+		[]byte("hello world"),
+		"hello world",
+	},
+	{
+		input: nil,
 		desc:  "empty slice",
+	},
+	{
+		input: []byte(" "),
+		desc:  "empty slice1",
+	},
+	{
+		input: []byte(""),
+		desc:  "empty slice2",
 	},
 }
 

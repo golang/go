@@ -11,6 +11,9 @@ func Clone0[S ~[]E, E any](s S) S {
 }
 
 func Clone1[S ~[]E, E any](s S) S {
+	if s == nil {
+		return nil
+	}
 	clone := make(S, len(s))
 	copy(clone, s)
 	return clone
@@ -23,20 +26,19 @@ type CloneFuncTable[S ~[]E, E any] struct {
 
 func BenchmarkCloneX(b *testing.B) {
 	//b.ReportAllocs()
-	//x := []byte("hello world")
 	var cloneFuncs = []CloneFuncTable[[]byte, byte]{
 		{Clone0[[]byte, byte], "Clone0"},
 		{Clone1[[]byte, byte], "Clone1"},
 	}
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
-			b.N = 1000000
+			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				//_ = CloneX.fn(x)
-				//_ = CloneX.fn(nil)
-				//_ = CloneX.fn(nil)
-				//_ = CloneX.fn(nil)
-				//_ = CloneX.fn([]byte(nil))
+				_ = CloneX.fn(x)
+				_ = CloneX.fn(nil)
+				_ = CloneX.fn(nil)
+				_ = CloneX.fn(nil)
+				_ = CloneX.fn([]byte(nil))
 				for _, tt := range cloneTests {
 					b.Run(tt.desc, func(b *testing.B) {
 						b.ReportAllocs()
