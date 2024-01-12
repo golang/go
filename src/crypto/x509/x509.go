@@ -2110,8 +2110,16 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		signed = h.Sum(nil)
 	}
 
+	var signerOpts crypto.SignerOpts = hashFunc
+	if template.SignatureAlgorithm != 0 && template.SignatureAlgorithm.isRSAPSS() {
+		signerOpts = &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthEqualsHash,
+			Hash:       hashFunc,
+		}
+	}
+
 	var signature []byte
-	signature, err = key.Sign(rand, signed, hashFunc)
+	signature, err = key.Sign(rand, signed, signerOpts)
 	if err != nil {
 		return
 	}
