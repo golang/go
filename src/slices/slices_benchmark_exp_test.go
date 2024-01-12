@@ -29,14 +29,15 @@ var cloneFuncs = []CloneFuncTypeS[[]byte, byte]{
 	{Clone1[[]byte, byte], "Clone1"},
 }
 
-func BenchmarkClones(b *testing.B) {
+func BenchmarkCloneX(b *testing.B) {
 	b.ReportAllocs()
 	x := []byte("some bytes")
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
+			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				_ = CloneX.fn(x)
-				_ = CloneX.fn([]byte(nil))
+				_ = CloneX.fn(nil)
 			}
 		})
 	}
