@@ -24,11 +24,16 @@ var cloneTests = []cloneTest{
 func BenchmarkClone(b *testing.B) {
 	for _, tt := range cloneTests {
 		b.Run(tt.desc, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				b.StartTimer()
-				_ = slices.Clone(tt.input)
-				b.StopTimer()
-			}
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					_ = slices.Clone(tt.input)
+				}
+			})
+			//for i := 0; i < b.N; i++ {
+			//	b.StartTimer()
+			//	_ = slices.Clone(tt.input)
+			//	b.StopTimer()
+			//}
 		})
 	}
 }
