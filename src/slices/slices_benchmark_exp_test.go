@@ -19,12 +19,12 @@ func Clone1[S ~[]E, E any](s S) S {
 	return clone
 }
 
-type CloneFuncTypeS[S ~[]E, E any] struct {
+type CloneFuncTable[S ~[]E, E any] struct {
 	fn   CloneFuncType[S, E]
 	name string
 }
 
-var cloneFuncs = []CloneFuncTypeS[[]byte, byte]{
+var cloneFuncs = []CloneFuncTable[[]byte, byte]{
 	{Clone0[[]byte, byte], "Clone0"},
 	{Clone1[[]byte, byte], "Clone1"},
 }
