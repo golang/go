@@ -387,8 +387,14 @@ func main() {
 	if *objDir == "" {
 		// make sure that _obj directory exists, so that we can write
 		// all the output files there.
-		os.Mkdir("_obj", 0777)
-		*objDir = "_obj"
+		var tmpdir string
+		tmpdir, err = os.MkdirTemp("", "cgo-obj")
+		if err != nil {
+			fatalf("%v", err)
+			os.Exit(2)
+		}
+		defer os.Remove(tmpdir)
+		*objDir = tmpdir
 	}
 	*objDir += string(filepath.Separator)
 
