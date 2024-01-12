@@ -25,21 +25,29 @@ type CloneFuncTable[S ~[]E, E any] struct {
 }
 
 func BenchmarkCloneX(b *testing.B) {
-	b.ReportAllocs()
-	x := []byte("hello world")
+	//b.ReportAllocs()
+	//x := []byte("hello world")
 	var cloneFuncs = []CloneFuncTable[[]byte, byte]{
 		{Clone0[[]byte, byte], "Clone0"},
 		{Clone1[[]byte, byte], "Clone1"},
 	}
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
-			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_ = CloneX.fn(x)
-				_ = CloneX.fn(nil)
-				_ = CloneX.fn(nil)
-				_ = CloneX.fn(nil)
-				_ = CloneX.fn([]byte(nil))
+				//_ = CloneX.fn(x)
+				//_ = CloneX.fn(nil)
+				//_ = CloneX.fn(nil)
+				//_ = CloneX.fn(nil)
+				//_ = CloneX.fn([]byte(nil))
+				for _, tt := range cloneTests {
+					b.Run(tt.desc, func(b *testing.B) {
+						b.ReportAllocs()
+
+						for i := 0; i < b.N; i++ {
+							_ = CloneX.fn(tt.input)
+						}
+					})
+				}
 			}
 		})
 	}
