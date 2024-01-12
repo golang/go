@@ -22,13 +22,14 @@ var cloneTests = []cloneTest{
 }
 
 var bsink []byte
+var x = []byte{'a', 'b', 'c', 'd', 'e'}
 
 func BenchmarkClone(b *testing.B) {
 	b.ReportAllocs()
-	x := []byte{'a', 'b', 'c', 'd', 'e'}
 	for i := 0; i < b.N; i++ {
 		bsink = slices.Clone(x)
 		bsink = slices.Clone([]byte(nil))
+		bsink = slices.Clone[[]byte](nil)
 	}
 }
 
