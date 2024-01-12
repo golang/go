@@ -5917,6 +5917,7 @@ func checkdead() {
 			return
 		}
 		if len(pp.deferpool) > 0 {
+			// fix: issue#64894
 			return
 		}
 	}
