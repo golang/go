@@ -11,9 +11,6 @@ func Clone0[S ~[]E, E any](s S) S {
 }
 
 func Clone1[S ~[]E, E any](s S) S {
-	if s == nil {
-		return nil
-	}
 	clone := make(S, len(s))
 	copy(clone, s)
 	return clone
@@ -33,6 +30,7 @@ func BenchmarkCloneX(b *testing.B) {
 	}
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
+			b.N = 1000000
 			for i := 0; i < b.N; i++ {
 				//_ = CloneX.fn(x)
 				//_ = CloneX.fn(nil)
