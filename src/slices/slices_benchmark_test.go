@@ -21,7 +21,28 @@ var cloneTests = []cloneTest{
 	},
 }
 
+var bsink []byte
+
 func BenchmarkClone(b *testing.B) {
+	b.ReportAllocs()
+	x := []byte{'a', 'b', 'c', 'd', 'e'}
+	for i := 0; i < b.N; i++ {
+		bsink = slices.Clone(x)
+		bsink = slices.Clone([]byte(nil))
+	}
+}
+
+func BenchmarkCloneTable1(b *testing.B) {
+	for _, tt := range cloneTests {
+		b.Run(tt.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = slices.Clone(tt.input)
+			}
+		})
+	}
+}
+
+func BenchmarkCloneTable(b *testing.B) {
 	for _, tt := range cloneTests {
 		b.Run(tt.desc, func(b *testing.B) {
 			b.RunParallel(func(pb *testing.PB) {
