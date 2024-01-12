@@ -5916,6 +5916,9 @@ func checkdead() {
 		if len(pp.timers) > 0 {
 			return
 		}
+		if len(pp.deferpool) > 0 {
+			return
+		}
 	}
 
 	unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
