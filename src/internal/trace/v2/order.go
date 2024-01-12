@@ -649,7 +649,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if !ok {
 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
 		}
-		if err := o.gStates[curCtx.G].beginRegion(userRegion{tid, name}); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered EvUserRegionBegin without known state for current goroutine %d", curCtx.G)
+		}
+		if err := gState.beginRegion(userRegion{tid, name}); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -663,7 +667,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if !ok {
 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
 		}
-		if err := o.gStates[curCtx.G].endRegion(userRegion{tid, name}); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered EvUserRegionEnd without known state for current goroutine %d", curCtx.G)
+		}
+		if err := gState.endRegion(userRegion{tid, name}); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -792,7 +800,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if typ == go122.EvSTWBegin {
 			desc = stringID(ev.args[0])
 		}
-		if err := o.gStates[curCtx.G].beginRange(makeRangeType(typ, desc)); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
+		}
+		if err := gState.beginRange(makeRangeType(typ, desc)); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -813,7 +825,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
 			return curCtx, false, err
 		}
-		desc, err := o.gStates[curCtx.G].endRange(typ)
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
+		}
+		desc, err := gState.endRange(typ)
 		if err != nil {
 			return curCtx, false, err
 		}
