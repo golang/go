@@ -339,8 +339,12 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 // Clone returns a copy of the slice.
 // The elements are copied using assignment, so this is a shallow clone.
 func Clone[S ~[]E, E any](s S) S {
-	// The s[:0:0] preserves nil in case it matters.
-	return append(s[:0:0], s...)
+	if s == nil {
+		return nil
+	}
+	clone := make(S, len(s))
+	copy(clone, s)
+	return clone
 }
 
 // Compact replaces consecutive runs of equal elements with a single copy.
