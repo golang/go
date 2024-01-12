@@ -5,13 +5,30 @@ import (
 	"testing"
 )
 
-var bsink []byte
+type cloneTest struct {
+	input []byte
+	desc  string
+}
+
+var cloneTests = []cloneTest{
+	{
+		input: []byte{'a', 'b', 'c', 'd', 'e'},
+		desc:  "non-empty slice",
+	},
+	{
+		input: []byte(nil),
+		desc:  "empty slice",
+	},
+}
 
 func BenchmarkClone(b *testing.B) {
-	b.ReportAllocs()
-	x := []byte{'a', 'b', 'c', 'd', 'e'}
-	for i := 0; i < b.N; i++ {
-		bsink = slices.Clone(x)
-		bsink = slices.Clone([]byte(nil))
+	for _, tt := range cloneTests {
+		b.Run(tt.desc, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.StartTimer()
+				_ = slices.Clone(tt.input)
+				b.StopTimer()
+			}
+		})
 	}
 }
