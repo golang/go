@@ -37,6 +37,9 @@ func BenchmarkCloneX(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = CloneX.fn(x)
 				_ = CloneX.fn(nil)
+				_ = CloneX.fn(nil)
+				_ = CloneX.fn(nil)
+				_ = CloneX.fn([]byte(nil))
 			}
 		})
 	}
