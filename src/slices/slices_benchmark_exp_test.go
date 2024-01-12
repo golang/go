@@ -31,7 +31,7 @@ var cloneFuncs = []CloneFuncTypeS[[]byte, byte]{
 
 func BenchmarkCloneX(b *testing.B) {
 	b.ReportAllocs()
-	x := []byte("some bytes")
+	x := []byte("hello world")
 	for _, CloneX := range cloneFuncs {
 		b.Run(CloneX.name, func(b *testing.B) {
 			b.ReportAllocs()
