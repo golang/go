@@ -5856,17 +5856,24 @@ func checkdead() {
 		unlock(&sched.lock)
 		throw("checkdead: inconsistent counts")
 	}
-
+	var noDeadlock bool
 	grunning := 0
 	forEachG(func(gp *g) {
 		if isSystemGoroutine(gp, false) {
 			return
 		}
+
 		s := readgstatus(gp)
 		switch s &^ _Gscan {
 		case _Gwaiting,
 			_Gpreempted:
 			grunning++
+			if gp.waitreason == waitReasonIOWait {
+				//FIX:issue#64894
+				noDeadlock = true
+				return
+			}
+
 		case _Grunnable,
 			_Grunning,
 			_Gsyscall:
@@ -5911,13 +5918,13 @@ func checkdead() {
 		}
 	}
 
+	if noDeadlock {
+		return
+	}
+
 	// There are no goroutines running, so we can look at the P's.
 	for _, pp := range allp {
 		if len(pp.timers) > 0 {
-			return
-		}
-		if len(pp.deferpool) > 0 {
-			// fix: issue#64894
 			return
 		}
 	}
