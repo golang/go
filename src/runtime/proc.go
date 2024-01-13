@@ -5856,10 +5856,13 @@ func checkdead() {
 		unlock(&sched.lock)
 		throw("checkdead: inconsistent counts")
 	}
-	var noDeadlock bool
+	var noDeadlock bool //short-circuits the checks across G's
 	grunning := 0
 	forEachG(func(gp *g) {
 		if isSystemGoroutine(gp, false) {
+			return
+		}
+		if noDeadlock {
 			return
 		}
 
