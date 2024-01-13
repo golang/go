@@ -5887,6 +5887,9 @@ func checkdead() {
 		fatal("no goroutines (main called runtime.Goexit) - deadlock!")
 	}
 
+	if noDeadlock {
+		return
+	}
 	// Maybe jump time forward for playground.
 	if faketime != 0 {
 		if when := timeSleepUntil(); when < maxWhen {
@@ -5916,10 +5919,6 @@ func checkdead() {
 			notewakeup(&mp.park)
 			return
 		}
-	}
-
-	if noDeadlock {
-		return
 	}
 
 	// There are no goroutines running, so we can look at the P's.
