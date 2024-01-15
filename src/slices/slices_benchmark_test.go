@@ -83,7 +83,7 @@ func BenchmarkCloneTable(b *testing.B) {
 func BenchmarkCloneRealLife(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		a := Clone0(x)
+		a := Clone1(x)
 		_ = append(a, 'h')
 	}
 }

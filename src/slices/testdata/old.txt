@@ -2,25 +2,25 @@ goos: darwin
 goarch: arm64
 pkg: slices
 BenchmarkCloneRealLife
-BenchmarkCloneRealLife-8   	30078862	        41.22 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	30040616	        36.83 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	34321996	        32.11 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	41801224	        27.17 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	47998000	        39.43 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	23853262	        50.85 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	25875475	        60.29 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	23681172	        58.94 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	35618877	        35.53 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	36167845	        38.77 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	31386703	        41.41 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	31478367	        33.37 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	41894380	        28.79 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	46222245	        23.46 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	52912480	        23.65 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	46217469	        23.58 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	46864550	        26.10 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	47221009	        23.98 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	50027185	        22.73 ns/op	       8 B/op	       1 allocs/op
-BenchmarkCloneRealLife-8   	51742815	        23.55 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	63026037	        21.23 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	54106656	        21.39 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	52951299	        21.94 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	53387115	        21.17 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	59430826	        21.82 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	58370961	        20.34 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	59728113	        20.30 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	57199148	        20.21 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	59520363	        20.92 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	59475744	        20.59 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	56925657	        20.51 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	53570034	        20.94 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	59315278	        22.91 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	53707795	        23.40 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	47881492	        22.12 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	53678965	        21.17 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	57925658	        20.78 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	58785105	        20.50 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	58074585	        23.17 ns/op	       8 B/op	       1 allocs/op
+BenchmarkCloneRealLife-8   	47421770	        21.66 ns/op	       8 B/op	       1 allocs/op
 PASS
-ok  	slices	28.707s
+ok  	slices	24.632s
