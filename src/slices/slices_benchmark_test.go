@@ -91,7 +91,7 @@ func BenchmarkCloneRealLife(b *testing.B) {
 func BenchmarkClone0RealLife(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		a := slices.Clone(x)
+		a := Clone0(x)
 		_ = append(a, 'h')
 	}
 }
