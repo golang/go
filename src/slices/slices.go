@@ -408,63 +408,19 @@ func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]
 }
 
-// Rotation algorithm explanation:
-//
-// rotate left by 2
-// start with
-//   0123456789
-// split up like this
-//   01 234567 89
-// swap first 2 and last 2
-//   89 234567 01
-// join first parts
-//   89234567 01
-// recursively rotate first left part by 2
-//   23456789 01
-// join at the end
-//   2345678901
-//
-// rotate left by 8
-// start with
-//   0123456789
-// split up like this
-//   01 234567 89
-// swap first 2 and last 2
-//   89 234567 01
-// join last parts
-//   89 23456701
-// recursively rotate second part left by 6
-//   89 01234567
-// join at the end
-//   8901234567
-
 // TODO: There are other rotate algorithms.
-// This algorithm has the desirable property that it moves each element exactly twice.
-// The triple-reverse algorithm is simpler and more cache friendly, but takes more writes.
+// This algorithm has the desirable property that it moves each element at most twice.
 // The follow-cycles algorithm can be 1-write but it is not very cache friendly.
 
-// rotateLeft rotates b left by n spaces.
+// rotateLeft rotates s left by r spaces.
 // s_final[i] = s_orig[i+r], wrapping around.
 func rotateLeft[E any](s []E, r int) {
-	for r != 0 && r != len(s) {
-		if r*2 <= len(s) {
-			swap(s[:r], s[len(s)-r:])
-			s = s[:len(s)-r]
-		} else {
-			swap(s[:len(s)-r], s[r:])
-			s, r = s[len(s)-r:], r*2-len(s)
-		}
-	}
+	Reverse(s[:r])
+	Reverse(s[r:])
+	Reverse(s)
 }
 func rotateRight[E any](s []E, r int) {
 	rotateLeft(s, len(s)-r)
-}
-
-// swap swaps the contents of x and y. x and y must be equal length and disjoint.
-func swap[E any](x, y []E) {
-	for i := 0; i < len(x); i++ {
-		x[i], y[i] = y[i], x[i]
-	}
 }
 
 // overlaps reports whether the memory ranges a[0:len(a)] and b[0:len(b)] overlap.
