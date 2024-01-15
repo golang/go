@@ -14,7 +14,7 @@ func Clone1[S ~[]E, E any](s S) S {
 	if s == nil {
 		return nil
 	}
-	clone := make(S, 0, len(s))
+	clone := make(S, len(s))
 	copy(clone, s)
 	return clone
 }
