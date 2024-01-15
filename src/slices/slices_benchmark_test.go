@@ -79,3 +79,27 @@ func BenchmarkCloneTable(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkCloneRealLife(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		a := Clone0(x)
+		_ = append(a, 'h')
+	}
+}
+
+func BenchmarkClone0RealLife(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		a := slices.Clone(x)
+		_ = append(a, 'h')
+	}
+}
+
+func BenchmarkClone1RealLife(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		a := Clone1(x)
+		_ = append(a, 'h')
+	}
+}
