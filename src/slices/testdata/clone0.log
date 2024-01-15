@@ -1,0 +1,22 @@
+{"Time":"2024-01-15T23:33:40.551742+05:30","Action":"start","Package":"slices"}
+{"Time":"2024-01-15T23:33:40.734376+05:30","Action":"output","Package":"slices","Output":"goos: darwin\n"}
+{"Time":"2024-01-15T23:33:40.734443+05:30","Action":"output","Package":"slices","Output":"goarch: arm64\n"}
+{"Time":"2024-01-15T23:33:40.734447+05:30","Action":"output","Package":"slices","Output":"pkg: slices\n"}
+{"Time":"2024-01-15T23:33:40.73446+05:30","Action":"run","Package":"slices","Test":"BenchmarkClone0RealLife"}
+{"Time":"2024-01-15T23:33:40.734463+05:30","Action":"output","Package":"slices","Test":"BenchmarkClone0RealLife","Output":"=== RUN   BenchmarkClone0RealLife\n"}
+{"Time":"2024-01-15T23:33:40.734485+05:30","Action":"output","Package":"slices","Test":"BenchmarkClone0RealLife","Output":"BenchmarkClone0RealLife\n"}
+{"Time":"2024-01-15T23:33:42.026036+05:30","Action":"output","Package":"slices","Test":"BenchmarkClone0RealLife","Output":"BenchmarkClone0RealLife-8   \t32343015\t        38.71 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:43.173024+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t29116201\t        37.92 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:44.421374+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t32705568\t        37.00 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:45.69221+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t32068126\t        38.40 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:46.933503+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t32845515\t        36.62 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:48.198295+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t33020592\t        37.15 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:49.459308+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t34313982\t        35.68 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:50.769038+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t34121322\t        37.30 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:52.012162+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t33444193\t        36.05 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:53.223979+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t32818680\t        35.76 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:54.564104+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t34161147\t        38.14 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:56.679558+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t29835256\t        37.49 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:58.221396+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t33047266\t        45.50 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:33:59.644172+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t19345490\t        70.13 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:01.504603+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t19465785\t        92.17 ns/op\t      21 B/op\t       2 allocs/op\n"}

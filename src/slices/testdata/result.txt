@@ -1,0 +1,29 @@
+goos: darwin
+goarch: arm64
+pkg: slices
+                 │  clone0.log  │     clone1.log      │
+                 │    sec/op    │    sec/op     vs base   │
+Clone0RealLife-8   67.13n ± ∞ ¹
+Clone1RealLife-8                  41.40n ± ∞ ¹
+geomean            67.13n         41.40n        ? ² ³
+¹ need >= 6 samples for confidence interval at level 0.95
+² benchmark set differs from baseline; geomeans may not be comparable
+³ ratios must be >0 to compute geomean
+
+                 │ clone0.log  │     clone1.log     │
+                 │    B/op     │    B/op      vs base   │
+Clone0RealLife-8   21.00 ± ∞ ¹
+Clone1RealLife-8                 21.00 ± ∞ ¹
+geomean            21.00         21.00        ? ² ³
+¹ need >= 6 samples for confidence interval at level 0.95
+² benchmark set differs from baseline; geomeans may not be comparable
+³ ratios must be >0 to compute geomean
+
+                 │ clone0.log  │     clone1.log     │
+                 │  allocs/op  │  allocs/op   vs base   │
+Clone0RealLife-8   2.000 ± ∞ ¹
+Clone1RealLife-8                 2.000 ± ∞ ¹
+geomean            2.000         2.000        ? ² ³
+¹ need >= 6 samples for confidence interval at level 0.95
+² benchmark set differs from baseline; geomeans may not be comparable
+³ ratios must be >0 to compute geomean
