@@ -1,0 +1,15 @@
+goos: darwin
+goarch: arm64
+pkg: slices
+BenchmarkClone0RealLife-8   	21885229	        64.43 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	19086040	        91.93 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	15129514	        75.74 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	21621004	        50.92 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27018253	        44.79 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27592100	        44.00 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27159279	        43.71 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27773222	        48.08 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27366045	        43.70 ns/op	      21 B/op	       2 allocs/op
+BenchmarkClone0RealLife-8   	27923941	        44.51 ns/op	      21 B/op	       2 allocs/op
+PASS
+ok  	slices	15.384s

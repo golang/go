@@ -20,3 +20,11 @@
 {"Time":"2024-01-15T23:33:58.221396+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t33047266\t        45.50 ns/op\t      21 B/op\t       2 allocs/op\n"}
 {"Time":"2024-01-15T23:33:59.644172+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t19345490\t        70.13 ns/op\t      21 B/op\t       2 allocs/op\n"}
 {"Time":"2024-01-15T23:34:01.504603+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t19465785\t        92.17 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:02.939611+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t15447486\t        87.32 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:04.274172+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t16686626\t        75.46 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:06.205316+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t23415667\t        42.91 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:10.373024+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t29308212\t       106.5 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:11.750415+05:30","Action":"output","Package":"slices","Output":"BenchmarkClone0RealLife-8   \t10940972\t       115.0 ns/op\t      21 B/op\t       2 allocs/op\n"}
+{"Time":"2024-01-15T23:34:11.750725+05:30","Action":"output","Package":"slices","Output":"PASS\n"}
+{"Time":"2024-01-15T23:34:11.759094+05:30","Action":"output","Package":"slices","Output":"ok  \tslices\t31.204s\n"}
+{"Time":"2024-01-15T23:34:11.759838+05:30","Action":"pass","Package":"slices","Elapsed":31.209}
