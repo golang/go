@@ -1576,6 +1576,8 @@ type charGroup struct {
 	class []rune
 }
 
+//go:generate perl make_perl_groups.pl perl_groups.go
+
 // parsePerlClassEscape parses a leading Perl character class escape like \d
 // from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
