@@ -1,15 +1,15 @@
 goos: darwin
 goarch: arm64
 pkg: slices
-BenchmarkClone0RealLife-8   	29317840	        35.11 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	54119884	        20.95 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59692828	        20.41 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59601290	        20.97 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	55943619	        20.06 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59722540	        20.14 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59421507	        20.04 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	58766514	        20.06 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59118516	        20.26 ns/op	       8 B/op	       1 allocs/op
-BenchmarkClone0RealLife-8   	59677861	        20.06 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	52765422	        23.99 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	54270298	        21.85 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	56925884	        21.94 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	54239023	        21.26 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	54041274	        20.92 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	56604106	        20.66 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	54381074	        21.37 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	53988696	        20.85 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	59227328	        20.49 ns/op	       8 B/op	       1 allocs/op
+BenchmarkClone0RealLife-8   	57566035	        21.21 ns/op	       8 B/op	       1 allocs/op
 PASS
-ok  	slices	15.191s
+ok  	slices	13.387s
