@@ -16,6 +16,10 @@ import (
 	"sync"
 )
 
+// TODO: This should be a distinguishable error (ErrMessageTooLarge)
+// to allow mime/multipart to detect it.
+var errMessageTooLarge = errors.New("message too large")
+
 // A Reader implements convenience methods for reading requests
 // or responses from a text protocol network connection.
 type Reader struct {
@@ -36,26 +40,32 @@ func NewReader(r *bufio.Reader) *Reader {
 // ReadLine reads a single line from r,
 // eliding the final \n or \r\n from the returned string.
 func (r *Reader) ReadLine() (string, error) {
-	line, err := r.readLineSlice()
+	line, err := r.readLineSlice(-1)
 	return string(line), err
 }
 
 // ReadLineBytes is like ReadLine but returns a []byte instead of a string.
 func (r *Reader) ReadLineBytes() ([]byte, error) {
-	line, err := r.readLineSlice()
+	line, err := r.readLineSlice(-1)
 	if line != nil {
 		line = bytes.Clone(line)
 	}
 	return line, err
 }
 
-func (r *Reader) readLineSlice() ([]byte, error) {
+// readLineSlice reads a single line from r,
+// up to lim bytes long (or unlimited if lim is less than 0),
+// eliding the final \r or \r\n from the returned string.
+func (r *Reader) readLineSlice(lim int64) ([]byte, error) {
 	r.closeDot()
 	var line []byte
 	for {
 		l, more, err := r.R.ReadLine()
 		if err != nil {
 			return nil, err
+		}
+		if lim >= 0 && int64(len(line))+int64(len(l)) > lim {
+			return nil, errMessageTooLarge
 		}
 		// Avoid the copy if the first call produced a full line.
 		if line == nil && !more {
@@ -88,7 +98,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 //
 // Empty lines are never continued.
 func (r *Reader) ReadContinuedLine() (string, error) {
-	line, err := r.readContinuedLineSlice(noValidation)
+	line, err := r.readContinuedLineSlice(-1, noValidation)
 	return string(line), err
 }
 
@@ -109,7 +119,7 @@ func trim(s []byte) []byte {
 // ReadContinuedLineBytes is like ReadContinuedLine but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
-	line, err := r.readContinuedLineSlice(noValidation)
+	line, err := r.readContinuedLineSlice(-1, noValidation)
 	if line != nil {
 		line = bytes.Clone(line)
 	}
@@ -120,13 +130,14 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 // returning a byte slice with all lines. The validateFirstLine function
 // is run on the first read line, and if it returns an error then this
 // error is returned from readContinuedLineSlice.
-func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([]byte, error) {
+// It reads up to lim bytes of data (or unlimited if lim is less than 0).
+func (r *Reader) readContinuedLineSlice(lim int64, validateFirstLine func([]byte) error) ([]byte, error) {
 	if validateFirstLine == nil {
 		return nil, fmt.Errorf("missing validateFirstLine func")
 	}
 
 	// Read the first line.
-	line, err := r.readLineSlice()
+	line, err := r.readLineSlice(lim)
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +165,21 @@ func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([
 	// copy the slice into buf.
 	r.buf = append(r.buf[:0], trim(line)...)
 
+	if lim < 0 {
+		lim = math.MaxInt64
+	}
+	lim -= int64(len(r.buf))
+
 	// Read continuation lines.
 	for r.skipSpace() > 0 {
-		line, err := r.readLineSlice()
+		r.buf = append(r.buf, ' ')
+		if int64(len(r.buf)) >= lim {
+			return nil, errMessageTooLarge
+		}
+		line, err := r.readLineSlice(lim - int64(len(r.buf)))
 		if err != nil {
 			break
 		}
-		r.buf = append(r.buf, ' ')
 		r.buf = append(r.buf, trim(line)...)
 	}
 	return r.buf, nil
@@ -507,7 +526,8 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 
 	// The first line cannot start with a leading space.
 	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
-		line, err := r.readLineSlice()
+		const errorLimit = 80 // arbitrary limit on how much of the line we'll quote
+		line, err := r.readLineSlice(errorLimit)
 		if err != nil {
 			return m, err
 		}
@@ -515,7 +535,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 	}
 
 	for {
-		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
+		kv, err := r.readContinuedLineSlice(maxMemory, mustHaveFieldNameColon)
 		if len(kv) == 0 {
 			return m, err
 		}
@@ -544,7 +564,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 
 		maxHeaders--
 		if maxHeaders < 0 {
-			return nil, errors.New("message too large")
+			return nil, errMessageTooLarge
 		}
 
 		// Skip initial spaces in value.
@@ -557,9 +577,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 		}
 		maxMemory -= int64(len(value))
 		if maxMemory < 0 {
-			// TODO: This should be a distinguishable error (ErrMessageTooLarge)
-			// to allow mime/multipart to detect it.
-			return m, errors.New("message too large")
+			return m, errMessageTooLarge
 		}
 		if vv == nil && len(strs) > 0 {
 			// More than likely this will be a single-element key.
