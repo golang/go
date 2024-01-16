@@ -542,9 +542,9 @@ const (
 
 // Values for m.freeWait.
 const (
-	freeMStack = 0 // M done, free stack and reference.
-	freeMRef   = 1 // M done, free reference.
-	freeMWait  = 2 // M still in use.
+	freeMStack = iota // M done, free stack and reference.
+	freeMRef          // M done, free reference.
+	freeMWait         // M still in use.
 )
 
 type m struct {
