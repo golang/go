@@ -240,13 +240,13 @@ var optab = []Optab{
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
-	{ABEQ, C_REG, C_REG, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
-	{ABEQ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
-	{ABLEZ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
-	{ABFPT, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, NOTUSETMP},
+	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+	{ABEQ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+	{ABLEZ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, NOTUSETMP},
 
-	{AJMP, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // b
-	{AJAL, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // bl
+	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // b
+	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // bl
 
 	{AJMP, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
 	{AJAL, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
@@ -331,8 +331,8 @@ var optab = []Optab{
 	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
+	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
+	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
 }
@@ -807,7 +807,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		return C_LCON
 
 	case obj.TYPE_BRANCH:
-		return C_SBRA
+		return C_BRAN
 	}
 
 	return C_GOK
@@ -947,11 +947,6 @@ func cmp(a int, b int) bool {
 
 	case C_LACON:
 		if b == C_SACON {
-			return true
-		}
-
-	case C_LBRA:
-		if b == C_SBRA {
 			return true
 		}
 
