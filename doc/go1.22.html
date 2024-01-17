@@ -747,13 +747,17 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
   </dd>
 </dl><!-- net/http -->
 
-<!-- <dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt> -->
-<!--   <dd> -->
-<!--     <p><\!-- CL 539615 -\-> -->
-<!--       TODO: <a href="https://go.dev/cl/539615">https://go.dev/cl/539615</a>: net/http/cgi: the PATH_INFO should be empty or start with a slash -->
-<!--     </p> -->
-<!--   </dd> -->
-<!-- </dl><\!-- net/http/cgi -\-> -->
+<dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt>
+  <dd>
+    <p><\!-- CL 539615 -\->
+      When executing a CGI process, the <code>PATH_INFO</code> variable is now
+      always set to the empty string or a value starting with a <code>/</code> character,
+      as required by RFC 3875. It was previously possible for some combinations of
+      <a href="/pkg/net/http/cgi#Handler.Root"><code>Handler.Root</code></a>
+      and request URL to violate this requirement.
+    </p>
+  </dd>
+</dl><\!-- net/http/cgi -\->
 
 <!-- <dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt> -->
 <!--   <dd> -->
