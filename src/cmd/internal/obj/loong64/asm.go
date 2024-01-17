@@ -1401,19 +1401,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
-		if p.To.Sym == nil {
-			if p.As == AJMP {
-				break
-			}
-			p.To.Sym = c.cursym.Func().Text.From.Sym
-			p.To.Offset = p.To.Target().Pc
+		if p.To.Sym != nil {
+			rel := obj.Addrel(c.cursym)
+			rel.Off = int32(c.pc)
+			rel.Siz = 4
+			rel.Sym = p.To.Sym
+			rel.Add = p.To.Offset
+			rel.Type = objabi.R_CALLLOONG64
 		}
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
-		rel.Type = objabi.R_CALLLOONG64
 
 	case 12: // movbs r,r
 		// NOTE: this case does not use REGTMP. If it ever does,
