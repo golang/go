@@ -80,7 +80,7 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 	// types2 mostly satisfies this expectation already. But there are a few
 	// cases where the Go spec doesn't require converting to concrete type,
 	// and so types2 leaves them untyped. So we need to fix those up here.
-	typ := tv.Type
+	typ := types2.Unalias(tv.Type)
 	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
 		switch basic.Kind() {
 		case types2.UntypedNil:
@@ -109,13 +109,14 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 }
 
 func isTypeParam(t types2.Type) bool {
-	_, ok := t.(*types2.TypeParam)
+	_, ok := types2.Unalias(t).(*types2.TypeParam)
 	return ok
 }
 
 // isNotInHeap reports whether typ is or contains an element of type
 // runtime/internal/sys.NotInHeap.
 func isNotInHeap(typ types2.Type) bool {
+	typ = types2.Unalias(typ)
 	if named, ok := typ.(*types2.Named); ok {
 		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
 			return true
