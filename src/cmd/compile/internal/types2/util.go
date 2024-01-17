@@ -26,7 +26,6 @@ func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
 
 func sameFieldExistsWithDifferentCase(fields []*Var, name string) (other *Var, exists bool) {
 	for _, f := range fields {
-		print(f.Name(), " ", name, "\n")
 		if strings.EqualFold(f.Name(), name) {
 			return f, true
 		}
