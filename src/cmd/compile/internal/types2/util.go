@@ -9,7 +9,10 @@
 
 package types2
 
-import "cmd/compile/internal/syntax"
+import (
+	"cmd/compile/internal/syntax"
+	"strings"
+)
 
 // cmpPos compares the positions p and q and returns a result r as follows:
 //
@@ -20,3 +23,13 @@ import "cmd/compile/internal/syntax"
 // If p and q are in different files, p is before q if the filename
 // of p sorts lexicographically before the filename of q.
 func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
+
+func sameFieldExistsWithDifferentCase(fields []*Var, name string) (other *Var, exists bool) {
+	for _, f := range fields {
+		print(f.Name(), " ", name, "\n")
+		if strings.EqualFold(f.Name(), name) {
+			return f, true
+		}
+	}
+	return nil, false
+}
