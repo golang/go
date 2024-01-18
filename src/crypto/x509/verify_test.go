@@ -2718,3 +2718,22 @@ func TestVerifyEKURootAsLeaf(t *testing.T) {
 	}
 
 }
+
+func TestVerifyNilPubKey(t *testing.T) {
+	c := &Certificate{
+		RawIssuer:      []byte{1, 2, 3},
+		AuthorityKeyId: []byte{1, 2, 3},
+	}
+	opts := &VerifyOptions{}
+	opts.Roots = NewCertPool()
+	r := &Certificate{
+		RawSubject:   []byte{1, 2, 3},
+		SubjectKeyId: []byte{1, 2, 3},
+	}
+	opts.Roots.AddCert(r)
+
+	_, err := c.buildChains([]*Certificate{r}, nil, opts)
+	if _, ok := err.(UnknownAuthorityError); !ok {
+		t.Fatalf("buildChains returned unexpected error, got: %v, want %v", err, UnknownAuthorityError{})
+	}
+}
