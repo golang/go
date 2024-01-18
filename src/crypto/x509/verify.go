@@ -899,7 +899,7 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 	)
 
 	considerCandidate := func(certType int, candidate potentialParent) {
-		if alreadyInChain(candidate.cert, currentChain) {
+		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
 			return
 		}
 
