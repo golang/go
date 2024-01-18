@@ -4,11 +4,16 @@
 
 package ssa
 
+import (
+	"fmt"
+	"sort"
+)
+
 // layout orders basic blocks in f with the goal of minimizing control flow instructions.
 // After this phase returns, the order of f.Blocks matters and is the order
 // in which those blocks will appear in the assembly output.
 func layout(f *Func) {
-	f.Blocks = layoutOrder(f)
+	f.Blocks = greedyBlockOrder(f)
 }
 
 // Register allocation may use a different order which has constraints
@@ -182,4 +187,223 @@ blockloop:
 	f.laidout = true
 	return order
 	//f.Blocks = order
+}
+
+// ----------------------------------------------------------------------------
+// Greedy Basic Block Layout
+//
+// This is an adaptation of Pettis & Hansen's greedy algorithm for laying out
+// basic blocks. See Profile Guided Code Positioning by Pettis & Hansen. The idea
+// is to arrange hot blocks near each other. Initially all blocks are belongs to
+// its own chain, then starting from hottest edge and repeatedly merge two proper
+// chains iff the edge dest is the first block of dest chain and edge src is the
+// last block of src chain. Once all edges are processed, the chains are sorted
+// by hottness and merge count and generate final block order.
+
+// chain is a linear sequence of blocks
+type chain struct {
+	id       int
+	blocks   []*Block
+	priority int // merge count
+}
+
+func (t *chain) first() *Block {
+	return t.blocks[0]
+}
+
+func (t *chain) last() *Block {
+	return t.blocks[len(t.blocks)-1]
+}
+
+// edge simply represents a CFG edge
+type edge struct {
+	src    *Block
+	dst    *Block
+	weight int // frequency
+}
+
+const (
+	WeightTaken    = 100
+	WeightNotTaken = 0
+)
+
+func (e *edge) String() string {
+	return fmt.Sprintf("%v->%v(%d)", e.src, e.dst, e.weight)
+}
+
+type chainGraph struct {
+	chainId int
+	chains  []*chain
+	edges   []*edge
+	b2chain map[*Block]*chain
+}
+
+func (g *chainGraph) newChain(block *Block) *chain {
+	tr := &chain{g.chainId, []*Block{block}, 0 /*priority*/}
+	g.b2chain[block] = tr
+	g.chains = append(g.chains, tr)
+	g.chainId++
+	return tr
+}
+
+func (g *chainGraph) getChain(b *Block) *chain {
+	return g.b2chain[b]
+}
+
+func (g *chainGraph) mergeChain(to, from *chain) {
+	for _, block := range from.blocks {
+		g.b2chain[block] = to
+	}
+	to.blocks = append(to.blocks, from.blocks...)
+	to.priority++ // increment
+	g.chains[from.id] = nil
+}
+
+func (g *chainGraph) print() {
+	fmt.Printf("== Edges:\n")
+	for _, edge := range g.edges {
+		fmt.Printf("%v\n", edge)
+	}
+	fmt.Printf("== Chains:\n")
+	for _, ch := range g.chains {
+		if ch == nil {
+			continue
+		}
+		fmt.Printf("id:%d priority:%d blocks:%v\n", ch.id, ch.priority, ch.blocks)
+	}
+}
+
+func greedyBlockOrder(fn *Func) []*Block {
+	graph := &chainGraph{0, []*chain{}, []*edge{}, make(map[*Block]*chain)}
+
+	// Initially every block is in its own chain
+	for _, block := range fn.Blocks {
+		graph.newChain(block)
+
+		if len(block.Succs) == 1 {
+			graph.edges = append(graph.edges, &edge{block, block.Succs[0].b, WeightTaken})
+		} else if len(block.Succs) == 2 && block.Likely != BranchUnknown {
+			// Static branch prediction is available
+			taken := 0
+			if block.Likely == BranchUnlikely {
+				taken = 1
+			}
+			e1 := &edge{block, block.Succs[taken].b, WeightTaken}
+			e2 := &edge{block, block.Succs[1-taken].b, WeightNotTaken}
+			graph.edges = append(graph.edges, e1, e2)
+		} else {
+			// Block predication is unknown or there are more than 2 successors
+			for _, succ := range block.Succs {
+				e1 := &edge{block, succ.b, WeightTaken}
+				graph.edges = append(graph.edges, e1)
+			}
+		}
+	}
+
+	// Sort edges by weight and move slow path to end
+	j := len(graph.edges) - 1
+	for i, edge := range graph.edges {
+		if edge.weight == 0 {
+			if edge.dst.Kind == BlockExit && i < j {
+				graph.edges[j], graph.edges[i] = graph.edges[i], graph.edges[j]
+				j--
+			}
+		}
+	}
+	sort.SliceStable(graph.edges, func(i, j int) bool {
+		e1, e2 := graph.edges[i], graph.edges[j]
+		// If the weights are the same, then keep the original order, this
+		// ensures that adjacent edges are accessed sequentially, which has
+		// a noticeable impact on performance
+		return e1.weight >= e2.weight
+	})
+
+	// Merge proper chains until no more chains can be merged
+	for _, edge := range graph.edges {
+		src := graph.getChain(edge.src)
+		dst := graph.getChain(edge.dst)
+		if src == dst {
+			// Loop detected, "rotate" the loop from [..,header,body,latch] to
+			// [..,body,latch,header]
+			for idx, block := range src.blocks {
+				if block == edge.dst && block.Kind != BlockPlain /*already rotated?*/ {
+					c := append(src.blocks[0:idx], src.blocks[idx+1:]...)
+					c = append(c, block)
+					src.blocks = c
+					break
+				}
+			}
+			continue
+		}
+		if edge.dst == dst.first() && edge.src == src.last() {
+			graph.mergeChain(src, dst)
+		}
+	}
+	for i := 0; i < len(graph.chains); i++ {
+		// Remove nil chains because they are merged
+		if graph.chains[i] == nil {
+			graph.chains = append(graph.chains[:i], graph.chains[i+1:]...)
+			i--
+		} else if graph.chains[i].first() == fn.Entry {
+			// Entry chain must be present at beginning
+			graph.chains[0], graph.chains[i] = graph.chains[i], graph.chains[0]
+		}
+	}
+
+	// Reorder chains based by hottness and priority
+	before := make(map[*chain][]*chain)
+	for _, edge := range graph.edges {
+		// Compute the "before" precedence relation between chain, specifically,
+		// the chain that is taken is arranged before the chain that is not taken.
+		// This is because hardware prediction thought forward branch is less
+		// frequently taken, while backedge is more frequently taken.
+		if edge.weight == WeightNotTaken {
+			src := graph.getChain(edge.src)
+			dst := graph.getChain(edge.dst)
+			before[src] = append(before[src], dst)
+		}
+	}
+	// assert(graph.chains[0].first() == fn.Entry, "entry chain must be first")
+	const idxSkipEntry = 1 // Entry chain is always first
+	sort.SliceStable(graph.chains[idxSkipEntry:], func(i, j int) bool {
+		c1, c2 := graph.chains[i+idxSkipEntry], graph.chains[j+idxSkipEntry]
+		// Respect precedence relation
+		for _, b := range before[c1] {
+			if b == c2 {
+				return true
+			}
+		}
+		// Higher merge count is considered
+		if c1.priority != c2.priority {
+			return c1.priority > c2.priority
+		}
+		// Non-terminated chain is considered
+		if s1, s2 := len(c1.last().Succs), len(c2.last().Succs); s1 != s2 {
+			return s1 > s2
+		}
+		// Keep original order if we can't decide
+		return true
+	})
+
+	// Generate final block order
+	blockOrder := make([]*Block, 0)
+	for _, chain := range graph.chains {
+		blockOrder = append(blockOrder, chain.blocks...)
+	}
+	fn.laidout = true
+
+	if fn.pass.debug > 2 {
+		fmt.Printf("Block ordering(%v):\n", fn.Name)
+		graph.print()
+	}
+	if len(blockOrder) != len(fn.Blocks) {
+		graph.print()
+		fn.Fatalf("miss blocks in final order")
+	}
+	if entryChain := graph.getChain(fn.Entry); entryChain != graph.chains[0] ||
+		entryChain.first() != fn.Entry {
+		graph.print()
+		fn.Fatalf("entry block is not first block")
+	}
+	return blockOrder
 }
