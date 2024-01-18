@@ -430,7 +430,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
     </p>
 
     <p><!-- https://go.dev/issue/50102, CL 514235 -->
-      If the argument to <a href="/pkg/archive/tar#FileInfoHeader"><code>FileInfoHeader</code></a> implements the new <a href="/pkg/archive/tar#FileInfoNames"><code>FileInfoNames</code></a> interface, then the interface methods will be used to set the UID/GID of the file header. This allows applications to override the default UID/GID resolution.
+      If the argument to <a href="/pkg/archive/tar#FileInfoHeader"><code>FileInfoHeader</code></a> implements the new <a href="/pkg/archive/tar#FileInfoNames"><code>FileInfoNames</code></a> interface, then the interface methods will be used to set the UID/GID of the file header in unix. This allows applications to override the default UID/GID resolution in unix.
     </p>
   </dd>
 </dl><!-- archive/tar -->
