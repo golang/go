@@ -257,16 +257,6 @@ func loadOptionalSyscalls() {
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
 
-	m32 := windowsLoadSystemLib(winmmdll[:])
-	if m32 == 0 {
-		throw("winmm.dll not found")
-	}
-	_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
-	_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
-	if _timeBeginPeriod == nil || _timeEndPeriod == nil {
-		throw("timeBegin/EndPeriod not found")
-	}
-
 	ws232 := windowsLoadSystemLib(ws2_32dll[:])
 	if ws232 == 0 {
 		throw("ws2_32.dll not found")
@@ -421,6 +411,21 @@ func initHighResTimer() {
 	if h != 0 {
 		haveHighResTimer = true
 		stdcall1(_CloseHandle, h)
+	} else {
+		// Only load winmm.dll if we need it.
+		// This avoids a dependency on winmm.dll for Go programs
+		// that run on new Windows versions.
+		m32 := windowsLoadSystemLib(winmmdll[:])
+		if m32 == 0 {
+			print("runtime: LoadLibraryExW failed; errno=", getlasterror(), "\n")
+			throw("winmm.dll not found")
+		}
+		_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
+		_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
+		if _timeBeginPeriod == nil || _timeEndPeriod == nil {
+			print("runtime: GetProcAddress failed; errno=", getlasterror(), "\n")
+			throw("timeBegin/EndPeriod not found")
+		}
 	}
 }
 
