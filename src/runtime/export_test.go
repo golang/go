@@ -587,7 +587,7 @@ type RWMutex struct {
 }
 
 func (rw *RWMutex) Init() {
-	rw.rw.init(lockRankTestR, lockRankTestW)
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
 }
 
 func (rw *RWMutex) RLock() {

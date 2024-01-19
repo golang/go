@@ -62,8 +62,8 @@ var cpuprof cpuProfile
 // If hz <= 0, SetCPUProfileRate turns off profiling.
 // If the profiler is on, the rate cannot be changed without first turning it off.
 //
-// Most clients should use the runtime/pprof package or
-// the testing package's -test.cpuprofile flag instead of calling
+// Most clients should use the [runtime/pprof] package or
+// the [testing] package's -test.cpuprofile flag instead of calling
 // SetCPUProfileRate directly.
 func SetCPUProfileRate(hz int) {
 	// Clamp hz to something reasonable.
@@ -204,7 +204,7 @@ func (p *cpuProfile) addExtra() {
 //
 // Deprecated: Use the [runtime/pprof] package,
 // or the handlers in the [net/http/pprof] package,
-// or the testing package's -test.cpuprofile flag instead.
+// or the [testing] package's -test.cpuprofile flag instead.
 func CPUProfile() []byte {
 	panic("CPUProfile no longer available")
 }

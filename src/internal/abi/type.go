@@ -111,6 +111,12 @@ const (
 	// TFlagRegularMemory means that equal and hash functions can treat
 	// this type as a single region of t.size bytes.
 	TFlagRegularMemory TFlag = 1 << 3
+
+	// TFlagUnrolledBitmap marks special types that are unrolled-bitmap
+	// versions of types with GC programs.
+	// These types need to be deallocated when the underlying object
+	// is freed.
+	TFlagUnrolledBitmap TFlag = 1 << 4
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.

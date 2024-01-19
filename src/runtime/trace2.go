@@ -123,9 +123,9 @@ var (
 )
 
 // StartTrace enables tracing for the current process.
-// While tracing, the data will be buffered and available via ReadTrace.
+// While tracing, the data will be buffered and available via [ReadTrace].
 // StartTrace returns an error if tracing is already enabled.
-// Most clients should use the runtime/trace package or the testing package's
+// Most clients should use the [runtime/trace] package or the [testing] package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
 	if traceEnabled() || traceShuttingDown() {

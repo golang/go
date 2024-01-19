@@ -40,6 +40,7 @@ type DebugFlags struct {
 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
+	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
