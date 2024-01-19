@@ -53,14 +53,17 @@ func checkSetFileCompletionNotificationModes() {
 	useSetFileCompletionNotificationModes = true
 }
 
-func init() {
+// InitWSA initiates the use of the Winsock DLL by the current process.
+// It is called from the net package at init time to avoid
+// loading ws2_32.dll when net is not used.
+var InitWSA = sync.OnceFunc(func() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
 		initErr = e
 	}
 	checkSetFileCompletionNotificationModes()
-}
+})
 
 // operation contains superset of data necessary to perform all async IO.
 type operation struct {
