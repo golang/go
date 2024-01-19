@@ -71,8 +71,6 @@ type operation struct {
 	// fields used by runtime.netpoll
 	runtimeCtx uintptr
 	mode       int32
-	errno      int32
-	qty        uint32
 
 	// fields used only by net package
 	fd     *FD
@@ -83,6 +81,7 @@ type operation struct {
 	rsan   int32
 	handle syscall.Handle
 	flags  uint32
+	qty    uint32
 	bufs   []syscall.WSABuf
 }
 
@@ -174,9 +173,9 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	// Wait for our request to complete.
 	err = fd.pd.wait(int(o.mode), fd.isFile)
 	if err == nil {
+		err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
 		// All is good. Extract our IO results and return.
-		if o.errno != 0 {
-			err = syscall.Errno(o.errno)
+		if err != nil {
 			// More data available. Return back the size of received data.
 			if err == syscall.ERROR_MORE_DATA || err == windows.WSAEMSGSIZE {
 				return int(o.qty), err
@@ -202,8 +201,8 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	}
 	// Wait for cancellation to complete.
 	fd.pd.waitCanceled(int(o.mode))
-	if o.errno != 0 {
-		err = syscall.Errno(o.errno)
+	err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
+	if err != nil {
 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
 			err = netpollErr
 		}

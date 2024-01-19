@@ -139,7 +139,6 @@ var (
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
 	_timeEndPeriod,
-	_WSAGetOverlappedResult,
 	_ stdFunction
 )
 
@@ -148,7 +147,6 @@ var (
 	ntdlldll            = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
 	powrprofdll         = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
 	winmmdll            = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
-	ws2_32dll           = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
 )
 
 // Function to be called by windows CreateThread
@@ -256,15 +254,6 @@ func loadOptionalSyscalls() {
 	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
-
-	ws232 := windowsLoadSystemLib(ws2_32dll[:])
-	if ws232 == 0 {
-		throw("ws2_32.dll not found")
-	}
-	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
-	if _WSAGetOverlappedResult == nil {
-		throw("WSAGetOverlappedResult not found")
-	}
 }
 
 func monitorSuspendResume() {
