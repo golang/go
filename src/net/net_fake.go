@@ -23,7 +23,6 @@ import (
 
 var (
 	sockets         sync.Map // fakeSockAddr → *netFD
-	fakeSocketIDs   sync.Map // fakeNetFD.id → *netFD
 	fakePorts       sync.Map // int (port #) → *netFD
 	nextPortCounter atomic.Int32
 )
