@@ -21,6 +21,7 @@ type Validator struct {
 	ranges   map[trace.ResourceID][]string
 	tasks    map[trace.TaskID]string
 	seenSync bool
+	Go121    bool
 }
 
 type schedContext struct {
@@ -160,7 +161,7 @@ func (v *Validator) Event(ev trace.Event) error {
 			}
 			// Validate sched context.
 			if new.Executing() {
-				ctx := v.getOrCreateThread(e, ev.Thread())
+				ctx := v.getOrCreateThread(e, ev, ev.Thread())
 				if ctx != nil {
 					if ctx.G != trace.NoGoroutine && ctx.G != id {
 						e.Errorf("tried to run goroutine %d when one was already executing (%d) on thread %d", id, ctx.G, ev.Thread())
@@ -213,7 +214,7 @@ func (v *Validator) Event(ev trace.Event) error {
 			}
 			// Validate sched context.
 			if new.Executing() {
-				ctx := v.getOrCreateThread(e, ev.Thread())
+				ctx := v.getOrCreateThread(e, ev, ev.Thread())
 				if ctx != nil {
 					if ctx.P != trace.NoProc && ctx.P != id {
 						e.Errorf("tried to run proc %d when one was already executing (%d) on thread %d", id, ctx.P, ev.Thread())
@@ -316,8 +317,25 @@ func (v *Validator) deleteRange(r trace.ResourceID, name string) {
 	v.ranges[r] = slices.Delete(ranges, i, i+1)
 }
 
-func (v *Validator) getOrCreateThread(e *errAccumulator, m trace.ThreadID) *schedContext {
-	if m == trace.NoThread {
+func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace.ThreadID) *schedContext {
+	lenient := func() bool {
+		// Be lenient about GoUndetermined -> GoSyscall transitions if they
+		// originate from an old trace. These transitions lack thread
+		// information in trace formats older than 1.22.
+		if !v.Go121 {
+			return false
+		}
+		if ev.Kind() != trace.EventStateTransition {
+			return false
+		}
+		tr := ev.StateTransition()
+		if tr.Resource.Kind != trace.ResourceGoroutine {
+			return false
+		}
+		from, to := tr.Goroutine()
+		return from == trace.GoUndetermined && to == trace.GoSyscall
+	}
+	if m == trace.NoThread && !lenient() {
 		e.Errorf("must have thread, but thread ID is none")
 		return nil
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"internal/trace/v2/event/go122"
+	"internal/trace/v2/internal/oldtrace"
 	"internal/trace/v2/version"
 )
 
@@ -25,6 +26,8 @@ type Reader struct {
 	cpuSamples  []cpuSample
 	order       ordering
 	emittedSync bool
+
+	go121Events *oldTraceConverter
 }
 
 // NewReader creates a new trace reader.
@@ -34,20 +37,30 @@ func NewReader(r io.Reader) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v != version.Go122 {
+	switch v {
+	case version.Go111, version.Go119, version.Go121:
+		tr, err := oldtrace.Parse(br, v)
+		if err != nil {
+			return nil, err
+		}
+		return &Reader{
+			go121Events: convertOldFormat(tr),
+		}, nil
+	case version.Go122:
+		return &Reader{
+			r: br,
+			order: ordering{
+				mStates:     make(map[ThreadID]*mState),
+				pStates:     make(map[ProcID]*pState),
+				gStates:     make(map[GoID]*gState),
+				activeTasks: make(map[TaskID]taskState),
+			},
+			// Don't emit a sync event when we first go to emit events.
+			emittedSync: true,
+		}, nil
+	default:
 		return nil, fmt.Errorf("unknown or unsupported version go 1.%d", v)
 	}
-	return &Reader{
-		r: br,
-		order: ordering{
-			mStates:     make(map[ThreadID]*mState),
-			pStates:     make(map[ProcID]*pState),
-			gStates:     make(map[GoID]*gState),
-			activeTasks: make(map[TaskID]taskState),
-		},
-		// Don't emit a sync event when we first go to emit events.
-		emittedSync: true,
-	}, nil
 }
 
 // ReadEvent reads a single event from the stream.
@@ -55,6 +68,15 @@ func NewReader(r io.Reader) (*Reader, error) {
 // If the stream has been exhausted, it returns an invalid
 // event and io.EOF.
 func (r *Reader) ReadEvent() (e Event, err error) {
+	if r.go121Events != nil {
+		ev, err := r.go121Events.next()
+		if err != nil {
+			// XXX do we have to emit an EventSync when the trace is done?
+			return Event{}, err
+		}
+		return ev, nil
+	}
+
 	// Go 1.22+ trace parsing algorithm.
 	//
 	// (1) Read in all the batches for the next generation from the stream.
