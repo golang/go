@@ -11,6 +11,7 @@ import (
 	"net/internal/socktest"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -294,27 +295,72 @@ func TestPacketConnClose(t *testing.T) {
 }
 
 func TestListenCloseListen(t *testing.T) {
-	const maxTries = 10
-	for tries := 0; tries < maxTries; tries++ {
-		ln := newLocalListener(t, "tcp")
-		addr := ln.Addr().String()
-		// TODO: This is racy. The selected address could be reused in between this
-		// Close and the subsequent Listen.
-		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err, false); perr != nil {
-				t.Error(perr)
-			}
-			t.Fatal(err)
-		}
-		ln, err := Listen("tcp", addr)
-		if err == nil {
-			// Success. (This test didn't always make it here earlier.)
-			ln.Close()
-			return
-		}
-		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
+	if testing.Short() {
+		t.Parallel()
 	}
-	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
+
+	ln := newLocalListener(t, "tcp")
+	addr := ln.Addr().String()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				wg.Done()
+				return
+			}
+			wg.Add(1)
+			go func() {
+				io.Copy(io.Discard, c)
+				c.Close()
+				wg.Done()
+			}()
+		}
+	}()
+	defer wg.Wait()
+
+	// Keep a connection alive while we close the listener to try to discourage
+	// the kernel from reusing the listener's port for some other process.
+	//
+	// TODO(bcmills): This empirically seems to work, and we also rely on it in
+	// TestDialClosedPortFailFast, but I can't find a reference documenting this
+	// port-reuse behavior.
+	c, err := Dial("tcp", addr)
+	defer c.Close()
+
+	if err := ln.Close(); err != nil {
+		if perr := parseCloseError(err, false); perr != nil {
+			t.Error(perr)
+		}
+		t.Fatal(err)
+	}
+
+	if !testing.Short() {
+		// Burn through some ephemeral ports (without actually accepting any
+		// connections on them) to try to encourage the kernel to reuse the address
+		// if it is going to.
+		lns := make(chan []Listener, 1)
+		lns <- nil
+		for i := 0; i < 4000; i++ {
+			ln := newLocalListener(t, "tcp")
+			lns <- append(<-lns, ln)
+		}
+		defer func() {
+			for _, ln := range <-lns {
+				ln.Close()
+			}
+		}()
+	}
+
+	ln, err = Listen("tcp", addr)
+	if err == nil {
+		// Success. (This test didn't always make it here earlier.)
+		ln.Close()
+		return
+	}
+	t.Fatalf("failed to listen/close/listen on same address")
 }
 
 // See golang.org/issue/6163, golang.org/issue/6987.
