@@ -343,7 +343,7 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// However, this would create a huge switch for all opcodes that can be
 	// evaluated during compile time. Moreover, some operations can be evaluated
 	// only if its arguments satisfy additional conditions(e.g. divide by zero).
-	// It's fragile and error prone. We did a trick by reusing the existing rules
+	// It's fragile and error-prone. We did a trick by reusing the existing rules
 	// in generic rules for compile-time evaluation. But generic rules rewrite
 	// original value, this behavior is undesired, because the lattice of values
 	// may change multiple times, once it was rewritten, we lose the opportunity
