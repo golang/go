@@ -25,6 +25,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"unsafe"
@@ -789,7 +790,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.Kind_&kindGCProg != 0 {
+			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
 				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
 				// Free the space for the unrolled bitmap.
 				systemstack(func() {

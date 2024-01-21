@@ -43,6 +43,10 @@ import (
 var bigOne = big.NewInt(1)
 
 // A PublicKey represents the public part of an RSA key.
+//
+// The value of the modulus N is considered secret by this library and protected
+// from leaking through timing side-channels. However, neither the value of the
+// exponent E nor the precise bit size of N are similarly protected.
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
@@ -478,10 +482,6 @@ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key siz
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
-	// Most of the CPU time for encryption and verification is spent in this
-	// NewModulusFromBig call, because PublicKey doesn't have a Precomputed
-	// field. If performance becomes an issue, consider placing a private
-	// sync.Once on PublicKey to compute this.
 	N, err := bigmod.NewModulusFromBig(pub.N)
 	if err != nil {
 		return nil, err
@@ -492,7 +492,7 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	}
 	e := uint(pub.E)
 
-	return bigmod.NewNat().ExpShort(m, e, N).Bytes(N), nil
+	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
@@ -686,7 +686,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	if check {
-		c1 := bigmod.NewNat().ExpShort(m, uint(priv.E), N)
+		c1 := bigmod.NewNat().ExpShortVarTime(m, uint(priv.E), N)
 		if c1.Equal(c) != 1 {
 			return nil, ErrDecryption
 		}

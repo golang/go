@@ -133,7 +133,7 @@ const (
 // If the filter returns a non-nil error, the execution of system call
 // will be canceled and the system call function returns the non-nil
 // error.
-// It can return a non-nil AfterFilter for filtering after the
+// It can return a non-nil [AfterFilter] for filtering after the
 // execution of the system call.
 type Filter func(*Status) (AfterFilter, error)
 

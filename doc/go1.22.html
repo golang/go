@@ -692,7 +692,7 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/50489, CL 539299 -->
-      The new method <a href="/pkg/math/big#Rat.FloatPrec">Rat.FloatPrec</a> computes the number of fractional decimal digits
+      The new method <a href="/pkg/math/big#Rat.FloatPrec"><code>Rat.FloatPrec</code></a> computes the number of fractional decimal digits
       required to represent a rational number accurately as a floating-point number, and whether accurate decimal representation
       is possible in the first place.
     </p>
@@ -736,31 +736,37 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
       <a href="/doc/godebug"><code>GODEBUG</code></a> field <code>httplaxcontentlength=1</code>.
     </p>
 
-    <!-- <p><\!-- CL 528355 -\-> -->
-    <!--   TODO: <a href="https://go.dev/cl/528355">https://go.dev/cl/528355</a>: net/http: implement path value methods on Request; modified api/next/61410.txt -->
-    <!-- </p> -->
+    <p><!-- https://go.dev/issue/61410, CL 528355 -->
+      The new method
+      <a href="/pkg/net/http#Request.PathValue"><code>Request.PathValue</code></a>
+      returns path wildcard values from a request
+      and the new method
+      <a href="/pkg/net/http#Request.SetPathValue"><code>Request.SetPathValue</code></a>
+      sets path wildcard values on a request.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
-<!-- <dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt> -->
-<!--   <dd> -->
-<!--     <p><\!-- CL 539615 -\-> -->
-<!--       TODO: <a href="https://go.dev/cl/539615">https://go.dev/cl/539615</a>: net/http/cgi: the PATH_INFO should be empty or start with a slash -->
-<!--     </p> -->
-<!--   </dd> -->
-<!-- </dl><\!-- net/http/cgi -\-> -->
+<dl id="net/http/cgi"><dt><a href="/pkg/net/http/cgi/">net/http/cgi</a></dt>
+  <dd>
+    <p><!-- CL 539615 -->
+      When executing a CGI process, the <code>PATH_INFO</code> variable is now
+      always set to the empty string or a value starting with a <code>/</code> character,
+      as required by RFC 3875. It was previously possible for some combinations of
+      <a href="/pkg/net/http/cgi#Handler.Root"><code>Handler.Root</code></a>
+      and request URL to violate this requirement.
+    </p>
+  </dd>
+</dl><!-- net/http/cgi -->
 
-<!-- <dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt> -->
-<!--   <dd> -->
-<!--     <p><\!-- https://go.dev/issue/61642 -\-> -->
-<!--       TODO: <a href="https://go.dev/issue/61642">https://go.dev/issue/61642</a>: add Prefix.Compare and AddrPort.Compare -->
-<!--     </p> -->
-
-<!--     <p><\!-- CL 524616 -\-> -->
-<!--       TODO: <a href="https://go.dev/cl/524616">https://go.dev/cl/524616</a>: net/netip: add AddrPort.Compare and Prefix.Compare; modified api/next/61642.txt -->
-<!--     </p> -->
-<!--   </dd> -->
-<!-- </dl><\!-- net/netip -\-> -->
+<dl id="net/netip"><dt><a href="/pkg/net/netip/">net/netip</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/61642 -->
+      The new <a href="/pkg/net/netip#AddrPort.Compare"><code>AddrPort</code></a>
+      function compares two <code>AddrPort</code>s.
+    </p>
+  </dd>
+</dl><!-- net/netip -->
 
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>

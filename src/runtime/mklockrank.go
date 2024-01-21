@@ -203,17 +203,19 @@ panic < deadlock;
 # raceFini is only held while exiting.
 panic < raceFini;
 
-# RWMutex
-allocmW,
-  execW,
-  testW
-< rwmutexW;
+# RWMutex internal read lock
 
-rwmutexW,
-  allocmR,
-  execR,
-  testR
-< rwmutexR;
+allocmR,
+  allocmW
+< allocmRInternal;
+
+execR,
+  execW
+< execRInternal;
+
+testR,
+  testW
+< testRInternal;
 `
 
 // cyclicRanks lists lock ranks that allow multiple locks of the same

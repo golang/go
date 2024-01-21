@@ -11,9 +11,12 @@ import (
 	"slices"
 	"sort"
 	"testing"
+	"unsafe"
 )
 
 var negzero = math.Copysign(0, -1)
+var nonnilptr uintptr = uintptr(unsafe.Pointer(&negzero))
+var nilptr uintptr = uintptr(unsafe.Pointer(nil))
 
 var tests = []struct {
 	x, y    any
@@ -45,6 +48,9 @@ var tests = []struct {
 	{0.0, negzero, 0},
 	{negzero, 1.0, -1},
 	{negzero, -1.0, +1},
+	{nilptr, nonnilptr, -1},
+	{nonnilptr, nilptr, 1},
+	{nonnilptr, nonnilptr, 0},
 }
 
 func TestLess(t *testing.T) {
@@ -57,6 +63,8 @@ func TestLess(t *testing.T) {
 			b = cmp.Less(test.x.(string), test.y.(string))
 		case float64:
 			b = cmp.Less(test.x.(float64), test.y.(float64))
+		case uintptr:
+			b = cmp.Less(test.x.(uintptr), test.y.(uintptr))
 		}
 		if b != (test.compare < 0) {
 			t.Errorf("Less(%v, %v) == %t, want %t", test.x, test.y, b, test.compare < 0)
@@ -74,6 +82,8 @@ func TestCompare(t *testing.T) {
 			c = cmp.Compare(test.x.(string), test.y.(string))
 		case float64:
 			c = cmp.Compare(test.x.(float64), test.y.(float64))
+		case uintptr:
+			c = cmp.Compare(test.x.(uintptr), test.y.(uintptr))
 		}
 		if c != test.compare {
 			t.Errorf("Compare(%v, %v) == %d, want %d", test.x, test.y, c, test.compare)

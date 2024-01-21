@@ -25,19 +25,19 @@ body:
     id: what-did-you-do
     attributes:
       label: "What did you do?"
-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is better. A failing unit test is the best."
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is better. A failing unit test is the best."
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see happen?"
     validations:
       required: true
   - type: textarea
     id: expected-behavior
     attributes:
       label: "What did you expect to see?"
-    validations:
-      required: true
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: "What did you see instead?"
     validations:
       required: true
   - type: textarea

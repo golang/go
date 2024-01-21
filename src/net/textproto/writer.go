@@ -17,7 +17,7 @@ type Writer struct {
 	dot *dotWriter
 }
 
-// NewWriter returns a new Writer writing to w.
+// NewWriter returns a new [Writer] writing to w.
 func NewWriter(w *bufio.Writer) *Writer {
 	return &Writer{W: w}
 }
@@ -39,7 +39,7 @@ func (w *Writer) PrintfLine(format string, args ...any) error {
 // when the DotWriter is closed. The caller should close the
 // DotWriter before the next call to a method on w.
 //
-// See the documentation for Reader's DotReader method for details about dot-encoding.
+// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
 func (w *Writer) DotWriter() io.WriteCloser {
 	w.closeDot()
 	w.dot = &dotWriter{w: w}

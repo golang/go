@@ -335,7 +335,7 @@ func (c *child) cleanUp() {
 // goroutine for each. The goroutine reads requests and then calls handler
 // to reply to them.
 // If l is nil, Serve accepts connections from os.Stdin.
-// If handler is nil, http.DefaultServeMux is used.
+// If handler is nil, [http.DefaultServeMux] is used.
 func Serve(l net.Listener, handler http.Handler) error {
 	if l == nil {
 		var err error

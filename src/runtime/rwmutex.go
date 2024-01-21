@@ -27,7 +27,6 @@ type rwmutex struct {
 	readerWait  atomic.Int32 // number of departing readers
 
 	readRank  lockRank // semantic lock rank for read locking
-	writeRank lockRank // semantic lock rank for write locking
 }
 
 // Lock ranking an rwmutex has two aspects:
@@ -41,21 +40,28 @@ type rwmutex struct {
 // rLock and wLock. These have lock order requirements: wLock must be locked
 // before rLock. This also needs to be represented in the lock rank.
 //
-// Internal ranking is represented by assigning ranks rwmutexR and rwmutexW to
-// rLock and wLock, respectively.
-//
 // Semantic ranking is represented by acquiring readRank during read lock and
 // writeRank during write lock.
 //
-// readRank is always taken before rwmutexR and writeRank is always taken
-// before rwmutexW, so each unique rwmutex must record this order in the lock
-// ranking.
-func (rw *rwmutex) init(readRank, writeRank lockRank) {
+// wLock is held for the duration of a write lock, so it uses writeRank
+// directly, both for semantic and internal ranking. rLock is only held
+// temporarily inside the rlock/lock methods, so it uses readRankInternal to
+// represent internal ranking. Semantic ranking is represented by a separate
+// acquire of readRank for the duration of a read lock.
+//
+// The lock ranking must document this ordering:
+// - readRankInternal is a leaf lock.
+// - readRank is taken before readRankInternal.
+// - writeRank is taken before readRankInternal.
+// - readRank is placed in the lock order wherever a read lock of this rwmutex
+//   belongs.
+// - writeRank is placed in the lock order wherever a write lock of this
+//   rwmutex belongs.
+func (rw *rwmutex) init(readRank, readRankInternal, writeRank lockRank) {
 	rw.readRank = readRank
-	rw.writeRank = writeRank
 
-	lockInit(&rw.rLock, lockRankRwmutexR)
-	lockInit(&rw.wLock, lockRankRwmutexW)
+	lockInit(&rw.rLock, readRankInternal)
+	lockInit(&rw.wLock, writeRank)
 }
 
 const rwmutexMaxReaders = 1 << 30
@@ -117,7 +123,6 @@ func (rw *rwmutex) runlock() {
 // lock locks rw for writing.
 func (rw *rwmutex) lock() {
 	// Resolve competition with other writers and stick to our P.
-	acquireLockRank(rw.writeRank)
 	lock(&rw.wLock)
 	m := getg().m
 	// Announce that there is a pending writer.
@@ -159,5 +164,4 @@ func (rw *rwmutex) unlock() {
 	unlock(&rw.rLock)
 	// Allow other writers to proceed.
 	unlock(&rw.wLock)
-	releaseLockRank(rw.writeRank)
 }
