@@ -80,7 +80,7 @@ func sccp(f *Func) {
 	// build it early since we rely heavily on the def-use chain later
 	t.buildDefUses()
 
-	// pick up either an edge or SSA value from worklilst, process it
+	// pick up either an edge or SSA value from worklist, process it
 	for {
 		if len(t.edges) > 0 {
 			edge := t.edges[0]
@@ -145,7 +145,7 @@ func equals(a, b lattice) bool {
 	return true
 }
 
-// possibleConst checks if Value can be fold to const. For those Values that can
+// possibleConst checks if Value can be folded to const. For those Values that can
 // never become constants(e.g. StaticCall), we don't make futile efforts.
 func possibleConst(val *Value) bool {
 	if isConst(val) {
