@@ -1237,7 +1237,8 @@ func (t Time) UnixMicro() int64 {
 // in nanoseconds cannot be represented by an int64 (a date before the year
 // 1678 or after 2262). Note that this means the result of calling UnixNano
 // on the zero Time is undefined. The result does not depend on the
-// location associated with t.
+// location associated with t. Use time.Unix(0, ns) to parse the integer
+// back to a Time struct.
 func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
