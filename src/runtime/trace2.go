@@ -335,7 +335,7 @@ func traceAdvance(stopTrace bool) {
 			if !s.dead {
 				ug.goid = s.g.goid
 				if s.g.m != nil {
-					ug.mid = s.g.m.id
+					ug.mid = int64(s.g.m.procid)
 				}
 				ug.status = readgstatus(s.g) &^ _Gscan
 				ug.waitreason = s.g.waitreason
