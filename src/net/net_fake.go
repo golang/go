@@ -325,14 +325,27 @@ func (ffd *fakeNetFD) accept(laddr Addr) (*netFD, error) {
 		incoming []*netFD
 		ok       bool
 	)
+	expired := ffd.readDeadline.Load().expired
 	select {
-	case <-ffd.readDeadline.Load().expired:
+	case <-expired:
 		return nil, os.ErrDeadlineExceeded
 	case incoming, ok = <-ffd.incoming:
 		if !ok {
 			return nil, ErrClosed
 		}
+		select {
+		case <-expired:
+			ffd.incoming <- incoming
+			return nil, os.ErrDeadlineExceeded
+		default:
+		}
 	case incoming, ok = <-ffd.incomingFull:
+		select {
+		case <-expired:
+			ffd.incomingFull <- incoming
+			return nil, os.ErrDeadlineExceeded
+		default:
+		}
 	}
 
 	peer := incoming[0]
