@@ -15,10 +15,11 @@
 // Package graph represents a pprof profile as a directed graph.
 //
 // This package is a simplified fork of github.com/google/pprof/internal/graph.
-package profile
+package graph
 
 import (
 	"fmt"
+	"internal/profile"
 	"sort"
 	"strings"
 )
@@ -240,7 +241,7 @@ func (e *Edge) WeightValue() int64 {
 }
 
 // NewGraph computes a graph from a profile.
-func NewGraph(prof *Profile, o *Options) *Graph {
+func NewGraph(prof *profile.Profile, o *Options) *Graph {
 	nodes, locationMap := CreateNodes(prof, o)
 	seenNode := make(map[*Node]bool)
 	seenEdge := make(map[nodePair]bool)
@@ -367,13 +368,13 @@ func (l locationMap) get(id uint64) Nodes {
 // CreateNodes creates graph nodes for all locations in a profile. It
 // returns set of all nodes, plus a mapping of each location to the
 // set of corresponding nodes (one per location.Line).
-func CreateNodes(prof *Profile, o *Options) (Nodes, locationMap) {
+func CreateNodes(prof *profile.Profile, o *Options) (Nodes, locationMap) {
 	locations := locationMap{make([]Nodes, len(prof.Location)+1), make(map[uint64]Nodes)}
 	nm := make(NodeMap, len(prof.Location))
 	for _, l := range prof.Location {
 		lines := l.Line
 		if len(lines) == 0 {
-			lines = []Line{{}} // Create empty line to include location info.
+			lines = []profile.Line{{}} // Create empty line to include location info.
 		}
 		nodes := make(Nodes, len(lines))
 		for ln := range lines {
@@ -392,7 +393,7 @@ func (nm NodeMap) nodes() Nodes {
 	return nodes
 }
 
-func (nm NodeMap) findOrInsertLine(l *Location, li Line, o *Options) *Node {
+func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Options) *Node {
 	var objfile string
 	if m := l.Mapping; m != nil && m.File != "" {
 		objfile = m.File
@@ -404,7 +405,7 @@ func (nm NodeMap) findOrInsertLine(l *Location, li Line, o *Options) *Node {
 	return nil
 }
 
-func nodeInfo(l *Location, line Line, objfile string, o *Options) *NodeInfo {
+func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options) *NodeInfo {
 	if line.Function == nil {
 		return &NodeInfo{Address: l.Address}
 	}
