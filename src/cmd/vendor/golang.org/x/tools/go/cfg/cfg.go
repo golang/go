@@ -113,7 +113,11 @@ func (b *Block) String() string {
 	return fmt.Sprintf("block %d (%s)", b.Index, b.comment)
 }
 
-// Return returns the return statement at the end of this block if present, nil otherwise.
+// Return returns the return statement at the end of this block if present, nil
+// otherwise.
+//
+// When control falls off the end of the function, the ReturnStmt is synthetic
+// and its [ast.Node.End] position may be beyond the end of the file.
 func (b *Block) Return() (ret *ast.ReturnStmt) {
 	if len(b.Nodes) > 0 {
 		ret, _ = b.Nodes[len(b.Nodes)-1].(*ast.ReturnStmt)

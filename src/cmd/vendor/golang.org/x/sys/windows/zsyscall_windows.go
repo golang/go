@@ -342,6 +342,7 @@ var (
 	procSetDefaultDllDirectories                             = modkernel32.NewProc("SetDefaultDllDirectories")
 	procSetDllDirectoryW                                     = modkernel32.NewProc("SetDllDirectoryW")
 	procSetEndOfFile                                         = modkernel32.NewProc("SetEndOfFile")
+	procSetFileValidData                                     = modkernel32.NewProc("SetFileValidData")
 	procSetEnvironmentVariableW                              = modkernel32.NewProc("SetEnvironmentVariableW")
 	procSetErrorMode                                         = modkernel32.NewProc("SetErrorMode")
 	procSetEvent                                             = modkernel32.NewProc("SetEvent")
@@ -2982,6 +2983,14 @@ func _SetDllDirectory(path *uint16) (err error) {
 
 func SetEndOfFile(handle Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procSetEndOfFile.Addr(), 1, uintptr(handle), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func SetFileValidData(handle Handle, validDataLength int64) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetFileValidData.Addr(), 2, uintptr(handle), uintptr(validDataLength), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

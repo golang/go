@@ -151,6 +151,10 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				},
 			})
 		}
+		if t.Variadic() {
+			last := params[len(params)-1]
+			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
+		}
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
 			r := TypeExpr(f, pkg, t.Results().At(i).Type())
