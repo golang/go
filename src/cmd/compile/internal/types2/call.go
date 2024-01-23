@@ -109,9 +109,13 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse)
+		var err error_
+		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse, &err)
 		if targs == nil {
-			// error was already reported
+			if !err.empty() {
+				err.code = CannotInferTypeArgs
+				check.report(&err)
+			}
 			x.mode = invalid
 			return nil, nil
 		}
@@ -603,13 +607,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false)
+		var err error_
+		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false, &err)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
-			return // error already reported
+			if !err.empty() {
+				check.errorf(err.pos(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg(check.qualifier))
+			}
+			return
 		}
 
 		// update result signature: instantiate if needed

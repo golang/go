@@ -16,13 +16,13 @@ func TestError(t *testing.T) {
 	}
 
 	want = "0: foo 42"
-	err.errorf(nopos, "foo %d", 42)
+	err.errorf(noposn, "foo %d", 42)
 	if got := err.String(); got != want {
 		t.Errorf("simple error: got %q, want %q", got, want)
 	}
 
 	want = "0: foo 42\n\tbar 43"
-	err.errorf(nopos, "bar %d", 43)
+	err.errorf(noposn, "bar %d", 43)
 	if got := err.String(); got != want {
 		t.Errorf("simple error: got %q, want %q", got, want)
 	}

@@ -344,9 +344,9 @@ func (check *Checker) returnError(at positioner, lhs []*Var, rhs []*operand) {
 	}
 	var err error_
 	err.code = WrongResultCount
-	err.errorf(at.Pos(), "%s return values", qualifier)
-	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
-	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+	err.errorf(at, "%s return values", qualifier)
+	err.errorf(noposn, "have %s", check.typesSummary(operandTypes(rhs), false))
+	err.errorf(noposn, "want %s", check.typesSummary(varTypes(lhs), false))
 	check.report(&err)
 }
 

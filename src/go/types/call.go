@@ -112,9 +112,13 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse)
+		var err error_
+		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse, &err)
 		if targs == nil {
-			// error was already reported
+			if !err.empty() {
+				err.code = CannotInferTypeArgs
+				check.report(&err)
+			}
 			x.mode = invalid
 			return nil, nil
 		}
@@ -527,8 +531,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			params = sig.params.vars
 		}
 		err := newErrorf(at, WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
-		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
-		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.errorf(noposn, "have %s", check.typesSummary(operandTypes(args), false))
+		err.errorf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
 		check.report(err)
 		return
 	}
@@ -604,13 +608,17 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call, tparams, targs, sigParams, args, false)
+		var err error_
+		targs = check.infer(call, tparams, targs, sigParams, args, false, &err)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
-			return // error already reported
+			if !err.empty() {
+				check.errorf(err.posn(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg(check.fset, check.qualifier))
+			}
+			return
 		}
 
 		// update result signature: instantiate if needed
