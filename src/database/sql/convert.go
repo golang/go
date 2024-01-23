@@ -237,7 +237,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = append((*d)[:0], s...)
+			*d = rows.setrawbuf(append(rows.rawbuf(), s...))
 			return nil
 		}
 	case []byte:
@@ -285,7 +285,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
+			*d = rows.setrawbuf(s.AppendFormat(rows.rawbuf(), time.RFC3339Nano))
 			return nil
 		}
 	case decimalDecompose:
@@ -366,8 +366,8 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	case *RawBytes:
 		sv = reflect.ValueOf(src)
-		if b, ok := asBytes([]byte(*d)[:0], sv); ok {
-			*d = RawBytes(b)
+		if b, ok := asBytes(rows.rawbuf(), sv); ok {
+			*d = rows.setrawbuf(b)
 			return nil
 		}
 	case *bool:

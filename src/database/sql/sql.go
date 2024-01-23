@@ -2930,6 +2930,13 @@ type Rows struct {
 	// not to be called concurrently.
 	lastcols []driver.Value
 
+	// raw is a buffer for RawBytes that persists between Scan calls.
+	// This is used when the driver returns a mismatched type that requires
+	// a cloning allocation. For example, if the driver returns a *string and
+	// the user is scanning into a *RawBytes, we need to copy the string.
+	// The raw buffer here lets us reuse the memory for that copy across Scan calls.
+	raw []byte
+
 	// closemuScanHold is whether the previous call to Scan kept closemu RLock'ed
 	// without unlocking it. It does that when the user passes a *RawBytes scan
 	// target. In that case, we need to prevent awaitDone from closing the Rows
@@ -3122,6 +3129,32 @@ func (rs *Rows) Err() error {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	return rs.lasterrOrErrLocked(nil)
+}
+
+// rawbuf returns the buffer to append RawBytes values to.
+// This buffer is reused across calls to Rows.Scan.
+//
+// Usage:
+//
+//	rawBytes = rows.setrawbuf(append(rows.rawbuf(), value...))
+func (rs *Rows) rawbuf() []byte {
+	if rs == nil {
+		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		return nil
+	}
+	return rs.raw
+}
+
+// setrawbuf updates the RawBytes buffer with the result of appending a new value to it.
+// It returns the new value.
+func (rs *Rows) setrawbuf(b []byte) RawBytes {
+	if rs == nil {
+		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		return RawBytes(b)
+	}
+	off := len(rs.raw)
+	rs.raw = b
+	return RawBytes(rs.raw[off:])
 }
 
 var errRowsClosed = errors.New("sql: Rows are closed")
@@ -3331,6 +3364,7 @@ func (rs *Rows) Scan(dest ...any) error {
 
 	if scanArgsContainRawBytes(dest) {
 		rs.closemuScanHold = true
+		rs.raw = rs.raw[:0]
 	} else {
 		rs.closemu.RUnlock()
 	}
