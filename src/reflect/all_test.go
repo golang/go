@@ -1068,6 +1068,18 @@ var (
 	p2 = new(slicePtr)
 )
 
+type structFloat64 struct {
+	D float64
+}
+
+type structFloat32 struct {
+	D float32
+}
+
+type structChanInt32 struct {
+	D chan int32
+}
+
 var deepEqualTests = []DeepEqualTest{
 	// Equalities
 	{nil, nil, true},
@@ -1150,10 +1162,60 @@ var deepEqualTests = []DeepEqualTest{
 	{&loopy1, &loopy2, true},
 	{&cycleMap1, &cycleMap2, true},
 	{&cycleMap1, &cycleMap3, false},
+
+	// struct slice and StructOf slice
+	{[]structFloat64{structFloat64{D: negativeZero[float64]()}}, []structFloat64{structFloat64{D: 0}}, true},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat64]()), setStructOfField("D", negativeZero[float64]()))},
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat64]()), setStructOfField("D", float64(0)))},
+		true,
+	},
+
+	{[]structFloat32{structFloat32{D: negativeZero[float32]()}}, []structFloat32{structFloat32{D: 0}}, true},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat32]()), setStructOfField("D", negativeZero[float32]()))},
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat32]()), setStructOfField("D", float32(0)))},
+		true,
+	},
+
+	{[]structChanInt32{structChanInt32{D: make(chan int32)}}, []structChanInt32{structChanInt32{D: make(chan int32)}}, false},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structChanInt32]()), setStructOfField("D", make(chan int32)))},
+		[]any{newStructOf(VisibleFields(TypeFor[structChanInt32]()), setStructOfField("D", make(chan int32)))},
+		false,
+	},
 }
 
 func ptr[T any](a T) *T {
 	return &a
+}
+
+type fieldSet func(Value)
+
+// newStructOf call StructOf get typ
+// use typ new any value
+// use set change new any value
+func newStructOf(field []StructField, set ...fieldSet) (ret any) {
+	typ := StructOf(field)
+	rret := New(typ).Elem()
+	for _, f := range set {
+		f(rret)
+	}
+	return rret.Interface()
+}
+
+// setStructOfField set a field of the struct represented by reflect.Value
+func setStructOfField(fieldName string, fieldValue any) func(Value) {
+	return func(v Value) {
+		field := v.FieldByName(fieldName)
+		field.Set(ValueOf(fieldValue))
+	}
+}
+
+func negativeZero[T float32 | float64]() T {
+	var f T
+	f = -f
+	return f
 }
 
 func TestDeepEqual(t *testing.T) {

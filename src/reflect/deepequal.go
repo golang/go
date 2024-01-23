@@ -193,7 +193,7 @@ func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
 	//
 	// The reason is DeepEqual can't determine whether two pointer values are equal by comparing them byte by byte.
 	// Doing so would report unequal when it shouldn't,
-	// in the case where two pointers are different but point to the same contents 
+	// in the case where two pointers are different but point to the same contents
 	// (e.g. two *int32s that point to different int32s,
 	// both of which contain the same value).
 
