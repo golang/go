@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -193,17 +194,34 @@ func TestAcceptTimeout(t *testing.T) {
 				// incoming connections available. Try to make one available before the
 				// call to Accept happens. (It's ok if the timing doesn't always work
 				// out that way, though: the test should pass regardless.)
+				ctx, cancel := context.WithCancel(context.Background())
 				dialDone := make(chan struct{})
-				t.Cleanup(func() { <-dialDone })
+
+				// Ensure that our background Dial returns before we close the listener.
+				// Otherwise, the listener's port could be reused immediately and we
+				// might spuriously Dial some completely unrelated socket, causing some
+				// other test to see an unexpected extra connection.
+				defer func() {
+					cancel()
+					<-dialDone
+				}()
 
 				go func() {
 					defer close(dialDone)
 					d := Dialer{}
-					c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
+					c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
 					if err != nil {
-						t.Error(err)
+						// If the timing didn't work out, it is possible for this Dial
+						// to return an error (depending on the kernel's buffering behavior).
+						// In https://go.dev/issue/65240 we saw failures with ECONNREFUSED
+						// and ECONNRESET.
+						//
+						// What this test really cares about is the behavior of Accept, not
+						// Dial, so just log the error and ignore it.
+						t.Logf("DialContext: %v", err)
 						return
 					}
+					t.Logf("Dialed %v -> %v", c.LocalAddr(), c.RemoteAddr())
 					c.Close()
 				}()
 
