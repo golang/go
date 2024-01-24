@@ -80,7 +80,7 @@ func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error)
 func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
 	var hints _C_struct_addrinfo
 	switch network {
-	case "": // no hints
+	case "ip": // no hints
 	case "tcp", "tcp4", "tcp6":
 		*_C_ai_socktype(&hints) = _C_SOCK_STREAM
 		*_C_ai_protocol(&hints) = _C_IPPROTO_TCP
@@ -319,8 +319,15 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	acquireThread()
 	defer releaseThread()
 
-	state := (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
-	defer _C_free(unsafe.Pointer(state))
+	resStateSize := unsafe.Sizeof(_C_struct___res_state{})
+	var state *_C_struct___res_state
+	if resStateSize > 0 {
+		mem := _C_malloc(resStateSize)
+		defer _C_free(mem)
+		memSlice := unsafe.Slice((*byte)(mem), resStateSize)
+		clear(memSlice)
+		state = (*_C_struct___res_state)(unsafe.Pointer(&memSlice[0]))
+	}
 	if err := _C_res_ninit(state); err != nil {
 		return nil, errors.New("res_ninit failure: " + err.Error())
 	}

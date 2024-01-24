@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || dragonfly || freebsd || netbsd || openbsd
-// +build darwin dragonfly freebsd netbsd openbsd
 
 // BSD system call wrappers shared by *BSD based systems
 // including OS X (Darwin) and FreeBSD.  Like the other
@@ -317,7 +316,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)

@@ -79,3 +79,10 @@ func dumpregs(r *context) {
 	print("fs      ", hex(r.segfs), "\n")
 	print("gs      ", hex(r.seggs), "\n")
 }
+
+// _DISPATCHER_CONTEXT is not defined on 386.
+type _DISPATCHER_CONTEXT struct{}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return nil
+}

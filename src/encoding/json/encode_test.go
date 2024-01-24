@@ -1193,3 +1193,29 @@ func TestMarshalerError(t *testing.T) {
 		})
 	}
 }
+
+type marshaledValue string
+
+func (v marshaledValue) MarshalJSON() ([]byte, error) {
+	return []byte(v), nil
+}
+
+func TestIssue63379(t *testing.T) {
+	for _, v := range []string{
+		"[]<",
+		"[]>",
+		"[]&",
+		"[]\u2028",
+		"[]\u2029",
+		"{}<",
+		"{}>",
+		"{}&",
+		"{}\u2028",
+		"{}\u2029",
+	} {
+		_, err := Marshal(marshaledValue(v))
+		if err == nil {
+			t.Errorf("expected error for %q", v)
+		}
+	}
+}

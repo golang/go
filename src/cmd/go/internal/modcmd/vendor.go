@@ -299,7 +299,7 @@ func vendorPkg(vdir, pkg string) {
 	// a MultiplePackageError on an otherwise valid package: the package could
 	// have different names for GOOS=windows and GOOS=mac for example. On the
 	// other hand if there's a NoGoError, the package might have source files
-	// specifying "// +build ignore" those packages should be skipped because
+	// specifying "//go:build ignore" those packages should be skipped because
 	// embeds from ignored files can't be used.
 	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
 	// need to figure this out when we switch to PackagesAndErrors as per the
@@ -313,7 +313,15 @@ func vendorPkg(vdir, pkg string) {
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}
-	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	var embedPatterns []string
+	if gover.Compare(modload.MainModules.GoVersion(), "1.22") >= 0 {
+		embedPatterns = bp.EmbedPatterns
+	} else {
+		// Maintain the behavior of https://github.com/golang/go/issues/63473
+		// so that we continue to agree with older versions of the go command
+		// about the contents of vendor directories in existing modules
+		embedPatterns = str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+	}
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
 		base.Fatal(err)

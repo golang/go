@@ -223,7 +223,7 @@ const (
 	OOROR             // X || Y
 	OPANIC            // panic(X)
 	OPRINT            // print(List)
-	OPRINTN           // println(List)
+	OPRINTLN          // println(List)
 	OPAREN            // (X)
 	OSEND             // Chan <- Value
 	OSLICE            // X[Low : High] (X is untypechecked or slice)
@@ -282,17 +282,18 @@ const (
 	// for the captured variables, parameters, retvars, & INLMARK op),
 	// Body (body of the inlined function), and ReturnVars (list of
 	// return values)
-	OINLCALL       // intermediary representation of an inlined call.
-	OMAKEFACE      // construct an interface value from rtype/itab and data pointers
-	OITAB          // rtype/itab pointer of an interface value
-	OIDATA         // data pointer of an interface value
-	OSPTR          // base pointer of a slice or string. Bounded==1 means known non-nil.
-	OCFUNC         // reference to c function pointer (not go func value)
-	OCHECKNIL      // emit code to ensure pointer/interface not nil
-	ORESULT        // result of a function call; Xoffset is stack offset
-	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
-	OLINKSYMOFFSET // offset within a name
-	OJUMPTABLE     // A jump table structure for implementing dense expression switches
+	OINLCALL         // intermediary representation of an inlined call.
+	OMAKEFACE        // construct an interface value from rtype/itab and data pointers
+	OITAB            // rtype/itab pointer of an interface value
+	OIDATA           // data pointer of an interface value
+	OSPTR            // base pointer of a slice or string. Bounded==1 means known non-nil.
+	OCFUNC           // reference to c function pointer (not go func value)
+	OCHECKNIL        // emit code to ensure pointer/interface not nil
+	ORESULT          // result of a function call; Xoffset is stack offset
+	OINLMARK         // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+	OLINKSYMOFFSET   // offset within a name
+	OJUMPTABLE       // A jump table structure for implementing dense expression switches
+	OINTERFACESWITCH // A type switch with interface cases
 
 	// opcodes for generics
 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)

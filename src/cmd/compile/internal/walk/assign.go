@@ -6,6 +6,7 @@ package walk
 
 import (
 	"go/constant"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -103,7 +104,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.X = reflectdata.AppendElemRType(base.Pos, r)
+			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.
@@ -168,7 +169,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	a := n.Lhs[0]
 
 	var call *ir.CallExpr
-	if w := t.Elem().Size(); w <= zeroValSize {
+	if w := t.Elem().Size(); w <= abi.ZeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
 		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
 	} else {

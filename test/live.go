@@ -1,6 +1,6 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+
 //go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
-// +build !ppc64,!ppc64le,!goexperiment.regabiargs
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
@@ -667,7 +667,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !purego
-// +build !purego
 
 // SHA256 block routine. See sha256block.go for Go equivalent.
 //

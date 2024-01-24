@@ -9,12 +9,12 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"container/heap"
 	"context"
 	"debug/elf"
 	"encoding/json"
 	"fmt"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"os"
 	"path/filepath"
@@ -38,10 +38,8 @@ import (
 type Builder struct {
 	WorkDir            string                    // the temporary work directory (ends in filepath.Separator)
 	actionCache        map[cacheKey]*Action      // a cache of already-constructed actions
-	mkdirCache         map[string]bool           // a cache of created directories
 	flagCache          map[[2]string]bool        // a cache of supported compiler flags
 	gccCompilerIDCache map[string]cache.ActionID // cache for gccCompilerID
-	Print              func(args ...any) (int, error)
 
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error
@@ -52,8 +50,7 @@ type Builder struct {
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
 
-	output    sync.Mutex
-	scriptDir string // current directory in printed script
+	backgroundSh *Shell // Shell that per-Action Shells are derived from
 
 	exec      sync.Mutex
 	readySema chan bool
@@ -107,6 +104,8 @@ type Action struct {
 	needBuild bool       // Mode=="build": need to do actual build (can be false if needVet is true)
 	vetCfg    *vetConfig // vet config
 	output    []byte     // output redirect buffer (nil means use b.Print)
+
+	sh *Shell // lazily created per-Action shell; see Builder.Shell
 
 	// Execution state.
 	pending      int               // number of deps yet to complete
@@ -266,11 +265,7 @@ const (
 func NewBuilder(workDir string) *Builder {
 	b := new(Builder)
 
-	b.Print = func(a ...any) (int, error) {
-		return fmt.Fprint(os.Stderr, a...)
-	}
 	b.actionCache = make(map[cacheKey]*Action)
-	b.mkdirCache = make(map[string]bool)
 	b.toolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
 
@@ -300,6 +295,8 @@ func NewBuilder(workDir string) *Builder {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
 		}
 	}
+
+	b.backgroundSh = NewShell(b.WorkDir, nil)
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
 		fmt.Fprintf(os.Stderr, "go: %v\n", err)

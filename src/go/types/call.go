@@ -18,8 +18,8 @@ import (
 // funcInst type-checks a function instantiation.
 // The incoming x must be a generic function.
 // If ix != nil, it provides some or all of the type arguments (ix.Indices).
-// If target type tsig != nil, the signature may be used to infer missing type
-// arguments of x, if any. At least one of tsig or inst must be provided.
+// If target != nil, it may be used to infer missing type arguments of x, if any.
+// At least one of T or ix must be provided.
 //
 // There are two modes of operation:
 //
@@ -34,8 +34,8 @@ import (
 //
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
-func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
-	assert(tsig != nil || ix != nil)
+func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
+	assert(T != nil || ix != nil)
 
 	var instErrPos positioner
 	if ix != nil {
@@ -89,7 +89,8 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 		//
 		var args []*operand
 		var params []*Var
-		if tsig != nil && sig.tparams != nil {
+		var reverse bool
+		if T != nil && sig.tparams != nil {
 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
 				if ix != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
@@ -102,16 +103,17 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
-			expr := ast.NewIdent("variable in assignment")
+			expr := ast.NewIdent(T.desc)
 			expr.NamePos = x.Pos() // correct position
-			args = []*operand{{mode: value, expr: expr, typ: tsig}}
+			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
+			reverse = true
 		}
 
 		// Rename type parameters to avoid problems with recursive instantiations.
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args)
+		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -571,6 +573,13 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		for i, arg := range args {
 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+				// The argument type is a generic function signature. This type is
+				// pointer-identical with (it's copied from) the type of the generic
+				// function argument and thus the function object.
+				// Before we change the type (type parameter renaming, below), make
+				// a clone of it as otherwise we implicitly modify the object's type
+				// (go.dev/issues/63260).
+				asig = clone(asig)
 				// Rename type parameters for cases like f(g, g); this gives each
 				// generic function argument a unique type identity (go.dev/issues/59956).
 				// TODO(gri) Consider only doing this if a function argument appears
@@ -603,7 +612,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call, tparams, targs, sigParams, args)
+		targs = check.infer(call, tparams, targs, sigParams, args, false)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.

@@ -61,12 +61,12 @@ type (
         _[~t|~t] t
 )
 
-type _[_ t, t /* ERROR "type parameters must be named" */ ] t
-type _[_ ~t, t /* ERROR "type parameters must be named" */ ] t
-type _[_ t, ~ /* ERROR "type parameters must be named" */ t] t
-type _[_ ~t, ~ /* ERROR "type parameters must be named" */ t] t
+type _[_ t, t] /* ERROR "missing type constraint" */ t
+type _[_ ~t, t] /* ERROR "missing type constraint" */ t
+type _[_ t, ~ /* ERROR "missing type parameter name" */ t] t
+type _[_ ~t, ~ /* ERROR "missing type parameter name" */ t] t
 
-type _[_ t|t, t /* ERROR "type parameters must be named" */ |t] t
-type _[_ ~t|t, t /* ERROR "type parameters must be named" */ |t] t
-type _[_ t|t, ~ /* ERROR "type parameters must be named" */ t|t] t
-type _[_ ~t|t, ~ /* ERROR "type parameters must be named" */ t|t] t
+type _[_ t|t, t /* ERROR "missing type parameter name" */ |t] t
+type _[_ ~t|t, t /* ERROR "missing type parameter name" */ |t] t
+type _[_ t|t, ~ /* ERROR "missing type parameter name" */ t|t] t
+type _[_ ~t|t, ~ /* ERROR "missing type parameter name" */ t|t] t

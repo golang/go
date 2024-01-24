@@ -575,9 +575,8 @@ type writerOnly struct {
 // to a *net.TCPConn with sendfile, or from a supported src type such
 // as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
-	bufp := copyBufPool.Get().(*[]byte)
-	buf := *bufp
-	defer copyBufPool.Put(bufp)
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
 
 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
 	// own ReadFrom method). If not, just fall back to the normal
@@ -807,11 +806,18 @@ var (
 	bufioWriter4kPool sync.Pool
 )
 
-var copyBufPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 32*1024)
-		return &b
-	},
+const copyBufPoolSize = 32 * 1024
+
+var copyBufPool = sync.Pool{New: func() any { return new([copyBufPoolSize]byte) }}
+
+func getCopyBuf() []byte {
+	return copyBufPool.Get().(*[copyBufPoolSize]byte)[:]
+}
+func putCopyBuf(b []byte) {
+	if len(b) != copyBufPoolSize {
+		panic("trying to put back buffer of the wrong size in the copyBufPool")
+	}
+	copyBufPool.Put((*[copyBufPoolSize]byte)(b))
 }
 
 func bufioWriterPool(size int) *sync.Pool {
@@ -2306,49 +2312,129 @@ func RedirectHandler(url string, code int) Handler {
 	return &redirectHandler{url, code}
 }
 
-// TODO(jba): rewrite the following doc for enhanced patterns (proposal
-// https://go.dev/issue/61410).
-
 // ServeMux is an HTTP request multiplexer.
 // It matches the URL of each incoming request against a list of registered
 // patterns and calls the handler for the pattern that
 // most closely matches the URL.
 //
-// Patterns name fixed, rooted paths, like "/favicon.ico",
-// or rooted subtrees, like "/images/" (note the trailing slash).
-// Longer patterns take precedence over shorter ones, so that
-// if there are handlers registered for both "/images/"
-// and "/images/thumbnails/", the latter handler will be
-// called for paths beginning with "/images/thumbnails/" and the
-// former will receive requests for any other paths in the
-// "/images/" subtree.
+// # Patterns
 //
-// Note that since a pattern ending in a slash names a rooted subtree,
-// the pattern "/" matches all paths not matched by other registered
-// patterns, not just the URL with Path == "/".
+// Patterns can match the method, host and path of a request.
+// Some examples:
 //
-// If a subtree has been registered and a request is received naming the
-// subtree root without its trailing slash, ServeMux redirects that
-// request to the subtree root (adding the trailing slash). This behavior can
-// be overridden with a separate registration for the path without
-// the trailing slash. For example, registering "/images/" causes ServeMux
+//   - "/index.html" matches the path "/index.html" for any host and method.
+//   - "GET /static/" matches a GET request whose path begins with "/static/".
+//   - "example.com/" matches any request to the host "example.com".
+//   - "example.com/{$}" matches requests with host "example.com" and path "/".
+//   - "/b/{bucket}/o/{objectname...}" matches paths whose first segment is "b"
+//     and whose third segment is "o". The name "bucket" denotes the second
+//     segment and "objectname" denotes the remainder of the path.
+//
+// In general, a pattern looks like
+//
+//	[METHOD ][HOST]/[PATH]
+//
+// All three parts are optional; "/" is a valid pattern.
+// If METHOD is present, it must be followed by a single space.
+//
+// Literal (that is, non-wildcard) parts of a pattern match
+// the corresponding parts of a request case-sensitively.
+//
+// A pattern with no method matches every method. A pattern
+// with the method GET matches both GET and HEAD requests.
+// Otherwise, the method must match exactly.
+//
+// A pattern with no host matches every host.
+// A pattern with a host matches URLs on that host only.
+//
+// A path can include wildcard segments of the form {NAME} or {NAME...}.
+// For example, "/b/{bucket}/o/{objectname...}".
+// The wildcard name must be a valid Go identifier.
+// Wildcards must be full path segments: they must be preceded by a slash and followed by
+// either a slash or the end of the string.
+// For example, "/b_{bucket}" is not a valid pattern.
+//
+// Normally a wildcard matches only a single path segment,
+// ending at the next literal slash (not %2F) in the request URL.
+// But if the "..." is present, then the wildcard matches the remainder of the URL path, including slashes.
+// (Therefore it is invalid for a "..." wildcard to appear anywhere but at the end of a pattern.)
+// The match for a wildcard can be obtained by calling [Request.PathValue] with the wildcard's name.
+// A trailing slash in a path acts as an anonymous "..." wildcard.
+//
+// The special wildcard {$} matches only the end of the URL.
+// For example, the pattern "/{$}" matches only the path "/",
+// whereas the pattern "/" matches every path.
+//
+// For matching, both pattern paths and incoming request paths are unescaped segment by segment.
+// So, for example, the path "/a%2Fb/100%25" is treated as having two segments, "a/b" and "100%".
+// The pattern "/a%2fb/" matches it, but the pattern "/a/b/" does not.
+//
+// # Precedence
+//
+// If two or more patterns match a request, then the most specific pattern takes precedence.
+// A pattern P1 is more specific than P2 if P1 matches a strict subset of P2’s requests;
+// that is, if P2 matches all the requests of P1 and more.
+// If neither is more specific, then the patterns conflict.
+// There is one exception to this rule, for backwards compatibility:
+// if two patterns would otherwise conflict and one has a host while the other does not,
+// then the pattern with the host takes precedence.
+// If a pattern passed [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
+// another pattern that is already registered, those functions panic.
+//
+// As an example of the general rule, "/images/thumbnails/" is more specific than "/images/",
+// so both can be registered.
+// The former matches paths beginning with "/images/thumbnails/"
+// and the latter will match any other path in the "/images/" subtree.
+//
+// As another example, consider the patterns "GET /" and "/index.html":
+// both match a GET request for "/index.html", but the former pattern
+// matches all other GET and HEAD requests, while the latter matches any
+// request for "/index.html" that uses a different method.
+// The patterns conflict.
+//
+// # Trailing-slash redirection
+//
+// Consider a ServeMux with a handler for a subtree, registered using a trailing slash or "..." wildcard.
+// If the ServeMux receives a request for the subtree root without a trailing slash,
+// it redirects the request by adding the trailing slash.
+// This behavior can be overridden with a separate registration for the path without
+// the trailing slash or "..." wildcard. For example, registering "/images/" causes ServeMux
 // to redirect a request for "/images" to "/images/", unless "/images" has
 // been registered separately.
 //
-// Patterns may optionally begin with a host name, restricting matches to
-// URLs on that host only. Host-specific patterns take precedence over
-// general patterns, so that a handler might register for the two patterns
-// "/codesearch" and "codesearch.google.com/" without also taking over
-// requests for "http://www.google.com/".
+// # Request sanitizing
 //
 // ServeMux also takes care of sanitizing the URL request path and the Host
 // header, stripping the port number and redirecting any request containing . or
-// .. elements or repeated slashes to an equivalent, cleaner URL.
+// .. segments or repeated slashes to an equivalent, cleaner URL.
+//
+// # Compatibility
+//
+// The pattern syntax and matching behavior of ServeMux changed significantly
+// in Go 1.22. To restore the old behavior, set the GODEBUG environment variable
+// to "httpmuxgo121=1". This setting is read once, at program startup; changes
+// during execution will be ignored.
+//
+// The backwards-incompatible changes include:
+//   - Wildcards are just ordinary literal path segments in 1.21.
+//     For example, the pattern "/{x}" will match only that path in 1.21,
+//     but will match any one-segment path in 1.22.
+//   - In 1.21, no pattern was rejected, unless it was empty or conflicted with an existing pattern.
+//     In 1.22, syntactically invalid patterns will cause [ServeMux.Handle] and [ServeMux.HandleFunc] to panic.
+//     For example, in 1.21, the patterns "/{"  and "/a{x}" match themselves,
+//     but in 1.22 they are invalid and will cause a panic when registered.
+//   - In 1.22, each segment of a pattern is unescaped; this was not done in 1.21.
+//     For example, in 1.22 the pattern "/%61" matches the path "/a" ("%61" being the URL escape sequence for "a"),
+//     but in 1.21 it would match only the path "/%2561" (where "%25" is the escape for the percent sign).
+//   - When matching patterns to paths, in 1.22 each segment of the path is unescaped; in 1.21, the entire path is unescaped.
+//     This change mostly affects how paths with %2F escapes adjacent to slashes are treated.
+//     See https://go.dev/issue/21955 for details.
 type ServeMux struct {
 	mu       sync.RWMutex
 	tree     routingNode
 	index    routingIndex
-	patterns []*pattern // TODO(jba): remove if possible
+	patterns []*pattern  // TODO(jba): remove if possible
+	mux121   serveMux121 // used only when GODEBUG=httpmuxgo121=1
 }
 
 // NewServeMux allocates and returns a new ServeMux.
@@ -2412,6 +2498,9 @@ func stripHostPort(h string) string {
 // If there is no registered handler that applies to the request,
 // Handler returns a “page not found” handler and an empty pattern.
 func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+	if use121 {
+		return mux.mux121.findHandler(r)
+	}
 	h, p, _, _ := mux.findHandler(r)
 	return h, p
 }
@@ -2566,7 +2655,7 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
 	return methods
 }
 
-// TODO: replace with maps.Keys when it is defined.
+// TODO(jba): replace with maps.Keys when it is defined.
 func mapKeys[K comparable, V any](m map[K]V) []K {
 	var ks []K
 	for k := range m {
@@ -2585,36 +2674,58 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusBadRequest)
 		return
 	}
-	h, _, pat, matches := mux.findHandler(r)
-	r.pat = pat
-	r.matches = matches
+	var h Handler
+	if use121 {
+		h, _ = mux.mux121.findHandler(r)
+	} else {
+		h, _, r.pat, r.matches = mux.findHandler(r)
+	}
 	h.ServeHTTP(w, r)
 }
 
-// The four functions below all call register so that callerLocation
+// The four functions below all call ServeMux.register so that callerLocation
 // always refers to user code.
 
 // Handle registers the handler for the given pattern.
-// If a handler already exists for pattern, Handle panics.
+// If the given pattern conflicts, with one that is already registered, Handle
+// panics.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
-	mux.register(pattern, handler)
+	if use121 {
+		mux.mux121.handle(pattern, handler)
+	} else {
+		mux.register(pattern, handler)
+	}
 }
 
 // HandleFunc registers the handler function for the given pattern.
+// If the given pattern conflicts, with one that is already registered, HandleFunc
+// panics.
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
-	mux.register(pattern, HandlerFunc(handler))
+	if use121 {
+		mux.mux121.handleFunc(pattern, handler)
+	} else {
+		mux.register(pattern, HandlerFunc(handler))
+	}
 }
 
 // Handle registers the handler for the given pattern in [DefaultServeMux].
 // The documentation for [ServeMux] explains how patterns are matched.
 func Handle(pattern string, handler Handler) {
-	DefaultServeMux.register(pattern, handler)
+	if use121 {
+		DefaultServeMux.mux121.handle(pattern, handler)
+	} else {
+		DefaultServeMux.register(pattern, handler)
+	}
 }
 
 // HandleFunc registers the handler function for the given pattern in [DefaultServeMux].
 // The documentation for [ServeMux] explains how patterns are matched.
 func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
-	DefaultServeMux.register(pattern, HandlerFunc(handler))
+	if use121 {
+		DefaultServeMux.mux121.handleFunc(pattern, handler)
+	} else {
+		DefaultServeMux.register(pattern, HandlerFunc(handler))
+	}
 }
 
 func (mux *ServeMux) register(pattern string, handler Handler) {
@@ -3701,7 +3812,6 @@ func numLeadingCRorLF(v []byte) (n int) {
 		break
 	}
 	return
-
 }
 
 func strSliceContains(ss []string, s string) bool {

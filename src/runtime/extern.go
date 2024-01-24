@@ -5,7 +5,7 @@
 /*
 Package runtime contains operations that interact with Go's runtime system,
 such as functions to control goroutines. It also includes the low-level type information
-used by the reflect package; see reflect's documentation for the programmable
+used by the reflect package; see [reflect]'s documentation for the programmable
 interface to the run-time type system.
 
 # Environment Variables
@@ -54,6 +54,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	checks that may miss some errors. A more complete, but slow,
 	cgocheck mode can be enabled using GOEXPERIMENT (which
 	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
+
+	disablethp: setting disablethp=1 on Linux disables transparent huge pages for the heap.
+	It has no effect on other platforms. disablethp is meant for compatibility with versions
+	of Go before 1.21, which stopped working around a Linux kernel default that can result
+	in significant memory overuse. See https://go.dev/issue/64332. This setting will be
+	removed in a future release, so operators should tweak their Linux configuration to suit
+	their needs before then. See https://go.dev/doc/gc-guide#Linux_transparent_huge_pages.
 
 	dontfreezetheworld: by default, the start of a fatal panic or throw
 	"freezes the world", preempting all threads to stop all running
@@ -145,6 +152,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
 	option for some applications can produce large traces, so use with care.
 
+	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
+	related to contention on runtime-internal locks in the "mutex" profile, subject to the
+	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on
+	runtime-internal locks will report as "runtime._LostContendedRuntimeLock". When
+	runtimecontentionstacks=1, the call stacks will correspond to the unlock call that released
+	the lock. But instead of the value corresponding to the amount of contention that call
+	stack caused, it corresponds to the amount of time the caller of unlock had to wait in its
+	original call to lock. A future release is expected to align those and remove this setting.
+
 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
@@ -187,6 +203,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	use the runtime's default stack unwinder instead of frame pointer unwinding.
 	This increases tracer overhead, but could be helpful as a workaround or for
 	debugging unexpected regressions caused by frame pointer unwinding.
+
+	traceadvanceperiod: the approximate period in nanoseconds between trace generations. Only
+	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
+	and debugging the execution tracer.
 
 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
 	asynchronous goroutine preemption. This makes some loops
@@ -285,10 +305,10 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // It returns the number of entries written to pc.
 //
 // To translate these PCs into symbolic information such as function
-// names and line numbers, use CallersFrames. CallersFrames accounts
+// names and line numbers, use [CallersFrames]. CallersFrames accounts
 // for inlined functions and adjusts the return program counters into
 // call program counters. Iterating over the returned slice of PCs
-// directly is discouraged, as is using FuncForPC on any of the
+// directly is discouraged, as is using [FuncForPC] on any of the
 // returned PCs, since these cannot account for inlining or return
 // program counter adjustment.
 func Callers(skip int, pc []uintptr) int {

@@ -917,7 +917,6 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		emitReloc(ld.XCOFF_R_REF|0x3F<<8, 0)
 	}
 	return true
-
 }
 
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {

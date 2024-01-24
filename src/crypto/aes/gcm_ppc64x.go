@@ -51,8 +51,10 @@ type gcmAsm struct {
 	tagSize int
 }
 
+func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
+
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by crypto/cipher.NewGCM via the gcmAble interface.
+// called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	var h1, h2 uint64
 	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
@@ -114,34 +116,10 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 // into out. counter is the initial count value and will be updated with the next
 // count value. The length of out must be greater than or equal to the length
 // of in.
+// counterCryptASM implements counterCrypt which then allows the loop to
+// be unrolled and optimized.
 func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
-	var mask [gcmBlockSize]byte
-
-	for len(in) >= gcmBlockSize {
-		// Hint to avoid bounds check
-		_, _ = in[15], out[15]
-		g.cipher.Encrypt(mask[:], counter[:])
-		gcmInc32(counter)
-
-		// XOR 16 bytes each loop iteration in 8 byte chunks
-		in0 := binary.LittleEndian.Uint64(in[0:])
-		in1 := binary.LittleEndian.Uint64(in[8:])
-		m0 := binary.LittleEndian.Uint64(mask[:8])
-		m1 := binary.LittleEndian.Uint64(mask[8:])
-		binary.LittleEndian.PutUint64(out[:8], in0^m0)
-		binary.LittleEndian.PutUint64(out[8:], in1^m1)
-		out = out[16:]
-		in = in[16:]
-	}
-
-	if len(in) > 0 {
-		g.cipher.Encrypt(mask[:], counter[:])
-		gcmInc32(counter)
-		// XOR leftover bytes
-		for i, inb := range in {
-			out[i] = inb ^ mask[i]
-		}
-	}
+	counterCryptASM(len(g.cipher.enc)/4-1, out, in, counter, &g.cipher.enc[0])
 }
 
 // increments the rightmost 32-bits of the count value by 1.
@@ -181,7 +159,7 @@ func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
 	}
 }
 
-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
+// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
 func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
@@ -205,7 +183,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	return ret
 }
 
-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
+// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
 func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {

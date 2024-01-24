@@ -72,7 +72,7 @@ nocgo:
 	MOVV	R0, 1(R0)
 	RET
 
-DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
@@ -123,26 +123,31 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R4, REGCTXT
+#else
+	MOVV	fn+0(FP), REGCTXT
+#endif
+
 	// Save caller state in g->sched
 	MOVV	R3, (g_sched+gobuf_sp)(g)
 	MOVV	R1, (g_sched+gobuf_pc)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
 
 	// Switch to m->g0 & its stack, call fn.
-	MOVV	g, R19
-	MOVV	g_m(g), R4
-	MOVV	m_g0(R4), g
+	MOVV	g, R4		// arg = g
+	MOVV	g_m(g), R20
+	MOVV	m_g0(R20), g
 	JAL	runtime·save_g(SB)
-	BNE	g, R19, 2(PC)
+	BNE	g, R4, 2(PC)
 	JMP	runtime·badmcall(SB)
-	MOVV	fn+0(FP), REGCTXT			// context
-	MOVV	0(REGCTXT), R5			// code pointer
+	MOVV	0(REGCTXT), R20			// code pointer
 	MOVV	(g_sched+gobuf_sp)(g), R3	// sp = m->g0->sched.sp
 	ADDV	$-16, R3
-	MOVV	R19, 8(R3)
+	MOVV	R4, 8(R3)
 	MOVV	R0, 0(R3)
-	JAL	(R5)
+	JAL	(R20)
 	JMP	runtime·badmcall2(SB)
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
@@ -214,7 +219,7 @@ noswitch:
 
 // Called during function prolog when more stack is needed.
 // Caller has already loaded:
-// loong64: R5: LR
+// loong64: R31: LR
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -238,12 +243,12 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Set g->sched to context in f.
 	MOVV	R3, (g_sched+gobuf_sp)(g)
 	MOVV	R1, (g_sched+gobuf_pc)(g)
-	MOVV	R5, (g_sched+gobuf_lr)(g)
+	MOVV	R31, (g_sched+gobuf_lr)(g)
 	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	MOVV	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+	MOVV	R31, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
 	MOVV	R3, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
 	MOVV	g, (m_morebuf+gobuf_g)(R7)
 
@@ -272,7 +277,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	JMP	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -286,7 +291,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-48
-	MOVWU stackArgsSize+24(FP), R19
+	MOVWU frameSize+32(FP), R19
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -317,7 +322,7 @@ TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-48
 	JMP	(R4)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVV	arg+16(FP), R4;			\
@@ -331,12 +336,17 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	MOVBU	R6, (R12);			\
 	ADDV	$1, R12;			\
 	JMP	-5(PC);				\
+	/* set up argument registers */		\
+	MOVV	regArgs+40(FP), R25;		\
+	JAL	·unspillArgs(SB);		\
 	/* call function */			\
 	MOVV	f+8(FP), REGCTXT;			\
-	MOVV	(REGCTXT), R6;			\
+	MOVV	(REGCTXT), R25;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
-	JAL	(R6);				\
+	JAL	(R25);				\
 	/* copy return values back */		\
+	MOVV	regArgs+40(FP), R25;		\
+	JAL	·spillArgs(SB);		\
 	MOVV	argtype+0(FP), R7;		\
 	MOVV	arg+16(FP), R4;			\
 	MOVWU	n+24(FP), R5;			\
@@ -352,11 +362,13 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $32-0
+TEXT callRet<>(SB), NOSPLIT, $40-0
+	NO_LOCAL_POINTERS
 	MOVV	R7, 8(R3)
 	MOVV	R4, 16(R3)
 	MOVV	R12, 24(R3)
 	MOVV	R5, 32(R3)
+	MOVV	R25, 40(R3)
 	JAL	runtime·reflectcallmove(SB)
 	RET
 
@@ -567,7 +579,7 @@ havem:
 	// If the m on entry wasn't nil,
 	// 1. the thread might be a Go thread,
 	// 2. or it wasn't the first call from a C thread on pthread platforms,
-	//    since then we skip dropm to reuse the m in the first call.
+	//    since then we skip dropm to resue the m in the first call.
 	MOVV	savedm-8(SP), R12
 	BNE	R12, droppedm
 
@@ -604,14 +616,14 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 // AES hashing not implemented for loong64
-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
-	JMP	runtime·memhashFallback(SB)
-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·strhashFallback(SB)
-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash32Fallback(SB)
-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash64Fallback(SB)
+TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	JMP	runtime·memhashFallback<ABIInternal>(SB)
+TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·strhashFallback<ABIInternal>(SB)
+TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
+TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R19
@@ -642,10 +654,101 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	NOOP
 
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	ADDV	$-0x10, R3
+	MOVV	R30, 8(R3) // The access to global variables below implicitly uses R30, which is callee-save
+	MOVV	runtime·lastmoduledatap(SB), R12
+	MOVV	R4, moduledata_next(R12)
+	MOVV	R4, runtime·lastmoduledatap(SB)
+	MOVV	8(R3), R30
+	ADDV	$0x10, R3
+	RET
+
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R19
 	MOVB	R19, ret+0(FP)
 	RET
+
+#ifdef GOEXPERIMENT_regabiargs
+// spillArgs stores return values from registers to a *internal/abi.RegArgs in R25.
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
+	MOVV	R4, (0*8)(R25)
+	MOVV	R5, (1*8)(R25)
+	MOVV	R6, (2*8)(R25)
+	MOVV	R7, (3*8)(R25)
+	MOVV	R8, (4*8)(R25)
+	MOVV	R9, (5*8)(R25)
+	MOVV	R10, (6*8)(R25)
+	MOVV	R11, (7*8)(R25)
+	MOVV	R12, (8*8)(R25)
+	MOVV	R13, (9*8)(R25)
+	MOVV	R14, (10*8)(R25)
+	MOVV	R15, (11*8)(R25)
+	MOVV	R16, (12*8)(R25)
+	MOVV	R17, (13*8)(R25)
+	MOVV	R18, (14*8)(R25)
+	MOVV	R19, (15*8)(R25)
+	MOVD	F0, (16*8)(R25)
+	MOVD	F1, (17*8)(R25)
+	MOVD	F2, (18*8)(R25)
+	MOVD	F3, (19*8)(R25)
+	MOVD	F4, (20*8)(R25)
+	MOVD	F5, (21*8)(R25)
+	MOVD	F6, (22*8)(R25)
+	MOVD	F7, (23*8)(R25)
+	MOVD	F8, (24*8)(R25)
+	MOVD	F9, (25*8)(R25)
+	MOVD	F10, (26*8)(R25)
+	MOVD	F11, (27*8)(R25)
+	MOVD	F12, (28*8)(R25)
+	MOVD	F13, (29*8)(R25)
+	MOVD	F14, (30*8)(R25)
+	MOVD	F15, (31*8)(R25)
+	RET
+
+// unspillArgs loads args into registers from a *internal/abi.RegArgs in R25.
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+	MOVV	(0*8)(R25), R4
+	MOVV	(1*8)(R25), R5
+	MOVV	(2*8)(R25), R6
+	MOVV	(3*8)(R25), R7
+	MOVV	(4*8)(R25), R8
+	MOVV	(5*8)(R25), R9
+	MOVV	(6*8)(R25), R10
+	MOVV	(7*8)(R25), R11
+	MOVV	(8*8)(R25), R12
+	MOVV	(9*8)(R25), R13
+	MOVV	(10*8)(R25), R14
+	MOVV	(11*8)(R25), R15
+	MOVV	(12*8)(R25), R16
+	MOVV	(13*8)(R25), R17
+	MOVV	(14*8)(R25), R18
+	MOVV	(15*8)(R25), R19
+	MOVD	(16*8)(R25), F0
+	MOVD	(17*8)(R25), F1
+	MOVD	(18*8)(R25), F2
+	MOVD	(19*8)(R25), F3
+	MOVD	(20*8)(R25), F4
+	MOVD	(21*8)(R25), F5
+	MOVD	(22*8)(R25), F6
+	MOVD	(23*8)(R25), F7
+	MOVD	(24*8)(R25), F8
+	MOVD	(25*8)(R25), F9
+	MOVD	(26*8)(R25), F10
+	MOVD	(27*8)(R25), F11
+	MOVD	(28*8)(R25), F12
+	MOVD	(29*8)(R25), F13
+	MOVD	(30*8)(R25), F14
+	MOVD	(31*8)(R25), F15
+	RET
+#else
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
+	RET
+
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+	RET
+#endif
 
 // gcWriteBarrier informs the GC about heap pointer writes.
 //
@@ -774,71 +877,156 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 // in the caller's stack frame. These stubs write the args into that stack space and
 // then tail call to the corresponding runtime handler.
 // The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
-	MOVV	R18, x+0(FP)
-	MOVV	R17, y+8(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
-	MOVV	R19, x+0(FP)
-	MOVV	R18, y+8(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
-	MOVV	R17, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSliceConvert(SB)
+TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicIndex<ABIInternal>(SB)
+TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
+TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
+TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
+TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
+TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
+TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
+TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
+TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R23, R4
+	MOVV	R24, R5
+#else
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
+TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R23, R4
+	MOVV	R24, R5
+#else
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
+TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R23, R4
+	MOVV	R24, R5
+#else
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
+TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R23, R4
+	MOVV	R24, R5
+#else
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
+TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
+TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R21, R4
+	MOVV	R23, R5
+#else
+	MOVV	R21, x+0(FP)
+	MOVV	R23, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
+TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
+TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R20, R4
+	MOVV	R21, R5
+#else
+	MOVV	R20, x+0(FP)
+	MOVV	R21, y+8(FP)
+#endif
+	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVV	R23, R4
+	MOVV	R24, R5
+#else
+	MOVV	R23, x+0(FP)
+	MOVV	R24, y+8(FP)
+#endif
+	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)

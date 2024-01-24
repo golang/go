@@ -1,5 +1,6 @@
-// +build amd64p32
 // run
+
+//go:build amd64p32
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

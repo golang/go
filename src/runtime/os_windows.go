@@ -16,6 +16,7 @@ const (
 	_NSIG = 65
 )
 
+//go:cgo_import_dynamic runtime._AddVectoredContinueHandler AddVectoredContinueHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
@@ -42,8 +43,11 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryExW LoadLibraryExW%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlVirtualUnwind  RtlVirtualUnwind%8 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
@@ -70,6 +74,7 @@ var (
 	// Following syscalls are available on every Windows PC.
 	// All these variables are set by the Windows executable
 	// loader before the Go program starts.
+	_AddVectoredContinueHandler,
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
@@ -99,6 +104,8 @@ var (
 	_QueryPerformanceCounter,
 	_RaiseFailFastException,
 	_ResumeThread,
+	_RtlLookupFunctionEntry,
+	_RtlVirtualUnwind,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
 	_SetEvent,
@@ -120,20 +127,8 @@ var (
 	_WriteFile,
 	_ stdFunction
 
-	// Following syscalls are only available on some Windows PCs.
-	// We will load syscalls, if available, before using them.
-	_AddVectoredContinueHandler,
-	_ stdFunction
-
-	// Use RtlGenRandom to generate cryptographically random data.
-	// This approach has been recommended by Microsoft (see issue
-	// 15589 for details).
-	// The RtlGenRandom is not listed in advapi32.dll, instead
-	// RtlGenRandom function can be found by searching for SystemFunction036.
-	// Also some versions of Mingw cannot link to SystemFunction036
-	// when building executable as Cgo. So load SystemFunction036
-	// manually during runtime startup.
-	_RtlGenRandom stdFunction
+	// Use ProcessPrng to generate cryptographically random data.
+	_ProcessPrng stdFunction
 
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
@@ -149,12 +144,11 @@ var (
 )
 
 var (
-	advapi32dll = [...]uint16{'a', 'd', 'v', 'a', 'p', 'i', '3', '2', '.', 'd', 'l', 'l', 0}
-	kernel32dll = [...]uint16{'k', 'e', 'r', 'n', 'e', 'l', '3', '2', '.', 'd', 'l', 'l', 0}
-	ntdlldll    = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
-	powrprofdll = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
-	winmmdll    = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
-	ws2_32dll   = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
+	bcryptprimitivesdll = [...]uint16{'b', 'c', 'r', 'y', 'p', 't', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's', '.', 'd', 'l', 'l', 0}
+	ntdlldll            = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
+	powrprofdll         = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
+	winmmdll            = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
+	ws2_32dll           = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
 )
 
 // Function to be called by windows CreateThread
@@ -249,20 +243,12 @@ func windowsLoadSystemLib(name []uint16) uintptr {
 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 }
 
-const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
-
 func loadOptionalSyscalls() {
-	k32 := windowsLoadSystemLib(kernel32dll[:])
-	if k32 == 0 {
-		throw("kernel32.dll not found")
+	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll[:])
+	if bcryptPrimitives == 0 {
+		throw("bcryptprimitives.dll not found")
 	}
-	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-
-	a32 := windowsLoadSystemLib(advapi32dll[:])
-	if a32 == 0 {
-		throw("advapi32.dll not found")
-	}
-	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
+	_ProcessPrng = windowsFindfunc(bcryptPrimitives, []byte("ProcessPrng\000"))
 
 	n32 := windowsLoadSystemLib(ntdlldll[:])
 	if n32 == 0 {
@@ -270,13 +256,6 @@ func loadOptionalSyscalls() {
 	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
-
-	if !haveCputicksAsm {
-		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
-		if _QueryPerformanceCounter == nil {
-			throw("could not find QPC syscalls")
-		}
-	}
 
 	m32 := windowsLoadSystemLib(winmmdll[:])
 	if m32 == 0 {
@@ -489,7 +468,10 @@ func initLongPathSupport() {
 	// strictly necessary, but is a nice validity check for the near to
 	// medium term, when this functionality is still relatively new in
 	// Windows.
-	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
+	targ := longFileName[len(longFileName)-33 : len(longFileName)-1]
+	if readRandom(targ) != len(targ) {
+		readTimeRandom(targ)
+	}
 	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
 	const dig = "0123456789abcdef"
 	for i := 0; i < 32; i++ {
@@ -540,12 +522,12 @@ func osinit() {
 }
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	n := 0
-	if stdcall2(_RtlGenRandom, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
 		n = len(r)
 	}
-	extendRandom(r, n)
+	return n
 }
 
 func goenvs() {
@@ -1062,6 +1044,15 @@ func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	mp := getg().m
 	mp.libcall.n = 7
+	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	return stdcall(fn)
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
+func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
+	mp := getg().m
+	mp.libcall.n = 8
 	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }

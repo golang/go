@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !linux && (ppc64 || ppc64le)
-// +build !aix
-// +build !linux
-// +build ppc64 ppc64le
 
 package cpu
 

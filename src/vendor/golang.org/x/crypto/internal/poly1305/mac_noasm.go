@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (!amd64 && !ppc64le && !s390x) || !gc || purego
-// +build !amd64,!ppc64le,!s390x !gc purego
 
 package poly1305
 

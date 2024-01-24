@@ -1,6 +1,6 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+
 //go:build (amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs)
-// +build amd64,goexperiment.regabiargs arm64,goexperiment.regabiargs
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -664,7 +664,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret

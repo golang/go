@@ -257,10 +257,12 @@ var gcArchSizes = map[string]*gcSizes{
 func SizesFor(compiler, arch string) Sizes {
 	switch compiler {
 	case "gc":
-		return gcSizesFor(compiler, arch)
+		if s := gcSizesFor(compiler, arch); s != nil {
+			return Sizes(s)
+		}
 	case "gccgo":
 		if s, ok := gccgoArchSizes[arch]; ok {
-			return s
+			return Sizes(s)
 		}
 	}
 	return nil

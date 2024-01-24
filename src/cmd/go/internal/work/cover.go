@@ -10,11 +10,11 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
+	"cmd/internal/cov/covcmd"
 	"context"
 	"encoding/json"
 	"fmt"
 	"internal/coverage"
-	"internal/coverage/covcmd"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,7 +27,7 @@ func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
 	args := append([]string{}, cfg.BuildToolexec...)
 	args = append(args, base.Tool("covdata"))
 	args = append(args, cmdline...)
-	return b.runOut(a, a.Objdir, nil, args)
+	return b.Shell(a).runOut(a.Objdir, nil, args)
 }
 
 // BuildActionCoverMetaFile locates and returns the path of the
@@ -72,9 +72,7 @@ func WriteCoveragePercent(b *Builder, runAct *Action, mf string, w io.Writer) er
 	dir := filepath.Dir(mf)
 	output, cerr := b.CovData(runAct, "percent", "-i", dir)
 	if cerr != nil {
-		p := runAct.Package
-		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
-			p.Desc(), string(output))
+		return b.Shell(runAct).reportCmd("", "", output, cerr)
 	}
 	_, werr := w.Write(output)
 	return werr
@@ -89,9 +87,7 @@ func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writ
 	dir := filepath.Dir(mf)
 	output, err := b.CovData(runAct, "textfmt", "-i", dir, "-o", outf)
 	if err != nil {
-		p := runAct.Package
-		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
-			p.Desc(), string(output))
+		return b.Shell(runAct).reportCmd("", "", output, err)
 	}
 	_, werr := w.Write(output)
 	return werr
@@ -110,6 +106,8 @@ func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writ
 // dependent on all test package build actions, and making all test
 // run actions dependent on this action.
 func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
+	sh := b.Shell(a)
+
 	// Build the metafilecollection object.
 	var collection coverage.MetaFileCollection
 	for i := range a.Deps {
@@ -139,11 +137,11 @@ func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
 	// Create the directory for this action's objdir and
 	// then write out the serialized collection
 	// to a file in the directory.
-	if err := b.Mkdir(a.Objdir); err != nil {
+	if err := sh.Mkdir(a.Objdir); err != nil {
 		return err
 	}
 	mfpath := a.Objdir + coverage.MetaFilesFileName
-	if err := b.writeFile(mfpath, data); err != nil {
+	if err := sh.writeFile(mfpath, data); err != nil {
 		return fmt.Errorf("writing metafiles file: %v", err)
 	}
 

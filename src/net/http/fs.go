@@ -343,10 +343,35 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	}
 
 	w.Header().Set("Accept-Ranges", "bytes")
-	if w.Header().Get("Content-Encoding") == "" {
+
+	// We should be able to unconditionally set the Content-Length here.
+	//
+	// However, there is a pattern observed in the wild that this breaks:
+	// The user wraps the ResponseWriter in one which gzips data written to it,
+	// and sets "Content-Encoding: gzip".
+	//
+	// The user shouldn't be doing this; the serveContent path here depends
+	// on serving seekable data with a known length. If you want to compress
+	// on the fly, then you shouldn't be using ServeFile/ServeContent, or
+	// you should compress the entire file up-front and provide a seekable
+	// view of the compressed data.
+	//
+	// However, since we've observed this pattern in the wild, and since
+	// setting Content-Length here breaks code that mostly-works today,
+	// skip setting Content-Length if the user set Content-Encoding.
+	//
+	// If this is a range request, always set Content-Length.
+	// If the user isn't changing the bytes sent in the ResponseWrite,
+	// the Content-Length will be correct.
+	// If the user is changing the bytes sent, then the range request wasn't
+	// going to work properly anyway and we aren't worse off.
+	//
+	// A possible future improvement on this might be to look at the type
+	// of the ResponseWriter, and always set Content-Length if it's one
+	// that we recognize.
+	if len(ranges) > 0 || w.Header().Get("Content-Encoding") == "" {
 		w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
 	}
-
 	w.WriteHeader(code)
 
 	if r.Method != "HEAD" {

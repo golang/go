@@ -93,6 +93,6 @@
 // as end-user documentation.
 //
 // "go build" and other commands no longer support binary-only-packages.
-// Import and ImportDir will still set the BinaryOnly flag in packages
+// [Import] and [ImportDir] will still set the BinaryOnly flag in packages
 // containing these comments for use in tools and error messages.
 package build

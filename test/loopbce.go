@@ -1,5 +1,6 @@
-// +build amd64
 // errorcheck -0 -d=ssa/prove/debug=1
+
+//go:build amd64
 
 package main
 

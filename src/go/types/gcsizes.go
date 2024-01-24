@@ -162,7 +162,8 @@ func (s *gcSizes) Sizeof(T Type) int64 {
 }
 
 // gcSizesFor returns the Sizes used by gc for an architecture.
-// The result is nil if a compiler/architecture pair is not known.
+// The result is a nil *gcSizes pointer (which is not a valid types.Sizes)
+// if a compiler/architecture pair is not known.
 func gcSizesFor(compiler, arch string) *gcSizes {
 	if compiler != "gc" {
 		return nil

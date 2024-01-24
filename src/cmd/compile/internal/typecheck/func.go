@@ -35,7 +35,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 // FixVariadicCall rewrites calls to variadic functions to use an
 // explicit ... argument if one is not already present.
 func FixVariadicCall(call *ir.CallExpr) {
-	fntype := call.X.Type()
+	fntype := call.Fun.Type()
 	if !fntype.IsVariadic() || call.IsDDD {
 		return
 	}
@@ -56,11 +56,11 @@ func FixVariadicCall(call *ir.CallExpr) {
 
 // FixMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
 func FixMethodCall(call *ir.CallExpr) {
-	if call.X.Op() != ir.ODOTMETH {
+	if call.Fun.Op() != ir.ODOTMETH {
 		return
 	}
 
-	dot := call.X.(*ir.SelectorExpr)
+	dot := call.Fun.(*ir.SelectorExpr)
 
 	fn := NewMethodExpr(dot.Pos(), dot.X.Type(), dot.Selection.Sym)
 
@@ -69,12 +69,12 @@ func FixMethodCall(call *ir.CallExpr) {
 	copy(args[1:], call.Args)
 
 	call.SetOp(ir.OCALLFUNC)
-	call.X = fn
+	call.Fun = fn
 	call.Args = args
 }
 
 func AssertFixedCall(call *ir.CallExpr) {
-	if call.X.Type().IsVariadic() && !call.IsDDD {
+	if call.Fun.Type().IsVariadic() && !call.IsDDD {
 		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
 	}
 	if call.Op() == ir.OCALLMETH {
@@ -144,9 +144,9 @@ func tcFunc(n *ir.Func) {
 // tcCall typechecks an OCALL node.
 func tcCall(n *ir.CallExpr, top int) ir.Node {
 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
-	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
+	n.Fun = typecheck(n.Fun, ctxExpr|ctxType|ctxCallee)
 
-	l := n.X
+	l := n.Fun
 
 	if l.Op() == ir.ONAME && l.(*ir.Name).BuiltinOp != 0 {
 		l := l.(*ir.Name)
@@ -159,9 +159,9 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		default:
 			base.Fatalf("unknown builtin %v", l)
 
-		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
 			n.SetOp(l.BuiltinOp)
-			n.X = nil
+			n.Fun = nil
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
@@ -190,8 +190,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		panic("unreachable")
 	}
 
-	n.X = DefaultLit(n.X, nil)
-	l = n.X
+	n.Fun = DefaultLit(n.Fun, nil)
+	l = n.Fun
 	if l.Op() == ir.OTYPE {
 		if n.IsDDD {
 			base.Fatalf("invalid use of ... in type conversion to %v", l.Type())
@@ -252,7 +252,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		}
 	}
 
-	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	typecheckaste(ir.OCALL, n.Fun, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.Fun) })
 	FixVariadicCall(n)
 	FixMethodCall(n)
 	if t.NumResults() == 0 {
@@ -261,8 +261,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	if t.NumResults() == 1 {
 		n.SetType(l.Type().Result(0).Type)
 
-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
-			if sym := n.X.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
+		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME {
+			if sym := n.Fun.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
 				// so that the ordering pass can make sure to preserve the semantics of the original code

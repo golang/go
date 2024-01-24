@@ -87,17 +87,20 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 			// ok; can appear in type switch case clauses
 			// TODO(mdempsky): Handle as part of type switches instead?
 		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
-			// Untyped rhs of non-constant shift, e.g. x << 1.0.
-			// If we have a constant value, it must be an int >= 0.
+			typ = types2.Typ[types2.Uint]
 			if tv.Value != nil {
 				s := constant.ToInt(tv.Value)
-				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+				assert(s.Kind() == constant.Int)
+				if constant.Sign(s) < 0 {
+					typ = types2.Typ[types2.Int]
+				}
 			}
-			typ = types2.Typ[types2.Uint]
 		case types2.UntypedBool:
 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
 		case types2.UntypedString:
 			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		case types2.UntypedRune:
+			typ = types2.Typ[types2.Int32] // range over rune
 		default:
 			return nil
 		}

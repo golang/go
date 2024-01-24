@@ -118,6 +118,7 @@ func TestReportsTypeErrors(t *testing.T) {
 	for _, file := range []string{
 		"err1.go",
 		"err2.go",
+		"err5.go",
 		"issue11097a.go",
 		"issue11097b.go",
 		"issue18452.go",

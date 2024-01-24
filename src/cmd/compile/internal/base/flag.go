@@ -5,11 +5,11 @@
 package base
 
 import (
+	"cmd/internal/cov/covcmd"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"log"
 	"os"
@@ -179,9 +179,10 @@ func ParseFlags() {
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
-	Debug.PGODevirtualize = 1
+	Debug.PGODevirtualize = 2
 	Debug.SyncFrames = -1 // disable sync markers by default
 	Debug.ZeroCopy = 1
+	Debug.RangeFuncCheck = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 

@@ -62,22 +62,23 @@ func evalArgs(args ...any) string {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
-	"_html_template_attrescaper":     attrEscaper,
-	"_html_template_commentescaper":  commentEscaper,
-	"_html_template_cssescaper":      cssEscaper,
-	"_html_template_cssvaluefilter":  cssValueFilter,
-	"_html_template_htmlnamefilter":  htmlNameFilter,
-	"_html_template_htmlescaper":     htmlEscaper,
-	"_html_template_jsregexpescaper": jsRegexpEscaper,
-	"_html_template_jsstrescaper":    jsStrEscaper,
-	"_html_template_jsvalescaper":    jsValEscaper,
-	"_html_template_nospaceescaper":  htmlNospaceEscaper,
-	"_html_template_rcdataescaper":   rcdataEscaper,
-	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
-	"_html_template_urlescaper":      urlEscaper,
-	"_html_template_urlfilter":       urlFilter,
-	"_html_template_urlnormalizer":   urlNormalizer,
-	"_eval_args_":                    evalArgs,
+	"_html_template_attrescaper":      attrEscaper,
+	"_html_template_commentescaper":   commentEscaper,
+	"_html_template_cssescaper":       cssEscaper,
+	"_html_template_cssvaluefilter":   cssValueFilter,
+	"_html_template_htmlnamefilter":   htmlNameFilter,
+	"_html_template_htmlescaper":      htmlEscaper,
+	"_html_template_jsregexpescaper":  jsRegexpEscaper,
+	"_html_template_jsstrescaper":     jsStrEscaper,
+	"_html_template_jstmpllitescaper": jsTmplLitEscaper,
+	"_html_template_jsvalescaper":     jsValEscaper,
+	"_html_template_nospaceescaper":   htmlNospaceEscaper,
+	"_html_template_rcdataescaper":    rcdataEscaper,
+	"_html_template_srcsetescaper":    srcsetFilterAndEscaper,
+	"_html_template_urlescaper":       urlEscaper,
+	"_html_template_urlfilter":        urlFilter,
+	"_html_template_urlnormalizer":    urlNormalizer,
+	"_eval_args_":                     evalArgs,
 }
 
 // escaper collects type inferences about templates and changes needed to make
@@ -227,16 +228,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
-	case stateJSBqStr:
-		if debugAllowActionJSTmpl.Value() == "1" {
-			debugAllowActionJSTmpl.IncNonDefault()
-			s = append(s, "_html_template_jsstrescaper")
-		} else {
-			return context{
-				state: stateError,
-				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
-			}
-		}
+	case stateJSTmplLit:
+		s = append(s, "_html_template_jstmpllitescaper")
 	case stateJSRegexp:
 		s = append(s, "_html_template_jsregexpescaper")
 	case stateCSS:
@@ -393,6 +386,9 @@ var redundantFuncs = map[string]map[string]bool{
 		"_html_template_attrescaper": true,
 	},
 	"_html_template_jsstrescaper": {
+		"_html_template_attrescaper": true,
+	},
+	"_html_template_jstmpllitescaper": {
 		"_html_template_attrescaper": true,
 	},
 	"_html_template_urlescaper": {

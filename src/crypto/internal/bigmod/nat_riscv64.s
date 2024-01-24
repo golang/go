@@ -80,10 +80,10 @@ loop:
 	MOV	X16, 2*8(X5)	// z[2]
 	MOV	X19, 3*8(X5)	// z[3]
 
-	ADDI	$32, X5
-	ADDI	$32, X7
+	ADD	$32, X5
+	ADD	$32, X7
 
-	ADDI	$-4, X30
+	SUB	$4, X30
 	BNEZ	X30, loop
 
 done:

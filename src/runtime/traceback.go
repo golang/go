@@ -199,7 +199,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 	f := findfunc(frame.pc)
 	if !f.valid() {
 		if flags&unwindSilentErrors == 0 {
-			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
+			print("runtime: g ", gp.goid, " gp=", gp, ": unknown pc ", hex(frame.pc), "\n")
 			tracebackHexdump(gp.stack, &frame, 0)
 		}
 		if flags&(unwindPrintErrors|unwindSilentErrors) == 0 {
@@ -356,15 +356,12 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		//
 		// uSE uPE inn | action
 		//  T   _   _  | frame.lr = 0
-		//  F   T   F  | frame.lr = 0; print
-		//  F   T   T  | frame.lr = 0
+		//  F   T   _  | frame.lr = 0
 		//  F   F   F  | print; panic
 		//  F   F   T  | ignore SPWrite
-		if u.flags&unwindSilentErrors == 0 && !innermost {
+		if u.flags&(unwindPrintErrors|unwindSilentErrors) == 0 && !innermost {
 			println("traceback: unexpected SPWRITE function", funcname(f))
-			if u.flags&unwindPrintErrors == 0 {
-				throw("traceback")
-			}
+			throw("traceback")
 		}
 		frame.lr = 0
 	} else {
@@ -1180,6 +1177,8 @@ var gStatusStrings = [...]string{
 }
 
 func goroutineheader(gp *g) {
+	level, _, _ := gotraceback()
+
 	gpstatus := readgstatus(gp)
 
 	isScan := gpstatus&_Gscan != 0
@@ -1203,7 +1202,16 @@ func goroutineheader(gp *g) {
 	if (gpstatus == _Gwaiting || gpstatus == _Gsyscall) && gp.waitsince != 0 {
 		waitfor = (nanotime() - gp.waitsince) / 60e9
 	}
-	print("goroutine ", gp.goid, " [", status)
+	print("goroutine ", gp.goid)
+	if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+		print(" gp=", gp)
+		if gp.m != nil {
+			print(" m=", gp.m.id, " mp=", gp.m)
+		} else {
+			print(" m=nil")
+		}
+	}
+	print(" [", status)
 	if isScan {
 		print(" (scan)")
 	}
@@ -1314,7 +1322,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_handleAsyncEvent {
+	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
 		return false
 	}
 	if f.funcID == abi.FuncID_runfinq {

@@ -30,14 +30,14 @@ func (x *goodMarshaler) MarshalJSON() ([]byte, error) {
 
 func TestEscape(t *testing.T) {
 	data := struct {
-		F, T    bool
-		C, G, H string
-		A, E    []string
-		B, M    json.Marshaler
-		N       int
-		U       any  // untyped nil
-		Z       *int // typed nil
-		W       HTML
+		F, T       bool
+		C, G, H, I string
+		A, E       []string
+		B, M       json.Marshaler
+		N          int
+		U          any  // untyped nil
+		Z          *int // typed nil
+		W          HTML
 	}{
 		F: false,
 		T: true,
@@ -52,6 +52,7 @@ func TestEscape(t *testing.T) {
 		U: nil,
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+		I: "${ asd `` }",
 	}
 	pdata := &data
 
@@ -718,6 +719,21 @@ func TestEscape(t *testing.T) {
 			"<p name=\"{{.U}}\">",
 			"<p name=\"\">",
 		},
+		{
+			"JS template lit special characters",
+			"<script>var a = `{{.I}}`</script>",
+			"<script>var a = `\\u0024\\u007b asd \\u0060\\u0060 \\u007d`</script>",
+		},
+		{
+			"JS template lit special characters, nested lit",
+			"<script>var a = `${ `{{.I}}` }`</script>",
+			"<script>var a = `${ `\\u0024\\u007b asd \\u0060\\u0060 \\u007d` }`</script>",
+		},
+		{
+			"JS template lit, nested JS",
+			"<script>var a = `${ var a = \"{{\"a \\\" d\"}}\" }`</script>",
+			"<script>var a = `${ var a = \"a \\u0022 d\" }`</script>",
+		},
 	}
 
 	for _, test := range tests {
@@ -976,6 +992,31 @@ func TestErrors(t *testing.T) {
 			"<script>var a = `${a+b}`</script>`",
 			"",
 		},
+		{
+			"<script>var tmpl = `asd`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${1}`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${return ``}`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${return {{.}} }`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${ let a = {1:1} {{.}} }`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `asd ${return \"{\"}`;</script>",
+			``,
+		},
+
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
@@ -1121,10 +1162,6 @@ func TestErrors(t *testing.T) {
 			`Hello, {{. | urlquery | html}}!`,
 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
 			`predefined escaper "urlquery" disallowed in template`,
-		},
-		{
-			"<script>var tmpl = `asd {{.}}`;</script>",
-			`{{.}} appears in a JS template literal`,
 		},
 	}
 	for _, test := range tests {
@@ -1349,7 +1386,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<a onclick=\"`foo",
-			context{state: stateJSBqStr, delim: delimDoubleQuote, attr: attrScript},
+			context{state: stateJSTmplLit, delim: delimDoubleQuote, attr: attrScript},
 		},
 		{
 			`<A ONCLICK="'`,
@@ -1690,6 +1727,94 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<svg:a svg:onclick="x()">`,
 			context{},
+		},
+		{
+			"<script>var a = `",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var a = `${}",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${`",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"`",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"}",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${``",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var a = `${`}",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>`${ {} } asd`</script><script>`${ {} }",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ (_ => { return \"x\" })() + \"${",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${ {</script><script>var b = `${ x }",
+			context{state: stateJSTmplLit, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>var foo = `x` + \"${",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>function f() { var a = `${}`; }",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>{`${}`}",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ function f() { return `${1}` }() }`",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>function f() {`${ function f() { `${1}` } }`}",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>`${ { `` }",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ { }`",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${ {{.}} }` }, b: ",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ `}",
+			context{state: stateJSTmplLit, element: elementScript},
 		},
 	}
 

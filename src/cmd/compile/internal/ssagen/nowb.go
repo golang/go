@@ -75,10 +75,10 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 		return
 	}
 	n := nn.(*ir.CallExpr)
-	if n.X == nil || n.X.Op() != ir.ONAME {
+	if n.Fun == nil || n.Fun.Op() != ir.ONAME {
 		return
 	}
-	fn := n.X.(*ir.Name)
+	fn := n.Fun.(*ir.Name)
 	if fn.Class != ir.PFUNC || fn.Defn == nil {
 		return
 	}

@@ -40,8 +40,8 @@ func makeFuncFlagsAnalyzer(fn *ir.Func) *funcFlagsAnalyzer {
 	}
 }
 
-// setResults transfers func flag results to 'fp'.
-func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
+// setResults transfers func flag results to 'funcProps'.
+func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
 	var rv FuncPropBits
 	if !ffa.noInfo && ffa.stateForList(ffa.fn.Body) == psCallsPanic {
 		rv = FuncPropNeverReturns
@@ -63,35 +63,25 @@ func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
 	if isMainMain(ffa.fn) {
 		rv &^= FuncPropNeverReturns
 	}
-	fp.Flags = rv
+	funcProps.Flags = rv
 }
 
-func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
-	val, ok := ffa.nstate[n]
-	if !ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q node %s line %s: internal error, no setting for node:\n%+v\n", ffa.fn.Sym().Name, n.Op().String(), ir.Line(n), n)
-	}
-	return val
+func (ffa *funcFlagsAnalyzer) getState(n ir.Node) pstate {
+	return ffa.nstate[n]
 }
 
-func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
-	if _, ok := ffa.nstate[n]; ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
-	} else {
+func (ffa *funcFlagsAnalyzer) setState(n ir.Node, st pstate) {
+	if st != psNoInfo {
 		ffa.nstate[n] = st
 	}
 }
 
-func (ffa *funcFlagsAnalyzer) updatestate(n ir.Node, st pstate) {
-	if _, ok := ffa.nstate[n]; !ok {
-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, expected existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
+func (ffa *funcFlagsAnalyzer) updateState(n ir.Node, st pstate) {
+	if st == psNoInfo {
+		delete(ffa.nstate, n)
 	} else {
 		ffa.nstate[n] = st
 	}
-}
-
-func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
-	ffa.nstate[n] = st
 }
 
 func (ffa *funcFlagsAnalyzer) panicPathTable() map[ir.Node]pstate {
@@ -148,15 +138,29 @@ func branchCombine(p1, p2 pstate) pstate {
 // as updating disposition of intermediate nodes.
 func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 	st := psTop
-	for i := range list {
+	// Walk the list backwards so that we can update the state for
+	// earlier list elements based on what we find out about their
+	// successors. Example:
+	//
+	//        if ... {
+	//  L10:    foo()
+	//  L11:    <stmt>
+	//  L12:    panic(...)
+	//        }
+	//
+	// After combining the dispositions for line 11 and 12, we want to
+	// update the state for the call at line 10 based on that combined
+	// disposition (if L11 has no path to "return", then the call at
+	// line 10 will be on a panic path).
+	for i := len(list) - 1; i >= 0; i-- {
 		n := list[i]
-		psi := ffa.getstate(n)
+		psi := ffa.getState(n)
 		if debugTrace&debugTraceFuncFlags != 0 {
 			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
 				ir.Line(n), n.Op().String(), psi.String())
 		}
-		st = blockCombine(st, psi)
-		ffa.updatestate(n, st)
+		st = blockCombine(psi, st)
+		ffa.updateState(n, st)
 	}
 	if st == psTop {
 		st = psNoInfo
@@ -180,7 +184,7 @@ func isExitCall(n ir.Node) bool {
 		return false
 	}
 	cx := n.(*ir.CallExpr)
-	name := ir.StaticCalleeName(cx.X)
+	name := ir.StaticCalleeName(cx.Fun)
 	if name == nil {
 		return false
 	}
@@ -189,8 +193,8 @@ func isExitCall(n ir.Node) bool {
 		isWellKnownFunc(s, "runtime", "throw") {
 		return true
 	}
-	if fp := propsForFunc(name.Func); fp != nil {
-		if fp.Flags&FuncPropNeverReturns != 0 {
+	if funcProps := propsForFunc(name.Func); funcProps != nil {
+		if funcProps.Flags&FuncPropNeverReturns != 0 {
 			return true
 		}
 	}
@@ -223,8 +227,6 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 			ir.Line(n), n.Op().String(), shouldVisit(n))
 	}
 	if !shouldVisit(n) {
-		// invoke soft set, since node may be shared (e.g. ONAME)
-		ffa.setstateSoft(n, psNoInfo)
 		return
 	}
 	var st pstate
@@ -330,7 +332,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 	case ir.OFALL:
 		// Not important.
 	case ir.ODCLFUNC, ir.ORECOVER, ir.OAS, ir.OAS2, ir.OAS2FUNC, ir.OASOP,
-		ir.OPRINTN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
+		ir.OPRINTLN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
 		ir.OSEND, ir.ORECV, ir.OSELRECV2, ir.OGO, ir.OAPPEND, ir.OAS2DOTTYPE,
 		ir.OAS2MAPR, ir.OGETG, ir.ODELETE, ir.OINLMARK, ir.OAS2RECV,
 		ir.OMIN, ir.OMAX, ir.OMAKE, ir.ORECOVERFP, ir.OGETCALLERSP:
@@ -347,7 +349,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
 		fmt.Fprintf(os.Stderr, "=-= %v: visit n=%s returns %s\n",
 			ir.Line(n), n.Op().String(), st.String())
 	}
-	ffa.setstate(n, st)
+	ffa.setState(n, st)
 }
 
 func (ffa *funcFlagsAnalyzer) nodeVisitPre(n ir.Node) {

@@ -102,7 +102,7 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // DX is the kind of sigtramp function.
 // Return value of sigtrampgo is stored in AX.
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
+TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	// Switch from the host ABI to the Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -154,6 +154,38 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	// PExceptionPointers already on CX
 	MOVQ	$const_callbackLastVCH, DX
 	JMP	sigtramp<>(SB)
+
+TEXT runtime·sehtramp(SB),NOSPLIT,$40-0
+	// CX: PEXCEPTION_RECORD ExceptionRecord
+	// DX: ULONG64 EstablisherFrame
+	// R8: PCONTEXT ContextRecord
+	// R9: PDISPATCHER_CONTEXT DispatcherContext
+	// Switch from the host ABI to the Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
+	get_tls(AX)
+	CMPQ	AX, $0
+	JNE	2(PC)
+	// This shouldn't happen, sehtramp is only attached to functions
+	// called from Go, and exception handlers are only called from
+	// the thread that threw the exception.
+	INT	$3
+
+	// Exception from Go thread, set R14.
+	MOVQ	g(AX), R14
+
+	ADJSP	$40
+	MOVQ	CX, 0(SP)
+	MOVQ	DX, 8(SP)
+	MOVQ	R8, 16(SP)
+	MOVQ	R9, 24(SP)
+	CALL	runtime·sehhandler(SB)
+	MOVL	32(SP), AX
+
+	ADJSP	$-40
+
+	POP_REGS_HOST_TO_ABI0()
+	RET
 
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// Construct args vector for cgocallback().

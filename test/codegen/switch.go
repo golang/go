@@ -118,3 +118,68 @@ func typeSwitch(x any) int {
 	}
 	return 7
 }
+
+type I interface {
+	foo()
+}
+type J interface {
+	bar()
+}
+type IJ interface {
+	I
+	J
+}
+type K interface {
+	baz()
+}
+
+// use a runtime call for type switches to interface types.
+func interfaceSwitch(x any) int {
+	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*8)`
+	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	switch x.(type) {
+	case I:
+		return 1
+	case J:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func interfaceSwitch2(x K) int {
+	// amd64:`CALL\truntime.interfaceSwitch`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*8)`
+	// arm64:`CALL\truntime.interfaceSwitch`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	switch x.(type) {
+	case I:
+		return 1
+	case J:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func interfaceCast(x any) int {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	if _, ok := x.(I); ok {
+		return 3
+	}
+	return 5
+}
+
+func interfaceCast2(x K) int {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	if _, ok := x.(I); ok {
+		return 3
+	}
+	return 5
+}
+
+func interfaceConv(x IJ) I {
+	// amd64:`CALL\truntime.typeAssert`,`MOVL\t16\(AX\)`,`MOVQ\t8\(.*\)(.*\*1)`
+	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
+	return x
+}

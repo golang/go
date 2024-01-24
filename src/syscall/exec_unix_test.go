@@ -357,7 +357,7 @@ func TestRlimitRestored(t *testing.T) {
 	}
 
 	orig := syscall.OrigRlimitNofile()
-	if orig.Cur == 0 {
+	if orig == nil {
 		t.Skip("skipping test because rlimit not adjusted at startup")
 	}
 

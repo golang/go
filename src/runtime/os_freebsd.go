@@ -283,11 +283,11 @@ func osinit() {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -420,6 +420,7 @@ func sysargs(argc int32, argv **byte) {
 const (
 	_AT_NULL     = 0  // Terminates the vector
 	_AT_PAGESZ   = 6  // Page size in bytes
+	_AT_PLATFORM = 15 // string identifying platform
 	_AT_TIMEKEEP = 22 // Pointer to timehands.
 	_AT_HWCAP    = 25 // CPU feature flags
 	_AT_HWCAP2   = 26 // CPU feature flags 2

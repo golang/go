@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -223,7 +224,7 @@ func (path typePath) String() string {
 }
 
 func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
-	x = analysisutil.Unparen(x) // ignore parens on rhs
+	x = astutil.Unparen(x) // ignore parens on rhs
 
 	if _, ok := x.(*ast.CompositeLit); ok {
 		return nil
@@ -233,7 +234,7 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
 		return nil
 	}
 	if star, ok := x.(*ast.StarExpr); ok {
-		if _, ok := analysisutil.Unparen(star.X).(*ast.CallExpr); ok {
+		if _, ok := astutil.Unparen(star.X).(*ast.CallExpr); ok {
 			// A call may return a pointer to a zero value.
 			return nil
 		}
@@ -254,7 +255,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
 	}
 	seen[typ] = true
 
-	if tpar, ok := typ.(*typeparams.TypeParam); ok {
+	if tpar, ok := typ.(*types.TypeParam); ok {
 		terms, err := typeparams.StructuralTerms(tpar)
 		if err != nil {
 			return nil // invalid type
@@ -319,9 +320,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
 	// In go1.10, sync.noCopy did not implement Locker.
 	// (The Unlock method was added only in CL 121876.)
 	// TODO(adonovan): remove workaround when we drop go1.10.
-	if named, ok := typ.(*types.Named); ok &&
-		named.Obj().Name() == "noCopy" &&
-		named.Obj().Pkg().Path() == "sync" {
+	if analysisutil.IsNamedType(typ, "sync", "noCopy") {
 		return []string{typ.String()}
 	}
 

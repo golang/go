@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"internal/buildcfg"
-	"internal/goexperiment"
 	"internal/pkgbits"
 	"path/filepath"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
+	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
@@ -1103,7 +1103,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			if goexperiment.NewInliner {
+			if buildcfg.Experiment.NewInliner {
 				fn.Inl.Properties = r.String()
 			}
 		}
@@ -2233,6 +2233,13 @@ func (r *reader) expr() (res ir.Node) {
 		switch op {
 		case ir.OANDAND, ir.OOROR:
 			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
+		case ir.OLSH, ir.ORSH:
+			// Untyped rhs of non-constant shift, e.g. x << 1.0.
+			// If we have a constant value, it must be an int >= 0.
+			if ir.IsConstNode(y) {
+				val := constant.ToInt(y.Val())
+				assert(val.Kind() == constant.Int && constant.Sign(val) >= 0)
+			}
 		}
 		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
 
@@ -2435,6 +2442,10 @@ func (r *reader) expr() (res ir.Node) {
 			n.SetTypecheck(1)
 		}
 		return n
+
+	case exprRuntimeBuiltin:
+		builtin := typecheck.LookupRuntime(r.String())
+		return builtin
 	}
 }
 
@@ -3401,7 +3412,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 	// may contain side effects. Make sure to preserve these,
 	// if necessary (#42703).
 	if call.Op() == ir.OCALLFUNC {
-		inline.CalleeEffects(&init, call.X)
+		inline.CalleeEffects(&init, call.Fun)
 	}
 
 	var args ir.Nodes
@@ -3784,7 +3795,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// We generate wrappers after the global inlining pass,
 	// so we're responsible for applying inlining ourselves here.
 	// TODO(prattmic): plumb PGO.
-	inline.InlineCalls(fn, nil)
+	interleaved.DevirtualizeAndInlineFunc(fn, nil)
 
 	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
 	// we don't know whether wrapper function has been generated for it or not, so

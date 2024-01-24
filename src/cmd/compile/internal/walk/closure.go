@@ -30,7 +30,7 @@ import (
 //		(*&byref)++
 //	}(byval, &byref, 42)
 func directClosureCall(n *ir.CallExpr) {
-	clo := n.X.(*ir.ClosureExpr)
+	clo := n.Fun.(*ir.ClosureExpr)
 	clofn := clo.Func
 
 	if ir.IsTrivialClosure(clo) {
@@ -72,7 +72,7 @@ func directClosureCall(n *ir.CallExpr) {
 	clofn.Dcl = append(decls, clofn.Dcl...)
 
 	// Rewrite call.
-	n.X = f
+	n.Fun = f
 	n.Args.Prepend(closureArgs(clo)...)
 
 	// Update the call expression's type. We need to do this
@@ -144,7 +144,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(cfn, init)
 }
 
-// closureArgs returns a slice of expressions that an be used to
+// closureArgs returns a slice of expressions that can be used to
 // initialize the given closure's free variables. These correspond
 // one-to-one with the variables in clo.Func.ClosureVars, and will be
 // either an ONAME node (if the variable is captured by value) or an

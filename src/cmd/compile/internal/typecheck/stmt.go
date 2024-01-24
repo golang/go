@@ -121,7 +121,7 @@ assignOK:
 	if len(lhs) != cr {
 		if r, ok := rhs[0].(*ir.CallExpr); ok && len(rhs) == 1 {
 			if r.Type() != nil {
-				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
+				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.Fun, cr, plural(cr))
 			}
 		} else {
 			base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
@@ -198,32 +198,36 @@ func tcFor(n *ir.ForStmt) ir.Node {
 	return n
 }
 
-// tcGoDefer typechecks an OGO/ODEFER statement.
+// tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
+func tcGoDefer(n *ir.GoDeferStmt) {
+	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())
+	call.GoDefer = true
+	n.Call = call
+}
+
+// normalizeGoDeferCall normalizes call into a normal function call
+// with no arguments and no results, suitable for use in an OGO/ODEFER
+// statement.
 //
-// Really, this means normalizing the statement to always use a simple
-// function call with no arguments and no results. For example, it
-// rewrites:
+// For example, it normalizes:
 //
-//	defer f(x, y)
+//	f(x, y)
 //
 // into:
 //
-//	x1, y1 := x, y
-//	defer func() { f(x1, y1) }()
-func tcGoDefer(n *ir.GoDeferStmt) {
-	call := n.Call
-
-	init := n.PtrInit()
+//	x1, y1 := x, y          // added to init
+//	func() { f(x1, y1) }()  // result
+func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) *ir.CallExpr {
 	init.Append(ir.TakeInit(call)...)
 
-	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
-		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
-			return // already in normal form
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
+			return call // already in normal form
 		}
 	}
 
 	// Create a new wrapper function without parameters or results.
-	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
+	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
 	wrapperFn.DeclareParams(true)
 	wrapperFn.SetWrapper(true)
 
@@ -303,19 +307,19 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 		call := call.(*ir.CallExpr)
 
 		// If the callee is a named function, link to the original callee.
-		if wrapped := ir.StaticCalleeName(call.X); wrapped != nil {
+		if wrapped := ir.StaticCalleeName(call.Fun); wrapped != nil {
 			wrapperFn.WrappedFunc = wrapped.Func
 		}
 
-		visit(&call.X)
+		visit(&call.Fun)
 		visitList(call.Args)
 
 	case ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		argps = append(argps, &call.X.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
+		argps = append(argps, &call.Fun.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
 		visitList(call.Args)
 
-	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
 		visitList(call.Args)
 		visit(&call.RType)
@@ -372,8 +376,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 	// evaluate there.
 	wrapperFn.Body = []ir.Node{call}
 
-	// Finally, rewrite the go/defer statement to call the wrapper.
-	n.Call = Call(call.Pos(), wrapperFn.OClosure, nil, false)
+	// Finally, construct a call to the wrapper.
+	return Call(call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
 }
 
 // tcIf typechecks an OIF node.
@@ -600,8 +604,8 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
 				base.ErrorfAt(ncase.Pos(), errors.UndefinedOp, "invalid case %L in switch (incomparable type)", n1)
 			} else {
-				op1, _ := Assignop(n1.Type(), t)
-				op2, _ := Assignop(t, n1.Type())
+				op1, _ := assignOp(n1.Type(), t)
+				op2, _ := assignOp(t, n1.Type())
 				if op1 == ir.OXXX && op2 == ir.OXXX {
 					if n.Tag != nil {
 						base.ErrorfAt(ncase.Pos(), errors.MismatchedTypes, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)

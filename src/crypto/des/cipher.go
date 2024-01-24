@@ -25,7 +25,7 @@ type desCipher struct {
 	subkeys [16]uint64
 }
 
-// NewCipher creates and returns a new cipher.Block.
+// NewCipher creates and returns a new [cipher.Block].
 func NewCipher(key []byte) (cipher.Block, error) {
 	if len(key) != 8 {
 		return nil, KeySizeError(len(key))
@@ -69,7 +69,7 @@ type tripleDESCipher struct {
 	cipher1, cipher2, cipher3 desCipher
 }
 
-// NewTripleDESCipher creates and returns a new cipher.Block.
+// NewTripleDESCipher creates and returns a new [cipher.Block].
 func NewTripleDESCipher(key []byte) (cipher.Block, error) {
 	if len(key) != 24 {
 		return nil, KeySizeError(len(key))

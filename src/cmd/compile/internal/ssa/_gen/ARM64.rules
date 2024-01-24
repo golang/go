@@ -485,8 +485,8 @@
 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
 
-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem)) && x.Uses == 1 && clobber(x) => (MOVQstorezero {s} [i] ptr mem)
-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem)) && x.Uses == 1 && clobber(x) => (MOVQstorezero {s} [i-8] ptr mem)
+(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i] ptr mem)
+(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i-8] ptr mem)
 
 // strip off fractional word move
 (Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>

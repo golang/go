@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !go1.13
-// +build !go1.13
 
 package poly1305
 

@@ -193,7 +193,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// input args need no code
 	case ssa.OpPhi:
 		ssagen.CheckLoweredPhi(v)
-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert, ssa.OpRISCV64MOVDreg:
+	case ssa.OpCopy, ssa.OpRISCV64MOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -278,7 +278,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rd
 	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
-		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
+		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRAW, ssa.OpRISCV64SRL, ssa.OpRISCV64SRLW,
 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
 		ssa.OpRISCV64MULHU, ssa.OpRISCV64DIV, ssa.OpRISCV64DIVU, ssa.OpRISCV64DIVW,
 		ssa.OpRISCV64DIVUW, ssa.OpRISCV64REM, ssa.OpRISCV64REMU, ssa.OpRISCV64REMW,
@@ -356,7 +356,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64ADDI, ssa.OpRISCV64ADDIW, ssa.OpRISCV64XORI, ssa.OpRISCV64ORI, ssa.OpRISCV64ANDI,
-		ssa.OpRISCV64SLLI, ssa.OpRISCV64SRAI, ssa.OpRISCV64SRLI, ssa.OpRISCV64SLTI,
+		ssa.OpRISCV64SLLI, ssa.OpRISCV64SRAI, ssa.OpRISCV64SRAIW, ssa.OpRISCV64SRLI, ssa.OpRISCV64SRLIW, ssa.OpRISCV64SLTI,
 		ssa.OpRISCV64SLTIU:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -694,6 +694,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
+
+	case ssa.OpRISCV64LoweredPubBarrier:
+		// FENCE
+		s.Prog(v.Op.Asm())
 
 	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
 		// input is already rounded

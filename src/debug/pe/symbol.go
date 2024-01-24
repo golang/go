@@ -141,7 +141,7 @@ func removeAuxSymbols(allsyms []COFFSymbol, st StringTable) ([]*Symbol, error) {
 	return syms, nil
 }
 
-// Symbol is similar to COFFSymbol with Name field replaced
+// Symbol is similar to [COFFSymbol] with Name field replaced
 // by Go string. Symbol also does not have NumberOfAuxSymbols.
 type Symbol struct {
 	Name          string
@@ -182,7 +182,7 @@ const (
 
 // COFFSymbolReadSectionDefAux returns a blob of auxiliary information
 // (including COMDAT info) for a section definition symbol. Here 'idx'
-// is the index of a section symbol in the main COFFSymbol array for
+// is the index of a section symbol in the main [COFFSymbol] array for
 // the File. Return value is a pointer to the appropriate aux symbol
 // struct. For more info, see:
 //

@@ -76,11 +76,11 @@ type Handler interface {
 	// A Handler should treat WithGroup as starting a Group of Attrs that ends
 	// at the end of the log event. That is,
 	//
-	//     logger.WithGroup("s").LogAttrs(level, msg, slog.Int("a", 1), slog.Int("b", 2))
+	//     logger.WithGroup("s").LogAttrs(ctx, level, msg, slog.Int("a", 1), slog.Int("b", 2))
 	//
 	// should behave like
 	//
-	//     logger.LogAttrs(level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
+	//     logger.LogAttrs(ctx, level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
 	//
 	// If the name is empty, WithGroup returns the receiver.
 	WithGroup(name string) Handler
@@ -100,7 +100,7 @@ func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 }
 
 func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
-	return l >= LevelInfo
+	return l >= logLoggerLevel.Level()
 }
 
 // Collect the level, attributes and message in a string and
@@ -125,7 +125,7 @@ func (h *defaultHandler) WithGroup(name string) Handler {
 	return &defaultHandler{h.ch.withGroup(name), h.output}
 }
 
-// HandlerOptions are options for a TextHandler or JSONHandler.
+// HandlerOptions are options for a [TextHandler] or [JSONHandler].
 // A zero HandlerOptions consists entirely of default values.
 type HandlerOptions struct {
 	// AddSource causes the handler to compute the source code position
@@ -239,15 +239,18 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 			state.sep = ""
 		}
 	}
+	// Remember the position in the buffer, in case all attrs are empty.
+	pos := state.buf.Len()
 	state.openGroups()
-	for _, a := range as {
-		state.appendAttr(a)
+	if !state.appendAttrs(as) {
+		state.buf.SetLen(pos)
+	} else {
+		// Remember the new prefix for later keys.
+		h2.groupPrefix = state.prefix.String()
+		// Remember how many opened groups are in preformattedAttrs,
+		// so we don't open them again when we handle a Record.
+		h2.nOpenGroups = len(h2.groups)
 	}
-	// Remember the new prefix for later keys.
-	h2.groupPrefix = state.prefix.String()
-	// Remember how many opened groups are in preformattedAttrs,
-	// so we don't open them again when we handle a Record.
-	h2.nOpenGroups = len(h2.groups)
 	return h2
 }
 
@@ -327,12 +330,24 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	nOpenGroups := s.h.nOpenGroups
 	if r.NumAttrs() > 0 {
 		s.prefix.WriteString(s.h.groupPrefix)
+		// The group may turn out to be empty even though it has attrs (for
+		// example, ReplaceAttr may delete all the attrs).
+		// So remember where we are in the buffer, to restore the position
+		// later if necessary.
+		pos := s.buf.Len()
 		s.openGroups()
 		nOpenGroups = len(s.h.groups)
+		empty := true
 		r.Attrs(func(a Attr) bool {
-			s.appendAttr(a)
+			if s.appendAttr(a) {
+				empty = false
+			}
 			return true
 		})
+		if empty {
+			s.buf.SetLen(pos)
+			nOpenGroups = s.h.nOpenGroups
+		}
 	}
 	if s.h.json {
 		// Close all open groups.
@@ -434,10 +449,22 @@ func (s *handleState) closeGroup(name string) {
 	}
 }
 
-// appendAttr appends the Attr's key and value using app.
+// appendAttrs appends the slice of Attrs.
+// It reports whether something was appended.
+func (s *handleState) appendAttrs(as []Attr) bool {
+	nonEmpty := false
+	for _, a := range as {
+		if s.appendAttr(a) {
+			nonEmpty = true
+		}
+	}
+	return nonEmpty
+}
+
+// appendAttr appends the Attr's key and value.
 // It handles replacement and checking for an empty key.
-// after replacement).
-func (s *handleState) appendAttr(a Attr) {
+// It reports whether something was appended.
+func (s *handleState) appendAttr(a Attr) bool {
 	a.Value = a.Value.Resolve()
 	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
 		var gs []string
@@ -451,7 +478,7 @@ func (s *handleState) appendAttr(a Attr) {
 	}
 	// Elide empty Attrs.
 	if a.isEmpty() {
-		return
+		return false
 	}
 	// Special case: Source.
 	if v := a.Value; v.Kind() == KindAny {
@@ -467,12 +494,18 @@ func (s *handleState) appendAttr(a Attr) {
 		attrs := a.Value.Group()
 		// Output only non-empty groups.
 		if len(attrs) > 0 {
+			// The group may turn out to be empty even though it has attrs (for
+			// example, ReplaceAttr may delete all the attrs).
+			// So remember where we are in the buffer, to restore the position
+			// later if necessary.
+			pos := s.buf.Len()
 			// Inline a group with an empty key.
 			if a.Key != "" {
 				s.openGroup(a.Key)
 			}
-			for _, aa := range attrs {
-				s.appendAttr(aa)
+			if !s.appendAttrs(attrs) {
+				s.buf.SetLen(pos)
+				return false
 			}
 			if a.Key != "" {
 				s.closeGroup(a.Key)
@@ -482,6 +515,7 @@ func (s *handleState) appendAttr(a Attr) {
 		s.appendKey(a.Key)
 		s.appendValue(a.Value)
 	}
+	return true
 }
 
 func (s *handleState) appendError(err error) {

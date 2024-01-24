@@ -391,7 +391,6 @@ type testgoData struct {
 	tempdir        string
 	ran            bool
 	inParallel     bool
-	hasNet         bool
 	stdout, stderr bytes.Buffer
 	execDir        string // dir for tg.run
 }
@@ -434,9 +433,6 @@ func (tg *testgoData) parallel() {
 	if tg.ran {
 		tg.t.Fatal("internal testsuite error: call to parallel after run")
 	}
-	if tg.hasNet {
-		tg.t.Fatal("internal testsuite error: call to parallel after acquireNet")
-	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
 			val := e[strings.Index(e, "=")+1:]
@@ -447,25 +443,6 @@ func (tg *testgoData) parallel() {
 	}
 	tg.inParallel = true
 	tg.t.Parallel()
-}
-
-// acquireNet skips t if the network is unavailable, and otherwise acquires a
-// netTestSem token for t to be released at the end of the test.
-//
-// t.Parallel must not be called after acquireNet.
-func (tg *testgoData) acquireNet() {
-	tg.t.Helper()
-	if tg.hasNet {
-		return
-	}
-
-	testenv.MustHaveExternalNetwork(tg.t)
-	if netTestSem != nil {
-		netTestSem <- struct{}{}
-		tg.t.Cleanup(func() { <-netTestSem })
-	}
-	tg.setenv("TESTGONETWORK", "")
-	tg.hasNet = true
 }
 
 // pwd returns the current directory.
@@ -576,31 +553,6 @@ func (tg *testgoData) runFail(args ...string) {
 		tg.t.Fatal("testgo succeeded unexpectedly")
 	} else {
 		tg.t.Log("testgo failed as expected:", status)
-	}
-}
-
-// runGit runs a git command, and expects it to succeed.
-func (tg *testgoData) runGit(dir string, args ...string) {
-	tg.t.Helper()
-	cmd := testenv.Command(tg.t, "git", args...)
-	tg.stdout.Reset()
-	tg.stderr.Reset()
-	cmd.Stdout = &tg.stdout
-	cmd.Stderr = &tg.stderr
-	cmd.Dir = dir
-	cmd.Env = tg.env
-	status := cmd.Run()
-	if tg.stdout.Len() > 0 {
-		tg.t.Log("git standard output:")
-		tg.t.Log(tg.stdout.String())
-	}
-	if tg.stderr.Len() > 0 {
-		tg.t.Log("git standard error:")
-		tg.t.Log(tg.stderr.String())
-	}
-	if status != nil {
-		tg.t.Logf("git %v failed unexpectedly: %v", args, status)
-		tg.t.FailNow()
 	}
 }
 
@@ -816,19 +768,6 @@ func (tg *testgoData) mustNotExist(path string) {
 	}
 }
 
-// mustHaveContent succeeds if filePath is a path to a file,
-// and that file is readable and not empty.
-func (tg *testgoData) mustHaveContent(filePath string) {
-	tg.mustExist(filePath)
-	f, err := os.Stat(filePath)
-	if err != nil {
-		tg.t.Fatal(err)
-	}
-	if f.Size() == 0 {
-		tg.t.Fatalf("expected %s to have data, but is empty", filePath)
-	}
-}
-
 // wantExecutable fails with msg if path is not executable.
 func (tg *testgoData) wantExecutable(path, msg string) {
 	tg.t.Helper()
@@ -942,22 +881,17 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 
 	// Copy the runtime packages into a temporary GOROOT
 	// so that we can change files.
-	for _, copydir := range []string{
-		"src/runtime",
-		"src/internal/abi",
-		"src/internal/bytealg",
-		"src/internal/coverage/rtcov",
-		"src/internal/cpu",
-		"src/internal/goarch",
-		"src/internal/godebugs",
-		"src/internal/goexperiment",
-		"src/internal/goos",
-		"src/internal/coverage/rtcov",
-		"src/math/bits",
-		"src/unsafe",
+	var dirs []string
+	tg.run("list", "-deps", "runtime")
+	pkgs := strings.Split(strings.TrimSpace(tg.getStdout()), "\n")
+	for _, pkg := range pkgs {
+		dirs = append(dirs, filepath.Join("src", pkg))
+	}
+	dirs = append(dirs,
 		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
 		"pkg/include",
-	} {
+	)
+	for _, copydir := range dirs {
 		srcdir := filepath.Join(testGOROOT, copydir)
 		tg.tempDir(filepath.Join("goroot", copydir))
 		err := filepath.WalkDir(srcdir,
@@ -973,6 +907,9 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 					return err
 				}
 				dest := filepath.Join("goroot", copydir, srcrel)
+				if _, err := os.Stat(dest); err == nil {
+					return nil
+				}
 				data, err := os.ReadFile(path)
 				if err != nil {
 					return err

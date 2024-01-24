@@ -264,6 +264,12 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 					actualReader = reflect.TypeOf(lr.R)
 				} else {
 					actualReader = reflect.TypeOf(mw.CalledReader)
+					// We have to handle this special case for genericWriteTo in os,
+					// this struct is introduced to support a zero-copy optimization,
+					// check out https://go.dev/issue/58808 for details.
+					if actualReader.Kind() == reflect.Struct && actualReader.PkgPath() == "os" && actualReader.Name() == "fileWithoutWriteTo" {
+						actualReader = actualReader.Field(1).Type
+					}
 				}
 
 				if tc.expectedReader != actualReader {

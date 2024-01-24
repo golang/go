@@ -241,15 +241,23 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 }
 
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+//sys	fchmodat2(dirfd int, path string, mode uint32, flags int) (err error) = _SYS_fchmodat2
 
-func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
-	// Linux fchmodat doesn't support the flags parameter. Mimic glibc's behavior
-	// and check the flags. Otherwise the mode would be applied to the symlink
-	// destination which is not what the user expects.
-	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {
-		return EINVAL
-	} else if flags&_AT_SYMLINK_NOFOLLOW != 0 {
-		return EOPNOTSUPP
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	// Linux fchmodat doesn't support the flags parameter, but fchmodat2 does.
+	// Try fchmodat2 if flags are specified.
+	if flags != 0 {
+		err := fchmodat2(dirfd, path, mode, flags)
+		if err == ENOSYS {
+			// fchmodat2 isn't available. If the flags are known to be valid,
+			// return EOPNOTSUPP to indicate that fchmodat doesn't support them.
+			if flags&^(_AT_SYMLINK_NOFOLLOW|_AT_EMPTY_PATH) != 0 {
+				return EINVAL
+			} else if flags&(_AT_SYMLINK_NOFOLLOW|_AT_EMPTY_PATH) != 0 {
+				return EOPNOTSUPP
+			}
+		}
+		return err
 	}
 	return fchmodat(dirfd, path, mode)
 }
@@ -554,7 +562,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--

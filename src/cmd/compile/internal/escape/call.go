@@ -39,11 +39,11 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			v := ir.StaticValue(call.X)
+			v := ir.StaticValue(call.Fun)
 			fn = ir.StaticCalleeName(v)
 		}
 
-		fntype := call.X.Type()
+		fntype := call.Fun.Type()
 		if fn != nil {
 			fntype = fn.Type()
 		}
@@ -70,9 +70,9 @@ func (e *escape) call(ks []hole, call ir.Node) {
 					}
 				}
 			}
-			e.expr(calleeK, call.X)
+			e.expr(calleeK, call.Fun)
 		} else {
-			recvArg = call.X.(*ir.SelectorExpr).X
+			recvArg = call.Fun.(*ir.SelectorExpr).X
 		}
 
 		// argumentParam handles escape analysis of assigning a call
@@ -155,10 +155,17 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		e.discard(call.X)
 		e.discard(call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
-		for i := range call.Args {
-			e.discard(call.Args[i])
+		for _, arg := range call.Args {
+			e.discard(arg)
+		}
+		e.discard(call.RType)
+
+	case ir.OMIN, ir.OMAX:
+		call := call.(*ir.CallExpr)
+		for _, arg := range call.Args {
+			argument(ks[0], arg)
 		}
 		e.discard(call.RType)
 
@@ -206,15 +213,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	if !ok || call.Op() != ir.OCALLFUNC {
 		base.FatalfAt(n.Pos(), "expected function call: %v", n.Call)
 	}
-	if sig := call.X.Type(); sig.NumParams()+sig.NumResults() != 0 {
+	if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() != 0 {
 		base.FatalfAt(n.Pos(), "expected signature without parameters or results: %v", sig)
 	}
 
-	if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
+	if clo, ok := call.Fun.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
 		clo.IsGoWrap = true
 	}
 
-	e.expr(k, call.X)
+	e.expr(k, call.Fun)
 }
 
 // rewriteArgument rewrites the argument arg of the given call expression.

@@ -72,7 +72,7 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 		return true
 	}
 
-	if typ, _ := typ.(*typeparams.TypeParam); typ != nil {
+	if typ, _ := typ.(*types.TypeParam); typ != nil {
 		// Avoid infinite recursion through type parameters.
 		if m.seen[typ] {
 			return true

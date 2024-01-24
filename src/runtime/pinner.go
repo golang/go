@@ -17,14 +17,14 @@ type Pinner struct {
 }
 
 // Pin pins a Go object, preventing it from being moved or freed by the garbage
-// collector until the Unpin method has been called.
+// collector until the [Pinner.Unpin] method has been called.
 //
 // A pointer to a pinned object can be directly stored in C memory or can be
 // contained in Go memory passed to C functions. If the pinned object itself
 // contains pointers to Go objects, these objects must be pinned separately if they
 // are going to be accessed from C code.
 //
-// The argument must be a pointer of any type or an unsafe.Pointer.
+// The argument must be a pointer of any type or an [unsafe.Pointer].
 // It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
@@ -61,7 +61,7 @@ func (p *Pinner) Pin(pointer any) {
 	}
 }
 
-// Unpin unpins all pinned objects of the Pinner.
+// Unpin unpins all pinned objects of the [Pinner].
 func (p *Pinner) Unpin() {
 	p.pinner.unpin()
 
@@ -267,14 +267,14 @@ func (p *pinnerBits) ofObject(n uintptr) pinState {
 }
 
 func (s *mspan) pinnerBitSize() uintptr {
-	return divRoundUp(s.nelems*2, 8)
+	return divRoundUp(uintptr(s.nelems)*2, 8)
 }
 
 // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
 // span's pinner bits. newPinneBits is used to mark objects that are pinned.
 // They are copied when the span is swept.
 func (s *mspan) newPinnerBits() *pinnerBits {
-	return (*pinnerBits)(newMarkBits(s.nelems * 2))
+	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))
 }
 
 // nosplit, because it's called by isPinned, which is nosplit

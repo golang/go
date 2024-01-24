@@ -7,7 +7,7 @@
 //
 // # Analyzer testinggoroutine
 //
-// testinggoroutine: report calls to (*testing.T).Fatal from goroutines started by a test.
+// testinggoroutine: report calls to (*testing.T).Fatal from goroutines started by a test
 //
 // Functions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and
 // Skip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.

@@ -1539,7 +1539,7 @@ func typesByString(s string) []*abi.Type {
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
 		i, j := 0, len(offs)
 		for i < j {
-			h := i + (j-i)>>1 // avoid overflow when computing h
+			h := int(uint(i+j) >> 1) // avoid overflow when computing h
 			// i ≤ h < j
 			if !(stringFor(rtypeOff(section, offs[h])) >= s) {
 				i = h + 1 // preserves f(i-1) == false
@@ -1914,7 +1914,7 @@ func needKeyUpdate(t *abi.Type) bool {
 	case Float32, Float64, Complex64, Complex128, Interface, String:
 		// Float keys can be updated from +0 to -0.
 		// String keys can be updated to use a smaller backing store.
-		// Interfaces might have floats of strings in them.
+		// Interfaces might have floats or strings in them.
 		return true
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))

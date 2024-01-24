@@ -6,8 +6,12 @@ package pprof
 
 import (
 	"bytes"
+	"fmt"
 	"internal/profile"
+	"internal/testenv"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +84,140 @@ func TestConvertMemProfile(t *testing.T) {
 
 			checkProfile(t, p, rate, periodType, sampleType, samples, tc.defaultSampleType)
 		})
+	}
+}
+
+func genericAllocFunc[T interface{ uint32 | uint64 }](n int) []T {
+	return make([]T, n)
+}
+
+func profileToStrings(p *profile.Profile) []string {
+	var res []string
+	for _, s := range p.Sample {
+		res = append(res, sampleToString(s))
+	}
+	return res
+}
+
+func sampleToString(s *profile.Sample) string {
+	var funcs []string
+	for i := len(s.Location) - 1; i >= 0; i-- {
+		loc := s.Location[i]
+		funcs = locationToStrings(loc, funcs)
+	}
+	return fmt.Sprintf("%s %v", strings.Join(funcs, ";"), s.Value)
+}
+
+func locationToStrings(loc *profile.Location, funcs []string) []string {
+	for j := range loc.Line {
+		line := loc.Line[len(loc.Line)-1-j]
+		funcs = append(funcs, line.Function.Name)
+	}
+	return funcs
+}
+
+// This is a regression test for https://go.dev/issue/64528 .
+func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
+	previousRate := runtime.MemProfileRate
+	runtime.MemProfileRate = 1
+	defer func() {
+		runtime.MemProfileRate = previousRate
+	}()
+	for _, sz := range []int{128, 256} {
+		genericAllocFunc[uint32](sz / 4)
+	}
+	for _, sz := range []int{32, 64} {
+		genericAllocFunc[uint64](sz / 8)
+	}
+
+	runtime.GC()
+	buf := bytes.NewBuffer(nil)
+	if err := WriteHeapProfile(buf); err != nil {
+		t.Fatalf("writing profile: %v", err)
+	}
+	p, err := profile.Parse(buf)
+	if err != nil {
+		t.Fatalf("profile.Parse: %v", err)
+	}
+
+	actual := profileToStrings(p)
+	expected := []string{
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 128 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 256 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 32 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 64 0 0]",
+	}
+
+	for _, l := range expected {
+		if !slices.Contains(actual, l) {
+			t.Errorf("profile = %v\nwant = %v", strings.Join(actual, "\n"), l)
+		}
+	}
+}
+
+type opAlloc struct {
+	buf [128]byte
+}
+
+type opCall struct {
+}
+
+var sink []byte
+
+func storeAlloc() {
+	sink = make([]byte, 16)
+}
+
+func nonRecursiveGenericAllocFunction[CurrentOp any, OtherOp any](alloc bool) {
+	if alloc {
+		storeAlloc()
+	} else {
+		nonRecursiveGenericAllocFunction[OtherOp, CurrentOp](true)
+	}
+}
+
+func TestGenericsInlineLocations(t *testing.T) {
+	if testenv.OptimizationOff() {
+		t.Skip("skipping test with optimizations disabled")
+	}
+
+	previousRate := runtime.MemProfileRate
+	runtime.MemProfileRate = 1
+	defer func() {
+		runtime.MemProfileRate = previousRate
+		sink = nil
+	}()
+
+	nonRecursiveGenericAllocFunction[opAlloc, opCall](true)
+	nonRecursiveGenericAllocFunction[opCall, opAlloc](false)
+
+	runtime.GC()
+
+	buf := bytes.NewBuffer(nil)
+	if err := WriteHeapProfile(buf); err != nil {
+		t.Fatalf("writing profile: %v", err)
+	}
+	p, err := profile.Parse(buf)
+	if err != nil {
+		t.Fatalf("profile.Parse: %v", err)
+	}
+
+	const expectedSample = "testing.tRunner;runtime/pprof.TestGenericsInlineLocations;runtime/pprof.nonRecursiveGenericAllocFunction[go.shape.struct {},go.shape.struct { runtime/pprof.buf [128]uint8 }];runtime/pprof.nonRecursiveGenericAllocFunction[go.shape.struct { runtime/pprof.buf [128]uint8 },go.shape.struct {}];runtime/pprof.storeAlloc [1 16 1 16]"
+	const expectedLocation = "runtime/pprof.nonRecursiveGenericAllocFunction[go.shape.struct {},go.shape.struct { runtime/pprof.buf [128]uint8 }];runtime/pprof.nonRecursiveGenericAllocFunction[go.shape.struct { runtime/pprof.buf [128]uint8 },go.shape.struct {}];runtime/pprof.storeAlloc"
+	const expectedLocationNewInliner = "runtime/pprof.TestGenericsInlineLocations;" + expectedLocation
+	var s *profile.Sample
+	for _, sample := range p.Sample {
+		if sampleToString(sample) == expectedSample {
+			s = sample
+			break
+		}
+	}
+	if s == nil {
+		t.Fatalf("expected \n%s\ngot\n%s", expectedSample, strings.Join(profileToStrings(p), "\n"))
+	}
+	loc := s.Location[0]
+	actual := strings.Join(locationToStrings(loc, nil), ";")
+	if expectedLocation != actual && expectedLocationNewInliner != actual {
+		t.Errorf("expected a location with at least 3 functions\n%s\ngot\n%s\n", expectedLocation, actual)
 	}
 }

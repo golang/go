@@ -31,6 +31,7 @@ type symsStruct struct {
 	GCWriteBarrier    [8]*obj.LSym
 	Goschedguarded    *obj.LSym
 	Growslice         *obj.LSym
+	InterfaceSwitch   *obj.LSym
 	Memmove           *obj.LSym
 	Msanread          *obj.LSym
 	Msanwrite         *obj.LSym
@@ -49,6 +50,7 @@ type symsStruct struct {
 	Racereadrange     *obj.LSym
 	Racewrite         *obj.LSym
 	Racewriterange    *obj.LSym
+	TypeAssert        *obj.LSym
 	WBZero            *obj.LSym
 	WBMove            *obj.LSym
 	// Wasm

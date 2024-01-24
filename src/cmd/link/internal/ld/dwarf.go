@@ -748,6 +748,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type:"+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
+		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(objabi.KindPtr), 0)
 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
@@ -1140,9 +1141,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 }
 
 func expandFile(fname string) string {
-	if strings.HasPrefix(fname, src.FileSymPrefix) {
-		fname = fname[len(src.FileSymPrefix):]
-	}
+	fname = strings.TrimPrefix(fname, src.FileSymPrefix)
 	return expandGoroot(fname)
 }
 

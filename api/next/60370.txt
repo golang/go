@@ -1,5 +1,0 @@
-pkg database/sql, method (*Null[$0]) Scan(interface{}) error #60370
-pkg database/sql, method (Null[$0]) Value() (driver.Value, error) #60370
-pkg database/sql, type Null[$0 interface{}] struct #60370
-pkg database/sql, type Null[$0 interface{}] struct, Valid bool #60370
-pkg database/sql, type Null[$0 interface{}] struct, V $0 #60370

@@ -22,7 +22,7 @@ import (
 // AMD64 registers available:
 // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
 // - floating point: X0 - X14
-var configAMD64 = abi.NewABIConfig(9, 15, 0)
+var configAMD64 = abi.NewABIConfig(9, 15, 0, 1)
 
 func TestMain(m *testing.M) {
 	ssagen.Arch.LinkArch = &x86.Linkamd64

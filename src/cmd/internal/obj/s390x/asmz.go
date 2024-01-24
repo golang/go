@@ -691,7 +691,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xffff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
+			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -4434,7 +4434,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 
-	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH
+	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH COUNTER
 		var opcode uint32
 		switch p.As {
 		default:
@@ -4458,16 +4458,13 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			if p.Reg&1 != 0 {
 				c.ctxt.Diag("third argument must be even register in %v", p)
 			}
-			if p.Reg == p.To.Reg || p.Reg == p.From.Reg {
-				c.ctxt.Diag("third argument must not be input or output argument registers in %v", p)
-			}
 			if p.As == AKMA {
 				opcode = op_KMA
 			} else if p.As == AKMCTR {
 				opcode = op_KMCTR
 			}
 		}
-		zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.Reg), uint32(p.To.Reg), asm)
+		zRRF(opcode, uint32(p.Reg), 0, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 	}
 }
 

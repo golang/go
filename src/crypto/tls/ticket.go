@@ -305,7 +305,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
 	}, nil
 }
 
-// EncryptTicket encrypts a ticket with the Config's configured (or default)
+// EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
 // session ticket keys. It can be used as a [Config.WrapSession] implementation.
 func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
 	ticketKeys := c.ticketKeys(nil)

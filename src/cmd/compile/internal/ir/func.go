@@ -12,6 +12,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -125,7 +126,7 @@ type Func struct {
 	NumDefers  int32 // number of defer calls in the function
 	NumReturns int32 // number of explicit returns in the function
 
-	// nwbrCalls records the LSyms of functions called by this
+	// NWBRCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
 	// if nowritebarrierrecCheck != nil.
 	NWBRCalls *[]SymAndPos
@@ -312,6 +313,67 @@ func LinkFuncName(f *Func) string {
 	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
 }
 
+// ParseLinkFuncName parsers a symbol name (as returned from LinkFuncName) back
+// to the package path and local symbol name.
+func ParseLinkFuncName(name string) (pkg, sym string, err error) {
+	pkg, sym = splitPkg(name)
+	if pkg == "" {
+		return "", "", fmt.Errorf("no package path in name")
+	}
+
+	pkg, err = objabi.PrefixToPath(pkg) // unescape
+	if err != nil {
+		return "", "", fmt.Errorf("malformed package path: %v", err)
+	}
+
+	return pkg, sym, nil
+}
+
+// Borrowed from x/mod.
+func modPathOK(r rune) bool {
+	if r < utf8.RuneSelf {
+		return r == '-' || r == '.' || r == '_' || r == '~' ||
+			'0' <= r && r <= '9' ||
+			'A' <= r && r <= 'Z' ||
+			'a' <= r && r <= 'z'
+	}
+	return false
+}
+
+func escapedImportPathOK(r rune) bool {
+	return modPathOK(r) || r == '+' || r == '/' || r == '%'
+}
+
+// splitPkg splits the full linker symbol name into package and local symbol
+// name.
+func splitPkg(name string) (pkgpath, sym string) {
+	// package-sym split is at first dot after last the / that comes before
+	// any characters illegal in a package path.
+
+	lastSlashIdx := 0
+	for i, r := range name {
+		// Catches cases like:
+		// * example.foo[sync/atomic.Uint64].
+		// * example%2ecom.foo[sync/atomic.Uint64].
+		//
+		// Note that name is still escaped; unescape occurs after splitPkg.
+		if !escapedImportPathOK(r) {
+			break
+		}
+		if r == '/' {
+			lastSlashIdx = i
+		}
+	}
+	for i := lastSlashIdx; i < len(name); i++ {
+		r := name[i]
+		if r == '.' {
+			return name[:i], name[i+1:]
+		}
+	}
+
+	return "", name
+}
+
 var CurFunc *Func
 
 // WithFunc invokes do with CurFunc and base.Pos set to curfn and
@@ -435,12 +497,67 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
 
 // IsFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
 func IsFuncPCIntrinsic(n *CallExpr) bool {
-	if n.Op() != OCALLFUNC || n.X.Op() != ONAME {
+	if n.Op() != OCALLFUNC || n.Fun.Op() != ONAME {
 		return false
 	}
-	fn := n.X.(*Name).Sym()
+	fn := n.Fun.(*Name).Sym()
 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
 		fn.Pkg.Path == "internal/abi"
+}
+
+// IsIfaceOfFunc inspects whether n is an interface conversion from a direct
+// reference of a func. If so, it returns referenced Func; otherwise nil.
+//
+// This is only usable before walk.walkConvertInterface, which converts to an
+// OMAKEFACE.
+func IsIfaceOfFunc(n Node) *Func {
+	if n, ok := n.(*ConvExpr); ok && n.Op() == OCONVIFACE {
+		if name, ok := n.X.(*Name); ok && name.Op() == ONAME && name.Class == PFUNC {
+			return name.Func
+		}
+	}
+	return nil
+}
+
+// FuncPC returns a uintptr-typed expression that evaluates to the PC of a
+// function as uintptr, as returned by internal/abi.FuncPC{ABI0,ABIInternal}.
+//
+// n should be a Node of an interface type, as is passed to
+// internal/abi.FuncPC{ABI0,ABIInternal}.
+//
+// TODO(prattmic): Since n is simply an interface{} there is no assertion that
+// it is actually a function at all. Perhaps we should emit a runtime type
+// assertion?
+func FuncPC(pos src.XPos, n Node, wantABI obj.ABI) Node {
+	if !n.Type().IsInterface() {
+		base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s expects an interface value, got %v", wantABI, n.Type())
+	}
+
+	if fn := IsIfaceOfFunc(n); fn != nil {
+		name := fn.Nname
+		abi := fn.ABI
+		if abi != wantABI {
+			base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s expects an %v function, %s is defined as %v", wantABI, wantABI, name.Sym().Name, abi)
+		}
+		var e Node = NewLinksymExpr(pos, name.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+		e = NewAddrExpr(pos, e)
+		e.SetType(types.Types[types.TUINTPTR].PtrTo())
+		e = NewConvExpr(pos, OCONVNOP, types.Types[types.TUINTPTR], e)
+		e.SetTypecheck(1)
+		return e
+	}
+	// fn is not a defined function. It must be ABIInternal.
+	// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
+	if wantABI != obj.ABIInternal {
+		base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s does not accept func expression, which is ABIInternal", wantABI)
+	}
+	var e Node = NewUnaryExpr(pos, OIDATA, n)
+	e.SetType(types.Types[types.TUINTPTR].PtrTo())
+	e.SetTypecheck(1)
+	e = NewStarExpr(pos, e)
+	e.SetType(types.Types[types.TUINTPTR])
+	e.SetTypecheck(1)
+	return e
 }
 
 // DeclareParams creates Names for all of the parameters in fn's

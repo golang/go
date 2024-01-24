@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -261,12 +262,13 @@ type ABIConfig struct {
 	// Do we need anything more than this?
 	offsetForLocals int64 // e.g., obj.(*Link).Arch.FixedFrameSize -- extra linkage information on some architectures.
 	regAmounts      RegAmounts
+	which           obj.ABI
 }
 
 // NewABIConfig returns a new ABI configuration for an architecture with
 // iRegsCount integer/pointer registers and fRegsCount floating point registers.
-func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
-	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}}
+func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64, which uint8) *ABIConfig {
+	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, which: obj.ABI(which)}
 }
 
 // Copy returns config.
@@ -274,6 +276,11 @@ func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig 
 // TODO(mdempsky): Remove.
 func (config *ABIConfig) Copy() *ABIConfig {
 	return config
+}
+
+// Which returns the ABI number
+func (config *ABIConfig) Which() obj.ABI {
+	return config.which
 }
 
 // LocalsOffset returns the architecture-dependent offset from SP for args and results.

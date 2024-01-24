@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"internal/godebug"
 	"io"
 	"net"
 	"sync"
@@ -136,21 +137,21 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
-// A zero value for t means Read and Write will not time out.
+// A zero value for t means [Conn.Read] and [Conn.Write] will not time out.
 // After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
 func (c *Conn) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
 
 // SetReadDeadline sets the read deadline on the underlying connection.
-// A zero value for t means Read will not time out.
+// A zero value for t means [Conn.Read] will not time out.
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	return c.conn.SetReadDeadline(t)
 }
 
 // SetWriteDeadline sets the write deadline on the underlying connection.
-// A zero value for t means Write will not time out.
-// After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
+// A zero value for t means [Conn.Write] will not time out.
+// After a [Conn.Write] has timed out, the TLS state is corrupt and all future writes will return the same error.
 func (c *Conn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
@@ -1173,10 +1174,10 @@ var (
 
 // Write writes data to the connection.
 //
-// As Write calls Handshake, in order to prevent indefinite blocking a deadline
-// must be set for both Read and Write before Write is called when the handshake
-// has not yet completed. See SetDeadline, SetReadDeadline, and
-// SetWriteDeadline.
+// As Write calls [Conn.Handshake], in order to prevent indefinite blocking a deadline
+// must be set for both [Conn.Read] and Write before Write is called when the handshake
+// has not yet completed. See [Conn.SetDeadline], [Conn.SetReadDeadline], and
+// [Conn.SetWriteDeadline].
 func (c *Conn) Write(b []byte) (int, error) {
 	// interlock with Close below
 	for {
@@ -1348,10 +1349,10 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 
 // Read reads data from the connection.
 //
-// As Read calls Handshake, in order to prevent indefinite blocking a deadline
-// must be set for both Read and Write before Read is called when the handshake
-// has not yet completed. See SetDeadline, SetReadDeadline, and
-// SetWriteDeadline.
+// As Read calls [Conn.Handshake], in order to prevent indefinite blocking a deadline
+// must be set for both Read and [Conn.Write] before Read is called when the handshake
+// has not yet completed. See [Conn.SetDeadline], [Conn.SetReadDeadline], and
+// [Conn.SetWriteDeadline].
 func (c *Conn) Read(b []byte) (int, error) {
 	if err := c.Handshake(); err != nil {
 		return 0, err
@@ -1435,7 +1436,7 @@ var errEarlyCloseWrite = errors.New("tls: CloseWrite called before handshake com
 
 // CloseWrite shuts down the writing side of the connection. It should only be
 // called once the handshake has completed and does not call CloseWrite on the
-// underlying connection. Most callers should just use Close.
+// underlying connection. Most callers should just use [Conn.Close].
 func (c *Conn) CloseWrite() error {
 	if !c.isHandshakeComplete.Load() {
 		return errEarlyCloseWrite
@@ -1463,10 +1464,10 @@ func (c *Conn) closeNotify() error {
 // protocol if it has not yet been run.
 //
 // Most uses of this package need not call Handshake explicitly: the
-// first Read or Write will call it automatically.
+// first [Conn.Read] or [Conn.Write] will call it automatically.
 //
 // For control over canceling or setting a timeout on a handshake, use
-// HandshakeContext or the Dialer's DialContext method instead.
+// [Conn.HandshakeContext] or the [Dialer]'s DialContext method instead.
 //
 // In order to avoid denial of service attacks, the maximum RSA key size allowed
 // in certificates sent by either the TLS server or client is limited to 8192
@@ -1485,7 +1486,7 @@ func (c *Conn) Handshake() error {
 // connection.
 //
 // Most uses of this package need not call HandshakeContext explicitly: the
-// first Read or Write will call it automatically.
+// first [Conn.Read] or [Conn.Write] will call it automatically.
 func (c *Conn) HandshakeContext(ctx context.Context) error {
 	// Delegate to unexported method for named return
 	// without confusing documented signature.
@@ -1599,6 +1600,8 @@ func (c *Conn) ConnectionState() ConnectionState {
 	return c.connectionStateLocked()
 }
 
+var tlsunsafeekm = godebug.New("tlsunsafeekm")
+
 func (c *Conn) connectionStateLocked() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.isHandshakeComplete.Load()
@@ -1620,7 +1623,15 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 		}
 	}
 	if c.config.Renegotiation != RenegotiateNever {
-		state.ekm = noExportedKeyingMaterial
+		state.ekm = noEKMBecauseRenegotiation
+	} else if c.vers != VersionTLS13 && !c.extMasterSecret {
+		state.ekm = func(label string, context []byte, length int) ([]byte, error) {
+			if tlsunsafeekm.Value() == "1" {
+				tlsunsafeekm.IncNonDefault()
+				return c.ekm(label, context, length)
+			}
+			return noEKMBecauseNoEMS(label, context, length)
+		}
 	} else {
 		state.ekm = c.ekm
 	}

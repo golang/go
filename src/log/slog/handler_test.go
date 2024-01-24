@@ -436,6 +436,13 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
 		},
 		{
+			name:     "replace empty",
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("g", Int("a", 1))},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
 			name: "replace empty 1",
 			with: func(h Handler) Handler {
 				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)})
@@ -443,7 +450,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			replace:  func([]string, Attr) Attr { return Attr{} },
 			attrs:    []Attr{Group("h", Int("b", 2))},
 			wantText: "",
-			wantJSON: `{"g":{"h":{}}}`,
+			wantJSON: `{}`,
 		},
 		{
 			name: "replace empty 2",
@@ -453,7 +460,25 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			replace:  func([]string, Attr) Attr { return Attr{} },
 			attrs:    []Attr{Group("i", Int("c", 3))},
 			wantText: "",
-			wantJSON: `{"g":{"h":{"i":{}}}}`,
+			wantJSON: `{}`,
+		},
+		{
+			name:     "replace empty 3",
+			with:     func(h Handler) Handler { return h.WithGroup("g") },
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Int("a", 1)},
+			wantText: "",
+			wantJSON: `{}`,
+		},
+		{
+			name: "replace empty inline",
+			with: func(h Handler) Handler {
+				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
+			},
+			replace:  func([]string, Attr) Attr { return Attr{} },
+			attrs:    []Attr{Group("", Int("c", 3))},
+			wantText: "",
+			wantJSON: `{}`,
 		},
 		{
 			name: "replace partial empty attrs 1",
@@ -489,7 +514,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			},
 			attrs:    []Attr{Group("i", Int("c", 3))},
 			wantText: "g.x=0 g.n=4 g.h.b=2",
-			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2,"i":{}}}}`,
+			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2}}}`,
 		},
 		{
 			name: "replace resolved group",

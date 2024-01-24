@@ -9,10 +9,10 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/coverage"
-	"cmd/compile/internal/devirtualize"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
+	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/loopvar"
@@ -20,6 +20,7 @@ import (
 	"cmd/compile/internal/pgo"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
@@ -190,6 +191,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
+	rttype.Init()
 
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
@@ -222,30 +224,15 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 
-	base.Timer.Start("fe", "pgo-devirtualization")
-	if profile != nil && base.Debug.PGODevirtualize > 0 {
-		// TODO(prattmic): No need to use bottom-up visit order. This
-		// is mirroring the PGO IRGraph visit order, which also need
-		// not be bottom-up.
-		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
-			for _, fn := range list {
-				devirtualize.ProfileGuided(fn, profile)
-			}
-		})
-		ir.CurFunc = nil
-	}
+	// Interleaved devirtualization and inlining.
+	base.Timer.Start("fe", "devirtualize-and-inline")
+	interleaved.DevirtualizeAndInlinePackage(typecheck.Target, profile)
 
-	// Inlining
-	base.Timer.Start("fe", "inlining")
-	if base.Flag.LowerL != 0 {
-		inline.InlinePackage(profile)
-	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
-	// Devirtualize and get variable capture right in for loops
+	// Get variable capture right in for loops.
 	var transformed []loopvar.VarAndLoop
 	for _, fn := range typecheck.Target.Funcs {
-		devirtualize.Static(fn)
 		transformed = append(transformed, loopvar.ForCapture(fn)...)
 	}
 	ir.CurFunc = nil

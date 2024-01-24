@@ -12,6 +12,36 @@ cd ../broken_bad_pattern
 ! go mod vendor
 stderr 'go: pattern ../foo.txt: invalid pattern syntax'
 
+cd ../embed_go122
+go mod vendor
+cmp vendor/example.com/a/samedir_embed.txt ../a/samedir_embed.txt
+cmp vendor/example.com/a/subdir/embed.txt ../a/subdir/embed.txt
+! exists vendor/example.com/a/subdir/test/embed.txt
+! exists vendor/example.com/a/subdir/test/xtest/embed.txt
+-- embed_go122/go.mod --
+module example.com/foo
+go 1.22
+
+require (
+	example.com/a v0.1.0
+)
+
+replace (
+	example.com/a v0.1.0 => ../a
+)
+-- embed_go122/foo.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/a"
+)
+
+func main() {
+    fmt.Println(a.Str())
+}
+
 # matchPotentialSourceFile prunes out tests and unbuilt code.
 # Make sure that they are vendored if they are embedded files.
 cd ../embed_unbuilt

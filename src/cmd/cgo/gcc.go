@@ -94,8 +94,10 @@ func (f *File) ProcessCgoDirectives() {
 				directive := fields[1]
 				funcName := fields[2]
 				if directive == "nocallback" {
+					fatalf("#cgo nocallback disabled until Go 1.23")
 					f.NoCallbacks[funcName] = true
 				} else if directive == "noescape" {
+					fatalf("#cgo noescape disabled until Go 1.23")
 					f.NoEscapes[funcName] = true
 				}
 			}

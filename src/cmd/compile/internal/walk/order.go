@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -231,14 +232,29 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
 	}
+
+	// Prevent taking the address of an SSA-able local variable (#63332).
+	//
+	// TODO(mdempsky): Note that OuterValue unwraps OCONVNOPs, but
+	// IsAddressable does not. It should be possible to skip copying for
+	// at least some of these OCONVNOPs (e.g., reinsert them after the
+	// OADDR operation), but at least walkCompare needs to be fixed to
+	// support that (see trybot failures on go.dev/cl/541715, PS1).
 	if ir.IsAddressable(n) {
+		if name, ok := ir.OuterValue(n).(*ir.Name); ok && name.Op() == ir.ONAME {
+			if name.Class == ir.PAUTO && !name.Addrtaken() && ssa.CanSSA(name.Type()) {
+				goto Copy
+			}
+		}
+
 		return n
 	}
+
+Copy:
 	return o.copyExpr(n)
 }
 
 // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
-// It should only be used for map runtime calls which have *_fast* versions.
 // The first parameter is the position of n's containing node, for use in case
 // that n's position is not unique (e.g., if n is an ONAME).
 func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.Node {
@@ -538,14 +554,14 @@ func (o *orderState) call(nn ir.Node) {
 	n := nn.(*ir.CallExpr)
 	typecheck.AssertFixedCall(n)
 
-	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+	if ir.IsFuncPCIntrinsic(n) && ir.IsIfaceOfFunc(n.Args[0]) != nil {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
 		// do not introduce temporaries here, so it is easier to rewrite it
 		// to symbol address reference later in walk.
 		return
 	}
 
-	n.X = o.expr(n.X, nil)
+	n.Fun = o.expr(n.Fun, nil)
 	o.exprList(n.Args)
 }
 
@@ -603,8 +619,38 @@ func (o *orderState) stmt(n ir.Node) {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
 		t := o.markTemp()
+
+		// There's a delicate interaction here between two OINDEXMAP
+		// optimizations.
+		//
+		// First, we want to handle m[k] = append(m[k], ...) with a single
+		// runtime call to mapassign. This requires the m[k] expressions to
+		// satisfy ir.SameSafeExpr in walkAssign.
+		//
+		// But if k is a slow map key type that's passed by reference (e.g.,
+		// byte), then we want to avoid marking user variables as addrtaken,
+		// if that might prevent the compiler from keeping k in a register.
+		//
+		// TODO(mdempsky): It would be better if walk was responsible for
+		// inserting temporaries as needed.
+		mapAppend := n.X.Op() == ir.OINDEXMAP && n.Y.Op() == ir.OAPPEND &&
+			ir.SameSafeExpr(n.X, n.Y.(*ir.CallExpr).Args[0])
+
 		n.X = o.expr(n.X, nil)
-		n.Y = o.expr(n.Y, n.X)
+		if mapAppend {
+			indexLHS := n.X.(*ir.IndexExpr)
+			indexLHS.X = o.cheapExpr(indexLHS.X)
+			indexLHS.Index = o.cheapExpr(indexLHS.Index)
+
+			call := n.Y.(*ir.CallExpr)
+			indexRHS := call.Args[0].(*ir.IndexExpr)
+			indexRHS.X = indexLHS.X
+			indexRHS.Index = indexLHS.Index
+
+			o.exprList(call.Args[1:])
+		} else {
+			n.Y = o.expr(n.Y, n.X)
+		}
 		o.mapAssign(n)
 		o.popTemp(t)
 
@@ -753,7 +799,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
@@ -1158,7 +1204,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 			}
 		}
 
-		// key must be addressable
+		// key may need to be be addressable
 		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
 		if needCopy {
 			return o.copyExpr(n)
@@ -1501,9 +1547,4 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
-}
-
-// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
-func isIfaceOfFunc(n ir.Node) bool {
-	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }

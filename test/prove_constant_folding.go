@@ -1,5 +1,6 @@
-// +build amd64
 // errorcheck -0 -d=ssa/prove/debug=2
+
+//go:build amd64
 
 // Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

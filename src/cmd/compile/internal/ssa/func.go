@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -63,7 +64,7 @@ type Func struct {
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
 	RegArgs []Spill
-	// AuxCall describing parameters and results for this function.
+	// OwnAux describes parameters and results for this function.
 	OwnAux *AuxCall
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
@@ -107,6 +108,21 @@ func (f *Func) NumBlocks() int {
 // NumValues returns an integer larger than the id of any Value in the Func.
 func (f *Func) NumValues() int {
 	return f.vid.num()
+}
+
+// NameABI returns the function name followed by comma and the ABI number.
+// This is intended for use with GOSSAFUNC and HTML dumps, and differs from
+// the linker's "<1>" convention because "<" and ">" require shell quoting
+// and are not legal file names (for use with GOSSADIR) on Windows.
+func (f *Func) NameABI() string {
+	return FuncNameABI(f.Name, f.ABISelf.Which())
+}
+
+// FuncNameABI returns n followed by a comma and the value of a.
+// This is a separate function to allow a single point encoding
+// of the format, which is used in places where there's not a Func yet.
+func FuncNameABI(n string, a obj.ABI) string {
+	return fmt.Sprintf("%s,%d", n, a)
 }
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
@@ -705,7 +721,6 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 		v.AddArg(sp)
 	}
 	return v
-
 }
 
 func (f *Func) Frontend() Frontend                                  { return f.fe }

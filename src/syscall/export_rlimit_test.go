@@ -6,9 +6,6 @@
 
 package syscall
 
-func OrigRlimitNofile() Rlimit {
-	if rlim := origRlimitNofile.Load(); rlim != nil {
-		return *rlim
-	}
-	return Rlimit{0, 0}
+func OrigRlimitNofile() *Rlimit {
+	return origRlimitNofile.Load()
 }

@@ -972,7 +972,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 					// accepting them.
 					//
 					// TODO(#41410: Figure out how this actually ought to work and fix
-					// this mess.
+					// this mess).
 				} else {
 					data.err = r.err
 				}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/types/errors"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -68,7 +69,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		// The conversion allocates, so only do it if the concrete type is huge.
 		converted := false
 		if r.Type().Kind() != types.TBLANK {
-			aop, _ = Assignop(l.Type(), r.Type())
+			aop, _ = assignOp(l.Type(), r.Type())
 			if aop != ir.OXXX {
 				if r.Type().IsInterface() && !l.Type().IsInterface() && !types.IsComparable(l.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type()))
@@ -87,7 +88,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 
 		if !converted && l.Type().Kind() != types.TBLANK {
-			aop, _ = Assignop(r.Type(), l.Type())
+			aop, _ = assignOp(r.Type(), l.Type())
 			if aop != ir.OXXX {
 				if l.Type().IsInterface() && !r.Type().IsInterface() && !types.IsComparable(r.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type()))
@@ -240,7 +241,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				// walkClosure(), because the instantiated
 				// function is compiled as if in the source
 				// package of the generic function.
-				if !(ir.CurFunc != nil && strings.Index(ir.CurFunc.Nname.Sym().Name, "[") >= 0) {
+				if !(ir.CurFunc != nil && strings.Contains(ir.CurFunc.Nname.Sym().Name, "[")) {
 					if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
 						base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 					}
@@ -351,9 +352,12 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		n.SetType(nil)
 		return n
 	}
-	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	op, why := convertOp(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
-		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+		// Due to //go:nointerface, we may be stricter than types2 here (#63333).
+		base.ErrorfAt(n.Pos(), errors.InvalidConversion, "cannot convert %L to type %v%s", n.X, n.Type(), why)
+		n.SetType(nil)
+		return n
 	}
 
 	n.SetOp(op)

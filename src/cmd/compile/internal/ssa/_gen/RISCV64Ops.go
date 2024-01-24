@@ -207,12 +207,16 @@ func init() {
 		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}, resultInArg0: true}, // nop, return arg0 in same register
 
 		// Shift ops
-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> (aux1 & 63), unsigned
-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-63
-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-63
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                   // arg0 << (aux1 & 63)
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                   // arg0 >> (aux1 & 63), signed
+		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"},                 // arg0 >> (aux1 & 31), signed
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                   // arg0 >> (aux1 & 63), unsigned
+		{name: "SRLW", argLength: 2, reg: gp21, asm: "SRLW"},                 // arg0 >> (aux1 & 31), unsigned
+		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"},   // arg0 << auxint, shift amount 0-63
+		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"},   // arg0 >> auxint, signed, shift amount 0-63
+		{name: "SRAIW", argLength: 1, reg: gp11, asm: "SRAIW", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-31
+		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"},   // arg0 >> auxint, unsigned, shift amount 0-63
+		{name: "SRLIW", argLength: 1, reg: gp11, asm: "SRLIW", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-31
 
 		// Bitwise ops
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
@@ -230,12 +234,6 @@ func init() {
 		{name: "SLTI", argLength: 1, reg: gp11, asm: "SLTI", aux: "Int64"},   // arg0 < auxint, result is 0 or 1
 		{name: "SLTU", argLength: 2, reg: gp21, asm: "SLTU"},                 // arg0 < arg1, unsigned, result is 0 or 1
 		{name: "SLTIU", argLength: 1, reg: gp11, asm: "SLTIU", aux: "Int64"}, // arg0 < auxint, unsigned, result is 0 or 1
-
-		// MOVconvert converts between pointers and integers.
-		// We have a special op for this so as to not confuse GC
-		// (particularly stack maps). It takes a memory arg so it
-		// gets correctly ordered with respect to GC safepoints.
-		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
 
 		// Round ops to block fused-multiply-add extraction.
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
@@ -398,6 +396,9 @@ func init() {
 		// and T6 (REG_TMP).
 		// Returns a pointer to a write barrier buffer in X24.
 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"], outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
+
+		// Do data barrier. arg0=memorys
+		{name: "LoweredPubBarrier", argLength: 1, asm: "FENCE", hasSideEffects: true},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

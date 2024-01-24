@@ -347,9 +347,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// BNE         end
 		// STDCCC      Rarg2, (Rarg0)
 		// BNE         loop
-		// LWSYNC      // Only for sequential consistency; not required in CasRel.
 		// MOVD        $1, Rout
 		// end:
+		// LWSYNC      // Only for sequential consistency; not required in CasRel.
 		ld := ppc64.ALDAR
 		st := ppc64.ASTDCCC
 		cmp := ppc64.ACMP
@@ -402,22 +402,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
 		p4.To.SetTarget(p0)
-		// LWSYNC - Assuming shared data not write-through-required nor
-		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
-		// If the operation is a CAS-Release, then synchronization is not necessary.
-		if v.AuxInt != 0 {
-			plwsync2 := s.Prog(ppc64.ALWSYNC)
-			plwsync2.To.Type = obj.TYPE_NONE
-		}
 		// return value true
 		p5 := s.Prog(ppc64.AMOVD)
 		p5.From.Type = obj.TYPE_CONST
 		p5.From.Offset = 1
 		p5.To.Type = obj.TYPE_REG
 		p5.To.Reg = out
-		// done (label)
-		p6 := s.Prog(obj.ANOP)
-		p2.To.SetTarget(p6)
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
+		// If the operation is a CAS-Release, then synchronization is not necessary.
+		if v.AuxInt != 0 {
+			plwsync2 := s.Prog(ppc64.ALWSYNC)
+			plwsync2.To.Type = obj.TYPE_NONE
+			p2.To.SetTarget(plwsync2)
+		} else {
+			// done (label)
+			p6 := s.Prog(obj.ANOP)
+			p2.To.SetTarget(p6)
+		}
 
 	case ssa.OpPPC64LoweredPubBarrier:
 		// LWSYNC
@@ -591,7 +593,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
-	case ssa.OpPPC64ANDCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC:
+	case ssa.OpPPC64ADDCC, ssa.OpPPC64ANDCC, ssa.OpPPC64SUBCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC, ssa.OpPPC64NORCC,
+		ssa.OpPPC64ANDNCC:
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
@@ -600,6 +603,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
+
+	case ssa.OpPPC64NEGCC, ssa.OpPPC64CNTLZDCC:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
 
 	case ssa.OpPPC64ROTLconst, ssa.OpPPC64ROTLWconst:
 		p := s.Prog(v.Op.Asm())
@@ -732,13 +742,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpPPC64ANDCCconst:
+	case ssa.OpPPC64ADDCCconst, ssa.OpPPC64ANDCCconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
-		//		p.To.Reg = ppc64.REGTMP // discard result
 		p.To.Reg = v.Reg0()
 
 	case ssa.OpPPC64MOVDaddr:

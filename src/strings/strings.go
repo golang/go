@@ -272,7 +272,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 //	n < 0: all substrings
 //
 // Edge cases for s and sep (for example, empty strings) are handled
-// as described in the documentation for Split.
+// as described in the documentation for [Split].
 //
 // To split around the first instance of a separator, see Cut.
 func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
@@ -301,7 +301,7 @@ func SplitAfterN(s, sep string, n int) []string {
 // If sep is empty, Split splits after each UTF-8 sequence. If both s
 // and sep are empty, Split returns an empty slice.
 //
-// It is equivalent to SplitN with a count of -1.
+// It is equivalent to [SplitN] with a count of -1.
 //
 // To split around the first instance of a separator, see Cut.
 func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
@@ -315,7 +315,7 @@ func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
 // If sep is empty, SplitAfter splits after each UTF-8 sequence. If
 // both s and sep are empty, SplitAfter returns an empty slice.
 //
-// It is equivalent to SplitAfterN with a count of -1.
+// It is equivalent to [SplitAfterN] with a count of -1.
 func SplitAfter(s, sep string) []string {
 	return genSplit(s, sep, len(sep), -1)
 }
@@ -521,7 +521,7 @@ func Map(mapping func(rune) rune, s string) string {
 			if r < utf8.RuneSelf {
 				b.WriteByte(byte(r))
 			} else {
-				// r is not a ASCII rune.
+				// r is not an ASCII rune.
 				b.WriteRune(r)
 			}
 		}
@@ -904,7 +904,7 @@ func Trim(s, cutset string) string {
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
 //
-// To remove a prefix, use TrimPrefix instead.
+// To remove a prefix, use [TrimPrefix] instead.
 func TrimLeft(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -952,7 +952,7 @@ func trimLeftUnicode(s, cutset string) string {
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
 //
-// To remove a suffix, use TrimSuffix instead.
+// To remove a suffix, use [TrimSuffix] instead.
 func TrimRight(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s

@@ -677,32 +677,39 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias type declarations first, followed by alias declarations,
-	// and then everything else. This appears to avoid most situations where the type
-	// of an alias is needed before it is available.
-	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
-	// In those cases Checker.ident will report an error ("invalid use of type alias").
-	var aliasList []*TypeName
-	var othersList []Object // everything that's not a type
-	// phase 1: non-alias type declarations
-	for _, obj := range objList {
-		if tname, _ := obj.(*TypeName); tname != nil {
-			if check.objMap[tname].tdecl.Alias {
-				aliasList = append(aliasList, tname)
-			} else {
-				check.objDecl(obj, nil)
-			}
-		} else {
-			othersList = append(othersList, obj)
+	if check.enableAlias {
+		// With Alias nodes we can process declarations in any order.
+		for _, obj := range objList {
+			check.objDecl(obj, nil)
 		}
-	}
-	// phase 2: alias type declarations
-	for _, obj := range aliasList {
-		check.objDecl(obj, nil)
-	}
-	// phase 3: all other declarations
-	for _, obj := range othersList {
-		check.objDecl(obj, nil)
+	} else {
+		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// alias declarations, and then everything else. This appears to avoid most situations
+		// where the type of an alias is needed before it is available.
+		// There may still be cases where this is not good enough (see also go.dev/issue/25838).
+		// In those cases Checker.ident will report an error ("invalid use of type alias").
+		var aliasList []*TypeName
+		var othersList []Object // everything that's not a type
+		// phase 1: non-alias type declarations
+		for _, obj := range objList {
+			if tname, _ := obj.(*TypeName); tname != nil {
+				if check.objMap[tname].tdecl.Alias {
+					aliasList = append(aliasList, tname)
+				} else {
+					check.objDecl(obj, nil)
+				}
+			} else {
+				othersList = append(othersList, obj)
+			}
+		}
+		// phase 2: alias type declarations
+		for _, obj := range aliasList {
+			check.objDecl(obj, nil)
+		}
+		// phase 3: all other declarations
+		for _, obj := range othersList {
+			check.objDecl(obj, nil)
+		}
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all

@@ -470,7 +470,7 @@ func callOrChan(n ir.Node) bool {
 		ir.ONEW,
 		ir.OPANIC,
 		ir.OPRINT,
-		ir.OPRINTN,
+		ir.OPRINTLN,
 		ir.OREAL,
 		ir.ORECOVER,
 		ir.ORECOVERFP,

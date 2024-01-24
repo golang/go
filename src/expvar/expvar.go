@@ -48,13 +48,13 @@ type jsonVar interface {
 	appendJSON(b []byte) []byte
 }
 
-// Int is a 64-bit integer variable that satisfies the Var interface.
+// Int is a 64-bit integer variable that satisfies the [Var] interface.
 type Int struct {
-	i int64
+	i atomic.Int64
 }
 
 func (v *Int) Value() int64 {
-	return atomic.LoadInt64(&v.i)
+	return v.i.Load()
 }
 
 func (v *Int) String() string {
@@ -62,18 +62,18 @@ func (v *Int) String() string {
 }
 
 func (v *Int) appendJSON(b []byte) []byte {
-	return strconv.AppendInt(b, atomic.LoadInt64(&v.i), 10)
+	return strconv.AppendInt(b, v.i.Load(), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	atomic.AddInt64(&v.i, delta)
+	v.i.Add(delta)
 }
 
 func (v *Int) Set(value int64) {
-	atomic.StoreInt64(&v.i, value)
+	v.i.Store(value)
 }
 
-// Float is a 64-bit float variable that satisfies the Var interface.
+// Float is a 64-bit float variable that satisfies the [Var] interface.
 type Float struct {
 	f atomic.Uint64
 }
@@ -108,14 +108,14 @@ func (v *Float) Set(value float64) {
 	v.f.Store(math.Float64bits(value))
 }
 
-// Map is a string-to-Var map variable that satisfies the Var interface.
+// Map is a string-to-Var map variable that satisfies the [Var] interface.
 type Map struct {
 	m      sync.Map // map[string]Var
 	keysMu sync.RWMutex
 	keys   []string // sorted
 }
 
-// KeyValue represents a single entry in a Map.
+// KeyValue represents a single entry in a [Map].
 type KeyValue struct {
 	Key   string
 	Value Var
@@ -208,7 +208,7 @@ func (v *Map) Set(key string, av Var) {
 	v.m.Store(key, av)
 }
 
-// Add adds delta to the *Int value stored under the given map key.
+// Add adds delta to the *[Int] value stored under the given map key.
 func (v *Map) Add(key string, delta int64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -225,7 +225,7 @@ func (v *Map) Add(key string, delta int64) {
 	}
 }
 
-// AddFloat adds delta to the *Float value stored under the given map key.
+// AddFloat adds delta to the *[Float] value stored under the given map key.
 func (v *Map) AddFloat(key string, delta float64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -266,7 +266,7 @@ func (v *Map) Do(f func(KeyValue)) {
 	}
 }
 
-// String is a string variable, and satisfies the Var interface.
+// String is a string variable, and satisfies the [Var] interface.
 type String struct {
 	s atomic.Value // string
 }
@@ -276,8 +276,8 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Var interface. To get the unquoted string
-// use Value.
+// String implements the [Var] interface. To get the unquoted string
+// use [String.Value].
 func (v *String) String() string {
 	return string(v.appendJSON(nil))
 }
@@ -290,7 +290,7 @@ func (v *String) Set(value string) {
 	v.s.Store(value)
 }
 
-// Func implements Var by calling the function
+// Func implements [Var] by calling the function
 // and formatting the returned value using JSON.
 type Func func() any
 

@@ -45,7 +45,7 @@ func fmtJSON(x any) string {
 	return string(js)
 }
 
-func TestConvertCPUProfileEmpty(t *testing.T) {
+func TestConvertCPUProfileNoSamples(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 

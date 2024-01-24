@@ -428,7 +428,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	}
 	// Note that in this case we can't return a valid errno value.
 	return write2(fd, uintptr(p), n)
-
 }
 
 //go:nosplit
@@ -641,7 +640,6 @@ func sysconf(name int32) uintptr {
 		throw("syscall sysconf")
 	}
 	return r
-
 }
 
 // pthread functions returns its error code in the main return value

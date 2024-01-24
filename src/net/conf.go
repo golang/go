@@ -151,7 +151,7 @@ func initConfVal() {
 	}
 }
 
-// goosPreferCgo reports whether the GOOS value passed in prefers
+// goosPrefersCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
 func goosPrefersCgo() bool {
 	switch runtime.GOOS {
@@ -522,7 +522,7 @@ func isGateway(h string) bool {
 	return stringsEqualFold(h, "_gateway")
 }
 
-// isOutbound reports whether h should be considered a "outbound"
+// isOutbound reports whether h should be considered an "outbound"
 // name for the myhostname NSS module.
 func isOutbound(h string) bool {
 	return stringsEqualFold(h, "_outbound")

@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/cov/covcmd"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/coverage"
-	"internal/coverage/covcmd"
 	"internal/coverage/encodemeta"
 	"internal/coverage/slicewriter"
 	"io"
@@ -51,7 +51,7 @@ where -pkgcfg points to a file containing the package path,
 package name, module path, and related info from "go build",
 and -outfilelist points to a file containing the filenames
 of the instrumented output files (one per input file).
-See https://pkg.go.dev/internal/coverage/covcmd#CoverPkgConfig for
+See https://pkg.go.dev/cmd/internal/cov/covcmd#CoverPkgConfig for
 more on the package config.
 `
 

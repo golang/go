@@ -29,11 +29,21 @@ go 1.19
 		t.Fatalf("error writing go.mod: %v", err)
 	}
 
+	// Run the test without PGO to ensure that the test assertions are
+	// correct even in the non-optimized version.
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "."))
+	cmd.Dir = dir
+	b, err := cmd.CombinedOutput()
+	t.Logf("Test without PGO:\n%s", b)
+	if err != nil {
+		t.Fatalf("Test failed without PGO: %v", err)
+	}
+
 	// Build the test with the profile.
 	pprof := filepath.Join(dir, "devirt.pprof")
-	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=2", pprof)
+	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=3", pprof)
 	out := filepath.Join(dir, "test.exe")
-	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", out, gcflag, "."))
+	cmd = testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-o", out, gcflag, "."))
 	cmd.Dir = dir
 
 	pr, pw, err := os.Pipe()
@@ -56,19 +66,48 @@ go 1.19
 	}
 
 	want := []devirtualization{
+		// ExerciseIface
 		{
-			pos:    "./devirt.go:61:21",
+			pos:    "./devirt.go:101:20",
 			callee: "mult.Mult.Multiply",
 		},
 		{
-			pos:    "./devirt.go:61:31",
+			pos:    "./devirt.go:101:39",
 			callee: "Add.Add",
 		},
+		// ExerciseFuncConcrete
+		{
+			pos:    "./devirt.go:173:36",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:173:15",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncField
+		{
+			pos:    "./devirt.go:207:35",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:207:19",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncClosure
+		// TODO(prattmic): Closure callees not implemented.
+		//{
+		//	pos:    "./devirt.go:249:27",
+		//	callee: "AddClosure.func1",
+		//},
+		//{
+		//	pos:    "./devirt.go:249:15",
+		//	callee: "mult.MultClosure.func1",
+		//},
 	}
 
 	got := make(map[devirtualization]struct{})
 
-	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing .* to (.*)`)
+	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing \w+ call .* to (.*)`)
 
 	scanner := bufio.NewScanner(pr)
 	for scanner.Scan() {
@@ -102,6 +141,15 @@ go 1.19
 		}
 		t.Errorf("devirtualization %v missing; got %v", w, got)
 	}
+
+	// Run test with PGO to ensure the assertions are still true.
+	cmd = testenv.CleanCmdEnv(testenv.Command(t, out))
+	cmd.Dir = dir
+	b, err = cmd.CombinedOutput()
+	t.Logf("Test with PGO:\n%s", b)
+	if err != nil {
+		t.Fatalf("Test failed without PGO: %v", err)
+	}
 }
 
 // TestPGODevirtualize tests that specific functions are devirtualized when PGO
@@ -115,10 +163,10 @@ func TestPGODevirtualize(t *testing.T) {
 
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "mult"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
 		t.Fatalf("error creating dir: %v", err)
 	}
-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult", "mult.go")} {
+	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}

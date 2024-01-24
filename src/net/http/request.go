@@ -111,10 +111,6 @@ var reqWriteExcludeHeader = map[string]bool{
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
 	// For client requests, an empty string means GET.
-	//
-	// Go's HTTP client does not support sending a request with
-	// the CONNECT method. See the documentation on Transport for
-	// details.
 	Method string
 
 	// URL specifies either the URI being requested (for server
@@ -401,6 +397,20 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)
 	r2.MultipartForm = cloneMultipartForm(r.MultipartForm)
+
+	// Copy matches and otherValues. See issue 61410.
+	if s := r.matches; s != nil {
+		s2 := make([]string, len(s))
+		copy(s2, s)
+		r2.matches = s2
+	}
+	if s := r.otherValues; s != nil {
+		s2 := make(map[string]string, len(s))
+		for k, v := range s {
+			s2[k] = v
+		}
+		r2.otherValues = s2
+	}
 	return r2
 }
 
@@ -1431,6 +1441,8 @@ func (r *Request) PathValue(name string) string {
 	return r.otherValues[name]
 }
 
+// SetPathValue sets name to value, so that subsequent calls to r.PathValue(name)
+// return value.
 func (r *Request) SetPathValue(name, value string) {
 	if i := r.patIndex(name); i >= 0 {
 		r.matches[i] = value

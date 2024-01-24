@@ -1072,6 +1072,7 @@ type EncodeQueryTest struct {
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, ""},
+	{Values{}, ""},
 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
 	{Values{

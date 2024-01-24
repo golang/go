@@ -369,6 +369,23 @@ func ExampleQuoteToGraphic() {
 	// "\" This is a ☺ \\n \""
 }
 
+func ExampleQuotedPrefix() {
+	s, err := strconv.QuotedPrefix("not a quoted string")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("\"double-quoted string\" with trailing text")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("`or backquoted` with more trailing text")
+	fmt.Printf("%q, %v\n", s, err)
+	s, err = strconv.QuotedPrefix("'\u263a' is also okay")
+	fmt.Printf("%q, %v\n", s, err)
+
+	// Output:
+	// "", invalid syntax
+	// "\"double-quoted string\"", <nil>
+	// "`or backquoted`", <nil>
+	// "'☺'", <nil>
+}
+
 func ExampleUnquote() {
 	s, err := strconv.Unquote("You can't unquote a string without quotes")
 	fmt.Printf("%q, %v\n", s, err)

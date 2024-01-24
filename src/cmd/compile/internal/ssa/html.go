@@ -741,7 +741,7 @@ function toggleDarkMode() {
 </head>`)
 	w.WriteString("<body>")
 	w.WriteString("<h1>")
-	w.WriteString(html.EscapeString(w.Func.Name))
+	w.WriteString(html.EscapeString(w.Func.NameABI()))
 	w.WriteString("</h1>")
 	w.WriteString(`
 <a href="#" onclick="toggle_visibility('help');return false;" id="helplink">help</a>
@@ -784,7 +784,7 @@ func (w *HTMLWriter) Close() {
 	io.WriteString(w.w, "</body>")
 	io.WriteString(w.w, "</html>")
 	w.w.Close()
-	fmt.Printf("dumped SSA to %v\n", w.path)
+	fmt.Printf("dumped SSA for %s to %v\n", w.Func.NameABI(), w.path)
 }
 
 // WritePhase writes f in a column headed by title.

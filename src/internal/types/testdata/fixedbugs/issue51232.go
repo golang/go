@@ -11,20 +11,20 @@ type RC[RG any] interface {
 type Fn[RCT RC[RG], RG any] func(RCT)
 
 type F[RCT RC[RG], RG any] interface {
-	Fn() Fn /* ERROR "got 1 arguments" */ [RCT]
+	Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
 }
 
 type concreteF[RCT RC[RG], RG any] struct {
-	makeFn func() Fn /* ERROR "got 1 arguments" */ [RCT]
+	makeFn func() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
 }
 
-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
+func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT] {
 	return c.makeFn()
 }
 
-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "got 1 arguments" */ [RCT] {
+func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [RCT] {
 	// TODO(rfindley): eliminate the duplicate error below.
-	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
+	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "not enough type arguments for type concreteF: have 1, want 2" */ [RCT]{
 		makeFn: nil,
 	}
 }

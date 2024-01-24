@@ -1053,6 +1053,33 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
+// Ensure that Request.Clone works correctly with PathValue.
+// See issue 64911.
+func TestRequestClonePathValue(t *testing.T) {
+	req, _ := http.NewRequest("GET", "https://example.org/", nil)
+	req.SetPathValue("p1", "orig")
+
+	clonedReq := req.Clone(context.Background())
+	clonedReq.SetPathValue("p2", "copy")
+
+	// Ensure that any modifications to the cloned
+	// request do not pollute the original request.
+	if g, w := req.PathValue("p2"), ""; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+	if g, w := req.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+
+	// Assert on the changes to the cloned request.
+	if g, w := clonedReq.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+	if g, w := clonedReq.PathValue("p2"), "copy"; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+}
+
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
@@ -1551,57 +1578,6 @@ func TestStatus(t *testing.T) {
 		}
 		if g, w := res.Header.Get("Allow"), test.wantAllow; g != w {
 			t.Errorf("%s %s, Allow: got %q, want %q", test.method, test.path, g, w)
-		}
-	}
-}
-
-func TestEscapedPathsAndPatterns(t *testing.T) {
-	matches := []struct {
-		pattern string
-		paths   []string
-	}{
-		{
-			"/a", // this pattern matches a path that unescapes to "/a"
-			[]string{"/a", "/%61"},
-		},
-		{
-			"/%62", // patterns are unescaped by segment; matches paths that unescape to "/b"
-			[]string{"/b", "/%62"},
-		},
-		{
-			"/%7B/%7D", // the only way to write a pattern that matches '{' or '}'
-			[]string{"/{/}", "/%7b/}", "/{/%7d", "/%7B/%7D"},
-		},
-		{
-			"/%x", // patterns that do not unescape are left unchanged
-			[]string{"/%25x"},
-		},
-	}
-
-	mux := NewServeMux()
-	var gotPattern string
-	for _, m := range matches {
-		mux.HandleFunc(m.pattern, func(w ResponseWriter, r *Request) {
-			gotPattern = m.pattern
-		})
-	}
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	for _, m := range matches {
-		for _, p := range m.paths {
-			res, err := Get(server.URL + p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.StatusCode != 200 {
-				t.Errorf("%s: got code %d, want 200", p, res.StatusCode)
-				continue
-			}
-			if g, w := gotPattern, m.pattern; g != w {
-				t.Errorf("%s: pattern: got %q, want %q", p, g, w)
-			}
 		}
 	}
 }

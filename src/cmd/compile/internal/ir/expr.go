@@ -54,7 +54,7 @@ func (n *miniExpr) Init() Nodes           { return n.init }
 func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
 func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
 
-// An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
+// An AddStringExpr is a string concatenation List[0] + List[1] + ... + List[len(List)-1].
 type AddStringExpr struct {
 	miniExpr
 	List     Nodes
@@ -181,20 +181,21 @@ func (n *BinaryExpr) SetOp(op Op) {
 	}
 }
 
-// A CallExpr is a function call X(Args).
+// A CallExpr is a function call Fun(Args).
 type CallExpr struct {
 	miniExpr
-	X         Node
+	Fun       Node
 	Args      Nodes
 	DeferAt   Node
 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
-	NoInline  bool
+	GoDefer   bool // whether this call is part of a go or defer statement
+	NoInline  bool // whether this call must not be inlined
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
-	n := &CallExpr{X: fun}
+	n := &CallExpr{Fun: fun}
 	n.pos = pos
 	n.SetOp(op)
 	n.Args = args
@@ -211,7 +212,7 @@ func (n *CallExpr) SetOp(op Op) {
 		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
 		ODELETE,
 		OGETG, OGETCALLERPC, OGETCALLERSP,
-		OMAKE, OMAX, OMIN, OPRINT, OPRINTN,
+		OMAKE, OMAX, OMIN, OPRINT, OPRINTLN,
 		ORECOVER, ORECOVERFP:
 		n.op = op
 	}
@@ -349,7 +350,7 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 	return n
 }
 
-// A StructKeyExpr is an Field: Value composite literal key.
+// A StructKeyExpr is a Field: Value composite literal key.
 type StructKeyExpr struct {
 	miniExpr
 	Field *types.Field
@@ -673,6 +674,9 @@ type TypeAssertExpr struct {
 	// Runtime type information provided by walkDotType for
 	// assertions from non-empty interface to concrete type.
 	ITab Node `mknode:"-"` // *runtime.itab for Type implementing X's type
+
+	// An internal/abi.TypeAssert descriptor to pass to the runtime.
+	Descriptor *obj.LSym
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
@@ -919,6 +923,8 @@ FindRHS:
 // NB: global variables are always considered to be re-assigned.
 // TODO: handle initial declaration not including an assignment and
 // followed by a single assignment?
+// NOTE: any changes made here should also be made in the corresponding
+// code in the ReassignOracle.Init method.
 func Reassigned(name *Name) bool {
 	if name.Op() != ONAME {
 		base.Fatalf("reassigned %v", name)
@@ -1184,6 +1190,51 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	b.WriteString(msym.Name)
 	b.WriteString(suffix)
 	return rpkg.LookupBytes(b.Bytes())
+}
+
+// LookupMethodSelector returns the types.Sym of the selector for a method
+// named in local symbol name, as well as the types.Sym of the receiver.
+//
+// TODO(prattmic): this does not attempt to handle method suffixes (wrappers).
+func LookupMethodSelector(pkg *types.Pkg, name string) (typ, meth *types.Sym, err error) {
+	typeName, methName := splitType(name)
+	if typeName == "" {
+		return nil, nil, fmt.Errorf("%s doesn't contain type split", name)
+	}
+
+	if len(typeName) > 3 && typeName[:2] == "(*" && typeName[len(typeName)-1] == ')' {
+		// Symbol name is for a pointer receiver method. We just want
+		// the base type name.
+		typeName = typeName[2 : len(typeName)-1]
+	}
+
+	typ = pkg.Lookup(typeName)
+	meth = pkg.Selector(methName)
+	return typ, meth, nil
+}
+
+// splitType splits a local symbol name into type and method (fn). If this a
+// free function, typ == "".
+//
+// N.B. closures and methods can be ambiguous (e.g., bar.func1). These cases
+// are returned as methods.
+func splitType(name string) (typ, fn string) {
+	// Types are split on the first dot, ignoring everything inside
+	// brackets (instantiation of type parameter, usually including
+	// "go.shape").
+	bracket := 0
+	for i, r := range name {
+		if r == '.' && bracket == 0 {
+			return name[:i], name[i+1:]
+		}
+		if r == '[' {
+			bracket++
+		}
+		if r == ']' {
+			bracket--
+		}
+	}
+	return "", name
 }
 
 // MethodExprName returns the ONAME representing the method

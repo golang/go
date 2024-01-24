@@ -12204,7 +12204,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 		return true
 	}
 	// match: (MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
-	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
+	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)
 	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 	for {
 		c := auxIntToValAndOff(v.AuxInt)
@@ -12220,7 +12220,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 		}
 		mem := x.Args[1]
 		p0 := x.Args[0]
-		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
+		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVOstoreconst)
@@ -12230,7 +12230,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 		return true
 	}
 	// match: (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
-	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
+	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)
 	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 	for {
 		a := auxIntToValAndOff(v.AuxInt)
@@ -12246,7 +12246,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
 		}
 		mem := x.Args[1]
 		p1 := x.Args[0]
-		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
+		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)) {
 			break
 		}
 		v.reset(OpAMD64MOVOstoreconst)

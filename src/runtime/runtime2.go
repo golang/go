@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/chacha8rand"
 	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -479,6 +480,10 @@ type g struct {
 	// park on a chansend or chanrecv. Used to signal an unsafe point
 	// for stack shrinking.
 	parkingOnChan atomic.Bool
+	// inMarkAssist indicates whether the goroutine is in mark assist.
+	// Used by the execution tracer.
+	inMarkAssist bool
+	coroexit     bool // argument to coroswitch_m
 
 	raceignore    int8  // ignore race detection events
 	nocgocallback bool  // whether disable callback from C
@@ -502,6 +507,8 @@ type g struct {
 	labels        unsafe.Pointer // profiler labels
 	timer         *timer         // cached timer for time.Sleep
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
+
+	coroarg *coro // argument during coroutine transfers
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
@@ -572,8 +579,8 @@ type m struct {
 	incgo         bool          // m is executing a cgo call
 	isextra       bool          // m is an extra m
 	isExtraInC    bool          // m is an extra m that is not executing Go code
+	isExtraInSig  bool          // m is an extra m in a signal handler
 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
-	fastrand      uint64
 	needextram    bool
 	traceback     uint8
 	ncgocall      uint64        // number of cgo calls in total
@@ -588,6 +595,8 @@ type m struct {
 	lockedExt     uint32      // tracking for external LockOSThread
 	lockedInt     uint32      // tracking for internal lockOSThread
 	nextwaitm     muintptr    // next m waiting for lock
+
+	mLockProfile mLockProfile // fields relating to runtime.lock contention
 
 	// wait* are used to carry arguments from gopark into park_m, because
 	// there's no stack to put them on. That is their sole purpose.
@@ -625,6 +634,9 @@ type m struct {
 	dlogPerM
 
 	mOS
+
+	chacha8   chacha8rand.State
+	cheaprand uint64
 
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
@@ -851,7 +863,7 @@ type schedt struct {
 	sysmonwait atomic.Bool
 	sysmonnote note
 
-	// safepointFn should be called on each P at the next GC
+	// safePointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.
 	safePointFn   func(*p)
 	safePointWait int32
@@ -881,6 +893,27 @@ type schedt struct {
 	// totalMutexWaitTime is the sum of time goroutines have spent in _Gwaiting
 	// with a waitreason of the form waitReasonSync{RW,}Mutex{R,}Lock.
 	totalMutexWaitTime atomic.Int64
+
+	// stwStoppingTimeGC/Other are distributions of stop-the-world stopping
+	// latencies, defined as the time taken by stopTheWorldWithSema to get
+	// all Ps to stop. stwStoppingTimeGC covers all GC-related STWs,
+	// stwStoppingTimeOther covers the others.
+	stwStoppingTimeGC    timeHistogram
+	stwStoppingTimeOther timeHistogram
+
+	// stwTotalTimeGC/Other are distributions of stop-the-world total
+	// latencies, defined as the total time from stopTheWorldWithSema to
+	// startTheWorldWithSema. This is a superset of
+	// stwStoppingTimeGC/Other. stwTotalTimeGC covers all GC-related STWs,
+	// stwTotalTimeOther covers the others.
+	stwTotalTimeGC    timeHistogram
+	stwTotalTimeOther timeHistogram
+
+	// totalRuntimeLockWaitTime (plus the value of lockWaitTime on each M in
+	// allm) is the sum of time goroutines have spent in _Grunnable and with an
+	// M, but waiting for locks within the runtime. This field stores the value
+	// for Ms that have exited.
+	totalRuntimeLockWaitTime atomic.Int64
 }
 
 // Values for the flags field of a sigTabT.
@@ -960,7 +993,7 @@ type funcinl struct {
 // layout of Itab known to compilers
 // allocated in non-garbage-collected memory
 // Needs to be in sync with
-// ../cmd/compile/internal/reflectdata/reflect.go:/^func.WriteTabs.
+// ../cmd/compile/internal/reflectdata/reflect.go:/^func.WritePluginTable.
 type itab struct {
 	inter *interfacetype
 	_type *_type
@@ -980,27 +1013,6 @@ type forcegcstate struct {
 	lock mutex
 	g    *g
 	idle atomic.Bool
-}
-
-// extendRandom extends the random numbers in r[:n] to the whole slice r.
-// Treats n<0 as n==0.
-func extendRandom(r []byte, n int) {
-	if n < 0 {
-		n = 0
-	}
-	for n < len(r) {
-		// Extend random bits using hash function & time seed
-		w := n
-		if w > 16 {
-			w = 16
-		}
-		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
-		for i := 0; i < goarch.PtrSize && n < len(r); i++ {
-			r[n] = byte(h)
-			n++
-			h >>= 8
-		}
-	}
 }
 
 // A _defer holds an entry on the list of deferred calls.
@@ -1112,6 +1124,11 @@ const (
 	waitReasonDebugCall                               // "debug call"
 	waitReasonGCMarkTermination                       // "GC mark termination"
 	waitReasonStoppingTheWorld                        // "stopping the world"
+	waitReasonFlushProcCaches                         // "flushing proc caches"
+	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
+	waitReasonTraceProcStatus                         // "trace proc status"
+	waitReasonPageTraceFlush                          // "page trace flush"
+	waitReasonCoroutine                               // "coroutine"
 )
 
 var waitReasonStrings = [...]string{
@@ -1147,6 +1164,11 @@ var waitReasonStrings = [...]string{
 	waitReasonDebugCall:             "debug call",
 	waitReasonGCMarkTermination:     "GC mark termination",
 	waitReasonStoppingTheWorld:      "stopping the world",
+	waitReasonFlushProcCaches:       "flushing proc caches",
+	waitReasonTraceGoroutineStatus:  "trace goroutine status",
+	waitReasonTraceProcStatus:       "trace proc status",
+	waitReasonPageTraceFlush:        "page trace flush",
+	waitReasonCoroutine:             "coroutine",
 }
 
 func (w waitReason) String() string {
@@ -1205,7 +1227,9 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 
-	goarm uint8 // set by cmd/link on arm systems
+	// set by cmd/link on arm systems
+	goarm       uint8
+	goarmsoftfp uint8
 )
 
 // Set by the linker so the runtime can determine the buildmode.

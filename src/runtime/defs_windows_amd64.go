@@ -99,3 +99,18 @@ func dumpregs(r *context) {
 	print("fs      ", hex(r.segfs), "\n")
 	print("gs      ", hex(r.seggs), "\n")
 }
+
+type _DISPATCHER_CONTEXT struct {
+	controlPc        uint64
+	imageBase        uint64
+	functionEntry    uintptr
+	establisherFrame uint64
+	targetIp         uint64
+	context          *context
+	languageHandler  uintptr
+	handlerData      uintptr
+}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return c.context
+}

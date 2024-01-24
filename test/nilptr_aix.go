@@ -7,7 +7,7 @@
 // Test that the implementation catches nil ptr indirection
 // in a large address space.
 
-// +build aix
+//go:build aix
 
 package main
 

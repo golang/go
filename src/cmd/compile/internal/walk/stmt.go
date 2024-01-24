@@ -48,7 +48,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.ODELETE,
 		ir.OSEND,
 		ir.OPRINT,
-		ir.OPRINTN,
+		ir.OPRINTLN,
 		ir.OPANIC,
 		ir.ORECOVERFP,
 		ir.OGETG:
@@ -88,6 +88,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OGOTO,
 		ir.OLABEL,
 		ir.OJUMPTABLE,
+		ir.OINTERFACESWITCH,
 		ir.ODCL,
 		ir.OCHECKNIL:
 		return n
@@ -138,7 +139,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.TailCallStmt)
 
 		var init ir.Nodes
-		n.Call.X = walkExpr(n.Call.X, &init)
+		n.Call.Fun = walkExpr(n.Call.Fun, &init)
 
 		if len(init) > 0 {
 			init.Append(n)
@@ -195,7 +196,7 @@ func walkFor(n *ir.ForStmt) ir.Node {
 // call without arguments or results.
 func validGoDeferCall(call ir.Node) bool {
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC && len(call.KeepAlive) == 0 {
-		sig := call.X.Type()
+		sig := call.Fun.Type()
 		return sig.NumParams()+sig.NumResults() == 0
 	}
 	return false
@@ -210,7 +211,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 	var init ir.Nodes
 
 	call := n.Call.(*ir.CallExpr)
-	call.X = walkExpr(call.X, &init)
+	call.Fun = walkExpr(call.Fun, &init)
 
 	if len(init) > 0 {
 		init.Append(n)
