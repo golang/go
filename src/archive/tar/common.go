@@ -644,7 +644,7 @@ const (
 //
 // If fi implements [FileInfoNames]
 // the Gname and Uname of the header are
-// provided by the methods of the interface.
+// only in unix provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -738,9 +738,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	return h, nil
 }
 
-// FileInfoNames extends [FileInfo] to translate UID/GID to names.
+// FileInfoNames extends [fs.FileInfo] to translate UID/GID to names.
 // Passing an instance of this to [FileInfoHeader] permits the caller
-// to control UID/GID resolution.
+// to control UID/GID resolution only in unix.
 type FileInfoNames interface {
 	fs.FileInfo
 	// Uname should translate a UID into a user name.
