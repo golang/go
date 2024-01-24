@@ -756,11 +756,7 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().string4() + "%" + z
-			} else {
-				return "::ffff:" + ip.Unmap().string4()
-			}
+			return ip.string4In6()
 		}
 		return ip.string6()
 	}
@@ -845,6 +841,13 @@ func (ip Addr) appendTo4(ret []byte) []byte {
 	ret = append(ret, '.')
 	ret = appendDecimal(ret, ip.v4(3))
 	return ret
+}
+
+func (ip Addr) string4In6() string {
+	const max = len("::ffff:255.255.255.255%enp5s0")
+	ret := make([]byte, 0, max)
+	ret = ip.appendTo4In6(ret)
+	return string(ret)
 }
 
 func (ip Addr) appendTo4In6(ret []byte) []byte {

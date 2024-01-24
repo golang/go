@@ -1691,7 +1691,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 	}
 }
 
-func BenchmarkIPString(b *testing.B) {
+func BenchmarkAddrString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
