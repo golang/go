@@ -34,6 +34,9 @@ machine hasmacro.too macdef ignore-next-lines login user4 password pwd4
   login nobody
   password nothing
 
+machine empty.login
+  password mysupergitlabtoken
+
 default
 login anonymous
 password gopher@golang.org
@@ -50,6 +53,7 @@ func TestParseNetrc(t *testing.T) {
 		{"test.host", "user2", "pwd2"},
 		{"oneline", "user3", "pwd3"},
 		{"hasmacro.too", "user4", "pwd4"},
+		{"empty.login", "", "mysupergitlabtoken"},
 	}
 
 	if !reflect.DeepEqual(lines, want) {

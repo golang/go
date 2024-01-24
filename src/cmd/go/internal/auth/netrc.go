@@ -61,7 +61,7 @@ func parseNetrc(data string) []netrcLine {
 				// new-line characters) is encountered.”
 				inMacro = true
 			}
-			if l.machine != "" && l.login != "" && l.password != "" {
+			if l.machine != "" && l.password != "" {
 				nrc = append(nrc, l)
 				l = netrcLine{}
 			}
