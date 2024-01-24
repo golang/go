@@ -73,9 +73,7 @@ func gcMarkRootPrepare() {
 		if nDataRoots > work.nDataRoots {
 			work.nDataRoots = nDataRoots
 		}
-	}
 
-	for _, datap := range activeModules() {
 		nBSSRoots := nBlocks(datap.ebss - datap.bss)
 		if nBSSRoots > work.nBSSRoots {
 			work.nBSSRoots = nBSSRoots
