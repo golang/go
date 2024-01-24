@@ -717,20 +717,21 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
-	if iface, ok := fi.(FileInfoNames); ok {
-		var err error
-		if loadUidAndGid != nil {
+	// use FileInfoNames only on unix
+	if loadUidAndGid != nil {
+		if iface, ok := fi.(FileInfoNames); ok {
+			var err error
 			loadUidAndGid(fi, &h.Uid, &h.Gid)
+			h.Gname, err = iface.Gname(h.Gid)
+			if err != nil {
+				return nil, err
+			}
+			h.Uname, err = iface.Uname(h.Uid)
+			if err != nil {
+				return nil, err
+			}
+			return h, nil
 		}
-		h.Gname, err = iface.Gname(h.Gid)
-		if err != nil {
-			return nil, err
-		}
-		h.Uname, err = iface.Uname(h.Uid)
-		if err != nil {
-			return nil, err
-		}
-		return h, nil
 	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
