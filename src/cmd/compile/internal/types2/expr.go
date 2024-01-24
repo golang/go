@@ -1184,7 +1184,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := fieldIndex(utyp.fields, check.pkg, key.Value)
+					i := fieldIndex(utyp.fields, check.pkg, key.Value, false)
 					if i < 0 {
 						check.errorf(kv.Key, MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
 						continue
