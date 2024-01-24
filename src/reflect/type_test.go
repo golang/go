@@ -78,6 +78,9 @@ func TestIsRegularMemory(t *testing.T) {
 		}{})}, true},
 		{"map[int][int]", args{reflect.TypeOf(map[int]int{})}, false},
 		{"[4]chan int", args{reflect.TypeOf([4]chan int{})}, true},
+		{"[0]struct{_ S}", args{reflect.TypeOf([0]struct {
+			_ S
+		}{})}, true},
 		{"struct{i int; _ S}", args{reflect.TypeOf(struct {
 			i int
 			_ S

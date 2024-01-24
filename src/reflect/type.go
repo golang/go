@@ -2156,7 +2156,11 @@ func isValidFieldName(fieldName string) bool {
 func isRegularMemory(t Type) bool {
 	switch t.Kind() {
 	case Array:
-		return isRegularMemory(t.Elem())
+		elem := t.Elem()
+		if isRegularMemory(elem) {
+			return true
+		}
+		return elem.Comparable() && t.Len() == 0
 	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Chan, Pointer, Bool, UnsafePointer:
 		return true
 	case Struct:
