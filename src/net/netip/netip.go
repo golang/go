@@ -773,13 +773,7 @@ func (ip Addr) AppendTo(b []byte) []byte {
 		return ip.appendTo4(b)
 	default:
 		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b
+			return ip.appendTo4In6(b)
 		}
 		return ip.appendTo6(b)
 	}
