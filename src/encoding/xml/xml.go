@@ -34,7 +34,7 @@ func (e *SyntaxError) Error() string {
 
 // A Name represents an XML name (Local) annotated
 // with a name space identifier (Space).
-// In tokens returned by Decoder.Token, the Space identifier
+// In tokens returned by [Decoder.Token], the Space identifier
 // is given as a canonical URL, not the short prefix used
 // in the document being parsed.
 type Name struct {
@@ -48,7 +48,7 @@ type Attr struct {
 }
 
 // A Token is an interface holding one of the token types:
-// StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
+// [StartElement], [EndElement], [CharData], [Comment], [ProcInst], or [Directive].
 type Token any
 
 // A StartElement represents an XML start element.
@@ -127,14 +127,14 @@ func CopyToken(t Token) Token {
 }
 
 // A TokenReader is anything that can decode a stream of XML tokens, including a
-// Decoder.
+// [Decoder].
 //
 // When Token encounters an error or end-of-file condition after successfully
 // reading a token, it returns the token. It may return the (non-nil) error from
 // the same call or return the error (and a nil token) from a subsequent call.
 // An instance of this general case is that a TokenReader returning a non-nil
 // token at the end of the token stream may return either io.EOF or a nil error.
-// The next Read should return nil, io.EOF.
+// The next Read should return nil, [io.EOF].
 //
 // Implementations of Token are discouraged from returning a nil token with a
 // nil error. Callers should treat a return of nil, nil as indicating that
@@ -216,7 +216,7 @@ type Decoder struct {
 }
 
 // NewDecoder creates a new XML parser reading from r.
-// If r does not implement io.ByteReader, NewDecoder will
+// If r does not implement [io.ByteReader], NewDecoder will
 // do its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
@@ -246,28 +246,28 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 }
 
 // Token returns the next XML token in the input stream.
-// At the end of the input stream, Token returns nil, io.EOF.
+// At the end of the input stream, Token returns nil, [io.EOF].
 //
 // Slices of bytes in the returned token data refer to the
 // parser's internal buffer and remain valid only until the next
-// call to Token. To acquire a copy of the bytes, call CopyToken
+// call to Token. To acquire a copy of the bytes, call [CopyToken]
 // or the token's Copy method.
 //
 // Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
-// Token guarantees that the StartElement and EndElement
+// Token guarantees that the [StartElement] and [EndElement]
 // tokens it returns are properly nested and matched:
 // if Token encounters an unexpected end element
 // or EOF before all expected end elements,
 // it will return an error.
 //
-// If CharsetReader is called and returns an error,
+// If [Decoder.CharsetReader] is called and returns an error,
 // the error is wrapped and returned.
 //
 // Token implements XML name spaces as described by
 // https://www.w3.org/TR/REC-xml-names/. Each of the
-// Name structures contained in the Token has the Space
+// [Name] structures contained in the Token has the Space
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
@@ -534,7 +534,7 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 
 var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
 
-// RawToken is like Token but does not verify that
+// RawToken is like [Decoder.Token] but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
@@ -1596,7 +1596,7 @@ var second = &unicode.RangeTable{
 // HTMLEntity is an entity map containing translations for the
 // standard HTML entity characters.
 //
-// See the Decoder.Strict and Decoder.Entity fields' documentation.
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
 var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
@@ -1865,7 +1865,7 @@ var htmlEntity = map[string]string{
 // HTMLAutoClose is the set of HTML elements that
 // should be considered to close automatically.
 //
-// See the Decoder.Strict and Decoder.Entity fields' documentation.
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
 var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
@@ -1993,9 +1993,9 @@ func (p *printer) EscapeString(s string) {
 	p.WriteString(s[last:])
 }
 
-// Escape is like EscapeText but omits the error return value.
+// Escape is like [EscapeText] but omits the error return value.
 // It is provided for backwards compatibility with Go 1.0.
-// Code targeting Go 1.1 or later should use EscapeText.
+// Code targeting Go 1.1 or later should use [EscapeText].
 func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }

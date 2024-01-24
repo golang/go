@@ -265,11 +265,9 @@ func TestCallbackInAnotherThread(t *testing.T) {
 	h := syscall.Handle(r)
 	defer syscall.CloseHandle(h)
 
-	switch s, err := syscall.WaitForSingleObject(h, 100); s {
+	switch s, err := syscall.WaitForSingleObject(h, syscall.INFINITE); s {
 	case syscall.WAIT_OBJECT_0:
 		break
-	case syscall.WAIT_TIMEOUT:
-		t.Fatal("timeout waiting for thread to exit")
 	case syscall.WAIT_FAILED:
 		t.Fatalf("WaitForSingleObject failed: %v", err)
 	default:

@@ -163,3 +163,26 @@ func TestMustHaveExec(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanCmdEnvPWD(t *testing.T) {
+	// Test that CleanCmdEnv sets PWD if cmd.Dir is set.
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("PWD is not used on %s", runtime.GOOS)
+	}
+	dir := t.TempDir()
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "help")
+	cmd.Dir = dir
+	cmd = testenv.CleanCmdEnv(cmd)
+
+	for _, env := range cmd.Env {
+		if strings.HasPrefix(env, "PWD=") {
+			pwd := strings.TrimPrefix(env, "PWD=")
+			if pwd != dir {
+				t.Errorf("unexpected PWD: want %s, got %s", dir, pwd)
+			}
+			return
+		}
+	}
+	t.Error("PWD not set in cmd.Env")
+}

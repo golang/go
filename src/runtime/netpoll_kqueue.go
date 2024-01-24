@@ -140,7 +140,10 @@ func netpoll(delay int64) (gList, int32) {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR {
+		// Ignore the ETIMEDOUT error for now, but try to dive deep and
+		// figure out what really happened with n == ETIMEOUT,
+		// see https://go.dev/issue/59679 for details.
+		if n != -_EINTR && n != -_ETIMEDOUT {
 			println("runtime: kevent on fd", kq, "failed with", -n)
 			throw("runtime: netpoll failed")
 		}

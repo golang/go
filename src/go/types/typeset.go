@@ -288,7 +288,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			assert(len(tset.methods) == 0)
 			terms = tset.terms
 		default:
-			if u == Typ[Invalid] {
+			if !isValid(u) {
 				continue
 			}
 			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
@@ -302,7 +302,6 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 		// separately. Here we only need to intersect the term lists and comparable bits.
 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
 	}
-	ityp.embedPos = nil // not needed anymore (errors have been reported)
 
 	ityp.tset.comparable = allComparable
 	if len(allMethods) != 0 {
@@ -387,7 +386,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos tok
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(t.typ))
 			terms = computeInterfaceTypeSet(check, pos, ui).terms
-		} else if u == Typ[Invalid] {
+		} else if !isValid(u) {
 			continue
 		} else {
 			if t.tilde && !Identical(t.typ, u) {

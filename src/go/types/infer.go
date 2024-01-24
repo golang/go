@@ -11,7 +11,6 @@ package types
 import (
 	"fmt"
 	"go/token"
-	. "internal/types/errors"
 	"strings"
 )
 
@@ -26,10 +25,17 @@ const enableReverseTypeInference = true // disable for debugging
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
 // than type parameters, and params and args must match in number (incl. zero).
+// If reverse is set, an error message's contents are reversed for a better error message for some
+// errors related to reverse type inference (where the function call is synthetic).
 // If successful, infer returns the complete list of given and inferred type arguments, one for each
-// type parameter. Otherwise the result is nil and appropriate errors will be reported.
-func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
-	if debug {
+// type parameter. Otherwise the result is nil. Errors are reported through the err parameter.
+// Note: infer may fail (return nil) due to invalid args operands without reporting additional errors.
+func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, reverse bool, err *error_) (inferred []Type) {
+	// Don't verify result conditions if there's no error handler installed:
+	// in that case, an error leads to an exit panic and the result value may
+	// be incorrect. But in that case it doesn't matter because callers won't
+	// be able to use it either.
+	if check.conf.Error != nil {
 		defer func() {
 			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
 		}()
@@ -52,6 +58,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// If we already have all type arguments, we're done.
 	if len(targs) == n && !containsNil(targs) {
 		return targs
+	}
+
+	// If we have invalid (ordinary) arguments, an error was reported before.
+	// Avoid additional inference errors and exit early (go.dev/issue/60434).
+	for _, arg := range args {
+		if arg.mode == invalid {
+			return nil
+		}
 	}
 
 	// Make sure we have a "full" list of type arguments, some of which may
@@ -98,9 +112,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(tparams, targs)
+	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, posn, go1_21))
 
-	errorf := func(kind string, tpar, targ Type, arg *operand) {
+	errorf := func(tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
 		targs := u.inferred(tparams)
 		if targs[0] == nil {
@@ -115,7 +129,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				err.errorf(arg, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
@@ -127,9 +141,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
 		// the more general CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			if reverse {
+				err.errorf(arg, "inferred type %s for %s does not match type %s of %s", inferred, tpar, targ, arg.expr)
+			} else {
+				err.errorf(arg, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
+			}
 		} else {
-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			err.errorf(arg, "type %s of %s does not match %s", targ, arg.expr, tpar)
 		}
 	}
 
@@ -158,7 +176,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			// Collect the indices of untyped arguments and handle them later.
 			if isTyped(arg.typ) {
 				if !u.unify(par.typ, arg.typ, assign) {
-					errorf("type", par.typ, arg.typ, arg)
+					errorf(par.typ, arg.typ, arg)
 					return nil
 				}
 			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
@@ -236,7 +254,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 						// TODO(gri) Type parameters that appear in the constraint and
 						//           for which we have type arguments inferred should
 						//           use those type arguments for a better error message.
-						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
+						err.errorf(posn, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
 						return nil
 					}
 				case single && !core.tilde:
@@ -261,7 +279,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					constraint := tpar.iface()
 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
 						// TODO(gri) better error message (see TODO above)
-						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+						err.errorf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
 						return nil
 					}
 				}
@@ -302,7 +320,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			} else {
 				m := maxType(max, arg.typ)
 				if m == nil {
-					check.errorf(arg, CannotInferTypeArgs, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
+					err.errorf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
 					return nil
 				}
 				max = m
@@ -411,7 +429,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	for i, typ := range inferred {
 		if typ == nil || isParameterized(tparams, typ) {
 			obj := tparams[i].obj
-			check.errorf(posn, CannotInferTypeArgs, "cannot infer %s (%s)", obj.name, obj.pos)
+			err.errorf(posn, "cannot infer %s (%s)", obj.name, obj.pos)
 			return nil
 		}
 	}
@@ -539,6 +557,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	switch t := typ.(type) {
 	case *Basic:
 		// nothing to do
+
+	case *Alias:
+		return w.isParameterized(Unalias(t))
 
 	case *Array:
 		return w.isParameterized(t.elem)
@@ -690,6 +711,9 @@ func (w *cycleFinder) typ(typ Type) {
 	switch t := typ.(type) {
 	case *Basic:
 		// nothing to do
+
+	case *Alias:
+		w.typ(Unalias(t))
 
 	case *Array:
 		w.typ(t.elem)

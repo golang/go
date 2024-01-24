@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build loong64
-// +build loong64
 
 package cpu
 

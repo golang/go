@@ -1616,3 +1616,15 @@ func TestLargeSlice(t *testing.T) {
 		testEncodeDecode(t, st, rt)
 	})
 }
+
+func TestLocalRemoteTypesMismatch(t *testing.T) {
+	// Test data is from https://go.dev/issue/62117.
+	testData := []byte{9, 127, 3, 1, 2, 255, 128, 0, 0, 0, 3, 255, 128, 0}
+
+	var v []*struct{}
+	buf := bytes.NewBuffer(testData)
+	err := NewDecoder(buf).Decode(&v)
+	if err == nil {
+		t.Error("Encode/Decode: expected error but got err == nil")
+	}
+}

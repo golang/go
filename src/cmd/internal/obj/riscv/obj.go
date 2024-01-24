@@ -41,7 +41,7 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 	}
 
 	p.As = AJAL
-	p.Mark |= NEED_CALL_RELOC
+	p.Mark |= NEED_JAL_RELOC
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
 	p.Reg = obj.REG_NONE
@@ -69,6 +69,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		switch p.As {
 		case AADD:
 			p.As = AADDI
+		case ASUB:
+			p.As, p.From.Offset = AADDI, -p.From.Offset
 		case ASLT:
 			p.As = ASLTI
 		case ASLTU:
@@ -87,6 +89,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRAI
 		case AADDW:
 			p.As = AADDIW
+		case ASUBW:
+			p.As, p.From.Offset = AADDIW, -p.From.Offset
 		case ASLLW:
 			p.As = ASLLIW
 		case ASRLW:
@@ -303,6 +307,12 @@ func setPCs(p *obj.Prog, pc int64) int64 {
 		p.Pc = pc
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
+		}
+
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(pc, alignedValue)
+			pc += int64(v)
 		}
 	}
 	return pc
@@ -610,7 +620,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
-		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+		if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 			callCount++
 		}
 	}
@@ -664,7 +674,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					p.As = AAUIPC
-					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
+					p.Mark = (p.Mark &^ NEED_JAL_RELOC) | NEED_CALL_RELOC
 					p.AddRestSource(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
 					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 					p.Reg = obj.REG_NONE
@@ -727,7 +737,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					ctxt.Diag("%v: jump displacement %d too large", p, p.To.Target().Pc-p.Pc)
 				}
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
-				p.Link.From.Offset = low
+				p.Link.To.Offset = low
+			}
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			if (alignedValue&(alignedValue-1) != 0) || 4 > alignedValue || alignedValue > 2048 {
+				ctxt.Diag("alignment value of an instruction must be a power of two and in the range [4, 2048], got %d\n", alignedValue)
+			}
+			// Update the current text symbol alignment value.
+			if int32(alignedValue) > cursym.Func().Align {
+				cursym.Func().Align = int32(alignedValue)
 			}
 		}
 	}
@@ -738,6 +758,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ins.validate(ctxt)
 		}
 	}
+}
+
+func pcAlignPadLength(pc int64, alignedValue int64) int {
+	return int(-pc & (alignedValue - 1))
 }
 
 func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgAlloc, framesize int64) *obj.Prog {
@@ -913,8 +937,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	}
 	jalToSym(ctxt, p, REG_X5)
 
-	p = cursym.Func().UnspillRegisterArgs(p, newprog)
+	// The instructions which unspill regs should be preemptible.
 	p = ctxt.EndUnsafePoint(p, newprog, -1)
+	p = cursym.Func().UnspillRegisterArgs(p, newprog)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)
@@ -941,12 +966,12 @@ func signExtend(val int64, bit uint) int64 {
 // result. For example, high may be used in LUI and low in a following ADDI to
 // generate a full 32-bit constant.
 func Split32BitImmediate(imm int64) (low, high int64, err error) {
-	if !immIFits(imm, 32) {
-		return 0, 0, fmt.Errorf("immediate does not fit in 32 bits: %d", imm)
+	if err := immIFits(imm, 32); err != nil {
+		return 0, 0, err
 	}
 
 	// Nothing special needs to be done if the immediate fits in 12 bits.
-	if immIFits(imm, 12) {
+	if err := immIFits(imm, 12); err == nil {
 		return imm, 0, nil
 	}
 
@@ -973,7 +998,7 @@ func Split32BitImmediate(imm int64) (low, high int64, err error) {
 
 func regVal(r, min, max uint32) uint32 {
 	if r < min || r > max {
-		panic(fmt.Sprintf("register out of range, want %d < %d < %d", min, r, max))
+		panic(fmt.Sprintf("register out of range, want %d <= %d <= %d", min, r, max))
 	}
 	return r - min
 }
@@ -1006,171 +1031,186 @@ func regFAddr(a obj.Addr) uint32 {
 	return regAddr(a, REG_F0, REG_F31)
 }
 
-// immIFits reports whether immediate value x fits in nbits bits
-// as a signed integer.
-func immIFits(x int64, nbits uint) bool {
+// immEven checks that the immediate is a multiple of two. If it
+// is not, an error is returned.
+func immEven(x int64) error {
+	if x&1 != 0 {
+		return fmt.Errorf("immediate %#x is not a multiple of two", x)
+	}
+	return nil
+}
+
+// immIFits checks whether the immediate value x fits in nbits bits
+// as a signed integer. If it does not, an error is returned.
+func immIFits(x int64, nbits uint) error {
 	nbits--
-	var min int64 = -1 << nbits
-	var max int64 = 1<<nbits - 1
-	return min <= x && x <= max
+	min := int64(-1) << nbits
+	max := int64(1)<<nbits - 1
+	if x < min || x > max {
+		if nbits <= 16 {
+			return fmt.Errorf("signed immediate %d must be in range [%d, %d] (%d bits)", x, min, max, nbits)
+		}
+		return fmt.Errorf("signed immediate %#x must be in range [%#x, %#x] (%d bits)", x, min, max, nbits)
+	}
+	return nil
 }
 
 // immI extracts the signed integer of the specified size from an immediate.
 func immI(as obj.As, imm int64, nbits uint) uint32 {
-	if !immIFits(imm, nbits) {
-		panic(fmt.Sprintf("%v: signed immediate %d cannot fit in %d bits", as, imm, nbits))
+	if err := immIFits(imm, nbits); err != nil {
+		panic(fmt.Sprintf("%v: %v", as, err))
 	}
 	return uint32(imm)
 }
 
-func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
-	if !immIFits(imm, nbits) {
-		ctxt.Diag("%v: signed immediate %d cannot be larger than %d bits", as, imm, nbits)
+func wantImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
+	if err := immIFits(imm, nbits); err != nil {
+		ctxt.Diag("%v: %v", ins, err)
 	}
 }
 
-func wantReg(ctxt *obj.Link, as obj.As, pos string, descr string, r, min, max uint32) {
+func wantReg(ctxt *obj.Link, ins *instruction, pos string, descr string, r, min, max uint32) {
 	if r < min || r > max {
 		var suffix string
 		if r != obj.REG_NONE {
 			suffix = fmt.Sprintf(" but got non-%s register %s", descr, RegName(int(r)))
 		}
-		ctxt.Diag("%v: expected %s register in %s position%s", as, descr, pos, suffix)
+		ctxt.Diag("%v: expected %s register in %s position%s", ins, descr, pos, suffix)
 	}
 }
 
-func wantNoneReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
+func wantNoneReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	if r != obj.REG_NONE {
-		ctxt.Diag("%v: expected no register in %s but got register %s", as, pos, RegName(int(r)))
+		ctxt.Diag("%v: expected no register in %s but got register %s", ins, pos, RegName(int(r)))
 	}
 }
 
 // wantIntReg checks that r is an integer register.
-func wantIntReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
-	wantReg(ctxt, as, pos, "integer", r, REG_X0, REG_X31)
+func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "integer", r, REG_X0, REG_X31)
 }
 
 // wantFloatReg checks that r is a floating-point register.
-func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
-	wantReg(ctxt, as, pos, "float", r, REG_F0, REG_F31)
+func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
 }
 
 // wantEvenOffset checks that the offset is a multiple of two.
-func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
-	if offset%1 != 0 {
-		ctxt.Diag("%v: jump offset %d must be a multiple of two", as, offset)
+func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
+	if err := immEven(offset); err != nil {
+		ctxt.Diag("%v: %v", ins, err)
 	}
 }
 
 func validateRIII(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantFloatReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantFloatReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFI(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFI(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRIF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateII(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateIF(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateSI(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateSF(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateB(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 13 bit immediates for the
 	// 12 bit slot. We implicitly drop the least significant bit in encodeB.
-	wantEvenOffset(ctxt, ins.as, ins.imm)
-	wantImmI(ctxt, ins.as, ins.imm, 13)
-	wantNoneReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantEvenOffset(ctxt, ins, ins.imm)
+	wantImmI(ctxt, ins, ins.imm, 13)
+	wantNoneReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateU(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 20)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 20)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateJ(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 21 bit immediates for the
 	// 20 bit slot. We implicitly drop the least significant bit in encodeJ.
-	wantEvenOffset(ctxt, ins.as, ins.imm)
-	wantImmI(ctxt, ins.as, ins.imm, 21)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantEvenOffset(ctxt, ins, ins.imm)
+	wantImmI(ctxt, ins, ins.imm, 21)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRaw(ctxt *obj.Link, ins *instruction) {
@@ -1179,6 +1219,12 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	if ins.imm < 0 || 1<<32 <= ins.imm {
 		ctxt.Diag("%v: immediate %d in raw position cannot be larger than 32 bits", ins.as, ins.imm)
 	}
+}
+
+// extractBitAndShift extracts the specified bit from the given immediate,
+// before shifting it to the requested position and returning it.
+func extractBitAndShift(imm uint32, bit, pos int) uint32 {
+	return ((imm >> bit) & 1) << pos
 }
 
 // encodeR encodes an R-type RISC-V instruction.
@@ -1272,6 +1318,11 @@ func encodeSF(ins *instruction) uint32 {
 	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
 }
 
+// encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
+func encodeBImmediate(imm uint32) uint32 {
+	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7
+}
+
 // encodeB encodes a B-type RISC-V instruction.
 func encodeB(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 13)
@@ -1281,7 +1332,7 @@ func encodeB(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeB: could not encode instruction")
 	}
-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
+	return encodeBImmediate(imm) | rs2<<20 | rs1<<15 | enc.funct3<<12 | enc.opcode
 }
 
 // encodeU encodes a U-type RISC-V instruction.
@@ -1315,6 +1366,37 @@ func encodeJ(ins *instruction) uint32 {
 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
+// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
+func encodeCBImmediate(imm uint32) uint32 {
+	// Bit order - [8|4:3|7:6|2:1|5]
+	bits := extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 4, 6)
+	bits |= extractBitAndShift(imm, 3, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 6, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return (bits>>5)<<10 | (bits&0x1f)<<2
+}
+
+// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
+func encodeCJImmediate(imm uint32) uint32 {
+	// Bit order - [11|4|9:8|10|6|7|3:1|5]
+	bits := extractBitAndShift(imm, 11, 10)
+	bits |= extractBitAndShift(imm, 4, 9)
+	bits |= extractBitAndShift(imm, 9, 8)
+	bits |= extractBitAndShift(imm, 8, 7)
+	bits |= extractBitAndShift(imm, 10, 6)
+	bits |= extractBitAndShift(imm, 6, 5)
+	bits |= extractBitAndShift(imm, 7, 4)
+	bits |= extractBitAndShift(imm, 3, 3)
+	bits |= extractBitAndShift(imm, 2, 2)
+	bits |= extractBitAndShift(imm, 1, 1)
+	bits |= extractBitAndShift(imm, 5, 0)
+	return bits << 2
+}
+
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -1324,33 +1406,63 @@ func encodeRawIns(ins *instruction) uint32 {
 	return uint32(ins.imm)
 }
 
-func EncodeJImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 21) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
+func EncodeBImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 13); err != nil {
+		return 0, err
 	}
-	if imm&1 != 0 {
-		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	if err := immEven(imm); err != nil {
+		return 0, err
 	}
-	return int64(encodeJImmediate(uint32(imm))), nil
+	return int64(encodeBImmediate(uint32(imm))), nil
+}
+
+func EncodeCBImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 9); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeCBImmediate(uint32(imm))), nil
+}
+
+func EncodeCJImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeCJImmediate(uint32(imm))), nil
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return imm << 20, nil
 }
 
+func EncodeJImmediate(imm int64) (int64, error) {
+	if err := immIFits(imm, 21); err != nil {
+		return 0, err
+	}
+	if err := immEven(imm); err != nil {
+		return 0, err
+	}
+	return int64(encodeJImmediate(uint32(imm))), nil
+}
+
 func EncodeSImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 12) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+	if err := immIFits(imm, 12); err != nil {
+		return 0, err
 	}
 	return ((imm >> 5) << 25) | ((imm & 0x1f) << 7), nil
 }
 
 func EncodeUImmediate(imm int64) (int64, error) {
-	if !immIFits(imm, 20) {
-		return 0, fmt.Errorf("immediate %#x does not fit in 20 bits", imm)
+	if err := immIFits(imm, 20); err != nil {
+		return 0, err
 	}
 	return imm << 12, nil
 }
@@ -1616,6 +1728,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 	obj.ANOP:      pseudoOpEncoding,
 	obj.ADUFFZERO: pseudoOpEncoding,
 	obj.ADUFFCOPY: pseudoOpEncoding,
+	obj.APCALIGN:  pseudoOpEncoding,
 }
 
 // encodingForAs returns the encoding for an obj.As.
@@ -1635,14 +1748,26 @@ func encodingForAs(as obj.As) (encoding, error) {
 }
 
 type instruction struct {
-	as     obj.As // Assembler opcode
-	rd     uint32 // Destination register
-	rs1    uint32 // Source register 1
-	rs2    uint32 // Source register 2
-	rs3    uint32 // Source register 3
-	imm    int64  // Immediate
-	funct3 uint32 // Function 3
-	funct7 uint32 // Function 7 (or Function 2)
+	p      *obj.Prog // Prog that instruction is for
+	as     obj.As    // Assembler opcode
+	rd     uint32    // Destination register
+	rs1    uint32    // Source register 1
+	rs2    uint32    // Source register 2
+	rs3    uint32    // Source register 3
+	imm    int64     // Immediate
+	funct3 uint32    // Function 3
+	funct7 uint32    // Function 7 (or Function 2)
+}
+
+func (ins *instruction) String() string {
+	if ins.p == nil {
+		return ins.as.String()
+	}
+	var suffix string
+	if ins.p.As != ins.as {
+		suffix = fmt.Sprintf(" (%v)", ins.as)
+	}
+	return fmt.Sprintf("%v%v", ins.p, suffix)
 }
 
 func (ins *instruction) encode() (uint32, error) {
@@ -1650,10 +1775,10 @@ func (ins *instruction) encode() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if enc.length > 0 {
-		return enc.encode(ins), nil
+	if enc.length <= 0 {
+		return 0, fmt.Errorf("%v: encoding called for a pseudo instruction", ins.as)
 	}
-	return 0, fmt.Errorf("fixme")
+	return enc.encode(ins), nil
 }
 
 func (ins *instruction) length() int {
@@ -1902,9 +2027,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		// 	MOV $1, X10
 		// 	SLLI $63, X10, X10
 		var insSLLI *instruction
-		if !immIFits(ins.imm, 32) {
+		if err := immIFits(ins.imm, 32); err != nil {
 			ctz := bits.TrailingZeros64(uint64(ins.imm))
-			if immIFits(ins.imm>>ctz, 32) {
+			if err := immIFits(ins.imm>>ctz, 32); err == nil {
 				ins.imm = ins.imm >> ctz
 				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
 			}
@@ -1920,20 +2045,15 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
 
 		// LUI is only necessary if the constant does not fit in 12 bits.
-		if high == 0 {
-			if insSLLI != nil {
-				inss = append(inss, insSLLI)
+		if high != 0 {
+			// LUI top20bits(c), R
+			// ADD bottom12bits(c), R, R
+			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+			inss = []*instruction{insLUI}
+			if low != 0 {
+				ins.as, ins.rs1 = AADDIW, ins.rd
+				inss = append(inss, ins)
 			}
-			break
-		}
-
-		// LUI top20bits(c), R
-		// ADD bottom12bits(c), R, R
-		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-		inss = []*instruction{insLUI}
-		if low != 0 {
-			ins.as, ins.rs1 = AADDIW, ins.rd
-			inss = append(inss, ins)
 		}
 		if insSLLI != nil {
 			inss = append(inss, insSLLI)
@@ -2113,13 +2233,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.imm = p.To.Offset
 
 	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-		return instructionsForMOV(p)
+		inss = instructionsForMOV(p)
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
-		return instructionsForLoad(p, ins.as, p.From.Reg)
+		inss = instructionsForLoad(p, ins.as, p.From.Reg)
 
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
-		return instructionsForStore(p, ins.as, p.To.Reg)
+		inss = instructionsForStore(p, ins.as, p.To.Reg)
 
 	case ALRW, ALRD:
 		// Set aq to use acquire access ordering
@@ -2159,7 +2279,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	case AFNES, AFNED:
 		// Replace FNE[SD] with FEQ[SD] and NOT.
 		if p.To.Type != obj.TYPE_REG {
-			p.Ctxt.Diag("%v needs an integer register output", ins.as)
+			p.Ctxt.Diag("%v needs an integer register output", p)
 			return nil
 		}
 		if ins.as == AFNES {
@@ -2248,6 +2368,11 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
 		}
 	}
+
+	for _, ins := range inss {
+		ins.p = p
+	}
+
 	return inss
 }
 
@@ -2259,16 +2384,22 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Retpoline = false // don't keep printing
 	}
 
+	// If errors were encountered during preprocess/validation, proceeding
+	// and attempting to encode said instructions will only lead to panics.
+	if ctxt.Errors > 0 {
+		return
+	}
+
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJAL:
-			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
 				rel := obj.Addrel(cursym)
 				rel.Off = int32(p.Pc)
 				rel.Siz = 4
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
-				rel.Type = objabi.R_RISCV_CALL
+				rel.Type = objabi.R_RISCV_JAL
 			}
 		case AJALR:
 			if p.To.Sym != nil {
@@ -2278,7 +2409,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 			var addr *obj.Addr
 			var rt objabi.RelocType
-			if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
+			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+				rt = objabi.R_RISCV_CALL
+				addr = &p.From
+			} else if p.Mark&NEED_PCREL_ITYPE_RELOC == NEED_PCREL_ITYPE_RELOC {
 				rt = objabi.R_RISCV_PCREL_ITYPE
 				addr = &p.From
 			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
@@ -2312,6 +2446,17 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			rel.Sym = addr.Sym
 			rel.Add = addr.Offset
 			rel.Type = rt
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(p.Pc, alignedValue)
+			offset := p.Pc
+			for ; v >= 4; v -= 4 {
+				// NOP
+				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0, 0, 0})
+				offset += 4
+			}
+			continue
 		}
 
 		offset := p.Pc

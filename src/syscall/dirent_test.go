@@ -82,7 +82,7 @@ func TestDirent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("names[%d] is non-integer %q: %v", i, names[i], err)
 		}
-		if expected := string(strings.Repeat(name[:1], filenameMinSize+ord)); name != expected {
+		if expected := strings.Repeat(name[:1], filenameMinSize+ord); name != expected {
 			t.Errorf("names[%d] is %q (len %d); expected %q (len %d)", i, name, len(name), expected, len(expected))
 		}
 	}

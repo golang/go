@@ -30,7 +30,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
@@ -141,11 +141,17 @@ Diff:
 		// Turn relative (PC) into absolute (PC) automatically,
 		// so that most branch instructions don't need comments
 		// giving the absolute form.
-		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
-			last := f[len(f)-1]
-			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
+		if len(f) > 0 && strings.Contains(printed, "(PC)") {
+			index := len(f) - 1
+			suf := "(PC)"
+			for !strings.HasSuffix(f[index], suf) {
+				index--
+				suf = "(PC),"
+			}
+			str := f[index]
+			n, err := strconv.Atoi(str[:len(str)-len(suf)])
 			if err == nil {
-				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
+				f[index] = fmt.Sprintf("%d%s", seq+n, suf)
 			}
 		}
 
@@ -191,7 +197,7 @@ Diff:
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -279,7 +285,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
@@ -305,7 +311,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 		}
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", file)
 	}
@@ -372,10 +378,10 @@ func Test386EndToEnd(t *testing.T) {
 }
 
 func TestARMEndToEnd(t *testing.T) {
-	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
+	defer func(old int) { buildcfg.GOARM.Version = old }(buildcfg.GOARM.Version)
 	for _, goarm := range []int{5, 6, 7} {
 		t.Logf("GOARM=%d", goarm)
-		buildcfg.GOARM = goarm
+		buildcfg.GOARM.Version = goarm
 		testEndToEnd(t, "arm", "arm")
 		if goarm == 6 {
 			testEndToEnd(t, "arm", "armv6")

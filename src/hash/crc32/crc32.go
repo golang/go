@@ -97,7 +97,7 @@ func castagnoliInit() {
 	haveCastagnoli.Store(true)
 }
 
-// IEEETable is the table for the IEEE polynomial.
+// IEEETable is the table for the [IEEE] polynomial.
 var IEEETable = simpleMakeTable(IEEE)
 
 // ieeeTable8 is the slicing8Table for IEEE
@@ -118,8 +118,8 @@ func ieeeInit() {
 	}
 }
 
-// MakeTable returns a Table constructed from the specified polynomial.
-// The contents of this Table must not be modified.
+// MakeTable returns a [Table] constructed from the specified polynomial.
+// The contents of this [Table] must not be modified.
 func MakeTable(poly uint32) *Table {
 	switch poly {
 	case IEEE:
@@ -139,10 +139,10 @@ type digest struct {
 	tab *Table
 }
 
-// New creates a new hash.Hash32 computing the CRC-32 checksum using the
-// polynomial represented by the Table. Its Sum method will lay the
+// New creates a new [hash.Hash32] computing the CRC-32 checksum using the
+// polynomial represented by the [Table]. Its Sum method will lay the
 // value out in big-endian byte order. The returned Hash32 also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash32 {
 	if tab == IEEETable {
@@ -151,10 +151,10 @@ func New(tab *Table) hash.Hash32 {
 	return &digest{0, tab}
 }
 
-// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum using
-// the IEEE polynomial. Its Sum method will lay the value out in
+// NewIEEE creates a new [hash.Hash32] computing the CRC-32 checksum using
+// the [IEEE] polynomial. Its Sum method will lay the value out in
 // big-endian byte order. The returned Hash32 also implements
-// encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to marshal
+// [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to marshal
 // and unmarshal the internal state of the hash.
 func NewIEEE() hash.Hash32 { return New(IEEETable) }
 
@@ -191,16 +191,19 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
+// We copied this function because we can not import "encoding/binary" here.
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
+	return append(b,
+		byte(x>>24),
+		byte(x>>16),
+		byte(x>>8),
 		byte(x),
-	}
-	return append(b, a[:]...)
+	)
 }
 
+// readUint32 is semantically the same as [binary.BigEndian.Uint32]
+// We copied this function because we can not import "encoding/binary" here.
 func readUint32(b []byte) uint32 {
 	_ = b[3]
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
@@ -242,11 +245,11 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 // Checksum returns the CRC-32 checksum of data
-// using the polynomial represented by the Table.
+// using the polynomial represented by the [Table].
 func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
 
 // ChecksumIEEE returns the CRC-32 checksum of data
-// using the IEEE polynomial.
+// using the [IEEE] polynomial.
 func ChecksumIEEE(data []byte) uint32 {
 	ieeeOnce.Do(ieeeInit)
 	return updateIEEE(0, data)

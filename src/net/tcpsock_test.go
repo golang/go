@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -670,6 +670,11 @@ func TestTCPBig(t *testing.T) {
 }
 
 func TestCopyPipeIntoTCP(t *testing.T) {
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skipf("skipping: os.Pipe not supported on %s", runtime.GOOS)
+	}
+
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
@@ -781,5 +786,50 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
 
 	if got != defaultTCPKeepAlive {
 		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAlive)
+	}
+}
+
+func TestTCPListenAfterClose(t *testing.T) {
+	// Regression test for https://go.dev/issue/50216:
+	// after calling Close on a Listener, the fake net implementation would
+	// erroneously Accept a connection dialed before the call to Close.
+
+	ln := newLocalListener(t, "tcp")
+	defer ln.Close()
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+
+	d := &Dialer{}
+	for n := 2; n > 0; n-- {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
+			if err == nil {
+				<-ctx.Done()
+				c.Close()
+			}
+		}()
+	}
+
+	c, err := ln.Accept()
+	if err == nil {
+		c.Close()
+	} else {
+		t.Error(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	wg.Wait()
+	ln.Close()
+
+	c, err = ln.Accept()
+	if !errors.Is(err, ErrClosed) {
+		if err == nil {
+			c.Close()
+		}
+		t.Errorf("after l.Close(), l.Accept() = _, %v\nwant %v", err, ErrClosed)
 	}
 }

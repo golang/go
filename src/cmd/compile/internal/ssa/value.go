@@ -552,7 +552,11 @@ func (v *Value) LackingPos() bool {
 // if its use count drops to 0.
 func (v *Value) removeable() bool {
 	if v.Type.IsVoid() {
-		// Void ops, like nil pointer checks, must stay.
+		// Void ops (inline marks), must stay.
+		return false
+	}
+	if opcodeTable[v.Op].nilCheck {
+		// Nil pointer checks must stay.
 		return false
 	}
 	if v.Type.IsMemory() {
@@ -580,4 +584,37 @@ func AutoVar(v *Value) (*ir.Name, int64) {
 	// Assume it is a register, return its spill slot, which needs to be live
 	nameOff := v.Aux.(*AuxNameOffset)
 	return nameOff.Name, nameOff.Offset
+}
+
+// CanSSA reports whether values of type t can be represented as a Value.
+func CanSSA(t *types.Type) bool {
+	types.CalcSize(t)
+	if t.Size() > int64(4*types.PtrSize) {
+		// 4*Widthptr is an arbitrary constant. We want it
+		// to be at least 3*Widthptr so slices can be registerized.
+		// Too big and we'll introduce too much register pressure.
+		return false
+	}
+	switch t.Kind() {
+	case types.TARRAY:
+		// We can't do larger arrays because dynamic indexing is
+		// not supported on SSA variables.
+		// TODO: allow if all indexes are constant.
+		if t.NumElem() <= 1 {
+			return CanSSA(t.Elem())
+		}
+		return false
+	case types.TSTRUCT:
+		if t.NumFields() > MaxStruct {
+			return false
+		}
+		for _, t1 := range t.Fields() {
+			if !CanSSA(t1.Type) {
+				return false
+			}
+		}
+		return true
+	default:
+		return true
+	}
 }

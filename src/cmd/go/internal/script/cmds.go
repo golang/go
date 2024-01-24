@@ -5,6 +5,7 @@
 package script
 
 import (
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
 	"errors"
 	"fmt"
@@ -824,7 +825,7 @@ func Program(name string, cancel func(*exec.Cmd) error, waitDelay time.Duration)
 		},
 		func(s *State, args ...string) (WaitFunc, error) {
 			lookPathOnce.Do(func() {
-				path, pathErr = exec.LookPath(name)
+				path, pathErr = cfg.LookPath(name)
 			})
 			if pathErr != nil {
 				return nil, pathErr

@@ -292,8 +292,8 @@ func (w *writer) StringTable() {
 			// Don't include them if Flag_noRefName
 			return
 		}
-		if w.pkgpath != "" {
-			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		if strings.HasPrefix(s.Name, `"".`) {
+			w.ctxt.Diag("unqualified symbol name: %v", s.Name)
 		}
 		w.AddString(s.Name)
 	})

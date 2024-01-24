@@ -408,8 +408,9 @@ func testLayers(t *testing.T, seed int64, testTimeout bool) {
 	t.Parallel()
 
 	r := rand.New(rand.NewSource(seed))
+	prefix := fmt.Sprintf("seed=%d", seed)
 	errorf := func(format string, a ...any) {
-		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
+		t.Errorf(prefix+format, a...)
 	}
 	const (
 		minLayers = 30
@@ -864,6 +865,126 @@ func TestCustomContextPropagation(t *testing.T) {
 	}
 	if got, want := Cause(ctx3), cause; got != want {
 		t.Errorf("child has wrong cause; got = %v, want = %v", got, want)
+	}
+}
+
+// customCauseContext is a custom Context used to test context.Cause.
+type customCauseContext struct {
+	mu   sync.Mutex
+	done chan struct{}
+	err  error
+
+	cancelChild CancelFunc
+}
+
+func (ccc *customCauseContext) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (ccc *customCauseContext) Done() <-chan struct{} {
+	ccc.mu.Lock()
+	defer ccc.mu.Unlock()
+	return ccc.done
+}
+
+func (ccc *customCauseContext) Err() error {
+	ccc.mu.Lock()
+	defer ccc.mu.Unlock()
+	return ccc.err
+}
+
+func (ccc *customCauseContext) Value(key any) any {
+	return nil
+}
+
+func (ccc *customCauseContext) cancel() {
+	ccc.mu.Lock()
+	ccc.err = Canceled
+	close(ccc.done)
+	cancelChild := ccc.cancelChild
+	ccc.mu.Unlock()
+
+	if cancelChild != nil {
+		cancelChild()
+	}
+}
+
+func (ccc *customCauseContext) setCancelChild(cancelChild CancelFunc) {
+	ccc.cancelChild = cancelChild
+}
+
+func TestCustomContextCause(t *testing.T) {
+	// Test if we cancel a custom context, Err and Cause return Canceled.
+	ccc := &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ccc.cancel()
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("Cause(ccc) = %v, want %v", got, Canceled)
+	}
+
+	// Test that if we pass a custom context to WithCancelCause,
+	// and then cancel that child context with a cause,
+	// that the cause of the child canceled context is correct
+	// but that the parent custom context is not canceled.
+	ccc = &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ctx, causeFunc := WithCancelCause(ccc)
+	cause := errors.New("TestCustomContextCause")
+	causeFunc(cause)
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != cause {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, cause)
+	}
+	if got := ccc.Err(); got != nil {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, nil)
+	}
+	if got := Cause(ccc); got != nil {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, nil)
+	}
+
+	// Test that if we now cancel the parent custom context,
+	// the cause of the child canceled context is still correct,
+	// and the parent custom context is canceled without a cause.
+	ccc.cancel()
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != cause {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, cause)
+	}
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, Canceled)
+	}
+
+	// Test that if we associate a custom context with a child,
+	// then canceling the custom context cancels the child.
+	ccc = &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ctx, cancelFunc := WithCancel(ccc)
+	ccc.setCancelChild(cancelFunc)
+	ccc.cancel()
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, Canceled)
+	}
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, Canceled)
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"io"
 	"log"
 	loginternal "log/internal"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -23,7 +22,13 @@ import (
 	"time"
 )
 
-const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+// textTimeRE is a regexp to match log timestamps for Text handler.
+// This is RFC3339Nano with the fixed 3 digit sub-second precision.
+const textTimeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+
+// jsonTimeRE is a regexp to match log timestamps for Text handler.
+// This is RFC3339Nano with an arbitrary sub-second precision.
+const jsonTimeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})`
 
 func TestLogTextHandler(t *testing.T) {
 	ctx := context.Background()
@@ -34,7 +39,7 @@ func TestLogTextHandler(t *testing.T) {
 	check := func(want string) {
 		t.Helper()
 		if want != "" {
-			want = "time=" + timeRE + " " + want
+			want = "time=" + textTimeRE + " " + want
 		}
 		checkLogOutput(t, buf.String(), want)
 		buf.Reset()
@@ -73,9 +78,13 @@ func TestConnections(t *testing.T) {
 	// tests might change the default logger using SetDefault. Also ensure we
 	// restore the default logger at the end of the test.
 	currentLogger := Default()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
 	SetDefault(New(newDefaultHandler(loginternal.DefaultOutput)))
 	t.Cleanup(func() {
 		SetDefault(currentLogger)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
 	})
 
 	// The default slog.Logger's handler uses the log package's default output.
@@ -115,7 +124,7 @@ func TestConnections(t *testing.T) {
 	// log.Logger's output goes through the handler.
 	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
 	log.Print("msg2")
-	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
+	checkLogOutput(t, slogbuf.String(), "time="+textTimeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
 
 	// The default log.Logger always outputs at Info level.
 	slogbuf.Reset()
@@ -182,6 +191,7 @@ func TestCallDepth(t *testing.T) {
 		}
 	}
 
+	defer SetDefault(Default()) // restore
 	logger := New(h)
 	SetDefault(logger)
 
@@ -273,7 +283,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		d := time.Second
-		wantAllocs(t, 11, func() {
+		wantAllocs(t, 10, func() {
 			dl.Info("hello",
 				"n", i, "s", s, "d", d,
 				"n", i, "s", s, "d", d,
@@ -354,6 +364,71 @@ func TestSetDefault(t *testing.T) {
 	}
 }
 
+// Test defaultHandler minimum level without calling slog.SetDefault.
+func TestLogLoggerLevelForDefaultHandler(t *testing.T) {
+	// Revert any changes to the default logger, flags, and level of log and slog.
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
+	t.Cleanup(func() {
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+
+	for _, test := range []struct {
+		logLevel Level
+		logFn    func(string, ...any)
+		want     string
+	}{
+		{LevelDebug, Debug, "DEBUG a"},
+		{LevelDebug, Info, "INFO a"},
+		{LevelInfo, Debug, ""},
+		{LevelInfo, Info, "INFO a"},
+	} {
+		SetLogLoggerLevel(test.logLevel)
+		test.logFn("a")
+		checkLogOutput(t, logBuf.String(), test.want)
+		logBuf.Reset()
+	}
+}
+
+// Test handlerWriter minimum level by calling slog.SetDefault.
+func TestLogLoggerLevelForHandlerWriter(t *testing.T) {
+	removeTime := func(_ []string, a Attr) Attr {
+		if a.Key == TimeKey {
+			return Attr{}
+		}
+		return a
+	}
+
+	// Revert any changes to the default logger. This is important because other
+	// tests might change the default logger using SetDefault. Also ensure we
+	// restore the default logger at the end of the test.
+	currentLogger := Default()
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentFlags := log.Flags()
+	t.Cleanup(func() {
+		SetDefault(currentLogger)
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+	SetLogLoggerLevel(LevelError)
+	SetDefault(New(NewTextHandler(&logBuf, &HandlerOptions{ReplaceAttr: removeTime})))
+	log.Print("error")
+	checkLogOutput(t, logBuf.String(), `level=ERROR msg=error`)
+}
+
 func TestLoggerError(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -378,7 +453,7 @@ func TestNewLogLogger(t *testing.T) {
 	h := NewTextHandler(&buf, nil)
 	ll := NewLogLogger(h, LevelWarn)
 	ll.Print("hello")
-	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
+	checkLogOutput(t, buf.String(), "time="+textTimeRE+` level=WARN msg=hello`)
 }
 
 func TestLoggerNoOps(t *testing.T) {
@@ -598,10 +673,12 @@ func TestPanics(t *testing.T) {
 	// tests might change the default logger using SetDefault. Also ensure we
 	// restore the default logger at the end of the test.
 	currentLogger := Default()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
 	t.Cleanup(func() {
 		SetDefault(currentLogger)
-		log.SetOutput(os.Stderr)
-		log.SetFlags(log.LstdFlags)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
 	})
 
 	var logBuf bytes.Buffer
@@ -628,10 +705,10 @@ func TestPanics(t *testing.T) {
 		in  any
 		out string
 	}{
-		{(*panicTextAndJsonMarshaler)(nil), `{"time":".*?","level":"INFO","msg":"msg","p":null}`},
-		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
-		{panicTextAndJsonMarshaler{"panicking"}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
-		{panicTextAndJsonMarshaler{42}, `{"time":".*?","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
+		{(*panicTextAndJsonMarshaler)(nil), `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":null}`},
+		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
+		{panicTextAndJsonMarshaler{"panicking"}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
+		{panicTextAndJsonMarshaler{42}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
 	} {
 		Info("msg", "p", pt.in)
 		checkLogOutput(t, logBuf.String(), pt.out)

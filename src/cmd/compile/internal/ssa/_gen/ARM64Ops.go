@@ -196,9 +196,9 @@ func init() {
 		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
 		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
 		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsighed
+		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsigned
 		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsighed, 32 bit
+		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsigned, 32 bit
 		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
 		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
 		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit

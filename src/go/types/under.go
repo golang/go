@@ -11,7 +11,7 @@ package types
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	if t, _ := t.(*Named); t != nil {
+	if t := asNamed(t); t != nil {
 		return t.under()
 	}
 	return t.Underlying()

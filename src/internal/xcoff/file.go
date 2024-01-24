@@ -225,7 +225,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), io.SeekStart); err != nil {
 		return nil, err
 	}
-	c := saferio.SliceCap((**Section)(nil), uint64(nscns))
+	c := saferio.SliceCap[*Section](uint64(nscns))
 	if c < 0 {
 		return nil, fmt.Errorf("too many XCOFF sections (%d)", nscns)
 	}
@@ -399,7 +399,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		if sect.Relptr == 0 {
 			continue
 		}
-		c := saferio.SliceCap((*Reloc)(nil), uint64(sect.Nreloc))
+		c := saferio.SliceCap[Reloc](uint64(sect.Nreloc))
 		if c < 0 {
 			return nil, fmt.Errorf("too many relocs (%d) for section %d", sect.Nreloc, sectNum)
 		}

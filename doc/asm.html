@@ -464,6 +464,23 @@ Function is the outermost frame of the call stack. Traceback should stop at this
 </li>
 </ul>
 
+<h3 id="special-instructions">Special instructions</h3>
+
+<p>
+The <code>PCALIGN</code> pseudo-instruction is used to indicate that the next instruction should be aligned
+to a specified boundary by padding with no-op instructions.
+</p>
+
+<p>
+It is currently supported on arm64, amd64, ppc64, loong64 and riscv64.
+
+For example, the start of the <code>MOVD</code> instruction below is aligned to 32 bytes:
+<pre>
+PCALIGN $32
+MOVD $2, R0
+</pre>
+</p>
+
 <h3 id="data-offsets">Interacting with Go types and constants</h3>
 
 <p>

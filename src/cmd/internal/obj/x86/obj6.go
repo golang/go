@@ -1226,10 +1226,11 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		progedit(ctxt, callend.Link, newprog)
 	}
 
-	pcdata = cursym.Func().UnspillRegisterArgs(callend, newprog)
-	pcdata = ctxt.EndUnsafePoint(pcdata, newprog, -1)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
+	unspill := cursym.Func().UnspillRegisterArgs(pcdata, newprog)
 
-	jmp := obj.Appendp(pcdata, newprog)
+	jmp := obj.Appendp(unspill, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.To.SetTarget(startPred.Link)

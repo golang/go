@@ -1,4 +1,4 @@
-// Copyright 2017 The Go Authors.  All rights reserved.
+// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -348,7 +348,7 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 	// so there is no need for a deletion barrier on b.tags[wt].
 	wt := int(bw.tagCount() % uint32(len(b.tags)))
 	if tagPtr != nil {
-		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(unsafe.Pointer(*tagPtr))
+		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(*tagPtr)
 	}
 
 	// Main record.
@@ -468,7 +468,7 @@ Read:
 			// Won the race, report overflow.
 			dst := b.overflowBuf
 			dst[0] = uint64(2 + b.hdrsize + 1)
-			dst[1] = uint64(time)
+			dst[1] = time
 			for i := uintptr(0); i < b.hdrsize; i++ {
 				dst[2+i] = 0
 			}
@@ -491,6 +491,7 @@ Read:
 		// Nothing to read right now.
 		// Return or sleep according to mode.
 		if mode == profBufNonBlocking {
+			// Necessary on Darwin, notetsleepg below does not work in signal handler, root cause of #61768.
 			return nil, nil, false
 		}
 		if !b.w.cas(bw, bw|profReaderSleeping) {

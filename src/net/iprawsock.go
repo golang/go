@@ -72,7 +72,7 @@ func (a *IPAddr) opAddr() Addr {
 // recommended, because it will return at most one of the host name's
 // IP addresses.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 func ResolveIPAddr(network, address string) (*IPAddr, error) {
 	if network == "" { // a hint wildcard for Go 1.0 undocumented behavior
@@ -94,14 +94,14 @@ func ResolveIPAddr(network, address string) (*IPAddr, error) {
 	return addrs.forResolve(network, address).(*IPAddr), nil
 }
 
-// IPConn is the implementation of the Conn and PacketConn interfaces
+// IPConn is the implementation of the [Conn] and [PacketConn] interfaces
 // for IP network connections.
 type IPConn struct {
 	conn
 }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 func (c *IPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
@@ -121,7 +121,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	return n, addr, err
 }
 
-// ReadFrom implements the PacketConn ReadFrom method.
+// ReadFrom implements the [PacketConn] ReadFrom method.
 func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -154,7 +154,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 	return
 }
 
-// WriteToIP acts like WriteTo but takes an IPAddr.
+// WriteToIP acts like [IPConn.WriteTo] but takes an [IPAddr].
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -166,7 +166,7 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	return n, err
 }
 
-// WriteTo implements the PacketConn WriteTo method.
+// WriteTo implements the [PacketConn] WriteTo method.
 func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -201,7 +201,7 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 
 func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 
-// DialIP acts like Dial for IP networks.
+// DialIP acts like [Dial] for IP networks.
 //
 // The network must be an IP network name; see func Dial for details.
 //
@@ -220,7 +220,7 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
 	return c, nil
 }
 
-// ListenIP acts like ListenPacket for IP networks.
+// ListenIP acts like [ListenPacket] for IP networks.
 //
 // The network must be an IP network name; see func Dial for details.
 //

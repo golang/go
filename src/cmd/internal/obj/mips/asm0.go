@@ -718,7 +718,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xffff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
+			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -1084,7 +1084,6 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
-			AWSBH,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -1105,6 +1104,10 @@ func buildop(ctxt *obj.Link) {
 
 		case ATEQ:
 			opset(ATNE, r0)
+
+		case AWSBH:
+			opset(ASEB, r0)
+			opset(ASEH, r0)
 
 		case ADSBH:
 			opset(ADSHD, r0)
@@ -1899,6 +1902,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return SP(3, 7) | OP(20, 4)
 	case ADSHD:
 		return SP(3, 7) | OP(44, 4)
+	case ASEB:
+		return SP(3, 7) | OP(132, 0)
+	case ASEH:
+		return SP(3, 7) | OP(196, 0)
 	}
 
 	if a < 0 {

@@ -95,7 +95,7 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) 
 }
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
-func rawVforkSyscall(trap, a1, a2 uintptr) (r1 uintptr, err Errno)
+func rawVforkSyscall(trap, a1, a2, a3 uintptr) (r1 uintptr, err Errno)
 
 /*
  * Wrapped
@@ -241,15 +241,23 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 }
 
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+//sys	fchmodat2(dirfd int, path string, mode uint32, flags int) (err error) = _SYS_fchmodat2
 
-func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
-	// Linux fchmodat doesn't support the flags parameter. Mimic glibc's behavior
-	// and check the flags. Otherwise the mode would be applied to the symlink
-	// destination which is not what the user expects.
-	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {
-		return EINVAL
-	} else if flags&_AT_SYMLINK_NOFOLLOW != 0 {
-		return EOPNOTSUPP
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	// Linux fchmodat doesn't support the flags parameter, but fchmodat2 does.
+	// Try fchmodat2 if flags are specified.
+	if flags != 0 {
+		err := fchmodat2(dirfd, path, mode, flags)
+		if err == ENOSYS {
+			// fchmodat2 isn't available. If the flags are known to be valid,
+			// return EOPNOTSUPP to indicate that fchmodat doesn't support them.
+			if flags&^(_AT_SYMLINK_NOFOLLOW|_AT_EMPTY_PATH) != 0 {
+				return EINVAL
+			} else if flags&(_AT_SYMLINK_NOFOLLOW|_AT_EMPTY_PATH) != 0 {
+				return EOPNOTSUPP
+			}
+		}
+		return err
 	}
 	return fchmodat(dirfd, path, mode)
 }
@@ -554,7 +562,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
@@ -1246,7 +1255,6 @@ func Setuid(uid int) (err error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	exitThread(code int) (err error) = SYS_EXIT
 //sys	readlen(fd int, p *byte, np int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, p *byte, np int) (n int, err error) = SYS_WRITE
 
 // mmap varies by architecture; see syscall_linux_*.go.
 //sys	munmap(addr uintptr, length uintptr) (err error)
@@ -1278,7 +1286,7 @@ func Munmap(b []byte) (err error) {
 func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
 	err = prlimit1(pid, resource, newlimit, old)
 	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE {
-		origRlimitNofile.Store(Rlimit{0, 0})
+		origRlimitNofile.Store(nil)
 	}
 	return err
 }

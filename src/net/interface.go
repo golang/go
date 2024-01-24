@@ -114,7 +114,7 @@ func Interfaces() ([]Interface, error) {
 // addresses.
 //
 // The returned list does not identify the associated interface; use
-// Interfaces and Interface.Addrs for more detail.
+// Interfaces and [Interface.Addrs] for more detail.
 func InterfaceAddrs() ([]Addr, error) {
 	ifat, err := interfaceAddrTable(nil)
 	if err != nil {
@@ -127,7 +127,7 @@ func InterfaceAddrs() ([]Addr, error) {
 //
 // On Solaris, it returns one of the logical network interfaces
 // sharing the logical data link; for more precision use
-// InterfaceByName.
+// [InterfaceByName].
 func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}

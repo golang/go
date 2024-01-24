@@ -19,12 +19,11 @@ import (
 //
 // A RWMutex must not be copied after first use.
 //
-// If a goroutine holds a RWMutex for reading and another goroutine might
-// call Lock, no goroutine should expect to be able to acquire a read lock
-// until the initial read lock is released. In particular, this prohibits
-// recursive read locking. This is to ensure that the lock eventually becomes
-// available; a blocked Lock call excludes new readers from acquiring the
-// lock.
+// If any goroutine calls Lock while the lock is already held by
+// one or more readers, concurrent calls to RLock will block until
+// the writer has acquired (and released) the lock, to ensure that
+// the lock eventually becomes available to the writer.
+// Note that this prohibits recursive read-locking.
 //
 // In the terminology of the Go memory model,
 // the n'th call to Unlock “synchronizes before” the m'th call to Lock

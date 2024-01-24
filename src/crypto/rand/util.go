@@ -12,7 +12,7 @@ import (
 )
 
 // Prime returns a number of the given bit length that is prime with high probability.
-// Prime will return error for any error returned by rand.Read or if bits < 2.
+// Prime will return error for any error returned by [rand.Read] or if bits < 2.
 func Prime(rand io.Reader, bits int) (*big.Int, error) {
 	if bits < 2 {
 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")

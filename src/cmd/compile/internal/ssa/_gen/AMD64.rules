@@ -303,10 +303,13 @@
 (Move [10] dst src mem) =>
 	(MOVWstore [8] dst (MOVWload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
+(Move [11] dst src mem) =>
+	(MOVLstore [7] dst (MOVLload [7] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
 (Move [12] dst src mem) =>
 	(MOVLstore [8] dst (MOVLload [8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
-(Move [s] dst src mem) && s == 11 || s >= 13 && s <= 15 =>
+(Move [s] dst src mem) && s >= 13 && s <= 15 =>
 	(MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
@@ -380,7 +383,23 @@
 			(MOVQstoreconst [makeValAndOff(0,8)] destptr
 				(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))))
 
-(Zero [s] destptr mem) && s > 8 && s < 16 && config.useSSE =>
+(Zero [9] destptr mem) && config.useSSE =>
+	(MOVBstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [10] destptr mem) && config.useSSE =>
+	(MOVWstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [11] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,7)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [12] destptr mem) && config.useSSE =>
+	(MOVLstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+
+(Zero [s] destptr mem) && s > 12 && s < 16 && config.useSSE =>
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
@@ -1449,6 +1468,7 @@
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
@@ -1457,6 +1477,7 @@
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
   && c.Val() == 0
+  && setPos(v, x.Pos)
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 

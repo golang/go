@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
 
@@ -17,6 +15,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
 	"internal/itoa"
 	"io"
 	"os"
@@ -498,10 +497,6 @@ func avoidDNS(name string) bool {
 
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
-	if avoidDNS(name) {
-		return nil
-	}
-
 	// Check name length (see isDomainName).
 	l := len(name)
 	rooted := l > 0 && name[l-1] == '.'
@@ -511,27 +506,31 @@ func (conf *dnsConfig) nameList(name string) []string {
 
 	// If name is rooted (trailing dot), try only that name.
 	if rooted {
+		if avoidDNS(name) {
+			return nil
+		}
 		return []string{name}
 	}
 
-	hasNdots := count(name, '.') >= conf.ndots
+	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
 	l++
 
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
 	// If name has enough dots, try unsuffixed first.
-	if hasNdots {
+	if hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	// Try suffixes that are not too long (see isDomainName).
 	for _, suffix := range conf.search {
-		if l+len(suffix) <= 254 {
-			names = append(names, name+suffix)
+		fqdn := name + suffix
+		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
+			names = append(names, fqdn)
 		}
 	}
 	// Try unsuffixed, if not tried first above.
-	if !hasNdots {
+	if !hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	return names
@@ -605,8 +604,7 @@ func goLookupIPFiles(name string) (addrs []IPAddr, canonical string) {
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func (r *Resolver) goLookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
-	order, conf := systemConf().hostLookupOrder(r, host)
+func (r *Resolver) goLookupIP(ctx context.Context, network, host string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, err error) {
 	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
 	return
 }
@@ -718,7 +716,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 				h, err := result.p.AnswerHeader()
 				if err != nil && err != dnsmessage.ErrSectionDone {
 					lastErr = &DNSError{
-						Err:    "cannot marshal DNS message",
+						Err:    errCannotUnmarshalDNSMessage.Error(),
 						Name:   name,
 						Server: result.server,
 					}
@@ -731,7 +729,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 					a, err := result.p.AResource()
 					if err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
@@ -746,7 +744,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 					aaaa, err := result.p.AAAAResource()
 					if err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
@@ -761,7 +759,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 					c, err := result.p.CNAMEResource()
 					if err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
@@ -774,7 +772,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 				default:
 					if err := result.p.SkipAnswer(); err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
@@ -866,7 +864,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 		}
 		if err != nil {
 			return nil, &DNSError{
-				Err:    "cannot marshal DNS message",
+				Err:    errCannotUnmarshalDNSMessage.Error(),
 				Name:   addr,
 				Server: server,
 			}
@@ -875,7 +873,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 			err := p.SkipAnswer()
 			if err != nil {
 				return nil, &DNSError{
-					Err:    "cannot marshal DNS message",
+					Err:    errCannotUnmarshalDNSMessage.Error(),
 					Name:   addr,
 					Server: server,
 				}
@@ -885,7 +883,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 		ptr, err := p.PTRResource()
 		if err != nil {
 			return nil, &DNSError{
-				Err:    "cannot marshal DNS message",
+				Err:    errCannotUnmarshalDNSMessage.Error(),
 				Name:   addr,
 				Server: server,
 			}

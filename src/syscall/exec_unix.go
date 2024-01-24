@@ -107,6 +107,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if err != nil {
 		return err
 	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
+	}
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
@@ -278,9 +281,9 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
-	if rlimOK && rlim.Cur != 0 {
-		Setrlimit(RLIMIT_NOFILE, &rlim)
+	rlim := origRlimitNofile.Load()
+	if rlim != nil {
+		Setrlimit(RLIMIT_NOFILE, rlim)
 	}
 
 	var err1 error
@@ -293,7 +296,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Similarly on Darwin.
 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
-	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	} else if runtime.GOOS == "openbsd" && runtime.GOARCH != "mips64" {
 		// Similarly on OpenBSD.
 		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {

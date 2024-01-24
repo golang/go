@@ -3,6 +3,7 @@
 
 [!cgo] skip
 [!exec:gccgo] skip
+[cross] skip  # gccgo can't necessarily cross-compile, so don't assume it will reach the step where we expect it to fail
 
 ! go build -x -compiler gccgo
 stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage

@@ -238,6 +238,11 @@ func jsStrEscaper(args ...any) string {
 	return replace(s, jsStrReplacementTable)
 }
 
+func jsTmplLitEscaper(args ...any) string {
+	s, _ := stringify(args...)
+	return replace(s, jsBqStrReplacementTable)
+}
+
 // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
 // specials so the result is treated literally when included in a regular
 // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
@@ -322,6 +327,31 @@ var jsStrReplacementTable = []string{
 	'<':  `\u003c`,
 	'>':  `\u003e`,
 	'\\': `\\`,
+}
+
+// jsBqStrReplacementTable is like jsStrReplacementTable except it also contains
+// the special characters for JS template literals: $, {, and }.
+var jsBqStrReplacementTable = []string{
+	0:    `\u0000`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\u0022`,
+	'`':  `\u0060`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
+	'/':  `\/`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
+	'\\': `\\`,
+	'$':  `\u0024`,
+	'{':  `\u007b`,
+	'}':  `\u007d`,
 }
 
 // jsStrNormReplacementTable is like jsStrReplacementTable but does not

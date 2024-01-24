@@ -16,7 +16,7 @@ import (
 // This file implements encryption and decryption using PKCS #1 v1.5 padding.
 
 // PKCS1v15DecryptOptions is for passing options to PKCS #1 v1.5 decryption using
-// the crypto.Decrypter interface.
+// the [crypto.Decrypter] interface.
 type PKCS1v15DecryptOptions struct {
 	// SessionKeyLen is the length of the session key that is being
 	// decrypted. If not zero, then a padding error during decryption will

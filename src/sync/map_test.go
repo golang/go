@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	"internal/testenv"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -277,6 +278,19 @@ func TestCompareAndSwap_NonExistingKey(t *testing.T) {
 	m := &sync.Map{}
 	if m.CompareAndSwap(m, nil, 42) {
 		// See https://go.dev/issue/51972#issuecomment-1126408637.
-		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
+		t.Fatalf("CompareAndSwap on a non-existing key succeeded")
+	}
+}
+
+func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
+	testenv.SkipIfOptimizationOff(t)
+	var m sync.Map
+	allocs := testing.AllocsPerRun(10, func() {
+		m.Range(func(key, value any) bool {
+			return true
+		})
+	})
+	if allocs > 0 {
+		t.Errorf("AllocsPerRun of m.Range = %v; want 0", allocs)
 	}
 }

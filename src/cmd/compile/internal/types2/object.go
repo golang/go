@@ -285,6 +285,8 @@ func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
 	case nil:
 		return false
+	// case *Alias:
+	//	handled by default case
 	case *Basic:
 		// unsafe.Pointer is not an alias.
 		if obj.pkg == Unsafe {
@@ -405,6 +407,12 @@ func (obj *Func) Origin() *Func {
 	}
 	return obj
 }
+
+// Pkg returns the package to which the function belongs.
+//
+// The result is nil for methods of types in the Universe scope,
+// like method Error of the error built-in interface type.
+func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
 
 // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
 func (obj *Func) hasPtrRecv() bool {

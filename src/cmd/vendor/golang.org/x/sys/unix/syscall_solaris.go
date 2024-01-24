@@ -128,7 +128,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
@@ -157,7 +158,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 const ImplementsGetwd = true
@@ -697,38 +698,6 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) = libsocket.getpeername
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) = libsocket.setsockopt
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
-
-func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procread)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procwrite)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
-}
-
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
-}
-
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
-}
 
 // Event Ports
 

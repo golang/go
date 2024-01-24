@@ -7,7 +7,6 @@ package noder
 import (
 	"go/constant"
 
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
@@ -41,11 +40,6 @@ func typed(typ *types.Type, n ir.Node) ir.Node {
 
 // Values
 
-func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
-	orig := ir.NewRawOrigExpr(pos, op, raw)
-	return ir.NewConstExpr(val, typed(typ, orig))
-}
-
 // FixValue returns val after converting and truncating it as
 // appropriate for typ.
 func FixValue(typ *types.Type, val constant.Value) constant.Value {
@@ -59,14 +53,10 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 		val = constant.ToComplex(val)
 	}
 	if !typ.IsUntyped() {
-		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
+		val = typecheck.ConvertVal(val, typ, false)
 	}
 	ir.AssertValidTypeForConst(typ, val)
 	return val
-}
-
-func Nil(pos src.XPos, typ *types.Type) ir.Node {
-	return typed(typ, ir.NewNilExpr(pos))
 }
 
 // Expressions
@@ -83,56 +73,34 @@ func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
 	return n
 }
 
-func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
-	op, typ := ir.ODOT, x.Type()
-	if typ.IsPtr() {
-		op, typ = ir.ODOTPTR, typ.Elem()
-	}
-	if !typ.IsStruct() {
-		base.FatalfAt(pos, "DotField of non-struct: %L", x)
-	}
-
-	// TODO(mdempsky): This is the backend's responsibility.
-	types.CalcSize(typ)
-
-	field := typ.Field(index)
-	return dot(pos, field.Type, op, x, field)
-}
-
-func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
-	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
-	n.Selection = selection
-	typed(typ, n)
-	return n
-}
-
 // Statements
-
-var one = constant.MakeInt64(1)
 
 func idealType(tv syntax.TypeAndValue) types2.Type {
 	// The gc backend expects all expressions to have a concrete type, and
 	// types2 mostly satisfies this expectation already. But there are a few
 	// cases where the Go spec doesn't require converting to concrete type,
 	// and so types2 leaves them untyped. So we need to fix those up here.
-	typ := tv.Type
+	typ := types2.Unalias(tv.Type)
 	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
 		switch basic.Kind() {
 		case types2.UntypedNil:
 			// ok; can appear in type switch case clauses
 			// TODO(mdempsky): Handle as part of type switches instead?
 		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
-			// Untyped rhs of non-constant shift, e.g. x << 1.0.
-			// If we have a constant value, it must be an int >= 0.
+			typ = types2.Typ[types2.Uint]
 			if tv.Value != nil {
 				s := constant.ToInt(tv.Value)
-				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+				assert(s.Kind() == constant.Int)
+				if constant.Sign(s) < 0 {
+					typ = types2.Typ[types2.Int]
+				}
 			}
-			typ = types2.Typ[types2.Uint]
 		case types2.UntypedBool:
 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
 		case types2.UntypedString:
 			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		case types2.UntypedRune:
+			typ = types2.Typ[types2.Int32] // range over rune
 		default:
 			return nil
 		}
@@ -141,13 +109,14 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 }
 
 func isTypeParam(t types2.Type) bool {
-	_, ok := t.(*types2.TypeParam)
+	_, ok := types2.Unalias(t).(*types2.TypeParam)
 	return ok
 }
 
 // isNotInHeap reports whether typ is or contains an element of type
 // runtime/internal/sys.NotInHeap.
 func isNotInHeap(typ types2.Type) bool {
+	typ = types2.Unalias(typ)
 	if named, ok := typ.(*types2.Named); ok {
 		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
 			return true

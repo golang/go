@@ -159,7 +159,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <typ>
 	if hasType {
-		if x.typ != Typ[Invalid] {
+		if isValid(x.typ) {
 			var intro string
 			if isGeneric(x.typ) {
 				intro = " of generic type "
@@ -232,7 +232,7 @@ func (x *operand) isNil() bool { return x.mode == value && x.typ == Typ[UntypedN
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
-	if x.mode == invalid || T == Typ[Invalid] {
+	if x.mode == invalid || !isValid(T) {
 		return true, 0 // avoid spurious errors
 	}
 

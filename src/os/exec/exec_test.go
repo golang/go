@@ -77,6 +77,21 @@ func TestMain(m *testing.M) {
 	if os.Getenv("GO_EXEC_TEST_PID") == "" {
 		os.Setenv("GO_EXEC_TEST_PID", strconv.Itoa(pid))
 
+		if runtime.GOOS == "windows" {
+			// Normalize environment so that test behavior is consistent.
+			// (The behavior of LookPath varies depending on this variable.)
+			//
+			// Ideally we would test both with the variable set and with it cleared,
+			// but I (bcmills) am not sure that that's feasible: it may already be set
+			// in the Windows registry, and I'm not sure if it is possible to remove
+			// a registry variable in a program's environment.
+			//
+			// Per https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw#remarks,
+			// “the existence of the NoDefaultCurrentDirectoryInExePath environment
+			// variable is checked, and not its value.”
+			os.Setenv("NoDefaultCurrentDirectoryInExePath", "TRUE")
+		}
+
 		code := m.Run()
 		if code == 0 && flag.Lookup("test.run").Value.String() == "" && flag.Lookup("test.list").Value.String() == "" {
 			for cmd := range helperCommands {
@@ -178,6 +193,28 @@ var exeOnce struct {
 	path string
 	err  error
 	sync.Once
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Chdir(%#q)", dir)
+
+	t.Cleanup(func() {
+		if err := os.Chdir(prev); err != nil {
+			// Couldn't chdir back to the original working directory.
+			// panic instead of t.Fatal so that we don't run other tests
+			// in an unexpected location.
+			panic("couldn't restore working directory: " + err.Error())
+		}
+	})
 }
 
 var helperCommandUsed sync.Map
@@ -1781,4 +1818,20 @@ func TestConcurrentExec(t *testing.T) {
 	exits.Wait()
 	cancel()
 	hangs.Wait()
+}
+
+// TestPathRace tests that [Cmd.String] can be called concurrently
+// with [Cmd.Start].
+func TestPathRace(t *testing.T) {
+	cmd := helperCommand(t, "exit", "0")
+
+	done := make(chan struct{})
+	go func() {
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v: %v\n%s", cmd, err, out)
+		close(done)
+	}()
+
+	t.Logf("running in background: %v", cmd)
+	<-done
 }

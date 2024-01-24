@@ -7,10 +7,10 @@ package elliptic
 import "math/big"
 
 // CurveParams contains the parameters of an elliptic curve and also provides
-// a generic, non-constant time implementation of Curve.
+// a generic, non-constant time implementation of [Curve].
 //
 // The generic Curve implementation is deprecated, and using custom curves
-// (those not returned by P224(), P256(), P384(), and P521()) is not guaranteed
+// (those not returned by [P224], [P256], [P384], and [P521]) is not guaranteed
 // to provide any security property.
 type CurveParams struct {
 	P       *big.Int // the order of the underlying field
@@ -47,12 +47,12 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	return x3
 }
 
-// IsOnCurve implements Curve.IsOnCurve.
+// IsOnCurve implements [Curve.IsOnCurve].
 //
-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
-// provide any security property. For ECDH, use the crypto/ecdh package.
-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
-// from P224(), P256(), P384(), or P521().
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
+// provide any security property. For ECDH, use the [crypto/ecdh] package.
+// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+// from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
@@ -101,12 +101,12 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 	return
 }
 
-// Add implements Curve.Add.
+// Add implements [Curve.Add].
 //
-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
-// provide any security property. For ECDH, use the crypto/ecdh package.
-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
-// from P224(), P256(), P384(), or P521().
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
+// provide any security property. For ECDH, use the [crypto/ecdh] package.
+// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+// from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
@@ -199,12 +199,12 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 	return x3, y3, z3
 }
 
-// Double implements Curve.Double.
+// Double implements [Curve.Double].
 //
-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
-// provide any security property. For ECDH, use the crypto/ecdh package.
-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
-// from P224(), P256(), P384(), or P521().
+// Deprecated: the [CurveParams】 methods are deprecated and are not guaranteed to
+// provide any security property. For ECDH, use the [crypto/ecdh] package.
+// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+// from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
@@ -278,12 +278,12 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 	return x3, y3, z3
 }
 
-// ScalarMult implements Curve.ScalarMult.
+// ScalarMult implements [Curve.ScalarMult].
 //
-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
-// provide any security property. For ECDH, use the crypto/ecdh package.
-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
-// from P224(), P256(), P384(), or P521().
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
+// provide any security property. For ECDH, use the [crypto/ecdh] package.
+// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+// from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
@@ -308,12 +308,12 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 	return curve.affineFromJacobian(x, y, z)
 }
 
-// ScalarBaseMult implements Curve.ScalarBaseMult.
+// ScalarBaseMult implements [Curve.ScalarBaseMult].
 //
-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
-// provide any security property. For ECDH, use the crypto/ecdh package.
-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
-// from P224(), P256(), P384(), or P521().
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
+// provide any security property. For ECDH, use the [crypto/ecdh] package.
+// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+// from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.

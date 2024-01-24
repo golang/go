@@ -41,7 +41,7 @@ as a string and passes it to the [log] package.
 	2022/11/08 15:28:26 INFO hello count=3
 
 For more control over the output format, create a logger with a different handler.
-This statement uses [New] to create a new logger with a TextHandler
+This statement uses [New] to create a new logger with a [TextHandler]
 that writes structured records in text form to standard error:
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -210,7 +210,7 @@ The call
 
 is the most efficient way to achieve the same output as
 
-	slog.Info("hello", "count", 3)
+	slog.InfoContext(ctx, "hello", "count", 3)
 
 # Customizing a type's logging behavior
 
@@ -222,7 +222,7 @@ details.
 
 A LogValue method may return a Value that itself implements [LogValuer]. The [Value.Resolve]
 method handles these cases carefully, avoiding infinite loops and unbounded recursion.
-Handler authors and others may wish to use Value.Resolve instead of calling LogValue directly.
+Handler authors and others may wish to use [Value.Resolve] instead of calling LogValue directly.
 
 # Wrapping output methods
 
@@ -231,8 +231,8 @@ and line number of the logging call within the application. This can produce
 incorrect source information for functions that wrap slog. For instance, if you
 define this function in file mylog.go:
 
-	func Infof(format string, args ...any) {
-	    slog.Default().Info(fmt.Sprintf(format, args...))
+	func Infof(logger *slog.Logger, format string, args ...any) {
+	    logger.Info(fmt.Sprintf(format, args...))
 	}
 
 and you call it like this in main.go:

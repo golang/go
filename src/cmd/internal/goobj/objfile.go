@@ -244,7 +244,7 @@ func (h *Header) Read(r *Reader) error {
 }
 
 func (h *Header) Size() int {
-	return len(h.Magic) + 4 + 4*len(h.Offsets)
+	return len(h.Magic) + len(h.Fingerprint) + 4 + 4*len(h.Offsets)
 }
 
 // Autolib

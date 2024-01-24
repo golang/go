@@ -71,7 +71,6 @@ type tester struct {
 
 	short      bool
 	cgoEnabled bool
-	partial    bool
 	json       bool
 
 	tests        []distTest // use addTest to extend
@@ -235,11 +234,13 @@ func (t *tester) run() {
 		}
 	}
 
+	var anyIncluded, someExcluded bool
 	for _, dt := range t.tests {
 		if !t.shouldRunTest(dt.name) {
-			t.partial = true
+			someExcluded = true
 			continue
 		}
+		anyIncluded = true
 		dt := dt // dt used in background after this iteration
 		if err := dt.fn(&dt); err != nil {
 			t.runPending(&dt) // in case that hasn't been done yet
@@ -257,7 +258,11 @@ func (t *tester) run() {
 	if !t.json {
 		if t.failed {
 			fmt.Println("\nFAILED")
-		} else if t.partial {
+		} else if !anyIncluded {
+			fmt.Println()
+			errprintf("go tool dist: warning: %q matched no tests; use the -list flag to list available tests\n", t.runRxStr)
+			fmt.Println("NO TESTS TO RUN")
+		} else if someExcluded {
 			fmt.Println("\nALL TESTS PASSED (some were excluded)")
 		} else {
 			fmt.Println("\nALL TESTS PASSED")
@@ -714,6 +719,17 @@ func (t *tester) registerTests() {
 			})
 	}
 
+	// GOEXPERIMENT=rangefunc tests
+	if !t.compileOnly {
+		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
+			&goTest{
+				variant: "iter",
+				short:   t.short,
+				env:     []string{"GOEXPERIMENT=rangefunc"},
+				pkg:     "iter",
+			})
+	}
+
 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
 	// mode (with GO_TEST_SHORT=0) because this is just testing a
 	// non-critical debug setting.
@@ -886,8 +902,11 @@ func (t *tester) registerTests() {
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	//
+	// The same logic applies to the release notes that correspond to each api/next file.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 	}
 }
 
@@ -1622,7 +1641,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "plugin":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
 			"android/amd64", "android/386",
 			"darwin/amd64", "darwin/arm64",
 			"freebsd/amd64":

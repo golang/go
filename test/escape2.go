@@ -397,7 +397,6 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
 		return nil
 	}
 	return nil
-
 }
 
 // assigning to an array element is like assigning to the array
@@ -1729,7 +1728,7 @@ func intstring2() {
 
 func stringtoslicebyte0() {
 	s := "foo"
-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
+	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
 	_ = x
 }
 

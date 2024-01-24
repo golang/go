@@ -4,7 +4,7 @@
 
 package cpu
 
-const CacheLinePadSize = 32
+const CacheLinePadSize = 64
 
 func doinit() {
 }

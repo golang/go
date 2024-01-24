@@ -16,7 +16,7 @@ func TestMapFS(t *testing.T) {
 		"hello":             {Data: []byte("hello, world\n")},
 		"fortune/k/ken.txt": {Data: []byte("If a program is too slow, it must have a loop.\n")},
 	}
-	if err := TestFS(m, "hello", "fortune/k/ken.txt"); err != nil {
+	if err := TestFS(m, "hello", "fortune", "fortune/k", "fortune/k/ken.txt"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -37,7 +37,7 @@ func TestMapFSChmodDot(t *testing.T) {
 	})
 	want := `
 .: drwxrwxrwx
-a: d---------
+a: dr-xr-xr-x
 a/b.txt: -rw-rw-rw-
 `[1:]
 	got := buf.String()

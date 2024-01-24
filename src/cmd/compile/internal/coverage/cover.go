@@ -22,9 +22,9 @@ import (
 	"strings"
 )
 
-// Names records state information collected in the first fixup
+// names records state information collected in the first fixup
 // phase so that it can be passed to the second fixup phase.
-type Names struct {
+type names struct {
 	MetaVar     *ir.Name
 	PkgIdVar    *ir.Name
 	InitFn      *ir.Func
@@ -32,13 +32,17 @@ type Names struct {
 	CounterGran coverage.CounterGranularity
 }
 
-// FixupVars is the first of two entry points for coverage compiler
-// fixup. It collects and returns the package ID and meta-data
-// variables being used for this "-cover" build, along with the
-// coverage counter mode and granularity. It also reclassifies selected
-// variables (for example, tagging coverage counter variables with
-// flags so that they can be handled properly downstream).
-func FixupVars() Names {
+// Fixup adds calls to the pkg init function as appropriate to
+// register coverage-related variables with the runtime.
+//
+// It also reclassifies selected variables (for example, tagging
+// coverage counter variables with flags so that they can be handled
+// properly downstream).
+func Fixup() {
+	if base.Flag.Cfg.CoverageInfo == nil {
+		return // not using coverage
+	}
+
 	metaVarName := base.Flag.Cfg.CoverageInfo.MetaVar
 	pkgIdVarName := base.Flag.Cfg.CoverageInfo.PkgIdVar
 	counterMode := base.Flag.Cfg.CoverageInfo.CounterMode
@@ -53,15 +57,7 @@ func FixupVars() Names {
 		}
 	}
 
-	for _, n := range typecheck.Target.Decls {
-		as, ok := n.(*ir.AssignStmt)
-		if !ok {
-			continue
-		}
-		nm, ok := as.X.(*ir.Name)
-		if !ok {
-			continue
-		}
+	for _, nm := range typecheck.Target.Externs {
 		s := nm.Sym()
 		switch s.Name {
 		case metaVarName:
@@ -100,20 +96,15 @@ func FixupVars() Names {
 			counterGran)
 	}
 
-	return Names{
+	cnames := names{
 		MetaVar:     metavar,
 		PkgIdVar:    pkgidvar,
 		CounterMode: cm,
 		CounterGran: cg,
 	}
-}
 
-// FixupInit is the second main entry point for coverage compiler
-// fixup. It adds calls to the pkg init function as appropriate to
-// register coverage-related variables with the runtime.
-func FixupInit(cnames Names) {
-	for _, n := range typecheck.Target.Decls {
-		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.FuncName(fn) == "init" {
 			cnames.InitFn = fn
 			break
 		}
@@ -152,7 +143,7 @@ func metaHashAndLen() ([16]byte, int) {
 	return hv, base.Flag.Cfg.CoverageInfo.MetaLen
 }
 
-func registerMeta(cnames Names, hashv [16]byte, mdlen int) {
+func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	// Materialize expression for hash (an array literal)
 	pos := cnames.InitFn.Pos()
 	elist := make([]ir.Node, 0, 16)

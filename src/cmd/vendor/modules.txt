@@ -1,5 +1,5 @@
-# github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
-## explicit; go 1.18
+# github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+## explicit; go 1.19
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
 github.com/google/pprof/internal/driver
@@ -14,17 +14,20 @@ github.com/google/pprof/internal/transport
 github.com/google/pprof/profile
 github.com/google/pprof/third_party/d3flamegraph
 github.com/google/pprof/third_party/svgpan
-# github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
-## explicit; go 1.12
+# github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.4.0
-## explicit; go 1.17
+# golang.org/x/arch v0.7.0
+## explicit; go 1.18
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/mod v0.12.0
-## explicit; go 1.17
+# golang.org/x/build v0.0.0-20240122184708-c291ad69d6be
+## explicit; go 1.21
+golang.org/x/build/relnote
+# golang.org/x/mod v0.14.0
+## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
@@ -34,24 +37,34 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sync v0.3.0
-## explicit; go 1.17
+# golang.org/x/sync v0.6.0
+## explicit; go 1.18
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.10.0
-## explicit; go 1.17
-golang.org/x/sys/internal/unsafeheader
+# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.10.0
-## explicit; go 1.17
+# golang.org/x/term v0.16.0
+## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
+golang.org/x/text/cases
+golang.org/x/text/internal
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
+golang.org/x/text/language
+golang.org/x/text/transform
+golang.org/x/text/unicode/norm
+# golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
 ## explicit; go 1.18
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
+golang.org/x/tools/go/analysis/passes/appends
 golang.org/x/tools/go/analysis/passes/asmdecl
 golang.org/x/tools/go/analysis/passes/assign
 golang.org/x/tools/go/analysis/passes/atomic
@@ -61,6 +74,7 @@ golang.org/x/tools/go/analysis/passes/cgocall
 golang.org/x/tools/go/analysis/passes/composite
 golang.org/x/tools/go/analysis/passes/copylock
 golang.org/x/tools/go/analysis/passes/ctrlflow
+golang.org/x/tools/go/analysis/passes/defers
 golang.org/x/tools/go/analysis/passes/directive
 golang.org/x/tools/go/analysis/passes/errorsas
 golang.org/x/tools/go/analysis/passes/framepointer
@@ -91,6 +105,11 @@ golang.org/x/tools/go/ast/inspector
 golang.org/x/tools/go/cfg
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/bisect
 golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/versions
+# rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650
+## explicit; go 1.20
+rsc.io/markdown

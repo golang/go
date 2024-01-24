@@ -41,6 +41,8 @@ func logFD(net string, fd *poll.FD, err error) {
 func init() {
 	loggedFDs = make(map[syscall.Handle]*loggedFD)
 	*poll.LogInitFD = logFD
+
+	poll.InitWSA()
 }
 
 func findLoggedFD(h syscall.Handle) (lfd *loggedFD, found bool) {

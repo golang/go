@@ -13,191 +13,95 @@ package net
 // The tests in this files are intended to validate the behavior of the fake
 // network stack on these platforms.
 
-import "testing"
+import (
+	"errors"
+	"syscall"
+	"testing"
+)
 
-func TestFakeConn(t *testing.T) {
-	tests := []struct {
-		name   string
-		listen func() (Listener, error)
-		dial   func(Addr) (Conn, error)
-		addr   func(*testing.T, Addr)
-	}{
-		{
-			name: "Listener:tcp",
-			listen: func() (Listener, error) {
-				return Listen("tcp", ":0")
-			},
-			dial: func(addr Addr) (Conn, error) {
-				return Dial(addr.Network(), addr.String())
-			},
-			addr: testFakeTCPAddr,
-		},
-
-		{
-			name: "ListenTCP:tcp",
-			listen: func() (Listener, error) {
-				// Creating a listening TCP connection with a nil address must
-				// select an IP address on localhost with a random port.
-				// This test verifies that the fake network facility does that.
-				return ListenTCP("tcp", nil)
-			},
-			dial: func(addr Addr) (Conn, error) {
-				// Connecting a listening TCP connection will select a local
-				// address on the local network and connects to the destination
-				// address.
-				return DialTCP("tcp", nil, addr.(*TCPAddr))
-			},
-			addr: testFakeTCPAddr,
-		},
-
-		{
-			name: "ListenUnix:unix",
-			listen: func() (Listener, error) {
-				return ListenUnix("unix", &UnixAddr{Name: "test"})
-			},
-			dial: func(addr Addr) (Conn, error) {
-				return DialUnix("unix", nil, addr.(*UnixAddr))
-			},
-			addr: testFakeUnixAddr("unix", "test"),
-		},
-
-		{
-			name: "ListenUnix:unixpacket",
-			listen: func() (Listener, error) {
-				return ListenUnix("unixpacket", &UnixAddr{Name: "test"})
-			},
-			dial: func(addr Addr) (Conn, error) {
-				return DialUnix("unixpacket", nil, addr.(*UnixAddr))
-			},
-			addr: testFakeUnixAddr("unixpacket", "test"),
-		},
+func TestFakePortExhaustion(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test that opens 1<<16 connections")
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			l, err := test.listen()
-			if err != nil {
-				t.Fatal(err)
+	ln := newLocalListener(t, "tcp")
+	done := make(chan struct{})
+	go func() {
+		var accepted []Conn
+		defer func() {
+			for _, c := range accepted {
+				c.Close()
 			}
-			defer l.Close()
-			test.addr(t, l.Addr())
+			close(done)
+		}()
 
-			c, err := test.dial(l.Addr())
+		for {
+			c, err := ln.Accept()
 			if err != nil {
-				t.Fatal(err)
+				return
 			}
-			defer c.Close()
-			test.addr(t, c.LocalAddr())
-			test.addr(t, c.RemoteAddr())
-		})
-	}
-}
-
-func TestFakePacketConn(t *testing.T) {
-	tests := []struct {
-		name   string
-		listen func() (PacketConn, error)
-		dial   func(Addr) (Conn, error)
-		addr   func(*testing.T, Addr)
-	}{
-		{
-			name: "ListenPacket:udp",
-			listen: func() (PacketConn, error) {
-				return ListenPacket("udp", ":0")
-			},
-			dial: func(addr Addr) (Conn, error) {
-				return Dial(addr.Network(), addr.String())
-			},
-			addr: testFakeUDPAddr,
-		},
-
-		{
-			name: "ListenUDP:udp",
-			listen: func() (PacketConn, error) {
-				// Creating a listening UDP connection with a nil address must
-				// select an IP address on localhost with a random port.
-				// This test verifies that the fake network facility does that.
-				return ListenUDP("udp", nil)
-			},
-			dial: func(addr Addr) (Conn, error) {
-				// Connecting a listening UDP connection will select a local
-				// address on the local network and connects to the destination
-				// address.
-				return DialUDP("udp", nil, addr.(*UDPAddr))
-			},
-			addr: testFakeUDPAddr,
-		},
-
-		{
-			name: "ListenUnixgram:unixgram",
-			listen: func() (PacketConn, error) {
-				return ListenUnixgram("unixgram", &UnixAddr{Name: "test"})
-			},
-			dial: func(addr Addr) (Conn, error) {
-				return DialUnix("unixgram", nil, addr.(*UnixAddr))
-			},
-			addr: testFakeUnixAddr("unixgram", "test"),
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			l, err := test.listen()
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer l.Close()
-			test.addr(t, l.LocalAddr())
-
-			c, err := test.dial(l.LocalAddr())
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer c.Close()
-			test.addr(t, c.LocalAddr())
-			test.addr(t, c.RemoteAddr())
-		})
-	}
-}
-
-func testFakeTCPAddr(t *testing.T, addr Addr) {
-	t.Helper()
-	if a, ok := addr.(*TCPAddr); !ok {
-		t.Errorf("Addr is not *TCPAddr: %T", addr)
-	} else {
-		testFakeNetAddr(t, a.IP, a.Port)
-	}
-}
-
-func testFakeUDPAddr(t *testing.T, addr Addr) {
-	t.Helper()
-	if a, ok := addr.(*UDPAddr); !ok {
-		t.Errorf("Addr is not *UDPAddr: %T", addr)
-	} else {
-		testFakeNetAddr(t, a.IP, a.Port)
-	}
-}
-
-func testFakeNetAddr(t *testing.T, ip IP, port int) {
-	t.Helper()
-	if port == 0 {
-		t.Error("network address is missing port")
-	} else if len(ip) == 0 {
-		t.Error("network address is missing IP")
-	} else if !ip.Equal(IPv4(127, 0, 0, 1)) {
-		t.Errorf("network address has wrong IP: %s", ip)
-	}
-}
-
-func testFakeUnixAddr(net, name string) func(*testing.T, Addr) {
-	return func(t *testing.T, addr Addr) {
-		t.Helper()
-		if a, ok := addr.(*UnixAddr); !ok {
-			t.Errorf("Addr is not *UnixAddr: %T", addr)
-		} else if a.Net != net {
-			t.Errorf("unix address has wrong net: want=%q got=%q", net, a.Net)
-		} else if a.Name != name {
-			t.Errorf("unix address has wrong name: want=%q got=%q", name, a.Name)
+			accepted = append(accepted, c)
 		}
+	}()
+
+	var dialed []Conn
+	defer func() {
+		ln.Close()
+		for _, c := range dialed {
+			c.Close()
+		}
+		<-done
+	}()
+
+	// Since this test is not running in parallel, we expect to be able to open
+	// all 65535 valid (fake) ports. The listener is already using one, so
+	// we should be able to Dial the remaining 65534.
+	for len(dialed) < (1<<16)-2 {
+		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+		if err != nil {
+			t.Fatalf("unexpected error from Dial with %v connections: %v", len(dialed), err)
+		}
+		dialed = append(dialed, c)
+		if testing.Verbose() && len(dialed)%(1<<12) == 0 {
+			t.Logf("dialed %d connections", len(dialed))
+		}
+	}
+	t.Logf("dialed %d connections", len(dialed))
+
+	// Now that all of the ports are in use, dialing another should fail due
+	// to port exhaustion, which (for POSIX-like socket APIs) should return
+	// an EADDRINUSE error.
+	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+	if err == nil {
+		c.Close()
+	}
+	if errors.Is(err, syscall.EADDRINUSE) {
+		t.Logf("Dial returned expected error: %v", err)
+	} else {
+		t.Errorf("unexpected error from Dial: %v\nwant: %v", err, syscall.EADDRINUSE)
+	}
+
+	// Opening a Listener should fail at this point too.
+	ln2, err := Listen("tcp", "localhost:0")
+	if err == nil {
+		ln2.Close()
+	}
+	if errors.Is(err, syscall.EADDRINUSE) {
+		t.Logf("Listen returned expected error: %v", err)
+	} else {
+		t.Errorf("unexpected error from Listen: %v\nwant: %v", err, syscall.EADDRINUSE)
+	}
+
+	// When we close an arbitrary connection, we should be able to reuse its port
+	// even if the server hasn't yet seen the ECONNRESET for the connection.
+	dialed[0].Close()
+	dialed = dialed[1:]
+	t.Logf("closed one connection")
+	c, err = Dial(ln.Addr().Network(), ln.Addr().String())
+	if err == nil {
+		c.Close()
+		t.Logf("Dial succeeded")
+	} else {
+		t.Errorf("unexpected error from Dial: %v", err)
 	}
 }

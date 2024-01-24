@@ -87,3 +87,18 @@ func dumpregs(r *context) {
 func stackcheck() {
 	// TODO: not implemented on ARM
 }
+
+type _DISPATCHER_CONTEXT struct {
+	controlPc        uint64
+	imageBase        uint64
+	functionEntry    uintptr
+	establisherFrame uint64
+	targetIp         uint64
+	context          *context
+	languageHandler  uintptr
+	handlerData      uintptr
+}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return c.context
+}

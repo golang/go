@@ -2,6 +2,10 @@
 
 # Verify test -c can output multiple executables to a directory.
 
+# This test also serves as a regression test for https://go.dev/issue/62221:
+# prior to the fix for that issue, it occasionally failed with ETXTBSY when
+# run on Unix platforms.
+
 go test -c -o $WORK/some/nonexisting/directory/ ./pkg/...
 exists -exec $WORK/some/nonexisting/directory/pkg1.test$GOEXE
 exists -exec $WORK/some/nonexisting/directory/pkg2.test$GOEXE

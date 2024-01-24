@@ -1,6 +1,6 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+
 //go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
-// +build !ppc64,!ppc64le,!goexperiment.regabiargs
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
@@ -167,7 +167,7 @@ var b bool
 
 // this used to have a spurious "live at entry to f11a: ~r0"
 func f11a() *int {
-	select { // ERROR "stack object .autotmp_[0-9]+ \[2\]struct"
+	select { // ERROR "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 	case <-c:
 		return nil
 	case <-c:
@@ -182,7 +182,7 @@ func f11b() *int {
 		// get to the bottom of the function.
 		// This used to have a spurious "live at call to printint: p".
 		printint(1) // nothing live here!
-		select {    // ERROR "stack object .autotmp_[0-9]+ \[2\]struct"
+		select {    // ERROR "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 		case <-c:
 			return nil
 		case <-c:
@@ -202,7 +202,7 @@ func f11c() *int {
 		// Unlike previous, the cases in this select fall through,
 		// so we can get to the println, so p is not dead.
 		printint(1) // ERROR "live at call to printint: p$"
-		select {    // ERROR "live at call to selectgo: p$" "stack object .autotmp_[0-9]+ \[2\]struct"
+		select {    // ERROR "live at call to selectgo: p$" "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 		case <-c:
 		case <-c:
 		}
@@ -458,7 +458,7 @@ func f28(b bool) {
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
+		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hiter$"
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
@@ -600,7 +600,7 @@ func f38(b bool) {
 	// we care that the println lines have no live variables
 	// and therefore no output.
 	if b {
-		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ \[4\]struct \{"
+		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ \[4\]runtime.scase$"
 		case <-fc38():
 			printnl()
 		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
@@ -667,7 +667,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret

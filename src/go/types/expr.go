@@ -356,7 +356,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+	if x.mode == invalid || isTyped(x.typ) || !isValid(target) {
 		return x.typ, nil, 0
 	}
 	// x is untyped
@@ -452,7 +452,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
 	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
-	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+	if !isValid(x.typ) || !isValid(y.typ) {
 		x.mode = invalid
 		return
 	}
@@ -810,7 +810,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	if !Identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
-		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+		if isValid(x.typ) && isValid(y.typ) {
 			var posn positioner = x
 			if e != nil {
 				posn = e
@@ -941,18 +941,32 @@ const (
 	statement
 )
 
-// TODO(gri) In rawExpr below, consider using T instead of hint and
-//           some sort of "operation mode" instead of allowGeneric.
-//           May be clearer and less error-prone.
+// target represent the (signature) type and description of the LHS
+// variable of an assignment, or of a function result variable.
+type target struct {
+	sig  *Signature
+	desc string
+}
+
+// newTarget creates a new target for the given type and description.
+// The result is nil if typ is not a signature.
+func newTarget(typ Type, desc string) *target {
+	if typ != nil {
+		if sig, _ := under(typ).(*Signature); sig != nil {
+			return &target{sig, desc}
+		}
+	}
+	return nil
+}
 
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
-// If a non-nil target type T is given and e is a generic function
-// or function call, T is used to infer the type arguments for e.
+// If a non-nil target T is given and e is a generic function,
+// T is used to infer the type arguments for e.
 // If hint != nil, it is the type of a composite literal element.
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
-func (check *Checker) rawExpr(T Type, x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
+func (check *Checker) rawExpr(T *target, x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
 	if check.conf._Trace {
 		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
@@ -974,9 +988,9 @@ func (check *Checker) rawExpr(T Type, x *operand, e ast.Expr, hint Type, allowGe
 }
 
 // If x is a generic type, or a generic function whose type arguments cannot be inferred
-// from a non-nil target type T, nonGeneric reports an error and invalidates x.mode and x.typ.
+// from a non-nil target T, nonGeneric reports an error and invalidates x.mode and x.typ.
 // Otherwise it leaves x alone.
-func (check *Checker) nonGeneric(T Type, x *operand) {
+func (check *Checker) nonGeneric(T *target, x *operand) {
 	if x.mode == invalid || x.mode == novalue {
 		return
 	}
@@ -989,10 +1003,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
 	case *Signature:
 		if t.tparams != nil {
 			if enableReverseTypeInference && T != nil {
-				if tsig, _ := under(T).(*Signature); tsig != nil {
-					check.funcInst(tsig, x.Pos(), x, nil, true)
-					return
-				}
+				check.funcInst(T, x.Pos(), x, nil, true)
+				return
 			}
 			what = "function"
 		}
@@ -1007,7 +1019,7 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 // (See rawExpr for an explanation of the parameters.)
-func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) exprKind {
+func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was go.dev/issue/5770)
 	x.mode = invalid
@@ -1059,6 +1071,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 
 	case *ast.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {
+			// Set the Scope's extent to the complete "func (...) {...}"
+			// so that Scope.Innermost works correctly.
+			sig.scope.pos = e.Pos()
+			sig.scope.end = e.End()
 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
 				// Anonymous functions are considered part of the
 				// init expression/func declaration which contains
@@ -1290,7 +1306,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 				check.use(e)
 			}
 			// if utyp is invalid, an error was reported before
-			if utyp != Typ[Invalid] {
+			if isValid(utyp) {
 				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
 				goto Error
 			}
@@ -1311,11 +1327,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if check.indexExpr(x, ix) {
-			var tsig *Signature
-			if enableReverseTypeInference && T != nil {
-				tsig, _ = under(T).(*Signature)
+			if !enableReverseTypeInference {
+				T = nil
 			}
-			check.funcInst(tsig, e.Pos(), x, ix, true)
+			check.funcInst(T, e.Pos(), x, ix, true)
 		}
 		if x.mode == invalid {
 			goto Error
@@ -1334,7 +1349,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 		}
 		// x.(type) expressions are handled explicitly in type switches
 		if e.Type == nil {
-			// Don't use invalidAST because this can occur in the AST produced by
+			// Don't use InvalidSyntaxTree because this can occur in the AST produced by
 			// go/parser.
 			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
 			goto Error
@@ -1348,7 +1363,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 			goto Error
 		}
 		T := check.varType(e.Type)
-		if T == Typ[Invalid] {
+		if !isValid(T) {
 			goto Error
 		}
 		check.typeAssertion(e, x, T, false)
@@ -1490,11 +1505,11 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
 }
 
 // expr typechecks expression e and initializes x with the expression value.
-// If a non-nil target type T is given and e is a generic function
-// or function call, T is used to infer the type arguments for e.
+// If a non-nil target T is given and e is a generic function or
+// a function call, T is used to infer the type arguments for e.
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
-func (check *Checker) expr(T Type, x *operand, e ast.Expr) {
+func (check *Checker) expr(T *target, x *operand, e ast.Expr) {
 	check.rawExpr(T, x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)

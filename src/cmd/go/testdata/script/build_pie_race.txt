@@ -1,0 +1,30 @@
+# go build -buildmode=pie -race main.go on Darwin should work without errors
+
+[!race] skip 'test requires race detector support'
+
+[!GOOS:darwin] ! go build -buildmode=pie -race
+[!GOOS:darwin] stderr '^-buildmode=pie not supported when -race is enabled on '$GOOS'/'$GOARCH'$'
+[!GOOS:darwin] stop 'not testing -buildmode=pie -race on platform that does not support it'
+
+go build -buildmode=pie -race bytes
+! stderr .
+
+[short] stop 'not linking a binary in -short mode'
+
+go build -buildmode=pie -race main.go
+! stderr .
+exec ./main
+stdout 'Hello, 世界'
+
+-- go.mod --
+module m
+
+go 1.21
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, 世界")
+}

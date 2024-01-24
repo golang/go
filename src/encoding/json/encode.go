@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,30 +29,30 @@ import (
 // Marshal returns the JSON encoding of v.
 //
 // Marshal traverses the value v recursively.
-// If an encountered value implements the Marshaler interface
-// and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON. If no MarshalJSON method is present but the
-// value implements encoding.TextMarshaler instead, Marshal calls
-// its MarshalText method and encodes the result as a JSON string.
+// If an encountered value implements [Marshaler]
+// and is not a nil pointer, Marshal calls [Marshaler.MarshalJSON]
+// to produce JSON. If no [Marshaler.MarshalJSON] method is present but the
+// value implements [encoding.TextMarshaler] instead, Marshal calls
+// [encoding.TextMarshaler.MarshalText] and encodes the result as a JSON string.
 // The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
-// UnmarshalJSON.
+// [Unmarshaler.UnmarshalJSON].
 //
 // Otherwise, Marshal uses the following type-dependent default encodings:
 //
 // Boolean values encode as JSON booleans.
 //
-// Floating point, integer, and Number values encode as JSON numbers.
+// Floating point, integer, and [Number] values encode as JSON numbers.
 // NaN and +/-Inf values will return an [UnsupportedValueError].
 //
 // String values encode as JSON strings coerced to valid UTF-8,
 // replacing invalid bytes with the Unicode replacement rune.
 // So that the JSON will be safe to embed inside HTML <script> tags,
-// the string is encoded using HTMLEscape,
+// the string is encoded using [HTMLEscape],
 // which replaces "<", ">", "&", U+2028, and U+2029 are escaped
 // to "\u003c","\u003e", "\u0026", "\u2028", and "\u2029".
-// This replacement can be disabled when using an Encoder,
-// by calling SetEscapeHTML(false).
+// This replacement can be disabled when using an [Encoder],
+// by calling [Encoder.SetEscapeHTML](false).
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
@@ -108,7 +109,7 @@ import (
 // only Unicode letters, digits, and ASCII punctuation except quotation
 // marks, backslash, and comma.
 //
-// Anonymous struct fields are usually marshaled as if their inner exported fields
+// Embedded struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules amended
 // as described in the next paragraph.
 // An anonymous struct field with a name given in its JSON tag is treated as
@@ -135,11 +136,11 @@ import (
 // a JSON tag of "-".
 //
 // Map values encode as JSON objects. The map's key type must either be a
-// string, an integer type, or implement encoding.TextMarshaler. The map keys
+// string, an integer type, or implement [encoding.TextMarshaler]. The map keys
 // are sorted and used as JSON object keys by applying the following rules,
 // subject to the UTF-8 coercion described for string values above:
 //   - keys of any string type are used directly
-//   - encoding.TextMarshalers are marshaled
+//   - [encoding.TextMarshalers] are marshaled
 //   - integer keys are converted to strings
 //
 // Pointer values encode as the value pointed to.
@@ -150,7 +151,7 @@ import (
 //
 // Channel, complex, and function values cannot be encoded in JSON.
 // Attempting to encode such a value causes Marshal to return
-// an UnsupportedTypeError.
+// an [UnsupportedTypeError].
 //
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
@@ -168,7 +169,7 @@ func Marshal(v any) ([]byte, error) {
 	return buf, nil
 }
 
-// MarshalIndent is like Marshal but applies Indent to format the output.
+// MarshalIndent is like [Marshal] but applies [Indent] to format the output.
 // Each JSON element in the output will begin on a new line beginning with prefix
 // followed by one or more copies of indent according to the indentation nesting.
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
@@ -190,7 +191,7 @@ type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
-// An UnsupportedTypeError is returned by Marshal when attempting
+// An UnsupportedTypeError is returned by [Marshal] when attempting
 // to encode an unsupported value type.
 type UnsupportedTypeError struct {
 	Type reflect.Type
@@ -200,7 +201,7 @@ func (e *UnsupportedTypeError) Error() string {
 	return "json: unsupported type: " + e.Type.String()
 }
 
-// An UnsupportedValueError is returned by Marshal when attempting
+// An UnsupportedValueError is returned by [Marshal] when attempting
 // to encode an unsupported value.
 type UnsupportedValueError struct {
 	Value reflect.Value
@@ -211,9 +212,9 @@ func (e *UnsupportedValueError) Error() string {
 	return "json: unsupported value: " + e.Str
 }
 
-// Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
+// Before Go 1.2, an InvalidUTF8Error was returned by [Marshal] when
 // attempting to encode a string value with invalid UTF-8 sequences.
-// As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
+// As of Go 1.2, [Marshal] instead coerces the string to valid UTF-8 by
 // replacing invalid bytes with the Unicode replacement rune U+FFFD.
 //
 // Deprecated: No longer used; kept for compatibility.
@@ -225,7 +226,8 @@ func (e *InvalidUTF8Error) Error() string {
 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
-// A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
+// A MarshalerError represents an error from calling a
+// [Marshaler.MarshalJSON] or [encoding.TextMarshaler.MarshalText] method.
 type MarshalerError struct {
 	Type       reflect.Type
 	Err        error
@@ -245,7 +247,7 @@ func (e *MarshalerError) Error() string {
 // Unwrap returns the underlying error.
 func (e *MarshalerError) Unwrap() error { return e.Err }
 
-var hex = "0123456789abcdef"
+const hex = "0123456789abcdef"
 
 // An encodeState encodes JSON into a bytes.Buffer.
 type encodeState struct {
@@ -305,16 +307,12 @@ func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
-	case reflect.Bool:
-		return v.Bool() == false
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Pointer:
-		return v.IsNil()
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64,
+		reflect.Interface, reflect.Pointer:
+		return v.IsZero()
 	}
 	return false
 }
@@ -739,16 +737,20 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 
 	// Extract and sort the keys.
-	sv := make([]reflectWithString, v.Len())
-	mi := v.MapRange()
+	var (
+		sv  = make([]reflectWithString, v.Len())
+		mi  = v.MapRange()
+		err error
+	)
 	for i := 0; mi.Next(); i++ {
-		sv[i].k = mi.Key()
-		sv[i].v = mi.Value()
-		if err := sv[i].resolve(); err != nil {
+		if sv[i].ks, err = resolveKeyName(mi.Key()); err != nil {
 			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
+		sv[i].v = mi.Value()
 	}
-	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
+	slices.SortFunc(sv, func(i, j reflectWithString) int {
+		return strings.Compare(i.ks, j.ks)
+	})
 
 	for i, kv := range sv {
 		if i > 0 {
@@ -781,15 +783,11 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 		e.WriteString("null")
 		return
 	}
-	s := v.Bytes()
-	encodedLen := base64.StdEncoding.EncodedLen(len(s))
-	e.Grow(len(`"`) + encodedLen + len(`"`))
 
-	// TODO(https://go.dev/issue/53693): Use base64.Encoding.AppendEncode.
+	s := v.Bytes()
 	b := e.AvailableBuffer()
 	b = append(b, '"')
-	base64.StdEncoding.Encode(b[len(b):][:encodedLen], s)
-	b = b[:len(b)+encodedLen]
+	b = base64.StdEncoding.AppendEncode(b, s)
 	b = append(b, '"')
 	e.Write(b)
 }
@@ -931,31 +929,26 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 }
 
 type reflectWithString struct {
-	k  reflect.Value
 	v  reflect.Value
 	ks string
 }
 
-func (w *reflectWithString) resolve() error {
-	if w.k.Kind() == reflect.String {
-		w.ks = w.k.String()
-		return nil
+func resolveKeyName(k reflect.Value) (string, error) {
+	if k.Kind() == reflect.String {
+		return k.String(), nil
 	}
-	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
-		if w.k.Kind() == reflect.Pointer && w.k.IsNil() {
-			return nil
+	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+		if k.Kind() == reflect.Pointer && k.IsNil() {
+			return "", nil
 		}
 		buf, err := tm.MarshalText()
-		w.ks = string(buf)
-		return err
+		return string(buf), err
 	}
-	switch w.k.Kind() {
+	switch k.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		w.ks = strconv.FormatInt(w.k.Int(), 10)
-		return nil
+		return strconv.FormatInt(k.Int(), 10), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		w.ks = strconv.FormatUint(w.k.Uint(), 10)
-		return nil
+		return strconv.FormatUint(k.Uint(), 10), nil
 	}
 	panic("unexpected map key type")
 }
@@ -973,6 +966,10 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			switch b {
 			case '\\', '"':
 				dst = append(dst, '\\', b)
+			case '\b':
+				dst = append(dst, '\\', 'b')
+			case '\f':
+				dst = append(dst, '\\', 'f')
 			case '\n':
 				dst = append(dst, '\\', 'n')
 			case '\r':
@@ -980,7 +977,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			case '\t':
 				dst = append(dst, '\\', 't')
 			default:
-				// This encodes bytes < 0x20 except for \t, \n and \r.
+				// This encodes bytes < 0x20 except for \b, \f, \n, \r and \t.
 				// If escapeHTML is set, it also escapes <, >, and &
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON

@@ -590,9 +590,13 @@ label4:
 	// unary operation
 	NEGW	R1, R2 // 00011023
 	NEGV	R1, R2 // 0001102f
+
 	WSBH	R1, R2 // 7c0110a0
 	DSBH	R1, R2 // 7c0110a4
 	DSHD	R1, R2 // 7c011164
+
+	SEB	R1, R2 // 7c011420
+	SEH	R1, R2 // 7c011620
 
 	RET
 

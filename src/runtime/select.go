@@ -173,7 +173,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 			continue
 		}
 
-		j := fastrandn(uint32(norder + 1))
+		j := cheaprandn(uint32(norder + 1))
 		pollorder[norder] = pollorder[j]
 		pollorder[j] = uint16(i)
 		norder++

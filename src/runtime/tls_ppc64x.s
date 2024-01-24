@@ -24,9 +24,11 @@
 // NOTE: setg_gcc<> assume this clobbers only R31.
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 #ifndef GOOS_aix
+#ifndef GOOS_openbsd
 	MOVBZ	runtime·iscgo(SB), R31
 	CMP	R31, $0
 	BEQ	nocgo
+#endif
 #endif
 	MOVD	runtime·tls_g(SB), R31
 	MOVD	g, 0(R31)

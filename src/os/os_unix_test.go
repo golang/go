@@ -75,6 +75,12 @@ func TestChown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = Chown(f.Name(), -1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("chown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Chown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("chown %s -1 %d: %s", f.Name(), g, err)
 		}
 		checkUidGid(t, f.Name(), int(sys.Uid), g)
@@ -123,6 +129,12 @@ func TestFileChown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = f.Chown(-1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("chown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Chown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("fchown %s -1 %d: %s", f.Name(), g, err)
 		}
 		checkUidGid(t, f.Name(), int(sys.Uid), g)
@@ -181,12 +193,22 @@ func TestLchown(t *testing.T) {
 	t.Log("groups: ", groups)
 	for _, g := range groups {
 		if err = Lchown(linkname, -1, g); err != nil {
+			if testenv.SyscallIsNotSupported(err) {
+				t.Logf("lchown %s -1 %d: %s (error ignored)", f.Name(), g, err)
+				// Since the Lchown call failed, the file should be unmodified.
+				checkUidGid(t, f.Name(), int(sys.Uid), gid)
+				continue
+			}
 			t.Fatalf("lchown %s -1 %d: %s", linkname, g, err)
 		}
 		checkUidGid(t, linkname, int(sys.Uid), g)
 
 		// Check that link target's gid is unchanged.
 		checkUidGid(t, f.Name(), int(sys.Uid), int(sys.Gid))
+
+		if err = Lchown(linkname, -1, gid); err != nil {
+			t.Fatalf("lchown %s -1 %d: %s", f.Name(), gid, err)
+		}
 	}
 }
 
@@ -235,8 +257,23 @@ func TestMkdirStickyUmask(t *testing.T) {
 	const umask = 0077
 	dir := newDir("TestMkdirStickyUmask", t)
 	defer RemoveAll(dir)
+
 	oldUmask := syscall.Umask(umask)
 	defer syscall.Umask(oldUmask)
+
+	// We have set a umask, but if the parent directory happens to have a default
+	// ACL, the umask may be ignored. To prevent spurious failures from an ACL,
+	// we create a non-sticky directory as a “control case” to compare against our
+	// sticky-bit “experiment”.
+	control := filepath.Join(dir, "control")
+	if err := Mkdir(control, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfi, err := Stat(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	p := filepath.Join(dir, "dir1")
 	if err := Mkdir(p, ModeSticky|0755); err != nil {
 		t.Fatal(err)
@@ -245,8 +282,11 @@ func TestMkdirStickyUmask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
-		t.Errorf("unexpected mode %s", mode)
+
+	got := fi.Mode()
+	want := cfi.Mode() | ModeSticky
+	if got != want {
+		t.Errorf("Mkdir(_, ModeSticky|0755) created dir with mode %v; want %v", got, want)
 	}
 }
 
@@ -344,5 +384,61 @@ func TestSplitPath(t *testing.T) {
 		if dir, base := SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
 			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
 		}
+	}
+}
+
+// Test that copying to files opened with O_APPEND works and
+// the copy_file_range syscall isn't used on Linux.
+//
+// Regression test for go.dev/issue/60181
+func TestIssue60181(t *testing.T) {
+	defer chtmpdir(t)()
+
+	want := "hello gopher"
+
+	a, err := CreateTemp("", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.WriteString(want[:5])
+	a.Close()
+
+	b, err := CreateTemp("", "b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.WriteString(want[5:])
+	b.Close()
+
+	afd, err := syscall.Open(a.Name(), syscall.O_RDWR|syscall.O_APPEND, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bfd, err := syscall.Open(b.Name(), syscall.O_RDONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aa := NewFile(uintptr(afd), a.Name())
+	defer aa.Close()
+	bb := NewFile(uintptr(bfd), b.Name())
+	defer bb.Close()
+
+	// This would fail on Linux in case the copy_file_range syscall was used because it doesn't
+	// support destination files opened with O_APPEND, see
+	// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#ERRORS
+	_, err = io.Copy(aa, bb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf, err := ReadFile(aa.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := string(buf); got != want {
+		t.Errorf("files not concatenated: got %q, want %q", got, want)
 	}
 }

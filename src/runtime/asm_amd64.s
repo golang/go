@@ -144,12 +144,12 @@ GLOBL bad_cpu_msg<>(SB), RODATA, $84
 #define commpage64_base_address         0x00007fffffe00000
 #define commpage64_cpu_capabilities64   (commpage64_base_address+0x010)
 #define commpage64_version              (commpage64_base_address+0x01E)
-#define hasAVX512F                      0x0000004000000000
-#define hasAVX512CD                     0x0000008000000000
-#define hasAVX512DQ                     0x0000010000000000
-#define hasAVX512BW                     0x0000020000000000
-#define hasAVX512VL                     0x0000100000000000
-#define NEED_DARWIN_SUPPORT             (hasAVX512F | hasAVX512DQ | hasAVX512CD | hasAVX512BW | hasAVX512VL)
+#define AVX512F                         0x0000004000000000
+#define AVX512CD                        0x0000008000000000
+#define AVX512DQ                        0x0000010000000000
+#define AVX512BW                        0x0000020000000000
+#define AVX512VL                        0x0000100000000000
+#define NEED_DARWIN_SUPPORT             (AVX512F | AVX512DQ | AVX512CD | AVX512BW | AVX512VL)
 #else
 #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
 #endif
@@ -537,6 +537,30 @@ bad:
 	CALL	AX
 	INT	$3
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVQ	g_m(R14), BX // curm
+
+	// set g to gcrash
+	LEAQ	runtime·gcrash(SB), R14 // g = &gcrash
+	MOVQ	BX, g_m(R14)            // g.m = curm
+	MOVQ	R14, m_g0(BX)           // curm.g0 = g
+	get_tls(CX)
+	MOVQ	R14, g(CX)
+
+	// switch to crashstack
+	MOVQ	(g_stack+stack_hi)(R14), BX
+	SUBQ	$(4*8), BX
+	MOVQ	BX, SP
+
+	// call target function
+	MOVQ	AX, DX
+	MOVQ	0(AX), AX
+	CALL	AX
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
 
 /*
  * support for morestack
@@ -551,17 +575,26 @@ bad:
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	m_g0(BX), SI
-	CMPQ	g(CX), SI
+	MOVQ	g(CX), DI     // DI = g
+	MOVQ	g_m(DI), BX   // BX = m
+
+	// Set g->sched to context in f.
+	MOVQ	0(SP), AX // f's PC
+	MOVQ	AX, (g_sched+gobuf_pc)(DI)
+	LEAQ	8(SP), AX // f's SP
+	MOVQ	AX, (g_sched+gobuf_sp)(DI)
+	MOVQ	BP, (g_sched+gobuf_bp)(DI)
+	MOVQ	DX, (g_sched+gobuf_ctxt)(DI)
+
+	MOVQ	m_g0(BX), SI  // SI = m.g0
+	CMPQ	DI, SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackg0(SB)
 	CALL	runtime·abort(SB)
 
 	// Cannot grow signal stack (m->gsignal).
 	MOVQ	m_gsignal(BX), SI
-	CMPQ	g(CX), SI
+	CMPQ	DI, SI
 	JNE	3(PC)
 	CALL	runtime·badmorestackgsignal(SB)
 	CALL	runtime·abort(SB)
@@ -573,17 +606,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
-	get_tls(CX)
-	MOVQ	g(CX), SI
-	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
-
-	// Set g->sched to context in f.
-	MOVQ	0(SP), AX // f's PC
-	MOVQ	AX, (g_sched+gobuf_pc)(SI)
-	LEAQ	8(SP), AX // f's SP
-	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	MOVQ	BP, (g_sched+gobuf_bp)(SI)
-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+	MOVQ	DI, (m_morebuf+gobuf_g)(BX)
 
 	// Call newstack on m->g0's stack.
 	MOVQ	m_g0(BX), BX
@@ -825,6 +848,33 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$32-16
 	MOVQ	DX, SP
 	RET
 
+// asmcgocall_landingpad calls AX with BX as argument.
+// Must be called on the system stack.
+TEXT ·asmcgocall_landingpad(SB),NOSPLIT,$0-0
+#ifdef GOOS_windows
+	// Make sure we have enough room for 4 stack-backed fast-call
+	// registers as per Windows amd64 calling convention.
+	ADJSP	$32
+	// On Windows, asmcgocall_landingpad acts as landing pad for exceptions
+	// thrown in the cgo call. Exceptions that reach this function will be
+	// handled by runtime.sehtramp thanks to the SEH metadata added
+	// by the compiler.
+	// Note that runtime.sehtramp can't be attached directly to asmcgocall
+	// because its initial stack pointer can be outside the system stack bounds,
+	// and Windows stops the stack unwinding without calling the exception handler
+	// when it reaches that point.
+	MOVQ	BX, CX		// CX = first argument in Win64
+	CALL	AX
+	// The exception handler is not called if the next instruction is part of
+	// the epilogue, which includes the RET instruction, so we need to add a NOP here.
+	BYTE	$0x90
+	ADJSP	$-32
+	RET
+#endif
+	// Tail call AX on non-Windows, as the extra stack frame is not needed.
+	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+	JMP	AX
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -859,23 +909,19 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 
 	// Now on a scheduling stack (a pthread-created stack).
-	// Make sure we have enough room for 4 stack-backed fast-call
-	// registers as per windows amd64 calling convention.
-	SUBQ	$64, SP
+	SUBQ	$16, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
-	MOVQ	DI, 48(SP)	// save g
+	MOVQ	DI, 8(SP)	// save g
 	MOVQ	(g_stack+stack_hi)(DI), DI
 	SUBQ	DX, DI
-	MOVQ	DI, 40(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
-	MOVQ	BX, CX		// CX = first argument in Win64
-	CALL	AX
+	MOVQ	DI, 0(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
+	CALL	runtime·asmcgocall_landingpad(SB)
 
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
-	MOVQ	48(SP), DI
+	MOVQ	8(SP), DI
 	MOVQ	(g_stack+stack_hi)(DI), SI
-	SUBQ	40(SP), SI
+	SUBQ	0(SP), SI
 	MOVQ	DI, g(CX)
 	MOVQ	SI, SP
 
@@ -893,14 +939,12 @@ nosave:
 	// but then the only path through this code would be a rare case on Solaris.
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
-	SUBQ	$64, SP
+	SUBQ	$16, SP
 	ANDQ	$~15, SP
-	MOVQ	$0, 48(SP)		// where above code stores g, in case someone looks during debugging
-	MOVQ	DX, 40(SP)	// save original stack pointer
-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
-	MOVQ	BX, CX		// CX = first argument in Win64
-	CALL	AX
-	MOVQ	40(SP), SI	// restore original stack pointer
+	MOVQ	$0, 8(SP)		// where above code stores g, in case someone looks during debugging
+	MOVQ	DX, 0(SP)	// save original stack pointer
+	CALL	runtime·asmcgocall_landingpad(SB)
+	MOVQ	0(SP), SI	// restore original stack pointer
 	MOVQ	SI, SP
 	MOVL	AX, ret+16(FP)
 	RET
@@ -1442,6 +1486,7 @@ aes129plus:
 	DECQ	CX
 	SHRQ	$7, CX
 
+	PCALIGN $16
 aesloop:
 	// scramble state
 	AESENC	X8, X8

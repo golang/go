@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // This program is run via "go generate" (via a directive in sort.go)
 // to generate implementation variants of the underlying sorting algorithm.

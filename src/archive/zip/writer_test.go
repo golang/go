@@ -648,3 +648,26 @@ func TestWriterAddFS(t *testing.T) {
 		testReadFile(t, r.File[i], &wt)
 	}
 }
+
+func TestIssue61875(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := NewWriter(buf)
+	tests := []WriteTest{
+		{
+			Name:   "symlink",
+			Data:   []byte("../link/target"),
+			Method: Deflate,
+			Mode:   0755 | fs.ModeSymlink,
+		},
+		{
+			Name:   "device",
+			Data:   []byte(""),
+			Method: Deflate,
+			Mode:   0755 | fs.ModeDevice,
+		},
+	}
+	err := w.AddFS(writeTestsToFS(tests))
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}

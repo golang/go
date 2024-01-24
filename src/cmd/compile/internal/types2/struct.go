@@ -147,7 +147,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				t, isPtr := deref(embeddedTyp)
 				switch u := under(t).(type) {
 				case *Basic:
-					if t == Typ[Invalid] {
+					if !isValid(t) {
 						// error was reported before
 						return
 					}

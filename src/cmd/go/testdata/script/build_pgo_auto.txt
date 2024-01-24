@@ -14,6 +14,9 @@ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
 # if the first arg starts with - it is a grep flag.
 stderr 'build\\t-pgo=.*default\.pgo'
 
+# check also that -pgo appears with the other flags, before non-flag settings
+! stderr 'build\\t[A-Za-z].*build\\t-pgo'
+
 # use default.pgo for ... with a single main package
 go build -n -pgo=auto ./a/...
 stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'

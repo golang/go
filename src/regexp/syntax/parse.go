@@ -382,14 +382,12 @@ func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
-	min := r
+	m := r
 	r0 := r
 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
-		if min > r {
-			min = r
-		}
+		m = min(m, r)
 	}
-	return min
+	return m
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -1861,6 +1859,22 @@ func cleanClass(rp *[]rune) []rune {
 	}
 
 	return r[:w]
+}
+
+// inCharClass reports whether r is in the class.
+// It assumes the class has been cleaned by cleanClass.
+func inCharClass(r rune, class []rune) bool {
+	_, ok := sort.Find(len(class)/2, func(i int) int {
+		lo, hi := class[2*i], class[2*i+1]
+		if r > hi {
+			return +1
+		}
+		if r < lo {
+			return -1
+		}
+		return 0
+	})
+	return ok
 }
 
 // appendLiteral returns the result of appending the literal x to the class r.

@@ -33,7 +33,7 @@ var (
 	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
 	// Removes package name and method arguments for Go function names.
 	// See tests for examples.
-	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
+	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+([^.]+\..+)`)
 	// Removes potential module versions in a package path.
 	goVerRegExp = regexp.MustCompile(`^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$`)
 	// Strips C++ namespace prefix from a C++ function / method name.

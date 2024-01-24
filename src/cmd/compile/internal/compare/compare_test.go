@@ -28,154 +28,73 @@ func init() {
 }
 
 func TestEqStructCost(t *testing.T) {
-	newByteField := func(parent *types.Type, offset int64) *types.Field {
-		f := types.NewField(src.XPos{}, parent.Sym(), types.ByteType)
-		f.Offset = offset
-		return f
+	repeat := func(n int, typ *types.Type) []*types.Type {
+		typs := make([]*types.Type, n)
+		for i := range typs {
+			typs[i] = typ
+		}
+		return typs
 	}
-	newArrayField := func(parent *types.Type, offset int64, len int64, kind types.Kind) *types.Field {
-		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[kind], len))
-		// Call Type.Size here to force the size calculation to be done. If not done here the size returned later is incorrect.
-		f.Type.Size()
-		f.Offset = offset
-		return f
-	}
-	newField := func(parent *types.Type, offset int64, kind types.Kind) *types.Field {
-		f := types.NewField(src.XPos{}, parent.Sym(), types.Types[kind])
-		f.Offset = offset
-		return f
-	}
+
 	tt := []struct {
 		name             string
 		cost             int64
 		nonMergeLoadCost int64
-		tfn              typefn
+		fieldTypes       []*types.Type
 	}{
-		{"struct without fields", 0, 0,
-			func() *types.Type {
-				return types.NewStruct([]*types.Field{})
-			}},
-		{"struct with 1 byte field", 1, 1,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := []*types.Field{
-					newByteField(parent, 0),
-				}
-				parent.SetFields(fields)
-				return parent
-			},
-		},
-		{"struct with 8 byte fields", 1, 8,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 8)
-				for i := range fields {
-					fields[i] = newByteField(parent, int64(i))
-				}
-				parent.SetFields(fields)
-				return parent
-			},
-		},
-		{"struct with 16 byte fields", 2, 16,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 16)
-				for i := range fields {
-					fields[i] = newByteField(parent, int64(i))
-				}
-				parent.SetFields(fields)
-				return parent
-			},
-		},
-		{"struct with 32 byte fields", 4, 32,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 32)
-				for i := range fields {
-					fields[i] = newByteField(parent, int64(i))
-				}
-				parent.SetFields(fields)
-				return parent
-			},
-		},
-		{"struct with 2 int32 fields", 1, 2,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 2)
-				for i := range fields {
-					fields[i] = newField(parent, int64(i*4), types.TINT32)
-				}
-				parent.SetFields(fields)
-				return parent
-			},
-		},
+		{"struct without fields", 0, 0, nil},
+		{"struct with 1 byte field", 1, 1, repeat(1, types.ByteType)},
+		{"struct with 8 byte fields", 1, 8, repeat(8, types.ByteType)},
+		{"struct with 16 byte fields", 2, 16, repeat(16, types.ByteType)},
+		{"struct with 32 byte fields", 4, 32, repeat(32, types.ByteType)},
+		{"struct with 2 int32 fields", 1, 2, repeat(2, types.Types[types.TINT32])},
 		{"struct with 2 int32 fields and 1 int64", 2, 3,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 3)
-				fields[0] = newField(parent, int64(0), types.TINT32)
-				fields[1] = newField(parent, int64(4), types.TINT32)
-				fields[2] = newField(parent, int64(8), types.TINT64)
-				parent.SetFields(fields)
-				return parent
+			[]*types.Type{
+				types.Types[types.TINT32],
+				types.Types[types.TINT32],
+				types.Types[types.TINT64],
 			},
 		},
 		{"struct with 1 int field and 1 string", 3, 3,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 2)
-				fields[0] = newField(parent, int64(0), types.TINT64)
-				fields[1] = newField(parent, int64(8), types.TSTRING)
-				parent.SetFields(fields)
-				return parent
+			[]*types.Type{
+				types.Types[types.TINT64],
+				types.Types[types.TSTRING],
 			},
 		},
-		{"struct with 2 strings", 4, 4,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := make([]*types.Field, 2)
-				fields[0] = newField(parent, int64(0), types.TSTRING)
-				fields[1] = newField(parent, int64(8), types.TSTRING)
-				parent.SetFields(fields)
-				return parent
-			},
-		},
+		{"struct with 2 strings", 4, 4, repeat(2, types.Types[types.TSTRING])},
 		{"struct with 1 large byte array field", 26, 101,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := []*types.Field{
-					newArrayField(parent, 0, 101, types.TUINT16),
-				}
-				parent.SetFields(fields)
-				return parent
+			[]*types.Type{
+				types.NewArray(types.Types[types.TUINT16], 101),
 			},
 		},
 		{"struct with string array field", 4, 4,
-			func() *types.Type {
-				parent := types.NewStruct([]*types.Field{})
-				fields := []*types.Field{
-					newArrayField(parent, 0, 2, types.TSTRING),
-				}
-				parent.SetFields(fields)
-				return parent
+			[]*types.Type{
+				types.NewArray(types.Types[types.TSTRING], 2),
 			},
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			fields := make([]*types.Field, len(tc.fieldTypes))
+			for i, ftyp := range tc.fieldTypes {
+				fields[i] = types.NewField(src.NoXPos, typecheck.LookupNum("f", i), ftyp)
+			}
+			typ := types.NewStruct(fields)
+			types.CalcSize(typ)
+
 			want := tc.cost
 			base.Ctxt.Arch.CanMergeLoads = true
-			actual := EqStructCost(tc.tfn())
+			actual := EqStructCost(typ)
 			if actual != want {
-				t.Errorf("CanMergeLoads=true EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
+				t.Errorf("CanMergeLoads=true EqStructCost(%v) = %d, want %d", typ, actual, want)
 			}
 
 			base.Ctxt.Arch.CanMergeLoads = false
 			want = tc.nonMergeLoadCost
-			actual = EqStructCost(tc.tfn())
+			actual = EqStructCost(typ)
 			if actual != want {
-				t.Errorf("CanMergeLoads=false EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
+				t.Errorf("CanMergeLoads=false EqStructCost(%v) = %d, want %d", typ, actual, want)
 			}
 		})
 	}

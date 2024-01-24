@@ -7,7 +7,9 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -29,6 +31,8 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
+var ReadRandomFailed = &readRandomFailed
+
 var Fastlog2 = fastlog2
 
 var Atoi = atoi
@@ -49,8 +53,13 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
 
+const CrashStackImplemented = crashStackImplemented
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
+
+var MapKeys = keys
+var MapValues = values
 
 var LockPartialOrder = lockPartialOrder
 
@@ -72,7 +81,7 @@ func LFStackPush(head *uint64, node *LFNode) {
 }
 
 func LFStackPop(head *uint64) *LFNode {
-	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+	return (*LFNode)((*lfstack)(head).pop())
 }
 func LFNodeValidate(node *LFNode) {
 	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
@@ -320,6 +329,14 @@ func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
 // no valid racectx, but if we're instantiated in the runtime_test package,
 // we might accidentally cause runtime code to be incorrectly instrumented.
 func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
+	// This benchmark doesn't work with the allocheaders experiment. It sets up
+	// an elaborate scenario to be able to benchmark the function safely, but doing
+	// this work for the allocheaders' version of the function would be complex.
+	// Just fail instead and rely on the test code making sure we never get here.
+	if goexperiment.AllocHeaders {
+		panic("called benchSetType with allocheaders experiment enabled")
+	}
+
 	// Compute the input sizes.
 	size := t.Size() * uintptr(len)
 
@@ -334,7 +351,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size)
+	allocSize := roundupsize(size, t.PtrBytes == 0)
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}
@@ -368,9 +385,9 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld(stwForTestCountPagesInUse)
+	stw := stopTheWorld(stwForTestCountPagesInUse)
 
-	pagesInUse = uintptr(mheap_.pagesInUse.Load())
+	pagesInUse = mheap_.pagesInUse.Load()
 
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {
@@ -378,14 +395,14 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -403,7 +420,7 @@ const (
 )
 
 func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) {
-	return (*profBuf)(p).read(profBufReadMode(mode))
+	return (*profBuf)(p).read(mode)
 }
 
 func (p *ProfBuf) Close() {
@@ -411,35 +428,50 @@ func (p *ProfBuf) Close() {
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld(stwForTestReadMetricsSlow)
+	stw := stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
 	metricsLock()
 	initMetrics()
-	metricsUnlock()
 
 	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
+		// Read the metrics once before in case it allocates and skews the metrics.
+		// readMetricsLocked is designed to only allocate the first time it is called
+		// with a given slice of samples. In effect, this extra read tests that this
+		// remains true, since otherwise the second readMetricsLocked below could
+		// allocate before it returns.
+		readMetricsLocked(samplesp, len, cap)
+
 		// Read memstats first. It's going to flush
 		// the mcaches which readMetrics does not do, so
 		// going the other way around may result in
 		// inconsistent statistics.
 		readmemstats_m(memStats)
+
+		// Read metrics again. We need to be sure we're on the
+		// system stack with readmemstats_m so that we don't call into
+		// the stack allocator and adjust metrics between there and here.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
 	})
+	metricsUnlock()
 
-	// Read metrics off the system stack.
-	//
-	// The only part of readMetrics that could allocate
-	// and skew the stats is initMetrics.
-	readMetrics(samplesp, len, cap)
-
-	startTheWorld()
+	startTheWorld(stw)
 }
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld(stwForTestReadMemStatsSlow)
+	stw := stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -485,15 +517,15 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		// Collect per-sizeclass free stats.
 		var smallFree uint64
 		for i := 0; i < _NumSizeClasses; i++ {
-			slow.Frees += uint64(m.smallFreeCount[i])
-			bySize[i].Frees += uint64(m.smallFreeCount[i])
-			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
-			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
+			slow.Frees += m.smallFreeCount[i]
+			bySize[i].Frees += m.smallFreeCount[i]
+			bySize[i].Mallocs += m.smallFreeCount[i]
+			smallFree += m.smallFreeCount[i] * uint64(class_to_size[i])
 		}
-		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
+		slow.Frees += m.tinyAllocCount + m.largeFreeCount
 		slow.Mallocs += slow.Frees
 
-		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
+		slow.TotalAlloc = slow.Alloc + m.largeFree + smallFree
 
 		for i := range slow.BySize {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
@@ -516,7 +548,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		getg().m.mallocing--
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
 }
 
@@ -554,6 +586,10 @@ type RWMutex struct {
 	rw rwmutex
 }
 
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
+}
+
 func (rw *RWMutex) RLock() {
 	rw.rw.rlock()
 }
@@ -580,6 +616,10 @@ func MapBucketsCount(m map[int]int) int {
 func MapBucketsPointerIsNil(m map[int]int) bool {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return h.buckets == nil
+}
+
+func OverLoadFactor(count int, B uint8) bool {
+	return overLoadFactor(count, B)
 }
 
 func LockOSCounts() (external, internal uint32) {
@@ -681,6 +721,15 @@ func unexportedPanicForTesting(b []byte, i int) byte {
 
 func G0StackOverflow() {
 	systemstack(func() {
+		g0 := getg()
+		sp := getcallersp()
+		// The stack bounds for g0 stack is not always precise.
+		// Use an artificially small stack, to trigger a stack overflow
+		// without actually run out of the system stack (which may seg fault).
+		g0.stack.lo = sp - 4096 - stackSystem
+		g0.stackguard0 = g0.stack.lo + stackGuard
+		g0.stackguard1 = g0.stackguard0
+
 		stackOverflow(nil)
 	})
 }
@@ -789,7 +838,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
 func SummarizeSlow(b *PallocBits) PallocSum {
-	var start, max, end uint
+	var start, most, end uint
 
 	const N = uint(len(b)) * 64
 	for start < N && (*pageBits)(b).get(start) == 0 {
@@ -805,11 +854,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
 		} else {
 			run = 0
 		}
-		if run > max {
-			max = run
-		}
+		most = max(most, run)
 	}
-	return PackPallocSum(start, max, end)
+	return PackPallocSum(start, most, end)
 }
 
 // Expose non-trivial helpers for testing.
@@ -1285,7 +1332,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld(stwForTestPageCachePagesLeaked)
+	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1297,8 +1344,20 @@ func PageCachePagesLeaked() (leaked uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
+}
+
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+var MutexContended = mutexContended
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
 }
 
 var Semacquire = semacquire
@@ -1329,7 +1388,7 @@ func (t *SemTable) Enqueue(addr *uint32) {
 //
 // Returns true if there actually was a waiter to be dequeued.
 func (t *SemTable) Dequeue(addr *uint32) bool {
-	s, _ := t.semTable.rootFor(addr).dequeue(addr)
+	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
 	if s != nil {
 		releaseSudog(s)
 		return true
@@ -1362,7 +1421,7 @@ func FreeMSpan(s *MSpan) {
 
 func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	s := (*mspan)(ms)
-	s.nelems = uintptr(len(bits) * 8)
+	s.nelems = uint16(len(bits) * 8)
 	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
 	result := s.countAlloc()
 	s.gcmarkBits = nil
@@ -1819,10 +1878,6 @@ func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
 	s.i.setEmpty(chunkIdx(ci))
 }
 
-func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) bool {
-	return s.i.setNoHugePage(chunkIdx(ci))
-}
-
 func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {
 	sc0 := scavChunkData{
 		gen:            gen,
@@ -1885,24 +1940,8 @@ func UserArenaClone[T any](s T) T {
 
 var AlignUp = alignUp
 
-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
-// queue is emptied (and the finalizers have executed) or the timeout
-// is reached. Returns true if the finalizer queue was emptied.
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
-	start := nanotime()
-	for nanotime()-start < timeout {
-		lock(&finlock)
-		// We know the queue has been drained when both finq is nil
-		// and the finalizer g has stopped executing.
-		empty := finq == nil
-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
-		unlock(&finlock)
-		if empty {
-			return true
-		}
-		Gosched()
-	}
-	return false
+	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
 func FrameStartLine(f *Frame) int {
@@ -1921,6 +1960,8 @@ func FPCallers(pcBuf []uintptr) int {
 	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
 }
 
+const FramePointerEnabled = framepointer_enabled
+
 var (
 	IsPinned      = isPinned
 	GetPinCounter = pinnerGetPinCounter
@@ -1931,4 +1972,30 @@ func SetPinnerLeakPanic(f func()) {
 }
 func GetPinnerLeakPanic() func() {
 	return pinnerLeakPanic
+}
+
+var testUintptr uintptr
+
+func MyGenericFunc[T any]() {
+	systemstack(func() {
+		testUintptr = 4
+	})
+}
+
+func UnsafePoint(pc uintptr) bool {
+	fi := findfunc(pc)
+	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc)
+	switch v {
+	case abi.UnsafePointUnsafe:
+		return true
+	case abi.UnsafePointSafe:
+		return false
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2, abi.UnsafePointRestartAtEntry:
+		// These are all interruptible, they just encode a nonstandard
+		// way of recovering when interrupted.
+		return false
+	default:
+		var buf [20]byte
+		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
+	}
 }

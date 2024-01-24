@@ -488,9 +488,7 @@ func BenchmarkMemclrRange(b *testing.B) {
 		maxLen := 0
 
 		for _, clrLen := range t.data {
-			if clrLen > maxLen {
-				maxLen = clrLen
-			}
+			maxLen = max(maxLen, clrLen)
 			if clrLen < minLen || minLen == 0 {
 				minLen = clrLen
 			}

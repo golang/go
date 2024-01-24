@@ -31,6 +31,7 @@ import (
 // include all packages within subdirectories as well.
 // These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
 var bootstrapDirs = []string{
+	"cmp",
 	"cmd/asm",
 	"cmd/asm/internal/...",
 	"cmd/cgo",
@@ -61,14 +62,17 @@ var bootstrapDirs = []string{
 	"debug/pe",
 	"go/build/constraint",
 	"go/constant",
+	"go/version",
 	"internal/abi",
 	"internal/coverage",
+	"cmd/internal/cov/covcmd",
 	"internal/bisect",
 	"internal/buildcfg",
 	"internal/goarch",
 	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goroot",
+	"internal/gover",
 	"internal/goversion",
 	// internal/lazyregexp is provided by Go 1.17, which permits it to
 	// be imported by other packages in this list, but is not provided
@@ -85,10 +89,8 @@ var bootstrapDirs = []string{
 	"internal/unsafeheader",
 	"internal/xcoff",
 	"internal/zstd",
-	"math/big",
 	"math/bits",
 	"sort",
-	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause

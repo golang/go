@@ -69,7 +69,7 @@ type SessionState struct {
 	// To allow different layers in a protocol stack to share this field,
 	// applications must only append to it, not replace it, and must use entries
 	// that can be recognized even if out of order (for example, by starting
-	// with a id and version prefix).
+	// with an id and version prefix).
 	Extra [][]byte
 
 	// EarlyData indicates whether the ticket can be used for 0-RTT in a QUIC
@@ -305,7 +305,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
 	}, nil
 }
 
-// EncryptTicket encrypts a ticket with the Config's configured (or default)
+// EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
 // session ticket keys. It can be used as a [Config.WrapSession] implementation.
 func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
 	ticketKeys := c.ticketKeys(nil)

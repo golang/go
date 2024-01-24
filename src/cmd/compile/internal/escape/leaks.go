@@ -10,33 +10,53 @@ import (
 	"strings"
 )
 
-const numEscResults = 7
+// A leaks represents a set of assignment flows from a parameter to
+// the heap, mutator, callee, or to any of its function's (first
+// numEscResults) result parameters.
+type leaks [8]uint8
 
-// An leaks represents a set of assignment flows from a parameter
-// to the heap or to any of its function's (first numEscResults)
-// result parameters.
-type leaks [1 + numEscResults]uint8
+const (
+	leakHeap = iota
+	leakMutator
+	leakCallee
+	leakResult0
+)
 
-// Empty reports whether l is an empty set (i.e., no assignment flows).
-func (l leaks) Empty() bool { return l == leaks{} }
+const numEscResults = len(leaks{}) - leakResult0
 
 // Heap returns the minimum deref count of any assignment flow from l
 // to the heap. If no such flows exist, Heap returns -1.
-func (l leaks) Heap() int { return l.get(0) }
+func (l leaks) Heap() int { return l.get(leakHeap) }
+
+// Mutator returns the minimum deref count of any assignment flow from
+// l to the pointer operand of an indirect assignment statement. If no
+// such flows exist, Mutator returns -1.
+func (l leaks) Mutator() int { return l.get(leakMutator) }
+
+// Callee returns the minimum deref count of any assignment flow from
+// l to the callee operand of call expression. If no such flows exist,
+// Callee returns -1.
+func (l leaks) Callee() int { return l.get(leakCallee) }
 
 // Result returns the minimum deref count of any assignment flow from
 // l to its function's i'th result parameter. If no such flows exist,
 // Result returns -1.
-func (l leaks) Result(i int) int { return l.get(1 + i) }
+func (l leaks) Result(i int) int { return l.get(leakResult0 + i) }
 
 // AddHeap adds an assignment flow from l to the heap.
-func (l *leaks) AddHeap(derefs int) { l.add(0, derefs) }
+func (l *leaks) AddHeap(derefs int) { l.add(leakHeap, derefs) }
+
+// AddMutator adds a flow from l to the mutator (i.e., a pointer
+// operand of an indirect assignment statement).
+func (l *leaks) AddMutator(derefs int) { l.add(leakMutator, derefs) }
+
+// AddCallee adds an assignment flow from l to the callee operand of a
+// call expression.
+func (l *leaks) AddCallee(derefs int) { l.add(leakCallee, derefs) }
 
 // AddResult adds an assignment flow from l to its function's i'th
 // result parameter.
-func (l *leaks) AddResult(i, derefs int) { l.add(1+i, derefs) }
-
-func (l *leaks) setResult(i, derefs int) { l.set(1+i, derefs) }
+func (l *leaks) AddResult(i, derefs int) { l.add(leakResult0+i, derefs) }
 
 func (l leaks) get(i int) int { return int(l[i]) - 1 }
 
@@ -64,9 +84,9 @@ func (l *leaks) Optimize() {
 	// If we have a path to the heap, then there's no use in
 	// keeping equal or longer paths elsewhere.
 	if x := l.Heap(); x >= 0 {
-		for i := 0; i < numEscResults; i++ {
-			if l.Result(i) >= x {
-				l.setResult(i, -1)
+		for i := 1; i < len(*l); i++ {
+			if l.get(i) >= x {
+				l.set(i, -1)
 			}
 		}
 	}

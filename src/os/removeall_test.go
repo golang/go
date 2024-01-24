@@ -489,7 +489,7 @@ func TestRemoveAllNoFcntl(t *testing.T) {
 		}
 	}
 
-	cmd := testenv.Command(t, "/bin/strace", "-f", "-e", "fcntl", me, "-test.run=TestRemoveAllNoFcntl")
+	cmd := testenv.Command(t, "/bin/strace", "-f", "-e", "fcntl", me, "-test.run=^TestRemoveAllNoFcntl$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, env+"="+subdir)
 	out, err := cmd.CombinedOutput()

@@ -88,16 +88,6 @@ func FoldDup(list []string) (string, string) {
 	return "", ""
 }
 
-// Contains reports whether x contains s.
-func Contains(x []string, s string) bool {
-	for _, t := range x {
-		if t == s {
-			return true
-		}
-	}
-	return false
-}
-
 // Uniq removes consecutive duplicate strings from ss.
 func Uniq(ss *[]string) {
 	if len(*ss) <= 1 {

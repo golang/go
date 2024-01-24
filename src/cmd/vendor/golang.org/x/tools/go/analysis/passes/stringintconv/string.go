@@ -195,7 +195,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 func structuralTypes(t types.Type) ([]types.Type, error) {
 	var structuralTypes []types.Type
 	switch t := t.(type) {
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		terms, err := typeparams.StructuralTerms(t)
 		if err != nil {
 			return nil, err

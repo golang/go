@@ -31,15 +31,24 @@ func ResetSIGIO() {
 	signal.Reset(syscall.SIGIO)
 }
 
-// SawSIGIO returns whether we saw a SIGIO within a brief pause.
+// AwaitSIGIO blocks indefinitely until a SIGIO is reported.
+//
+//export AwaitSIGIO
+func AwaitSIGIO() {
+	<-sigioChan
+}
+
+// SawSIGIO reports whether we saw a SIGIO within a brief pause.
 //
 //export SawSIGIO
-func SawSIGIO() C.int {
+func SawSIGIO() bool {
+	timer := time.NewTimer(100 * time.Millisecond)
 	select {
 	case <-sigioChan:
-		return 1
-	case <-time.After(100 * time.Millisecond):
-		return 0
+		timer.Stop()
+		return true
+	case <-timer.C:
+		return false
 	}
 }
 

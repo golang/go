@@ -23,7 +23,7 @@ import (
 	"cmd/internal/src"
 )
 
-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls, startPos src.XPos) {
+func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls) {
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
@@ -128,7 +128,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) (scopes []dwarf
 	if base.Flag.GenDwarfInl > 0 {
 		inlcalls = assembleInlines(fnsym, dwarfVars)
 	}
-	return scopes, inlcalls, fn.Pos()
+	return scopes, inlcalls
 }
 
 func declPos(decl *ir.Name) src.XPos {
@@ -204,7 +204,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		if c == '.' || n.Type().IsUntyped() {
 			continue
 		}
-		if n.Class == ir.PPARAM && !ssagen.TypeOK(n.Type()) {
+		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
 			// SSA-able args get location lists, and may move in and
 			// out of registers, so those are handled elsewhere.
 			// Autos and named output params seem to get handled
@@ -270,13 +270,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 func sortDeclsAndVars(fn *ir.Func, decls []*ir.Name, vars []*dwarf.Var) {
 	paramOrder := make(map[*ir.Name]int)
 	idx := 1
-	for _, selfn := range types.RecvsParamsResults {
-		fsl := selfn(fn.Type()).FieldSlice()
-		for _, f := range fsl {
-			if n, ok := f.Nname.(*ir.Name); ok {
-				paramOrder[n] = idx
-				idx++
-			}
+	for _, f := range fn.Type().RecvParamsResults() {
+		if n, ok := f.Nname.(*ir.Name); ok {
+			paramOrder[n] = idx
+			idx++
 		}
 	}
 	sort.Stable(varsAndDecls{decls, vars, paramOrder})
@@ -326,7 +323,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 		c := n.Sym().Name[0]
 		// Avoid reporting "_" parameters, since if there are more than
 		// one, it can result in a collision later on, as in #23179.
-		if unversion(n.Sym().Name) == "_" || c == '.' || n.Type().IsUntyped() {
+		if n.Sym().Name == "_" || c == '.' || n.Type().IsUntyped() {
 			continue
 		}
 		rdcl = append(rdcl, n)
@@ -527,9 +524,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 // in the DWARF info.
 func RecordFlags(flags ...string) {
 	if base.Ctxt.Pkgpath == "" {
-		// We can't record the flags if we don't know what the
-		// package name is.
-		return
+		panic("missing pkgpath")
 	}
 
 	type BoolFlag interface {

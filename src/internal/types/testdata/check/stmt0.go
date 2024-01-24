@@ -805,7 +805,6 @@ func fors1() {
 
 func rangeloops1() {
 	var (
-		x int
 		a [10]float32
 		b []string
 		p *[10]complex128
@@ -815,11 +814,12 @@ func rangeloops1() {
 		c chan int
 		sc chan<- int
 		rc <-chan int
+		xs struct{}
 	)
 
-	for range x /* ERROR "cannot range over" */ {}
-	for _ = range x /* ERROR "cannot range over" */ {}
-	for i := range x /* ERROR "cannot range over" */ {}
+	for range xs /* ERROR "cannot range over" */ {}
+	for _ = range xs /* ERROR "cannot range over" */ {}
+	for i := range xs /* ERROR "cannot range over" */ { _ = i }
 
 	for range a {}
 	for i := range a {
@@ -953,10 +953,10 @@ func issue10148() {
 	for y /* ERROR "declared and not used" */ := range "" {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for range 1 /* ERROR "cannot range over 1" */ {
+	for range 1.5 /* ERROR "cannot range over 1.5" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for y := range 1 /* ERROR "cannot range over 1" */ {
+	for y := range 1.5 /* ERROR "cannot range over 1.5" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
 }

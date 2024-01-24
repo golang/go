@@ -51,9 +51,7 @@ func ExampleCompact() {
 
 func ExampleCompactFunc() {
 	names := []string{"bob", "Bob", "alice", "Vera", "VERA"}
-	names = slices.CompactFunc(names, func(a, b string) bool {
-		return strings.ToLower(a) == strings.ToLower(b)
-	})
+	names = slices.CompactFunc(names, strings.EqualFold)
 	fmt.Println(names)
 	// Output:
 	// [bob alice Vera]

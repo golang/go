@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go test cmd/go -v -run=TestDocsUpToDate -fixdocs
+//go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
 
 package main
 
@@ -16,7 +16,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	rtrace "runtime/trace"
 	"slices"
 	"strings"
@@ -30,7 +29,6 @@ import (
 	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
-	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -75,11 +73,9 @@ func init() {
 		help.HelpFileType,
 		modload.HelpGoMod,
 		help.HelpGopath,
-		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
-		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
 		help.HelpPackages,
 		modfetch.HelpPrivate,
@@ -104,23 +100,25 @@ func main() {
 		base.Usage()
 	}
 
-	if args[0] == "get" || args[0] == "help" {
-		if !modload.WillBeEnabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
-		}
-	}
-
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
 		help.Help(os.Stdout, args[1:])
 		return
 	}
 
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
+	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+		os.Exit(2)
+	}
+
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(runtime.GOROOT()) {
+	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(cfg.GOROOT) {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
@@ -147,15 +145,6 @@ func main() {
 				}
 			}
 		}
-	}
-
-	if cfg.GOROOT == "" {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
-		os.Exit(2)
-	}
-	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
-		os.Exit(2)
 	}
 
 	cmd, used := lookupCmd(args)

@@ -44,6 +44,7 @@ const (
 	FuncID_asmcgocall
 	FuncID_asyncPreempt
 	FuncID_cgocallback
+	FuncID_corostart
 	FuncID_debugCallV2
 	FuncID_gcBgMarkWorker
 	FuncID_goexit
@@ -104,3 +105,5 @@ const (
 	// Like UnsafePointRestart1, but back to function entry if async preempted.
 	UnsafePointRestartAtEntry = -5
 )
+
+const MINFUNC = 16 // minimum size for a function

@@ -127,12 +127,9 @@ init_working_dir()
 void
 x_cgo_init(G *g, void (*setg)(void*))
 {
-	size_t size;
-
 	//fprintf(stderr, "x_cgo_init = %p\n", &x_cgo_init); // aid debugging in presence of ASLR
 	setg_gcc = setg;
-	size = pthread_get_stacksize_np(pthread_self());
-	g->stacklo = (uintptr)&size - size + 4096;
+	_cgo_set_stacklo(g, NULL);
 
 #if TARGET_OS_IPHONE
 	darwin_arm_init_mach_exception_handler();

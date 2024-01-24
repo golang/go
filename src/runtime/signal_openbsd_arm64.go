@@ -54,7 +54,7 @@ func (c *sigctxt) sp() uint64  { return (uint64)(c.regs().sc_sp) }
 //go:nowritebarrierrec
 func (c *sigctxt) rip() uint64 { return (uint64)(c.regs().sc_lr) } /* XXX */
 
-func (c *sigctxt) fault() uint64   { return c.sigaddr() }
+func (c *sigctxt) fault() uintptr  { return uintptr(c.sigaddr()) }
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint64 {
 	return *(*uint64)(add(unsafe.Pointer(c.info), 16))

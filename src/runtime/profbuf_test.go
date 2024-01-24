@@ -39,13 +39,7 @@ func TestProfBuf(t *testing.T) {
 			c <- 1
 		}()
 		time.Sleep(10 * time.Millisecond) // let goroutine run and block
-		return func() {
-			select {
-			case <-c:
-			case <-time.After(1 * time.Second):
-				t.Fatalf("timeout waiting for blocked read")
-			}
-		}
+		return func() { <-c }
 	}
 	readEOF := func(t *testing.T, b *ProfBuf) {
 		rdata, rtags, eof := b.Read(ProfBufBlocking)

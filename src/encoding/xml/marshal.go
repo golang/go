@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	// Header is a generic XML header suitable for use with the output of Marshal.
+	// Header is a generic XML header suitable for use with the output of [Marshal].
 	// This is not automatically added to any output of this package,
 	// it is provided as a convenience.
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
@@ -34,7 +34,7 @@ const (
 //
 // The name for the XML elements is taken from, in order of preference:
 //   - the tag on the XMLName field, if the data is a struct
-//   - the value of the XMLName field of type Name
+//   - the value of the XMLName field of type [Name]
 //   - the tag of the struct field used to obtain the data
 //   - the name of the struct field used to obtain the data
 //   - the name of the marshaled type
@@ -62,9 +62,9 @@ const (
 //     string of length zero.
 //   - an anonymous struct field is handled as if the fields of its
 //     value were part of the outer struct.
-//   - a field implementing Marshaler is written by calling its MarshalXML
+//   - a field implementing [Marshaler] is written by calling its MarshalXML
 //     method.
-//   - a field implementing encoding.TextMarshaler is written by encoding the
+//   - a field implementing [encoding.TextMarshaler] is written by encoding the
 //     result of its MarshalText method as text.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
@@ -74,7 +74,7 @@ const (
 // If the XML name for a struct field is defined by both the field tag and the
 // struct's XMLName field, the names must match.
 //
-// See MarshalIndent for an example.
+// See [MarshalIndent] for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
 func Marshal(v any) ([]byte, error) {
@@ -96,7 +96,7 @@ func Marshal(v any) ([]byte, error) {
 // By convention, arrays or slices are typically encoded as a sequence
 // of elements, one per entry.
 // Using start as the element tag is not required, but doing so
-// will enable Unmarshal to match the XML elements to the correct
+// will enable [Unmarshal] to match the XML elements to the correct
 // struct field.
 // One common implementation strategy is to construct a separate
 // value with a layout corresponding to the desired XML and then
@@ -114,9 +114,9 @@ type Marshaler interface {
 //
 // MarshalXMLAttr returns an XML attribute with the encoded value of the receiver.
 // Using name as the attribute name is not required, but doing so
-// will enable Unmarshal to match the attribute to the correct
+// will enable [Unmarshal] to match the attribute to the correct
 // struct field.
-// If MarshalXMLAttr returns the zero attribute Attr{}, no attribute
+// If MarshalXMLAttr returns the zero attribute [Attr]{}, no attribute
 // will be generated in the output.
 // MarshalXMLAttr is used only for struct fields with the
 // "attr" option in the field tag.
@@ -124,7 +124,7 @@ type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
-// MarshalIndent works like Marshal, but each XML element begins on a new
+// MarshalIndent works like [Marshal], but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
@@ -162,10 +162,10 @@ func (enc *Encoder) Indent(prefix, indent string) {
 
 // Encode writes the XML encoding of v to the stream.
 //
-// See the documentation for Marshal for details about the conversion
+// See the documentation for [Marshal] for details about the conversion
 // of Go values to XML.
 //
-// Encode calls Flush before returning.
+// Encode calls [Encoder.Flush] before returning.
 func (enc *Encoder) Encode(v any) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
@@ -177,10 +177,10 @@ func (enc *Encoder) Encode(v any) error {
 // EncodeElement writes the XML encoding of v to the stream,
 // using start as the outermost tag in the encoding.
 //
-// See the documentation for Marshal for details about the conversion
+// See the documentation for [Marshal] for details about the conversion
 // of Go values to XML.
 //
-// EncodeElement calls Flush before returning.
+// EncodeElement calls [Encoder.Flush] before returning.
 func (enc *Encoder) EncodeElement(v any, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
@@ -196,16 +196,16 @@ var (
 )
 
 // EncodeToken writes the given XML token to the stream.
-// It returns an error if StartElement and EndElement tokens are not properly matched.
+// It returns an error if [StartElement] and [EndElement] tokens are not properly matched.
 //
-// EncodeToken does not call Flush, because usually it is part of a larger operation
-// such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
+// EncodeToken does not call [Encoder.Flush], because usually it is part of a larger operation
+// such as [Encoder.Encode] or [Encoder.EncodeElement] (or a custom [Marshaler]'s MarshalXML invoked
 // during those), and those will call Flush when finished.
 // Callers that create an Encoder and then invoke EncodeToken directly, without
 // using Encode or EncodeElement, need to call Flush when finished to ensure
 // that the XML is written to the underlying writer.
 //
-// EncodeToken allows writing a ProcInst with Target set to "xml" only as the first token
+// EncodeToken allows writing a [ProcInst] with Target set to "xml" only as the first token
 // in the stream.
 func (enc *Encoder) EncodeToken(t Token) error {
 
@@ -303,7 +303,7 @@ func isValidDirective(dir Directive) bool {
 }
 
 // Flush flushes any buffered XML to the underlying writer.
-// See the EncodeToken documentation for details about when it is necessary.
+// See the [Encoder.EncodeToken] documentation for details about when it is necessary.
 func (enc *Encoder) Flush() error {
 	return enc.p.w.Flush()
 }
@@ -543,8 +543,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 
-	// If a name was found, namespace is overridden with an empty space
+	// If an empty name was found, namespace is overridden with an empty space
 	if tinfo.xmlname != nil && start.Name.Space == "" &&
+		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
 		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
 		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
 	}
@@ -796,7 +797,7 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 		// [...]byte
 		var bytes []byte
 		if val.CanAddr() {
-			bytes = val.Slice(0, val.Len()).Bytes()
+			bytes = val.Bytes()
 		} else {
 			bytes = make([]byte, val.Len())
 			reflect.Copy(reflect.ValueOf(bytes), val)
@@ -1105,7 +1106,7 @@ func (s *parentStack) push(parents []string) error {
 	return nil
 }
 
-// UnsupportedTypeError is returned when Marshal encounters a type
+// UnsupportedTypeError is returned when [Marshal] encounters a type
 // that cannot be converted into XML.
 type UnsupportedTypeError struct {
 	Type reflect.Type
@@ -1119,16 +1120,12 @@ func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Pointer:
-		return v.IsNil()
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64,
+		reflect.Interface, reflect.Pointer:
+		return v.IsZero()
 	}
 	return false
 }

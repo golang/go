@@ -15,7 +15,7 @@ import (
 )
 
 // NewRequest returns a new incoming server Request, suitable
-// for passing to an http.Handler for testing.
+// for passing to an [http.Handler] for testing.
 //
 // The target is the RFC 7230 "request-target": it may be either a
 // path or an absolute URL. If target is an absolute URL, the host name

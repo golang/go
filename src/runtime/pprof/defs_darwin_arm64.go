@@ -9,7 +9,7 @@ type machVMRegionBasicInfoData struct {
 	Inheritance      uint32
 	Shared           int32
 	Reserved         int32
-	Offset           uint64 // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte
+	Offset           [8]byte // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte. Cannot use uint64 due to alignment.
 	Behavior         int32
 	User_wired_count uint16
 	Pad_cgo_1        [2]byte

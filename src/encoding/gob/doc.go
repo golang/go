@@ -4,12 +4,12 @@
 
 /*
 Package gob manages streams of gobs - binary values exchanged between an
-Encoder (transmitter) and a Decoder (receiver). A typical use is transporting
+[Encoder] (transmitter) and a [Decoder] (receiver). A typical use is transporting
 arguments and results of remote procedure calls (RPCs) such as those provided by
 [net/rpc].
 
 The implementation compiles a custom codec for each data type in the stream and
-is most efficient when a single Encoder is used to transmit a stream of values,
+is most efficient when a single [Encoder] is used to transmit a stream of values,
 amortizing the cost of compilation.
 
 # Basics
@@ -21,10 +21,10 @@ transmitted; that is, the values are flattened. Nil pointers are not permitted,
 as they have no value. Recursive types work fine, but
 recursive values (data with cycles) are problematic. This may change.
 
-To use gobs, create an Encoder and present it with a series of data items as
-values or addresses that can be dereferenced to values. The Encoder makes sure
+To use gobs, create an [Encoder] and present it with a series of data items as
+values or addresses that can be dereferenced to values. The [Encoder] makes sure
 all type information is sent before it is needed. At the receive side, a
-Decoder retrieves values from the encoded stream and unpacks them into local
+[Decoder] retrieves values from the encoded stream and unpacks them into local
 variables.
 
 # Types and Values
@@ -93,12 +93,12 @@ Functions and channels will not be sent in a gob. Attempting to encode such a va
 at the top level will fail. A struct field of chan or func type is treated exactly
 like an unexported field and is ignored.
 
-Gob can encode a value of any type implementing the GobEncoder or
-encoding.BinaryMarshaler interfaces by calling the corresponding method,
+Gob can encode a value of any type implementing the [GobEncoder] or
+[encoding.BinaryMarshaler] interfaces by calling the corresponding method,
 in that order of preference.
 
-Gob can decode a value of any type implementing the GobDecoder or
-encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
+Gob can decode a value of any type implementing the [GobDecoder] or
+[encoding.BinaryUnmarshaler] interfaces by calling the corresponding method,
 again in that order of preference.
 
 # Encoding Details
@@ -131,7 +131,7 @@ instead guarantees that the largest negative integer is not a special case. For
 example, -129=^128=(^256>>1) encodes as (FE 01 01).
 
 Floating-point numbers are always sent as a representation of a float64 value.
-That value is converted to a uint64 using math.Float64bits. The uint64 is then
+That value is converted to a uint64 using [math.Float64bits]. The uint64 is then
 byte-reversed and sent as a regular unsigned integer. The byte-reversal means the
 exponent and high-precision part of the mantissa go first. Since the low bits are
 often zero, this can save encoding bytes. For instance, 17.0 is encoded in only
@@ -168,22 +168,22 @@ Interface types are not checked for compatibility; all interface types are
 treated, for transmission, as members of a single "interface" type, analogous to
 int or []byte - in effect they're all treated as interface{}. Interface values
 are transmitted as a string identifying the concrete type being sent (a name
-that must be pre-defined by calling Register), followed by a byte count of the
+that must be pre-defined by calling [Register]), followed by a byte count of the
 length of the following data (so the value can be skipped if it cannot be
 stored), followed by the usual encoding of concrete (dynamic) value stored in
 the interface value. (A nil interface value is identified by the empty string
 and transmits no value.) Upon receipt, the decoder verifies that the unpacked
 concrete item satisfies the interface of the receiving variable.
 
-If a value is passed to Encode and the type is not a struct (or pointer to struct,
+If a value is passed to [Encoder.Encode] and the type is not a struct (or pointer to struct,
 etc.), for simplicity of processing it is represented as a struct of one field.
 The only visible effect of this is to encode a zero byte after the value, just as
 after the last field of an encoded struct, so that the decode algorithm knows when
 the top-level value is complete.
 
 The representation of types is described below. When a type is defined on a given
-connection between an Encoder and Decoder, it is assigned a signed integer type
-id. When Encoder.Encode(v) is called, it makes sure there is an id assigned for
+connection between an [Encoder] and [Decoder], it is assigned a signed integer type
+id. When [Encoder.Encode](v) is called, it makes sure there is an id assigned for
 the type of v and all its elements and then it sends the pair (typeid, encoded-v)
 where typeid is the type id of the encoded type of v and encoded-v is the gob
 encoding of the value v.
@@ -280,7 +280,7 @@ https://blog.golang.org/gobs-of-data
 # Security
 
 This package is not designed to be hardened against adversarial inputs, and is
-outside the scope of https://go.dev/security/policy. In particular, the Decoder
+outside the scope of https://go.dev/security/policy. In particular, the [Decoder]
 does only basic sanity checking on decoded input sizes, and its limits are not
 configurable. Care should be taken when decoding gob data from untrusted
 sources, which may consume significant resources.

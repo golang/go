@@ -861,10 +861,7 @@ func (p *printer) writeWhitespace(n int) {
 
 // nlimit limits n to maxNewlines.
 func nlimit(n int) int {
-	if n > maxNewlines {
-		n = maxNewlines
-	}
-	return n
+	return min(n, maxNewlines)
 }
 
 func mayCombine(prev token.Token, next byte) (b bool) {
@@ -1413,7 +1410,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeS
 }
 
 // A CommentedNode bundles an AST node and corresponding comments.
-// It may be provided as argument to any of the Fprint functions.
+// It may be provided as argument to any of the [Fprint] functions.
 type CommentedNode struct {
 	Node     any // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
 	Comments []*ast.CommentGroup
@@ -1421,14 +1418,14 @@ type CommentedNode struct {
 
 // Fprint "pretty-prints" an AST node to output for a given configuration cfg.
 // Position information is interpreted relative to the file set fset.
-// The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
-// or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
+// The node type must be *[ast.File], *[CommentedNode], [][ast.Decl], [][ast.Stmt],
+// or assignment-compatible to [ast.Expr], [ast.Decl], [ast.Spec], or [ast.Stmt].
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
 // Fprint "pretty-prints" an AST node to output.
-// It calls Config.Fprint with default settings.
+// It calls [Config.Fprint] with default settings.
 // Note that gofmt uses tabs for indentation but spaces for alignment;
 // use format.Node (package go/format) for output that matches gofmt.
 func Fprint(output io.Writer, fset *token.FileSet, node any) error {

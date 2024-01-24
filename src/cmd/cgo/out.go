@@ -45,18 +45,17 @@ func (p *Package) writeDefs() {
 
 	var gccgoInit strings.Builder
 
-	fflg := creat(*objDir + "_cgo_flags")
-	for k, v := range p.CgoFlags {
-		for _, arg := range v {
-			fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, arg)
+	if !*gccgo {
+		for _, arg := range p.LdFlags {
+			fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
 		}
-		if k == "LDFLAGS" && !*gccgo {
-			for _, arg := range v {
-				fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
-			}
+	} else {
+		fflg := creat(*objDir + "_cgo_flags")
+		for _, arg := range p.LdFlags {
+			fmt.Fprintf(fflg, "_CGO_LDFLAGS=%s\n", arg)
 		}
+		fflg.Close()
 	}
-	fflg.Close()
 
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "#include <stddef.h>\n") // For size_t below.
@@ -106,6 +105,8 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
 	}
+	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
+	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
@@ -612,6 +613,12 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		arg = "uintptr(unsafe.Pointer(&r1))"
 	}
 
+	noCallback := p.noCallbacks[n.C]
+	if noCallback {
+		// disable cgocallback, will check it in runtime.
+		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(true)\n")
+	}
+
 	prefix := ""
 	if n.AddError {
 		prefix = "errno := "
@@ -620,13 +627,21 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 	if n.AddError {
 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
 	}
-	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-	if d.Type.Params != nil {
-		for i := range d.Type.Params.List {
-			fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
-		}
+	if noCallback {
+		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
-	fmt.Fprintf(fgo2, "\t}\n")
+
+	// skip _Cgo_use when noescape exist,
+	// so that the compiler won't force to escape them to heap.
+	if !p.noEscapes[n.C] {
+		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+		if d.Type.Params != nil {
+			for i := range d.Type.Params.List {
+				fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
+			}
+		}
+		fmt.Fprintf(fgo2, "\t}\n")
+	}
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }
@@ -895,6 +910,8 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-warning-option\"\n")
+	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunaligned-access\"\n")
 
 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *), void *, int, size_t);\n")
 	fmt.Fprintf(fgcc, "extern size_t _cgo_wait_runtime_init_done(void);\n")
@@ -1507,6 +1524,8 @@ extern char* _cgo_topofstack(void);
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wunaligned-access"
 
 #include <errno.h>
 #include <string.h>
@@ -1612,9 +1631,11 @@ const goProlog = `
 func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+//go:noescape
 func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
+//go:noescape
 func _cgoCheckResult(interface{})
 `
 

@@ -43,6 +43,10 @@ import (
 var bigOne = big.NewInt(1)
 
 // A PublicKey represents the public part of an RSA key.
+//
+// The value of the modulus N is considered secret by this library and protected
+// from leaking through timing side-channels. However, neither the value of the
+// exponent E nor the precise bit size of N are similarly protected.
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
@@ -150,11 +154,11 @@ func bigIntEqual(a, b *big.Int) bool {
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+// *[PSSOptions] then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
 // be used. digest must be the result of hashing the input message using
 // opts.HashFunc().
 //
-// This method implements crypto.Signer, which is an interface to support keys
+// This method implements [crypto.Signer], which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
 // uses should use the Sign* functions in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
@@ -166,8 +170,8 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 }
 
 // Decrypt decrypts ciphertext with priv. If opts is nil or of type
-// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
-// opts must have type *OAEPOptions and OAEP decryption is done.
+// *[PKCS1v15DecryptOptions] then PKCS #1 v1.5 decryption is performed. Otherwise
+// opts must have type *[OAEPOptions] and OAEP decryption is done.
 func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
 	if opts == nil {
 		return DecryptPKCS1v15(rand, priv, ciphertext)
@@ -288,7 +292,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 //
 // Deprecated: The use of this function with a number of primes different from
 // two is not recommended for the above security, compatibility, and performance
-// reasons. Use GenerateKey instead.
+// reasons. Use [GenerateKey] instead.
 //
 // [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
@@ -471,17 +475,13 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 }
 
 // ErrMessageTooLong is returned when attempting to encrypt or sign a message
-// which is too large for the size of the key. When using SignPSS, this can also
+// which is too large for the size of the key. When using [SignPSS], this can also
 // be returned if the size of the salt is too large.
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
 
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
-	// Most of the CPU time for encryption and verification is spent in this
-	// NewModulusFromBig call, because PublicKey doesn't have a Precomputed
-	// field. If performance becomes an issue, consider placing a private
-	// sync.Once on PublicKey to compute this.
 	N, err := bigmod.NewModulusFromBig(pub.N)
 	if err != nil {
 		return nil, err
@@ -492,7 +492,7 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	}
 	e := uint(pub.E)
 
-	return bigmod.NewNat().ExpShort(m, e, N).Bytes(N), nil
+	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
@@ -686,7 +686,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	if check {
-		c1 := bigmod.NewNat().ExpShort(m, uint(priv.E), N)
+		c1 := bigmod.NewNat().ExpShortVarTime(m, uint(priv.E), N)
 		if c1.Equal(c) != 1 {
 			return nil, ErrDecryption
 		}
@@ -704,7 +704,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 // The random parameter is legacy and ignored, and it can be nil.
 //
 // The label parameter must match the value given when encrypting. See
-// EncryptOAEP for details.
+// [EncryptOAEP] for details.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
 	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
 }

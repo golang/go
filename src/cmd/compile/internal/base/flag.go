@@ -5,11 +5,11 @@
 package base
 
 import (
+	"cmd/internal/cov/covcmd"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"internal/coverage"
 	"internal/platform"
 	"log"
 	"os"
@@ -98,6 +98,7 @@ type CmdFlags struct {
 	DwarfLocationLists *bool        "help:\"add location lists to DWARF in optimized mode\""                      // &Ctxt.Flag_locationlists, set below
 	Dynlink            *bool        "help:\"support references to Go symbols defined in other shared libraries\"" // &Ctxt.Flag_dynlink, set below
 	EmbedCfg           func(string) "help:\"read go:embed configuration from `file`\""
+	Env                func(string) "help:\"add `definition` of the form key=value to environment\""
 	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
 	GoVersion          string       "help:\"required version of the runtime\""
 	ImportCfg          func(string) "help:\"read import configuration from `file`\""
@@ -132,15 +133,23 @@ type CmdFlags struct {
 			Patterns map[string][]string
 			Files    map[string]string
 		}
-		ImportDirs   []string                   // appended to by -I
-		ImportMap    map[string]string          // set by -importcfg
-		PackageFile  map[string]string          // set by -importcfg; nil means not in use
-		CoverageInfo *coverage.CoverFixupConfig // set by -coveragecfg
-		SpectreIndex bool                       // set by -spectre=index or -spectre=all
+		ImportDirs   []string                 // appended to by -I
+		ImportMap    map[string]string        // set by -importcfg
+		PackageFile  map[string]string        // set by -importcfg; nil means not in use
+		CoverageInfo *covcmd.CoverFixupConfig // set by -coveragecfg
+		SpectreIndex bool                     // set by -spectre=index or -spectre=all
 		// Whether we are adding any sort of code instrumentation, such as
 		// when the race detector is enabled.
 		Instrumenting bool
 	}
+}
+
+func addEnv(s string) {
+	i := strings.Index(s, "=")
+	if i < 0 {
+		log.Fatal("-env argument must be of the form key=value")
+	}
+	os.Setenv(s[:i], s[i+1:])
 }
 
 // ParseFlags parses the command-line flags into Flag.
@@ -158,6 +167,7 @@ func ParseFlags() {
 	*Flag.DwarfLocationLists = true
 	Flag.Dynlink = &Ctxt.Flag_dynlink
 	Flag.EmbedCfg = readEmbedCfg
+	Flag.Env = addEnv
 	Flag.GenDwarfInl = 2
 	Flag.ImportCfg = readImportCfg
 	Flag.CoverageCfg = readCoverageCfg
@@ -166,11 +176,14 @@ func ParseFlags() {
 	Flag.WB = true
 
 	Debug.ConcurrentOk = true
+	Debug.MaxShapeLen = 500
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
-	Debug.PGODevirtualize = 1
+	Debug.PGODevirtualize = 2
 	Debug.SyncFrames = -1 // disable sync markers by default
+	Debug.ZeroCopy = 1
+	Debug.RangeFuncCheck = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
@@ -188,6 +201,12 @@ func ParseFlags() {
 
 	if Debug.Gossahash != "" {
 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
+	}
+
+	// Compute whether we're compiling the runtime from the package path. Test
+	// code can also use the flag to set this explicitly.
+	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
+		Flag.CompilingRuntime = true
 	}
 
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
@@ -237,6 +256,9 @@ func ParseFlags() {
 
 	if Debug.Fmahash != "" {
 		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
+	}
+	if Debug.PGOHash != "" {
+		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
@@ -306,9 +328,6 @@ func ParseFlags() {
 		}
 	}
 
-	if Flag.CompilingRuntime && Flag.N != 0 {
-		log.Fatal("cannot disable optimizations while compiling runtime")
-	}
 	if Flag.LowerC < 1 {
 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
 	}
@@ -317,6 +336,11 @@ func ParseFlags() {
 	}
 
 	if Flag.CompilingRuntime {
+		// It is not possible to build the runtime with no optimizations,
+		// because the compiler cannot eliminate enough write barriers.
+		Flag.N = 0
+		Ctxt.Flag_optimize = true
+
 		// Runtime can't use -d=checkptr, at least not yet.
 		Debug.Checkptr = 0
 
@@ -470,26 +494,22 @@ func readImportCfg(file string) {
 			continue
 		}
 
-		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
-			verb = line
-		} else {
-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		verb, args, found := strings.Cut(line, " ")
+		if found {
+			args = strings.TrimSpace(args)
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
-		}
+		before, after, hasEq := strings.Cut(args, "=")
+
 		switch verb {
 		default:
 			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
 		case "importmap":
-			if before == "" || after == "" {
+			if !hasEq || before == "" || after == "" {
 				log.Fatalf(`%s:%d: invalid importmap: syntax is "importmap old=new"`, file, lineNum)
 			}
 			Flag.Cfg.ImportMap[before] = after
 		case "packagefile":
-			if before == "" || after == "" {
+			if !hasEq || before == "" || after == "" {
 				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
 			}
 			Flag.Cfg.PackageFile[before] = after
@@ -498,7 +518,7 @@ func readImportCfg(file string) {
 }
 
 func readCoverageCfg(file string) {
-	var cfg coverage.CoverFixupConfig
+	var cfg covcmd.CoverFixupConfig
 	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-coveragecfg: %v", err)

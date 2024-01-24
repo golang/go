@@ -382,7 +382,6 @@ func signextendAndMask8to64(a int8) (s, z uint64) {
 	// ppc64x: -"MOVB", "ANDCC\t[$]247,"
 	z = uint64(uint8(a)) & 0x3F7
 	return
-
 }
 
 // Verify zero-extended values are not sign-extended under a bit mask (#61297)
@@ -392,5 +391,30 @@ func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
 	// ppc64x: -"MOVH\t", -"ANDCC", "MOVHZ"
 	y = uint64(b) & 0xFFFF
 	return
+}
 
+// Verify rotate and mask instructions, and further simplified instructions for small types
+func bitRotateAndMask(io64 [4]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uint8) {
+	// ppc64x: "RLDICR\t[$]0, R[0-9]*, [$]47, R"
+	io64[0] = io64[0] & 0xFFFFFFFFFFFF0000
+	// ppc64x: "RLDICL\t[$]0, R[0-9]*, [$]16, R"
+	io64[1] = io64[1] & 0x0000FFFFFFFFFFFF
+	// ppc64x: -"SRD", -"AND", "RLDICL\t[$]60, R[0-9]*, [$]16, R"
+	io64[2] = (io64[2] >> 4) & 0x0000FFFFFFFFFFFF
+	// ppc64x: -"SRD", -"AND", "RLDICL\t[$]36, R[0-9]*, [$]28, R"
+	io64[3] = (io64[3] >> 28) & 0x0000FFFFFFFFFFFF
+
+	// ppc64x: "RLWNM\t[$]0, R[0-9]*, [$]4, [$]19, R"
+	io32[0] = io32[0] & 0x0FFFF000
+	// ppc64x: "RLWNM\t[$]0, R[0-9]*, [$]20, [$]3, R"
+	io32[1] = io32[1] & 0xF0000FFF
+	// ppc64x: -"RLWNM", MOVD, AND
+	io32[2] = io32[2] & 0xFFFF0002
+
+	var bigc uint32 = 0x12345678
+	// ppc64x: "ANDCC\t[$]22136"
+	io16[0] = io16[0] & uint16(bigc)
+
+	// ppc64x: "ANDCC\t[$]120"
+	io8[0] = io8[0] & uint8(bigc)
 }

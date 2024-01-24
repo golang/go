@@ -264,7 +264,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
 //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
 //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
+//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle Handle, err error)
 //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
 //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
@@ -409,6 +409,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
+	if mode&O_SYNC != 0 {
+		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 }
 
@@ -475,7 +479,7 @@ var procSetFilePointerEx = modkernel32.NewProc("SetFilePointerEx")
 const ptrSize = unsafe.Sizeof(uintptr(0))
 
 // setFilePointerEx calls SetFilePointerEx.
-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
+// See https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
 	if unsafe.Sizeof(uintptr(0)) == 8 {
@@ -862,7 +866,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	if n > 0 {
 		sl += int32(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
@@ -1436,4 +1441,9 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 // so call runtime.LockOSThread before calling this function.
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
+}
+
+func GetStartupInfo(startupInfo *StartupInfo) error {
+	getStartupInfo(startupInfo)
+	return nil
 }

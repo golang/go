@@ -129,8 +129,6 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
@@ -1522,7 +1520,6 @@ func valueInterface(v Value, safe bool) any {
 		})(v.ptr)
 	}
 
-	// TODO: pass safe to packEface so we don't need to copy if safe==true?
 	return packEface(v)
 }
 
@@ -1594,23 +1591,27 @@ func (v Value) IsZero() bool {
 	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
 		return v.Uint() == 0
 	case Float32, Float64:
-		return math.Float64bits(v.Float()) == 0
+		return v.Float() == 0
 	case Complex64, Complex128:
-		c := v.Complex()
-		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+		return v.Complex() == 0
 	case Array:
+		if v.flag&flagIndir == 0 {
+			return v.ptr == nil
+		}
+		typ := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if v.typ().Equal != nil && v.typ().Size() <= maxZero {
-			if v.flag&flagIndir == 0 {
-				return v.ptr == nil
-			}
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
-			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
-
-		n := v.Len()
+		if typ.TFlag&abi.TFlagRegularMemory != 0 {
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
+			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
+		}
+		n := int(typ.Len)
 		for i := 0; i < n; i++ {
 			if !v.Index(i).IsZero() {
 				return false
@@ -1622,18 +1623,24 @@ func (v Value) IsZero() bool {
 	case String:
 		return v.Len() == 0
 	case Struct:
+		if v.flag&flagIndir == 0 {
+			return v.ptr == nil
+		}
+		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
-		if v.typ().Equal != nil && v.typ().Size() <= maxZero {
-			if v.flag&flagIndir == 0 {
-				return v.ptr == nil
-			}
+		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// See noescape justification above.
-			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+		}
+		if typ.TFlag&abi.TFlagRegularMemory != 0 {
+			// For some types where the zero value is a value where all bits of this type are 0
+			// optimize it.
+			return isZero(unsafe.Slice(((*byte)(v.ptr)), typ.Size()))
 		}
 
 		n := v.NumField()
 		for i := 0; i < n; i++ {
-			if !v.Field(i).IsZero() {
+			if !v.Field(i).IsZero() && v.Type().Field(i).Name != "_" {
 				return false
 			}
 		}
@@ -1643,6 +1650,55 @@ func (v Value) IsZero() bool {
 		// as a default value doesn't makes sense here.
 		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
 	}
+}
+
+// isZero For all zeros, performance is not as good as
+// return bytealg.Count(b, byte(0)) == len(b)
+func isZero(b []byte) bool {
+	if len(b) == 0 {
+		return true
+	}
+	const n = 32
+	// Align memory addresses to 8 bytes.
+	for uintptr(unsafe.Pointer(&b[0]))%8 != 0 {
+		if b[0] != 0 {
+			return false
+		}
+		b = b[1:]
+		if len(b) == 0 {
+			return true
+		}
+	}
+	for len(b)%8 != 0 {
+		if b[len(b)-1] != 0 {
+			return false
+		}
+		b = b[:len(b)-1]
+	}
+	if len(b) == 0 {
+		return true
+	}
+	w := unsafe.Slice((*uint64)(unsafe.Pointer(&b[0])), len(b)/8)
+	for len(w)%n != 0 {
+		if w[0] != 0 {
+			return false
+		}
+		w = w[1:]
+	}
+	for len(w) >= n {
+		if w[0] != 0 || w[1] != 0 || w[2] != 0 || w[3] != 0 ||
+			w[4] != 0 || w[5] != 0 || w[6] != 0 || w[7] != 0 ||
+			w[8] != 0 || w[9] != 0 || w[10] != 0 || w[11] != 0 ||
+			w[12] != 0 || w[13] != 0 || w[14] != 0 || w[15] != 0 ||
+			w[16] != 0 || w[17] != 0 || w[18] != 0 || w[19] != 0 ||
+			w[20] != 0 || w[21] != 0 || w[22] != 0 || w[23] != 0 ||
+			w[24] != 0 || w[25] != 0 || w[26] != 0 || w[27] != 0 ||
+			w[28] != 0 || w[29] != 0 || w[30] != 0 || w[31] != 0 {
+			return false
+		}
+		w = w[n:]
+	}
+	return true
 }
 
 // SetZero sets v to be the zero value of v's type.
@@ -1687,7 +1743,7 @@ func (v Value) SetZero() {
 	case Slice:
 		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
 	case Interface:
-		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
+		*(*emptyInterface)(v.ptr) = emptyInterface{}
 	case Chan, Func, Map, Pointer, UnsafePointer:
 		*(*unsafe.Pointer)(v.ptr) = nil
 	case Array, Struct:
@@ -3196,25 +3252,12 @@ func Indirect(v Value) Value {
 	return v.Elem()
 }
 
-// Before Go 1.21, ValueOf always escapes and a Value's content
-// is always heap allocated.
-// Set go121noForceValueEscape to true to avoid the forced escape,
-// allowing Value content to be on the stack.
-// Set go121noForceValueEscape to false for the legacy behavior
-// (for debugging).
-const go121noForceValueEscape = true
-
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
 func ValueOf(i any) Value {
 	if i == nil {
 		return Value{}
 	}
-
-	if !go121noForceValueEscape {
-		escapes(i)
-	}
-
 	return unpackEface(i)
 }
 
@@ -3231,7 +3274,7 @@ func Zero(typ Type) Value {
 	fl := flag(t.Kind())
 	if t.IfaceIndir() {
 		var p unsafe.Pointer
-		if t.Size() <= maxZero {
+		if t.Size() <= abi.ZeroValSize {
 			p = unsafe.Pointer(&zeroVal[0])
 		} else {
 			p = unsafe_New(t)
@@ -3241,11 +3284,8 @@ func Zero(typ Type) Value {
 	return Value{t, nil, fl}
 }
 
-// must match declarations in runtime/map.go.
-const maxZero = 1024
-
 //go:linkname zeroVal runtime.zeroVal
-var zeroVal [maxZero]byte
+var zeroVal [abi.ZeroValSize]byte
 
 // New returns a Value representing a pointer to a new zero value
 // for the specified type. That is, the returned Value's Type is PointerTo(typ).

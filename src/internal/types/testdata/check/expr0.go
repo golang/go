@@ -28,7 +28,7 @@ var (
 
 	// byte
 	_ = byte(0)
-	_ = byte(- /* ERROR "cannot convert" */ 1)
+	_ = byte(- /* ERROR "overflows" */ 1)
 	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
 	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ byte(0)

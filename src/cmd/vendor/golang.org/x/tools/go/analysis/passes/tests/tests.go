@@ -17,7 +17,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/internal/typeparams"
 )
 
 //go:embed doc.go
@@ -257,13 +256,7 @@ func isTestingType(typ types.Type, testingType string) bool {
 	if !ok {
 		return false
 	}
-	named, ok := ptr.Elem().(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := named.Obj()
-	// obj.Pkg is nil for the error type.
-	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == testingType
+	return analysisutil.IsNamedType(ptr.Elem(), "testing", testingType)
 }
 
 // Validate that fuzz target function's arguments are of accepted types.
@@ -397,7 +390,7 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
 	}
-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
 		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
 	}
 
@@ -466,7 +459,7 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 		return
 	}
 
-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
 		// TODO(adonovan): use ReportRangef(tparams).

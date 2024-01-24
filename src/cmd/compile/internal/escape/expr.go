@@ -113,13 +113,13 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		} else {
 			e.expr(k, n.X)
 		}
-	case ir.OCONVIFACE, ir.OCONVIDATA:
+	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
 		if !n.X.Type().IsInterface() && !types.IsDirectIface(n.X.Type()) {
 			k = e.spill(k, n)
 		}
 		e.expr(k.note(n, "interface-converted"), n.X)
-	case ir.OEFACE:
+	case ir.OMAKEFACE:
 		n := n.(*ir.BinaryExpr)
 		// Note: n.X is not needed because it can never point to memory that might escape.
 		e.expr(k, n.Y)
@@ -139,7 +139,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		e.discard(n.X)
 
 	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OINLCALL,
-		ir.OLEN, ir.OCAP, ir.OMIN, ir.OMAX, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER,
+		ir.OLEN, ir.OCAP, ir.OMIN, ir.OMAX, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVERFP,
 		ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		e.call([]hole{k}, n)
 
@@ -250,7 +250,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 				// analysis (happens for escape analysis called
 				// from reflectdata.methodWrapper)
 				if n.Op() == ir.ONAME && n.Opt == nil {
-					e.with(fn).newLoc(n, false)
+					e.with(fn).newLoc(n, true)
 				}
 			}
 			e.walkFunc(fn)
@@ -335,7 +335,7 @@ func (e *escape) discards(l ir.Nodes) {
 // its address to k, and returns a hole that flows values to it. It's
 // intended for use with most expressions that allocate storage.
 func (e *escape) spill(k hole, n ir.Node) hole {
-	loc := e.newLoc(n, true)
+	loc := e.newLoc(n, false)
 	e.flow(k.addr(n, "spill"), loc)
 	return loc.asHole()
 }

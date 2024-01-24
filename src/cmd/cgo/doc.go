@@ -686,7 +686,7 @@ files:
 	_cgo_export.c   # for gcc
 	_cgo_export.h   # for gcc
 	_cgo_main.c     # for gcc
-	_cgo_flags      # for alternative build tools
+	_cgo_flags      # for build tool (if -gccgo)
 
 The file x.cgo1.go is a copy of x.go with the import "C" removed and
 references to C.xxx replaced with names like _Cfunc_xxx or _Ctype_xxx.

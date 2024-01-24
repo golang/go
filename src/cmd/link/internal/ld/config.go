@@ -217,7 +217,7 @@ func determineLinkMode(ctxt *Link) {
 		}
 	case LinkExternal:
 		switch {
-		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS != "aix":
+		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS == "linux":
 			Exitf("external linking not supported for %s/ppc64", buildcfg.GOOS)
 		}
 	}

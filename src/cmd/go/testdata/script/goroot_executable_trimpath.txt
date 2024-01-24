@@ -1,0 +1,101 @@
+# Regression test for https://go.dev/issue/62119:
+# A 'go' command cross-compiled with a different GOHOSTOS
+# should be able to locate its GOROOT using os.Executable.
+#
+# (This also tests a 'go' command built with -trimpath
+# that is not cross-compiled, since we need to build that
+# configuration for the test anyway.)
+
+[short] skip 'builds and links another cmd/go'
+
+mkdir $WORK/new/bin
+mkdir $WORK/new/bin/${GOOS}_${GOARCH}
+
+# In this test, we are specifically checking the logic for deriving
+# the value of GOROOT from os.Executable when runtime.GOROOT is
+# trimmed away.
+# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
+# so we explicitly clear it to remove it as a confounding variable.
+env GOROOT_FINAL=
+
+# $GOROOT/bin/go is whatever the user has already installed
+# (using make.bash or similar). We can't make assumptions about what
+# options it may have been built with, such as -trimpath or GOROOT_FINAL.
+# Instead, we build a fresh copy of the binary with known settings.
+go build -trimpath -o $WORK/new/bin/go$GOEXE cmd/go &
+go build -trimpath -o $WORK/bin/check$GOEXE check.go &
+wait
+
+env TESTGOROOT=$GOROOT
+env GOROOT=
+
+# Unset GOPATH and any variables that its default may be derived from,
+# so that we can check for a spurious warning.
+env GOPATH=
+env HOME=''
+env USERPROFILE=''
+env home=''
+
+# Relocated Executable
+# Since we built with -trimpath and the binary isn't installed in a
+# normal-looking GOROOT, this command should fail.
+
+! exec $WORK/new/bin/go$GOEXE env GOROOT
+stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+! stderr 'GOPATH set to GOROOT'
+
+# Cross-compiled binaries in cmd are installed to a ${GOOS}_${GOARCH} subdirectory,
+# so we also want to try a copy there.
+# (Note that the script engine's 'exec' engine already works around
+# https://go.dev/issue/22315, so we don't have to do that explicitly in the
+# 'check' program we use later.)
+cp $WORK/new/bin/go$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE
+! exec $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE env GOROOT
+stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+! stderr 'GOPATH set to GOROOT'
+
+# Relocated Tree:
+# If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
+# so it should find the new tree.
+mkdir $WORK/new/pkg/tool
+exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $WORK/new
+exec $WORK/bin/check$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE $WORK/new
+! stderr 'GOPATH set to GOROOT'
+
+-- check.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	exe := os.Args[1]
+	want := os.Args[2]
+	cmd := exec.Command(exe, "env", "GOROOT")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s env GOROOT: %v, %s\n", exe, err, out)
+		os.Exit(1)
+	}
+	goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	want, err = filepath.EvalSymlinks(want)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if !strings.EqualFold(goroot, want) {
+		fmt.Fprintf(os.Stderr, "go env GOROOT:\nhave %s\nwant %s\n", goroot, want)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "go env GOROOT: %s\n", goroot)
+
+}

@@ -45,12 +45,10 @@ func TestToEnglishName(t *testing.T) {
 	defer k.Close()
 
 	var std, dlt string
-	if err = registry.LoadRegLoadMUIString(); err == nil {
-		// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
-		std, err = k.GetMUIStringValue("MUI_Std")
-		if err == nil {
-			dlt, err = k.GetMUIStringValue("MUI_Dlt")
-		}
+	// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
+	std, err = k.GetMUIStringValue("MUI_Std")
+	if err == nil {
+		dlt, err = k.GetMUIStringValue("MUI_Dlt")
 	}
 	if err != nil { // Fallback to Std and Dlt
 		if std, _, err = k.GetStringValue("Std"); err != nil {

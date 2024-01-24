@@ -957,7 +957,10 @@ func collectDepsErrors(p *load.Package) {
 			if len(stkj) != 0 {
 				return true
 			}
+
 			return p.DepsErrors[i].Err.Error() < p.DepsErrors[j].Err.Error()
+		} else if len(stkj) == 0 {
+			return false
 		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
 		return pathi < pathj

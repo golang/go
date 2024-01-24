@@ -62,6 +62,24 @@ func And(ptr *uint32, val uint32)
 func Or(ptr *uint32, val uint32)
 
 //go:noescape
+func And32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func Or32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func And64(ptr *uint64, val uint64) uint64
+
+//go:noescape
+func Or64(ptr *uint64, val uint64) uint64
+
+//go:noescape
+func Anduintptr(ptr *uintptr, val uintptr) uintptr
+
+//go:noescape
+func Oruintptr(ptr *uintptr, val uintptr) uintptr
+
+//go:noescape
 func Cas64(ptr *uint64, old, new uint64) bool
 
 //go:noescape

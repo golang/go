@@ -8,7 +8,7 @@
 /*
 Package metrics provides a stable interface to access implementation-defined
 metrics exported by the Go runtime. This package is similar to existing functions
-like [runtime.ReadMemStats] and [debug.ReadGCStats], but significantly more general.
+like [runtime.ReadMemStats] and [runtime/debug.ReadGCStats], but significantly more general.
 
 The set of metrics defined by this package may evolve as the runtime itself
 evolves, and also enables variation across Go implementations, whose relevant
@@ -18,7 +18,7 @@ metric sets may not intersect.
 
 Metrics are designated by a string key, rather than, for example, a field name in
 a struct. The full list of supported metrics is always available in the slice of
-Descriptions returned by All. Each Description also includes useful information
+Descriptions returned by [All]. Each [Description] also includes useful information
 about the metric.
 
 Thus, users of this API are encouraged to sample supported metrics defined by the
@@ -28,7 +28,8 @@ encouraged to use build tags, and although metrics may be deprecated and removed
 users should consider this to be an exceptional and rare event, coinciding with a
 very large change in a particular Go implementation.
 
-Each metric key also has a "kind" that describes the format of the metric's value.
+Each metric key also has a "kind" (see [ValueKind]) that describes the format of the
+metric's value.
 In the interest of not breaking users of this package, the "kind" for a given metric
 is guaranteed not to change. If it must change, then a new metric will be introduced
 with a new key and a new "kind."
@@ -83,10 +84,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		the GC. Even if only one thread is running during the pause,
 		this is computed as GOMAXPROCS times the pause latency because
 		nothing else can be executing. This is the exact sum of samples
-		in /gc/pause:seconds if each sample is multiplied by GOMAXPROCS
-		at the time it is taken. This metric is an overestimate,
-		and not directly comparable to system CPU time measurements.
-		Compare only with other /cpu/classes metrics.
+		in /sched/pauses/total/gc:seconds if each sample is multiplied
+		by GOMAXPROCS at the time it is taken. This metric is an
+		overestimate, and not directly comparable to system CPU time
+		measurements. Compare only with other /cpu/classes metrics.
 
 	/cpu/classes/gc/total:cpu-seconds
 		Estimated total CPU time spent performing GC tasks. This metric
@@ -211,8 +212,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 		1, so a value of 0 indicates that it was never enabled.
 
 	/gc/pauses:seconds
-		Distribution of individual GC-related stop-the-world pause
-		latencies. Bucket counts increase monotonically.
+		Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.
 
 	/gc/scan/globals:bytes
 		The total amount of global variable space that is scannable.
@@ -246,6 +246,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=gocacheverify=... setting.
 
+	/godebug/non-default-behavior/gotypesalias:events
+		The number of non-default behaviors executed by the go/types
+		package due to a non-default GODEBUG=gotypesalias=... setting.
+
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.
@@ -253,6 +257,15 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/http2server:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2server=... setting.
+
+	/godebug/non-default-behavior/httplaxcontentlength:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httplaxcontentlength=...
+		setting.
+
+	/godebug/non-default-behavior/httpmuxgo121:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httpmuxgo121=... setting.
 
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
@@ -290,6 +303,22 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=tarinsecurepath=...
 		setting.
 
+	/godebug/non-default-behavior/tls10server:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tls10server=... setting.
+
+	/godebug/non-default-behavior/tlsmaxrsasize:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsmaxrsasize=... setting.
+
+	/godebug/non-default-behavior/tlsrsakex:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsrsakex=... setting.
+
+	/godebug/non-default-behavior/tlsunsafeekm:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+
 	/godebug/non-default-behavior/x509sha1:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509sha1=... setting.
@@ -297,6 +326,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/x509usefallbackroots:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509usefallbackroots=...
+		setting.
+
+	/godebug/non-default-behavior/x509usepolicies:events
+		The number of non-default behaviors executed by the crypto/x509
+		package due to a non-default GODEBUG=x509usepolicies=...
 		setting.
 
 	/godebug/non-default-behavior/zipinsecurepath:events
@@ -386,11 +420,43 @@ Below is the full list of supported metrics, ordered lexicographically.
 		in a runnable state before actually running. Bucket counts
 		increase monotonically.
 
+	/sched/pauses/stopping/gc:seconds
+		Distribution of individual GC-related stop-the-world stopping
+		latencies. This is the time it takes from deciding to stop the
+		world until all Ps are stopped. This is a subset of the total
+		GC-related stop-the-world time (/sched/pauses/total/gc:seconds).
+		During this time, some threads may be executing. Bucket counts
+		increase monotonically.
+
+	/sched/pauses/stopping/other:seconds
+		Distribution of individual non-GC-related stop-the-world
+		stopping latencies. This is the time it takes from deciding
+		to stop the world until all Ps are stopped. This is a
+		subset of the total non-GC-related stop-the-world time
+		(/sched/pauses/total/other:seconds). During this time, some
+		threads may be executing. Bucket counts increase monotonically.
+
+	/sched/pauses/total/gc:seconds
+		Distribution of individual GC-related stop-the-world pause
+		latencies. This is the time from deciding to stop the world
+		until the world is started again. Some of this time is spent
+		getting all threads to stop (this is measured directly in
+		/sched/pauses/stopping/gc:seconds), during which some threads
+		may still be running. Bucket counts increase monotonically.
+
+	/sched/pauses/total/other:seconds
+		Distribution of individual non-GC-related stop-the-world
+		pause latencies. This is the time from deciding to stop the
+		world until the world is started again. Some of this time
+		is spent getting all threads to stop (measured directly in
+		/sched/pauses/stopping/other:seconds). Bucket counts increase
+		monotonically.
+
 	/sync/mutex/wait/total:seconds
-		Approximate cumulative time goroutines have spent blocked
-		on a sync.Mutex or sync.RWMutex. This metric is useful for
-		identifying global changes in lock contention. Collect a mutex
-		or block profile using the runtime/pprof package for more
-		detailed contention data.
+		Approximate cumulative time goroutines have spent blocked on a
+		sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric
+		is useful for identifying global changes in lock contention.
+		Collect a mutex or block profile using the runtime/pprof package
+		for more detailed contention data.
 */
 package metrics

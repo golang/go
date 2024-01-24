@@ -11,8 +11,8 @@ import (
 )
 
 var sehp struct {
-	pdata loader.Sym
-	xdata loader.Sym
+	pdata []sym.LoaderSym
+	xdata []sym.LoaderSym
 }
 
 func writeSEH(ctxt *Link) {
@@ -40,7 +40,7 @@ func writeSEHAMD64(ctxt *Link) {
 	// to deduplicate .xdata entries.
 	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
 	for _, s := range ctxt.Textp {
-		if fi := ldr.FuncInfo(s); !fi.Valid() || fi.TopFrame() {
+		if fi := ldr.FuncInfo(s); !fi.Valid() {
 			continue
 		}
 		uw := ldr.SEHUnwindSym(s)
@@ -53,6 +53,17 @@ func writeSEHAMD64(ctxt *Link) {
 			off = xdata.Size()
 			uwcache[name] = off
 			xdata.AddBytes(ldr.Data(uw))
+			// The SEH unwind data can contain relocations,
+			// make sure those are copied over.
+			rels := ldr.Relocs(uw)
+			for i := 0; i < rels.Count(); i++ {
+				r := rels.At(i)
+				rel, _ := xdata.AddRel(r.Type())
+				rel.SetOff(int32(off) + r.Off())
+				rel.SetSiz(r.Siz())
+				rel.SetSym(r.Sym())
+				rel.SetAdd(r.Add())
+			}
 		}
 
 		// Reference:
@@ -61,6 +72,6 @@ func writeSEHAMD64(ctxt *Link) {
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), off)
 	}
-	sehp.pdata = pdata.Sym()
-	sehp.xdata = xdata.Sym()
+	sehp.pdata = append(sehp.pdata, pdata.Sym())
+	sehp.xdata = append(sehp.xdata, xdata.Sym())
 }

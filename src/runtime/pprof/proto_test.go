@@ -45,7 +45,7 @@ func fmtJSON(x any) string {
 	return string(js)
 }
 
-func TestConvertCPUProfileEmpty(t *testing.T) {
+func TestConvertCPUProfileNoSamples(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
@@ -101,7 +101,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		addr2 = mprof.Mapping[1].Start
 		map2 = mprof.Mapping[1]
 		map2.BuildID, _ = elfBuildID(map2.File)
-	case "windows", "darwin":
+	case "windows", "darwin", "ios":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 

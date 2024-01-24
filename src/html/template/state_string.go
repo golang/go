@@ -21,25 +21,27 @@ func _() {
 	_ = x[stateJS-10]
 	_ = x[stateJSDqStr-11]
 	_ = x[stateJSSqStr-12]
-	_ = x[stateJSBqStr-13]
+	_ = x[stateJSTmplLit-13]
 	_ = x[stateJSRegexp-14]
 	_ = x[stateJSBlockCmt-15]
 	_ = x[stateJSLineCmt-16]
-	_ = x[stateCSS-17]
-	_ = x[stateCSSDqStr-18]
-	_ = x[stateCSSSqStr-19]
-	_ = x[stateCSSDqURL-20]
-	_ = x[stateCSSSqURL-21]
-	_ = x[stateCSSURL-22]
-	_ = x[stateCSSBlockCmt-23]
-	_ = x[stateCSSLineCmt-24]
-	_ = x[stateError-25]
-	_ = x[stateDead-26]
+	_ = x[stateJSHTMLOpenCmt-17]
+	_ = x[stateJSHTMLCloseCmt-18]
+	_ = x[stateCSS-19]
+	_ = x[stateCSSDqStr-20]
+	_ = x[stateCSSSqStr-21]
+	_ = x[stateCSSDqURL-22]
+	_ = x[stateCSSSqURL-23]
+	_ = x[stateCSSURL-24]
+	_ = x[stateCSSBlockCmt-25]
+	_ = x[stateCSSLineCmt-26]
+	_ = x[stateError-27]
+	_ = x[stateDead-28]
 }
 
-const _state_name = "stateTextstateTagstateAttrNamestateAfterNamestateBeforeValuestateHTMLCmtstateRCDATAstateAttrstateURLstateSrcsetstateJSstateJSDqStrstateJSSqStrstateJSBqStrstateJSRegexpstateJSBlockCmtstateJSLineCmtstateCSSstateCSSDqStrstateCSSSqStrstateCSSDqURLstateCSSSqURLstateCSSURLstateCSSBlockCmtstateCSSLineCmtstateErrorstateDead"
+const _state_name = "stateTextstateTagstateAttrNamestateAfterNamestateBeforeValuestateHTMLCmtstateRCDATAstateAttrstateURLstateSrcsetstateJSstateJSDqStrstateJSSqStrstateJSTmplLitstateJSRegexpstateJSBlockCmtstateJSLineCmtstateJSHTMLOpenCmtstateJSHTMLCloseCmtstateCSSstateCSSDqStrstateCSSSqStrstateCSSDqURLstateCSSSqURLstateCSSURLstateCSSBlockCmtstateCSSLineCmtstateErrorstateDead"
 
-var _state_index = [...]uint16{0, 9, 17, 30, 44, 60, 72, 83, 92, 100, 111, 118, 130, 142, 154, 167, 182, 196, 204, 217, 230, 243, 256, 267, 283, 298, 308, 317}
+var _state_index = [...]uint16{0, 9, 17, 30, 44, 60, 72, 83, 92, 100, 111, 118, 130, 142, 156, 169, 184, 198, 216, 235, 243, 256, 269, 282, 295, 306, 322, 337, 347, 356}
 
 func (i state) String() string {
 	if i >= state(len(_state_index)-1) {

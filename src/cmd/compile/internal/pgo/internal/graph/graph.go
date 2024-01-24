@@ -466,9 +466,9 @@ func (g *Graph) String() string {
 // Sort returns a slice of the edges in the map, in a consistent
 // order. The sort order is first based on the edge weight
 // (higher-to-lower) and then by the node names to avoid flakiness.
-func (e EdgeMap) Sort() []*Edge {
-	el := make(edgeList, 0, len(e))
-	for _, w := range e {
+func (em EdgeMap) Sort() []*Edge {
+	el := make(edgeList, 0, len(em))
+	for _, w := range em {
 		el = append(el, w)
 	}
 
@@ -477,9 +477,9 @@ func (e EdgeMap) Sort() []*Edge {
 }
 
 // Sum returns the total weight for a set of nodes.
-func (e EdgeMap) Sum() int64 {
+func (em EdgeMap) Sum() int64 {
 	var ret int64
-	for _, edge := range e {
+	for _, edge := range em {
 		ret += edge.Weight
 	}
 	return ret

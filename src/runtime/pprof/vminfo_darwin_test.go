@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !ios
+
 package pprof
 
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"internal/abi"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"strconv"
@@ -30,7 +34,10 @@ func TestVMInfo(t *testing.T) {
 		// the go toolchain itself.
 		first = false
 	})
-	lo, hi := useVMMap(t)
+	lo, hi, err := useVMMapWithRetry(t)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, want := begin, lo; got != want {
 		t.Errorf("got %x, want %x", got, want)
 	}
@@ -49,17 +56,52 @@ func TestVMInfo(t *testing.T) {
 	}
 }
 
-func useVMMap(t *testing.T) (hi, lo uint64) {
-	pid := strconv.Itoa(os.Getpid())
-	out, err := exec.Command("vmmap", pid).Output()
-	if err != nil {
-		t.Fatal(err)
+func useVMMapWithRetry(t *testing.T) (hi, lo uint64, err error) {
+	var retryable bool
+	for {
+		hi, lo, retryable, err = useVMMap(t)
+		if err == nil {
+			return hi, lo, nil
+		}
+		if !retryable {
+			return 0, 0, err
+		}
+		t.Logf("retrying vmmap after error: %v", err)
 	}
-	return parseVmmap(t, out)
+}
+
+func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
+	pid := strconv.Itoa(os.Getpid())
+	testenv.MustHaveExecPath(t, "vmmap")
+	cmd := testenv.Command(t, "vmmap", pid)
+	out, cmdErr := cmd.Output()
+	if cmdErr != nil {
+		t.Logf("vmmap output: %s", out)
+		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
+		}
+		retryable = bytes.Contains(out, []byte("resource shortage"))
+		t.Logf("%v: %v", cmd, cmdErr)
+		if retryable {
+			return 0, 0, true, cmdErr
+		}
+	}
+	// Always parse the output of vmmap since it may return an error
+	// code even if it successfully reports the text segment information
+	// required for this test.
+	hi, lo, err = parseVmmap(out)
+	if err != nil {
+		if cmdErr != nil {
+			return 0, 0, false, fmt.Errorf("failed to parse vmmap output, vmmap reported an error: %v", err)
+		}
+		t.Logf("vmmap output: %s", out)
+		return 0, 0, false, fmt.Errorf("failed to parse vmmap output, vmmap did not report an error: %v", err)
+	}
+	return hi, lo, false, nil
 }
 
 // parseVmmap parses the output of vmmap and calls addMapping for the first r-x TEXT segment in the output.
-func parseVmmap(t *testing.T, data []byte) (hi, lo uint64) {
+func parseVmmap(data []byte) (hi, lo uint64, err error) {
 	// vmmap 53799
 	// Process:         gopls [53799]
 	// Path:            /Users/USER/*/gopls
@@ -110,13 +152,12 @@ func parseVmmap(t *testing.T, data []byte) (hi, lo uint64) {
 				locs := strings.Split(p[1], "-")
 				start, _ := strconv.ParseUint(locs[0], 16, 64)
 				end, _ := strconv.ParseUint(locs[1], 16, 64)
-				return start, end
+				return start, end, nil
 			}
 		}
 		if strings.HasPrefix(l, banner) {
 			grabbing = true
 		}
 	}
-	t.Fatal("vmmap no text segment found")
-	return 0, 0
+	return 0, 0, fmt.Errorf("vmmap no text segment found")
 }

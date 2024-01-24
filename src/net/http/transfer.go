@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"net/http/httptrace"
 	"net/http/internal"
@@ -409,7 +410,10 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 //
 // This function is only intended for use in writeBody.
 func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
-	n, err = io.Copy(dst, src)
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
+
+	n, err = io.CopyBuffer(dst, src, buf)
 	if err != nil && err != io.EOF {
 		t.bodyReadError = err
 	}
@@ -527,7 +531,7 @@ func readTransfer(msg any, r *bufio.Reader) (err error) {
 		return err
 	}
 	if isResponse && t.RequestMethod == "HEAD" {
-		if n, err := parseContentLength(t.Header.get("Content-Length")); err != nil {
+		if n, err := parseContentLength(t.Header["Content-Length"]); err != nil {
 			return err
 		} else {
 			t.ContentLength = n
@@ -707,18 +711,15 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		return -1, nil
 	}
 
-	// Logic based on Content-Length
-	var cl string
-	if len(contentLens) == 1 {
-		cl = textproto.TrimString(contentLens[0])
-	}
-	if cl != "" {
-		n, err := parseContentLength(cl)
+	if len(contentLens) > 0 {
+		// Logic based on Content-Length
+		n, err := parseContentLength(contentLens)
 		if err != nil {
 			return -1, err
 		}
 		return n, nil
 	}
+
 	header.Del("Content-Length")
 
 	if isRequest {
@@ -816,10 +817,10 @@ type body struct {
 	onHitEOF   func() // if non-nil, func to call when EOF is Read
 }
 
-// ErrBodyReadAfterClose is returned when reading a Request or Response
+// ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
 // Body after the body has been closed. This typically happens when the body is
-// read after an HTTP Handler calls WriteHeader or Write on its
-// ResponseWriter.
+// read after an HTTP [Handler] calls WriteHeader or Write on its
+// [ResponseWriter].
 var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed Body")
 
 func (b *body) Read(p []byte) (n int, err error) {
@@ -1038,19 +1039,31 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
 	return bl.b.readLocked(p)
 }
 
-// parseContentLength trims whitespace from s and returns -1 if no value
-// is set, or the value if it's >= 0.
-func parseContentLength(cl string) (int64, error) {
-	cl = textproto.TrimString(cl)
-	if cl == "" {
+var laxContentLength = godebug.New("httplaxcontentlength")
+
+// parseContentLength checks that the header is valid and then trims
+// whitespace. It returns -1 if no value is set otherwise the value
+// if it's >= 0.
+func parseContentLength(clHeaders []string) (int64, error) {
+	if len(clHeaders) == 0 {
 		return -1, nil
+	}
+	cl := textproto.TrimString(clHeaders[0])
+
+	// The Content-Length must be a valid numeric value.
+	// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+	if cl == "" {
+		if laxContentLength.Value() == "1" {
+			laxContentLength.IncNonDefault()
+			return -1, nil
+		}
+		return 0, badStringError("invalid empty Content-Length", cl)
 	}
 	n, err := strconv.ParseUint(cl, 10, 63)
 	if err != nil {
 		return 0, badStringError("bad Content-Length", cl)
 	}
 	return int64(n), nil
-
 }
 
 // finishAsyncByteRead finishes reading the 1-byte sniff

@@ -10,13 +10,13 @@ import (
 
 // Type is the runtime representation of a Go type.
 //
-// Type is also referenced implicitly
-// (in the form of expressions involving constants and arch.PtrSize)
-// in cmd/compile/internal/reflectdata/reflect.go
-// and cmd/link/internal/ld/decodesym.go
-// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
-// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
-// places because it varies with cross compilation and experiments.
+// Be careful about accessing this type at build time, as the version
+// of this type in the compiler/linker may not have the same layout
+// as the version in the target binary, due to pointer width
+// differences and any experiments. Use cmd/compile/internal/rttype
+// or the functions in compiletype.go to access this type instead.
+// (TODO: this admonition applies to every type in this package.
+// Put it in some shared location?)
 type Type struct {
 	Size_       uintptr
 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
@@ -111,6 +111,12 @@ const (
 	// TFlagRegularMemory means that equal and hash functions can treat
 	// this type as a single region of t.size bytes.
 	TFlagRegularMemory TFlag = 1 << 3
+
+	// TFlagUnrolledBitmap marks special types that are unrolled-bitmap
+	// versions of types with GC programs.
+	// These types need to be deallocated when the underlying object
+	// is freed.
+	TFlagUnrolledBitmap TFlag = 1 << 4
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
@@ -710,3 +716,36 @@ func NewName(n, tag string, exported, embedded bool) Name {
 
 	return Name{Bytes: &b[0]}
 }
+
+const (
+	TraceArgsLimit    = 10 // print no more than 10 args/components
+	TraceArgsMaxDepth = 5  // no more than 5 layers of nesting
+
+	// maxLen is a (conservative) upper bound of the byte stream length. For
+	// each arg/component, it has no more than 2 bytes of data (size, offset),
+	// and no more than one {, }, ... at each level (it cannot have both the
+	// data and ... unless it is the last one, just be conservative). Plus 1
+	// for _endSeq.
+	TraceArgsMaxLen = (TraceArgsMaxDepth*3+2)*TraceArgsLimit + 1
+)
+
+// Populate the data.
+// The data is a stream of bytes, which contains the offsets and sizes of the
+// non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
+// arguments, along with special "operators". Specifically,
+//   - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
+//     size (1 byte)
+//   - special operators:
+//   - 0xff - end of sequence
+//   - 0xfe - print { (at the start of an aggregate-typed argument)
+//   - 0xfd - print } (at the end of an aggregate-typed argument)
+//   - 0xfc - print ... (more args/fields/elements)
+//   - 0xfb - print _ (offset too large)
+const (
+	TraceArgsEndSeq         = 0xff
+	TraceArgsStartAgg       = 0xfe
+	TraceArgsEndAgg         = 0xfd
+	TraceArgsDotdotdot      = 0xfc
+	TraceArgsOffsetTooLarge = 0xfb
+	TraceArgsSpecial        = 0xf0 // above this are operators, below this are ordinary offsets
+)

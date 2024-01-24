@@ -30,7 +30,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 
 	env := "GODEBUG=" + options
 
-	cmd := exec.Command(os.Args[0], "-test.run="+test)
+	cmd := exec.Command(os.Args[0], "-test.run=^"+test+"$")
 	cmd.Env = append(cmd.Env, env)
 
 	output, err := cmd.CombinedOutput()

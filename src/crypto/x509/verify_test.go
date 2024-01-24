@@ -16,9 +16,11 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math/big"
+	"os/exec"
 	"reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -368,7 +370,7 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		// When there are two parents, one with a incorrect subject but matching SKID
+		// When there are two parents, one with an incorrect subject but matching SKID
 		// and one with a correct subject but missing SKID, the latter should be
 		// considered as a possible parent.
 		leaf:        leafMatchingAKIDMatchingIssuer,
@@ -1867,17 +1869,40 @@ func TestSystemRootsErrorUnwrap(t *testing.T) {
 	}
 }
 
+func macosMajorVersion(t *testing.T) (int, error) {
+	cmd := testenv.Command(t, "sw_vers", "-productVersion")
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			return 0, fmt.Errorf("%v: %v\n%s", cmd, err, ee.Stderr)
+		}
+		return 0, fmt.Errorf("%v: %v", cmd, err)
+	}
+	before, _, ok := strings.Cut(string(out), ".")
+	major, err := strconv.Atoi(before)
+	if !ok || err != nil {
+		return 0, fmt.Errorf("%v: unexpected output: %q", cmd, out)
+	}
+
+	return major, nil
+}
+
 func TestIssue51759(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("only affects darwin")
 	}
-	builder := testenv.Builder()
-	if builder == "" {
-		t.Skip("only run this test on the builders, as we have no reasonable way to gate tests on macOS versions elsewhere")
-	}
-	if builder == "darwin-amd64-10_14" || builder == "darwin-amd64-10_15" {
+
+	testenv.MustHaveExecPath(t, "sw_vers")
+	if vers, err := macosMajorVersion(t); err != nil {
+		if builder := testenv.Builder(); builder != "" {
+			t.Fatalf("unable to determine macOS version: %s", err)
+		} else {
+			t.Skip("unable to determine macOS version")
+		}
+	} else if vers < 11 {
 		t.Skip("behavior only enforced in macOS 11 and after")
 	}
+
 	// badCertData contains a cert that we parse as valid
 	// but that macOS SecCertificateCreateWithData rejects.
 	const badCertData = "0\x82\x01U0\x82\x01\a\xa0\x03\x02\x01\x02\x02\x01\x020\x05\x06\x03+ep0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260\x1e\x17\r220112235755Z\x17\r220313235755Z0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260*0\x05\x06\x03+ep\x03!\x00bA\xd8e\xadW\xcb\xefZ\x89\xb5\"\x1eR\x9d\xba\x0e:\x1042Q@\u007f\xbd\xfb{ks\x04\xd1£\x020\x000\x05\x06\x03+ep\x03A\x00[\xa7\x06y\x86(\x94\x97\x9eLwA\x00\x01x\xaa\xbc\xbd Ê]\n(΅!ف0\xf5\x9a%I\x19<\xffo\xf1\xeaaf@\xb1\xa7\xaf\xfd\xe9R\xc7\x0f\x8d&\xd5\xfc\x0f;Ϙ\x82\x84a\xbc\r"
@@ -1918,11 +1943,13 @@ type trustGraphEdge struct {
 	Subject        string
 	Type           int
 	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
 }
 
 type rootDescription struct {
 	Subject        string
 	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
 }
 
 type trustGraphDescription struct {
@@ -1975,19 +2002,23 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 
 	certs := map[string]*Certificate{}
 	keys := map[string]crypto.Signer{}
-	roots := []*Certificate{}
+	rootPool := NewCertPool()
 	for _, r := range d.Roots {
 		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			t.Fatalf("failed to generate test key: %s", err)
 		}
 		root := genCertEdge(t, r.Subject, k, r.MutateTemplate, rootCertificate, nil, nil)
-		roots = append(roots, root)
+		if r.Constraint != nil {
+			rootPool.AddCertWithConstraint(root, r.Constraint)
+		} else {
+			rootPool.AddCert(root)
+		}
 		certs[r.Subject] = root
 		keys[r.Subject] = k
 	}
 
-	intermediates := []*Certificate{}
+	intermediatePool := NewCertPool()
 	var leaf *Certificate
 	for _, e := range d.Graph {
 		issuerCert, ok := certs[e.Issuer]
@@ -2013,16 +2044,12 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 		if e.Subject == d.Leaf {
 			leaf = cert
 		} else {
-			intermediates = append(intermediates, cert)
+			if e.Constraint != nil {
+				intermediatePool.AddCertWithConstraint(cert, e.Constraint)
+			} else {
+				intermediatePool.AddCert(cert)
+			}
 		}
-	}
-
-	rootPool, intermediatePool := NewCertPool(), NewCertPool()
-	for i := len(roots) - 1; i >= 0; i-- {
-		rootPool.AddCert(roots[i])
-	}
-	for i := len(intermediates) - 1; i >= 0; i-- {
-		intermediatePool.AddCert(intermediates[i])
 	}
 
 	return rootPool, intermediatePool, leaf
@@ -2479,6 +2506,78 @@ func TestPathBuilding(t *testing.T) {
 				},
 			},
 			expectedChains: []string{"CN=leaf -> CN=inter -> CN=root"},
+		},
+		{
+			// A code constraint on the root, applying to one of two intermediates in the graph, should
+			// result in only one valid chain.
+			name: "code constrained root, two paths, one valid",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "inter a" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{"CN=leaf -> CN=inter c -> CN=inter b -> CN=root"},
+		},
+		{
+			// A code constraint on the root, applying to the only path, should result in an error.
+			name: "code constrained root, one invalid path",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "leaf" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedErr: "x509: certificate signed by unknown authority (possibly because of \"bad\" while trying to verify candidate authority certificate \"root\")",
 		},
 	}
 

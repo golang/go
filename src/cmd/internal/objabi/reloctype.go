@@ -94,11 +94,10 @@ const (
 	// This is a marker relocation (0-sized), for the linker's reachabililty
 	// analysis.
 	R_USEIFACEMETHOD
-	// Similar to R_USEIFACEMETHOD, except instead of indicating a type +
-	// method offset with Sym+Add, Sym points to a symbol containing the name
-	// of the method being called. See the description in
-	// cmd/compile/internal/reflectdata/reflect.go:MarkUsedIfaceMethod for details.
-	R_USEGENERICIFACEMETHOD
+	// R_USENAMEDMETHOD marks that methods with a specific name must not be eliminated.
+	// The target is a symbol containing the name of a method called via a generic
+	// interface or looked up via MethodByName("F").
+	R_USENAMEDMETHOD
 	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
@@ -260,30 +259,60 @@ const (
 
 	// RISC-V.
 
-	// R_RISCV_CALL relocates a J-type instruction with a 21 bit PC-relative
-	// address.
-	R_RISCV_CALL
+	// R_RISCV_JAL resolves a 20 bit offset for a J-type instruction.
+	R_RISCV_JAL
 
-	// R_RISCV_CALL_TRAMP is the same as R_RISCV_CALL but denotes the use of a
+	// R_RISCV_JAL_TRAMP is the same as R_RISCV_JAL but denotes the use of a
 	// trampoline, which we may be able to avoid during relocation. These are
 	// only used by the linker and are not emitted by the compiler or assembler.
-	R_RISCV_CALL_TRAMP
+	R_RISCV_JAL_TRAMP
 
-	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_CALL resolves a 32 bit PC-relative address for an AUIPC + JALR
+	// instruction pair.
+	R_RISCV_CALL
+
+	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
 
-	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
-	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
+	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_TLS_IE
 
-	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
+	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address for a
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
+
+	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
+	// address.
+	R_RISCV_GOT_HI20
+
+	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
+	// address.
+	R_RISCV_PCREL_HI20
+
+	// R_RISCV_PCREL_LO12_I resolves the low 12 bits of a 32-bit PC-relative
+	// address using an I-type instruction.
+	R_RISCV_PCREL_LO12_I
+
+	// R_RISCV_PCREL_LO12_S resolves the low 12 bits of a 32-bit PC-relative
+	// address using an S-type instruction.
+	R_RISCV_PCREL_LO12_S
+
+	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
+	R_RISCV_BRANCH
+
+	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
+	// instruction.
+	R_RISCV_RVC_BRANCH
+
+	// R_RISCV_RVC_JUMP resolves an 11-bit PC-relative offset for a CJ-type
+	// instruction.
+	R_RISCV_RVC_JUMP
 
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
@@ -315,6 +344,11 @@ const (
 	// pair to compute the address of the GOT slot of the tls symbol.
 	R_LOONG64_TLS_IE_PCREL_HI
 	R_LOONG64_TLS_IE_LO
+
+	// R_LOONG64_GOT_HI and R_LOONG64_GOT_LO resolves a GOT-relative instruction sequence,
+	// usually an pcalau12i followed by another ld or addi instruction.
+	R_LOONG64_GOT_HI
+	R_LOONG64_GOT_LO
 
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.
@@ -361,12 +395,13 @@ const (
 
 // IsDirectCall reports whether r is a relocation for a direct call.
 // A direct call is a CALL instruction that takes the target address
-// as an immediate. The address is embedded into the instruction, possibly
+// as an immediate. The address is embedded into the instruction(s), possibly
 // with limited width. An indirect call is a CALL instruction that takes
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER,
+		R_RISCV_CALL, R_RISCV_JAL, R_RISCV_JAL_TRAMP:
 		return true
 	}
 	return false

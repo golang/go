@@ -1,0 +1,27 @@
+# Regression test for https://go.dev/issue/62156:
+# DWARF generation for inlined functions may require more runtime type
+# descriptors to be written.
+
+go build
+
+-- go.mod --
+module m
+
+go 1.20
+-- main.go --
+package main
+
+import "m/sub"
+
+func main() { sub.F() }
+-- sub/sub.go --
+package sub
+
+type iface interface{ m() }
+
+func F() {
+	f := func(rt []iface) []iface {
+		return append([]iface{}, rt...)
+	}
+	f(nil)
+}

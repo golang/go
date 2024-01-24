@@ -273,10 +273,6 @@ var (
 	symSize int32
 )
 
-const (
-	MINFUNC = 16 // minimum size for a function
-)
-
 // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
 // are used, 0 otherwise.
 var abiInternalVer = sym.SymVerABIInternal
@@ -878,7 +874,17 @@ func (ctxt *Link) linksetup() {
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
-			sb.AddUint8(uint8(buildcfg.GOARM))
+			sb.AddUint8(uint8(buildcfg.GOARM.Version))
+
+			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
+			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
+			sb2.SetType(sym.SDATA)
+			sb2.SetSize(0)
+			if buildcfg.GOARM.SoftFloat {
+				sb2.AddUint8(1)
+			} else {
+				sb2.AddUint8(0)
+			}
 		}
 
 		// Set runtime.disableMemoryProfiling bool if
@@ -993,6 +999,11 @@ func typeSymbolMangle(name string) string {
 	if strings.HasPrefix(name, "type:runtime.") {
 		return name
 	}
+	if strings.HasPrefix(name, "go:string.") {
+		// String symbols will be grouped to a single go:string.* symbol.
+		// No need to mangle individual symbol names.
+		return name
+	}
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
@@ -1007,7 +1018,7 @@ func typeSymbolMangle(name string) string {
 	// instantiated symbol, replace type name in []
 	i := strings.IndexByte(name, '[')
 	j := strings.LastIndexByte(name, ']')
-	if j == -1 {
+	if j == -1 || j <= i {
 		j = len(name)
 	}
 	hash := notsha256.Sum256([]byte(name[i+1 : j]))
@@ -1903,6 +1914,16 @@ func (ctxt *Link) hostlink() {
 				out = append(out[:i], out[i+len(noPieWarning):]...)
 			}
 		}
+		if ctxt.IsDarwin() {
+			const bindAtLoadWarning = "ld: warning: -bind_at_load is deprecated on macOS\n"
+			if i := bytes.Index(out, []byte(bindAtLoadWarning)); i >= 0 {
+				// -bind_at_load is deprecated with ld-prime, but needed for
+				// correctness with older versions of ld64. Swallow the warning.
+				// TODO: maybe pass -bind_at_load conditionally based on C
+				// linker version.
+				out = append(out[:i], out[i+len(bindAtLoadWarning):]...)
+			}
+		}
 		ctxt.Logf("%s", out)
 	}
 
@@ -2205,15 +2226,21 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		0xc401, // arm
 		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+			ls, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			if len(rsrc) != 0 {
-				setpersrc(ctxt, rsrc)
+			if len(ls.Resources) != 0 {
+				setpersrc(ctxt, ls.Resources)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			if ls.PData != 0 {
+				sehp.pdata = append(sehp.pdata, ls.PData)
+			}
+			if ls.XData != 0 {
+				sehp.xdata = append(sehp.xdata, ls.XData)
+			}
+			ctxt.Textp = append(ctxt.Textp, ls.Textp...)
 		}
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}

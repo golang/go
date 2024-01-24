@@ -206,7 +206,7 @@ func (w *monoGraph) assign(pkg *Package, pos token.Pos, tpar *TypeParam, targ Ty
 	// type parameters.
 	var do func(typ Type)
 	do = func(typ Type) {
-		switch typ := typ.(type) {
+		switch typ := Unalias(typ).(type) {
 		default:
 			panic("unexpected type")
 

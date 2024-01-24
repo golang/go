@@ -211,7 +211,7 @@ func (c *nistCurve[Point]) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, e
 	return p.BytesX()
 }
 
-// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
+// P256 returns a [Curve] which implements NIST P-256 (FIPS 186-3, section D.2.3),
 // also known as secp256r1 or prime256v1.
 //
 // Multiple invocations of this function will return the same value, which can
@@ -230,7 +230,7 @@ var p256Order = []byte{
 	0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
 	0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51}
 
-// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
+// P384 returns a [Curve] which implements NIST P-384 (FIPS 186-3, section D.2.4),
 // also known as secp384r1.
 //
 // Multiple invocations of this function will return the same value, which can
@@ -251,7 +251,7 @@ var p384Order = []byte{
 	0x58, 0x1a, 0x0d, 0xb2, 0x48, 0xb0, 0xa7, 0x7a,
 	0xec, 0xec, 0x19, 0x6a, 0xcc, 0xc5, 0x29, 0x73}
 
-// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
+// P521 returns a [Curve] which implements NIST P-521 (FIPS 186-3, section D.2.5),
 // also known as secp521r1.
 //
 // Multiple invocations of this function will return the same value, which can

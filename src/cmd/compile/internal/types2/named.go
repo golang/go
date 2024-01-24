@@ -141,7 +141,7 @@ const (
 // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	return (*Checker)(nil).newNamed(obj, underlying, methods)
@@ -224,7 +224,7 @@ func (n *Named) setState(state namedState) {
 	atomic.StoreUint32(&n.state_, uint32(state))
 }
 
-// newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+// newNamed is like NewNamed but with a *Checker receiver.
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, fromRHS: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
@@ -434,7 +434,7 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
 		panic("underlying type must not be nil")
 	}
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	t.resolve().underlying = underlying
@@ -453,7 +453,8 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-func (t *Named) Underlying() Type { return t.resolve().underlying }
+// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
@@ -550,12 +551,6 @@ loop:
 	return u
 }
 
-func (n *Named) setUnderlying(typ Type) {
-	if n != nil {
-		n.underlying = typ
-	}
-}
-
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
 	n.resolve()
 	// If n is an instance, we may not have yet instantiated all of its methods.
@@ -598,7 +593,7 @@ func (n *Named) expandUnderlying() Type {
 	orig := n.inst.orig
 	targs := n.inst.targs
 
-	if _, unexpanded := orig.underlying.(*Named); unexpanded {
+	if asNamed(orig.underlying) != nil {
 		// We should only get a Named underlying type here during type checking
 		// (for example, in recursive type declarations).
 		assert(check != nil)
@@ -656,7 +651,7 @@ func (n *Named) expandUnderlying() Type {
 //
 // TODO(rfindley): eliminate this function or give it a better name.
 func safeUnderlying(typ Type) Type {
-	if t, _ := typ.(*Named); t != nil {
+	if t := asNamed(typ); t != nil {
 		return t.underlying
 	}
 	return typ.Underlying()

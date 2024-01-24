@@ -72,7 +72,7 @@ func ui64x8() {
 	}
 
 	// s390x:"CLGIJ\t[$]2, R[0-9]+, [$]255, "
-	for i := uint64(0); i >= 256; i-- {
+	for i := uint64(257); i >= 256; i-- {
 		dummy()
 	}
 
@@ -145,7 +145,7 @@ func ui32x8() {
 	}
 
 	// s390x:"CLIJ\t[$]2, R[0-9]+, [$]255, "
-	for i := uint32(0); i >= 256; i-- {
+	for i := uint32(257); i >= 256; i-- {
 		dummy()
 	}
 

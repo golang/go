@@ -274,7 +274,16 @@ lower:
 	RET
 
 	PCALIGN $16
-cmp8:	// 8 - 15B
+cmp8:	// 8 - 15B (0 - 15B if GOPPC64_power10)
+#ifdef GOPPC64_power10
+	SLD	$56,R9,R9
+	LXVLL	R5,R9,V3	// Load bytes starting from MSB to LSB, unused are zero filled.
+	LXVLL	R6,R9,V4
+	VCMPUQ	V3,V4,CR0	// Compare as a 128b integer.
+	SETB_CR0(R6)
+	ISEL	CR0EQ,R3,R6,R3	// If equal, length determines the return value.
+	RET
+#else
 	CMP	R9,$8
 	BLT	cmp4
 	ANDCC	$7,R9,R9
@@ -330,3 +339,4 @@ cmp0:
 	SETB_CR0(R6)
 	ISEL	CR0EQ,R3,R6,R3
 	RET
+#endif

@@ -14,6 +14,7 @@ import (
 	. "math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"testing/iotest"
@@ -31,13 +32,6 @@ type statsResults struct {
 	stddev      float64
 	closeEnough float64
 	maxError    float64
-}
-
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func nearEqual(a, b, closeEnough, maxError float64) bool {
@@ -338,7 +332,7 @@ func TestExpTables(t *testing.T) {
 func hasSlowFloatingPoint() bool {
 	switch runtime.GOARCH {
 	case "arm":
-		return os.Getenv("GOARM") == "5"
+		return os.Getenv("GOARM") == "5" || strings.HasSuffix(os.Getenv("GOARM"), ",softfloat")
 	case "mips", "mipsle", "mips64", "mips64le":
 		// Be conservative and assume that all mips boards
 		// have emulated floating point.

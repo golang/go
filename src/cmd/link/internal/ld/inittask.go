@@ -41,15 +41,21 @@ func (ctxt *Link) inittasks() {
 	switch ctxt.BuildMode {
 	case BuildModeExe, BuildModePIE, BuildModeCArchive, BuildModeCShared:
 		// Normally the inittask list will be run on program startup.
-		ctxt.mainInittasks = ctxt.inittaskSym("main..inittask", "go:main.inittasks")
+		ctxt.mainInittasks = ctxt.inittaskSym([]string{"main..inittask"}, "go:main.inittasks")
 	case BuildModePlugin:
 		// For plugins, the list will be run on plugin load.
-		ctxt.mainInittasks = ctxt.inittaskSym(fmt.Sprintf("%s..inittask", objabi.PathToPrefix(*flagPluginPath)), "go:plugin.inittasks")
+		ctxt.mainInittasks = ctxt.inittaskSym([]string{fmt.Sprintf("%s..inittask", objabi.PathToPrefix(*flagPluginPath))}, "go:plugin.inittasks")
 		// Make symbol local so multiple plugins don't clobber each other's inittask list.
 		ctxt.loader.SetAttrLocal(ctxt.mainInittasks, true)
 	case BuildModeShared:
-		// Nothing to do. The inittask list will be built by
-		// the final build (with the -linkshared option).
+		// For a shared library, all packages are roots.
+		var roots []string
+		for _, lib := range ctxt.Library {
+			roots = append(roots, fmt.Sprintf("%s..inittask", objabi.PathToPrefix(lib.Pkg)))
+		}
+		ctxt.mainInittasks = ctxt.inittaskSym(roots, "go:shlib.inittasks")
+		// Make symbol local so multiple plugins don't clobber each other's inittask list.
+		ctxt.loader.SetAttrLocal(ctxt.mainInittasks, true)
 	default:
 		Exitf("unhandled build mode %d", ctxt.BuildMode)
 	}
@@ -58,7 +64,7 @@ func (ctxt *Link) inittasks() {
 	// initialize the runtime_inittasks variable.
 	ldr := ctxt.loader
 	if ldr.Lookup("runtime.runtime_inittasks", 0) != 0 {
-		t := ctxt.inittaskSym("runtime..inittask", "go:runtime.inittasks")
+		t := ctxt.inittaskSym([]string{"runtime..inittask"}, "go:runtime.inittasks")
 
 		// This slice header is already defined in runtime/proc.go, so we update it here with new contents.
 		sh := ldr.Lookup("runtime.runtime_inittasks", 0)
@@ -72,11 +78,17 @@ func (ctxt *Link) inittasks() {
 }
 
 // inittaskSym builds a symbol containing pointers to all the inittasks
-// that need to be run, given the root inittask symbol.
-func (ctxt *Link) inittaskSym(rootName, symName string) loader.Sym {
+// that need to be run, given a list of root inittask symbols.
+func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
 	ldr := ctxt.loader
-	root := ldr.Lookup(rootName, 0)
-	if root == 0 {
+	var roots []loader.Sym
+	for _, n := range rootNames {
+		p := ldr.Lookup(n, 0)
+		if p != 0 {
+			roots = append(roots, p)
+		}
+	}
+	if len(roots) == 0 {
 		// Nothing to do
 		return 0
 	}
@@ -98,13 +110,15 @@ func (ctxt *Link) inittaskSym(rootName, symName string) loader.Sym {
 	// p's direct imports that have not yet been scheduled.
 	m := map[loader.Sym]int{}
 
-	// Find all reachable inittask records from the root.
+	// Find all reachable inittask records from the roots.
 	// Keep track of the dependency edges between them in edges.
 	// Keep track of how many imports each package has in m.
 	// q is the list of found but not yet explored packages.
 	var q []loader.Sym
-	m[root] = 0
-	q = append(q, root)
+	for _, p := range roots {
+		m[p] = 0
+		q = append(q, p)
+	}
 	for len(q) > 0 {
 		x := q[len(q)-1]
 		q = q[:len(q)-1]

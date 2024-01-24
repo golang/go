@@ -122,7 +122,7 @@ type posetNode struct {
 // poset is implemented as a forest of DAGs; in each DAG, if there is a path (directed)
 // from node A to B, it means that A<B (or A<=B). Equality is represented by mapping
 // two SSA values to the same DAG node; when a new equality relation is recorded
-// between two existing nodes,the nodes are merged, adjusting incoming and outgoing edges.
+// between two existing nodes, the nodes are merged, adjusting incoming and outgoing edges.
 //
 // Constants are specially treated. When a constant is added to the poset, it is
 // immediately linked to other constants already present; so for instance if the
@@ -1065,7 +1065,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 				return true
 			}
 
-			// Case #1, #3 o #4: nothing to do
+			// Case #1, #3, or #4: nothing to do
 			return true
 		}
 

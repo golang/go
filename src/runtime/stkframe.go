@@ -143,7 +143,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
 		if !retValid {
 			// argMap.n includes the results, but
 			// those aren't valid, so drop them.
-			n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
+			n := int32((mv.argLen &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
 			if n < argMap.n {
 				argMap.n = n
 			}
@@ -154,7 +154,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
 
 // getStackMap returns the locals and arguments live pointer maps, and
 // stack object list for frame.
-func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []stackObjectRecord) {
 	targetpc := frame.continpc
 	if targetpc == 0 {
 		// Frame is dead. Return empty bitvectors.
@@ -169,7 +169,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 		// the first instruction of the function changes the
 		// stack map.
 		targetpc--
-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc, cache)
+		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc)
 	}
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
@@ -234,7 +234,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
 	}
 
 	// stack objects.
-	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
+	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
 		unsafe.Sizeof(abi.RegArgs{}) > 0 && isReflect {
 		// For reflect.makeFuncStub and reflect.methodValueCall,
 		// we need to fake the stack object record.

@@ -112,7 +112,7 @@ func LastIndex(s, sep []byte) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, sep[0])
+		return bytealg.LastIndexByte(s, sep[0])
 	case n == len(s):
 		if Equal(s, sep) {
 			return 0
@@ -121,35 +121,12 @@ func LastIndex(s, sep []byte) int {
 	case n > len(s):
 		return -1
 	}
-	// Rabin-Karp search from the end of the string
-	hashss, pow := bytealg.HashStrRevBytes(sep)
-	last := len(s) - n
-	var h uint32
-	for i := len(s) - 1; i >= last; i-- {
-		h = h*bytealg.PrimeRK + uint32(s[i])
-	}
-	if h == hashss && Equal(s[last:], sep) {
-		return last
-	}
-	for i := last - 1; i >= 0; i-- {
-		h *= bytealg.PrimeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i+n])
-		if h == hashss && Equal(s[i:i+n], sep) {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexRabinKarp(s, sep)
 }
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s []byte, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByte(s, c)
 }
 
 // IndexRune interprets s as a sequence of UTF-8-encoded code points.
@@ -557,12 +534,12 @@ func Join(s [][]byte, sep []byte) []byte {
 	return b
 }
 
-// HasPrefix tests whether the byte slice s begins with prefix.
+// HasPrefix reports whether the byte slice s begins with prefix.
 func HasPrefix(s, prefix []byte) bool {
 	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
 }
 
-// HasSuffix tests whether the byte slice s ends with suffix.
+// HasSuffix reports whether the byte slice s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
 }
@@ -1336,7 +1313,7 @@ func Index(s, sep []byte) int {
 			// we should cutover at even larger average skips,
 			// because Equal becomes that much more expensive.
 			// This code does not take that effect into account.
-			j := bytealg.IndexRabinKarpBytes(s[i:], sep)
+			j := bytealg.IndexRabinKarp(s[i:], sep)
 			if j < 0 {
 				return -1
 			}

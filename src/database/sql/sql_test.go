@@ -1803,6 +1803,18 @@ func TestNullStringParam(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestGenericNullStringParam(t *testing.T) {
+	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
+		{Null[string]{"aqua", true}, "", Null[string]{"aqua", true}},
+		{Null[string]{"brown", false}, "", Null[string]{"", false}},
+		{"chartreuse", "", Null[string]{"chartreuse", true}},
+		{Null[string]{"darkred", true}, "", Null[string]{"darkred", true}},
+		{Null[string]{"eel", false}, "", Null[string]{"", false}},
+		{"foo", Null[string]{"black", false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullInt64Param(t *testing.T) {
 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
 		{NullInt64{31, true}, 1, NullInt64{31, true}},
@@ -1916,8 +1928,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	}
 
 	// Can't put null val into non-null col
-	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
-		t.Errorf("expected error inserting nil val with prepared statement Exec")
+	row5 := spec.rows[5]
+	if _, err := stmt.Exec(6, "bob", row5.nullParam, row5.notNullParam); err == nil {
+		t.Errorf("expected error inserting nil val with prepared statement Exec: NULL=%#v, NOT-NULL=%#v", row5.nullParam, row5.notNullParam)
 	}
 
 	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
@@ -3756,7 +3769,7 @@ func TestIssue18719(t *testing.T) {
 		cancel()
 
 		// Wait for the context to cancel and tx to rollback.
-		for tx.isDone() == false {
+		for !tx.isDone() {
 			time.Sleep(pollDuration)
 		}
 	}

@@ -66,7 +66,7 @@ func (a *llvmSymbolizerJob) close() {
 	a.cmd.Wait()
 }
 
-// newLlvmSymbolizer starts the given llvmSymbolizer command reporting
+// newLLVMSymbolizer starts the given llvmSymbolizer command reporting
 // information about the given executable file. If file is a shared
 // library, base should be the address at which it was mapped in the
 // program under consideration.

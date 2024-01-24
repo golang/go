@@ -590,7 +590,7 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
 	}
 
 	// read back zip file and check that we get to the end of it
-	r, err := NewReader(buf, int64(buf.Size()))
+	r, err := NewReader(buf, buf.Size())
 	if err != nil {
 		t.Fatal("reader:", err)
 	}

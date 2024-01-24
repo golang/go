@@ -12,496 +12,484 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"slices"
 	"strings"
 	"testing"
 )
 
 func init() {
-	registerHelperCommand("exec", cmdExec)
-	registerHelperCommand("lookpath", cmdLookPath)
+	registerHelperCommand("printpath", cmdPrintPath)
 }
 
-func cmdLookPath(args ...string) {
-	p, err := exec.LookPath(args[0])
+func cmdPrintPath(args ...string) {
+	exe, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Executable: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Print(p)
+	fmt.Println(exe)
 }
 
-func cmdExec(args ...string) {
-	cmd := exec.Command(args[1])
-	cmd.Dir = args[0]
-	if errors.Is(cmd.Err, exec.ErrDot) {
-		cmd.Err = nil
+// makePATH returns a PATH variable referring to the
+// given directories relative to a root directory.
+//
+// The empty string results in an empty entry.
+// Paths beginning with . are kept as relative entries.
+func makePATH(root string, dirs []string) string {
+	paths := make([]string, 0, len(dirs))
+	for _, d := range dirs {
+		switch {
+		case d == "":
+			paths = append(paths, "")
+		case d == "." || (len(d) >= 2 && d[0] == '.' && os.IsPathSeparator(d[1])):
+			paths = append(paths, filepath.Clean(d))
+		default:
+			paths = append(paths, filepath.Join(root, d))
+		}
 	}
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
-		os.Exit(1)
-	}
-	fmt.Printf("%s", string(output))
+	return strings.Join(paths, string(os.PathListSeparator))
 }
 
-func installExe(t *testing.T, dest, src string) {
-	fsrc, err := os.Open(src)
-	if err != nil {
-		t.Fatal("os.Open failed: ", err)
-	}
-	defer fsrc.Close()
-	fdest, err := os.Create(dest)
-	if err != nil {
-		t.Fatal("os.Create failed: ", err)
-	}
-	defer fdest.Close()
-	_, err = io.Copy(fdest, fsrc)
-	if err != nil {
-		t.Fatal("io.Copy failed: ", err)
+// installProgs creates executable files (or symlinks to executable files) at
+// multiple destination paths. It uses root as prefix for all destination files.
+func installProgs(t *testing.T, root string, files []string) {
+	for _, f := range files {
+		dstPath := filepath.Join(root, f)
+
+		dir := filepath.Dir(dstPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		if os.IsPathSeparator(f[len(f)-1]) {
+			continue // directory and PATH entry only.
+		}
+		if strings.EqualFold(filepath.Ext(f), ".bat") {
+			installBat(t, dstPath)
+		} else {
+			installExe(t, dstPath)
+		}
 	}
 }
 
-func installBat(t *testing.T, dest string) {
-	f, err := os.Create(dest)
+// installExe installs a copy of the test executable
+// at the given location, creating directories as needed.
+//
+// (We use a copy instead of just a symlink to ensure that os.Executable
+// always reports an unambiguous path, regardless of how it is implemented.)
+func installExe(t *testing.T, dstPath string) {
+	src, err := os.Open(exePath(t))
 	if err != nil {
-		t.Fatalf("failed to create batch file: %v", err)
+		t.Fatal(err)
 	}
-	defer f.Close()
-	fmt.Fprintf(f, "@echo %s\n", dest)
+	defer src.Close()
+
+	dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o777)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := dst.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
-func installProg(t *testing.T, dest, srcExe string) {
-	err := os.MkdirAll(filepath.Dir(dest), 0700)
+// installBat creates a batch file at dst that prints its own
+// path when run.
+func installBat(t *testing.T, dstPath string) {
+	dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o777)
 	if err != nil {
-		t.Fatal("os.MkdirAll failed: ", err)
+		t.Fatal(err)
 	}
-	if strings.ToLower(filepath.Ext(dest)) == ".bat" {
-		installBat(t, dest)
-		return
+	defer func() {
+		if err := dst.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if _, err := fmt.Fprintf(dst, "@echo %s\r\n", dstPath); err != nil {
+		t.Fatal(err)
 	}
-	installExe(t, dest, srcExe)
 }
 
 type lookPathTest struct {
-	rootDir   string
-	PATH      string
-	PATHEXT   string
-	files     []string
-	searchFor string
-	fails     bool // test is expected to fail
-}
-
-func (test lookPathTest) runProg(t *testing.T, env []string, cmd *exec.Cmd) (string, error) {
-	cmd.Env = env
-	cmd.Dir = test.rootDir
-	args := append([]string(nil), cmd.Args...)
-	args[0] = filepath.Base(args[0])
-	cmdText := fmt.Sprintf("%q command", strings.Join(args, " "))
-	out, err := cmd.CombinedOutput()
-	if (err != nil) != test.fails {
-		if test.fails {
-			t.Fatalf("test=%+v: %s succeeded, but expected to fail", test, cmdText)
-		}
-		t.Fatalf("test=%+v: %s failed, but expected to succeed: %v - %v", test, cmdText, err, string(out))
-	}
-	if err != nil {
-		return "", fmt.Errorf("test=%+v: %s failed: %v - %v", test, cmdText, err, string(out))
-	}
-	// normalise program output
-	p := string(out)
-	// trim terminating \r and \n that batch file outputs
-	for len(p) > 0 && (p[len(p)-1] == '\n' || p[len(p)-1] == '\r') {
-		p = p[:len(p)-1]
-	}
-	if !filepath.IsAbs(p) {
-		return p, nil
-	}
-	if p[:len(test.rootDir)] != test.rootDir {
-		t.Fatalf("test=%+v: %s output is wrong: %q must have %q prefix", test, cmdText, p, test.rootDir)
-	}
-	return p[len(test.rootDir)+1:], nil
-}
-
-func updateEnv(env []string, name, value string) []string {
-	for i, e := range env {
-		if strings.HasPrefix(strings.ToUpper(e), name+"=") {
-			env[i] = name + "=" + value
-			return env
-		}
-	}
-	return append(env, name+"="+value)
-}
-
-func createEnv(dir, PATH, PATHEXT string) []string {
-	env := os.Environ()
-	env = updateEnv(env, "PATHEXT", PATHEXT)
-	// Add dir in front of every directory in the PATH.
-	dirs := filepath.SplitList(PATH)
-	for i := range dirs {
-		dirs[i] = filepath.Join(dir, dirs[i])
-	}
-	path := strings.Join(dirs, ";")
-	env = updateEnv(env, "PATH", os.Getenv("SystemRoot")+"/System32;"+path)
-	return env
-}
-
-// createFiles copies srcPath file into multiply files.
-// It uses dir as prefix for all destination files.
-func createFiles(t *testing.T, dir string, files []string, srcPath string) {
-	for _, f := range files {
-		installProg(t, filepath.Join(dir, f), srcPath)
-	}
-}
-
-func (test lookPathTest) run(t *testing.T, tmpdir, printpathExe string) {
-	test.rootDir = tmpdir
-	createFiles(t, test.rootDir, test.files, printpathExe)
-	env := createEnv(test.rootDir, test.PATH, test.PATHEXT)
-	// Run "cmd.exe /c test.searchFor" with new environment and
-	// work directory set. All candidates are copies of printpath.exe.
-	// These will output their program paths when run.
-	should, errCmd := test.runProg(t, env, testenv.Command(t, "cmd", "/c", test.searchFor))
-	// Run the lookpath program with new environment and work directory set.
-	have, errLP := test.runProg(t, env, helperCommand(t, "lookpath", test.searchFor))
-	// Compare results.
-	if errCmd == nil && errLP == nil {
-		// both succeeded
-		if should != have {
-			t.Fatalf("test=%+v:\ncmd /c ran: %s\nlookpath found: %s", test, should, have)
-		}
-		return
-	}
-	if errCmd != nil && errLP != nil {
-		// both failed -> continue
-		return
-	}
-	if errCmd != nil {
-		t.Fatal(errCmd)
-	}
-	if errLP != nil {
-		t.Fatal(errLP)
-	}
+	name            string
+	PATHEXT         string // empty to use default
+	files           []string
+	PATH            []string // if nil, use all parent directories from files
+	searchFor       string
+	want            string
+	wantErr         error
+	skipCmdExeCheck bool // if true, do not check want against the behavior of cmd.exe
 }
 
 var lookPathTests = []lookPathTest{
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "first match",
 		files:     []string{`p1\a.exe`, `p2\a.exe`, `p2\a`},
 		searchFor: `a`,
+		want:      `p1\a.exe`,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1.dir;p2.dir`,
+		name:      "dirs with extensions",
 		files:     []string{`p1.dir\a`, `p2.dir\a.exe`},
 		searchFor: `a`,
+		want:      `p2.dir\a.exe`,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "first with extension",
 		files:     []string{`p1\a.exe`, `p2\a.exe`},
 		searchFor: `a.exe`,
+		want:      `p1\a.exe`,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "specific name",
 		files:     []string{`p1\a.exe`, `p2\b.exe`},
 		searchFor: `b`,
+		want:      `p2\b.exe`,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "no extension",
 		files:     []string{`p1\b`, `p2\a`},
 		searchFor: `a`,
-		fails:     true, // TODO(brainman): do not know why this fails
+		wantErr:   exec.ErrNotFound,
 	},
-	// If the command name specifies a path, the shell searches
-	// the specified path for an executable file matching
-	// the command name. If a match is found, the external
-	// command (the executable file) executes.
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "directory, no extension",
 		files:     []string{`p1\a.exe`, `p2\a.exe`},
 		searchFor: `p2\a`,
+		want:      `p2\a.exe`,
 	},
-	// If the command name specifies a path, the shell searches
-	// the specified path for an executable file matching the command
-	// name. ... If no match is found, the shell reports an error
-	// and command processing completes.
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
-		files:     []string{`p1\b.exe`, `p2\a.exe`},
-		searchFor: `p2\b`,
-		fails:     true,
-	},
-	// If the command name does not specify a path, the shell
-	// searches the current directory for an executable file
-	// matching the command name. If a match is found, the external
-	// command (the executable file) executes.
-	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
-		files:     []string{`a`, `p1\a.exe`, `p2\a.exe`},
-		searchFor: `a`,
-	},
-	// The shell now searches each directory specified by the
-	// PATH environment variable, in the order listed, for an
-	// executable file matching the command name. If a match
-	// is found, the external command (the executable file) executes.
-	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
-		files:     []string{`p1\a.exe`, `p2\a.exe`},
-		searchFor: `a`,
-	},
-	// The shell now searches each directory specified by the
-	// PATH environment variable, in the order listed, for an
-	// executable file matching the command name. If no match
-	// is found, the shell reports an error and command processing
-	// completes.
-	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "no match",
 		files:     []string{`p1\a.exe`, `p2\a.exe`},
 		searchFor: `b`,
-		fails:     true,
-	},
-	// If the command name includes a file extension, the shell
-	// searches each directory for the exact file name specified
-	// by the command name.
-	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
-		files:     []string{`p1\a.exe`, `p2\a.exe`},
-		searchFor: `a.exe`,
+		wantErr:   exec.ErrNotFound,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
+		name:      "no match with dir",
+		files:     []string{`p1\b.exe`, `p2\a.exe`},
+		searchFor: `p2\b`,
+		wantErr:   exec.ErrNotFound,
+	},
+	{
+		name:      "extensionless file in CWD ignored",
+		files:     []string{`a`, `p1\a.exe`, `p2\a.exe`},
+		searchFor: `a`,
+		want:      `p1\a.exe`,
+	},
+	{
+		name:      "extensionless file in PATH ignored",
+		files:     []string{`p1\a`, `p2\a.exe`},
+		searchFor: `a`,
+		want:      `p2\a.exe`,
+	},
+	{
+		name:      "specific extension",
+		files:     []string{`p1\a.exe`, `p2\a.bat`},
+		searchFor: `a.bat`,
+		want:      `p2\a.bat`,
+	},
+	{
+		name:      "mismatched extension",
 		files:     []string{`p1\a.exe`, `p2\a.exe`},
 		searchFor: `a.com`,
-		fails:     true, // includes extension and not exact file name match
+		wantErr:   exec.ErrNotFound,
 	},
 	{
-		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1`,
+		name:      "doubled extension",
 		files:     []string{`p1\a.exe.exe`},
 		searchFor: `a.exe`,
+		want:      `p1\a.exe.exe`,
 	},
 	{
+		name:      "extension not in PATHEXT",
 		PATHEXT:   `.COM;.BAT`,
-		PATH:      `p1;p2`,
 		files:     []string{`p1\a.exe`, `p2\a.exe`},
 		searchFor: `a.exe`,
+		want:      `p1\a.exe`,
 	},
-	// If the command name does not include a file extension, the shell
-	// adds the extensions listed in the PATHEXT environment variable,
-	// one by one, and searches the directory for that file name. Note
-	// that the shell tries all possible file extensions in a specific
-	// directory before moving on to search the next directory
-	// (if there is one).
 	{
+		name:      "first allowed by PATHEXT",
 		PATHEXT:   `.COM;.EXE`,
-		PATH:      `p1;p2`,
 		files:     []string{`p1\a.bat`, `p2\a.exe`},
 		searchFor: `a`,
+		want:      `p2\a.exe`,
 	},
 	{
+		name:      "first directory containing a PATHEXT match",
 		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
 		files:     []string{`p1\a.bat`, `p2\a.exe`},
 		searchFor: `a`,
+		want:      `p1\a.bat`,
 	},
 	{
+		name:      "first PATHEXT entry",
 		PATHEXT:   `.COM;.EXE;.BAT`,
-		PATH:      `p1;p2`,
 		files:     []string{`p1\a.bat`, `p1\a.exe`, `p2\a.bat`, `p2\a.exe`},
 		searchFor: `a`,
+		want:      `p1\a.exe`,
 	},
 	{
-		PATHEXT:   `.COM`,
-		PATH:      `p1;p2`,
-		files:     []string{`p1\a.bat`, `p2\a.exe`},
+		name:      "ignore dir with PATHEXT extension",
+		files:     []string{`a.exe\`},
 		searchFor: `a`,
-		fails:     true, // tried all extensions in PATHEXT, but none matches
+		wantErr:   exec.ErrNotFound,
+	},
+	{
+		name:      "ignore empty PATH entry",
+		files:     []string{`a.bat`, `p\a.bat`},
+		PATH:      []string{`p`},
+		searchFor: `a`,
+		want:      `p\a.bat`,
+		// If cmd.exe is too old it might not respect NoDefaultCurrentDirectoryInExePath,
+		// so skip that check.
+		skipCmdExeCheck: true,
+	},
+	{
+		name:      "return ErrDot if found by a different absolute path",
+		files:     []string{`p1\a.bat`, `p2\a.bat`},
+		PATH:      []string{`.\p1`, `p2`},
+		searchFor: `a`,
+		want:      `p1\a.bat`,
+		wantErr:   exec.ErrDot,
+	},
+	{
+		name:      "suppress ErrDot if also found in absolute path",
+		files:     []string{`p1\a.bat`, `p2\a.bat`},
+		PATH:      []string{`.\p1`, `p1`, `p2`},
+		searchFor: `a`,
+		want:      `p1\a.bat`,
 	},
 }
 
 func TestLookPathWindows(t *testing.T) {
-	if testing.Short() {
-		maySkipHelperCommand("lookpath")
-		t.Skipf("skipping test in short mode that would build a helper binary")
+	// Not parallel: uses Chdir and Setenv.
+
+	// We are using the "printpath" command mode to test exec.Command here,
+	// so we won't be calling helperCommand to resolve it.
+	// That may cause it to appear to be unused.
+	maySkipHelperCommand("printpath")
+
+	// Before we begin, find the absolute path to cmd.exe.
+	// In non-short mode, we will use it to check the ground truth
+	// of the test's "want" field.
+	cmdExe, err := exec.LookPath("cmd")
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Parallel()
 
-	tmp := t.TempDir()
-	printpathExe := buildPrintPathExe(t, tmp)
-
-	// Run all tests.
-	for i, test := range lookPathTests {
-		i, test := i, test
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			t.Parallel()
-
-			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
-			err := os.Mkdir(dir, 0700)
-			if err != nil {
-				t.Fatal("Mkdir failed: ", err)
+	for _, tt := range lookPathTests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.want == "" && tt.wantErr == nil {
+				t.Fatalf("test must specify either want or wantErr")
 			}
-			test.run(t, dir, printpathExe)
+
+			root := t.TempDir()
+			installProgs(t, root, tt.files)
+
+			if tt.PATHEXT != "" {
+				t.Setenv("PATHEXT", tt.PATHEXT)
+				t.Logf("set PATHEXT=%s", tt.PATHEXT)
+			}
+
+			var pathVar string
+			if tt.PATH == nil {
+				paths := make([]string, 0, len(tt.files))
+				for _, f := range tt.files {
+					dir := filepath.Join(root, filepath.Dir(f))
+					if !slices.Contains(paths, dir) {
+						paths = append(paths, dir)
+					}
+				}
+				pathVar = strings.Join(paths, string(os.PathListSeparator))
+			} else {
+				pathVar = makePATH(root, tt.PATH)
+			}
+			t.Setenv("PATH", pathVar)
+			t.Logf("set PATH=%s", pathVar)
+
+			chdir(t, root)
+
+			if !testing.Short() && !(tt.skipCmdExeCheck || errors.Is(tt.wantErr, exec.ErrDot)) {
+				// Check that cmd.exe, which is our source of ground truth,
+				// agrees that our test case is correct.
+				cmd := testenv.Command(t, cmdExe, "/c", tt.searchFor, "printpath")
+				out, err := cmd.Output()
+				if err == nil {
+					gotAbs := strings.TrimSpace(string(out))
+					wantAbs := ""
+					if tt.want != "" {
+						wantAbs = filepath.Join(root, tt.want)
+					}
+					if gotAbs != wantAbs {
+						// cmd.exe disagrees. Probably the test case is wrong?
+						t.Fatalf("%v\n\tresolved to %s\n\twant %s", cmd, gotAbs, wantAbs)
+					}
+				} else if tt.wantErr == nil {
+					if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+						t.Fatalf("%v: %v\n%s", cmd, err, ee.Stderr)
+					}
+					t.Fatalf("%v: %v", cmd, err)
+				}
+			}
+
+			got, err := exec.LookPath(tt.searchFor)
+			if filepath.IsAbs(got) {
+				got, err = filepath.Rel(root, got)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got != tt.want {
+				t.Errorf("LookPath(%#q) = %#q; want %#q", tt.searchFor, got, tt.want)
+			}
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("LookPath(%#q): %v; want %v", tt.searchFor, err, tt.wantErr)
+			}
 		})
 	}
 }
 
 type commandTest struct {
-	PATH  string
-	files []string
-	dir   string
-	arg0  string
-	want  string
-	fails bool // test is expected to fail
-}
-
-func (test commandTest) isSuccess(rootDir, output string, err error) error {
-	if err != nil {
-		return fmt.Errorf("test=%+v: exec: %v %v", test, err, output)
-	}
-	path := output
-	if path[:len(rootDir)] != rootDir {
-		return fmt.Errorf("test=%+v: %q must have %q prefix", test, path, rootDir)
-	}
-	path = path[len(rootDir)+1:]
-	if path != test.want {
-		return fmt.Errorf("test=%+v: want %q, got %q", test, test.want, path)
-	}
-	return nil
-}
-
-func (test commandTest) runOne(t *testing.T, rootDir string, env []string, dir, arg0 string) {
-	cmd := helperCommand(t, "exec", dir, arg0)
-	cmd.Dir = rootDir
-	cmd.Env = env
-	output, err := cmd.CombinedOutput()
-	err = test.isSuccess(rootDir, string(output), err)
-	if (err != nil) != test.fails {
-		if test.fails {
-			t.Errorf("test=%+v: succeeded, but expected to fail", test)
-		} else {
-			t.Error(err)
-		}
-	}
-}
-
-func (test commandTest) run(t *testing.T, rootDir, printpathExe string) {
-	createFiles(t, rootDir, test.files, printpathExe)
-	PATHEXT := `.COM;.EXE;.BAT`
-	env := createEnv(rootDir, test.PATH, PATHEXT)
-	test.runOne(t, rootDir, env, test.dir, test.arg0)
+	name       string
+	PATH       []string
+	files      []string
+	dir        string
+	arg0       string
+	want       string
+	wantPath   string // the resolved c.Path, if different from want
+	wantErrDot bool
+	wantRunErr error
 }
 
 var commandTests = []commandTest{
 	// testing commands with no slash, like `a.exe`
 	{
-		// should find a.exe in current directory
-		files: []string{`a.exe`},
-		arg0:  `a.exe`,
-		want:  `a.exe`,
+		name:       "current directory",
+		files:      []string{`a.exe`},
+		PATH:       []string{"."},
+		arg0:       `a.exe`,
+		want:       `a.exe`,
+		wantErrDot: true,
 	},
 	{
-		// like above, but add PATH in attempt to break the test
-		PATH:  `p2;p`,
-		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
-		arg0:  `a.exe`,
-		want:  `a.exe`,
+		name:       "with extra PATH",
+		files:      []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
+		PATH:       []string{".", "p2", "p"},
+		arg0:       `a.exe`,
+		want:       `a.exe`,
+		wantErrDot: true,
 	},
 	{
-		// like above, but use "a" instead of "a.exe" for command
-		PATH:  `p2;p`,
-		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
-		arg0:  `a`,
-		want:  `a.exe`,
+		name:       "with extra PATH and no extension",
+		files:      []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
+		PATH:       []string{".", "p2", "p"},
+		arg0:       `a`,
+		want:       `a.exe`,
+		wantErrDot: true,
 	},
 	// testing commands with slash, like `.\a.exe`
 	{
-		// should find p\a.exe
+		name:  "with dir",
 		files: []string{`p\a.exe`},
+		PATH:  []string{"."},
 		arg0:  `p\a.exe`,
 		want:  `p\a.exe`,
 	},
 	{
-		// like above, but adding `.` in front of executable should still be OK
+		name:  "with explicit dot",
 		files: []string{`p\a.exe`},
+		PATH:  []string{"."},
 		arg0:  `.\p\a.exe`,
 		want:  `p\a.exe`,
 	},
 	{
-		// like above, but with PATH added in attempt to break it
-		PATH:  `p2`,
+		name:  "with irrelevant PATH",
 		files: []string{`p\a.exe`, `p2\a.exe`},
+		PATH:  []string{".", "p2"},
 		arg0:  `p\a.exe`,
 		want:  `p\a.exe`,
 	},
 	{
-		// like above, but make sure .exe is tried even for commands with slash
-		PATH:  `p2`,
+		name:  "with slash and no extension",
 		files: []string{`p\a.exe`, `p2\a.exe`},
+		PATH:  []string{".", "p2"},
 		arg0:  `p\a`,
 		want:  `p\a.exe`,
 	},
 	// tests commands, like `a.exe`, with c.Dir set
 	{
-		// should not find a.exe in p, because LookPath(`a.exe`) will fail
-		files: []string{`p\a.exe`},
-		dir:   `p`,
-		arg0:  `a.exe`,
-		want:  `p\a.exe`,
-		fails: true,
+		// should not find a.exe in p, because LookPath(`a.exe`) will fail when
+		// called by Command (before Dir is set), and that error is sticky.
+		name:       "not found before Dir",
+		files:      []string{`p\a.exe`},
+		PATH:       []string{"."},
+		dir:        `p`,
+		arg0:       `a.exe`,
+		want:       `p\a.exe`,
+		wantRunErr: exec.ErrNotFound,
 	},
 	{
-		// LookPath(`a.exe`) will find `.\a.exe`, but prefixing that with
+		// LookPath(`a.exe`) will resolve to `.\a.exe`, but prefixing that with
 		// dir `p\a.exe` will refer to a non-existent file
-		files: []string{`a.exe`, `p\not_important_file`},
-		dir:   `p`,
-		arg0:  `a.exe`,
-		want:  `a.exe`,
-		fails: true,
+		name:       "resolved before Dir",
+		files:      []string{`a.exe`, `p\not_important_file`},
+		PATH:       []string{"."},
+		dir:        `p`,
+		arg0:       `a.exe`,
+		want:       `a.exe`,
+		wantErrDot: true,
+		wantRunErr: fs.ErrNotExist,
 	},
 	{
 		// like above, but making test succeed by installing file
 		// in referred destination (so LookPath(`a.exe`) will still
 		// find `.\a.exe`, but we successfully execute `p\a.exe`)
-		files: []string{`a.exe`, `p\a.exe`},
-		dir:   `p`,
-		arg0:  `a.exe`,
-		want:  `p\a.exe`,
+		name:       "relative to Dir",
+		files:      []string{`a.exe`, `p\a.exe`},
+		PATH:       []string{"."},
+		dir:        `p`,
+		arg0:       `a.exe`,
+		want:       `p\a.exe`,
+		wantErrDot: true,
 	},
 	{
 		// like above, but add PATH in attempt to break the test
-		PATH:  `p2;p`,
-		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
-		dir:   `p`,
-		arg0:  `a.exe`,
-		want:  `p\a.exe`,
+		name:       "relative to Dir with extra PATH",
+		files:      []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
+		PATH:       []string{".", "p2", "p"},
+		dir:        `p`,
+		arg0:       `a.exe`,
+		want:       `p\a.exe`,
+		wantErrDot: true,
 	},
 	{
 		// like above, but use "a" instead of "a.exe" for command
-		PATH:  `p2;p`,
-		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
-		dir:   `p`,
-		arg0:  `a`,
-		want:  `p\a.exe`,
+		name:       "relative to Dir with extra PATH and no extension",
+		files:      []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
+		PATH:       []string{".", "p2", "p"},
+		dir:        `p`,
+		arg0:       `a`,
+		want:       `p\a.exe`,
+		wantErrDot: true,
 	},
 	{
-		// finds `a.exe` in the PATH regardless of dir set
-		// because LookPath returns full path in that case
-		PATH:  `p2;p`,
+		// finds `a.exe` in the PATH regardless of Dir because Command resolves the
+		// full path (using LookPath) before Dir is set.
+		name:  "from PATH with no match in Dir",
 		files: []string{`p\a.exe`, `p2\a.exe`},
+		PATH:  []string{".", "p2", "p"},
 		dir:   `p`,
 		arg0:  `a.exe`,
 		want:  `p2\a.exe`,
@@ -509,104 +497,141 @@ var commandTests = []commandTest{
 	// tests commands, like `.\a.exe`, with c.Dir set
 	{
 		// should use dir when command is path, like ".\a.exe"
+		name:  "relative to Dir with explicit dot",
 		files: []string{`p\a.exe`},
+		PATH:  []string{"."},
 		dir:   `p`,
 		arg0:  `.\a.exe`,
 		want:  `p\a.exe`,
 	},
 	{
 		// like above, but with PATH added in attempt to break it
-		PATH:  `p2`,
+		name:  "relative to Dir with dot and extra PATH",
 		files: []string{`p\a.exe`, `p2\a.exe`},
+		PATH:  []string{".", "p2"},
 		dir:   `p`,
 		arg0:  `.\a.exe`,
 		want:  `p\a.exe`,
 	},
 	{
-		// like above, but make sure .exe is tried even for commands with slash
-		PATH:  `p2`,
+		// LookPath(".\a") will fail before Dir is set, and that error is sticky.
+		name:  "relative to Dir with dot and extra PATH and no extension",
 		files: []string{`p\a.exe`, `p2\a.exe`},
+		PATH:  []string{".", "p2"},
 		dir:   `p`,
 		arg0:  `.\a`,
 		want:  `p\a.exe`,
 	},
+	{
+		// LookPath(".\a") will fail before Dir is set, and that error is sticky.
+		name:  "relative to Dir with different extension",
+		files: []string{`a.exe`, `p\a.bat`},
+		PATH:  []string{"."},
+		dir:   `p`,
+		arg0:  `.\a`,
+		want:  `p\a.bat`,
+	},
 }
 
 func TestCommand(t *testing.T) {
-	if testing.Short() {
-		maySkipHelperCommand("exec")
-		t.Skipf("skipping test in short mode that would build a helper binary")
-	}
-	t.Parallel()
+	// Not parallel: uses Chdir and Setenv.
 
-	tmp := t.TempDir()
-	printpathExe := buildPrintPathExe(t, tmp)
+	// We are using the "printpath" command mode to test exec.Command here,
+	// so we won't be calling helperCommand to resolve it.
+	// That may cause it to appear to be unused.
+	maySkipHelperCommand("printpath")
 
-	// Run all tests.
-	for i, test := range commandTests {
-		i, test := i, test
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			t.Parallel()
-
-			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
-			err := os.Mkdir(dir, 0700)
-			if err != nil {
-				t.Fatal("Mkdir failed: ", err)
+	for _, tt := range commandTests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.PATH == nil {
+				t.Fatalf("test must specify PATH")
 			}
-			test.run(t, dir, printpathExe)
+
+			root := t.TempDir()
+			installProgs(t, root, tt.files)
+
+			pathVar := makePATH(root, tt.PATH)
+			t.Setenv("PATH", pathVar)
+			t.Logf("set PATH=%s", pathVar)
+
+			chdir(t, root)
+
+			cmd := exec.Command(tt.arg0, "printpath")
+			cmd.Dir = filepath.Join(root, tt.dir)
+			if tt.wantErrDot {
+				if errors.Is(cmd.Err, exec.ErrDot) {
+					cmd.Err = nil
+				} else {
+					t.Fatalf("cmd.Err = %v; want ErrDot", cmd.Err)
+				}
+			}
+
+			out, err := cmd.Output()
+			if err != nil {
+				if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+					t.Logf("%v: %v\n%s", cmd, err, ee.Stderr)
+				} else {
+					t.Logf("%v: %v", cmd, err)
+				}
+				if !errors.Is(err, tt.wantRunErr) {
+					t.Errorf("want %v", tt.wantRunErr)
+				}
+				return
+			}
+
+			got := strings.TrimSpace(string(out))
+			if filepath.IsAbs(got) {
+				got, err = filepath.Rel(root, got)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got != tt.want {
+				t.Errorf("\nran  %#q\nwant %#q", got, tt.want)
+			}
+
+			gotPath := cmd.Path
+			wantPath := tt.wantPath
+			if wantPath == "" {
+				if strings.Contains(tt.arg0, `\`) {
+					wantPath = tt.arg0
+				} else if tt.wantErrDot {
+					wantPath = strings.TrimPrefix(tt.want, tt.dir+`\`)
+				} else {
+					wantPath = filepath.Join(root, tt.want)
+				}
+			}
+			if gotPath != wantPath {
+				t.Errorf("\ncmd.Path = %#q\nwant       %#q", gotPath, wantPath)
+			}
 		})
 	}
 }
 
-// buildPrintPathExe creates a Go program that prints its own path.
-// dir is a temp directory where executable will be created.
-// The function returns full path to the created program.
-func buildPrintPathExe(t *testing.T, dir string) string {
-	const name = "printpath"
-	srcname := name + ".go"
-	err := os.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
-	if err != nil {
-		t.Fatalf("failed to create source: %v", err)
-	}
-	if err != nil {
-		t.Fatalf("failed to execute template: %v", err)
-	}
-	outname := name + ".exe"
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", outname, srcname)
-	cmd.Dir = dir
+func TestAbsCommandWithDoubledExtension(t *testing.T) {
+	t.Parallel()
+
+	// We expect that ".com" is always included in PATHEXT, but it may also be
+	// found in the import path of a Go package. If it is at the root of the
+	// import path, the resulting executable may be named like "example.com.exe".
+	//
+	// Since "example.com" looks like a proper executable name, it is probably ok
+	// for exec.Command to try to run it directly without re-resolving it.
+	// However, exec.LookPath should try a little harder to figure it out.
+
+	comPath := filepath.Join(t.TempDir(), "example.com")
+	batPath := comPath + ".bat"
+	installBat(t, batPath)
+
+	cmd := exec.Command(comPath)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to build executable: %v - %v", err, string(out))
+	t.Logf("%v: %v\n%s", cmd, err, out)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("Command(%#q).Run: %v\nwant fs.ErrNotExist", comPath, err)
 	}
-	return filepath.Join(dir, outname)
-}
 
-const printpathSrc = `
-package main
-
-import (
-	"os"
-	"syscall"
-	"unsafe"
-)
-
-func getMyName() (string, error) {
-	var sysproc = syscall.MustLoadDLL("kernel32.dll").MustFindProc("GetModuleFileNameW")
-	b := make([]uint16, syscall.MAX_PATH)
-	r, _, err := sysproc.Call(0, uintptr(unsafe.Pointer(&b[0])), uintptr(len(b)))
-	n := uint32(r)
-	if n == 0 {
-		return "", err
+	resolved, err := exec.LookPath(comPath)
+	if err != nil || resolved != batPath {
+		t.Fatalf("LookPath(%#q) = %v, %v; want %#q, <nil>", comPath, resolved, err, batPath)
 	}
-	return syscall.UTF16ToString(b[0:n]), nil
 }
-
-func main() {
-	path, err := getMyName()
-	if err != nil {
-		os.Stderr.Write([]byte("getMyName failed: " + err.Error() + "\n"))
-		os.Exit(1)
-	}
-	os.Stdout.Write([]byte(path))
-}
-`

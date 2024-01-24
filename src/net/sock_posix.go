@@ -89,30 +89,6 @@ func (fd *netFD) ctrlNetwork() string {
 	return fd.net + "6"
 }
 
-func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
-	switch fd.family {
-	case syscall.AF_INET, syscall.AF_INET6:
-		switch fd.sotype {
-		case syscall.SOCK_STREAM:
-			return sockaddrToTCP
-		case syscall.SOCK_DGRAM:
-			return sockaddrToUDP
-		case syscall.SOCK_RAW:
-			return sockaddrToIP
-		}
-	case syscall.AF_UNIX:
-		switch fd.sotype {
-		case syscall.SOCK_STREAM:
-			return sockaddrToUnix
-		case syscall.SOCK_DGRAM:
-			return sockaddrToUnixgram
-		case syscall.SOCK_SEQPACKET:
-			return sockaddrToUnixpacket
-		}
-	}
-	return func(syscall.Sockaddr) Addr { return nil }
-}
-
 func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) error {
 	var c *rawConn
 	if ctrlCtxFn != nil {

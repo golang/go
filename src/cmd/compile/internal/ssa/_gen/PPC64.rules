@@ -238,6 +238,8 @@
 (LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVDaddr {sym} (SPanchored base mem))
 (LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
 (OffPtr [off] ptr) => (ADD (MOVDconst <typ.Int64> [off]) ptr)
+(MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
+(MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
 
 // TODO: optimize these cases?
 (Ctz32NonZero ...) => (Ctz32 ...)
@@ -321,10 +323,6 @@
 (NE (CMPWconst [0] (Select0 (ANDCCconst [1] ((Equal|NotEqual|LessThan|LessEqual|GreaterThan|GreaterEqual) cc)))) yes no) => ((EQ|NE|LT|LE|GT|GE) cc yes no)
 (NE (CMPWconst [0] (Select0 (ANDCCconst [1] ((FLessThan|FLessEqual|FGreaterThan|FGreaterEqual) cc)))) yes no) => ((FLT|FLE|FGT|FGE) cc yes no)
 
-// Elide compares of bit tests
-((EQ|NE) (CMPconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
-((EQ|NE) (CMPWconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
-
 // absorb flag constants into branches
 (EQ (FlagEQ) yes no) => (First yes no)
 (EQ (FlagLT) yes no) => (First no yes)
@@ -405,8 +403,8 @@
 
 
 // Elide compares of bit tests
-((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
-((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (Select0 (ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ANDCCconst [c] x)) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (Select0 z:(ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> z) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (Select0 z:(ANDCCconst [c] x))) yes no) => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> z) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ANDCC x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (ORCC x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (XORCC x y)) yes no)
@@ -559,6 +557,7 @@
 (NOR (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [^(c|d)])
 
 // Discover consts
+(AND x (MOVDconst [-1])) => x
 (AND x (MOVDconst [c])) && isU16Bit(c) => (Select0 (ANDCCconst [c] x))
 (XOR x (MOVDconst [c])) && isU32Bit(c) => (XORconst [c] x)
 (OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
@@ -801,6 +800,7 @@
 (AtomicOr(8|32)   ...) => (LoweredAtomicOr(8|32)   ...)
 
 (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
+(Select0 (ANDCCconst [1] z:(SRADconst [63] x))) && z.Uses == 1  => (SRDconst [63] x)
 
 // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
 // This may interact with other patterns in the future. (Compare with arm64)
@@ -1000,7 +1000,7 @@
 
 // Fold bit reversal into loads.
 (BR(W|H) x:(MOV(W|H)Zload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
-(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
 (BRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
 (BRD x:(MOVDloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOVDBRloadidx ptr idx mem)
 
@@ -1011,7 +1011,7 @@
 // GOPPC64<10 rules.
 // These Bswap operations should only be introduced by the memcombine pass in places where they can be folded into loads or stores.
 (Bswap(32|16) x:(MOV(W|H)Zload [off] {sym} ptr mem)) => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
-(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
 (Bswap64 x:(MOVDload [off] {sym} ptr mem)) => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
 (Bswap64 x:(MOVDloadidx ptr idx      mem)) => @x.Block (MOVDBRloadidx ptr idx mem)
 (MOV(D|W|H)store [off] {sym} ptr (Bswap(64|32|16) val) mem) => (MOV(D|W|H)BRstore (MOVDaddr <ptr.Type> [off] {sym} ptr) val mem)
