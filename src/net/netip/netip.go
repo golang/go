@@ -949,14 +949,15 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		b := make([]byte, 0, max)
 		return ip.appendTo4(b), nil
 	default:
-		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
-		b := make([]byte, 0, max)
 		if ip.Is4In6() {
+			max := len("::ffff:255.255.255.255%enp5s0")
+			b := make([]byte, 0, max)
 			return ip.appendTo4In6(b), nil
 		}
+		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+		b := make([]byte, 0, max)
 		return ip.appendTo6(b), nil
 	}
-
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

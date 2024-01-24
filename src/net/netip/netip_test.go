@@ -1715,11 +1715,15 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 	}
 }
 
-func BenchmarkIPMarshalText(b *testing.B) {
-	b.ReportAllocs()
-	ip := MustParseAddr("66.55.44.33")
-	for i := 0; i < b.N; i++ {
-		sinkBytes, _ = ip.MarshalText()
+func BenchmarkAddrMarshalText(b *testing.B) {
+	for _, test := range parseBenchInputs {
+		ip := MustParseAddr(test.ip)
+		b.Run(test.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sinkBytes, _ = ip.MarshalText()
+			}
+		})
 	}
 }
 
