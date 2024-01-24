@@ -152,7 +152,7 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 // value stored in the 'runtime.text' symbol.
 // This value may differ from the start
 // address of the text segment if
-// -linkmode=external is specified.
+// binary was built with cgo enabled.
 func NewLineTable(data []byte, text uint64) *LineTable {
 	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
 }
