@@ -371,8 +371,9 @@ bad_cpu: // show that the program requires a certain microarchitecture level.
 	CALL	runtime·abort(SB)
 	RET
 
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
+	MOVQ	$runtime·debugPinnerV1<ABIInternal>(SB), AX
 	MOVQ	$runtime·debugCallV2<ABIInternal>(SB), AX
 	RET
 

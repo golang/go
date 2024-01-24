@@ -98,9 +98,10 @@ nocgo:
 
 	// start this M
 	BL	runtime·mstart(SB)
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
 #ifdef GOARCH_ppc64le
+	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
 #endif
 	MOVD	R0, 0(R0)
