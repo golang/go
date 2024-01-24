@@ -847,6 +847,16 @@ func (ip Addr) appendTo4(ret []byte) []byte {
 	return ret
 }
 
+func (ip Addr) appendTo4In6(ret []byte) []byte {
+	ret = append(ret, "::ffff:"...)
+	ret = ip.Unmap().appendTo4(ret)
+	if ip.z != z6noz {
+		ret = append(ret, '%')
+		ret = append(ret, ip.Zone()...)
+	}
+	return ret
+}
+
 // string6 formats ip in IPv6 textual representation. It follows the
 // guidelines in section 4 of RFC 5952
 // (https://tools.ietf.org/html/rfc5952#section-4): no unnecessary
@@ -942,13 +952,7 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
 		b := make([]byte, 0, max)
 		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b, nil
+			return ip.appendTo4In6(b), nil
 		}
 		return ip.appendTo6(b), nil
 	}
@@ -1114,20 +1118,31 @@ func (p AddrPort) Compare(p2 AddrPort) int {
 }
 
 func (p AddrPort) String() string {
+	var b []byte
 	switch p.ip.z {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
 		const max = len("255.255.255.255:65535")
-		buf := make([]byte, 0, max)
-		buf = p.ip.appendTo4(buf)
-		buf = append(buf, ':')
-		buf = strconv.AppendUint(buf, uint64(p.port), 10)
-		return string(buf)
+		b = make([]byte, 0, max)
+		b = p.ip.appendTo4(b)
 	default:
-		// TODO: this could be more efficient allocation-wise:
-		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
+		if p.ip.Is4In6() {
+			const max = len("[::ffff:255.255.255.255%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo4In6(b)
+		} else {
+			const max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo6(b)
+		}
+		b = append(b, ']')
 	}
+	b = append(b, ':')
+	b = strconv.AppendUint(b, uint64(p.port), 10)
+	return string(b)
 }
 
 // AppendTo appends a text encoding of p,
@@ -1140,15 +1155,10 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	case z4:
 		b = p.ip.appendTo4(b)
 	default:
+		b = append(b, '[')
 		if p.ip.Is4In6() {
-			b = append(b, "[::ffff:"...)
-			b = p.ip.Unmap().appendTo4(b)
-			if z := p.ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
+			b = p.ip.appendTo4In6(b)
 		} else {
-			b = append(b, '[')
 			b = p.ip.appendTo6(b)
 		}
 		b = append(b, ']')
