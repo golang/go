@@ -17,6 +17,7 @@ import (
 
 func init() {
 	sysStat = statUnix
+	loadUidAndGid = loadUidAndGidFunc
 }
 
 // userMap and groupMap caches UID and GID lookups for performance reasons.
