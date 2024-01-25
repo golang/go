@@ -612,7 +612,7 @@ func (fi headerFileInfo) String() string {
 }
 
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
-var sysStat func(fi fs.FileInfo, h *Header) error
+var sysStat func(fi fs.FileInfo, h *Header, useFileInfoNames bool) error
 
 const (
 	// Mode constants from the USTAR spec:
@@ -715,7 +715,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
+	var useFileInfoNames = false
 	if iface, ok := fi.(FileInfoNames); ok {
+		useFileInfoNames = true
 		var err error
 		h.Gname, err = iface.Gname()
 		if err != nil {
@@ -733,10 +735,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		return h, nil
 	}
 	if sysStat != nil {
-		return h, sysStat(fi, h)
+		return h, sysStat(fi, h, useFileInfoNames)
 	}
 	return h, nil
 }
