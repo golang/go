@@ -122,7 +122,7 @@ func panicrangeexit()
 // defer in range over func
 func deferrangefunc() interface{}
 
-func fastrand() uint32
+func rand32() uint32
 
 // *byte is really *runtime.Type
 func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)

@@ -53,14 +53,17 @@ func checkSetFileCompletionNotificationModes() {
 	useSetFileCompletionNotificationModes = true
 }
 
-func init() {
+// InitWSA initiates the use of the Winsock DLL by the current process.
+// It is called from the net package at init time to avoid
+// loading ws2_32.dll when net is not used.
+var InitWSA = sync.OnceFunc(func() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
 		initErr = e
 	}
 	checkSetFileCompletionNotificationModes()
-}
+})
 
 // operation contains superset of data necessary to perform all async IO.
 type operation struct {
@@ -71,8 +74,6 @@ type operation struct {
 	// fields used by runtime.netpoll
 	runtimeCtx uintptr
 	mode       int32
-	errno      int32
-	qty        uint32
 
 	// fields used only by net package
 	fd     *FD
@@ -83,6 +84,7 @@ type operation struct {
 	rsan   int32
 	handle syscall.Handle
 	flags  uint32
+	qty    uint32
 	bufs   []syscall.WSABuf
 }
 
@@ -174,9 +176,9 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	// Wait for our request to complete.
 	err = fd.pd.wait(int(o.mode), fd.isFile)
 	if err == nil {
+		err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
 		// All is good. Extract our IO results and return.
-		if o.errno != 0 {
-			err = syscall.Errno(o.errno)
+		if err != nil {
 			// More data available. Return back the size of received data.
 			if err == syscall.ERROR_MORE_DATA || err == windows.WSAEMSGSIZE {
 				return int(o.qty), err
@@ -202,8 +204,8 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	}
 	// Wait for cancellation to complete.
 	fd.pd.waitCanceled(int(o.mode))
-	if o.errno != 0 {
-		err = syscall.Errno(o.errno)
+	err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
+	if err != nil {
 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
 			err = netpollErr
 		}
@@ -1037,8 +1039,7 @@ func (fd *FD) Fchmod(mode uint32) error {
 
 	var du windows.FILE_BASIC_INFO
 	du.FileAttributes = attrs
-	l := uint32(unsafe.Sizeof(d))
-	return windows.SetFileInformationByHandle(fd.Sysfd, windows.FileBasicInfo, uintptr(unsafe.Pointer(&du)), l)
+	return windows.SetFileInformationByHandle(fd.Sysfd, windows.FileBasicInfo, unsafe.Pointer(&du), uint32(unsafe.Sizeof(du)))
 }
 
 // Fchdir wraps syscall.Fchdir.

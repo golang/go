@@ -104,7 +104,7 @@ var runtimeDecls = [...]struct {
 	{"efaceeq", funcTag, 72},
 	{"panicrangeexit", funcTag, 9},
 	{"deferrangefunc", funcTag, 73},
-	{"fastrand", funcTag, 74},
+	{"rand32", funcTag, 74},
 	{"makemap64", funcTag, 76},
 	{"makemap", funcTag, 77},
 	{"makemap_small", funcTag, 78},

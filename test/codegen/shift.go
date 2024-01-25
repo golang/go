@@ -22,10 +22,40 @@ func rshConst64Ux64(v uint64) uint64 {
 	return v >> uint64(33)
 }
 
+func rshConst64Ux64Overflow32(v uint32) uint64 {
+	// riscv64:"MOV\t\\$0,",-"SRL"
+	return uint64(v) >> 32
+}
+
+func rshConst64Ux64Overflow16(v uint16) uint64 {
+	// riscv64:"MOV\t\\$0,",-"SRL"
+	return uint64(v) >> 16
+}
+
+func rshConst64Ux64Overflow8(v uint8) uint64 {
+	// riscv64:"MOV\t\\$0,",-"SRL"
+	return uint64(v) >> 8
+}
+
 func rshConst64x64(v int64) int64 {
 	// ppc64x:"SRAD"
 	// riscv64:"SRAI\t",-"OR",-"SLTIU"
 	return v >> uint64(33)
+}
+
+func rshConst64x64Overflow32(v int32) int64 {
+	// riscv64:"SRAIW",-"SLLI",-"SRAI\t"
+	return int64(v) >> 32
+}
+
+func rshConst64x64Overflow16(v int16) int64 {
+	// riscv64:"SLLI","SRAI",-"SRAIW"
+	return int64(v) >> 16
+}
+
+func rshConst64x64Overflow8(v int8) int64 {
+	// riscv64:"SLLI","SRAI",-"SRAIW"
+	return int64(v) >> 8
 }
 
 func lshConst32x64(v int32) int32 {

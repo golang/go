@@ -392,6 +392,15 @@ func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }
 
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+//
+// If the link destination is relative, Readlink returns the relative path
+// without resolving it to an absolute one.
+func Readlink(name string) (string, error) {
+	return readlink(name)
+}
+
 // Many functions in package syscall return a count of -1 instead of 0.
 // Using fixCount(call()) instead of call() corrects the count.
 func fixCount(n int, err error) (int, error) {
@@ -690,7 +699,15 @@ func (dir dirFS) ReadFile(name string) ([]byte, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readfile", Path: name, Err: err}
 	}
-	return ReadFile(fullname)
+	b, err := ReadFile(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return b, nil
 }
 
 // ReadDir reads the named directory, returning all its directory entries sorted
@@ -700,7 +717,15 @@ func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readdir", Path: name, Err: err}
 	}
-	return ReadDir(fullname)
+	entries, err := ReadDir(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return entries, nil
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {

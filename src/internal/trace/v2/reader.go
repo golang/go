@@ -85,6 +85,11 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		r.lastTs = e.base.time
 	}()
 
+	// Consume any extra events produced during parsing.
+	if ev := r.order.consumeExtraEvent(); ev.Kind() != EventBad {
+		return ev, nil
+	}
+
 	// Check if we need to refresh the generation.
 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
 		if !r.emittedSync {
@@ -152,6 +157,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	}
 	// Try to advance the head of the frontier, which should have the minimum timestamp.
 	// This should be by far the most common case
+	if len(r.frontier) == 0 {
+		return Event{}, fmt.Errorf("broken trace: frontier is empty:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
+	}
 	bc := r.frontier[0]
 	if ctx, ok, err := r.order.advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); err != nil {
 		return Event{}, err

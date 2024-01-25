@@ -217,7 +217,7 @@ type itabInfo struct {
 // generic function or method.
 func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 	for idx, implicit := range dict.implicits {
-		if implicit.Type().(*types2.TypeParam) == typ {
+		if types2.Unalias(implicit.Type()).(*types2.TypeParam) == typ {
 			return idx
 		}
 	}
@@ -498,7 +498,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	w := pw.newWriter(pkgbits.RelocType, pkgbits.SyncTypeIdx)
 	w.dict = dict
 
-	switch typ := typ.(type) {
+	switch typ := types2.Unalias(typ).(type) {
 	default:
 		base.Fatalf("unexpected type: %v (%T)", typ, typ)
 
@@ -889,7 +889,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// parameter is constrained to `int | uint` but then never used in
 	// arithmetic/conversions/etc, we could shape those together.
 	for _, implicit := range dict.implicits {
-		tparam := implicit.Type().(*types2.TypeParam)
+		tparam := types2.Unalias(implicit.Type()).(*types2.TypeParam)
 		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
 	}
 	for i := 0; i < ntparams; i++ {
@@ -2124,7 +2124,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 
 	// Method on a type parameter. These require an indirect call
 	// through the current function's runtime dictionary.
-	if typeParam, ok := recv.(*types2.TypeParam); w.Bool(ok) {
+	if typeParam, ok := types2.Unalias(recv).(*types2.TypeParam); w.Bool(ok) {
 		typeParamIdx := w.dict.typeParamIndex(typeParam)
 		methodInfo := w.p.selectorIdx(fun)
 
@@ -2137,7 +2137,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	}
 
 	if !isInterface(recv) {
-		if named, ok := deref2(recv).(*types2.Named); ok {
+		if named, ok := types2.Unalias(deref2(recv)).(*types2.Named); ok {
 			obj, targs := splitNamed(named)
 			info := w.p.objInstIdx(obj, targs, w.dict)
 
@@ -2363,7 +2363,7 @@ func (w *writer) varDictIndex(obj *types2.Var) {
 }
 
 func isUntyped(typ types2.Type) bool {
-	basic, ok := typ.(*types2.Basic)
+	basic, ok := types2.Unalias(typ).(*types2.Basic)
 	return ok && basic.Info()&types2.IsUntyped != 0
 }
 
@@ -2416,7 +2416,7 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 // If typ is a type parameter, then isInterface reports an internal
 // compiler error instead.
 func isInterface(typ types2.Type) bool {
-	if _, ok := typ.(*types2.TypeParam); ok {
+	if _, ok := types2.Unalias(typ).(*types2.TypeParam); ok {
 		// typ is a type parameter and may be instantiated as either a
 		// concrete or interface type, so the writer can't depend on
 		// knowing this.
@@ -2867,7 +2867,7 @@ func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
 
 // recvBase returns the base type for the given receiver parameter.
 func recvBase(recv *types2.Var) *types2.Named {
-	typ := recv.Type()
+	typ := types2.Unalias(recv.Type())
 	if ptr, ok := typ.(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
@@ -2945,7 +2945,7 @@ func asWasmImport(p syntax.Pragma) *WasmImport {
 
 // isPtrTo reports whether from is the type *to.
 func isPtrTo(from, to types2.Type) bool {
-	ptr, ok := from.(*types2.Pointer)
+	ptr, ok := types2.Unalias(from).(*types2.Pointer)
 	return ok && types2.Identical(ptr.Elem(), to)
 }
 

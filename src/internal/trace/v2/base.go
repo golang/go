@@ -9,6 +9,7 @@ package trace
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"internal/trace/v2/event"
@@ -123,8 +124,12 @@ func (d *dataTable[EI, E]) compactify() {
 			minID = id
 		}
 	}
+	if maxID >= math.MaxInt {
+		// We can't create a slice big enough to hold maxID elements
+		return
+	}
 	// We're willing to waste at most 2x memory.
-	if int(maxID-minID) > 2*len(d.sparse) {
+	if int(maxID-minID) > max(len(d.sparse), 2*len(d.sparse)) {
 		return
 	}
 	if int(minID) > len(d.sparse) {
@@ -146,7 +151,7 @@ func (d *dataTable[EI, E]) get(id EI) (E, bool) {
 	if id == 0 {
 		return *new(E), true
 	}
-	if int(id) < len(d.dense) {
+	if uint64(id) < uint64(len(d.dense)) {
 		if d.present[id/8]&(uint8(1)<<(id%8)) != 0 {
 			return d.dense[id], true
 		}

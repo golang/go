@@ -141,11 +141,17 @@ Diff:
 		// Turn relative (PC) into absolute (PC) automatically,
 		// so that most branch instructions don't need comments
 		// giving the absolute form.
-		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
-			last := f[len(f)-1]
-			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
+		if len(f) > 0 && strings.Contains(printed, "(PC)") {
+			index := len(f) - 1
+			suf := "(PC)"
+			for !strings.HasSuffix(f[index], suf) {
+				index--
+				suf = "(PC),"
+			}
+			str := f[index]
+			n, err := strconv.Atoi(str[:len(str)-len(suf)])
 			if err == nil {
-				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
+				f[index] = fmt.Sprintf("%d%s", seq+n, suf)
 			}
 		}
 

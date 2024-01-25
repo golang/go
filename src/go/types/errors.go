@@ -52,11 +52,11 @@ func (err *error_) empty() bool {
 	return err.desc == nil
 }
 
-func (err *error_) pos() token.Pos {
+func (err *error_) posn() positioner {
 	if err.empty() {
-		return nopos
+		return noposn
 	}
-	return err.desc[0].posn.Pos()
+	return err.desc[0].posn
 }
 
 func (err *error_) msg(fset *token.FileSet, qf Qualifier) string {
@@ -82,13 +82,13 @@ func (err *error_) String() string {
 	if err.empty() {
 		return "no error"
 	}
-	return fmt.Sprintf("%d: %s", err.pos(), err.msg(nil, nil))
+	return fmt.Sprintf("%d: %s", err.posn().Pos(), err.msg(nil, nil))
 }
 
 // errorf adds formatted error information to err.
 // It may be called multiple times to provide additional information.
-func (err *error_) errorf(at token.Pos, format string, args ...interface{}) {
-	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
+func (err *error_) errorf(at positioner, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{at, format, args})
 }
 
 func (check *Checker) qualifier(pkg *Package) string {

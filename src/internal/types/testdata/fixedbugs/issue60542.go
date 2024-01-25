@@ -9,4 +9,4 @@ func Clip[S ~[]E, E any](s S) S {
 }
 
 var versions func()
-var _ = Clip /* ERROR "S (type func()) does not satisfy ~[]E" */ (versions)
+var _ = Clip /* ERROR "in call to Clip, S (type func()) does not satisfy ~[]E" */ (versions)

@@ -69,7 +69,7 @@
 // all pprof commands.
 //
 // For more information about pprof, see
-// https://github.com/google/pprof/blob/master/doc/README.md.
+// https://github.com/google/pprof/blob/main/doc/README.md.
 package pprof
 
 import (
@@ -109,6 +109,12 @@ import (
 // These predefined profiles maintain themselves and panic on an explicit
 // [Profile.Add] or [Profile.Remove] method call.
 //
+// The CPU profile is not available as a Profile. It has a special API,
+// the [StartCPUProfile] and [StopCPUProfile] functions, because it streams
+// output to a writer during profiling.
+//
+// # Heap profile
+//
 // The heap profile reports statistics as of the most recently completed
 // garbage collection; it elides more recent allocation to avoid skewing
 // the profile away from live data and toward garbage.
@@ -122,13 +128,47 @@ import (
 // flags select which to display, defaulting to -inuse_space (live objects,
 // scaled by size).
 //
+// # Allocs profile
+//
 // The allocs profile is the same as the heap profile but changes the default
 // pprof display to -alloc_space, the total number of bytes allocated since
 // the program began (including garbage-collected bytes).
 //
-// The CPU profile is not available as a Profile. It has a special API,
-// the [StartCPUProfile] and [StopCPUProfile] functions, because it streams
-// output to a writer during profiling.
+// # Block profile
+//
+// The block profile tracks time spent blocked on synchronization primitives,
+// such as [sync.Mutex], [sync.RWMutex], [sync.WaitGroup], [sync.Cond], and
+// channel send/receive/select.
+//
+// Stack traces correspond to the location that blocked (for example,
+// [sync.Mutex.Lock]).
+//
+// Sample values correspond to cumulative time spent blocked at that stack
+// trace, subject to time-based sampling specified by
+// [runtime.SetBlockProfileRate].
+//
+// # Mutex profile
+//
+// The mutex profile tracks contention on mutexes, such as [sync.Mutex],
+// [sync.RWMutex], and runtime-internal locks.
+//
+// Stack traces correspond to the end of the critical section causing
+// contention. For example, a lock held for a long time while other goroutines
+// are waiting to acquire the lock will report contention when the lock is
+// finally unlocked (that is, at [sync.Mutex.Unlock]).
+//
+// Sample values correspond to the approximate cumulative time other goroutines
+// spent blocked waiting for the lock, subject to event-based sampling
+// specified by [runtime.SetMutexProfileFraction]. For example, if a caller
+// holds a lock for 1s while 5 other goroutines are waiting for the entire
+// second to acquire the lock, its unlock call stack will report 5s of
+// contention.
+//
+// Runtime-internal locks are always reported at the location
+// "runtime._LostContendedRuntimeLock". More detailed stack traces for
+// runtime-internal locks can be obtained by setting
+// `GODEBUG=runtimecontentionstacks=1` (see package [runtime] docs for
+// caveats).
 type Profile struct {
 	name  string
 	mu    sync.Mutex

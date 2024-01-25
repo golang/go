@@ -293,30 +293,6 @@ func TestPacketConnClose(t *testing.T) {
 	}
 }
 
-func TestListenCloseListen(t *testing.T) {
-	const maxTries = 10
-	for tries := 0; tries < maxTries; tries++ {
-		ln := newLocalListener(t, "tcp")
-		addr := ln.Addr().String()
-		// TODO: This is racy. The selected address could be reused in between this
-		// Close and the subsequent Listen.
-		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err, false); perr != nil {
-				t.Error(perr)
-			}
-			t.Fatal(err)
-		}
-		ln, err := Listen("tcp", addr)
-		if err == nil {
-			// Success. (This test didn't always make it here earlier.)
-			ln.Close()
-			return
-		}
-		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
-	}
-	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
-}
-
 // See golang.org/issue/6163, golang.org/issue/6987.
 func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 	switch runtime.GOOS {

@@ -396,8 +396,11 @@ func f13e(a int) int {
 	return 0
 }
 
-func f13f(a int64) int64 {
-	if a > math.MaxInt64 {
+func f13f(a, b int64) int64 {
+	if b != math.MaxInt64 {
+		return 42
+	}
+	if a > b {
 		if a == 0 { // ERROR "Disproved Eq64$"
 			return 1
 		}
@@ -869,9 +872,12 @@ func unrollInclStepTooLarge(a []int) int {
 }
 
 // Not an induction variable (min too small, iterating down)
-func unrollDecMin(a []int) int {
+func unrollDecMin(a []int, b int) int {
+	if b != math.MinInt64 {
+		return 42
+	}
 	var i, x int
-	for i = len(a); i >= math.MinInt64; i -= 2 {
+	for i = len(a); i >= b; i -= 2 {
 		x += a[i-1]
 		x += a[i-2]
 	}
@@ -882,9 +888,12 @@ func unrollDecMin(a []int) int {
 }
 
 // Not an induction variable (min too small, iterating up -- perhaps could allow, but why bother?)
-func unrollIncMin(a []int) int {
+func unrollIncMin(a []int, b int) int {
+	if b != math.MinInt64 {
+		return 42
+	}
 	var i, x int
-	for i = len(a); i >= math.MinInt64; i += 2 {
+	for i = len(a); i >= b; i += 2 {
 		x += a[i-1]
 		x += a[i-2]
 	}

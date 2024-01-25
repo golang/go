@@ -1,6 +1,6 @@
 name: Go Telemetry Proposals
 description: New telemetry counter or update on an existing one
-title: "x/telemetry/config: issue title"
+title: "x/telemetry/config: proposal title"
 labels: ["Telemetry-Proposal"]
 projects: ["golang/29"]
 body:

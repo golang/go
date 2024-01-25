@@ -31,6 +31,8 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
+var ReadRandomFailed = &readRandomFailed
+
 var Fastlog2 = fastlog2
 
 var Atoi = atoi
@@ -398,9 +400,9 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -463,6 +465,8 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 
 	startTheWorld(stw)
 }
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
@@ -580,6 +584,10 @@ func blockOnSystemStackInternal() {
 
 type RWMutex struct {
 	rw rwmutex
+}
+
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
 }
 
 func (rw *RWMutex) RLock() {

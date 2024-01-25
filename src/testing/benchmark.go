@@ -176,10 +176,6 @@ func (b *B) ReportAllocs() {
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
-	if b.done {
-		panic("testing: internal error: runN when benchmark is already done")
-	}
-
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
 	defer func() {
@@ -200,46 +196,46 @@ func (b *B) runN(n int) {
 	b.previousDuration = b.duration
 }
 
-// run1 runs the first iteration of benchFunc.
-//
-// If no more iterations of this benchmark should be done, run1 sets b.done.
-func (b *B) run1() {
+// run1 runs the first iteration of benchFunc. It reports whether more
+// iterations of this benchmarks should be run.
+func (b *B) run1() bool {
 	if ctx := b.context; ctx != nil {
 		// Extend maxLen, if needed.
 		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
 			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
 		}
 	}
-
-	runOneDone := make(chan struct{})
 	go func() {
 		// Signal that we're done whether we return normally
 		// or by FailNow's runtime.Goexit.
-		defer close(runOneDone)
+		defer func() {
+			b.signal <- true
+		}()
+
 		b.runN(1)
 	}()
-	<-runOneDone
-
+	<-b.signal
 	if b.failed {
 		fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), b.name, b.output)
-		b.done = true
-		close(b.doneOrParallel)
-		return
+		return false
 	}
 	// Only print the output if we know we are not going to proceed.
 	// Otherwise it is printed in processBench.
-	if b.hasSub.Load() || b.skipped {
+	b.mu.RLock()
+	finished := b.finished
+	b.mu.RUnlock()
+	if b.hasSub.Load() || finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty != nil && (len(b.output) > 0 || b.skipped) {
+		if b.chatty != nil && (len(b.output) > 0 || finished) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
 		}
-		b.done = true
-		close(b.doneOrParallel)
+		return false
 	}
+	return true
 }
 
 var labelsOnce sync.Once
@@ -266,10 +262,9 @@ func (b *B) run() {
 	}
 }
 
-// doBench calls b.launch in a separate goroutine and waits for it to complete.
 func (b *B) doBench() BenchmarkResult {
 	go b.launch()
-	<-b.doneOrParallel
+	<-b.signal
 	return b.result
 }
 
@@ -281,10 +276,7 @@ func (b *B) launch() {
 	// Signal that we're done whether we return normally
 	// or by FailNow's runtime.Goexit.
 	defer func() {
-		b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
-		b.setRanLeaf()
-		b.done = true
-		close(b.doneOrParallel)
+		b.signal <- true
 	}()
 
 	// Run the benchmark for at least the specified amount of time.
@@ -324,6 +316,7 @@ func (b *B) launch() {
 			b.runN(int(n))
 		}
 	}
+	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
 }
 
 // Elapsed returns the measured elapsed time of the benchmark.
@@ -557,7 +550,6 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 		main.chatty = newChattyPrinter(main.w)
 	}
 	main.runN(1)
-	main.done = true
 	return !main.failed
 }
 
@@ -576,21 +568,18 @@ func (ctx *benchContext) processBench(b *B) {
 			if i > 0 || j > 0 {
 				b = &B{
 					common: common{
-						doneOrParallel: make(chan struct{}),
-						name:           b.name,
-						w:              b.w,
-						chatty:         b.chatty,
-						bench:          true,
+						signal: make(chan bool),
+						name:   b.name,
+						w:      b.w,
+						chatty: b.chatty,
+						bench:  true,
 					},
 					benchFunc: b.benchFunc,
 					benchTime: b.benchTime,
 				}
 				b.run1()
 			}
-			var r BenchmarkResult
-			if !b.done {
-				r = b.doBench()
-			}
+			r := b.doBench()
 			if b.failed {
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason
@@ -633,13 +622,6 @@ var hideStdoutForTesting = false
 // A subbenchmark is like any other benchmark. A benchmark that calls Run at
 // least once will not be measured itself and will be called once with N=1.
 func (b *B) Run(name string, f func(b *B)) bool {
-	if b.previousN > 0 {
-		// If the benchmark calls Run we will only call it once with N=1.
-		// If it doesn't call Run the first time we try it, it must not
-		// call run on subsequent invocations either.
-		panic("testing: unexpected call to B.Run during iteration")
-	}
-
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
 	b.hasSub.Store(true)
@@ -657,14 +639,14 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	n := runtime.Callers(2, pc[:])
 	sub := &B{
 		common: common{
-			doneOrParallel: make(chan struct{}),
-			name:           benchName,
-			parent:         &b.common,
-			level:          b.level + 1,
-			creator:        pc[:n],
-			w:              b.w,
-			chatty:         b.chatty,
-			bench:          true,
+			signal:  make(chan bool),
+			name:    benchName,
+			parent:  &b.common,
+			level:   b.level + 1,
+			creator: pc[:n],
+			w:       b.w,
+			chatty:  b.chatty,
+			bench:   true,
 		},
 		importPath: b.importPath,
 		benchFunc:  f,
@@ -697,8 +679,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		}
 	}
 
-	sub.run1()
-	if !sub.done {
+	if sub.run1() {
 		sub.run()
 	}
 	b.add(sub.result)
@@ -842,14 +823,13 @@ func (b *B) SetParallelism(p int) {
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
-			doneOrParallel: make(chan struct{}),
-			w:              discard{},
+			signal: make(chan bool),
+			w:      discard{},
 		},
 		benchFunc: f,
 		benchTime: benchTime,
 	}
-	b.run1()
-	if !b.done {
+	if b.run1() {
 		b.run()
 	}
 	return b.result

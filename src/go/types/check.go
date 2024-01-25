@@ -14,10 +14,12 @@ import (
 	"go/token"
 	"internal/godebug"
 	. "internal/types/errors"
+	"strings"
 )
 
-// nopos indicates an unknown position
+// nopos, noposn indicate an unknown position
 var nopos token.Pos
+var noposn = atPos(nopos)
 
 // debugging/development support
 const debug = false // leave on during development
@@ -618,7 +620,12 @@ func instantiatedIdent(expr ast.Expr) *ast.Ident {
 	case *ast.SelectorExpr:
 		return x.Sel
 	}
-	panic("instantiated ident not found")
+
+	// extra debugging of #63933
+	var buf strings.Builder
+	buf.WriteString("instantiated ident not found; please report: ")
+	ast.Fprint(&buf, token.NewFileSet(), expr, ast.NotNilFilter)
+	panic(buf.String())
 }
 
 func (check *Checker) recordDef(id *ast.Ident, obj Object) {

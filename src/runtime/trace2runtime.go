@@ -192,7 +192,12 @@ func traceAcquireEnabled() traceLocker {
 	// Prevent preemption.
 	mp := acquirem()
 
-	// Acquire the trace seqlock.
+	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
+	// until all Ms are observed to be outside of their seqlock critical section.
+	//
+	// Note: The seqlock is mutated here and also in traceCPUSample. If you update
+	// usage of the seqlock here, make sure to also look at what traceCPUSample is
+	// doing.
 	seq := mp.trace.seqlock.Add(1)
 	if debugTraceReentrancy && seq%2 != 1 {
 		throw("bad use of trace.seqlock or tracer is reentrant")

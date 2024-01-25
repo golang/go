@@ -719,6 +719,17 @@ func (t *tester) registerTests() {
 			})
 	}
 
+	// GOEXPERIMENT=rangefunc tests
+	if !t.compileOnly {
+		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
+			&goTest{
+				variant: "iter",
+				short:   t.short,
+				env:     []string{"GOEXPERIMENT=rangefunc"},
+				pkg:     "iter",
+			})
+	}
+
 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
 	// mode (with GO_TEST_SHORT=0) because this is just testing a
 	// non-critical debug setting.
@@ -891,8 +902,11 @@ func (t *tester) registerTests() {
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	//
+	// The same logic applies to the release notes that correspond to each api/next file.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 	}
 }
 

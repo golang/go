@@ -251,7 +251,7 @@ func TestLoopVarVersionEnableFlag(t *testing.T) {
 
 	t.Logf(m)
 
-	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
+	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 1 {
@@ -290,7 +290,7 @@ func TestLoopVarVersionEnableGoBuild(t *testing.T) {
 
 	t.Logf(m)
 
-	yCount := strings.Count(m, "opt-122.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-122.go:32)")
+	yCount := strings.Count(m, "opt-122.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-122.go:31)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 1 {
@@ -329,7 +329,7 @@ func TestLoopVarVersionDisableFlag(t *testing.T) {
 
 	t.Logf(m) // expect error
 
-	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
+	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 0 {
@@ -368,7 +368,7 @@ func TestLoopVarVersionDisableGoBuild(t *testing.T) {
 
 	t.Logf(m) // expect error
 
-	yCount := strings.Count(m, "opt-121.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-121.go:32)")
+	yCount := strings.Count(m, "opt-121.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-121.go:31)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 0 {

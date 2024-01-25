@@ -46,6 +46,7 @@ import (
 	"cmd/compile/internal/pgo/internal/graph"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"errors"
 	"fmt"
 	"internal/profile"
 	"os"
@@ -129,7 +130,7 @@ type Profile struct {
 	// the percentage threshold for hot/cold partitioning.
 	TotalWeight int64
 
-	// EdgeMap contains all unique call edges in the profile and their
+	// NamedEdgeMap contains all unique call edges in the profile and their
 	// edge weight.
 	NamedEdgeMap NamedEdgeMap
 
@@ -145,18 +146,22 @@ func New(profileFile string) (*Profile, error) {
 		return nil, fmt.Errorf("error opening profile: %w", err)
 	}
 	defer f.Close()
-	profile, err := profile.Parse(f)
-	if err != nil {
+	p, err := profile.Parse(f)
+	if errors.Is(err, profile.ErrNoData) {
+		// Treat a completely empty file the same as a profile with no
+		// samples: nothing to do.
+		return nil, nil
+	} else if err != nil {
 		return nil, fmt.Errorf("error parsing profile: %w", err)
 	}
 
-	if len(profile.Sample) == 0 {
+	if len(p.Sample) == 0 {
 		// We accept empty profiles, but there is nothing to do.
 		return nil, nil
 	}
 
 	valueIndex := -1
-	for i, s := range profile.SampleType {
+	for i, s := range p.SampleType {
 		// Samples count is the raw data collected, and CPU nanoseconds is just
 		// a scaled version of it, so either one we can find is fine.
 		if (s.Type == "samples" && s.Unit == "count") ||
@@ -170,7 +175,7 @@ func New(profileFile string) (*Profile, error) {
 		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
 	}
 
-	g := graph.NewGraph(profile, &graph.Options{
+	g := graph.NewGraph(p, &graph.Options{
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
 

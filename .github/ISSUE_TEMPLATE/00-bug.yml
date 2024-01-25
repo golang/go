@@ -2,7 +2,6 @@
 # https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
 name: Bugs
 description: The go command, standard library, or anything else
-labels: [ 'kind/bug', 'bug' ]
 title: "import/path: issue title"
 
 body:
@@ -15,22 +14,18 @@ body:
     id: go-version
     attributes:
       label: Go version
-      description: What version of Go are you using (`go version`)?
+      description: |
+        What version of Go are you using (`go version`)?
+
+        Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent major releases.
       placeholder: ex. go version go1.20.7 darwin/arm64
     validations:
       required: true
 
-  - type: checkboxes
-    id: reproduce-latest-release
-    attributes:
-      label: Reproducibility
-      options:
-        - label: Does this issue reproduce with the latest release?
-
   - type: textarea
-    id: os-and-processor
+    id: go-env
     attributes:
-      label: "What operating system and processor architecture are you using (`go env`)?"
+      label: "Output of `go env` in your module/workspace:"
       placeholder: |
         GO111MODULE=""
         GOARCH="arm64"
@@ -78,7 +73,15 @@ body:
     id: what-did-you-do
     attributes:
       label: "What did you do?"
-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see happen?"
+      description: Command invocations and their associated output, functions with their arguments and return results, full stacktraces for panics (upload a file if it is very long), etc. Prefer copying text output over using screenshots.
     validations:
       required: true
 
@@ -86,13 +89,6 @@ body:
     id: expected-behavior
     attributes:
       label: "What did you expect to see?"
+      description: Why is the current output incorrect, and any additional context we may need to understand the issue.
     validations:
       required: true
-
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: "What did you see instead?"
-    validations:
-      required: true
-

@@ -141,10 +141,14 @@ func Parse(r io.Reader) (*Profile, error) {
 		}
 		orig = data
 	}
-	if p, err = parseUncompressed(orig); err != nil {
-		if p, err = parseLegacy(orig); err != nil {
-			return nil, fmt.Errorf("parsing profile: %v", err)
-		}
+
+	var lErr error
+	p, pErr := parseUncompressed(orig)
+	if pErr != nil {
+		p, lErr = parseLegacy(orig)
+	}
+	if pErr != nil && lErr != nil {
+		return nil, fmt.Errorf("parsing profile: not a valid proto profile (%w) or legacy profile (%w)", pErr, lErr)
 	}
 
 	if err := p.CheckValid(); err != nil {
@@ -155,6 +159,7 @@ func Parse(r io.Reader) (*Profile, error) {
 
 var errUnrecognized = fmt.Errorf("unrecognized profile format")
 var errMalformed = fmt.Errorf("malformed profile format")
+var ErrNoData = fmt.Errorf("empty input file")
 
 func parseLegacy(data []byte) (*Profile, error) {
 	parsers := []func([]byte) (*Profile, error){
@@ -180,6 +185,10 @@ func parseLegacy(data []byte) (*Profile, error) {
 }
 
 func parseUncompressed(data []byte) (*Profile, error) {
+	if len(data) == 0 {
+		return nil, ErrNoData
+	}
+
 	p := &Profile{}
 	if err := unmarshal(data, p); err != nil {
 		return nil, err

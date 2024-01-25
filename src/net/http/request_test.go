@@ -1053,6 +1053,33 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
+// Ensure that Request.Clone works correctly with PathValue.
+// See issue 64911.
+func TestRequestClonePathValue(t *testing.T) {
+	req, _ := http.NewRequest("GET", "https://example.org/", nil)
+	req.SetPathValue("p1", "orig")
+
+	clonedReq := req.Clone(context.Background())
+	clonedReq.SetPathValue("p2", "copy")
+
+	// Ensure that any modifications to the cloned
+	// request do not pollute the original request.
+	if g, w := req.PathValue("p2"), ""; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+	if g, w := req.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+
+	// Assert on the changes to the cloned request.
+	if g, w := clonedReq.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+	if g, w := clonedReq.PathValue("p2"), "copy"; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+}
+
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {

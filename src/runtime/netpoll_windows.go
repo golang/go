@@ -19,10 +19,8 @@ type net_op struct {
 	// used by windows
 	o overlapped
 	// used by netpoll
-	pd    *pollDesc
-	mode  int32
-	errno int32
-	qty   uint32
+	pd   *pollDesc
+	mode int32
 }
 
 type overlappedEntry struct {
@@ -86,7 +84,7 @@ func netpollBreak() {
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) (gList, int32) {
 	var entries [64]overlappedEntry
-	var wait, qty, flags, n, i uint32
+	var wait, n, i uint32
 	var errno int32
 	var op *net_op
 	var toRun gList
@@ -131,12 +129,12 @@ func netpoll(delay int64) (gList, int32) {
 	for i = 0; i < n; i++ {
 		op = entries[i].op
 		if op != nil && op.pd == entries[i].key {
-			errno = 0
-			qty = 0
-			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
-				errno = int32(getlasterror())
+			mode := op.mode
+			if mode != 'r' && mode != 'w' {
+				println("runtime: GetQueuedCompletionStatusEx returned net_op with invalid mode=", mode)
+				throw("runtime: netpoll failed")
 			}
-			delta += handlecompletion(&toRun, op, errno, qty)
+			delta += netpollready(&toRun, op.pd, mode)
 		} else {
 			netpollWakeSig.Store(0)
 			if delay == 0 {
@@ -147,15 +145,4 @@ func netpoll(delay int64) (gList, int32) {
 		}
 	}
 	return toRun, delta
-}
-
-func handlecompletion(toRun *gList, op *net_op, errno int32, qty uint32) int32 {
-	mode := op.mode
-	if mode != 'r' && mode != 'w' {
-		println("runtime: GetQueuedCompletionStatusEx returned invalid mode=", mode)
-		throw("runtime: netpoll failed")
-	}
-	op.errno = errno
-	op.qty = qty
-	return netpollready(toRun, op.pd, mode)
 }

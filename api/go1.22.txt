@@ -1,19 +1,10 @@
 pkg archive/tar, method (*Writer) AddFS(fs.FS) error #58000
-pkg archive/tar, type FileInfoNames interface, Gname(int) (string, error) #50102
-pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
-pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
-pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
-pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
-pkg archive/tar, type FileInfoNames interface, Name() string #50102
-pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
-pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
-pkg archive/tar, type FileInfoNames interface, Uname(int) (string, error) #50102
 pkg archive/zip, method (*Writer) AddFS(fs.FS) error #54898
 pkg cmp, func Or[$0 comparable](...$0) $0 #60204
 pkg crypto/x509, func OIDFromInts([]uint64) (OID, error) #60665
 pkg crypto/x509, method (*CertPool) AddCertWithConstraint(*Certificate, func([]*Certificate) error) #57178
-pkg crypto/x509, method (OID) EqualASN1OID(asn1.ObjectIdentifier) bool #60665
 pkg crypto/x509, method (OID) Equal(OID) bool #60665
+pkg crypto/x509, method (OID) EqualASN1OID(asn1.ObjectIdentifier) bool #60665
 pkg crypto/x509, method (OID) String() string #60665
 pkg crypto/x509, type Certificate struct, Policies []OID #60665
 pkg crypto/x509, type OID struct #60665
@@ -48,14 +39,19 @@ pkg encoding/base64, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8,
 pkg encoding/base64, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
 pkg encoding/hex, func AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
 pkg encoding/hex, func AppendEncode([]uint8, []uint8) []uint8 #53693
+pkg go/ast, func NewPackage //deprecated #52463
 pkg go/ast, func Unparen(Expr) Expr #60061
+pkg go/ast, type Importer //deprecated #52463
+pkg go/ast, type Object //deprecated #52463
+pkg go/ast, type Package //deprecated #52463
+pkg go/ast, type Scope //deprecated #52463
 pkg go/types, func NewAlias(*TypeName, Type) *Alias #63223
 pkg go/types, func Unalias(Type) Type #63223
 pkg go/types, method (*Alias) Obj() *TypeName #63223
 pkg go/types, method (*Alias) String() string #63223
 pkg go/types, method (*Alias) Underlying() Type #63223
-pkg go/types, method (Checker) PkgNameOf(*ast.ImportSpec) *PkgName #62037
 pkg go/types, method (*Info) PkgNameOf(*ast.ImportSpec) *PkgName #62037
+pkg go/types, method (Checker) PkgNameOf(*ast.ImportSpec) *PkgName #62037
 pkg go/types, type Alias struct #63223
 pkg go/types, type Info struct, FileVersions map[*ast.File]string #62605
 pkg go/version, func Compare(string, string) int #62039
@@ -68,24 +64,29 @@ pkg math/big, method (*Rat) FloatPrec() (int, bool) #50489
 pkg math/rand/v2, func ExpFloat64() float64 #61716
 pkg math/rand/v2, func Float32() float32 #61716
 pkg math/rand/v2, func Float64() float64 #61716
+pkg math/rand/v2, func Int() int #61716
 pkg math/rand/v2, func Int32() int32 #61716
 pkg math/rand/v2, func Int32N(int32) int32 #61716
 pkg math/rand/v2, func Int64() int64 #61716
 pkg math/rand/v2, func Int64N(int64) int64 #61716
-pkg math/rand/v2, func Int() int #61716
 pkg math/rand/v2, func IntN(int) int #61716
 pkg math/rand/v2, func N[$0 intType]($0) $0 #61716
-pkg math/rand/v2, func NewPCG(uint64, uint64) *PCG #61716
 pkg math/rand/v2, func New(Source) *Rand #61716
+pkg math/rand/v2, func NewChaCha8([32]uint8) *ChaCha8 #61716
+pkg math/rand/v2, func NewPCG(uint64, uint64) *PCG #61716
 pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
 pkg math/rand/v2, func NormFloat64() float64 #61716
 pkg math/rand/v2, func Perm(int) []int #61716
 pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
-pkg math/rand/v2, func Uint32N(uint32) uint32 #61716
 pkg math/rand/v2, func Uint32() uint32 #61716
-pkg math/rand/v2, func Uint64N(uint64) uint64 #61716
+pkg math/rand/v2, func Uint32N(uint32) uint32 #61716
 pkg math/rand/v2, func Uint64() uint64 #61716
+pkg math/rand/v2, func Uint64N(uint64) uint64 #61716
 pkg math/rand/v2, func UintN(uint) uint #61716
+pkg math/rand/v2, method (*ChaCha8) MarshalBinary() ([]uint8, error) #61716
+pkg math/rand/v2, method (*ChaCha8) Seed([32]uint8) #61716
+pkg math/rand/v2, method (*ChaCha8) Uint64() uint64 #61716
+pkg math/rand/v2, method (*ChaCha8) UnmarshalBinary([]uint8) error #61716
 pkg math/rand/v2, method (*PCG) MarshalBinary() ([]uint8, error) #61716
 pkg math/rand/v2, method (*PCG) Seed(uint64, uint64) #61716
 pkg math/rand/v2, method (*PCG) Uint64() uint64 #61716
@@ -93,42 +94,42 @@ pkg math/rand/v2, method (*PCG) UnmarshalBinary([]uint8) error #61716
 pkg math/rand/v2, method (*Rand) ExpFloat64() float64 #61716
 pkg math/rand/v2, method (*Rand) Float32() float32 #61716
 pkg math/rand/v2, method (*Rand) Float64() float64 #61716
+pkg math/rand/v2, method (*Rand) Int() int #61716
 pkg math/rand/v2, method (*Rand) Int32() int32 #61716
 pkg math/rand/v2, method (*Rand) Int32N(int32) int32 #61716
 pkg math/rand/v2, method (*Rand) Int64() int64 #61716
 pkg math/rand/v2, method (*Rand) Int64N(int64) int64 #61716
-pkg math/rand/v2, method (*Rand) Int() int #61716
 pkg math/rand/v2, method (*Rand) IntN(int) int #61716
 pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
 pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
 pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
-pkg math/rand/v2, method (*Rand) Uint32N(uint32) uint32 #61716
 pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
-pkg math/rand/v2, method (*Rand) Uint64N(uint64) uint64 #61716
+pkg math/rand/v2, method (*Rand) Uint32N(uint32) uint32 #61716
 pkg math/rand/v2, method (*Rand) Uint64() uint64 #61716
+pkg math/rand/v2, method (*Rand) Uint64N(uint64) uint64 #61716
 pkg math/rand/v2, method (*Rand) UintN(uint) uint #61716
 pkg math/rand/v2, method (*Zipf) Uint64() uint64 #61716
+pkg math/rand/v2, type ChaCha8 struct #61716
 pkg math/rand/v2, type PCG struct #61716
 pkg math/rand/v2, type Rand struct #61716
 pkg math/rand/v2, type Source interface { Uint64 } #61716
 pkg math/rand/v2, type Source interface, Uint64() uint64 #61716
 pkg math/rand/v2, type Zipf struct #61716
+pkg net, method (*TCPConn) WriteTo(io.Writer) (int64, error) #58808
 pkg net/http, func FileServerFS(fs.FS) Handler #51971
 pkg net/http, func NewFileTransportFS(fs.FS) RoundTripper #51971
 pkg net/http, func ServeFileFS(ResponseWriter, *Request, fs.FS, string) #51971
 pkg net/http, method (*Request) PathValue(string) string #61410
 pkg net/http, method (*Request) SetPathValue(string, string) #61410
-pkg net, method (*TCPConn) WriteTo(io.Writer) (int64, error) #58808
 pkg net/netip, method (AddrPort) Compare(AddrPort) int #61642
-pkg net/netip, method (Prefix) Compare(Prefix) int #61642
 pkg os, method (*File) WriteTo(io.Writer) (int64, error) #58808
 pkg reflect, func PtrTo //deprecated #59599
 pkg reflect, func TypeFor[$0 interface{}]() Type #60088
 pkg slices, func Concat[$0 interface{ ~[]$1 }, $1 interface{}](...$0) $0 #56353
-pkg syscall (linux-386-cgo), type SysProcAttr struct, PidFD *int #51246
 pkg syscall (linux-386), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-amd64-cgo), type SysProcAttr struct, PidFD *int #51246
+pkg syscall (linux-386-cgo), type SysProcAttr struct, PidFD *int #51246
 pkg syscall (linux-amd64), type SysProcAttr struct, PidFD *int #51246
-pkg syscall (linux-arm-cgo), type SysProcAttr struct, PidFD *int #51246
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, PidFD *int #51246
 pkg syscall (linux-arm), type SysProcAttr struct, PidFD *int #51246
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, PidFD *int #51246
 pkg testing/slogtest, func Run(*testing.T, func(*testing.T) slog.Handler, func(*testing.T) map[string]interface{}) #61758

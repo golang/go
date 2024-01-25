@@ -225,7 +225,7 @@ func (v *Validator) Event(ev trace.Event) error {
 				ctx := state.binding
 				if ctx != nil {
 					if ctx.P != id {
-						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ev.Thread())
+						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ctx.M)
 					}
 					ctx.P = trace.NoProc
 					state.binding = nil
