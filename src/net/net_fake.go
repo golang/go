@@ -460,16 +460,6 @@ func (pq *packetQueue) put(q packetQueueState) {
 
 func (pq *packetQueue) closeRead() error {
 	q := pq.get()
-
-	// Discard any unread packets.
-	for q.head != nil {
-		p := q.head
-		q.head = p.next
-		p.clear()
-		packetPool.Put(p)
-	}
-	q.nBytes = 0
-
 	q.readClosed = true
 	pq.put(q)
 	return nil
@@ -557,7 +547,7 @@ func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bo
 	}
 	if q.writeClosed {
 		return 0, ErrClosed
-	} else if q.readClosed {
+	} else if q.readClosed && q.nBytes >= q.readBufferBytes {
 		return 0, os.NewSyscallError("send", syscall.ECONNRESET)
 	}
 
@@ -603,11 +593,13 @@ func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, c
 	}
 	defer func() { pq.put(q) }()
 
+	if q.readClosed {
+		return 0, nil, ErrClosed
+	}
+
 	p := q.head
 	if p == nil {
 		switch {
-		case q.readClosed:
-			return 0, nil, ErrClosed
 		case q.writeClosed:
 			if q.noLinger {
 				return 0, nil, os.NewSyscallError("recvfrom", syscall.ECONNRESET)
