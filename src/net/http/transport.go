@@ -2556,17 +2556,15 @@ type writeRequest struct {
 }
 
 type httpError struct {
-	err     error
+	err     string
 	timeout bool
 }
 
-func (e *httpError) Error() string        { return e.err.Error() }
-func (e *httpError) Timeout() bool        { return e.timeout }
-func (e *httpError) Temporary() bool      { return true }
-func (e *httpError) Is(target error) bool { return errors.Is(e.err, target) }
-func (e *httpError) Unwrap() error        { return e.err }
+func (e *httpError) Error() string   { return e.err }
+func (e *httpError) Timeout() bool   { return e.timeout }
+func (e *httpError) Temporary() bool { return true }
 
-var errTimeout error = &httpError{err: errors.New("net/http: timeout awaiting response headers"), timeout: true}
+var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
 // testing.
