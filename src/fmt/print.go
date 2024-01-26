@@ -586,13 +586,6 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 
 func (p *pp) catchPanic(arg any, verb rune, method string) {
 	if err := recover(); err != nil {
-		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
-		// Stringer that fails to guard against nil or a nil pointer for a
-		// value receiver, and in either case, "<nil>" is a nice result.
-		if v := reflect.ValueOf(arg); v.Kind() == reflect.Pointer && v.IsNil() {
-			p.buf.writeString(nilAngleString)
-			return
-		}
 		// Otherwise print a concise panic message. Most of the time the panic
 		// value will print itself nicely.
 		if p.panicking {
@@ -637,6 +630,10 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
 		defer p.catchPanic(p.arg, verb, "Format")
+		if p.isNil() {
+			p.buf.writeString(nilAngleString)
+			return
+		}
 		formatter.Format(p, verb)
 		return
 	}
@@ -646,6 +643,10 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		if stringer, ok := p.arg.(GoStringer); ok {
 			handled = true
 			defer p.catchPanic(p.arg, verb, "GoString")
+			if p.isNil() {
+				p.buf.writeString(nilAngleString)
+				return
+			}
 			// Print the result of GoString unadorned.
 			p.fmt.fmtS(stringer.GoString())
 			return
@@ -664,16 +665,34 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 			case error:
 				handled = true
 				defer p.catchPanic(p.arg, verb, "Error")
+				if p.isNil() {
+					p.buf.writeString(nilAngleString)
+					return
+				}
 				p.fmtString(v.Error(), verb)
 				return
 
 			case Stringer:
 				handled = true
 				defer p.catchPanic(p.arg, verb, "String")
+				if p.isNil() {
+					p.buf.writeString(nilAngleString)
+					return
+				}
 				p.fmtString(v.String(), verb)
 				return
 			}
 		}
+	}
+	return false
+}
+
+func (p *pp) isNil() bool {
+	if p.arg == nil {
+		return true
+	}
+	if v := reflect.ValueOf(p.arg); v.Kind() == reflect.Ptr && v.IsNil() {
+		return true
 	}
 	return false
 }

@@ -1946,3 +1946,22 @@ func TestAppendln(t *testing.T) {
 		t.Fatalf("Appendln allocated a new slice")
 	}
 }
+
+func TestNilValueStringerWrapper(t *testing.T) {
+	sw := (*StringerWrapper)(nil)
+	expect := "<nil>"
+	out := Sprintf("%v", sw)
+	if out != expect {
+		t.Errorf("expected %q got %q", expect, out)
+	}
+}
+
+type StringerWrapper struct {
+	EmbedStringer
+}
+
+type EmbedStringer struct{}
+
+func (EmbedStringer) String() string {
+	return "EmbedStringer"
+}
