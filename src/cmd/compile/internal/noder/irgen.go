@@ -22,7 +22,8 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
 
 // checkFiles configures and runs the types2 checker on the given
 // parsed source files and then returns the result.
-func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+// The map result value indicates which closures are generated from the bodies of range function loops.
+func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*syntax.FuncLit]bool) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
@@ -150,9 +151,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	// If we do the rewrite in the back end, like between typecheck and walk,
 	// then the new implicit closure will not have a unified IR inline body,
 	// and bodyReaderFor will fail.
-	rangefunc.Rewrite(pkg, info, files)
+	rangeInfo := rangefunc.Rewrite(pkg, info, files)
 
-	return pkg, info
+	return pkg, info, rangeInfo
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).

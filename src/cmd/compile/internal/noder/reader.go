@@ -2704,7 +2704,7 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
 		return false
 	}
 
-	fn := r.inlClosureFunc(origPos, typ)
+	fn := r.inlClosureFunc(origPos, typ, ir.OCLOSURE)
 	fn.SetWrapper(true)
 
 	clo := fn.OClosure
@@ -3035,8 +3035,12 @@ func (r *reader) funcLit() ir.Node {
 	origPos := r.pos()
 	sig := r.signature(nil)
 	r.suppressInlPos--
+	why := ir.OCLOSURE
+	if r.Bool() {
+		why = ir.ORANGE
+	}
 
-	fn := r.inlClosureFunc(origPos, sig)
+	fn := r.inlClosureFunc(origPos, sig, why)
 
 	fn.ClosureVars = make([]*ir.Name, 0, r.Len())
 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
@@ -3062,14 +3066,14 @@ func (r *reader) funcLit() ir.Node {
 
 // inlClosureFunc constructs a new closure function, but correctly
 // handles inlining.
-func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type) *ir.Func {
+func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type, why ir.Op) *ir.Func {
 	curfn := r.inlCaller
 	if curfn == nil {
 		curfn = r.curfn
 	}
 
 	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
-	return ir.NewClosureFunc(origPos, r.inlPos(origPos), ir.OCLOSURE, sig, curfn, typecheck.Target)
+	return ir.NewClosureFunc(origPos, r.inlPos(origPos), why, sig, curfn, typecheck.Target)
 }
 
 func (r *reader) exprList() []ir.Node {

@@ -63,9 +63,10 @@ import (
 type pkgWriter struct {
 	pkgbits.PkgEncoder
 
-	m      posMap
-	curpkg *types2.Package
-	info   *types2.Info
+	m                     posMap
+	curpkg                *types2.Package
+	info                  *types2.Info
+	rangeFuncBodyClosures map[*syntax.FuncLit]bool // non-public information, e.g., which functions are closures range function bodies?
 
 	// Indices for previously written syntax and types2 things.
 
@@ -90,13 +91,14 @@ type pkgWriter struct {
 
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
-func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
 	return &pkgWriter{
 		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
 
-		m:      m,
-		curpkg: pkg,
-		info:   info,
+		m:                     m,
+		curpkg:                pkg,
+		info:                  info,
+		rangeFuncBodyClosures: otherInfo,
 
 		pkgsIdx: make(map[*types2.Package]pkgbits.Index),
 		objsIdx: make(map[types2.Object]pkgbits.Index),
@@ -2336,6 +2338,7 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 	w.Sync(pkgbits.SyncFuncLit)
 	w.pos(expr)
 	w.signature(sig)
+	w.Bool(w.p.rangeFuncBodyClosures[expr])
 
 	w.Len(len(closureVars))
 	for _, cv := range closureVars {

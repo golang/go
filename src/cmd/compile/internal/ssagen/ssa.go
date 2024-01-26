@@ -1461,7 +1461,11 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
 			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
+				n.Fun.Sym().Pkg == ir.Pkgs.Runtime &&
+					(fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" ||
+						fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" ||
+						fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr" ||
+						fn == "panicrangestate") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit

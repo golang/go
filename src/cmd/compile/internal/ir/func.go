@@ -90,15 +90,19 @@ type Func struct {
 
 	Inl *Inline
 
-	// funcLitGen and goDeferGen track how many closures have been
-	// created in this function for function literals and go/defer
-	// wrappers, respectively. Used by closureName for creating unique
-	// function names.
-	//
+	// RangeParent, if non-nil, is the first non-range body function containing
+	// the closure for the body of a range function.
+	RangeParent *Func
+
+	// funcLitGen, rangeLitGen and goDeferGen track how many closures have been
+	// created in this function for function literals, range-over-func loops,
+	// and go/defer wrappers, respectively. Used by closureName for creating
+	// unique function names.
 	// Tracking goDeferGen separately avoids wrappers throwing off
 	// function literal numbering (e.g., runtime/trace_test.TestTraceSymbolize.func11).
-	funcLitGen int32
-	goDeferGen int32
+	funcLitGen  int32
+	rangeLitGen int32
+	goDeferGen  int32
 
 	Label int32 // largest auto-generated label in this function
 
@@ -417,20 +421,25 @@ var globClosgen int32
 
 // closureName generates a new unique name for a closure within outerfn at pos.
 func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+	if outerfn != nil && outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
+		outerfn = outerfn.OClosure.Func.RangeParent
+	}
 	pkg := types.LocalPkg
 	outer := "glob."
-	var prefix string
+	var prefix string = "."
 	switch why {
 	default:
 		base.FatalfAt(pos, "closureName: bad Op: %v", why)
 	case OCLOSURE:
 		if outerfn == nil || outerfn.OClosure == nil {
-			prefix = "func"
+			prefix = ".func"
 		}
+	case ORANGE:
+		prefix = "-range"
 	case OGO:
-		prefix = "gowrap"
+		prefix = ".gowrap"
 	case ODEFER:
-		prefix = "deferwrap"
+		prefix = ".deferwrap"
 	}
 	gen := &globClosgen
 
@@ -441,9 +450,12 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 		pkg = outerfn.Sym().Pkg
 		outer = FuncName(outerfn)
 
-		if why == OCLOSURE {
+		switch why {
+		case OCLOSURE:
 			gen = &outerfn.funcLitGen
-		} else {
+		case ORANGE:
+			gen = &outerfn.rangeLitGen
+		default:
 			gen = &outerfn.goDeferGen
 		}
 	}
@@ -460,7 +472,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	}
 
 	*gen++
-	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
+	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, prefix, *gen))
 }
 
 // NewClosureFunc creates a new Func to represent a function literal
@@ -490,6 +502,12 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
 	clo.pos = cpos
 	clo.SetType(typ)
 	clo.SetTypecheck(1)
+	if why == ORANGE {
+		clo.Func.RangeParent = outerfn
+		if outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
+			clo.Func.RangeParent = outerfn.OClosure.Func.RangeParent
+		}
+	}
 	fn.OClosure = clo
 
 	fn.Nname.Defn = fn
