@@ -15,6 +15,8 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
 
 #ifndef GOARCH_amd64
 #ifndef GOARCH_arm64
+#ifndef GOARCH_mips
+#ifndef GOARCH_mipsle
 #ifndef GOARCH_mips64
 #ifndef GOARCH_mips64le
 #ifndef GOARCH_ppc64
@@ -25,6 +27,8 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
 // stub to appease shared build mode.
 TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
 	UNDEF
+#endif
+#endif
 #endif
 #endif
 #endif
