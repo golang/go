@@ -24,7 +24,7 @@ type Pinner struct {
 // contains pointers to Go objects, these objects must be pinned separately if they
 // are going to be accessed from C code.
 //
-// The argument must be a pointer of any type or an [unsafe.Pointer].
+// The argument must be a pointer of any type or an [unsafe.Pointer] or string or slice.
 // It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
@@ -114,6 +114,8 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 		data = e.data
 	case kindString:
 		data = unsafe.Pointer(unsafe.StringData(*(*string)(e.data)))
+	case kindSlice:
+		data = unsafe.Pointer(unsafe.SliceData(*(*[]byte)(e.data)))
 	default:
 		panic(errorString("runtime.Pinner: argument is not a pointer or string: " + toRType(etyp).string()))
 	}
