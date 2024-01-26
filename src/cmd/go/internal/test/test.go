@@ -993,7 +993,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
 		if err != nil {
 			str := err.Error()
-			str = strings.TrimPrefix(str, "\n")
 			if p.ImportPath != "" {
 				base.Errorf("# %s\n%s", p.ImportPath, str)
 			} else {
