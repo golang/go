@@ -13,15 +13,23 @@ corresponding to standard library package paths, and headings for those package
 paths will be generated automatically.
 
 Files in this repo's `api/next` directory must have corresponding files in
-`*stdlib/*minor`. The files should be in the subdirectory for the package with
-the new API, and should be named after the issue number of the API proposal. For
-example, an `api/next` file with the line
+`doc/next/*stdlib/*minor`.
+The files should be in the subdirectory for the package with the new
+API, and should be named after the issue number of the API proposal.
+For example, if the directory `6-stdlib/99-minor` is present,
+then an `api/next` file with the line
 
     pkg net/http, function F #12345
 
-should have a corresponding file named `net/http/12345.md`.
+should have a corresponding file named `doc/next/6-stdlib/99-minor/net/http/12345.md`.
 At a minimum, that file should contain either a full sentence or a TODO,
 ideally referring to a person with the responsibility to complete the note.
+
+Use the following forms in your markdown:
+
+	[`http.Request`](/pkg/net/http#Request)         # symbol documentation
+	[#12345](/issue/12345)                          # GitHub issues
+	[CL 6789](/cl/6789)                             # Gerrit changelists
 
 ## For the release team
 
