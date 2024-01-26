@@ -547,6 +547,9 @@ func TestPinnerPinString(t *testing.T) {
 	if !runtime.IsPinned(addr) {
 		t.Fatal("not marked as pinned")
 	}
+	if runtime.GetPinCounter(addr) != nil {
+		t.Fatal("pin counter should not exist")
+	}
 	pinner.Unpin()
 	if runtime.IsPinned(addr) {
 		t.Fatal("still marked as pinned")
