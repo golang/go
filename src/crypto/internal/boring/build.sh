@@ -22,12 +22,6 @@ platform=""
 buildargs=""
 case "$GOARCH" in
 amd64)
-	if ! docker run --rm -t amd64/ubuntu:focal uname -m >/dev/null 2>&1; then
-		echo "# Docker cannot run amd64 binaries."
-		exit 1
-	fi
-	platform="--platform linux/amd64"
-	buildargs="--build-arg ubuntu=amd64/ubuntu"
 	;;
 arm64)
 	if ! docker run --rm -t arm64v8/ubuntu:focal uname -m >/dev/null 2>&1; then

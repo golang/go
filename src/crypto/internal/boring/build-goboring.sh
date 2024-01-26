@@ -122,7 +122,7 @@ awk -f boringx.awk goboringcrypto.h # writes goboringcrypto.x
 awk -f boringh.awk goboringcrypto.h # writes goboringcrypto[01].h
 
 ls -l ../boringssl/include
-clang++ -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+clang++ -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
 ./a.out || exit 2
 
 # clang implements u128 % u128 -> u128 by calling __umodti3,
