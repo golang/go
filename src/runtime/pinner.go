@@ -26,7 +26,6 @@ type Pinner struct {
 // accessed from C code.
 //
 // The argument must be a pointer of any type or an unsafe.Pointer.
-// It must be a go pointer and cannot point to memory allocated by arena.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
 		// Check the pinner cache first.
