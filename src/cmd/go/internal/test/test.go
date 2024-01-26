@@ -703,7 +703,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
 	pkgs = load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
-	load.CheckPackageErrors(pkgs)
+	// We *don't* call load.CheckPackageErrors here because we want to report
+	// loading errors as per-package test setup errors later.
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}

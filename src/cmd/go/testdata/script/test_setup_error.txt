@@ -1,0 +1,74 @@
+[short] skip
+
+# Test that a loading error in a test file is reported as a "setup failed" error
+# and doesn't prevent running other tests.
+! go test -o=$devnull ./t1/p ./t
+stderr '# m/t1/p\n.*package x is not in std'
+stdout 'FAIL	m/t1/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Test a loading error in a test package, but not in the test file
+! go test -o=$devnull ./t2/p ./t
+stderr '# m/t2/p\n.*package x is not in std'
+stdout 'FAIL	m/t2/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Test a loading error in a package imported by a test file
+! go test -o=$devnull ./t3/p ./t
+stderr '# m/t3/p\n.*package x is not in std'
+stdout 'FAIL	m/t3/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Test a loading error in a package imported by a test package
+! go test -o=$devnull ./t4/p ./t
+stderr '# m/t4/p\n.*package x is not in std'
+stdout 'FAIL	m/t4/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Test that two loading errors are both reported.
+! go test -o=$devnull ./t1/p ./t2/p ./t
+stderr '# m/t1/p\n.*package x is not in std'
+stdout 'FAIL	m/t1/p \[setup failed\]'
+stderr '# m/t2/p\n.*package x is not in std'
+stdout 'FAIL	m/t2/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Finally, this one is a build error, but produced by cmd/go directly
+! go test -o=$devnull . ./t
+stderr '^\.: no Go files in '$PWD'$'
+stdout 'FAIL	. \[build failed\]'
+stdout 'ok  	m/t'
+
+-- go.mod --
+module m
+go 1.21
+-- t/t_test.go --
+package t
+
+import "testing"
+
+func TestGood(t *testing.T) {}
+-- t1/p/p_test.go --
+package p
+
+import "x"
+-- t2/p/p_test.go --
+package p
+-- t2/p/p.go --
+package p
+
+import "x"
+-- t3/p/p_test.go --
+package p
+
+import "m/bad"
+-- t4/p/p_test.go --
+package p
+-- t4/p/p.go --
+package p
+
+import "m/bad"
+-- bad/bad.go --
+package bad
+
+import "x"

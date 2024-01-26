@@ -176,8 +176,10 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	if len(p.TestGoFiles) > 0 || p.Name == "main" || cover != nil && cover.Local {
 		ptest = new(Package)
 		*ptest = *p
-		ptest.Error = ptestErr
-		ptest.Incomplete = incomplete
+		if ptest.Error == nil {
+			ptest.Error = ptestErr
+		}
+		ptest.Incomplete = ptest.Incomplete || incomplete
 		ptest.ForTest = p.ImportPath
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
