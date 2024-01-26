@@ -6,10 +6,9 @@
 
 package tls
 
-import "crypto/internal/boring/fipstls"
-
-// The FIPS-only policies enforced here currently match BoringSSL's
-// ssl_policy_fips_202205.
+import (
+	"crypto/internal/boring/fipstls"
+)
 
 // needFIPS returns fipstls.Required(); it avoids a new import in common.go.
 func needFIPS() bool {
@@ -18,19 +17,19 @@ func needFIPS() bool {
 
 // fipsMinVersion replaces c.minVersion in FIPS-only mode.
 func fipsMinVersion(c *Config) uint16 {
-	// FIPS requires TLS 1.2 or TLS 1.3.
+	// FIPS requires TLS 1.2.
 	return VersionTLS12
 }
 
 // fipsMaxVersion replaces c.maxVersion in FIPS-only mode.
 func fipsMaxVersion(c *Config) uint16 {
-	// FIPS requires TLS 1.2 or TLS 1.3.
-	return VersionTLS13
+	// FIPS requires TLS 1.2.
+	return VersionTLS12
 }
 
 // default defaultFIPSCurvePreferences is the FIPS-allowed curves,
 // in preference order (most preferable first).
-var defaultFIPSCurvePreferences = []CurveID{CurveP256, CurveP384}
+var defaultFIPSCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
 
 // fipsCurvePreferences replaces c.curvePreferences in FIPS-only mode.
 func fipsCurvePreferences(c *Config) []CurveID {
@@ -55,6 +54,8 @@ var defaultCipherSuitesFIPS = []uint16{
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	TLS_RSA_WITH_AES_128_GCM_SHA256,
+	TLS_RSA_WITH_AES_256_GCM_SHA384,
 }
 
 // fipsCipherSuites replaces c.cipherSuites in FIPS-only mode.
@@ -74,14 +75,8 @@ func fipsCipherSuites(c *Config) []uint16 {
 	return list
 }
 
-// defaultCipherSuitesTLS13FIPS are the FIPS-allowed cipher suites for TLS 1.3.
-var defaultCipherSuitesTLS13FIPS = []uint16{
-	TLS_AES_128_GCM_SHA256,
-	TLS_AES_256_GCM_SHA384,
-}
-
 // fipsSupportedSignatureAlgorithms currently are a subset of
-// defaultSupportedSignatureAlgorithms without Ed25519, SHA-1, and P-521.
+// defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
 var fipsSupportedSignatureAlgorithms = []SignatureScheme{
 	PSSWithSHA256,
 	PSSWithSHA384,
@@ -91,6 +86,7 @@ var fipsSupportedSignatureAlgorithms = []SignatureScheme{
 	PKCS1WithSHA384,
 	ECDSAWithP384AndSHA384,
 	PKCS1WithSHA512,
+	ECDSAWithP521AndSHA512,
 }
 
 // supportedSignatureAlgorithms returns the supported signature algorithms.
