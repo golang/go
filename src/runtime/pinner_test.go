@@ -538,3 +538,21 @@ func TestPinnerConstStringData(t *testing.T) {
 		t.Fatal("not marked as pinned")
 	}
 }
+
+func TestPinnerPinString(t *testing.T) {
+	var pinner runtime.Pinner
+	heapStr := getHeapStr()
+	pinner.Pin(heapStr)
+	addr := unsafe.Pointer(unsafe.StringData(heapStr))
+	if !runtime.IsPinned(addr) {
+		t.Fatal("not marked as pinned")
+	}
+	pinner.Unpin()
+	if runtime.IsPinned(addr) {
+		t.Fatal("still marked as pinned")
+	}
+}
+
+func getHeapStr() string {
+	return string(byte(fastrand()))
+}
