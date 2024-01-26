@@ -612,7 +612,7 @@ func (fi headerFileInfo) String() string {
 }
 
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
-var sysStat func(fi fs.FileInfo, h *Header, useFileInfoNames bool) error
+var sysStat func(fi fs.FileInfo, h *Header, doNameLookups bool) error
 
 const (
 	// Mode constants from the USTAR spec:
@@ -641,7 +641,7 @@ const (
 // to provide the full path name of the file.
 //
 // If fi implements [FileInfoNames]
-// the Gname/Uname and Gid/Uid of the header are
+// the Gname and Uname of the header are
 // provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
@@ -715,9 +715,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
-	var useFileInfoNames = false
+	var doNameLookups = true
 	if iface, ok := fi.(FileInfoNames); ok {
-		useFileInfoNames = true
+		doNameLookups = false
 		var err error
 		h.Gname, err = iface.Gname()
 		if err != nil {
@@ -727,34 +727,22 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		h.Uid, err = iface.Uid()
-		if err != nil {
-			return nil, err
-		}
-		h.Gid, err = iface.Gid()
-		if err != nil {
-			return nil, err
-		}
 	}
 	if sysStat != nil {
-		return h, sysStat(fi, h, useFileInfoNames)
+		return h, sysStat(fi, h, doNameLookups)
 	}
 	return h, nil
 }
 
 // FileInfoNames extends [fs.FileInfo]
 // Passing an instance of this to [FileInfoHeader] permits the caller
-// to control Uid/Gid and Uname/Gname set.
+// to control Gname and Uname set.
 type FileInfoNames interface {
 	fs.FileInfo
 	// Uname should give a user name.
 	Uname() (string, error)
 	// Gname should give a group name.
 	Gname() (string, error)
-	// Uid should give a uid
-	Uid() (int, error)
-	// Gid should give a gid
-	Gid() (int, error)
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no

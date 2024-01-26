@@ -23,15 +23,12 @@ func init() {
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi fs.FileInfo, h *Header, useFileInfoNames bool) error {
-	if !useFileInfoNames {
-		sys, ok := fi.Sys().(*syscall.Stat_t)
-		if !ok {
-			return nil
-		}
-		h.Uid = int(sys.Uid)
-		h.Gid = int(sys.Gid)
-
+func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
+	sys, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil
+	}
+	if doNameLookups {
 		// Best effort at populating Uname and Gname.
 		// The os/user functions may fail for any number of reasons
 		// (not implemented on that platform, cgo not enabled, etc).
@@ -49,6 +46,8 @@ func statUnix(fi fs.FileInfo, h *Header, useFileInfoNames bool) error {
 		}
 	}
 
+	h.Uid = int(sys.Uid)
+	h.Gid = int(sys.Gid)
 	h.AccessTime = statAtime(sys)
 	h.ChangeTime = statCtime(sys)
 

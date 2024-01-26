@@ -849,11 +849,6 @@ func Benchmark(b *testing.B) {
 
 }
 
-const (
-	testUid = 10
-	testGid = 20
-)
-
 var _ fileInfoNames = fileInfoNames{}
 
 type fileInfoNames struct{}
@@ -890,14 +885,6 @@ func (f *fileInfoNames) Gname() (string, error) {
 	return "Gname", nil
 }
 
-func (f *fileInfoNames) Uid() (int, error) {
-	return testUid, nil
-}
-
-func (f *fileInfoNames) Gid() (int, error) {
-	return testGid, nil
-}
-
 func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
 	info := &fileInfoNames{}
 	header, err := FileInfoHeader(info, "")
@@ -909,11 +896,5 @@ func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
 	}
 	if header.Gname != "Gname" {
 		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
-	}
-	if header.Uid != testUid {
-		t.Fatalf("header.Uid: got %d, want %d", header.Uid, testUid)
-	}
-	if header.Gid != testGid {
-		t.Fatalf("header.Gid: got %d, want %d", header.Gid, testGid)
 	}
 }
