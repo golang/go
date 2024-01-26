@@ -80,7 +80,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(ident *syntax.Name, embedded bool, pos syntax.Pos) {
+	add := func(ident *syntax.Name, embedded bool) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -88,6 +88,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			tags = append(tags, tag)
 		}
 
+		pos := ident.Pos()
 		name := ident.Value
 		fld := NewField(pos, check.pkg, name, typ, embedded)
 		// spec: "Within a struct, non-blank field names must be unique."
@@ -101,10 +102,10 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 	// fields with errors; this keeps the number of struct fields in sync
 	// with the source as long as the fields are _ or have different names
 	// (go.dev/issue/25627).
-	addInvalid := func(ident *syntax.Name, pos syntax.Pos) {
+	addInvalid := func(ident *syntax.Name) {
 		typ = Typ[Invalid]
 		tag = ""
-		add(ident, true, pos)
+		add(ident, true)
 	}
 
 	var prev syntax.Expr
@@ -121,7 +122,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 		}
 		if f.Name != nil {
 			// named field
-			add(f.Name, false, f.Name.Pos())
+			add(f.Name, false)
 		} else {
 			// embedded field
 			// spec: "An embedded type must be specified as a type name T or as a
@@ -131,11 +132,11 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
-				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
-				addInvalid(name, pos)
+				name = syntax.NewName(pos, "_")
+				addInvalid(name)
 				continue
 			}
-			add(name, true, name.Pos()) // struct{p.T} field has position of T
+			add(name, true) // struct{p.T} field has position of T
 
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.

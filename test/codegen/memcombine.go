@@ -348,7 +348,6 @@ func reassoc_load_uint32(b []byte) uint32 {
 func extrashift_load_uint32(b []byte) uint32 {
 	// amd64:`MOVL\s\([A-Z]+\)`,`SHLL\s[$]2`,-`MOV[BW]`,-`OR`
 	return uint32(b[0])<<2 | uint32(b[1])<<10 | uint32(b[2])<<18 | uint32(b[3])<<26
-
 }
 
 func outoforder_load_uint32(b []byte) uint32 {

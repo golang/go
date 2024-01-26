@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/typeparams"
 )
 
 //go:embed doc.go
@@ -92,7 +91,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		t := pass.TypesInfo.Types[call.Args[argidx]].Type
 		switch t.Underlying().(type) {
-		case *types.Pointer, *types.Interface, *typeparams.TypeParam:
+		case *types.Pointer, *types.Interface, *types.TypeParam:
 			return
 		}
 

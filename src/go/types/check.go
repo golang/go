@@ -17,8 +17,9 @@ import (
 	"strings"
 )
 
-// nopos indicates an unknown position
+// nopos, noposn indicate an unknown position
 var nopos token.Pos
+var noposn = atPos(nopos)
 
 // debugging/development support
 const debug = false // leave on during development

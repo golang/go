@@ -280,7 +280,7 @@ func (a *Address) String() string {
 	// Add quotes if needed
 	quoteLocal := false
 	for i, r := range local {
-		if isAtext(r, false, false) {
+		if isAtext(r, false) {
 			continue
 		}
 		if r == '.' {
@@ -444,7 +444,7 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	if !p.consume('<') {
 		atext := true
 		for _, r := range displayName {
-			if !isAtext(r, true, false) {
+			if !isAtext(r, true) {
 				atext = false
 				break
 			}
@@ -479,7 +479,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 	// handle empty group.
 	p.skipSpace()
 	if p.consume(';') {
-		p.skipCFWS()
+		if !p.skipCFWS() {
+			return nil, errors.New("mail: misformatted parenthetical comment")
+		}
 		return group, nil
 	}
 
@@ -496,7 +498,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 			return nil, errors.New("mail: misformatted parenthetical comment")
 		}
 		if p.consume(';') {
-			p.skipCFWS()
+			if !p.skipCFWS() {
+				return nil, errors.New("mail: misformatted parenthetical comment")
+			}
 			break
 		}
 		if !p.consume(',') {
@@ -566,6 +570,12 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 	var words []string
 	var isPrevEncoded bool
 	for {
+		// obs-phrase allows CFWS after one word
+		if len(words) > 0 {
+			if !p.skipCFWS() {
+				return "", errors.New("mail: misformatted parenthetical comment")
+			}
+		}
 		// word = atom / quoted-string
 		var word string
 		p.skipSpace()
@@ -661,7 +671,6 @@ Loop:
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 // If permissive is true, consumeAtom will not fail on:
 // - leading/trailing/double dots in the atom (see golang.org/issue/4938)
-// - special characters (RFC 5322 3.2.3) except '<', '>', ':' and '"' (see golang.org/issue/21018)
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
 	i := 0
 
@@ -672,7 +681,7 @@ Loop:
 		case size == 1 && r == utf8.RuneError:
 			return "", fmt.Errorf("mail: invalid utf-8 in address: %q", p.s)
 
-		case size == 0 || !isAtext(r, dot, permissive):
+		case size == 0 || !isAtext(r, dot):
 			break Loop
 
 		default:
@@ -850,18 +859,13 @@ func (e charsetError) Error() string {
 
 // isAtext reports whether r is an RFC 5322 atext character.
 // If dot is true, period is included.
-// If permissive is true, RFC 5322 3.2.3 specials is included,
-// except '<', '>', ':' and '"'.
-func isAtext(r rune, dot, permissive bool) bool {
+func isAtext(r rune, dot bool) bool {
 	switch r {
 	case '.':
 		return dot
 
 	// RFC 5322 3.2.3. specials
-	case '(', ')', '[', ']', ';', '@', '\\', ',':
-		return permissive
-
-	case '<', '>', '"', ':':
+	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '"': // RFC 5322 3.2.3. specials
 		return false
 	}
 	return isVchar(r)

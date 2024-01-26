@@ -285,6 +285,25 @@ func TestIssue41358(t *testing.T) {
 	}
 }
 
+func TestIssue64958(t *testing.T) {
+	defer func() {
+		if x := recover(); x != nil {
+			t.Errorf("expected no panic; recovered %v", x)
+		}
+	}()
+
+	testenv.MustHaveGoBuild(t)
+
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue64958")
+		pkg, err := w.importFrom("p", "", 0)
+		if err != nil {
+			t.Errorf("expected no error importing; got %T", err)
+		}
+		w.export(pkg)
+	}
+}
+
 func TestCheck(t *testing.T) {
 	if !*flagCheck {
 		t.Skip("-check not specified")

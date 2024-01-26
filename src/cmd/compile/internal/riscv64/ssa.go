@@ -297,6 +297,72 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+
+	case ssa.OpRISCV64LoweredFMAXD, ssa.OpRISCV64LoweredFMIND, ssa.OpRISCV64LoweredFMAXS, ssa.OpRISCV64LoweredFMINS:
+		// Most of FMIN/FMAX result match Go's required behaviour, unless one of the
+		// inputs is a NaN. As such, we need to explicitly test for NaN
+		// before using FMIN/FMAX.
+
+		// FADD Rarg0, Rarg1, Rout // FADD is used to propagate a NaN to the result in these cases.
+		// FEQ  Rarg0, Rarg0, Rtmp
+		// BEQZ Rtmp, end
+		// FEQ  Rarg1, Rarg1, Rtmp
+		// BEQZ Rtmp, end
+		// F(MIN | MAX)
+
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg()
+		add, feq := riscv.AFADDD, riscv.AFEQD
+		if v.Op == ssa.OpRISCV64LoweredFMAXS || v.Op == ssa.OpRISCV64LoweredFMINS {
+			add = riscv.AFADDS
+			feq = riscv.AFEQS
+		}
+
+		p1 := s.Prog(add)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r0
+		p1.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
+
+		p2 := s.Prog(feq)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = r0
+		p2.Reg = r0
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = riscv.REG_TMP
+
+		p3 := s.Prog(riscv.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = riscv.REG_ZERO
+		p3.Reg = riscv.REG_TMP
+		p3.To.Type = obj.TYPE_BRANCH
+
+		p4 := s.Prog(feq)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = r1
+		p4.Reg = r1
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = riscv.REG_TMP
+
+		p5 := s.Prog(riscv.ABEQ)
+		p5.From.Type = obj.TYPE_REG
+		p5.From.Reg = riscv.REG_ZERO
+		p5.Reg = riscv.REG_TMP
+		p5.To.Type = obj.TYPE_BRANCH
+
+		p6 := s.Prog(v.Op.Asm())
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = r1
+		p6.Reg = r0
+		p6.To.Type = obj.TYPE_REG
+		p6.To.Reg = out
+
+		nop := s.Prog(obj.ANOP)
+		p3.To.SetTarget(nop)
+		p5.To.SetTarget(nop)
+
 	case ssa.OpRISCV64LoweredMuluhilo:
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()

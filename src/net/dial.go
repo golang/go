@@ -65,7 +65,7 @@ func (m *mptcpStatus) set(use bool) {
 //
 // The zero value for each field is equivalent to dialing
 // without that option. Dialing with the zero value of Dialer
-// is therefore equivalent to just calling the Dial function.
+// is therefore equivalent to just calling the [Dial] function.
 //
 // It is safe to call Dialer's methods concurrently.
 type Dialer struct {
@@ -338,7 +338,7 @@ func (d *Dialer) MultipathTCP() bool {
 	return d.mptcpStatus.get()
 }
 
-// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
+// SetMultipathTCP directs the [Dial] methods to use, or not use, MPTCP,
 // if supported by the operating system. This method overrides the
 // system default and the GODEBUG=multipathtcp=... setting if any.
 //
@@ -363,7 +363,7 @@ func (d *Dialer) SetMultipathTCP(use bool) {
 // brackets, as in "[2001:db8::1]:80" or "[fe80::1%zone]:80".
 // The zone specifies the scope of the literal IPv6 address as defined
 // in RFC 4007.
-// The functions JoinHostPort and SplitHostPort manipulate a pair of
+// The functions [JoinHostPort] and [SplitHostPort] manipulate a pair of
 // host and port in this form.
 // When using TCP, and the host resolves to multiple IP addresses,
 // Dial will try each IP address in order until one succeeds.
@@ -401,7 +401,7 @@ func Dial(network, address string) (Conn, error) {
 	return d.Dial(network, address)
 }
 
-// DialTimeout acts like Dial but takes a timeout.
+// DialTimeout acts like [Dial] but takes a timeout.
 //
 // The timeout includes name resolution, if required.
 // When using TCP, and the host in the address parameter resolves to
@@ -428,8 +428,8 @@ type sysDialer struct {
 // See func Dial for a description of the network and address
 // parameters.
 //
-// Dial uses context.Background internally; to specify the context, use
-// DialContext.
+// Dial uses [context.Background] internally; to specify the context, use
+// [Dialer.DialContext].
 func (d *Dialer) Dial(network, address string) (Conn, error) {
 	return d.DialContext(context.Background(), network, address)
 }
@@ -450,7 +450,7 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 // the connect to each single address will be given 15 seconds to complete
 // before trying the next one.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn, error) {
 	if ctx == nil {
@@ -700,7 +700,7 @@ func (lc *ListenConfig) MultipathTCP() bool {
 	return lc.mptcpStatus.get()
 }
 
-// SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
+// SetMultipathTCP directs the [Listen] method to use, or not use, MPTCP,
 // if supported by the operating system. This method overrides the
 // system default and the GODEBUG=multipathtcp=... setting if any.
 //
@@ -795,14 +795,14 @@ type sysListener struct {
 // addresses.
 // If the port in the address parameter is empty or "0", as in
 // "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
-// The Addr method of Listener can be used to discover the chosen
+// The [Addr] method of [Listener] can be used to discover the chosen
 // port.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 //
 // Listen uses context.Background internally; to specify the context, use
-// ListenConfig.Listen.
+// [ListenConfig.Listen].
 func Listen(network, address string) (Listener, error) {
 	var lc ListenConfig
 	return lc.Listen(context.Background(), network, address)
@@ -825,14 +825,14 @@ func Listen(network, address string) (Listener, error) {
 // addresses.
 // If the port in the address parameter is empty or "0", as in
 // "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
-// The LocalAddr method of PacketConn can be used to discover the
+// The LocalAddr method of [PacketConn] can be used to discover the
 // chosen port.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 //
 // ListenPacket uses context.Background internally; to specify the context, use
-// ListenConfig.ListenPacket.
+// [ListenConfig.ListenPacket].
 func ListenPacket(network, address string) (PacketConn, error) {
 	var lc ListenConfig
 	return lc.ListenPacket(context.Background(), network, address)

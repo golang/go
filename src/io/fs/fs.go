@@ -5,6 +5,9 @@
 // Package fs defines basic interfaces to a file system.
 // A file system can be provided by the host operating system
 // but also by other packages.
+//
+// See the [testing/fstest] package for support with testing
+// implementations of file systems.
 package fs
 
 import (
@@ -18,6 +21,9 @@ import (
 // The FS interface is the minimum implementation required of the file system.
 // A file system may implement additional interfaces,
 // such as [ReadFileFS], to provide additional or optimized functionality.
+//
+// [testing/fstest.TestFS] may be used to test implementations of an FS for
+// correctness.
 type FS interface {
 	// Open opens the named file.
 	//

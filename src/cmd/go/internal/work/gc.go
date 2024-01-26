@@ -361,6 +361,11 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 	}
 
+	if cfg.Goarch == "riscv64" {
+		// Define GORISCV64_value from cfg.GORISCV64.
+		args = append(args, "-D", "GORISCV64_"+cfg.GORISCV64)
+	}
+
 	if cfg.Goarch == "arm" {
 		// Define GOARM_value from cfg.GOARM.
 		switch cfg.GOARM {

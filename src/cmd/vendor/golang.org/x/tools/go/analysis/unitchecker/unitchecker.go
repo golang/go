@@ -50,7 +50,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/internal/facts"
-	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/versions"
 )
 
@@ -259,10 +258,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
 		Implicits:  make(map[ast.Node]types.Object),
+		Instances:  make(map[*ast.Ident]types.Instance),
 		Scopes:     make(map[ast.Node]*types.Scope),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
-	typeparams.InitInstanceInfo(info)
 	versions.InitFileVersions(info)
 
 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)

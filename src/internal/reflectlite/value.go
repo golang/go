@@ -123,8 +123,6 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
@@ -285,7 +283,6 @@ func valueInterface(v Value) any {
 		})(v.ptr)
 	}
 
-	// TODO: pass safe to packEface so we don't need to copy if safe==true?
 	return packEface(v)
 }
 

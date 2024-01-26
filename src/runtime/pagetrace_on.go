@@ -317,7 +317,7 @@ func finishPageTrace() {
 		pageTrace.enabled = false
 
 		// Execute a ragged barrier, flushing each trace buffer.
-		forEachP(func(pp *p) {
+		forEachP(waitReasonPageTraceFlush, func(pp *p) {
 			if pp.pageTraceBuf.buf != nil {
 				pp.pageTraceBuf = pp.pageTraceBuf.flush(pp.id, nanotime())
 			}

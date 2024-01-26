@@ -304,7 +304,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		// separately. Here we only need to intersect the term lists and comparable bits.
 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
 	}
-	ityp.embedPos = nil // not needed anymore (errors have been reported)
 
 	ityp.tset.comparable = allComparable
 	if len(allMethods) != 0 {

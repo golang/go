@@ -817,10 +817,10 @@ type body struct {
 	onHitEOF   func() // if non-nil, func to call when EOF is Read
 }
 
-// ErrBodyReadAfterClose is returned when reading a Request or Response
+// ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
 // Body after the body has been closed. This typically happens when the body is
-// read after an HTTP Handler calls WriteHeader or Write on its
-// ResponseWriter.
+// read after an HTTP [Handler] calls WriteHeader or Write on its
+// [ResponseWriter].
 var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed Body")
 
 func (b *body) Read(p []byte) (n int, err error) {

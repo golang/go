@@ -579,7 +579,7 @@ func switchToCrashStack(fn func()) {
 // Disable crash stack on Windows for now. Apparently, throwing an exception
 // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
 // hangs the process (see issue 63938).
-const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm") && GOOS != "windows"
+const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
@@ -759,6 +759,8 @@ func schedinit() {
 	lockInit(&reflectOffs.lock, lockRankReflectOffs)
 	lockInit(&finlock, lockRankFin)
 	lockInit(&cpuprof.lock, lockRankCpuprof)
+	allocmLock.init(lockRankAllocmR, lockRankAllocmRInternal, lockRankAllocmW)
+	execLock.init(lockRankExecR, lockRankExecRInternal, lockRankExecW)
 	traceLockInit()
 	// Enforce that this lock is always a leaf lock.
 	// All of this lock's critical sections should be
@@ -5164,7 +5166,7 @@ func dolockOSThread() {
 // The calling goroutine will always execute in that thread,
 // and no other goroutine will execute in it,
 // until the calling goroutine has made as many calls to
-// UnlockOSThread as to LockOSThread.
+// [UnlockOSThread] as to LockOSThread.
 // If the calling goroutine exits without unlocking the thread,
 // the thread will be terminated.
 //

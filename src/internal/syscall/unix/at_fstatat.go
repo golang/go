@@ -24,5 +24,4 @@ func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
 	}
 
 	return nil
-
 }

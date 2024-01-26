@@ -157,6 +157,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	}
 	// Try to advance the head of the frontier, which should have the minimum timestamp.
 	// This should be by far the most common case
+	if len(r.frontier) == 0 {
+		return Event{}, fmt.Errorf("broken trace: frontier is empty:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
+	}
 	bc := r.frontier[0]
 	if ctx, ok, err := r.order.advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); err != nil {
 		return Event{}, err

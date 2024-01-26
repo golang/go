@@ -35,8 +35,8 @@ import (
 	"golang.org/x/net/http/httpproxy"
 )
 
-// DefaultTransport is the default implementation of Transport and is
-// used by DefaultClient. It establishes network connections as needed
+// DefaultTransport is the default implementation of [Transport] and is
+// used by [DefaultClient]. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
 // as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
 // and NO_PROXY (or the lowercase versions thereof).
@@ -53,42 +53,42 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-// DefaultMaxIdleConnsPerHost is the default value of Transport's
+// DefaultMaxIdleConnsPerHost is the default value of [Transport]'s
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
 
-// Transport is an implementation of RoundTripper that supports HTTP,
+// Transport is an implementation of [RoundTripper] that supports HTTP,
 // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
 //
 // By default, Transport caches connections for future re-use.
 // This may leave many open connections when accessing many hosts.
-// This behavior can be managed using Transport's CloseIdleConnections method
-// and the MaxIdleConnsPerHost and DisableKeepAlives fields.
+// This behavior can be managed using [Transport.CloseIdleConnections] method
+// and the [Transport.MaxIdleConnsPerHost] and [Transport.DisableKeepAlives] fields.
 //
 // Transports should be reused instead of created as needed.
 // Transports are safe for concurrent use by multiple goroutines.
 //
 // A Transport is a low-level primitive for making HTTP and HTTPS requests.
-// For high-level functionality, such as cookies and redirects, see Client.
+// For high-level functionality, such as cookies and redirects, see [Client].
 //
 // Transport uses HTTP/1.1 for HTTP URLs and either HTTP/1.1 or HTTP/2
 // for HTTPS URLs, depending on whether the server supports HTTP/2,
-// and how the Transport is configured. The DefaultTransport supports HTTP/2.
+// and how the Transport is configured. The [DefaultTransport] supports HTTP/2.
 // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
 // and call ConfigureTransport. See the package docs for more about HTTP/2.
 //
 // Responses with status codes in the 1xx range are either handled
 // automatically (100 expect-continue) or ignored. The one
 // exception is HTTP status code 101 (Switching Protocols), which is
-// considered a terminal status and returned by RoundTrip. To see the
+// considered a terminal status and returned by [Transport.RoundTrip]. To see the
 // ignored 1xx responses, use the httptrace trace package's
 // ClientTrace.Got1xxResponse.
 //
 // Transport only retries a request upon encountering a network error
 // if the connection has been already been used successfully and if the
-// request is idempotent and either has no body or has its Request.GetBody
+// request is idempotent and either has no body or has its [Request.GetBody]
 // defined. HTTP requests are considered idempotent if they have HTTP methods
-// GET, HEAD, OPTIONS, or TRACE; or if their Header map contains an
+// GET, HEAD, OPTIONS, or TRACE; or if their [Header] map contains an
 // "Idempotency-Key" or "X-Idempotency-Key" entry. If the idempotency key
 // value is a zero-length slice, the request is treated as idempotent but the
 // header is not sent on the wire.
@@ -453,7 +453,7 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	return envProxyFunc()(req.URL)
 }
 
-// ProxyURL returns a proxy function (for use in a Transport)
+// ProxyURL returns a proxy function (for use in a [Transport])
 // that always returns the same URL.
 func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, error) {
 	return func(*Request) (*url.URL, error) {
@@ -752,14 +752,14 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
 
 // RegisterProtocol registers a new protocol with scheme.
-// The Transport will pass requests using the given scheme to rt.
+// The [Transport] will pass requests using the given scheme to rt.
 // It is rt's responsibility to simulate HTTP request semantics.
 //
 // RegisterProtocol can be used by other packages to provide
 // implementations of protocol schemes like "ftp" or "file".
 //
-// If rt.RoundTrip returns ErrSkipAltProtocol, the Transport will
-// handle the RoundTrip itself for that one request, as if the
+// If rt.RoundTrip returns [ErrSkipAltProtocol], the Transport will
+// handle the [Transport.RoundTrip] itself for that one request, as if the
 // protocol were not registered.
 func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	t.altMu.Lock()
@@ -799,9 +799,9 @@ func (t *Transport) CloseIdleConnections() {
 }
 
 // CancelRequest cancels an in-flight request by closing its connection.
-// CancelRequest should only be called after RoundTrip has returned.
+// CancelRequest should only be called after [Transport.RoundTrip] has returned.
 //
-// Deprecated: Use Request.WithContext to create a request with a
+// Deprecated: Use [Request.WithContext] to create a request with a
 // cancelable context instead. CancelRequest cannot cancel HTTP/2
 // requests.
 func (t *Transport) CancelRequest(req *Request) {
@@ -2556,15 +2556,17 @@ type writeRequest struct {
 }
 
 type httpError struct {
-	err     string
+	err     error
 	timeout bool
 }
 
-func (e *httpError) Error() string   { return e.err }
-func (e *httpError) Timeout() bool   { return e.timeout }
-func (e *httpError) Temporary() bool { return true }
+func (e *httpError) Error() string        { return e.err.Error() }
+func (e *httpError) Timeout() bool        { return e.timeout }
+func (e *httpError) Temporary() bool      { return true }
+func (e *httpError) Is(target error) bool { return errors.Is(e.err, target) }
+func (e *httpError) Unwrap() error        { return e.err }
 
-var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+var errTimeout error = &httpError{err: errors.New("net/http: timeout awaiting response headers"), timeout: true}
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
 // testing.

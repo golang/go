@@ -521,6 +521,15 @@ func TestTraceManyStartStop(t *testing.T) {
 	testTraceProg(t, "many-start-stop.go", nil)
 }
 
+func TestTraceWaitOnPipe(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		testTraceProg(t, "wait-on-pipe.go", nil)
+		return
+	}
+	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
+}
+
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
 	testenv.MustHaveGoRun(t)
 

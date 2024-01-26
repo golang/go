@@ -223,7 +223,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	//    Reject obviously non-viable cases.
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		if _, ok := obj.Type().(*typeparams.TypeParam); !ok {
+		if _, ok := obj.Type().(*types.TypeParam); !ok {
 			// With the exception of type parameters, only package-level type names
 			// have a path.
 			return "", fmt.Errorf("no path for %v", obj)
@@ -283,7 +283,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 			}
 		} else {
 			if named, _ := T.(*types.Named); named != nil {
-				if r := findTypeParam(obj, typeparams.ForNamed(named), path, nil); r != nil {
+				if r := findTypeParam(obj, named.TypeParams(), path, nil); r != nil {
 					// generic named type
 					return Path(r), nil
 				}
@@ -462,7 +462,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 		}
 		return find(obj, T.Elem(), append(path, opElem), seen)
 	case *types.Signature:
-		if r := findTypeParam(obj, typeparams.ForSignature(T), path, seen); r != nil {
+		if r := findTypeParam(obj, T.TypeParams(), path, seen); r != nil {
 			return r
 		}
 		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
@@ -505,7 +505,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 			}
 		}
 		return nil
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		name := T.Obj()
 		if name == obj {
 			return append(path, opObj)
@@ -525,7 +525,7 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 	panic(T)
 }
 
-func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
+func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
 	for i := 0; i < list.Len(); i++ {
 		tparam := list.At(i)
 		path2 := appendOpArg(path, opTypeParam, i)
@@ -562,7 +562,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	}
 	// abstraction of *types.{Named,Signature}
 	type hasTypeParams interface {
-		TypeParams() *typeparams.TypeParamList
+		TypeParams() *types.TypeParamList
 	}
 	// abstraction of *types.{Named,TypeParam}
 	type hasObj interface {
@@ -664,7 +664,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			t = tparams.At(index)
 
 		case opConstraint:
-			tparam, ok := t.(*typeparams.TypeParam)
+			tparam, ok := t.(*types.TypeParam)
 			if !ok {
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want type parameter)", code, t, t)
 			}

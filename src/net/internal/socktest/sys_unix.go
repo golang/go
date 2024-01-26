@@ -8,7 +8,7 @@ package socktest
 
 import "syscall"
 
-// Socket wraps syscall.Socket.
+// Socket wraps [syscall.Socket].
 func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
 	sw.once.Do(sw.init)
 

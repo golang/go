@@ -63,7 +63,7 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 
 // PollFD returns the poll.FD of the underlying connection.
 //
-// Other packages in std that also import internal/poll (such as os)
+// Other packages in std that also import [internal/poll] (such as os)
 // can use a type assertion to access this extension method so that
 // they can pass the *poll.FD to functions like poll.Splice.
 //

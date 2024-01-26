@@ -981,8 +981,8 @@ type BlockProfileRecord struct {
 // If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
 // If len(p) < n, BlockProfile does not change p and returns n, false.
 //
-// Most clients should use the runtime/pprof package or
-// the testing package's -test.blockprofile flag instead
+// Most clients should use the [runtime/pprof] package or
+// the [testing] package's -test.blockprofile flag instead
 // of calling BlockProfile directly.
 func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 	lock(&profBlockLock)

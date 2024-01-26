@@ -51,6 +51,7 @@ var All = []Info{
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+	{Name: "x509usepolicies", Package: "crypto/x509"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 

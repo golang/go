@@ -14,6 +14,7 @@ type goroutineGenerator struct {
 	globalRangeGenerator
 	globalMetricGenerator
 	stackSampleGenerator[tracev2.GoID]
+	logEventGenerator[tracev2.GoID]
 
 	gStates map[tracev2.GoID]*gState[tracev2.GoID]
 	focus   tracev2.GoID
@@ -22,9 +23,11 @@ type goroutineGenerator struct {
 
 func newGoroutineGenerator(ctx *traceContext, focus tracev2.GoID, filter map[tracev2.GoID]struct{}) *goroutineGenerator {
 	gg := new(goroutineGenerator)
-	gg.stackSampleGenerator.getResource = func(ev *tracev2.Event) tracev2.GoID {
+	rg := func(ev *tracev2.Event) tracev2.GoID {
 		return ev.Goroutine()
 	}
+	gg.stackSampleGenerator.getResource = rg
+	gg.logEventGenerator.getResource = rg
 	gg.gStates = make(map[tracev2.GoID]*gState[tracev2.GoID])
 	gg.focus = focus
 	gg.filter = filter
