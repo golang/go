@@ -111,6 +111,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	kind := etyp.Kind_ & kindMask
 	switch kind {
 	case kindPtr, kindUnsafePointer:
+		data = e.data
 	case kindString:
 		data = unsafe.Pointer(unsafe.StringData(*(*string)(e.data)))
 	default:
