@@ -1149,7 +1149,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 	// goroutines that can vary between user and system to ensure that the count
 	// doesn't change during the collection. So, check the finalizer goroutine
 	// in particular.
-	n = runtime_gcount()
+	n = int(gcount())
 	if fingStatus.Load()&fingRunningFinalizer != 0 {
 		n++
 	}
