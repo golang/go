@@ -275,20 +275,20 @@ func resolve(name string, obj Object) Object {
 
 // stub implementations so *lazyObject implements Object and we can
 // store them directly into Scope.elems.
-func (*lazyObject) Parent() *Scope                        { panic("unreachable") }
-func (*lazyObject) Pos() token.Pos                        { panic("unreachable") }
-func (*lazyObject) Pkg() *Package                         { panic("unreachable") }
-func (*lazyObject) Name() string                          { panic("unreachable") }
-func (*lazyObject) Type() Type                            { panic("unreachable") }
-func (*lazyObject) Exported() bool                        { panic("unreachable") }
-func (*lazyObject) Id() string                            { panic("unreachable") }
-func (*lazyObject) String() string                        { panic("unreachable") }
-func (*lazyObject) order() uint32                         { panic("unreachable") }
-func (*lazyObject) color() color                          { panic("unreachable") }
-func (*lazyObject) setType(Type)                          { panic("unreachable") }
-func (*lazyObject) setOrder(uint32)                       { panic("unreachable") }
-func (*lazyObject) setColor(color color)                  { panic("unreachable") }
-func (*lazyObject) setParent(*Scope)                      { panic("unreachable") }
-func (*lazyObject) sameId(pkg *Package, name string) bool { panic("unreachable") }
-func (*lazyObject) scopePos() token.Pos                   { panic("unreachable") }
-func (*lazyObject) setScopePos(pos token.Pos)             { panic("unreachable") }
+func (*lazyObject) Parent() *Scope                     { panic("unreachable") }
+func (*lazyObject) Pos() token.Pos                     { panic("unreachable") }
+func (*lazyObject) Pkg() *Package                      { panic("unreachable") }
+func (*lazyObject) Name() string                       { panic("unreachable") }
+func (*lazyObject) Type() Type                         { panic("unreachable") }
+func (*lazyObject) Exported() bool                     { panic("unreachable") }
+func (*lazyObject) Id() string                         { panic("unreachable") }
+func (*lazyObject) String() string                     { panic("unreachable") }
+func (*lazyObject) order() uint32                      { panic("unreachable") }
+func (*lazyObject) color() color                       { panic("unreachable") }
+func (*lazyObject) setType(Type)                       { panic("unreachable") }
+func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
+func (*lazyObject) setColor(color color)               { panic("unreachable") }
+func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
+func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
+func (*lazyObject) scopePos() token.Pos                { panic("unreachable") }
+func (*lazyObject) setScopePos(token.Pos)              { panic("unreachable") }
