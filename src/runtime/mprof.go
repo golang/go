@@ -1131,6 +1131,11 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
 }
 
+//go:linkname runtime_gcount runtime/pprof.runtime_gcount
+func runtime_gcount() int {
+	return int(gcount())
+}
+
 func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	semacquire(&goroutineProfile.sema)
 
