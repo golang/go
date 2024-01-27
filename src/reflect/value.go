@@ -104,8 +104,6 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&abi.FlagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
@@ -1709,11 +1707,7 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-<<<<<<< HEAD
-	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
-=======
-	if (tt.Key == stringType || key.Kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= maxValSize {
->>>>>>> 08e68122d13 (all: merge flag* const info internaal/abi)
+	if (tt.Key == stringType || key.Kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ(), v.pointer(), k)
 	} else {
@@ -2340,11 +2334,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.flag.MustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ()))
 
-<<<<<<< HEAD
-	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
-=======
-	if (tt.Key == stringType || key.Kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= maxValSize {
->>>>>>> 08e68122d13 (all: merge flag* const info internaal/abi)
+	if (tt.Key == stringType || key.Kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
 		k := *(*string)(key.ptr)
 		if elem.typ() == nil {
 			mapdelete_faststr(v.typ(), v.pointer(), k)
