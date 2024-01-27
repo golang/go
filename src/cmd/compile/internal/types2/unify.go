@@ -608,7 +608,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 					g := y.fields[i]
 					if f.embedded != g.embedded ||
 						x.Tag(i) != y.Tag(i) ||
-						!f.sameId(g.pkg, g.name) ||
+						!f.sameId(g.pkg, g.name, false) ||
 						!u.nify(f.typ, g.typ, emode, p) {
 						return false
 					}

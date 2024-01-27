@@ -12,7 +12,6 @@ import (
 	"go/token"
 	. "internal/types/errors"
 	"strings"
-	"unicode"
 )
 
 // funcInst type-checks a function instantiation.
@@ -801,7 +800,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(under(x.typ)) {
@@ -828,19 +827,19 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 			why = check.interfacePtrError(x.typ)
 		} else {
 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// Check if capitalization of sel matters and provide better error message in that case.
-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod should
-			//           have an (internal) mechanism for case-insensitive lookup that we should use
-			//           instead (see types2).
-			if len(sel) > 0 {
-				var changeCase string
-				if r := rune(sel[0]); unicode.IsUpper(r) {
-					changeCase = string(unicode.ToLower(r)) + sel[1:]
-				} else {
-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+			// check if there's a field or method with different capitalization
+			if obj, _, _ = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true); obj != nil {
+				var what string // empty or description with trailing space " " (default case, should never be reached)
+				switch obj.(type) {
+				case *Var:
+					what = "field "
+				case *Func:
+					what = "method "
 				}
-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					why += ", but does have " + changeCase
+				if samePkg(obj.Pkg(), check.pkg) || obj.Exported() {
+					why = check.sprintf("%s, but does have %s%s", why, what, obj.Name())
+				} else if obj.Name() == sel {
+					why = check.sprintf("%s%s is not exported", what, obj.Name())
 				}
 			}
 		}
@@ -857,7 +856,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
