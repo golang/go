@@ -2127,3 +2127,22 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 		t.Fatalf("server got body %q, want %q", gotBody, content)
 	}
 }
+
+func TestClientTimeoutReturnsContextDeadlineExceeded(t *testing.T) {
+	run(t, testClientTimeoutReturnsContextDeadlineExceeded)
+}
+func testClientTimeoutReturnsContextDeadlineExceeded(t *testing.T, mode testMode) {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-doneCh
+		w.WriteHeader(200)
+	}))
+	// check that, upon exceeding Client.Timeout, the returned error is context.DeadlineExceeded.
+	cst.c.Timeout = 5 * time.Millisecond
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	_, err := cst.c.Do(req)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+}
