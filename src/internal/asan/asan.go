@@ -1,4 +1,4 @@
-// Copyright 2023 The Go Authors. All rights reserved.
+// Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,16 +7,13 @@
 package asan
 
 import (
-	"runtime"
 	"unsafe"
 )
 
 const Enabled = true
 
-func Read(addr unsafe.Pointer, len int) {
-	runtime.ASanRead(addr, len)
-}
+//go:linkname Read runtime.asanread
+func Read(addr unsafe.Pointer, len int)
 
-func Write(addr unsafe.Pointer, len int) {
-	runtime.ASanWrite(addr, len)
-}
+//go:linkname Write runtime.asanwrite
+func Write(addr unsafe.Pointer, len int)
