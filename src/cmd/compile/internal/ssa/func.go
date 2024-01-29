@@ -721,7 +721,6 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 		v.AddArg(sp)
 	}
 	return v
-
 }
 
 func (f *Func) Frontend() Frontend                                  { return f.fe }

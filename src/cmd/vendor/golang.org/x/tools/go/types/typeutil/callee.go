@@ -22,7 +22,7 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
 	// Look through type instantiation if necessary.
 	isInstance := false
 	switch fun.(type) {
-	case *ast.IndexExpr, *typeparams.IndexListExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		// When extracting the callee from an *IndexExpr, we need to check that
 		// it is a *types.Func and not a *types.Var.
 		// Example: Don't match a slice m within the expression `m[0]()`.

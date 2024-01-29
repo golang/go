@@ -42,7 +42,7 @@ func UnpackIndexExpr(n ast.Node) (x ast.Expr, lbrack token.Pos, indices []ast.Ex
 	switch e := n.(type) {
 	case *ast.IndexExpr:
 		return e.X, e.Lbrack, []ast.Expr{e.Index}, e.Rbrack
-	case *IndexListExpr:
+	case *ast.IndexListExpr:
 		return e.X, e.Lbrack, e.Indices, e.Rbrack
 	}
 	return nil, token.NoPos, nil, token.NoPos
@@ -63,7 +63,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 			Rbrack: rbrack,
 		}
 	default:
-		return &IndexListExpr{
+		return &ast.IndexListExpr{
 			X:       x,
 			Lbrack:  lbrack,
 			Indices: indices,
@@ -74,7 +74,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 
 // IsTypeParam reports whether t is a type parameter.
 func IsTypeParam(t types.Type) bool {
-	_, ok := t.(*TypeParam)
+	_, ok := t.(*types.TypeParam)
 	return ok
 }
 
@@ -100,11 +100,11 @@ func OriginMethod(fn *types.Func) *types.Func {
 		// Receiver is a *types.Interface.
 		return fn
 	}
-	if ForNamed(named).Len() == 0 {
+	if named.TypeParams().Len() == 0 {
 		// Receiver base has no type parameters, so we can avoid the lookup below.
 		return fn
 	}
-	orig := NamedTypeOrigin(named)
+	orig := named.Origin()
 	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
 
 	// This is a fix for a gopls crash (#60628) due to a go/types bug (#60634). In:
@@ -157,7 +157,7 @@ func OriginMethod(fn *types.Func) *types.Func {
 //
 // In this case, GenericAssignableTo reports that instantiations of Container
 // are assignable to the corresponding instantiation of Interface.
-func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
+func GenericAssignableTo(ctxt *types.Context, V, T types.Type) bool {
 	// If V and T are not both named, or do not have matching non-empty type
 	// parameter lists, fall back on types.AssignableTo.
 
@@ -167,9 +167,9 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
 		return types.AssignableTo(V, T)
 	}
 
-	vtparams := ForNamed(VN)
-	ttparams := ForNamed(TN)
-	if vtparams.Len() == 0 || vtparams.Len() != ttparams.Len() || NamedTypeArgs(VN).Len() != 0 || NamedTypeArgs(TN).Len() != 0 {
+	vtparams := VN.TypeParams()
+	ttparams := TN.TypeParams()
+	if vtparams.Len() == 0 || vtparams.Len() != ttparams.Len() || VN.TypeArgs().Len() != 0 || TN.TypeArgs().Len() != 0 {
 		return types.AssignableTo(V, T)
 	}
 
@@ -182,7 +182,7 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
 	// Minor optimization: ensure we share a context across the two
 	// instantiations below.
 	if ctxt == nil {
-		ctxt = NewContext()
+		ctxt = types.NewContext()
 	}
 
 	var targs []types.Type
@@ -190,12 +190,12 @@ func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
 		targs = append(targs, vtparams.At(i))
 	}
 
-	vinst, err := Instantiate(ctxt, V, targs, true)
+	vinst, err := types.Instantiate(ctxt, V, targs, true)
 	if err != nil {
 		panic("type parameters should satisfy their own constraints")
 	}
 
-	tinst, err := Instantiate(ctxt, T, targs, true)
+	tinst, err := types.Instantiate(ctxt, T, targs, true)
 	if err != nil {
 		return false
 	}

@@ -232,7 +232,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
 // If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
 // If the assignment check fails and x != nil, x.mode is set to invalid.
-func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
+func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string) {
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if !isValid(T) {
 		if x != nil {
@@ -244,12 +244,18 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
 	}
 
 	if x == nil {
+		var target *target
+		// avoid calling syntax.String if not needed
+		if T != nil {
+			if _, ok := under(T).(*Signature); ok {
+				target = newTarget(T, syntax.String(lhs))
+			}
+		}
 		x = new(operand)
-		check.expr(T, x, rhs)
+		check.expr(target, x, rhs)
 	}
 
-	context := "assignment"
-	if T == nil {
+	if T == nil && context == "assignment" {
 		context = "assignment to _ identifier"
 	}
 	check.assignment(x, T, context)
@@ -369,7 +375,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	if l == r && !isCall {
 		var x operand
 		for i, lhs := range lhs {
-			check.expr(lhs.typ, &x, orig_rhs[i])
+			desc := lhs.name
+			if returnStmt != nil && desc == "" {
+				desc = "result variable"
+			}
+			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return
@@ -443,7 +453,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	// each value can be assigned to its corresponding variable.
 	if l == r && !isCall {
 		for i, lhs := range lhs {
-			check.assignVar(lhs, orig_rhs[i], nil)
+			check.assignVar(lhs, orig_rhs[i], nil, "assignment")
 		}
 		return
 	}
@@ -464,7 +474,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	r = len(rhs)
 	if l == r {
 		for i, lhs := range lhs {
-			check.assignVar(lhs, nil, rhs[i])
+			check.assignVar(lhs, nil, rhs[i], "assignment")
 		}
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).

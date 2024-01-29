@@ -10,20 +10,33 @@ body:
     id: package-path
     attributes:
       label: "What is the path of the package that you would like to have removed?"
-      description: "We can remove packages with a shared path prefix. For example, a request for 'github.com/author' would remove all pkg.go.dev pages with that package path prefix."
+      description: |
+        We can remove packages with a shared path prefix.
+        For example, a request for 'github.com/author' would remove all pkg.go.dev pages with that package path prefix.
     validations:
       required: true
   - type: textarea
     id: package-owner
     attributes:
       label: "Are you the owner of this package?"
-      description: "Only the package owners can request to have their packages removed from pkg.go.dev."
+      description: |
+        Only the package owners can request to have their packages removed from pkg.go.dev.
+        If the package path doesn't include your github username, please provide some other form of proof of ownership.
     validations:
       required: true
   - type: textarea
     id: retraction-reason
     attributes:
       label: "What is the reason that you could not retract this package instead?"
-      description: "If you would like to have your module removed from pkg.go.dev, we recommend that you retract them, so that they can be removed from the go command and proxy.golang.org as well. Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version. For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8. See https://pkg.go.dev/about#removing-a-package for additional tips on retractions."
+      description: |
+        Requesting we remove a module here only hides the generated documentation on pkg.go.dev.
+        It does not affect the behaviour of proxy.golang.org or the go command.
+        Instead we recommend using the retract directive which will be processed by all 3 of the above.
+
+        If you have deleted your repo, please recreate it and publish a retraction.
+
+        Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version.
+        For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8.
+        See https://pkg.go.dev/about#removing-a-package for additional tips on retractions.
     validations:
       required: true

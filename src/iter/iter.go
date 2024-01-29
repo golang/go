@@ -14,8 +14,7 @@ package iter
 import (
 	"internal/race"
 	"unsafe"
-	_ "unsafe"
-) // for linkname
+)
 
 // Seq is an iterator over sequences of individual values.
 // When called as seq(yield), seq calls yield(v) for each value v in the sequence,
@@ -122,18 +121,22 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 // simultaneously.
 func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	var (
-		k    K
-		v    V
-		ok   bool
-		done bool
+		k     K
+		v     V
+		ok    bool
+		done  bool
+		racer int
 	)
 	c := newcoro(func(c *coro) {
+		race.Acquire(unsafe.Pointer(&racer))
 		yield := func(k1 K, v1 V) bool {
 			if done {
 				return false
 			}
 			k, v, ok = k1, v1, true
+			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
+			race.Acquire(unsafe.Pointer(&racer))
 			return !done
 		}
 		seq(yield)
@@ -141,20 +144,25 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		var v0 V
 		k, v, ok = k0, v0, false
 		done = true
+		race.Release(unsafe.Pointer(&racer))
 	})
 	next = func() (k1 K, v1 V, ok1 bool) {
-		race.Write(unsafe.Pointer(&c)) // detect races
+		race.Write(unsafe.Pointer(&racer)) // detect races
 		if done {
 			return
 		}
+		race.Release(unsafe.Pointer(&racer))
 		coroswitch(c)
+		race.Acquire(unsafe.Pointer(&racer))
 		return k, v, ok
 	}
 	stop = func() {
-		race.Write(unsafe.Pointer(&c)) // detect races
+		race.Write(unsafe.Pointer(&racer)) // detect races
 		if !done {
 			done = true
+			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
+			race.Acquire(unsafe.Pointer(&racer))
 		}
 	}
 	return next, stop

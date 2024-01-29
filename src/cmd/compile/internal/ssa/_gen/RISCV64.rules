@@ -72,6 +72,9 @@
 
 (FMA ...) => (FMADDD ...)
 
+(Min(64|32)F ...) => (LoweredFMIN(D|S) ...)
+(Max(64|32)F ...) => (LoweredFMAX(D|S) ...)
+
 // Sign and zero extension.
 
 (SignExt8to16  ...) => (MOVBreg ...)

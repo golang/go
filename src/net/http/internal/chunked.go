@@ -22,7 +22,7 @@ var ErrLineTooLong = errors.New("header line too long")
 
 // NewChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
-// The chunkedReader returns io.EOF when the final 0-length chunk is read.
+// The chunkedReader returns [io.EOF] when the final 0-length chunk is read.
 //
 // NewChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.
@@ -221,7 +221,7 @@ type chunkedWriter struct {
 
 // Write the contents of data as one chunk to Wire.
 // NOTE: Note that the corresponding chunk-writing procedure in Conn.Write has
-// a bug since it does not check for success of io.WriteString
+// a bug since it does not check for success of [io.WriteString]
 func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 
 	// Don't send 0-length data. It looks like EOF for chunked encoding.
@@ -253,9 +253,9 @@ func (cw *chunkedWriter) Close() error {
 	return err
 }
 
-// FlushAfterChunkWriter signals from the caller of NewChunkedWriter
+// FlushAfterChunkWriter signals from the caller of [NewChunkedWriter]
 // that each chunk should be followed by a flush. It is used by the
-// http.Transport code to keep the buffering behavior for headers and
+// [net/http.Transport] code to keep the buffering behavior for headers and
 // trailers, but flush out chunks aggressively in the middle for
 // request bodies which may be generated slowly. See Issue 6574.
 type FlushAfterChunkWriter struct {
@@ -263,6 +263,9 @@ type FlushAfterChunkWriter struct {
 }
 
 func parseHexUint(v []byte) (n uint64, err error) {
+	if len(v) == 0 {
+		return 0, errors.New("empty hex number for chunk length")
+	}
 	for i, b := range v {
 		switch {
 		case '0' <= b && b <= '9':

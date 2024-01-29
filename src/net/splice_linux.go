@@ -9,6 +9,8 @@ import (
 	"io"
 )
 
+var pollSplice = poll.Splice
+
 // spliceFrom transfers data from r to c using the splice system call to minimize
 // copies from and to userspace. c must be a TCP connection.
 // Currently, spliceFrom is only enabled if r is a TCP or a stream-oriented Unix connection.
@@ -39,7 +41,7 @@ func spliceFrom(c *netFD, r io.Reader) (written int64, err error, handled bool) 
 		return 0, nil, false
 	}
 
-	written, handled, sc, err := poll.Splice(&c.pfd, &s.pfd, remain)
+	written, handled, sc, err := pollSplice(&c.pfd, &s.pfd, remain)
 	if lr != nil {
 		lr.N -= written
 	}
@@ -57,6 +59,6 @@ func spliceTo(w io.Writer, c *netFD) (written int64, err error, handled bool) {
 		return
 	}
 
-	written, handled, sc, err := poll.Splice(&uc.fd.pfd, &c.pfd, 1<<63-1)
+	written, handled, sc, err := pollSplice(&uc.fd.pfd, &c.pfd, 1<<63-1)
 	return written, wrapSyscallError(sc, err), handled
 }

@@ -623,7 +623,6 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return toRType((*_type)(rtype)).textOff(textOff(off))
-
 }
 
 // reflectlite_resolveNameOff resolves a name offset from a base pointer.

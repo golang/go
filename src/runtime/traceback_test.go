@@ -461,7 +461,6 @@ func testTracebackArgs2(a bool, b struct {
 		return b.a + b.b + b.c + b.x[0] + b.x[1] + int(d[0]) + int(d[1]) + int(d[2])
 	}
 	return n
-
 }
 
 //go:noinline

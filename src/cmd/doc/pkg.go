@@ -43,9 +43,9 @@ type Package struct {
 	buf         pkgBuffer
 }
 
-func (p *Package) ToText(w io.Writer, text, prefix, codePrefix string) {
-	d := p.doc.Parser().Parse(text)
-	pr := p.doc.Printer()
+func (pkg *Package) ToText(w io.Writer, text, prefix, codePrefix string) {
+	d := pkg.doc.Parser().Parse(text)
+	pr := pkg.doc.Printer()
 	pr.TextPrefix = prefix
 	pr.TextCodePrefix = codePrefix
 	w.Write(pr.Text(d))

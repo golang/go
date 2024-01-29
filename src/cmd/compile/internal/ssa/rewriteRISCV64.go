@@ -326,6 +326,18 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValueRISCV64_OpLsh8x8(v)
+	case OpMax32F:
+		v.Op = OpRISCV64LoweredFMAXS
+		return true
+	case OpMax64F:
+		v.Op = OpRISCV64LoweredFMAXD
+		return true
+	case OpMin32F:
+		v.Op = OpRISCV64LoweredFMINS
+		return true
+	case OpMin64F:
+		v.Op = OpRISCV64LoweredFMIND
+		return true
 	case OpMod16:
 		return rewriteValueRISCV64_OpMod16(v)
 	case OpMod16u:

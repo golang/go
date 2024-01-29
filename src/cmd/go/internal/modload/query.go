@@ -891,11 +891,12 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 	// is most likely to find helpful: the most useful class of error at the
 	// longest matching path.
 	var (
-		noPackage   *PackageNotInModuleError
-		noVersion   *NoMatchingVersionError
-		noPatchBase *NoPatchBaseError
-		invalidPath *module.InvalidPathError // see comment in case below
-		notExistErr error
+		noPackage      *PackageNotInModuleError
+		noVersion      *NoMatchingVersionError
+		noPatchBase    *NoPatchBaseError
+		invalidPath    *module.InvalidPathError // see comment in case below
+		invalidVersion error
+		notExistErr    error
 	)
 	for _, r := range results {
 		switch rErr := r.err.(type) {
@@ -931,6 +932,10 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 				if notExistErr == nil {
 					notExistErr = rErr
 				}
+			} else if iv := (*module.InvalidVersionError)(nil); errors.As(rErr, &iv) {
+				if invalidVersion == nil {
+					invalidVersion = rErr
+				}
 			} else if err == nil {
 				if len(found) > 0 || noPackage != nil {
 					// golang.org/issue/34094: If we have already found a module that
@@ -961,6 +966,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 			err = noPatchBase
 		case invalidPath != nil:
 			err = invalidPath
+		case invalidVersion != nil:
+			err = invalidVersion
 		case notExistErr != nil:
 			err = notExistErr
 		default:
