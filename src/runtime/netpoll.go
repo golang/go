@@ -391,14 +391,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if combo {
 		rtf = netpollDeadline
 	}
-	if pd.rt.f == nil {
+	if pd.rt.F == nil {
 		if pd.rd > 0 {
-			pd.rt.f = rtf
+			pd.rt.F = rtf
 			// Copy current seq into the timer arg.
 			// Timer func will check the seq against current descriptor seq,
 			// if they differ the descriptor was reused or timers were reset.
-			pd.rt.arg = pd.makeArg()
-			pd.rt.seq = pd.rseq
+			pd.rt.Arg = pd.makeArg()
+			pd.rt.Seq = pd.rseq
 			resettimer(&pd.rt, pd.rd)
 		}
 	} else if pd.rd != rd0 || combo != combo0 {
@@ -407,14 +407,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			modtimer(&pd.rt, pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
 		} else {
 			deltimer(&pd.rt)
-			pd.rt.f = nil
+			pd.rt.F = nil
 		}
 	}
-	if pd.wt.f == nil {
+	if pd.wt.F == nil {
 		if pd.wd > 0 && !combo {
-			pd.wt.f = netpollWriteDeadline
-			pd.wt.arg = pd.makeArg()
-			pd.wt.seq = pd.wseq
+			pd.wt.F = netpollWriteDeadline
+			pd.wt.Arg = pd.makeArg()
+			pd.wt.Seq = pd.wseq
 			resettimer(&pd.wt, pd.wd)
 		}
 	} else if pd.wd != wd0 || combo != combo0 {
@@ -423,7 +423,7 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
 		} else {
 			deltimer(&pd.wt)
-			pd.wt.f = nil
+			pd.wt.F = nil
 		}
 	}
 	// If we set the new deadline in the past, unblock currently pending IO if any.
@@ -460,13 +460,13 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	delta := int32(0)
 	rg = netpollunblock(pd, 'r', false, &delta)
 	wg = netpollunblock(pd, 'w', false, &delta)
-	if pd.rt.f != nil {
+	if pd.rt.F != nil {
 		deltimer(&pd.rt)
-		pd.rt.f = nil
+		pd.rt.F = nil
 	}
-	if pd.wt.f != nil {
+	if pd.wt.F != nil {
 		deltimer(&pd.wt)
-		pd.wt.f = nil
+		pd.wt.F = nil
 	}
 	unlock(&pd.lock)
 	if rg != nil {
@@ -633,7 +633,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	delta := int32(0)
 	var rg *g
 	if read {
-		if pd.rd <= 0 || pd.rt.f == nil {
+		if pd.rd <= 0 || pd.rt.F == nil {
 			throw("runtime: inconsistent read deadline")
 		}
 		pd.rd = -1
@@ -642,7 +642,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	}
 	var wg *g
 	if write {
-		if pd.wd <= 0 || pd.wt.f == nil && !read {
+		if pd.wd <= 0 || pd.wt.F == nil && !read {
 			throw("runtime: inconsistent write deadline")
 		}
 		pd.wd = -1

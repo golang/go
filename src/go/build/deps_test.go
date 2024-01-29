@@ -50,8 +50,10 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on internal/goarch and unsafe.
-	internal/goarch, unsafe
+	unsafe < sync/atomic;
+
+	# These packages depend only on internal/goarch and unsafe and sync/atomic.
+	internal/goarch, unsafe, sync/atomic
 	< internal/abi, internal/chacha8rand;
 
 	unsafe < maps;
@@ -73,7 +75,6 @@ var depsRules = `
 	< runtime/internal/atomic
 	< runtime/internal/math
 	< runtime
-	< sync/atomic
 	< internal/race
 	< internal/msan
 	< internal/asan
@@ -423,7 +424,7 @@ var depsRules = `
 	< net/mail;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+	sync/atomic,unsafe < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.

@@ -8,36 +8,11 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
-// Package time knows the layout of this structure.
-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
-type timer struct {
-	// If this timer is on a heap, which P's heap it is on.
-	// puintptr rather than *p to match uintptr in the versions
-	// of this struct defined in other packages.
-	pp puintptr
-
-	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(arg, now) in the timer goroutine, so f must be
-	// a well-behaved function and not block.
-	//
-	// when must be positive on an active timer.
-	when   int64
-	period int64
-	f      func(any, uintptr)
-	arg    any
-	seq    uintptr
-
-	// What to set the when field to in timerModifiedXX status.
-	nextwhen int64
-
-	// The status field holds one of the values below.
-	status atomic.Uint32
-}
+type timer = abi.Timer
 
 // Code outside this file has to be careful in using a timer value.
 //
@@ -186,11 +161,11 @@ func timeSleep(ns int64) {
 		t = new(timer)
 		gp.timer = t
 	}
-	t.f = goroutineReady
-	t.arg = gp
-	t.nextwhen = nanotime() + ns
-	if t.nextwhen < 0 { // check for overflow.
-		t.nextwhen = maxWhen
+	t.F = goroutineReady
+	t.Arg = gp
+	t.Nextwhen = nanotime() + ns
+	if t.Nextwhen < 0 { // check for overflow.
+		t.Nextwhen = maxWhen
 	}
 	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceBlockSleep, 1)
 }
@@ -201,7 +176,7 @@ func timeSleep(ns int64) {
 // timer function, goroutineReady, before the goroutine has been parked.
 func resetForSleep(gp *g, ut unsafe.Pointer) bool {
 	t := (*timer)(ut)
-	resettimer(t, t.nextwhen)
+	resettimer(t, t.Nextwhen)
 	return true
 }
 
@@ -258,18 +233,18 @@ func addtimer(t *timer) {
 	// when must be positive. A negative value will cause runtimer to
 	// overflow during its delta calculation and never expire other runtime
 	// timers. Zero will cause checkTimers to fail to notice the timer.
-	if t.when <= 0 {
+	if t.When <= 0 {
 		throw("timer when must be positive")
 	}
-	if t.period < 0 {
+	if t.Period < 0 {
 		throw("timer period must be non-negative")
 	}
-	if t.status.Load() != timerNoStatus {
+	if t.Status.Load() != timerNoStatus {
 		throw("addtimer called with initialized timer")
 	}
-	t.status.Store(timerWaiting)
+	t.Status.Store(timerWaiting)
 
-	when := t.when
+	when := t.When
 
 	// Disable preemption while using pp to avoid changing another P's heap.
 	mp := acquirem()
@@ -294,15 +269,15 @@ func doaddtimer(pp *p, t *timer) {
 		netpollGenericInit()
 	}
 
-	if t.pp != 0 {
+	if t.Pp != 0 {
 		throw("doaddtimer: P already set in timer")
 	}
-	t.pp.set(pp)
+	(*puintptr)(unsafe.Pointer(&t.Pp)).set(pp)
 	i := len(pp.timers)
 	pp.timers = append(pp.timers, t)
 	siftupTimer(pp.timers, i)
 	if t == pp.timers[0] {
-		pp.timer0When.Store(t.when)
+		pp.timer0When.Store(t.When)
 	}
 	pp.numTimers.Add(1)
 }
@@ -313,17 +288,17 @@ func doaddtimer(pp *p, t *timer) {
 // Reports whether the timer was removed before it was run.
 func deltimer(t *timer) bool {
 	for {
-		switch s := t.status.Load(); s {
+		switch s := t.Status.Load(); s {
 		case timerWaiting, timerModifiedLater:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
-			if t.status.CompareAndSwap(s, timerModifying) {
+			if t.Status.CompareAndSwap(s, timerModifying) {
 				// Must fetch t.pp before changing status,
 				// as cleantimers in another goroutine
 				// can clear t.pp of a timerDeleted timer.
-				tpp := t.pp.ptr()
-				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
+				tpp := (*puintptr)(unsafe.Pointer(&t.Pp)).ptr()
+				if !t.Status.CompareAndSwap(timerModifying, timerDeleted) {
 					badTimer()
 				}
 				releasem(mp)
@@ -337,11 +312,11 @@ func deltimer(t *timer) bool {
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
-			if t.status.CompareAndSwap(s, timerModifying) {
+			if t.Status.CompareAndSwap(s, timerModifying) {
 				// Must fetch t.pp before setting status
 				// to timerDeleted.
-				tpp := t.pp.ptr()
-				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
+				tpp := (*puintptr)(unsafe.Pointer(&t.Pp)).ptr()
+				if !t.Status.CompareAndSwap(timerModifying, timerDeleted) {
 					badTimer()
 				}
 				releasem(mp)
@@ -377,10 +352,10 @@ func deltimer(t *timer) bool {
 // It returns the smallest changed index in pp.timers.
 // The caller must have locked the timers for pp.
 func dodeltimer(pp *p, i int) int {
-	if t := pp.timers[i]; t.pp.ptr() != pp {
+	if t := pp.timers[i]; (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
 		throw("dodeltimer: wrong P")
 	} else {
-		t.pp = 0
+		t.Pp = 0
 	}
 	last := len(pp.timers) - 1
 	if i != last {
@@ -411,10 +386,10 @@ func dodeltimer(pp *p, i int) int {
 // It reports whether it saw no problems due to races.
 // The caller must have locked the timers for pp.
 func dodeltimer0(pp *p) {
-	if t := pp.timers[0]; t.pp.ptr() != pp {
+	if t := pp.timers[0]; (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
 		throw("dodeltimer0: wrong P")
 	} else {
-		t.pp = 0
+		t.Pp = 0
 	}
 	last := len(pp.timers) - 1
 	if last > 0 {
@@ -450,12 +425,12 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 	var mp *m
 loop:
 	for {
-		switch status = t.status.Load(); status {
+		switch status = t.Status.Load(); status {
 		case timerWaiting, timerModifiedEarlier, timerModifiedLater:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if t.status.CompareAndSwap(status, timerModifying) {
+			if t.Status.CompareAndSwap(status, timerModifying) {
 				pending = true // timer not yet run
 				break loop
 			}
@@ -467,7 +442,7 @@ loop:
 
 			// Timer was already run and t is no longer in a heap.
 			// Act like addtimer.
-			if t.status.CompareAndSwap(status, timerModifying) {
+			if t.Status.CompareAndSwap(status, timerModifying) {
 				wasRemoved = true
 				pending = false // timer already run or stopped
 				break loop
@@ -477,8 +452,8 @@ loop:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if t.status.CompareAndSwap(status, timerModifying) {
-				t.pp.ptr().deletedTimers.Add(-1)
+			if t.Status.CompareAndSwap(status, timerModifying) {
+				(*puintptr)(unsafe.Pointer(&t.Pp)).ptr().deletedTimers.Add(-1)
 				pending = false // timer already stopped
 				break loop
 			}
@@ -496,18 +471,18 @@ loop:
 		}
 	}
 
-	t.period = period
-	t.f = f
-	t.arg = arg
-	t.seq = seq
+	t.Period = period
+	t.F = f
+	t.Arg = arg
+	t.Seq = seq
 
 	if wasRemoved {
-		t.when = when
+		t.When = when
 		pp := getg().m.p.ptr()
 		lock(&pp.timersLock)
 		doaddtimer(pp, t)
 		unlock(&pp.timersLock)
-		if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+		if !t.Status.CompareAndSwap(timerModifying, timerWaiting) {
 			badTimer()
 		}
 		releasem(mp)
@@ -518,21 +493,21 @@ loop:
 		// be out of order. So we put the new when value in the
 		// nextwhen field, and let the other P set the when field
 		// when it is prepared to resort the heap.
-		t.nextwhen = when
+		t.Nextwhen = when
 
 		newStatus := uint32(timerModifiedLater)
-		if when < t.when {
+		if when < t.When {
 			newStatus = timerModifiedEarlier
 		}
 
-		tpp := t.pp.ptr()
+		tpp := (*puintptr)(unsafe.Pointer(&t.Pp)).ptr()
 
 		if newStatus == timerModifiedEarlier {
 			updateTimerModifiedEarliest(tpp, when)
 		}
 
 		// Set the new status of the timer.
-		if !t.status.CompareAndSwap(timerModifying, newStatus) {
+		if !t.Status.CompareAndSwap(timerModifying, newStatus) {
 			badTimer()
 		}
 		releasem(mp)
@@ -552,7 +527,7 @@ loop:
 // or may have been, used previously.
 // Reports whether the timer was modified before it was run.
 func resettimer(t *timer, when int64) bool {
-	return modtimer(t, when, t.period, t.f, t.arg, t.seq)
+	return modtimer(t, when, t.Period, t.F, t.Arg, t.Seq)
 }
 
 // cleantimers cleans up the head of the timer queue. This speeds up
@@ -575,29 +550,29 @@ func cleantimers(pp *p) {
 		}
 
 		t := pp.timers[0]
-		if t.pp.ptr() != pp {
+		if (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
 			throw("cleantimers: bad p")
 		}
-		switch s := t.status.Load(); s {
+		switch s := t.Status.Load(); s {
 		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerRemoving) {
+			if !t.Status.CompareAndSwap(s, timerRemoving) {
 				continue
 			}
 			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+			if !t.Status.CompareAndSwap(timerRemoving, timerRemoved) {
 				badTimer()
 			}
 			pp.deletedTimers.Add(-1)
 		case timerModifiedEarlier, timerModifiedLater:
-			if !t.status.CompareAndSwap(s, timerMoving) {
+			if !t.Status.CompareAndSwap(s, timerMoving) {
 				continue
 			}
 			// Now we can change the when field.
-			t.when = t.nextwhen
+			t.When = t.Nextwhen
 			// Move t to the right position.
 			dodeltimer0(pp)
 			doaddtimer(pp, t)
-			if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+			if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 				badTimer()
 			}
 		default:
@@ -615,33 +590,33 @@ func moveTimers(pp *p, timers []*timer) {
 	for _, t := range timers {
 	loop:
 		for {
-			switch s := t.status.Load(); s {
+			switch s := t.Status.Load(); s {
 			case timerWaiting:
-				if !t.status.CompareAndSwap(s, timerMoving) {
+				if !t.Status.CompareAndSwap(s, timerMoving) {
 					continue
 				}
-				t.pp = 0
+				t.Pp = 0
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+				if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 					badTimer()
 				}
 				break loop
 			case timerModifiedEarlier, timerModifiedLater:
-				if !t.status.CompareAndSwap(s, timerMoving) {
+				if !t.Status.CompareAndSwap(s, timerMoving) {
 					continue
 				}
-				t.when = t.nextwhen
-				t.pp = 0
+				t.When = t.Nextwhen
+				t.Pp = 0
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+				if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 					badTimer()
 				}
 				break loop
 			case timerDeleted:
-				if !t.status.CompareAndSwap(s, timerRemoved) {
+				if !t.Status.CompareAndSwap(s, timerRemoved) {
 					continue
 				}
-				t.pp = 0
+				t.Pp = 0
 				// We no longer need this timer in the heap.
 				break loop
 			case timerModifying:
@@ -686,14 +661,14 @@ func adjusttimers(pp *p, now int64) {
 	var moved []*timer
 	for i := 0; i < len(pp.timers); i++ {
 		t := pp.timers[i]
-		if t.pp.ptr() != pp {
+		if (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
 			throw("adjusttimers: bad p")
 		}
-		switch s := t.status.Load(); s {
+		switch s := t.Status.Load(); s {
 		case timerDeleted:
-			if t.status.CompareAndSwap(s, timerRemoving) {
+			if t.Status.CompareAndSwap(s, timerRemoving) {
 				changed := dodeltimer(pp, i)
-				if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+				if !t.Status.CompareAndSwap(timerRemoving, timerRemoved) {
 					badTimer()
 				}
 				pp.deletedTimers.Add(-1)
@@ -702,9 +677,9 @@ func adjusttimers(pp *p, now int64) {
 				i = changed - 1
 			}
 		case timerModifiedEarlier, timerModifiedLater:
-			if t.status.CompareAndSwap(s, timerMoving) {
+			if t.Status.CompareAndSwap(s, timerMoving) {
 				// Now we can change the when field.
-				t.when = t.nextwhen
+				t.When = t.Nextwhen
 				// Take t off the heap, and hold onto it.
 				// We don't add it back yet because the
 				// heap manipulation could cause our
@@ -742,7 +717,7 @@ func adjusttimers(pp *p, now int64) {
 func addAdjustedTimers(pp *p, moved []*timer) {
 	for _, t := range moved {
 		doaddtimer(pp, t)
-		if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+		if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 			badTimer()
 		}
 	}
@@ -774,17 +749,17 @@ func nobarrierWakeTime(pp *p) int64 {
 func runtimer(pp *p, now int64) int64 {
 	for {
 		t := pp.timers[0]
-		if t.pp.ptr() != pp {
+		if (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
 			throw("runtimer: bad p")
 		}
-		switch s := t.status.Load(); s {
+		switch s := t.Status.Load(); s {
 		case timerWaiting:
-			if t.when > now {
+			if t.When > now {
 				// Not ready to run.
-				return t.when
+				return t.When
 			}
 
-			if !t.status.CompareAndSwap(s, timerRunning) {
+			if !t.Status.CompareAndSwap(s, timerRunning) {
 				continue
 			}
 			// Note that runOneTimer may temporarily unlock
@@ -793,11 +768,11 @@ func runtimer(pp *p, now int64) int64 {
 			return 0
 
 		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerRemoving) {
+			if !t.Status.CompareAndSwap(s, timerRemoving) {
 				continue
 			}
 			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+			if !t.Status.CompareAndSwap(timerRemoving, timerRemoved) {
 				badTimer()
 			}
 			pp.deletedTimers.Add(-1)
@@ -806,13 +781,13 @@ func runtimer(pp *p, now int64) int64 {
 			}
 
 		case timerModifiedEarlier, timerModifiedLater:
-			if !t.status.CompareAndSwap(s, timerMoving) {
+			if !t.Status.CompareAndSwap(s, timerMoving) {
 				continue
 			}
-			t.when = t.nextwhen
+			t.When = t.Nextwhen
 			dodeltimer0(pp)
 			doaddtimer(pp, t)
-			if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+			if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 				badTimer()
 			}
 
@@ -847,26 +822,26 @@ func runOneTimer(pp *p, t *timer, now int64) {
 		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
 	}
 
-	f := t.f
-	arg := t.arg
-	seq := t.seq
+	f := t.F
+	arg := t.Arg
+	seq := t.Seq
 
-	if t.period > 0 {
+	if t.Period > 0 {
 		// Leave in heap but adjust next time to fire.
-		delta := t.when - now
-		t.when += t.period * (1 + -delta/t.period)
-		if t.when < 0 { // check for overflow.
-			t.when = maxWhen
+		delta := t.When - now
+		t.When += t.Period * (1 + -delta/t.Period)
+		if t.When < 0 { // check for overflow.
+			t.When = maxWhen
 		}
 		siftdownTimer(pp.timers, 0)
-		if !t.status.CompareAndSwap(timerRunning, timerWaiting) {
+		if !t.Status.CompareAndSwap(timerRunning, timerWaiting) {
 			badTimer()
 		}
 		updateTimer0When(pp)
 	} else {
 		// Remove from heap.
 		dodeltimer0(pp)
-		if !t.status.CompareAndSwap(timerRunning, timerNoStatus) {
+		if !t.Status.CompareAndSwap(timerRunning, timerNoStatus) {
 			badTimer()
 		}
 	}
@@ -913,7 +888,7 @@ func clearDeletedTimers(pp *p) {
 nextTimer:
 	for _, t := range timers {
 		for {
-			switch s := t.status.Load(); s {
+			switch s := t.Status.Load(); s {
 			case timerWaiting:
 				if changedHeap {
 					timers[to] = t
@@ -922,22 +897,22 @@ nextTimer:
 				to++
 				continue nextTimer
 			case timerModifiedEarlier, timerModifiedLater:
-				if t.status.CompareAndSwap(s, timerMoving) {
-					t.when = t.nextwhen
+				if t.Status.CompareAndSwap(s, timerMoving) {
+					t.When = t.Nextwhen
 					timers[to] = t
 					siftupTimer(timers, to)
 					to++
 					changedHeap = true
-					if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+					if !t.Status.CompareAndSwap(timerMoving, timerWaiting) {
 						badTimer()
 					}
 					continue nextTimer
 				}
 			case timerDeleted:
-				if t.status.CompareAndSwap(s, timerRemoving) {
-					t.pp = 0
+				if t.Status.CompareAndSwap(s, timerRemoving) {
+					t.Pp = 0
 					cdel++
-					if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+					if !t.Status.CompareAndSwap(timerRemoving, timerRemoved) {
 						badTimer()
 					}
 					changedHeap = true
@@ -989,8 +964,8 @@ func verifyTimerHeap(pp *p) {
 
 		// The heap is 4-ary. See siftupTimer and siftdownTimer.
 		p := (i - 1) / 4
-		if t.when < pp.timers[p].when {
-			print("bad timer heap at ", i, ": ", p, ": ", pp.timers[p].when, ", ", i, ": ", t.when, "\n")
+		if t.When < pp.timers[p].When {
+			print("bad timer heap at ", i, ": ", p, ": ", pp.timers[p].When, ", ", i, ": ", t.When, "\n")
 			throw("bad timer heap")
 		}
 	}
@@ -1006,7 +981,7 @@ func updateTimer0When(pp *p) {
 	if len(pp.timers) == 0 {
 		pp.timer0When.Store(0)
 	} else {
-		pp.timer0When.Store(pp.timers[0].when)
+		pp.timer0When.Store(pp.timers[0].When)
 	}
 }
 
@@ -1071,14 +1046,14 @@ func siftupTimer(t []*timer, i int) int {
 	if i >= len(t) {
 		badTimer()
 	}
-	when := t[i].when
+	when := t[i].When
 	if when <= 0 {
 		badTimer()
 	}
 	tmp := t[i]
 	for i > 0 {
 		p := (i - 1) / 4 // parent
-		if when >= t[p].when {
+		if when >= t[p].When {
 			break
 		}
 		t[i] = t[p]
@@ -1097,7 +1072,7 @@ func siftdownTimer(t []*timer, i int) {
 	if i >= n {
 		badTimer()
 	}
-	when := t[i].when
+	when := t[i].When
 	if when <= 0 {
 		badTimer()
 	}
@@ -1108,15 +1083,15 @@ func siftdownTimer(t []*timer, i int) {
 		if c >= n {
 			break
 		}
-		w := t[c].when
-		if c+1 < n && t[c+1].when < w {
-			w = t[c+1].when
+		w := t[c].When
+		if c+1 < n && t[c+1].When < w {
+			w = t[c+1].When
 			c++
 		}
 		if c3 < n {
-			w3 := t[c3].when
-			if c3+1 < n && t[c3+1].when < w3 {
-				w3 = t[c3+1].when
+			w3 := t[c3].When
+			if c3+1 < n && t[c3+1].When < w3 {
+				w3 = t[c3+1].When
 				c3++
 			}
 			if w3 < w {

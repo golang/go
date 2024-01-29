@@ -4,22 +4,13 @@
 
 package time
 
+import "internal/abi"
+
+type runtimeTimer = abi.Timer
+
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
-
-// Interface to timers implemented in package runtime.
-// Must be in sync with ../runtime/time.go:/^type timer
-type runtimeTimer struct {
-	pp       uintptr
-	when     int64
-	period   int64
-	f        func(any, uintptr) // NOTE: must not be closure
-	arg      any
-	seq      uintptr
-	nextwhen int64
-	status   uint32
-}
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
 // It returns what the time will be, in nanoseconds, Duration d in the future.
@@ -38,10 +29,10 @@ func when(d Duration) int64 {
 	return t
 }
 
-func startTimer(*runtimeTimer)
-func stopTimer(*runtimeTimer) bool
-func resetTimer(*runtimeTimer, int64) bool
-func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
+func startTimer(*abi.Timer)
+func stopTimer(*abi.Timer) bool
+func resetTimer(*abi.Timer, int64) bool
+func modTimer(t *abi.Timer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -75,7 +66,7 @@ type Timer struct {
 // If the caller needs to know whether f is completed, it must coordinate
 // with f explicitly.
 func (t *Timer) Stop() bool {
-	if t.r.f == nil {
+	if t.r.F == nil {
 		panic("time: Stop called on uninitialized Timer")
 	}
 	return stopTimer(&t.r)
@@ -88,9 +79,9 @@ func NewTimer(d Duration) *Timer {
 	t := &Timer{
 		C: c,
 		r: runtimeTimer{
-			when: when(d),
-			f:    sendTime,
-			arg:  c,
+			When: when(d),
+			F:    sendTime,
+			Arg:  c,
 		},
 	}
 	startTimer(&t.r)
@@ -132,7 +123,7 @@ func NewTimer(d Duration) *Timer {
 // one. If the caller needs to know whether the prior execution of
 // f is completed, it must coordinate with f explicitly.
 func (t *Timer) Reset(d Duration) bool {
-	if t.r.f == nil {
+	if t.r.F == nil {
 		panic("time: Reset called on uninitialized Timer")
 	}
 	w := when(d)
@@ -164,9 +155,9 @@ func After(d Duration) <-chan Time {
 func AfterFunc(d Duration, f func()) *Timer {
 	t := &Timer{
 		r: runtimeTimer{
-			when: when(d),
-			f:    goFunc,
-			arg:  f,
+			When: when(d),
+			F:    goFunc,
+			Arg:  f,
 		},
 	}
 	startTimer(&t.r)

@@ -28,10 +28,10 @@ func NewTicker(d Duration) *Ticker {
 	t := &Ticker{
 		C: c,
 		r: runtimeTimer{
-			when:   when(d),
-			period: int64(d),
-			f:      sendTime,
-			arg:    c,
+			When:   when(d),
+			Period: int64(d),
+			F:      sendTime,
+			Arg:    c,
 		},
 	}
 	startTimer(&t.r)
@@ -52,10 +52,10 @@ func (t *Ticker) Reset(d Duration) {
 	if d <= 0 {
 		panic("non-positive interval for Ticker.Reset")
 	}
-	if t.r.f == nil {
+	if t.r.F == nil {
 		panic("time: Reset called on uninitialized Ticker")
 	}
-	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
+	modTimer(&t.r, when(d), int64(d), t.r.F, t.r.Arg, t.r.Seq)
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking

@@ -920,8 +920,8 @@ func newWakeableSleep() *wakeableSleep {
 	lockInit(&s.lock, lockRankWakeableSleep)
 	s.wakeup = make(chan struct{}, 1)
 	s.timer = new(timer)
-	s.timer.arg = s
-	s.timer.f = func(s any, _ uintptr) {
+	s.timer.Arg = s
+	s.timer.F = func(s any, _ uintptr) {
 		s.(*wakeableSleep).wake()
 	}
 	return s
