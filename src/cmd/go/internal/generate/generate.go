@@ -181,6 +181,8 @@ func init() {
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
