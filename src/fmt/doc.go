@@ -140,12 +140,11 @@ Other flags:
 		returns true;
 		always print a decimal point for %e, %E, %f, %F, %g and %G;
 		do not remove trailing zeros for %g and %G;
-		write e.g. U+0078 'x' if the character is printable for %U (%#U).
+		write e.g. U+0078 'x' if the character is printable for %U (%#U)
 	' '	(space) leave a space for elided sign in numbers (% d);
 		put spaces between bytes printing strings or slices in hex (% x, % X)
 	'0'	pad with leading zeros rather than spaces;
-		for numbers, this moves the padding after the sign;
-		ignored for strings, byte slices and byte arrays
+		for numbers, this moves the padding after the sign
 
 Flags are ignored by verbs that do not expect them.
 For example there is no alternate decimal format, so %#d and %d
