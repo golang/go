@@ -172,7 +172,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 				// ok to continue even if indexing failed - map element type is known
 				x.mode = mapindex
 				x.typ = elem
-				x.expr = e
+				x.expr = e.Orig
 				return false
 			}
 

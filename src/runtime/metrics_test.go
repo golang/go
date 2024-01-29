@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"internal/goexperiment"
 	"internal/profile"
+	"internal/testenv"
 	"os"
 	"reflect"
 	"runtime"
@@ -947,6 +948,8 @@ func TestSchedPauseMetrics(t *testing.T) {
 }
 
 func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+	testenv.SkipFlaky(t, 64253)
+
 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {

@@ -934,7 +934,7 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	if rfunc.Params().Len() != 1 {
 		base.Fatalf("invalid typecheck of range func")
 	}
-	ftyp := rfunc.Params().At(0).Type().(*types2.Signature) // func(...) bool
+	ftyp := types2.CoreType(rfunc.Params().At(0).Type()).(*types2.Signature) // func(...) bool
 	if ftyp.Results().Len() != 1 {
 		base.Fatalf("invalid typecheck of range func")
 	}

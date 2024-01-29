@@ -66,10 +66,10 @@ func TestMaxFloat(t *testing.T) {
 	}
 	for _, x := range all {
 		if z := max(nan, x); !math.IsNaN(z) {
-			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
+			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
 		if z := max(x, nan); !math.IsNaN(z) {
-			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
+			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
 	}
 }
@@ -126,4 +126,22 @@ func TestMinMaxStringTies(t *testing.T) {
 	test(1, 2, 0)
 	test(2, 0, 1)
 	test(2, 1, 0)
+}
+
+func BenchmarkMinFloat(b *testing.B) {
+	var m float64 = 0
+	for i := 0; i < b.N; i++ {
+		for _, f := range all {
+			m = min(m, f)
+		}
+	}
+}
+
+func BenchmarkMaxFloat(b *testing.B) {
+	var m float64 = 0
+	for i := 0; i < b.N; i++ {
+		for _, f := range all {
+			m = max(m, f)
+		}
+	}
 }

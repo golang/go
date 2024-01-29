@@ -204,7 +204,6 @@ func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
 		i++
 	}
 	return hd
-
 }
 
 // TODO: Delete when we switch to bisect-only.

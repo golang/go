@@ -454,7 +454,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
+			if info.IsDir() && path != root && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
 			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
@@ -465,7 +465,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// running time of this test anyway.)
 				return filepath.SkipDir
 			}
-			if info.IsDir() && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
+			if info.IsDir() && path != root && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
 				// _ and . prefixed directories can be used for internal modules
 				// without a vendor directory that don't contribute to the build
 				// but might be used for example as code generators.

@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
 var libc_unveil_trampoline_addr uintptr
 
 //go:cgo_import_dynamic libc_unveil unveil "libc.so"
-
-

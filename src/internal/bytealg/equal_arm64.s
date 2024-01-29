@@ -9,6 +9,9 @@
 TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 	// short path to handle 0-byte case
 	CBZ	R2, equal
+	// short path to handle equal pointers
+	CMP	R0, R1
+	BEQ	equal
 	B	memeqbody<>(SB)
 equal:
 	MOVD	$1, R0

@@ -61,7 +61,7 @@ var (
 
 // A Handler responds to an HTTP request.
 //
-// ServeHTTP should write reply headers and data to the [ResponseWriter]
+// [Handler.ServeHTTP] should write reply headers and data to the [ResponseWriter]
 // and then return. Returning signals that the request is finished; it
 // is not valid to use the [ResponseWriter] or read from the
 // [Request.Body] after or concurrently with the completion of the
@@ -161,8 +161,8 @@ type ResponseWriter interface {
 // The Flusher interface is implemented by ResponseWriters that allow
 // an HTTP handler to flush buffered data to the client.
 //
-// The default HTTP/1.x and HTTP/2 ResponseWriter implementations
-// support Flusher, but ResponseWriter wrappers may not. Handlers
+// The default HTTP/1.x and HTTP/2 [ResponseWriter] implementations
+// support [Flusher], but ResponseWriter wrappers may not. Handlers
 // should always test for this ability at runtime.
 //
 // Note that even for ResponseWriters that support Flush,
@@ -177,7 +177,7 @@ type Flusher interface {
 // The Hijacker interface is implemented by ResponseWriters that allow
 // an HTTP handler to take over the connection.
 //
-// The default ResponseWriter for HTTP/1.x connections supports
+// The default [ResponseWriter] for HTTP/1.x connections supports
 // Hijacker, but HTTP/2 connections intentionally do not.
 // ResponseWriter wrappers may also not support Hijacker. Handlers
 // should always test for this ability at runtime.
@@ -211,7 +211,7 @@ type Hijacker interface {
 // if the client has disconnected before the response is ready.
 //
 // Deprecated: the CloseNotifier interface predates Go's context package.
-// New code should use Request.Context instead.
+// New code should use [Request.Context] instead.
 type CloseNotifier interface {
 	// CloseNotify returns a channel that receives at most a
 	// single value (true) when the client connection has gone
@@ -505,7 +505,7 @@ func (c *response) EnableFullDuplex() error {
 	return nil
 }
 
-// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
+// TrailerPrefix is a magic prefix for [ResponseWriter.Header] map keys
 // that, if present, signals that the map entry is actually for
 // the response trailers, and not the response headers. The prefix
 // is stripped after the ServeHTTP call finishes and the values are
@@ -571,8 +571,8 @@ type writerOnly struct {
 	io.Writer
 }
 
-// ReadFrom is here to optimize copying from an *os.File regular file
-// to a *net.TCPConn with sendfile, or from a supported src type such
+// ReadFrom is here to optimize copying from an [*os.File] regular file
+// to a [*net.TCPConn] with sendfile, or from a supported src type such
 // as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	buf := getCopyBuf()
@@ -867,7 +867,7 @@ func putBufioWriter(bw *bufio.Writer) {
 
 // DefaultMaxHeaderBytes is the maximum permitted size of the headers
 // in an HTTP request.
-// This can be overridden by setting Server.MaxHeaderBytes.
+// This can be overridden by setting [Server.MaxHeaderBytes].
 const DefaultMaxHeaderBytes = 1 << 20 // 1 MB
 
 func (srv *Server) maxHeaderBytes() int {
@@ -940,11 +940,11 @@ func (ecr *expectContinueReader) Close() error {
 }
 
 // TimeFormat is the time format to use when generating times in HTTP
-// headers. It is like time.RFC1123 but hard-codes GMT as the time
+// headers. It is like [time.RFC1123] but hard-codes GMT as the time
 // zone. The time being formatted must be in UTC for Format to
 // generate the correct format.
 //
-// For parsing this time format, see ParseTime.
+// For parsing this time format, see [ParseTime].
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
 // appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
@@ -1590,13 +1590,13 @@ func (w *response) bodyAllowed() bool {
 // The Writers are wired together like:
 //
 //  1. *response (the ResponseWriter) ->
-//  2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes ->
+//  2. (*response).w, a [*bufio.Writer] of bufferBeforeChunkingSize bytes ->
 //  3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
 //     and which writes the chunk headers, if needed ->
 //  4. conn.bufw, a *bufio.Writer of default (4kB) bytes, writing to ->
 //  5. checkConnErrorWriter{c}, which notes any non-nil error on Write
 //     and populates c.werr with it if so, but otherwise writes to ->
-//  6. the rwc, the net.Conn.
+//  6. the rwc, the [net.Conn].
 //
 // TODO(bradfitz): short-circuit some of the buffering when the
 // initial header contains both a Content-Type and Content-Length.
@@ -2097,8 +2097,8 @@ func (w *response) sendExpectationFailed() {
 	w.finishRequest()
 }
 
-// Hijack implements the Hijacker.Hijack method. Our response is both a ResponseWriter
-// and a Hijacker.
+// Hijack implements the [Hijacker.Hijack] method. Our response is both a [ResponseWriter]
+// and a [Hijacker].
 func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.handlerDone.Load() {
 		panic("net/http: Hijack called after ServeHTTP finished")
@@ -2158,7 +2158,7 @@ func requestBodyRemains(rc io.ReadCloser) bool {
 // The HandlerFunc type is an adapter to allow the use of
 // ordinary functions as HTTP handlers. If f is a function
 // with the appropriate signature, HandlerFunc(f) is a
-// Handler that calls f.
+// [Handler] that calls f.
 type HandlerFunc func(ResponseWriter, *Request)
 
 // ServeHTTP calls f(w, r).
@@ -2217,9 +2217,9 @@ func StripPrefix(prefix string, h Handler) Handler {
 // which may be a path relative to the request path.
 //
 // The provided code should be in the 3xx range and is usually
-// StatusMovedPermanently, StatusFound or StatusSeeOther.
+// [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].
 //
-// If the Content-Type header has not been set, Redirect sets it
+// If the Content-Type header has not been set, [Redirect] sets it
 // to "text/html; charset=utf-8" and writes a small HTML body.
 // Setting the Content-Type header to any value, including nil,
 // disables that behavior.
@@ -2307,7 +2307,7 @@ func (rh *redirectHandler) ServeHTTP(w ResponseWriter, r *Request) {
 // status code.
 //
 // The provided code should be in the 3xx range and is usually
-// StatusMovedPermanently, StatusFound or StatusSeeOther.
+// [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].
 func RedirectHandler(url string, code int) Handler {
 	return &redirectHandler{url, code}
 }
@@ -2394,7 +2394,7 @@ func RedirectHandler(url string, code int) Handler {
 //
 // # Trailing-slash redirection
 //
-// Consider a ServeMux with a handler for a subtree, registered using a trailing slash or "..." wildcard.
+// Consider a [ServeMux] with a handler for a subtree, registered using a trailing slash or "..." wildcard.
 // If the ServeMux receives a request for the subtree root without a trailing slash,
 // it redirects the request by adding the trailing slash.
 // This behavior can be overridden with a separate registration for the path without
@@ -2437,12 +2437,12 @@ type ServeMux struct {
 	mux121   serveMux121 // used only when GODEBUG=httpmuxgo121=1
 }
 
-// NewServeMux allocates and returns a new ServeMux.
+// NewServeMux allocates and returns a new [ServeMux].
 func NewServeMux() *ServeMux {
 	return &ServeMux{}
 }
 
-// DefaultServeMux is the default ServeMux used by Serve.
+// DefaultServeMux is the default [ServeMux] used by [Serve].
 var DefaultServeMux = &defaultServeMux
 
 var defaultServeMux ServeMux
@@ -2784,7 +2784,7 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
 //
 // The handler is typically nil, in which case [DefaultServeMux] is used.
 //
-// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// HTTP/2 support is only enabled if the Listener returns [*tls.Conn]
 // connections and they were configured with "h2" in the TLS
 // Config.NextProtos.
 //
@@ -2924,13 +2924,13 @@ type Server struct {
 }
 
 // Close immediately closes all active net.Listeners and any
-// connections in state StateNew, StateActive, or StateIdle. For a
-// graceful shutdown, use Shutdown.
+// connections in state [StateNew], [StateActive], or [StateIdle]. For a
+// graceful shutdown, use [Server.Shutdown].
 //
 // Close does not attempt to close (and does not even know about)
 // any hijacked connections, such as WebSockets.
 //
-// Close returns any error returned from closing the Server's
+// Close returns any error returned from closing the [Server]'s
 // underlying Listener(s).
 func (srv *Server) Close() error {
 	srv.inShutdown.Store(true)
@@ -2968,16 +2968,16 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
 // indefinitely for connections to return to idle and then shut down.
 // If the provided context expires before the shutdown is complete,
 // Shutdown returns the context's error, otherwise it returns any
-// error returned from closing the Server's underlying Listener(s).
+// error returned from closing the [Server]'s underlying Listener(s).
 //
-// When Shutdown is called, Serve, ListenAndServe, and
-// ListenAndServeTLS immediately return ErrServerClosed. Make sure the
+// When Shutdown is called, [Serve], [ListenAndServe], and
+// [ListenAndServeTLS] immediately return [ErrServerClosed]. Make sure the
 // program doesn't exit and waits instead for Shutdown to return.
 //
 // Shutdown does not attempt to close nor wait for hijacked
 // connections such as WebSockets. The caller of Shutdown should
 // separately notify such long-lived connections of shutdown and wait
-// for them to close, if desired. See RegisterOnShutdown for a way to
+// for them to close, if desired. See [Server.RegisterOnShutdown] for a way to
 // register shutdown notification functions.
 //
 // Once Shutdown has been called on a server, it may not be reused;
@@ -3020,7 +3020,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	}
 }
 
-// RegisterOnShutdown registers a function to call on Shutdown.
+// RegisterOnShutdown registers a function to call on [Server.Shutdown].
 // This can be used to gracefully shutdown connections that have
 // undergone ALPN protocol upgrade or that have been hijacked.
 // This function should start protocol-specific graceful shutdown,
@@ -3068,7 +3068,7 @@ func (s *Server) closeListenersLocked() error {
 }
 
 // A ConnState represents the state of a client connection to a server.
-// It's used by the optional Server.ConnState hook.
+// It's used by the optional [Server.ConnState] hook.
 type ConnState int
 
 const (
@@ -3145,7 +3145,7 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 // behavior doesn't match that of many proxies, and the mismatch can lead to
 // security issues.
 //
-// AllowQuerySemicolons should be invoked before Request.ParseForm is called.
+// AllowQuerySemicolons should be invoked before [Request.ParseForm] is called.
 func AllowQuerySemicolons(h Handler) Handler {
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
 		if strings.Contains(r.URL.RawQuery, ";") {
@@ -3162,13 +3162,13 @@ func AllowQuerySemicolons(h Handler) Handler {
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
-// calls Serve to handle requests on incoming connections.
+// calls [Serve] to handle requests on incoming connections.
 // Accepted connections are configured to enable TCP keep-alives.
 //
 // If srv.Addr is blank, ":http" is used.
 //
-// ListenAndServe always returns a non-nil error. After Shutdown or Close,
-// the returned error is ErrServerClosed.
+// ListenAndServe always returns a non-nil error. After [Server.Shutdown] or [Server.Close],
+// the returned error is [ErrServerClosed].
 func (srv *Server) ListenAndServe() error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
@@ -3208,20 +3208,20 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
 }
 
-// ErrServerClosed is returned by the Server's Serve, ServeTLS, ListenAndServe,
-// and ListenAndServeTLS methods after a call to Shutdown or Close.
+// ErrServerClosed is returned by the [Server.Serve], [ServeTLS], [ListenAndServe],
+// and [ListenAndServeTLS] methods after a call to [Server.Shutdown] or [Server.Close].
 var ErrServerClosed = errors.New("http: Server closed")
 
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
 //
-// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// HTTP/2 support is only enabled if the Listener returns [*tls.Conn]
 // connections and they were configured with "h2" in the TLS
 // Config.NextProtos.
 //
 // Serve always returns a non-nil error and closes l.
-// After Shutdown or Close, the returned error is ErrServerClosed.
+// After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
 func (srv *Server) Serve(l net.Listener) error {
 	if fn := testHookServerServe; fn != nil {
 		fn(srv, l) // call hook with unwrapped listener
@@ -3291,14 +3291,14 @@ func (srv *Server) Serve(l net.Listener) error {
 // setup and then read requests, calling srv.Handler to reply to them.
 //
 // Files containing a certificate and matching private key for the
-// server must be provided if neither the Server's
+// server must be provided if neither the [Server]'s
 // TLSConfig.Certificates nor TLSConfig.GetCertificate are populated.
 // If the certificate is signed by a certificate authority, the
 // certFile should be the concatenation of the server's certificate,
 // any intermediates, and the CA's certificate.
 //
-// ServeTLS always returns a non-nil error. After Shutdown or Close, the
-// returned error is ErrServerClosed.
+// ServeTLS always returns a non-nil error. After [Server.Shutdown] or [Server.Close], the
+// returned error is [ErrServerClosed].
 func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
 	// before we clone it and create the TLS Listener.
@@ -3427,7 +3427,7 @@ func logf(r *Request, format string, args ...any) {
 }
 
 // ListenAndServe listens on the TCP network address addr and then calls
-// Serve with handler to handle requests on incoming connections.
+// [Serve] with handler to handle requests on incoming connections.
 // Accepted connections are configured to enable TCP keep-alives.
 //
 // The handler is typically nil, in which case [DefaultServeMux] is used.
@@ -3449,11 +3449,11 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 }
 
 // ListenAndServeTLS listens on the TCP network address srv.Addr and
-// then calls ServeTLS to handle requests on incoming TLS connections.
+// then calls [ServeTLS] to handle requests on incoming TLS connections.
 // Accepted connections are configured to enable TCP keep-alives.
 //
 // Filenames containing a certificate and matching private key for the
-// server must be provided if neither the Server's TLSConfig.Certificates
+// server must be provided if neither the [Server]'s TLSConfig.Certificates
 // nor TLSConfig.GetCertificate are populated. If the certificate is
 // signed by a certificate authority, the certFile should be the
 // concatenation of the server's certificate, any intermediates, and
@@ -3461,8 +3461,8 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 //
 // If srv.Addr is blank, ":https" is used.
 //
-// ListenAndServeTLS always returns a non-nil error. After Shutdown or
-// Close, the returned error is ErrServerClosed.
+// ListenAndServeTLS always returns a non-nil error. After [Server.Shutdown] or
+// [Server.Close], the returned error is [ErrServerClosed].
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if srv.shuttingDown() {
 		return ErrServerClosed
@@ -3532,17 +3532,17 @@ func (srv *Server) onceSetNextProtoDefaults() {
 	}
 }
 
-// TimeoutHandler returns a Handler that runs h with the given time limit.
+// TimeoutHandler returns a [Handler] that runs h with the given time limit.
 //
 // The new Handler calls h.ServeHTTP to handle each request, but if a
 // call runs for longer than its time limit, the handler responds with
 // a 503 Service Unavailable error and the given message in its body.
 // (If msg is empty, a suitable default message will be sent.)
-// After such a timeout, writes by h to its ResponseWriter will return
-// ErrHandlerTimeout.
+// After such a timeout, writes by h to its [ResponseWriter] will return
+// [ErrHandlerTimeout].
 //
-// TimeoutHandler supports the Pusher interface but does not support
-// the Hijacker or Flusher interfaces.
+// TimeoutHandler supports the [Pusher] interface but does not support
+// the [Hijacker] or [Flusher] interfaces.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 	return &timeoutHandler{
 		handler: h,
@@ -3551,7 +3551,7 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 	}
 }
 
-// ErrHandlerTimeout is returned on ResponseWriter Write calls
+// ErrHandlerTimeout is returned on [ResponseWriter] Write calls
 // in handlers which have timed out.
 var ErrHandlerTimeout = errors.New("http: Handler timeout")
 
@@ -3640,7 +3640,7 @@ type timeoutWriter struct {
 
 var _ Pusher = (*timeoutWriter)(nil)
 
-// Push implements the Pusher interface.
+// Push implements the [Pusher] interface.
 func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
 	if pusher, ok := tw.w.(Pusher); ok {
 		return pusher.Push(target, opts)
@@ -3725,7 +3725,7 @@ type initALPNRequest struct {
 	h   serverHandler
 }
 
-// BaseContext is an exported but unadvertised http.Handler method
+// BaseContext is an exported but unadvertised [http.Handler] method
 // recognized by x/net/http2 to pass down a context; the TLSNextProto
 // API predates context support so we shoehorn through the only
 // interface we have available.
@@ -3812,7 +3812,6 @@ func numLeadingCRorLF(v []byte) (n int) {
 		break
 	}
 	return
-
 }
 
 func strSliceContains(ss []string, s string) bool {
@@ -3834,7 +3833,7 @@ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
 	return false
 }
 
-// MaxBytesHandler returns a Handler that runs h with its ResponseWriter and Request.Body wrapped by a MaxBytesReader.
+// MaxBytesHandler returns a [Handler] that runs h with its [ResponseWriter] and [Request.Body] wrapped by a MaxBytesReader.
 func MaxBytesHandler(h Handler, n int64) Handler {
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
 		r2 := *r

@@ -200,12 +200,22 @@ var mulRangesZ = []struct {
 			"638952175999932299156089414639761565182862536979208272237582" +
 			"511852109168640000000000000000000000", // -99!
 	},
+
+	// overflow situations
+	{math.MaxInt64 - 0, math.MaxInt64, "9223372036854775807"},
+	{math.MaxInt64 - 1, math.MaxInt64, "85070591730234615838173535747377725442"},
+	{math.MaxInt64 - 2, math.MaxInt64, "784637716923335094969050127519550606919189611815754530810"},
+	{math.MaxInt64 - 3, math.MaxInt64, "7237005577332262206126809393809643289012107973151163787181513908099760521240"},
 }
 
 func TestMulRangeZ(t *testing.T) {
 	var tmp Int
 	// test entirely positive ranges
 	for i, r := range mulRangesN {
+		// skip mulRangesN entries that overflow int64
+		if int64(r.a) < 0 || int64(r.b) < 0 {
+			continue
+		}
 		prod := tmp.MulRange(int64(r.a), int64(r.b)).String()
 		if prod != r.prod {
 			t.Errorf("#%da: got %s; want %s", i, prod, r.prod)

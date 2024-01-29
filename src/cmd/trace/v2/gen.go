@@ -31,6 +31,9 @@ type generator interface {
 	ProcRange(ctx *traceContext, ev *tracev2.Event)
 	ProcTransition(ctx *traceContext, ev *tracev2.Event)
 
+	// User annotations.
+	Log(ctx *traceContext, ev *tracev2.Event)
+
 	// Finish indicates the end of the trace and finalizes generation.
 	Finish(ctx *traceContext)
 }
@@ -69,6 +72,8 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 			case tracev2.ResourceGoroutine:
 				g.GoroutineTransition(ctx, ev)
 			}
+		case tracev2.EventLog:
+			g.Log(ctx, ev)
 		}
 	}
 	for i, task := range opts.tasks {
@@ -356,4 +361,34 @@ type completedRange struct {
 	startStack tracev2.Stack
 	endStack   tracev2.Stack
 	arg        any
+}
+
+type logEventGenerator[R resource] struct {
+	// getResource is a function to extract a resource ID from a Log event.
+	getResource func(*tracev2.Event) R
+}
+
+// Log implements a log event handler. It expects ev to be one such event.
+func (g *logEventGenerator[R]) Log(ctx *traceContext, ev *tracev2.Event) {
+	id := g.getResource(ev)
+	if id == R(noResource) {
+		// We have nowhere to put this in the UI.
+		return
+	}
+
+	// Construct the name to present.
+	log := ev.Log()
+	name := log.Message
+	if log.Category != "" {
+		name = "[" + log.Category + "] " + name
+	}
+
+	// Emit an instant event.
+	ctx.Instant(traceviewer.InstantEvent{
+		Name:     name,
+		Ts:       ctx.elapsed(ev.Time()),
+		Category: "user event",
+		Resource: uint64(id),
+		Stack:    ctx.Stack(viewerFrames(ev.Stack())),
+	})
 }

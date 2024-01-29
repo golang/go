@@ -17,8 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -363,11 +363,12 @@ func TestInternalRedirect(t *testing.T) {
 
 // TestCopyError tests that we kill the process if there's an error copying
 // its output. (for example, from the client having gone away)
+//
+// If we fail to do so, the test will time out (and dump its goroutines) with a
+// call to [Handler.ServeHTTP] blocked on a deferred call to [exec.Cmd.Wait].
 func TestCopyError(t *testing.T) {
 	testenv.MustHaveExec(t)
-	if runtime.GOOS == "windows" {
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
+
 	h := &Handler{
 		Path: os.Args[0],
 		Root: "/test.cgi",
@@ -390,37 +391,42 @@ func TestCopyError(t *testing.T) {
 		t.Fatalf("ReadResponse: %v", err)
 	}
 
-	pidstr := res.Header.Get("X-CGI-Pid")
-	if pidstr == "" {
-		t.Fatalf("expected an X-CGI-Pid header in response")
-	}
-	pid, err := strconv.Atoi(pidstr)
-	if err != nil {
-		t.Fatalf("invalid X-CGI-Pid value")
-	}
-
 	var buf [5000]byte
 	n, err := io.ReadFull(res.Body, buf[:])
 	if err != nil {
 		t.Fatalf("ReadFull: %d bytes, %v", n, err)
 	}
 
-	childRunning := func() bool {
-		return isProcessRunning(pid)
-	}
-
-	if !childRunning() {
-		t.Fatalf("pre-conn.Close, expected child to be running")
+	if !handlerRunning() {
+		t.Fatalf("pre-conn.Close, expected handler to still be running")
 	}
 	conn.Close()
+	closed := time.Now()
 
-	tries := 0
-	for tries < 25 && childRunning() {
-		time.Sleep(50 * time.Millisecond * time.Duration(tries))
-		tries++
+	nextSleep := 1 * time.Millisecond
+	for {
+		time.Sleep(nextSleep)
+		nextSleep *= 2
+		if !handlerRunning() {
+			break
+		}
+		t.Logf("handler still running %v after conn.Close", time.Since(closed))
 	}
-	if childRunning() {
-		t.Fatalf("post-conn.Close, expected child to be gone")
+}
+
+// handlerRunning reports whether any goroutine is currently running
+// [Handler.ServeHTTP].
+func handlerRunning() bool {
+	r := regexp.MustCompile(`net/http/cgi\.\(\*Handler\)\.ServeHTTP`)
+	buf := make([]byte, 64<<10)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return r.Match(buf[:n])
+		}
+		// Buffer wasn't large enough for a full goroutine dump.
+		// Resize it and try again.
+		buf = make([]byte, 2*len(buf))
 	}
 }
 

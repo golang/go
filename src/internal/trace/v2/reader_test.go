@@ -46,6 +46,53 @@ func TestReaderGolden(t *testing.T) {
 	}
 }
 
+func FuzzReader(f *testing.F) {
+	// Currently disabled because the parser doesn't do much validation and most
+	// getters can be made to panic. Turn this on once the parser is meant to
+	// reject invalid traces.
+	const testGetters = false
+
+	f.Fuzz(func(t *testing.T, b []byte) {
+		r, err := trace.NewReader(bytes.NewReader(b))
+		if err != nil {
+			return
+		}
+		for {
+			ev, err := r.ReadEvent()
+			if err != nil {
+				break
+			}
+
+			if !testGetters {
+				continue
+			}
+			// Make sure getters don't do anything that panics
+			switch ev.Kind() {
+			case trace.EventLabel:
+				ev.Label()
+			case trace.EventLog:
+				ev.Log()
+			case trace.EventMetric:
+				ev.Metric()
+			case trace.EventRangeActive, trace.EventRangeBegin:
+				ev.Range()
+			case trace.EventRangeEnd:
+				ev.Range()
+				ev.RangeAttributes()
+			case trace.EventStateTransition:
+				ev.StateTransition()
+			case trace.EventRegionBegin, trace.EventRegionEnd:
+				ev.Region()
+			case trace.EventTaskBegin, trace.EventTaskEnd:
+				ev.Task()
+			case trace.EventSync:
+			case trace.EventStackSample:
+			case trace.EventBad:
+			}
+		}
+	})
+}
+
 func testReader(t *testing.T, tr io.Reader, exp *testtrace.Expectation) {
 	r, err := trace.NewReader(tr)
 	if err != nil {

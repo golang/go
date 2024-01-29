@@ -335,6 +335,9 @@ const (
 	SCM_TIMESTAMPNS                  = 0x21
 	SCM_TXTIME                       = 0x3f
 	SCM_WIFI_STATUS                  = 0x25
+	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
+	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
+	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
 	SFD_CLOEXEC                      = 0x400000
 	SFD_NONBLOCK                     = 0x4000
 	SF_FP                            = 0x38

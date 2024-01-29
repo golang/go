@@ -397,7 +397,6 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
 		return nil
 	}
 	return nil
-
 }
 
 // assigning to an array element is like assigning to the array

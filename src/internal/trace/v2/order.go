@@ -92,6 +92,9 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 	case go122.EvProcStatus:
 		pid := ProcID(ev.args[0])
 		status := go122.ProcStatus(ev.args[1])
+		if int(status) >= len(go122ProcStatus2ProcState) {
+			return curCtx, false, fmt.Errorf("invalid status for proc %d: %d", pid, status)
+		}
 		oldState := go122ProcStatus2ProcState[status]
 		if s, ok := o.pStates[pid]; ok {
 			if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscall {
@@ -268,6 +271,10 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		gid := GoID(ev.args[0])
 		mid := ThreadID(ev.args[1])
 		status := go122.GoStatus(ev.args[2])
+
+		if int(status) >= len(go122GoStatus2GoState) {
+			return curCtx, false, fmt.Errorf("invalid status for goroutine %d: %d", gid, status)
+		}
 		oldState := go122GoStatus2GoState[status]
 		if s, ok := o.gStates[gid]; ok {
 			if s.status != status {
@@ -295,6 +302,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 			// Otherwise, we're talking about a G sitting in a syscall on an M.
 			// Validate the named M.
 			if mid == curCtx.M {
+				if gen != o.initialGen && curCtx.G != gid {
+					// If this isn't the first generation, we *must* have seen this
+					// binding occur already. Even if the G was blocked in a syscall
+					// for multiple generations since trace start, we would have seen
+					// a previous GoStatus event that bound the goroutine to an M.
+					return curCtx, false, fmt.Errorf("inconsistent thread for syscalling goroutine %d: thread has goroutine %d", gid, curCtx.G)
+				}
 				newCtx.G = gid
 				break
 			}
@@ -642,7 +656,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if !ok {
 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
 		}
-		if err := o.gStates[curCtx.G].beginRegion(userRegion{tid, name}); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered EvUserRegionBegin without known state for current goroutine %d", curCtx.G)
+		}
+		if err := gState.beginRegion(userRegion{tid, name}); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -656,7 +674,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if !ok {
 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
 		}
-		if err := o.gStates[curCtx.G].endRegion(userRegion{tid, name}); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered EvUserRegionEnd without known state for current goroutine %d", curCtx.G)
+		}
+		if err := gState.endRegion(userRegion{tid, name}); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -758,7 +780,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// ever reference curCtx.P. However, be lenient about this like we are with
 		// GCMarkAssistActive; there's no reason the runtime couldn't change to block
 		// in the middle of a sweep.
-		if err := o.pStates[pid].activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
+		pState, ok := o.pStates[pid]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered GCSweepActive for unknown proc %d", pid)
+		}
+		if err := pState.activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -781,7 +807,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if typ == go122.EvSTWBegin {
 			desc = stringID(ev.args[0])
 		}
-		if err := o.gStates[curCtx.G].beginRange(makeRangeType(typ, desc)); err != nil {
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
+		}
+		if err := gState.beginRange(makeRangeType(typ, desc)); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -790,7 +820,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// N.B. Like GoStatus, this can happen at any time, because it can
 		// reference a non-running goroutine. Don't check anything about the
 		// current scheduler context.
-		if err := o.gStates[gid].activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
+		gState, ok := o.gStates[gid]
+		if !ok {
+			return curCtx, false, fmt.Errorf("uninitialized goroutine %d found during %s", gid, go122.EventString(typ))
+		}
+		if err := gState.activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
 			return curCtx, false, err
 		}
 		return curCtx, true, nil
@@ -798,7 +832,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
 			return curCtx, false, err
 		}
-		desc, err := o.gStates[curCtx.G].endRange(typ)
+		gState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
+		}
+		desc, err := gState.endRange(typ)
 		if err != nil {
 			return curCtx, false, err
 		}
@@ -917,6 +955,10 @@ func (s *gState) beginRegion(r userRegion) error {
 
 // endRegion ends a user region on the goroutine.
 func (s *gState) endRegion(r userRegion) error {
+	if len(s.regions) == 0 {
+		// We do not know about regions that began before tracing started.
+		return nil
+	}
 	if next := s.regions[len(s.regions)-1]; next != r {
 		return fmt.Errorf("misuse of region in goroutine %v: region end %v when the inner-most active region start event is %v", s.id, r, next)
 	}

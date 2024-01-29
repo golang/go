@@ -624,7 +624,7 @@ func (z nat) mulRange(a, b uint64) nat {
 	case a+1 == b:
 		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
 	}
-	m := (a + b) / 2
+	m := a + (b-a)/2 // avoid overflow
 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
 }
 

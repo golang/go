@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -56,6 +57,16 @@ func TestUsingVDSO(t *testing.T) {
 		t.Logf("%s", out)
 	}
 	if err != nil {
+		if err := err.(*exec.ExitError); err != nil && err.Sys().(syscall.WaitStatus).Signaled() {
+			if !bytes.Contains(out, []byte("+++ killed by")) {
+				// strace itself occasionally crashes.
+				// Here, it exited with a signal, but
+				// the strace log didn't report any
+				// signal from the child process.
+				t.Log(err)
+				testenv.SkipFlaky(t, 63734)
+			}
+		}
 		t.Fatal(err)
 	}
 
