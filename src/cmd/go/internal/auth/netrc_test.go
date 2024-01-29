@@ -49,6 +49,7 @@ password too-late-in-file
 func TestParseNetrc(t *testing.T) {
 	lines := parseNetrc(testNetrc)
 	want := []netrcLine{
+		{"incomplete", "", "none"},
 		{"api.github.com", "user", "pwd"},
 		{"test.host", "user2", "pwd2"},
 		{"oneline", "user3", "pwd3"},
