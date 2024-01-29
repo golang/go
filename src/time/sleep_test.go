@@ -96,6 +96,11 @@ func TestAfterFuncStarvation(t *testing.T) {
 	// the AfterFunc goroutine instead of the runnable channel goroutine.
 	// However, in https://go.dev/issue/65178 this was observed to live-lock
 	// on wasip1/wasm and js/wasm after <10000 runs.
+
+	if runtime.GOARCH == "wasm" {
+		testenv.SkipFlaky(t, 65178)
+	}
+
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
 	var (
