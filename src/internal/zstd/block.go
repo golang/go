@@ -273,10 +273,6 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 
 	seq := 0
 	for seq < seqCount {
-		if len(r.buffer)+len(litbuf) > 128<<10 {
-			return rbr.makeError("uncompressed size too big")
-		}
-
 		ptoffset := &r.seqTables[seqOffset][offsetState]
 		ptmatch := &r.seqTables[seqMatch][matchState]
 		ptliteral := &r.seqTables[seqLiteral][literalState]
@@ -361,6 +357,15 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		if literal > uint32(len(litbuf)) {
 			return rbr.makeError("literal byte overflow")
 		}
+
+		// RFC 3.1.1.2.4
+		// "Block_Maximum_Size is constant for a given frame.
+		// This maximum is applicable to both the decompressed size
+		// and the compressed size of any block in the frame."
+		if int(literal+match) > r.blockMaximumSize {
+			return rbr.makeError("uncompressed size too big")
+		}
+
 		if literal > 0 {
 			r.buffer = append(r.buffer, litbuf[:literal]...)
 			litbuf = litbuf[literal:]
