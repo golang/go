@@ -78,7 +78,7 @@ func TestOID(t *testing.T) {
 			if ok {
 				t.Errorf("%v: oid.toASN1OID() unexpected success", v.raw)
 			} else {
-				t.Errorf("%v: oid.toASN1OID() unexpected fauilure", v.raw)
+				t.Errorf("%v: oid.toASN1OID() unexpected failure", v.raw)
 			}
 			continue
 		}

@@ -152,7 +152,7 @@ func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
 
 	// Figure out the schedule.
 	sched := ldr.MakeSymbolBuilder(symName)
-	sched.SetType(sym.SNOPTRDATA) // Could be SRODATA, but see isue 58857.
+	sched.SetType(sym.SNOPTRDATA) // Could be SRODATA, but see issue 58857.
 	for !h.empty() {
 		// Pick the lexicographically first initializable package.
 		s := h.pop(ldr)

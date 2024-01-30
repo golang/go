@@ -765,7 +765,7 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 		throw("invalid user arena span size")
 	}
 
-	// Mark the region as free to various santizers immediately instead
+	// Mark the region as free to various sanitizers immediately instead
 	// of handling them at sweep time.
 	if raceenabled {
 		racefree(unsafe.Pointer(s.base()), s.elemsize)
