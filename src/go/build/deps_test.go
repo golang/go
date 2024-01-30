@@ -50,10 +50,8 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe, internal/runtime/timer;
 
-	unsafe < sync/atomic;
-
-	# These packages depend only on internal/goarch and unsafe and sync/atomic.
-	internal/goarch, unsafe, sync/atomic
+	# These packages depend only on internal/goarch and unsafe.
+	internal/goarch, unsafe
 	< internal/abi, internal/chacha8rand;
 
 	unsafe < maps;
@@ -76,6 +74,7 @@ var depsRules = `
 	< runtime/internal/atomic
 	< runtime/internal/math
 	< runtime
+	< sync/atomic
 	< internal/race
 	< internal/msan
 	< internal/asan
