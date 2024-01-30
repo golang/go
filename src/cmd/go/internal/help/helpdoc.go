@@ -601,6 +601,8 @@ Architecture-specific environment variables:
 	GOARM
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
+		The value can be followed by an option specifying how to implement floating point instructions.
+		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 	GO386
 		For GOARCH=386, how to implement floating point instructions.
 		Valid values are sse2 (default), softfloat.
@@ -617,6 +619,10 @@ Architecture-specific environment variables:
 	GOPPC64
 		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
 		Valid values are power8 (default), power9, power10.
+	GORISCV64
+		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+		to compile. Valid values are rva20u64 (default), rva22u64.
+		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
 	GOWASM
 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 		Valid values are satconv, signext.
@@ -905,10 +911,13 @@ The defined architecture feature build tags are:
 	  ppc64.power8, ppc64.power9, and ppc64.power10
 	  (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
 	  feature build tags.
+	- For GOARCH=riscv64,
+	  GORISCV64=rva20u64 and rva22u64 correspond to the riscv64.rva20u64
+	  and riscv64.rva22u64 build tags.
 	- For GOARCH=wasm, GOWASM=satconv and signext
 	  correspond to the wasm.satconv and wasm.signext feature build tags.
 
-For GOARCH=amd64, arm, ppc64, and ppc64le, a particular feature level
+For GOARCH=amd64, arm, ppc64, ppc64le, and riscv64, a particular feature level
 sets the feature build tags for all previous levels as well.
 For example, GOAMD64=v2 sets the amd64.v1 and amd64.v2 feature flags.
 This ensures that code making use of v2 features continues to compile

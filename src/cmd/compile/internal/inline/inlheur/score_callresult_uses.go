@@ -46,10 +46,7 @@ type resultUseAnalyzer struct {
 // rescoreBasedOnCallResultUses examines how call results are used,
 // and tries to update the scores of calls based on how their results
 // are used in the function.
-func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
-	if os.Getenv("THANM_DEBUG") != "" {
-		return
-	}
+func (csa *callSiteAnalyzer) rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
 	enableDebugTraceIfEnv()
 	rua := &resultUseAnalyzer{
 		resultNameTab:    resultNameTab,
@@ -68,7 +65,7 @@ func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]result
 	disableDebugTrace()
 }
 
-func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) {
+func (csa *callSiteAnalyzer) examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
 	if debugTrace&debugTraceScoring != 0 {
 		fmt.Fprintf(os.Stderr, "=-= examining call results for %q\n",
 			EncodeCallSiteKey(cs))
@@ -82,7 +79,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
 	//
 	names, autoTemps, props := namesDefined(cs)
 	if len(names) == 0 {
-		return
+		return resultNameTab
 	}
 
 	if debugTrace&debugTraceScoring != 0 {
@@ -106,10 +103,12 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
 		if rprop&interesting == 0 {
 			continue
 		}
-		if ir.Reassigned(n) {
+		if csa.nameFinder.reassigned(n) {
 			continue
 		}
-		if _, ok := resultNameTab[n]; ok {
+		if resultNameTab == nil {
+			resultNameTab = make(map[*ir.Name]resultPropAndCS)
+		} else if _, ok := resultNameTab[n]; ok {
 			panic("should never happen")
 		}
 		entry := resultPropAndCS{
@@ -124,6 +123,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
 			fmt.Fprintf(os.Stderr, "=-= add resultNameTab table entry n=%v autotemp=%v props=%s\n", n, autoTemps[idx], rprop.String())
 		}
 	}
+	return resultNameTab
 }
 
 // namesDefined returns a list of ir.Name's corresponding to locals
@@ -150,17 +150,17 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
 	if cs.Assign == nil {
 		return nil, nil, nil
 	}
-	fih, ok := fpmap[cs.Callee]
+	funcInlHeur, ok := fpmap[cs.Callee]
 	if !ok {
 		// TODO: add an assert/panic here.
 		return nil, nil, nil
 	}
-	if len(fih.props.ResultFlags) == 0 {
+	if len(funcInlHeur.props.ResultFlags) == 0 {
 		return nil, nil, nil
 	}
 
 	// Single return case.
-	if len(fih.props.ResultFlags) == 1 {
+	if len(funcInlHeur.props.ResultFlags) == 1 {
 		asgn, ok := cs.Assign.(*ir.AssignStmt)
 		if !ok {
 			return nil, nil, nil
@@ -170,7 +170,7 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
 		if !ok {
 			return nil, nil, nil
 		}
-		return []*ir.Name{aname}, []*ir.Name{nil}, fih.props
+		return []*ir.Name{aname}, []*ir.Name{nil}, funcInlHeur.props
 	}
 
 	// Multi-return case
@@ -178,8 +178,8 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
 	if !ok || !asgn.Def {
 		return nil, nil, nil
 	}
-	userVars := make([]*ir.Name, len(fih.props.ResultFlags))
-	autoTemps := make([]*ir.Name, len(fih.props.ResultFlags))
+	userVars := make([]*ir.Name, len(funcInlHeur.props.ResultFlags))
+	autoTemps := make([]*ir.Name, len(funcInlHeur.props.ResultFlags))
 	for idx, x := range asgn.Lhs {
 		if n, ok := x.(*ir.Name); ok {
 			userVars[idx] = n
@@ -198,7 +198,7 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
 			return nil, nil, nil
 		}
 	}
-	return userVars, autoTemps, fih.props
+	return userVars, autoTemps, funcInlHeur.props
 }
 
 func (rua *resultUseAnalyzer) nodeVisitPost(n ir.Node) {
@@ -267,10 +267,8 @@ func (rua *resultUseAnalyzer) callTargetCheckResults(call ir.Node) {
 				rua.fn.Sym().Name, rname)
 		}
 		if cs := rua.returnHasProp(rname, ResultIsConcreteTypeConvertedToInterface); cs != nil {
-			// FIXME: add cond level support here
-			adj := passConcreteToItfCallAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
+
+			adj := returnFeedsConcreteToInterfaceCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 		}
 	case ir.OCALLFUNC:
@@ -285,17 +283,12 @@ func (rua *resultUseAnalyzer) callTargetCheckResults(call ir.Node) {
 			}
 		}
 		if cs := rua.returnHasProp(rname, ResultAlwaysSameInlinableFunc); cs != nil {
-			// FIXME: add cond level support here
-			adj := passInlinableFuncToIndCallAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
+			adj := returnFeedsInlinableFuncToIndCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 		} else if cs := rua.returnHasProp(rname, ResultAlwaysSameFunc); cs != nil {
-			// FIXME: add cond level support here
-			adj := passFuncToIndCallAdj
+			adj := returnFeedsFuncToIndCallAdj
 			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-			adj = callResultRescoreAdj
-			cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
+
 		}
 	}
 }
@@ -351,10 +344,7 @@ func (rua *resultUseAnalyzer) foldCheckResults(cond ir.Node) {
 	if !ShouldFoldIfNameConstant(cond, namesUsed) {
 		return
 	}
-	// FIXME: add cond level support here
-	adj := passConstToIfAdj
-	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
-	adj = callResultRescoreAdj
+	adj := returnFeedsConstToIfAdj
 	cs.Score, cs.ScoreMask = adjustScore(adj, cs.Score, cs.ScoreMask)
 }
 

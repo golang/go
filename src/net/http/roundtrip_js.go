@@ -56,7 +56,7 @@ var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
 	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
 
-// RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+// RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// The Transport has a documented contract that states that if the DialContext or
 	// DialTLSContext functions are set, they will be used to set up the connections.

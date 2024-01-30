@@ -8,6 +8,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/platform"
 	"internal/testenv"
@@ -785,6 +786,9 @@ func TestCgoTraceParser(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
+	if goexperiment.ExecTracer2 {
+		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
+	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
 	want := "OK\n"
 	ErrTimeOrder := "ErrTimeOrder\n"
@@ -800,6 +804,9 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if goexperiment.ExecTracer2 {
+		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
 	}
 	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
 	want := "OK\n"

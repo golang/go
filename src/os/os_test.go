@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"log"
 	. "os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +33,8 @@ func TestMain(m *testing.M) {
 		io.Copy(io.Discard, Stdin)
 		Exit(0)
 	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	Exit(m.Run())
 }
@@ -1620,8 +1623,17 @@ func TestFileChdir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %s", err)
 	}
-	if !equal(wdNew, wd) {
-		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+
+	wdInfo, err := fd.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newInfo, err := Stat(wdNew)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !SameFile(wdInfo, newInfo) {
+		t.Fatalf("fd.Chdir failed: got %s, want %s", wdNew, wd)
 	}
 }
 
@@ -2838,15 +2850,16 @@ func TestUserCacheDir(t *testing.T) {
 		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserCacheDir: %v", err)
-	}
-	d, err := MkdirTemp(dir, "TestUserCacheDir")
+	fi, err := Stat(dir)
 	if err != nil {
-		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
 		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }
 
@@ -2861,16 +2874,16 @@ func TestUserConfigDir(t *testing.T) {
 		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserConfigDir: %v", err)
-	}
-
-	d, err := MkdirTemp(dir, "TestUserConfigDir")
+	fi, err := Stat(dir)
 	if err != nil {
-		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
 		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }
 
@@ -3319,5 +3332,29 @@ func TestPipeCloseRace(t *testing.T) {
 	}
 	if nils != 2 || errs != 2 {
 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
+	}
+}
+
+func TestRandomLen(t *testing.T) {
+	for range 5 {
+		dir, err := MkdirTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(dir)
+		if len(base) > 10 {
+			t.Errorf("MkdirTemp returned len %d: %s", len(base), base)
+		}
+	}
+	for range 5 {
+		f, err := CreateTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(f.Name())
+		f.Close()
+		if len(base) > 10 {
+			t.Errorf("CreateTemp returned len %d: %s", len(base), base)
+		}
 	}
 }

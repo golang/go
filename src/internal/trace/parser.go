@@ -136,17 +136,23 @@ type rawEvent struct {
 	sargs []string
 }
 
-// readTrace does wire-format parsing and verification.
-// It does not care about specific event types and argument meaning.
-func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]string, err error) {
+func ReadVersion(r io.Reader) (ver int, off int, err error) {
 	// Read and validate trace header.
 	var buf [16]byte
-	off, err := io.ReadFull(r, buf[:])
+	off, err = io.ReadFull(r, buf[:])
 	if err != nil {
 		err = fmt.Errorf("failed to read header: read %v, err %v", off, err)
 		return
 	}
 	ver, err = parseHeader(buf[:])
+	return
+}
+
+// readTrace does wire-format parsing and verification.
+// It does not care about specific event types and argument meaning.
+func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]string, err error) {
+	var off int
+	ver, off, err = ReadVersion(r)
 	if err != nil {
 		return
 	}
@@ -161,6 +167,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
 	}
 
 	// Read events.
+	var buf [16]byte
 	strings = make(map[uint64]string)
 	for {
 		// Read event type and number of arguments (1 byte).

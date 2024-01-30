@@ -94,7 +94,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = constant_
 
 	case *TypeName:
-		if check.isBrokenAlias(obj) {
+		if !check.enableAlias && check.isBrokenAlias(obj) {
 			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
 			return
 		}
@@ -403,7 +403,13 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 func setDefType(def *TypeName, typ Type) {
 	if def != nil {
 		switch t := def.typ.(type) {
-		// case *_Alias:
+		case *Alias:
+			// t.fromRHS should always be set, either to an invalid type
+			// in the beginning, or to typ in certain cyclic declarations.
+			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {
+				panic(sprintf(nil, true, "t.fromRHS = %s, typ = %s\n", t.fromRHS, typ))
+			}
+			t.fromRHS = typ
 		case *Basic:
 			assert(t == Typ[Invalid])
 		case *Named:
@@ -457,7 +463,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		// errors.
 		check.recordInstance(x, inst.TypeArgs().list(), inst)
 
-		if check.validateTArgLen(x.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+		if check.validateTArgLen(x.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
 			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
 				// best position for error reporting
 				pos := x.Pos()

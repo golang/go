@@ -308,6 +308,12 @@ func setPCs(p *obj.Prog, pc int64) int64 {
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
 		}
+
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(pc, alignedValue)
+			pc += int64(v)
+		}
 	}
 	return pc
 }
@@ -733,6 +739,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
 				p.Link.To.Offset = low
 			}
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			if (alignedValue&(alignedValue-1) != 0) || 4 > alignedValue || alignedValue > 2048 {
+				ctxt.Diag("alignment value of an instruction must be a power of two and in the range [4, 2048], got %d\n", alignedValue)
+			}
+			// Update the current text symbol alignment value.
+			if int32(alignedValue) > cursym.Func().Align {
+				cursym.Func().Align = int32(alignedValue)
+			}
 		}
 	}
 
@@ -742,6 +758,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ins.validate(ctxt)
 		}
 	}
+}
+
+func pcAlignPadLength(pc int64, alignedValue int64) int {
+	return int(-pc & (alignedValue - 1))
 }
 
 func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgAlloc, framesize int64) *obj.Prog {
@@ -1043,154 +1063,154 @@ func immI(as obj.As, imm int64, nbits uint) uint32 {
 	return uint32(imm)
 }
 
-func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
+func wantImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
 	if err := immIFits(imm, nbits); err != nil {
-		ctxt.Diag("%v: %v", as, err)
+		ctxt.Diag("%v: %v", ins, err)
 	}
 }
 
-func wantReg(ctxt *obj.Link, as obj.As, pos string, descr string, r, min, max uint32) {
+func wantReg(ctxt *obj.Link, ins *instruction, pos string, descr string, r, min, max uint32) {
 	if r < min || r > max {
 		var suffix string
 		if r != obj.REG_NONE {
 			suffix = fmt.Sprintf(" but got non-%s register %s", descr, RegName(int(r)))
 		}
-		ctxt.Diag("%v: expected %s register in %s position%s", as, descr, pos, suffix)
+		ctxt.Diag("%v: expected %s register in %s position%s", ins, descr, pos, suffix)
 	}
 }
 
-func wantNoneReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
+func wantNoneReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	if r != obj.REG_NONE {
-		ctxt.Diag("%v: expected no register in %s but got register %s", as, pos, RegName(int(r)))
+		ctxt.Diag("%v: expected no register in %s but got register %s", ins, pos, RegName(int(r)))
 	}
 }
 
 // wantIntReg checks that r is an integer register.
-func wantIntReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
-	wantReg(ctxt, as, pos, "integer", r, REG_X0, REG_X31)
+func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "integer", r, REG_X0, REG_X31)
 }
 
 // wantFloatReg checks that r is a floating-point register.
-func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
-	wantReg(ctxt, as, pos, "float", r, REG_F0, REG_F31)
+func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
 }
 
 // wantEvenOffset checks that the offset is a multiple of two.
-func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
+func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
 	if err := immEven(offset); err != nil {
-		ctxt.Diag("%v: %v", as, err)
+		ctxt.Diag("%v: %v", ins, err)
 	}
 }
 
 func validateRIII(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantFloatReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantFloatReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFFI(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFI(ctxt *obj.Link, ins *instruction) {
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRIF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRFF(ctxt *obj.Link, ins *instruction) {
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateII(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateIF(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantFloatReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateSI(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateSF(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 12)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 12)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateB(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 13 bit immediates for the
 	// 12 bit slot. We implicitly drop the least significant bit in encodeB.
-	wantEvenOffset(ctxt, ins.as, ins.imm)
-	wantImmI(ctxt, ins.as, ins.imm, 13)
-	wantNoneReg(ctxt, ins.as, "rd", ins.rd)
-	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantEvenOffset(ctxt, ins, ins.imm)
+	wantImmI(ctxt, ins, ins.imm, 13)
+	wantNoneReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateU(ctxt *obj.Link, ins *instruction) {
-	wantImmI(ctxt, ins.as, ins.imm, 20)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantImmI(ctxt, ins, ins.imm, 20)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateJ(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 21 bit immediates for the
 	// 20 bit slot. We implicitly drop the least significant bit in encodeJ.
-	wantEvenOffset(ctxt, ins.as, ins.imm)
-	wantImmI(ctxt, ins.as, ins.imm, 21)
-	wantIntReg(ctxt, ins.as, "rd", ins.rd)
-	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
-	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
-	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
+	wantEvenOffset(ctxt, ins, ins.imm)
+	wantImmI(ctxt, ins, ins.imm, 21)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
 func validateRaw(ctxt *obj.Link, ins *instruction) {
@@ -1708,6 +1728,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 	obj.ANOP:      pseudoOpEncoding,
 	obj.ADUFFZERO: pseudoOpEncoding,
 	obj.ADUFFCOPY: pseudoOpEncoding,
+	obj.APCALIGN:  pseudoOpEncoding,
 }
 
 // encodingForAs returns the encoding for an obj.As.
@@ -1727,14 +1748,26 @@ func encodingForAs(as obj.As) (encoding, error) {
 }
 
 type instruction struct {
-	as     obj.As // Assembler opcode
-	rd     uint32 // Destination register
-	rs1    uint32 // Source register 1
-	rs2    uint32 // Source register 2
-	rs3    uint32 // Source register 3
-	imm    int64  // Immediate
-	funct3 uint32 // Function 3
-	funct7 uint32 // Function 7 (or Function 2)
+	p      *obj.Prog // Prog that instruction is for
+	as     obj.As    // Assembler opcode
+	rd     uint32    // Destination register
+	rs1    uint32    // Source register 1
+	rs2    uint32    // Source register 2
+	rs3    uint32    // Source register 3
+	imm    int64     // Immediate
+	funct3 uint32    // Function 3
+	funct7 uint32    // Function 7 (or Function 2)
+}
+
+func (ins *instruction) String() string {
+	if ins.p == nil {
+		return ins.as.String()
+	}
+	var suffix string
+	if ins.p.As != ins.as {
+		suffix = fmt.Sprintf(" (%v)", ins.as)
+	}
+	return fmt.Sprintf("%v%v", ins.p, suffix)
 }
 
 func (ins *instruction) encode() (uint32, error) {
@@ -2200,13 +2233,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.imm = p.To.Offset
 
 	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-		return instructionsForMOV(p)
+		inss = instructionsForMOV(p)
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
-		return instructionsForLoad(p, ins.as, p.From.Reg)
+		inss = instructionsForLoad(p, ins.as, p.From.Reg)
 
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
-		return instructionsForStore(p, ins.as, p.To.Reg)
+		inss = instructionsForStore(p, ins.as, p.To.Reg)
 
 	case ALRW, ALRD:
 		// Set aq to use acquire access ordering
@@ -2246,7 +2279,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	case AFNES, AFNED:
 		// Replace FNE[SD] with FEQ[SD] and NOT.
 		if p.To.Type != obj.TYPE_REG {
-			p.Ctxt.Diag("%v needs an integer register output", ins.as)
+			p.Ctxt.Diag("%v needs an integer register output", p)
 			return nil
 		}
 		if ins.as == AFNES {
@@ -2335,6 +2368,11 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
 		}
 	}
+
+	for _, ins := range inss {
+		ins.p = p
+	}
+
 	return inss
 }
 
@@ -2344,6 +2382,12 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Retpoline {
 		ctxt.Diag("-spectre=ret not supported on riscv")
 		ctxt.Retpoline = false // don't keep printing
+	}
+
+	// If errors were encountered during preprocess/validation, proceeding
+	// and attempting to encode said instructions will only lead to panics.
+	if ctxt.Errors > 0 {
+		return
 	}
 
 	for p := cursym.Func().Text; p != nil; p = p.Link {
@@ -2402,6 +2446,17 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			rel.Sym = addr.Sym
 			rel.Add = addr.Offset
 			rel.Type = rt
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(p.Pc, alignedValue)
+			offset := p.Pc
+			for ; v >= 4; v -= 4 {
+				// NOP
+				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0, 0, 0})
+				offset += 4
+			}
+			continue
 		}
 
 		offset := p.Pc

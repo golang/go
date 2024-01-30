@@ -8,44 +8,75 @@
 
 // func addMulVVW1024(z, x *uint, y uint) (c uint)
 TEXT ·addMulVVW1024(SB), $0-32
-	MOVD	$16, R22 // R22 = z_len
-	JMP		addMulVVWx(SB)
+	MOVD	$4, R6 // R6 = z_len/4
+	JMP		addMulVVWx<>(SB)
 
 // func addMulVVW1536(z, x *uint, y uint) (c uint)
 TEXT ·addMulVVW1536(SB), $0-32
-	MOVD	$24, R22 // R22 = z_len
-	JMP		addMulVVWx(SB)
+	MOVD	$6, R6 // R6 = z_len/4
+	JMP		addMulVVWx<>(SB)
 
 // func addMulVVW2048(z, x *uint, y uint) (c uint)
 TEXT ·addMulVVW2048(SB), $0-32
-	MOVD	$32, R22 // R22 = z_len
-	JMP		addMulVVWx(SB)
+	MOVD	$8, R6 // R6 = z_len/4
+	JMP		addMulVVWx<>(SB)
 
-TEXT addMulVVWx(SB), NOFRAME|NOSPLIT, $0
-	MOVD z+0(FP), R10	// R10 = z[]
-	MOVD x+8(FP), R8	// R8 = x[]
-	MOVD y+16(FP), R9	// R9 = y
+// This local function expects to be called only by
+// callers above. R6 contains the z length/4
+// since 4 values are processed for each
+// loop iteration, and is guaranteed to be > 0.
+// If other callers are added this function might
+// need to change.
+TEXT addMulVVWx<>(SB), NOSPLIT, $0
+	MOVD	z+0(FP), R3
+	MOVD	x+8(FP), R4
+	MOVD	y+16(FP), R5
 
-	MOVD R0, R3		// R3 will be the index register
-	CMP  R0, R22
-	MOVD R0, R4		// R4 = c = 0
-	MOVD R22, CTR		// Initialize loop counter
-	BEQ  done
-	PCALIGN $16
+	MOVD	$0, R9		// R9 = c = 0
+	MOVD	R6, CTR		// Initialize loop counter
+	PCALIGN	$16
 
 loop:
-	MOVD  (R8)(R3), R20	// Load x[i]
-	MOVD  (R10)(R3), R21	// Load z[i]
-	MULLD  R9, R20, R6	// R6 = Low-order(x[i]*y)
-	MULHDU R9, R20, R7	// R7 = High-order(x[i]*y)
-	ADDC   R21, R6		// R6 = z0
-	ADDZE  R7		// R7 = z1
-	ADDC   R4, R6		// R6 = z0 + c + 0
-	ADDZE  R7, R4           // c += z1
-	MOVD   R6, (R10)(R3)	// Store z[i]
-	ADD    $8, R3
-	BC  16, 0, loop		// bdnz
+	MOVD	0(R4), R14	// x[i]
+	MOVD	8(R4), R16	// x[i+1]
+	MOVD	16(R4), R18	// x[i+2]
+	MOVD	24(R4), R20	// x[i+3]
+	MOVD	0(R3), R15	// z[i]
+	MOVD	8(R3), R17	// z[i+1]
+	MOVD	16(R3), R19	// z[i+2]
+	MOVD	24(R3), R21	// z[i+3]
+	MULLD	R5, R14, R10	// low x[i]*y
+	MULHDU	R5, R14, R11	// high x[i]*y
+	ADDC	R15, R10
+	ADDZE	R11
+	ADDC	R9, R10
+	ADDZE	R11, R9
+	MULLD	R5, R16, R14	// low x[i+1]*y
+	MULHDU	R5, R16, R15	// high x[i+1]*y
+	ADDC	R17, R14
+	ADDZE	R15
+	ADDC	R9, R14
+	ADDZE	R15, R9
+	MULLD	R5, R18, R16	// low x[i+2]*y
+	MULHDU	R5, R18, R17	// high x[i+2]*y
+	ADDC	R19, R16
+	ADDZE	R17
+	ADDC	R9, R16
+	ADDZE	R17, R9
+	MULLD	R5, R20, R18	// low x[i+3]*y
+	MULHDU	R5, R20, R19	// high x[i+3]*y
+	ADDC	R21, R18
+	ADDZE	R19
+	ADDC	R9, R18
+	ADDZE	R19, R9
+	MOVD	R10, 0(R3)	// z[i]
+	MOVD	R14, 8(R3)	// z[i+1]
+	MOVD	R16, 16(R3)	// z[i+2]
+	MOVD	R18, 24(R3)	// z[i+3]
+	ADD	$32, R3
+	ADD	$32, R4
+	BDNZ	loop
 
 done:
-	MOVD R4, c+24(FP)
+	MOVD	R9, c+24(FP)
 	RET

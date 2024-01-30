@@ -18,7 +18,6 @@ func (r EqFunc[T]) Eqv(a, b T) bool {
 
 func New[T any](f func(a, b T) bool) Eq[T] {
 	return EqFunc[T](f)
-
 }
 
 func Equal(a, b []byte) bool {

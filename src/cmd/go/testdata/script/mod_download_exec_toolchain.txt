@@ -87,10 +87,9 @@ cmp go.mod go.mod.121
 # If an upgrade is needed, GOTOOLCHAIN=auto should perform
 # the upgrade and record the resulting toolchain version.
 
-env GOTOOLCHAIN=go1.21
-! go mod download
-stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
-! stderr switching
+env GOTOOLCHAIN=auto
+go mod download
+stderr '^go: module rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
 cmp go.mod go.mod.final
 
 
@@ -101,6 +100,8 @@ go 1.21
 -- example/go.mod.final --
 module example
 
-go 1.21
+go 1.23
+
+toolchain go1.23.9
 
 require rsc.io/needall v0.0.1

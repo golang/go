@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -29,6 +30,8 @@ var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
+
+var ReadRandomFailed = &readRandomFailed
 
 var Fastlog2 = fastlog2
 
@@ -326,6 +329,14 @@ func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
 // no valid racectx, but if we're instantiated in the runtime_test package,
 // we might accidentally cause runtime code to be incorrectly instrumented.
 func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
+	// This benchmark doesn't work with the allocheaders experiment. It sets up
+	// an elaborate scenario to be able to benchmark the function safely, but doing
+	// this work for the allocheaders' version of the function would be complex.
+	// Just fail instead and rely on the test code making sure we never get here.
+	if goexperiment.AllocHeaders {
+		panic("called benchSetType with allocheaders experiment enabled")
+	}
+
 	// Compute the input sizes.
 	size := t.Size() * uintptr(len)
 
@@ -340,7 +351,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size)
+	allocSize := roundupsize(size, t.PtrBytes == 0)
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}
@@ -374,7 +385,7 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld(stwForTestCountPagesInUse)
+	stw := stopTheWorld(stwForTestCountPagesInUse)
 
 	pagesInUse = mheap_.pagesInUse.Load()
 
@@ -384,14 +395,14 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -417,7 +428,7 @@ func (p *ProfBuf) Close() {
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld(stwForTestReadMetricsSlow)
+	stw := stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
@@ -452,13 +463,15 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) 
 	})
 	metricsUnlock()
 
-	startTheWorld()
+	startTheWorld(stw)
 }
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld(stwForTestReadMemStatsSlow)
+	stw := stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -535,7 +548,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		getg().m.mallocing--
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
 }
 
@@ -571,6 +584,10 @@ func blockOnSystemStackInternal() {
 
 type RWMutex struct {
 	rw rwmutex
+}
+
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
 }
 
 func (rw *RWMutex) RLock() {
@@ -1315,7 +1332,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld(stwForTestPageCachePagesLeaked)
+	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1327,8 +1344,20 @@ func PageCachePagesLeaked() (leaked uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
+}
+
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+var MutexContended = mutexContended
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
 }
 
 var Semacquire = semacquire
@@ -1911,24 +1940,8 @@ func UserArenaClone[T any](s T) T {
 
 var AlignUp = alignUp
 
-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
-// queue is emptied (and the finalizers have executed) or the timeout
-// is reached. Returns true if the finalizer queue was emptied.
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
-	start := nanotime()
-	for nanotime()-start < timeout {
-		lock(&finlock)
-		// We know the queue has been drained when both finq is nil
-		// and the finalizer g has stopped executing.
-		empty := finq == nil
-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
-		unlock(&finlock)
-		if empty {
-			return true
-		}
-		Gosched()
-	}
-	return false
+	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
 func FrameStartLine(f *Frame) int {

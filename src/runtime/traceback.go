@@ -199,7 +199,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 	f := findfunc(frame.pc)
 	if !f.valid() {
 		if flags&unwindSilentErrors == 0 {
-			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
+			print("runtime: g ", gp.goid, " gp=", gp, ": unknown pc ", hex(frame.pc), "\n")
 			tracebackHexdump(gp.stack, &frame, 0)
 		}
 		if flags&(unwindPrintErrors|unwindSilentErrors) == 0 {
@@ -650,25 +650,7 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 
 // printArgs prints function arguments in traceback.
 func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
-	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
-	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
-	// encoding.
-	// These constants need to be in sync with the compiler.
-	const (
-		_endSeq         = 0xff
-		_startAgg       = 0xfe
-		_endAgg         = 0xfd
-		_dotdotdot      = 0xfc
-		_offsetTooLarge = 0xfb
-	)
-
-	const (
-		limit    = 10                       // print no more than 10 args/components
-		maxDepth = 5                        // no more than 5 layers of nesting
-		maxLen   = (maxDepth*3+2)*limit + 1 // max length of _FUNCDATA_ArgInfo (see the compiler side for reasoning)
-	)
-
-	p := (*[maxLen]uint8)(funcdata(f, abi.FUNCDATA_ArgInfo))
+	p := (*[abi.TraceArgsMaxLen]uint8)(funcdata(f, abi.FUNCDATA_ArgInfo))
 	if p == nil {
 		return
 	}
@@ -721,19 +703,19 @@ printloop:
 		o := p[pi]
 		pi++
 		switch o {
-		case _endSeq:
+		case abi.TraceArgsEndSeq:
 			break printloop
-		case _startAgg:
+		case abi.TraceArgsStartAgg:
 			printcomma()
 			print("{")
 			start = true
 			continue
-		case _endAgg:
+		case abi.TraceArgsEndAgg:
 			print("}")
-		case _dotdotdot:
+		case abi.TraceArgsDotdotdot:
 			printcomma()
 			print("...")
-		case _offsetTooLarge:
+		case abi.TraceArgsOffsetTooLarge:
 			printcomma()
 			print("_")
 		default:
@@ -1151,10 +1133,32 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 
 // isExportedRuntime reports whether name is an exported runtime function.
 // It is only for runtime functions, so ASCII A-Z is fine.
-// TODO: this handles exported functions but not exported methods.
 func isExportedRuntime(name string) bool {
-	const n = len("runtime.")
-	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
+	// Check and remove package qualifier.
+	n := len("runtime.")
+	if len(name) <= n || name[:n] != "runtime." {
+		return false
+	}
+	name = name[n:]
+	rcvr := ""
+
+	// Extract receiver type, if any.
+	// For example, runtime.(*Func).Entry
+	i := len(name) - 1
+	for i >= 0 && name[i] != '.' {
+		i--
+	}
+	if i >= 0 {
+		rcvr = name[:i]
+		name = name[i+1:]
+		// Remove parentheses and star for pointer receivers.
+		if len(rcvr) >= 3 && rcvr[0] == '(' && rcvr[1] == '*' && rcvr[len(rcvr)-1] == ')' {
+			rcvr = rcvr[2 : len(rcvr)-1]
+		}
+	}
+
+	// Exported functions and exported methods on exported types.
+	return len(name) > 0 && 'A' <= name[0] && name[0] <= 'Z' && (len(rcvr) == 0 || 'A' <= rcvr[0] && rcvr[0] <= 'Z')
 }
 
 // elideWrapperCalling reports whether a wrapper function that called
@@ -1177,6 +1181,8 @@ var gStatusStrings = [...]string{
 }
 
 func goroutineheader(gp *g) {
+	level, _, _ := gotraceback()
+
 	gpstatus := readgstatus(gp)
 
 	isScan := gpstatus&_Gscan != 0
@@ -1200,7 +1206,16 @@ func goroutineheader(gp *g) {
 	if (gpstatus == _Gwaiting || gpstatus == _Gsyscall) && gp.waitsince != 0 {
 		waitfor = (nanotime() - gp.waitsince) / 60e9
 	}
-	print("goroutine ", gp.goid, " [", status)
+	print("goroutine ", gp.goid)
+	if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+		print(" gp=", gp)
+		if gp.m != nil {
+			print(" m=", gp.m.id, " mp=", gp.m)
+		} else {
+			print(" m=nil")
+		}
+	}
+	print(" [", status)
 	if isScan {
 		print(" (scan)")
 	}
@@ -1311,7 +1326,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_handleAsyncEvent {
+	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
 		return false
 	}
 	if f.funcID == abi.FuncID_runfinq {

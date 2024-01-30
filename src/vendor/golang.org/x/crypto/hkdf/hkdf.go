@@ -56,7 +56,9 @@ func (f *hkdf) Read(p []byte) (int, error) {
 
 	// Fill the rest of the buffer
 	for len(p) > 0 {
-		f.expander.Reset()
+		if f.counter > 1 {
+			f.expander.Reset()
+		}
 		f.expander.Write(f.prev)
 		f.expander.Write(f.info)
 		f.expander.Write([]byte{f.counter})

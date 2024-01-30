@@ -29,6 +29,9 @@ var X86 struct {
 	HasADX       bool
 	HasAVX       bool
 	HasAVX2      bool
+	HasAVX512F   bool
+	HasAVX512BW  bool
+	HasAVX512VL  bool
 	HasBMI1      bool
 	HasBMI2      bool
 	HasERMS      bool

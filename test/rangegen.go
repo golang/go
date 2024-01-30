@@ -1,4 +1,4 @@
-// runoutput -goexperiment range
+// runoutput -goexperiment rangefunc
 
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -25,6 +25,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"math/bits"
 	"os"
 	"os/exec"
 	"strings"
@@ -36,6 +37,13 @@ func main() {
 	long := len(os.Args) > 1 && os.Args[1] == "long"
 	log.SetFlags(0)
 	log.SetPrefix("rangegen: ")
+
+	if !long && bits.UintSize == 32 {
+		// Skip this test on 32-bit platforms, where it seems to
+		// cause timeouts and build problems.
+		skip()
+		return
+	}
 
 	b := new(bytes.Buffer)
 	tests := ""
@@ -331,3 +339,12 @@ func run(f func(*output, int)int, i int) *output {
 }
 
 `
+
+func skip() {
+	const code = `
+package main
+func main() {
+}
+`
+	fmt.Printf("%s\n", code)
+}

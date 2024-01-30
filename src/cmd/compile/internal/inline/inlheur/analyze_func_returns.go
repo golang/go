@@ -12,14 +12,15 @@ import (
 	"os"
 )
 
-// returnsAnalyzer stores state information for the process of
+// resultsAnalyzer stores state information for the process of
 // computing flags/properties for the return values of a specific Go
 // function, as part of inline heuristics synthesis.
-type returnsAnalyzer struct {
-	fname     string
-	props     []ResultPropBits
-	values    []resultVal
-	canInline func(*ir.Func)
+type resultsAnalyzer struct {
+	fname           string
+	props           []ResultPropBits
+	values          []resultVal
+	inlineMaxBudget int
+	*nameFinder
 }
 
 // resultVal captures information about a specific result returned from
@@ -28,70 +29,99 @@ type returnsAnalyzer struct {
 // the same function, etc. This container stores info on a the specific
 // scenarios we're looking for.
 type resultVal struct {
-	lit     constant.Value
+	cval    constant.Value
 	fn      *ir.Name
 	fnClo   bool
 	top     bool
 	derived bool // see deriveReturnFlagsFromCallee below
 }
 
-func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer {
+// addResultsAnalyzer creates a new resultsAnalyzer helper object for
+// the function fn, appends it to the analyzers list, and returns the
+// new list. If the function in question doesn't have any returns (or
+// any interesting returns) then the analyzer list is left as is, and
+// the result flags in "fp" are updated accordingly.
+func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int, nf *nameFinder) []propAnalyzer {
+	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget, nf)
+	if ra != nil {
+		analyzers = append(analyzers, ra)
+	} else {
+		fp.ResultFlags = props
+	}
+	return analyzers
+}
+
+// makeResultsAnalyzer creates a new helper object to analyze results
+// in function fn. If the function doesn't have any interesting
+// results, a nil helper is returned along with a set of default
+// result flags for the func.
+func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) (*resultsAnalyzer, []ResultPropBits) {
 	results := fn.Type().Results()
+	if len(results) == 0 {
+		return nil, nil
+	}
 	props := make([]ResultPropBits, len(results))
+	if fn.Inl == nil {
+		return nil, props
+	}
 	vals := make([]resultVal, len(results))
+	interestingToAnalyze := false
 	for i := range results {
 		rt := results[i].Type
 		if !rt.IsScalar() && !rt.HasNil() {
 			// existing properties not applicable here (for things
 			// like structs, arrays, slices, etc).
-			props[i] = ResultNoInfo
 			continue
 		}
 		// set the "top" flag (as in "top element of data flow lattice")
 		// meaning "we have no info yet, but we might later on".
 		vals[i].top = true
+		interestingToAnalyze = true
 	}
-	return &returnsAnalyzer{
-		props:     props,
-		values:    vals,
-		canInline: canInline,
+	if !interestingToAnalyze {
+		return nil, props
 	}
+	ra := &resultsAnalyzer{
+		props:           props,
+		values:          vals,
+		inlineMaxBudget: inlineMaxBudget,
+		nameFinder:      nf,
+	}
+	return ra, nil
 }
 
 // setResults transfers the calculated result properties for this
-// function to 'fp'.
-func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
+// function to 'funcProps'.
+func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
 	for i := range ra.values {
 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
 			f := ra.values[i].fn.Func
-			// If the function being returns is a closure that hasn't
-			// yet been checked by CanInline, invoke it now. NB: this
-			// is hacky, it would be better if things were structured
-			// so that all closures were visited ahead of time.
-			if ra.values[i].fnClo {
-				if f != nil && !f.InlinabilityChecked() {
-					ra.canInline(f)
-				}
-			}
-			if f.Inl != nil {
+			// HACK: in order to allow for call site score
+			// adjustments, we used a relaxed inline budget in
+			// determining inlinability. For the check below, however,
+			// we want to know is whether the func in question is
+			// likely to be inlined, as opposed to whether it might
+			// possibly be inlined if all the right score adjustments
+			// happened, so do a simple check based on the cost.
+			if f.Inl != nil && f.Inl.Cost <= int32(ra.inlineMaxBudget) {
 				ra.props[i] = ResultAlwaysSameInlinableFunc
 			}
 		}
 	}
-	fp.ResultFlags = ra.props
+	funcProps.ResultFlags = ra.props
 }
 
-func (ra *returnsAnalyzer) pessimize() {
+func (ra *resultsAnalyzer) pessimize() {
 	for i := range ra.props {
 		ra.props[i] = ResultNoInfo
 	}
 }
 
-func (ra *returnsAnalyzer) nodeVisitPre(n ir.Node) {
+func (ra *resultsAnalyzer) nodeVisitPre(n ir.Node) {
 }
 
-func (ra *returnsAnalyzer) nodeVisitPost(n ir.Node) {
+func (ra *resultsAnalyzer) nodeVisitPost(n ir.Node) {
 	if len(ra.values) == 0 {
 		return
 	}
@@ -115,48 +145,29 @@ func (ra *returnsAnalyzer) nodeVisitPost(n ir.Node) {
 	}
 }
 
-// isFuncName returns the *ir.Name for the func or method
-// corresponding to node 'n', along with a boolean indicating success,
-// and another boolean indicating whether the func is closure.
-func isFuncName(n ir.Node) (*ir.Name, bool, bool) {
-	sv := ir.StaticValue(n)
-	if sv.Op() == ir.ONAME {
-		name := sv.(*ir.Name)
-		if name.Sym() != nil && name.Class == ir.PFUNC {
-			return name, true, false
-		}
-	}
-	if sv.Op() == ir.OCLOSURE {
-		cloex := sv.(*ir.ClosureExpr)
-		return cloex.Func.Nname, true, true
-	}
-	if sv.Op() == ir.OMETHEXPR {
-		if mn := ir.MethodExprName(sv); mn != nil {
-			return mn, true, false
-		}
-	}
-	return nil, false, false
-}
-
 // analyzeResult examines the expression 'n' being returned as the
 // 'ii'th argument in some return statement to see whether has
 // interesting characteristics (for example, returns a constant), then
 // applies a dataflow "meet" operation to combine this result with any
 // previous result (for the given return slot) that we've already
 // processed.
-func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
-	isAllocMem := isAllocatedMem(n)
-	isConcConvItf := isConcreteConvIface(n)
-	lit, isConst := isLiteral(n)
-	rfunc, isFunc, isClo := isFuncName(n)
+func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+	isAllocMem := ra.isAllocatedMem(n)
+	isConcConvItf := ra.isConcreteConvIface(n)
+	constVal := ra.constValue(n)
+	isConst := (constVal != nil)
+	isNil := ra.isNil(n)
+	rfunc := ra.funcName(n)
+	isFunc := (rfunc != nil)
+	isClo := (rfunc != nil && rfunc.Func.OClosure != nil)
 	curp := ra.props[ii]
-	dprops, isDerivedFromCall := deriveReturnFlagsFromCallee(n)
+	dprops, isDerivedFromCall := ra.deriveReturnFlagsFromCallee(n)
 	newp := ResultNoInfo
-	var newlit constant.Value
+	var newcval constant.Value
 	var newfunc *ir.Name
 
 	if debugTrace&debugTraceResults != 0 {
-		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult n=%s ismem=%v isconcconv=%v isconst=%v isfunc=%v isclo=%v\n", ir.Line(n), n.Op().String(), isAllocMem, isConcConvItf, isConst, isFunc, isClo)
+		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult n=%s ismem=%v isconcconv=%v isconst=%v isnil=%v isfunc=%v isclo=%v\n", ir.Line(n), n.Op().String(), isAllocMem, isConcConvItf, isConst, isNil, isFunc, isClo)
 	}
 
 	if ra.values[ii].top {
@@ -173,7 +184,10 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 			newfunc = rfunc
 		case isConst:
 			newp = ResultAlwaysSameConstant
-			newlit = lit
+			newcval = constVal
+		case isNil:
+			newp = ResultAlwaysSameConstant
+			newcval = nil
 		case isDerivedFromCall:
 			newp = dprops
 			ra.values[ii].derived = true
@@ -186,17 +200,20 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 			// the previous returns.
 			switch curp {
 			case ResultIsAllocatedMem:
-				if isAllocatedMem(n) {
+				if isAllocMem {
 					newp = ResultIsAllocatedMem
 				}
 			case ResultIsConcreteTypeConvertedToInterface:
-				if isConcreteConvIface(n) {
+				if isConcConvItf {
 					newp = ResultIsConcreteTypeConvertedToInterface
 				}
 			case ResultAlwaysSameConstant:
-				if isConst && isSameLiteral(lit, ra.values[ii].lit) {
+				if isNil && ra.values[ii].cval == nil {
 					newp = ResultAlwaysSameConstant
-					newlit = lit
+					newcval = nil
+				} else if isConst && constant.Compare(constVal, token.EQL, ra.values[ii].cval) {
+					newp = ResultAlwaysSameConstant
+					newcval = constVal
 				}
 			case ResultAlwaysSameFunc:
 				if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
@@ -208,22 +225,13 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
 	}
 	ra.values[ii].fn = newfunc
 	ra.values[ii].fnClo = isClo
-	ra.values[ii].lit = newlit
+	ra.values[ii].cval = newcval
 	ra.props[ii] = newp
 
 	if debugTrace&debugTraceResults != 0 {
 		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult newp=%s\n",
 			ir.Line(n), newp)
 	}
-}
-
-func isAllocatedMem(n ir.Node) bool {
-	sv := ir.StaticValue(n)
-	switch sv.Op() {
-	case ir.OMAKESLICE, ir.ONEW, ir.OPTRLIT, ir.OSLICELIT:
-		return true
-	}
-	return false
 }
 
 // deriveReturnFlagsFromCallee tries to set properties for a given
@@ -242,7 +250,7 @@ func isAllocatedMem(n ir.Node) bool {
 // set foo's return property to that of bar. In the case of "two", however,
 // even though each return path returns a constant, we don't know
 // whether the constants are identical, hence we need to be conservative.
-func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+func (ra *resultsAnalyzer) deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
 	if n.Op() != ir.OCALLFUNC {
 		return 0, false
 	}
@@ -254,8 +262,8 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
 	if called.Op() != ir.ONAME {
 		return 0, false
 	}
-	cname, isFunc, _ := isFuncName(called)
-	if !isFunc {
+	cname := ra.funcName(called)
+	if cname == nil {
 		return 0, false
 	}
 	calleeProps := propsForFunc(cname.Func)
@@ -266,42 +274,4 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
 		return 0, false
 	}
 	return calleeProps.ResultFlags[0], true
-}
-
-func isLiteral(n ir.Node) (constant.Value, bool) {
-	sv := ir.StaticValue(n)
-	switch sv.Op() {
-	case ir.ONIL:
-		return nil, true
-	case ir.OLITERAL:
-		return sv.Val(), true
-	}
-	return nil, false
-}
-
-// isSameLiteral checks to see if 'v1' and 'v2' correspond to the same
-// literal value, or if they are both nil.
-func isSameLiteral(v1, v2 constant.Value) bool {
-	if v1 == nil && v2 == nil {
-		return true
-	}
-	if v1 == nil || v2 == nil {
-		return false
-	}
-	return constant.Compare(v1, token.EQL, v2)
-}
-
-func isConcreteConvIface(n ir.Node) bool {
-	sv := ir.StaticValue(n)
-	if sv.Op() != ir.OCONVIFACE {
-		return false
-	}
-	return !sv.(*ir.ConvExpr).X.Type().IsInterface()
-}
-
-func isSameFuncName(v1, v2 *ir.Name) bool {
-	// NB: there are a few corner cases where pointer equality
-	// doesn't work here, but this should be good enough for
-	// our purposes here.
-	return v1 == v2
 }

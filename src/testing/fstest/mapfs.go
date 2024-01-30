@@ -19,7 +19,7 @@ import (
 //
 // The map need not include parent directories for files contained
 // in the map; those will be synthesized if needed.
-// But a directory can still be included by setting the MapFile.Mode's [fs.ModeDir] bit;
+// But a directory can still be included by setting the [MapFile.Mode]'s [fs.ModeDir] bit;
 // this may be necessary for detailed control over the directory's [fs.FileInfo]
 // or to create an empty directory.
 //

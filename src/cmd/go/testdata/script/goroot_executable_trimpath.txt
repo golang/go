@@ -29,12 +29,20 @@ wait
 env TESTGOROOT=$GOROOT
 env GOROOT=
 
+# Unset GOPATH and any variables that its default may be derived from,
+# so that we can check for a spurious warning.
+env GOPATH=
+env HOME=''
+env USERPROFILE=''
+env home=''
+
 # Relocated Executable
 # Since we built with -trimpath and the binary isn't installed in a
 # normal-looking GOROOT, this command should fail.
 
 ! exec $WORK/new/bin/go$GOEXE env GOROOT
 stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+! stderr 'GOPATH set to GOROOT'
 
 # Cross-compiled binaries in cmd are installed to a ${GOOS}_${GOARCH} subdirectory,
 # so we also want to try a copy there.
@@ -44,6 +52,7 @@ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT i
 cp $WORK/new/bin/go$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE
 ! exec $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE env GOROOT
 stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+! stderr 'GOPATH set to GOROOT'
 
 # Relocated Tree:
 # If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
@@ -51,6 +60,7 @@ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT i
 mkdir $WORK/new/pkg/tool
 exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $WORK/new
 exec $WORK/bin/check$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE $WORK/new
+! stderr 'GOPATH set to GOROOT'
 
 -- check.go --
 package main

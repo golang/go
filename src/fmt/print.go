@@ -703,6 +703,11 @@ func (p *pp) printArg(arg any, verb rune) {
 		return
 	}
 
+	// Bug fix: avoid padding strings with zeros. Issue 56486.
+	if verb == 's' {
+		p.fmt.zero = false
+	}
+
 	// Some types can be done without reflection.
 	switch f := arg.(type) {
 	case bool:

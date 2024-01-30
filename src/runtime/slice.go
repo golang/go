@@ -64,7 +64,11 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 		if copymem > 0 && writeBarrier.enabled {
 			// Only shade the pointers in old.array since we know the destination slice to
 			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem)
+			//
+			// It's safe to pass a type to this function as an optimization because
+			// from and to only ever refer to memory representing whole values of
+			// type et. See the comment on bulkBarrierPreWrite.
+			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem, et)
 		}
 	}
 
@@ -179,17 +183,18 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	// For 1 we don't need any division/multiplication.
 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
 	// For powers of 2, use a variable shift.
+	noscan := et.PtrBytes == 0
 	switch {
 	case et.Size_ == 1:
 		lenmem = uintptr(oldLen)
 		newlenmem = uintptr(newLen)
-		capmem = roundupsize(uintptr(newcap))
+		capmem = roundupsize(uintptr(newcap), noscan)
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
 	case et.Size_ == goarch.PtrSize:
 		lenmem = uintptr(oldLen) * goarch.PtrSize
 		newlenmem = uintptr(newLen) * goarch.PtrSize
-		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+		capmem = roundupsize(uintptr(newcap)*goarch.PtrSize, noscan)
 		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
 		newcap = int(capmem / goarch.PtrSize)
 	case isPowerOfTwo(et.Size_):
@@ -202,7 +207,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		}
 		lenmem = uintptr(oldLen) << shift
 		newlenmem = uintptr(newLen) << shift
-		capmem = roundupsize(uintptr(newcap) << shift)
+		capmem = roundupsize(uintptr(newcap)<<shift, noscan)
 		overflow = uintptr(newcap) > (maxAlloc >> shift)
 		newcap = int(capmem >> shift)
 		capmem = uintptr(newcap) << shift
@@ -210,7 +215,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		lenmem = uintptr(oldLen) * et.Size_
 		newlenmem = uintptr(newLen) * et.Size_
 		capmem, overflow = math.MulUintptr(et.Size_, uintptr(newcap))
-		capmem = roundupsize(capmem)
+		capmem = roundupsize(capmem, noscan)
 		newcap = int(capmem / et.Size_)
 		capmem = uintptr(newcap) * et.Size_
 	}
@@ -246,7 +251,11 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		if lenmem > 0 && writeBarrier.enabled {
 			// Only shade the pointers in oldPtr since we know the destination slice p
 			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldPtr), lenmem-et.Size_+et.PtrBytes)
+			//
+			// It's safe to pass a type to this function as an optimization because
+			// from and to only ever refer to memory representing whole values of
+			// type et. See the comment on bulkBarrierPreWrite.
+			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldPtr), lenmem-et.Size_+et.PtrBytes, et)
 		}
 	}
 	memmove(p, oldPtr, lenmem)

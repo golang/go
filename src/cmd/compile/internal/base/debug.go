@@ -23,6 +23,8 @@ type DebugFlags struct {
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
 	DumpInlCallSiteScores int    `help:"dump scored callsites during inlining"`
+	InlScoreAdj           string `help:"set inliner score adjustments (ex: -d=inlscoreadj=panicPathAdj:10/passConstToNestedIfAdj:-90)"`
+	InlBudgetSlack        int    `help:"amount to expand the initial inline budget when new inliner enabled. Defaults to 80 if option not set." concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
@@ -34,11 +36,11 @@ type DebugFlags struct {
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
-	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
+	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
@@ -59,7 +61,8 @@ type DebugFlags struct {
 	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
-	PGODevirtualize       int    `help:"enable profile-guided devirtualization" concurrent:"ok"`
+	PGODevirtualize       int    `help:"enable profile-guided devirtualization; 0 to disable, 1 to enable interface devirtualization, 2 to enable function devirtualization" concurrent:"ok"`
+	RangeFuncCheck        int    `help:"insert code to check behavior of range iterator functions" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
 	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`

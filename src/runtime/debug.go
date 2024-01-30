@@ -11,7 +11,7 @@ import (
 
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
 // simultaneously and returns the previous setting. It defaults to
-// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
+// the value of [runtime.NumCPU]. If n < 1, it does not change the current setting.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
 	if GOARCH == "wasm" && n > 1 {
@@ -25,12 +25,12 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorldGC(stwGOMAXPROCS)
+	stw := stopTheWorldGC(stwGOMAXPROCS)
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	startTheWorldGC()
+	startTheWorldGC(stw)
 	return ret
 }
 
@@ -50,6 +50,17 @@ func NumCgoCall() int64 {
 		n += int64(mp.ncgocall)
 	}
 	return n
+}
+
+func totalMutexWaitTimeNanos() int64 {
+	total := sched.totalMutexWaitTime.Load()
+
+	total += sched.totalRuntimeLockWaitTime.Load()
+	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+		total += mp.mLockProfile.waitTime.Load()
+	}
+
+	return total
 }
 
 // NumGoroutine returns the number of goroutines that currently exist.

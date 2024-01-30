@@ -990,3 +990,116 @@ func f[I *T, T any]() {
 		t.Fatalf("types of v and T are not pointer-identical: %p != %p", v.Type().(*TypeParam), T)
 	}
 }
+
+func TestIssue44410(t *testing.T) {
+	const src = `
+package p
+
+type A = []int
+type S struct{ A }
+`
+
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	pkg := mustTypecheck(src, nil, nil)
+
+	S := pkg.Scope().Lookup("S")
+	if S == nil {
+		t.Fatal("object S not found")
+	}
+
+	got := S.String()
+	const want = "type p.S struct{p.A}"
+	if got != want {
+		t.Fatalf("got %q; want %q", got, want)
+	}
+}
+
+func TestIssue59831(t *testing.T) {
+	// Package a exports a type S with an unexported method m;
+	// the tests check the error messages when m is not found.
+	const asrc = `package a; type S struct{}; func (S) m() {}`
+	apkg := mustTypecheck(asrc, nil, nil)
+
+	// Package b exports a type S with an exported method m;
+	// the tests check the error messages when M is not found.
+	const bsrc = `package b; type S struct{}; func (S) M() {}`
+	bpkg := mustTypecheck(bsrc, nil, nil)
+
+	tests := []struct {
+		imported *Package
+		src, err string
+	}{
+		// tests importing a (or nothing)
+		{apkg, `package a1; import "a"; var _ interface { M() } = a.S{}`,
+			"a.S does not implement interface{M()} (missing method M) have m() want M()"},
+
+		{apkg, `package a2; import "a"; var _ interface { m() } = a.S{}`,
+			"a.S does not implement interface{m()} (unexported method m)"}, // test for issue
+
+		{nil, `package a3; type S struct{}; func (S) m(); var _ interface { M() } = S{}`,
+			"S does not implement interface{M()} (missing method M) have m() want M()"},
+
+		{nil, `package a4; type S struct{}; func (S) m(); var _ interface { m() } = S{}`,
+			""}, // no error expected
+
+		{nil, `package a5; type S struct{}; func (S) m(); var _ interface { n() } = S{}`,
+			"S does not implement interface{n()} (missing method n)"},
+
+		// tests importing b (or nothing)
+		{bpkg, `package b1; import "b"; var _ interface { m() } = b.S{}`,
+			"b.S does not implement interface{m()} (missing method m) have M() want m()"},
+
+		{bpkg, `package b2; import "b"; var _ interface { M() } = b.S{}`,
+			""}, // no error expected
+
+		{nil, `package b3; type S struct{}; func (S) M(); var _ interface { M() } = S{}`,
+			""}, // no error expected
+
+		{nil, `package b4; type S struct{}; func (S) M(); var _ interface { m() } = S{}`,
+			"S does not implement interface{m()} (missing method m) have M() want m()"},
+
+		{nil, `package b5; type S struct{}; func (S) M(); var _ interface { n() } = S{}`,
+			"S does not implement interface{n()} (missing method n)"},
+	}
+
+	for _, test := range tests {
+		// typecheck test source
+		conf := Config{Importer: importHelper{pkg: test.imported}}
+		pkg, err := typecheck(test.src, &conf, nil)
+		if err == nil {
+			if test.err != "" {
+				t.Errorf("package %s: got no error, want %q", pkg.Name(), test.err)
+			}
+			continue
+		}
+		if test.err == "" {
+			t.Errorf("package %s: got %q, want not error", pkg.Name(), err.Error())
+		}
+
+		// flatten reported error message
+		errmsg := strings.ReplaceAll(err.Error(), "\n", " ")
+		errmsg = strings.ReplaceAll(errmsg, "\t", "")
+
+		// verify error message
+		if !strings.Contains(errmsg, test.err) {
+			t.Errorf("package %s: got %q, want %q", pkg.Name(), errmsg, test.err)
+		}
+	}
+}
+
+func TestIssue64759(t *testing.T) {
+	const src = `
+//go:build go1.18
+package p
+
+func f[S ~[]E, E any](S) {}
+
+func _() {
+	f([]string{})
+}
+`
+	// Per the go:build directive, the source must typecheck
+	// even though the (module) Go version is set to go1.17.
+	conf := Config{GoVersion: "go1.17"}
+	mustTypecheck(src, &conf, nil)
+}

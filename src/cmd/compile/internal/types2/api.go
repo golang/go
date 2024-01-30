@@ -268,6 +268,15 @@ type Info struct {
 	// scope, the function scopes are embedded in the file scope of the file
 	// containing the function declaration.
 	//
+	// The Scope of a function contains the declarations of any
+	// type parameters, parameters, and named results, plus any
+	// local declarations in the body block.
+	// It is coextensive with the complete extent of the
+	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
+	// The Scopes mapping does not contain an entry for the
+	// function body ([*ast.BlockStmt]); the function's scope is
+	// associated with the [*ast.FuncType].
+	//
 	// The following node types may appear in Scopes:
 	//
 	//     *syntax.File
@@ -289,10 +298,12 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// FileVersions maps a file's position base to the file's Go version.
-	// If the file doesn't specify a version and Config.GoVersion is not
-	// given, the reported version is the zero version (Major, Minor = 0, 0).
-	FileVersions map[*syntax.PosBase]Version
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*syntax.PosBase]string
 }
 
 func (info *Info) recordTypes() bool {
@@ -333,6 +344,23 @@ func (info *Info) ObjectOf(id *syntax.Name) Object {
 		return obj
 	}
 	return info.Uses[id]
+}
+
+// PkgNameOf returns the local package name defined by the import,
+// or nil if not found.
+//
+// For dot-imports, the package name is ".".
+//
+// Precondition: the Defs and Implicts maps are populated.
+func (info *Info) PkgNameOf(imp *syntax.ImportDecl) *PkgName {
+	var obj Object
+	if imp.LocalPkgName != nil {
+		obj = info.Defs[imp.LocalPkgName]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, _ := obj.(*PkgName)
+	return pkgname
 }
 
 // TypeAndValue reports the type and value (for constants)
@@ -426,12 +454,6 @@ func (init *Initializer) String() string {
 	return buf.String()
 }
 
-// A Version represents a released Go version.
-type Version struct {
-	Major int
-	Minor int
-}
-
 // Check type-checks a package and returns the resulting package object and
 // the first error if any. Additionally, if info != nil, Check populates each
 // of the non-nil maps in the Info struct.
@@ -446,81 +468,4 @@ type Version struct {
 func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Package, error) {
 	pkg := NewPackage(path, "")
 	return pkg, NewChecker(conf, pkg, info).Files(files)
-}
-
-// AssertableTo reports whether a value of type V can be asserted to have type T.
-//
-// The behavior of AssertableTo is unspecified in three cases:
-//   - if T is Typ[Invalid]
-//   - if V is a generalized interface; i.e., an interface that may only be used
-//     as a type constraint in Go code
-//   - if T is an uninstantiated generic type
-func AssertableTo(V *Interface, T Type) bool {
-	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
-	// handling here.
-	if !isValid(T.Underlying()) {
-		return false
-	}
-	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
-}
-
-// AssignableTo reports whether a value of type V is assignable to a variable
-// of type T.
-//
-// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func AssignableTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
-	return ok
-}
-
-// ConvertibleTo reports whether a value of type V is convertible to a value of
-// type T.
-//
-// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func ConvertibleTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
-}
-
-// Implements reports whether type V implements interface T.
-//
-// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
-// generic type.
-func Implements(V Type, T *Interface) bool {
-	if T.Empty() {
-		// All types (even Typ[Invalid]) implement the empty interface.
-		return true
-	}
-	// Checker.implements suppresses errors for invalid types, so we need special
-	// handling here.
-	if !isValid(V.Underlying()) {
-		return false
-	}
-	return (*Checker)(nil).implements(nopos, V, T, false, nil)
-}
-
-// Satisfies reports whether type V satisfies the constraint T.
-//
-// The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
-// generic type.
-func Satisfies(V Type, T *Interface) bool {
-	return (*Checker)(nil).implements(nopos, V, T, true, nil)
-}
-
-// Identical reports whether x and y are identical types.
-// Receivers of Signature types are ignored.
-func Identical(x, y Type) bool {
-	var c comparer
-	return c.identical(x, y, nil)
-}
-
-// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
-// Receivers of Signature types are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	var c comparer
-	c.ignoreTags = true
-	return c.identical(x, y, nil)
 }

@@ -573,7 +573,7 @@ type x int // comment
 var parseDepthTests = []struct {
 	name   string
 	format string
-	// multiplier is used when a single statement may result in more than one
+	// parseMultiplier is used when a single statement may result in more than one
 	// change in the depth level, for instance "1+(..." produces a BinaryExpr
 	// followed by a UnaryExpr, which increments the depth twice. The test
 	// case comment explains which nodes are triggering the multiple depth

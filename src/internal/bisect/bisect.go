@@ -482,7 +482,6 @@ func (m *Matcher) stack(w Writer) bool {
 		}
 	}
 	return m.ShouldEnable(h)
-
 }
 
 // Writer is the same interface as io.Writer.

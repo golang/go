@@ -155,7 +155,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 				// 'go mod graph', and similar commands.
 				_, err := modload.LoadModGraph(ctx, "")
 				if err != nil {
-					base.Fatal(err)
+					// TODO(#64008): call base.Fatalf instead of toolchain.SwitchOrFatal
+					// here, since we can only reach this point with an outdated toolchain
+					// if the go.mod file is inconsistent.
+					toolchain.SwitchOrFatal(ctx, err)
 				}
 
 				for _, m := range modFile.Require {
@@ -207,6 +210,16 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// no explicit arguments (their go.mod file should already list an appropriate
 	// toolchain version) or only one module (as is used by the Go Module Proxy).
 
+	if infosErr != nil {
+		var sw toolchain.Switcher
+		sw.Error(infosErr)
+		if sw.NeedSwitch() {
+			sw.Switch(ctx)
+		}
+		// Otherwise, wait to report infosErr after we have downloaded
+		// when we can.
+	}
+
 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. In modules that aren't at go 1.17 or higher, it may fetch
@@ -215,20 +228,12 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		// (golang.org/issue/45332). We do still fix inconsistencies in go.mod
 		// though.
 		//
-		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
+		// TODO(#64008): In the future, report an error if go.mod or go.sum need to
 		// be updated after loading the build list. This may require setting
 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
 			base.Fatal(err)
 		}
-	} else if infosErr != nil {
-		var sw toolchain.Switcher
-		sw.Error(infosErr)
-		if sw.NeedSwitch() {
-			sw.Switch(ctx)
-		}
-		// Otherwise, wait to report infosErr after we have downloaded
-		// when we can.
 	}
 
 	var downloadErrs sync.Map

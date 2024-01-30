@@ -409,6 +409,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
+	if mode&O_SYNC != 0 {
+		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 }
 
@@ -1257,7 +1261,7 @@ func Fchdir(fd Handle) (err error) {
 	if err != nil {
 		return err
 	}
-	// When using VOLUME_NAME_DOS, the path is always pefixed by "\\?\".
+	// When using VOLUME_NAME_DOS, the path is always prefixed by "\\?\".
 	// That prefix tells the Windows APIs to disable all string parsing and to send
 	// the string that follows it straight to the file system.
 	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,

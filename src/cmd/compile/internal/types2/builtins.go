@@ -720,7 +720,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Value
-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, sel, false)
 		switch obj.(type) {
 		case nil:
 			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
@@ -799,7 +799,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
 
-		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+		ptr, _ := coreType(x.typ).(*Pointer)
 		if ptr == nil {
 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
 			return
@@ -820,7 +820,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// unsafe.SliceData(slice []T) *T
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
 
-		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+		slice, _ := coreType(x.typ).(*Slice)
 		if slice == nil {
 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
 			return
@@ -954,7 +954,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 }
 
 // applyTypeFunc applies f to x. If x is a type parameter,
-// the result is a type parameter constrained by an new
+// the result is a type parameter constrained by a new
 // interface bound. The type bounds for that interface
 // are computed by applying f to each of the type bounds
 // of x. If any of these applications of f return nil,

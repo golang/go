@@ -237,7 +237,7 @@ retry:
 
 	// Figure out the maximum amount of data we need to retain
 	// for backreferences.
-	var windowSize int
+	var windowSize uint64
 	if !singleSegment {
 		// Window descriptor. RFC 3.1.1.1.2.
 		windowDescriptor := r.scratch[0]
@@ -246,7 +246,7 @@ retry:
 		windowLog := exponent + 10
 		windowBase := uint64(1) << windowLog
 		windowAdd := (windowBase / 8) * mantissa
-		windowSize = int(windowBase + windowAdd)
+		windowSize = windowBase + windowAdd
 
 		// Default zstd sets limits on the window size.
 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
@@ -288,12 +288,13 @@ retry:
 	// When Single_Segment_Flag is set, Window_Descriptor is not present.
 	// In this case, Window_Size is Frame_Content_Size.
 	if singleSegment {
-		windowSize = int(r.remainingFrameSize)
+		windowSize = r.remainingFrameSize
 	}
 
 	// RFC 8878 3.1.1.1.1.2. permits us to set an 8M max on window size.
-	if windowSize > 8<<20 {
-		windowSize = 8 << 20
+	const maxWindowSize = 8 << 20
+	if windowSize > maxWindowSize {
+		windowSize = maxWindowSize
 	}
 
 	relativeOffset += headerSize
@@ -307,7 +308,7 @@ retry:
 	r.repeatedOffset2 = 4
 	r.repeatedOffset3 = 8
 	r.huffmanTableBits = 0
-	r.window.reset(windowSize)
+	r.window.reset(int(windowSize))
 	r.seqTables[0] = nil
 	r.seqTables[1] = nil
 	r.seqTables[2] = nil
@@ -326,12 +327,34 @@ func (r *Reader) skipFrame() error {
 	relativeOffset += 4
 
 	size := binary.LittleEndian.Uint32(r.scratch[:4])
+	if size == 0 {
+		r.blockOffset += int64(relativeOffset)
+		return nil
+	}
 
 	if seeker, ok := r.r.(io.Seeker); ok {
-		if _, err := seeker.Seek(int64(size), io.SeekCurrent); err != nil {
-			return err
+		r.blockOffset += int64(relativeOffset)
+		// Implementations of Seeker do not always detect invalid offsets,
+		// so check that the new offset is valid by comparing to the end.
+		prev, err := seeker.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return r.wrapError(0, err)
 		}
-		r.blockOffset += int64(relativeOffset) + int64(size)
+		end, err := seeker.Seek(0, io.SeekEnd)
+		if err != nil {
+			return r.wrapError(0, err)
+		}
+		if prev > end-int64(size) {
+			r.blockOffset += end - prev
+			return r.makeEOFError(0)
+		}
+
+		// The new offset is valid, so seek to it.
+		_, err = seeker.Seek(prev+int64(size), io.SeekStart)
+		if err != nil {
+			return r.wrapError(0, err)
+		}
+		r.blockOffset += int64(size)
 		return nil
 	}
 

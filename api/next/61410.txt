@@ -1,2 +1,0 @@
-pkg net/http, method (*Request) PathValue(string) string #61410
-pkg net/http, method (*Request) SetPathValue(string, string) #61410

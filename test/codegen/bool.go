@@ -6,6 +6,10 @@
 
 package codegen
 
+import (
+	"math/bits"
+)
+
 // This file contains codegen tests related to boolean simplifications/optimizations.
 
 func convertNeq0B(x uint8, c bool) bool {
@@ -211,11 +215,62 @@ func TestSetInvGeFp64(x float64, y float64) bool {
 	b := !(x >= y)
 	return b
 }
-func TestAndCompareZero(x uint64, y uint64) uint64 {
-	// ppc64x:"ANDCC"
-	b := x&3
+func TestLogicalCompareZero(x *[64]uint64) {
+	// ppc64x:"ANDCC",^"AND"
+	b := x[0]&3
 	if b!=0 {
-		return b
+		x[0] = b
 	}
-	return b+8
+	// ppc64x:"ANDCC",^"AND"
+	b = x[1]&x[2]
+	if b!=0 {
+		x[1] = b
+	}
+	// ppc64x:"ANDNCC",^"ANDN"
+	b = x[1]&^x[2]
+	if b!=0 {
+		x[1] = b
+	}
+	// ppc64x:"ORCC",^"OR"
+	b = x[3]|x[4]
+	if b!=0 {
+		x[3] = b
+	}
+	// ppc64x:"SUBCC",^"SUB"
+	b = x[5]-x[6]
+	if b!=0 {
+		x[5] = b
+	}
+	// ppc64x:"NORCC",^"NOR"
+	b = ^(x[5]|x[6])
+	if b!=0 {
+		x[5] = b
+	}
+	// ppc64x:"XORCC",^"XOR"
+	b = x[7]^x[8]
+	if b!=0 {
+		x[7] = b
+	}
+	// ppc64x:"ADDCC",^"ADD"
+	b = x[9]+x[10]
+	if b!=0 {
+		x[9] = b
+	}
+	// ppc64x:"NEGCC",^"NEG"
+	b = -x[11]
+	if b!=0 {
+		x[11] = b
+	}
+	// ppc64x:"CNTLZDCC",^"CNTLZD"
+	b = uint64(bits.LeadingZeros64(x[12]))
+	if b!=0 {
+		x[12] = b
+	}
+
+	// ppc64x:"ADDCCC\t[$]4,"
+	c := int64(x[12]) + 4
+	if c <= 0 {
+		x[12] = uint64(c)
+	}
+
 }

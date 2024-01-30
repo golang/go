@@ -443,11 +443,18 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/64375).
+		// Add a trailing separator to force that to happen.
+		root := testenv.GOROOT(t)
+		if !os.IsPathSeparator(root[len(root)-1]) {
+			root += string(filepath.Separator)
+		}
+		goroot.err = filepath.WalkDir(root, func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
+			if info.IsDir() && path != root && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
 			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
@@ -458,7 +465,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// running time of this test anyway.)
 				return filepath.SkipDir
 			}
-			if info.IsDir() && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
+			if info.IsDir() && path != root && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
 				// _ and . prefixed directories can be used for internal modules
 				// without a vendor directory that don't contribute to the build
 				// but might be used for example as code generators.

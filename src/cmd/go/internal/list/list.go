@@ -449,13 +449,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if listJson {
 		do = func(x any) {
 			if !listJsonFields.needAll() {
-				v := reflect.ValueOf(x).Elem() // do is always called with a non-nil pointer.
-				// Clear all non-requested fields.
+				//  Set x to a copy of itself with all non-requested fields cleared.
+				v := reflect.New(reflect.TypeOf(x).Elem()).Elem() // do is always called with a non-nil pointer.
+				v.Set(reflect.ValueOf(x).Elem())
 				for i := 0; i < v.NumField(); i++ {
 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
 						v.Field(i).SetZero()
 					}
 				}
+				x = v.Interface()
 			}
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {

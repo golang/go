@@ -564,7 +564,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 }
 
 // isTestFunc tells whether fn has the type of a testing function. arg
-// specifies the parameter type we look for: B, M or T.
+// specifies the parameter type we look for: B, F, M or T.
 func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
 		fn.Type.Params.List == nil ||
@@ -579,7 +579,7 @@ func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	// We can't easily check that the type is *testing.M
 	// because we don't know how testing has been imported,
 	// but at least check that it's *M or *something.M.
-	// Same applies for B and T.
+	// Same applies for B, F and T.
 	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == arg {
 		return true
 	}

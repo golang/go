@@ -129,12 +129,3 @@ func InternString(b []byte) string {
 	internedStringsmu.Unlock()
 	return s
 }
-
-// CleanroomDo invokes f in an environment with no preexisting packages.
-// For testing of import/export only.
-func CleanroomDo(f func()) {
-	saved := pkgMap
-	pkgMap = make(map[string]*Pkg)
-	f()
-	pkgMap = saved
-}

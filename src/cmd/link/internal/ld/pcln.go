@@ -827,7 +827,7 @@ func expandGoroot(s string) string {
 }
 
 const (
-	BUCKETSIZE    = 256 * MINFUNC
+	BUCKETSIZE    = 256 * abi.MINFUNC
 	SUBBUCKETS    = 16
 	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
 	NOIDX         = 0x7fffffff

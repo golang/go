@@ -240,8 +240,15 @@ GroupSelection:
 	c.clientProtocol = selectedProto
 
 	if c.quic != nil {
+		// RFC 9001 Section 4.2: Clients MUST NOT offer TLS versions older than 1.3.
+		for _, v := range hs.clientHello.supportedVersions {
+			if v < VersionTLS13 {
+				c.sendAlert(alertProtocolVersion)
+				return errors.New("tls: client offered TLS version older than TLS 1.3")
+			}
+		}
+		// RFC 9001 Section 8.2.
 		if hs.clientHello.quicTransportParameters == nil {
-			// RFC 9001 Section 8.2.
 			c.sendAlert(alertMissingExtension)
 			return errors.New("tls: client did not send a quic_transport_parameters extension")
 		}

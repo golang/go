@@ -13,7 +13,7 @@ import (
 
 // NewChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
-// The chunkedReader returns io.EOF when the final 0-length chunk is read.
+// The chunkedReader returns [io.EOF] when the final 0-length chunk is read.
 //
 // NewChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.

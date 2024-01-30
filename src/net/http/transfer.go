@@ -410,7 +410,10 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 //
 // This function is only intended for use in writeBody.
 func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
-	n, err = io.Copy(dst, src)
+	buf := getCopyBuf()
+	defer putCopyBuf(buf)
+
+	n, err = io.CopyBuffer(dst, src, buf)
 	if err != nil && err != io.EOF {
 		t.bodyReadError = err
 	}
@@ -814,10 +817,10 @@ type body struct {
 	onHitEOF   func() // if non-nil, func to call when EOF is Read
 }
 
-// ErrBodyReadAfterClose is returned when reading a Request or Response
+// ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
 // Body after the body has been closed. This typically happens when the body is
-// read after an HTTP Handler calls WriteHeader or Write on its
-// ResponseWriter.
+// read after an HTTP [Handler] calls WriteHeader or Write on its
+// [ResponseWriter].
 var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed Body")
 
 func (b *body) Read(p []byte) (n int, err error) {

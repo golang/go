@@ -17,7 +17,6 @@ import (
 
 func init() {
 	sysStat = statUnix
-	loadUidAndGid = loadUidAndGidFunc
 }
 
 // userMap and groupMap caches UID and GID lookups for performance reasons.
@@ -99,13 +98,4 @@ func statUnix(fi fs.FileInfo, h *Header) error {
 		}
 	}
 	return nil
-}
-
-func loadUidAndGidFunc(fi fs.FileInfo, uid, gid *int) {
-	sys, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return
-	}
-	*uid = int(sys.Uid)
-	*gid = int(sys.Gid)
 }

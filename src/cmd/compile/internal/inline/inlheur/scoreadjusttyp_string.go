@@ -20,29 +20,33 @@ func _() {
 	_ = x[passFuncToNestedIndCallAdj-256]
 	_ = x[passInlinableFuncToIndCallAdj-512]
 	_ = x[passInlinableFuncToNestedIndCallAdj-1024]
-	_ = x[callResultRescoreAdj-2048]
-	_ = x[lastAdj-2048]
+	_ = x[returnFeedsConstToIfAdj-2048]
+	_ = x[returnFeedsFuncToIndCallAdj-4096]
+	_ = x[returnFeedsInlinableFuncToIndCallAdj-8192]
+	_ = x[returnFeedsConcreteToInterfaceCallAdj-16384]
 }
 
 var _scoreAdjustTyp_value = [...]uint64{
-	0x1,   /* panicPathAdj */
-	0x2,   /* initFuncAdj */
-	0x4,   /* inLoopAdj */
-	0x8,   /* passConstToIfAdj */
-	0x10,  /* passConstToNestedIfAdj */
-	0x20,  /* passConcreteToItfCallAdj */
-	0x40,  /* passConcreteToNestedItfCallAdj */
-	0x80,  /* passFuncToIndCallAdj */
-	0x100, /* passFuncToNestedIndCallAdj */
-	0x200, /* passInlinableFuncToIndCallAdj */
-	0x400, /* passInlinableFuncToNestedIndCallAdj */
-	0x800, /* callResultRescoreAdj */
-	0x800, /* lastAdj */
+	0x1,    /* panicPathAdj */
+	0x2,    /* initFuncAdj */
+	0x4,    /* inLoopAdj */
+	0x8,    /* passConstToIfAdj */
+	0x10,   /* passConstToNestedIfAdj */
+	0x20,   /* passConcreteToItfCallAdj */
+	0x40,   /* passConcreteToNestedItfCallAdj */
+	0x80,   /* passFuncToIndCallAdj */
+	0x100,  /* passFuncToNestedIndCallAdj */
+	0x200,  /* passInlinableFuncToIndCallAdj */
+	0x400,  /* passInlinableFuncToNestedIndCallAdj */
+	0x800,  /* returnFeedsConstToIfAdj */
+	0x1000, /* returnFeedsFuncToIndCallAdj */
+	0x2000, /* returnFeedsInlinableFuncToIndCallAdj */
+	0x4000, /* returnFeedsConcreteToInterfaceCallAdj */
 }
 
-const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjcallResultRescoreAdjlastAdj"
+const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjreturnFeedsConstToIfAdjreturnFeedsFuncToIndCallAdjreturnFeedsInlinableFuncToIndCallAdjreturnFeedsConcreteToInterfaceCallAdj"
 
-var _scoreAdjustTyp_index = [...]uint16{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 254, 261}
+var _scoreAdjustTyp_index = [...]uint16{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 257, 284, 320, 357}
 
 func (i scoreAdjustTyp) String() string {
 	var b bytes.Buffer

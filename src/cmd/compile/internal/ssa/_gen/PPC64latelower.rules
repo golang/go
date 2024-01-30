@@ -36,3 +36,20 @@
 
 // When PCRel is supported, paddi can add a 34b signed constant in one instruction.
 (ADD (MOVDconst [m]) x) && supportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)
+
+
+// Where possible and practical, generate CC opcodes. Due to the structure of the rules, there are limits to how
+// a Value can be rewritten which make it impossible to correctly rewrite sibling Value users. To workaround this
+// case, candidates for CC opcodes are converted in two steps:
+//   1. Convert all (x (Op ...) ...) into (x (Select0 (OpCC ...) ...). See convertPPC64OpToOpCC for more
+//      detail on how and why this is done there.
+//   2. Rewrite (CMPconst [0] (Select0 (OpCC ...))) into (Select1 (OpCC...))
+// Note: to minimize potentially expensive regeneration of CC opcodes during the flagalloc pass, only rewrite if
+//       both ops are in the same block.
+(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+(CMPconst [0] z:((NEG|CNTLZD) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+// Note: ADDCCconst only assembles to 1 instruction for int16 constants.
+(CMPconst [0] z:(ADDconst [c] x)) && int64(int16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+// And finally, fixup the flag user.
+(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR)CC x y))) => (Select1 <t> z)
+(CMPconst <t> [0] (Select0 z:((ADDCCconst|NEGCC|CNTLZDCC) y))) => (Select1 <t> z)

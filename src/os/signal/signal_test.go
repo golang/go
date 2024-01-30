@@ -797,13 +797,9 @@ func TestNotifyContextStop(t *testing.T) {
 	}
 
 	stop()
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("timed out waiting for context to be done after calling stop")
+	<-c.Done()
+	if got := c.Err(); got != context.Canceled {
+		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
 	}
 }
 
@@ -818,13 +814,9 @@ func TestNotifyContextCancelParent(t *testing.T) {
 	}
 
 	cancelParent()
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("timed out waiting for parent context to be canceled")
+	<-c.Done()
+	if got := c.Err(); got != context.Canceled {
+		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
 	}
 }
 
@@ -840,13 +832,9 @@ func TestNotifyContextPrematureCancelParent(t *testing.T) {
 		t.Errorf("c.String() = %q, want %q", got, want)
 	}
 
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("timed out waiting for parent context to be canceled")
+	<-c.Done()
+	if got := c.Err(); got != context.Canceled {
+		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
 	}
 }
 
@@ -868,13 +856,9 @@ func TestNotifyContextSimultaneousStop(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	select {
-	case <-c.Done():
-		if got := c.Err(); got != context.Canceled {
-			t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
-		}
-	case <-time.After(time.Second):
-		t.Errorf("expected context to be canceled")
+	<-c.Done()
+	if got := c.Err(); got != context.Canceled {
+		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
 	}
 }
 
@@ -920,7 +904,6 @@ func TestSignalTrace(t *testing.T) {
 		if err := trace.Start(buf); err != nil {
 			t.Fatalf("[%d] failed to start tracing: %v", i, err)
 		}
-		time.After(1 * time.Microsecond)
 		trace.Stop()
 		size := buf.Len()
 		if size == 0 {

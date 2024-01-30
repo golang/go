@@ -238,8 +238,28 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	version := ""
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
-		if fields := strings.Fields(line); len(fields) > 1 && fields[1] == "version" || len(fields) > 2 && fields[2] == "version" {
-			version = line
+		fields := strings.Fields(line)
+		for i, field := range fields {
+			if strings.HasSuffix(field, ":") {
+				// Avoid parsing fields of lines like "Configured with: …", which may
+				// contain arbitrary substrings.
+				break
+			}
+			if field == "version" && i < len(fields)-1 {
+				// Check that the next field is plausibly a version number.
+				// We require only that it begins with an ASCII digit,
+				// since we don't know what version numbering schemes a given
+				// C compiler may use. (Clang and GCC mostly seem to follow the scheme X.Y.Z,
+				// but in https://go.dev/issue/64619 we saw "8.3 [DragonFly]", and who knows
+				// what other C compilers like "zig cc" might report?)
+				next := fields[i+1]
+				if len(next) > 0 && next[0] >= '0' && next[0] <= '9' {
+					version = line
+					break
+				}
+			}
+		}
+		if version != "" {
 			break
 		}
 	}

@@ -1,4 +1,4 @@
-// run -goexperiment range
+// run -goexperiment rangefunc
 
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -311,6 +311,30 @@ func testcalls() {
 	}
 }
 
+type iter3YieldFunc func(int, int) bool
+
+func iter3(list ...int) func(iter3YieldFunc) {
+	return func(yield iter3YieldFunc) {
+		for k, v := range list {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
+}
+
+func testcalls1() {
+	ncalls := 0
+	for k, v := range iter3(1, 2, 3) {
+		_, _ = k, v
+		ncalls++
+	}
+	if ncalls != 3 {
+		println("wrong number of calls:", ncalls, "!= 3")
+		panic("fail")
+	}
+}
+
 func main() {
 	testfunc0()
 	testfunc1()
@@ -323,4 +347,5 @@ func main() {
 	testfunc8()
 	testfunc9()
 	testcalls()
+	testcalls1()
 }
