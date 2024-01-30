@@ -2129,9 +2129,9 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 }
 
 func TestClientTimeoutReturnsContextDeadlineExceeded(t *testing.T) {
-	run(t, testClientTimeoutErrorTimeSensitive)
+	run(t, testClientTimeoutReturnsContextDeadlineExceededTimeouts)
 }
-func testClientTimeoutErrorTimeSensitive(t *testing.T, mode testMode) {
+func testClientTimeoutReturnsContextDeadlineExceededTimeouts(t *testing.T, mode testMode) {
 	runTimeSensitiveTest(t, []time.Duration{
 		5 * time.Millisecond,
 		10 * time.Millisecond,
