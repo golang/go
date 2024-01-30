@@ -1131,12 +1131,15 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
 }
 
-//go:linkname runtime_gcount runtime/pprof.runtime_gcount
-func runtime_gcount() int {
-	return int(gcount())
-}
-
 func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if len(p) == 0 {
+		// An empty slice is obviously too small. Return a rough
+		// allocation estimate without bothering to STW. As long as
+		// this is close, then we'll only need to STW once (on the next
+		// call).
+		return int(gcount()), false
+	}
+
 	semacquire(&goroutineProfile.sema)
 
 	ourg := getg()
