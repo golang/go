@@ -2135,7 +2135,11 @@ func testClientTimeoutReturnsContextDeadlineExceededTimeouts(t *testing.T, mode 
 	runTimeSensitiveTest(t, []time.Duration{
 		5 * time.Millisecond,
 		10 * time.Millisecond,
-		12 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
 	}, func(t *testing.T, d time.Duration) error {
 		return testClientTimeoutReturnsContextDeadlineExceeded(t, d, mode)
 	})
