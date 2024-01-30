@@ -718,7 +718,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 		error_(dec.err)
 	}
 	// Assign the concrete value to the interface.
-	// Treat carefully; it might not satisfy the interface.
+	// Tread carefully; it might not satisfy the interface.
 	if !typ.AssignableTo(ityp) {
 		errorf("%s is not assignable to type %s", typ, ityp)
 	}
