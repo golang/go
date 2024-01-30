@@ -17,24 +17,33 @@ import (
 //
 // A non-nil error returned by Join implements the Unwrap() []error method.
 func Join(errs ...error) error {
-	n := 0
-	for _, err := range errs {
-		if err != nil {
-			n++
+	allErrs := make([]error, 0, len(errs))
+	for _, e := range errs {
+		// Ignore nil errors.
+		if e == nil {
+			continue
 		}
+
+		// Specifically handle nested join errors from the standard library. This
+		// avoids deeply-nesting values which can be unexpected when unwrapping
+		// errors.
+		joinErr, ok := e.(*joinError)
+		if !ok {
+			allErrs = append(allErrs, e)
+			continue
+		}
+
+		allErrs = append(allErrs, joinErr.errs...)
 	}
-	if n == 0 {
+
+	// Ensure we return nil if all contained errors were nil.
+	if len(allErrs) == 0 {
 		return nil
 	}
-	e := &joinError{
-		errs: make([]error, 0, n),
+
+	return &joinError{
+		errs: allErrs,
 	}
-	for _, err := range errs {
-		if err != nil {
-			e.errs = append(e.errs, err)
-		}
-	}
-	return e
 }
 
 type joinError struct {

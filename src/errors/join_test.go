@@ -37,6 +37,9 @@ func TestJoin(t *testing.T) {
 	}, {
 		errs: []error{err1, nil, err2},
 		want: []error{err1, err2},
+	}, {
+		errs: []error{errors.Join(err1, err2), err1, err2},
+		want: []error{err1, err2, err1, err2},
 	}} {
 		got := errors.Join(test.errs...).(interface{ Unwrap() []error }).Unwrap()
 		if !reflect.DeepEqual(got, test.want) {
