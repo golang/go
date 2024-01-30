@@ -319,7 +319,7 @@ TEXT ·Or32(SB), NOSPLIT, $0-20
 	LL	(R1), R3
 	OR	R2, R3, R4
 	SC	R4, (R1)
-	BEQ	R4, -4(PC)
+	BEQ	R4, -3(PC)
 	SYNC
 	MOVW R3, ret+16(FP)
 	RET
@@ -333,7 +333,7 @@ TEXT ·And32(SB), NOSPLIT, $0-20
 	LL	(R1), R3
 	AND	R2, R3, R4
 	SC	R4, (R1)
-	BEQ	R4, -4(PC)
+	BEQ	R4, -3(PC)
 	SYNC
 	MOVW R3, ret+16(FP)
 	RET
@@ -347,7 +347,7 @@ TEXT ·Or64(SB), NOSPLIT, $0-24
 	LLV	(R1), R3
 	OR	R2, R3, R4
 	SCV	R4, (R1)
-	BEQ	R4, -4(PC)
+	BEQ	R4, -3(PC)
 	SYNC
 	MOVV R3, ret+16(FP)
 	RET
@@ -361,7 +361,7 @@ TEXT ·And64(SB), NOSPLIT, $0-24
 	LLV	(R1), R3
 	AND	R2, R3, R4
 	SCV	R4, (R1)
-	BEQ	R4, -4(PC)
+	BEQ	R4, -3(PC)
 	SYNC
 	MOVV R3, ret+16(FP)
 	RET
