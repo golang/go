@@ -58,7 +58,7 @@ var runtimePkgs = []string{
 	"internal/goexperiment",
 	"internal/goos",
 
-	"sync/atomic",
+	"internal/runtime/timer",
 }
 
 // extraNoInstrumentPkgs is the set of packages in addition to runtimePkgs that

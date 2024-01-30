@@ -48,7 +48,7 @@ var depsRules = `
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
-	  unsafe;
+	  unsafe, internal/runtime/timer;
 
 	unsafe < sync/atomic;
 
@@ -66,7 +66,8 @@ var depsRules = `
 	internal/goarch,
 	internal/godebugs,
 	internal/goexperiment,
-	internal/goos
+	internal/goos,
+	internal/runtime/timer
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -115,7 +116,7 @@ var depsRules = `
 	unicode !< path;
 
 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
-	RUNTIME, unicode/utf8, unicode/utf16
+	RUNTIME, unicode/utf8, unicode/utf16, internal/runtime/timer
 	< internal/syscall/windows/sysdll, syscall/js
 	< syscall
 	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry
@@ -424,7 +425,7 @@ var depsRules = `
 	< net/mail;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic,unsafe < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.

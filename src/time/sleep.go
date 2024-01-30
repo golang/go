@@ -4,9 +4,11 @@
 
 package time
 
-import "internal/abi"
+import (
+	"internal/runtime/timer"
+)
 
-type runtimeTimer = abi.Timer
+type runtimeTimer = timer.Timer
 
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
@@ -29,10 +31,10 @@ func when(d Duration) int64 {
 	return t
 }
 
-func startTimer(*abi.Timer)
-func stopTimer(*abi.Timer) bool
-func resetTimer(*abi.Timer, int64) bool
-func modTimer(t *abi.Timer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
+func startTimer(*timer.Timer)
+func stopTimer(*timer.Timer) bool
+func resetTimer(*timer.Timer, int64) bool
+func modTimer(t *timer.Timer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
