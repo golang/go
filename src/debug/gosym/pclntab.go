@@ -148,7 +148,11 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 // NewLineTable returns a new PC/line table
 // corresponding to the encoded data.
 // Text must be the start address of the
-// corresponding text segment.
+// corresponding text segment, with the exact
+// value stored in the 'runtime.text' symbol.
+// This value may differ from the start
+// address of the text segment if
+// binary was built with cgo enabled.
 func NewLineTable(data []byte, text uint64) *LineTable {
 	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
 }

@@ -1,0 +1,27 @@
+# This is a regression test for Issue #56098: Go generate
+# wasn't initializing workspace mode
+
+[short] skip
+
+go generate ./mod
+cmp ./mod/got.txt want.txt
+
+-- go.work --
+go 1.22
+
+use ./mod
+-- mod/go.mod --
+module example.com/mod
+-- mod/gen.go --
+//go:generate go run gen.go got.txt
+
+package main
+
+import "os"
+
+func main() {
+    outfile := os.Args[1]
+    os.WriteFile(outfile, []byte("Hello World!\n"), 0644)
+}
+-- want.txt --
+Hello World!

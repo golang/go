@@ -1132,6 +1132,14 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 }
 
 func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if len(p) == 0 {
+		// An empty slice is obviously too small. Return a rough
+		// allocation estimate without bothering to STW. As long as
+		// this is close, then we'll only need to STW once (on the next
+		// call).
+		return int(gcount()), false
+	}
+
 	semacquire(&goroutineProfile.sema)
 
 	ourg := getg()

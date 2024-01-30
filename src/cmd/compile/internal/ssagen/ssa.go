@@ -3700,7 +3700,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 		if typ.IsFloat() {
 			switch Arch.LinkArch.Family {
-			case sys.AMD64, sys.ARM64:
+			case sys.AMD64, sys.ARM64, sys.RISCV64:
 				var op ssa.Op
 				switch {
 				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:

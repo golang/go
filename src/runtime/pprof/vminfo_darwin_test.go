@@ -79,9 +79,9 @@ func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
 		t.Logf("vmmap output: %s", out)
 		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
 			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
+			retryable = bytes.Contains(ee.Stderr, []byte("resource shortage"))
 		}
-		retryable = bytes.Contains(out, []byte("resource shortage"))
-		t.Logf("%v: %v", cmd, cmdErr)
+		t.Logf("%v: %v\n", cmd, cmdErr)
 		if retryable {
 			return 0, 0, true, cmdErr
 		}

@@ -11,7 +11,6 @@ package types
 import (
 	"bytes"
 	"go/token"
-	"strings"
 )
 
 // Internal use of LookupFieldOrMethod: If the obj result is a method
@@ -48,7 +47,12 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	if T == nil {
 		panic("LookupFieldOrMethod on nil type")
 	}
+	return lookupFieldOrMethod(T, addressable, pkg, name, false)
+}
 
+// lookupFieldOrMethod is like LookupFieldOrMethod but with the additional foldCase parameter
+// (see Object.sameId for the meaning of foldCase).
+func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
 	// Methods cannot be associated to a named pointer type.
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
@@ -58,7 +62,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// not have found it for T (see also go.dev/issue/8590).
 	if t := asNamed(T); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
+			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -66,7 +70,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, false)
+	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
 
 	// If we didn't find anything and if we have a type parameter with a core type,
 	// see if there is a matching field (but not a method, those need to be declared
@@ -75,7 +79,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
 		if t := coreType(T); t != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, false)
+			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
 			}
@@ -84,8 +88,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return
 }
 
-// lookupFieldOrMethodImpl is the implementation of LookupFieldOrMethod.
-// Notably, in contrast to LookupFieldOrMethod, it won't find struct fields
+// lookupFieldOrMethodImpl is the implementation of lookupFieldOrMethod.
+// Notably, in contrast to lookupFieldOrMethod, it won't find struct fields
 // in base types of defined (*Named) pointer types T. For instance, given
 // the declaration:
 //
@@ -94,11 +98,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 // lookupFieldOrMethodImpl won't find the field f in the defined (*Named) type T
 // (methods on T are not permitted in the first place).
 //
-// Thus, lookupFieldOrMethodImpl should only be called by LookupFieldOrMethod
+// Thus, lookupFieldOrMethodImpl should only be called by lookupFieldOrMethod
 // and missingMethod (the latter doesn't care about struct fields).
-//
-// If foldCase is true, method names are considered equal if they are equal
-// with case folding, irrespective of which package they are in.
 //
 // The resulting object may not be fully type-checked.
 func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
@@ -169,7 +170,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
-					if f.sameId(pkg, name) {
+					if f.sameId(pkg, name, foldCase) {
 						assert(f.typ != nil)
 						index = concat(e.index, i)
 						if obj != nil || e.multiples {
@@ -579,10 +580,11 @@ func concat(list []int, i int) []int {
 }
 
 // fieldIndex returns the index for the field with matching package and name, or a value < 0.
-func fieldIndex(fields []*Var, pkg *Package, name string) int {
+// See Object.sameId for the meaning of foldCase.
+func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
 	if name != "_" {
 		for i, f := range fields {
-			if f.sameId(pkg, name) {
+			if f.sameId(pkg, name, foldCase) {
 				return i
 			}
 		}
@@ -591,12 +593,11 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 }
 
 // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
-// If foldCase is true, method names are considered equal if they are equal with case folding
-// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
+// See Object.sameId for the meaning of foldCase.
 func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
 	if name != "_" {
 		for i, m := range methods {
-			if m.sameId(pkg, name) || foldCase && strings.EqualFold(m.name, name) {
+			if m.sameId(pkg, name, foldCase) {
 				return i, m
 			}
 		}
