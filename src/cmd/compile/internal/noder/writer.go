@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"go/version"
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
@@ -188,7 +189,9 @@ type writer struct {
 
 // A writerDict tracks types and objects that are used by a declaration.
 type writerDict struct {
-	implicits []*types2.TypeName
+	// implicits is a slice of type parameters from the enclosing
+	// declarations.
+	implicits []*types2.TypeParam
 
 	// derived is a slice of type indices for computing derived types
 	// (i.e., types that depend on the declaration's type parameters).
@@ -216,7 +219,7 @@ type itabInfo struct {
 // generic function or method.
 func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 	for idx, implicit := range dict.implicits {
-		if implicit.Type().(*types2.TypeParam) == typ {
+		if implicit == typ {
 			return idx
 		}
 	}
@@ -512,24 +515,20 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 
 		default:
 			// Handle "byte" and "rune" as references to their TypeNames.
-			obj := types2.Universe.Lookup(typ.Name())
+			obj := types2.Universe.Lookup(typ.Name()).(*types2.TypeName)
 			assert(obj.Type() == typ)
 
 			w.Code(pkgbits.TypeNamed)
-			w.obj(obj, nil)
+			w.namedType(obj, nil)
 		}
 
 	case *types2.Named:
-		obj, targs := splitNamed(typ)
-
-		// Defined types that are declared within a generic function (and
-		// thus have implicit type parameters) are always derived types.
-		if w.p.hasImplicitTypeParams(obj) {
-			w.derived = true
-		}
-
 		w.Code(pkgbits.TypeNamed)
-		w.obj(obj, targs)
+		w.namedType(splitNamed(typ))
+
+	case *types2.Alias:
+		w.Code(pkgbits.TypeNamed)
+		w.namedType(typ.Obj(), nil)
 
 	case *types2.TypeParam:
 		w.derived = true
@@ -593,6 +592,17 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 
 	pw.typsIdx[typ] = w.Idx
 	return typeInfo{idx: w.Flush(), derived: false}
+}
+
+// namedType writes a use of the given named type into the bitstream.
+func (w *writer) namedType(obj *types2.TypeName, targs *types2.TypeList) {
+	// Named types that are declared within a generic function (and
+	// thus have implicit type parameters) are always derived types.
+	if w.p.hasImplicitTypeParams(obj) {
+		w.derived = true
+	}
+
+	w.obj(obj, targs)
 }
 
 func (w *writer) structType(typ *types2.Struct) {
@@ -888,8 +898,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// parameter is constrained to `int | uint` but then never used in
 	// arithmetic/conversions/etc, we could shape those together.
 	for _, implicit := range dict.implicits {
-		tparam := implicit.Type().(*types2.TypeParam)
-		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
+		w.Bool(implicit.Underlying().(*types2.Interface).IsMethodSet())
 	}
 	for i := 0; i < ntparams; i++ {
 		tparam := tparams.At(i)
@@ -1479,8 +1488,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	lv := base.Debug.LoopVar
-	v := w.p.info.FileVersions[stmt.Pos().Base()]
-	is122 := v.Major == 0 && v.Minor == 0 || v.Major == 1 && v.Minor >= 22
+	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
 
 	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
 	//
@@ -1714,6 +1723,15 @@ func (w *writer) expr(expr syntax.Expr) {
 	targs := inst.TypeArgs
 
 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
+		if tv.IsRuntimeHelper() {
+			if pkg := obj.Pkg(); pkg != nil && pkg.Name() == "runtime" {
+				objName := obj.Name()
+				w.Code(exprRuntimeBuiltin)
+				w.String(objName)
+				return
+			}
+		}
+
 		if tv.IsType() {
 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
 		}
@@ -2114,7 +2132,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 
 	// Method on a type parameter. These require an indirect call
 	// through the current function's runtime dictionary.
-	if typeParam, ok := recv.(*types2.TypeParam); w.Bool(ok) {
+	if typeParam, ok := types2.Unalias(recv).(*types2.TypeParam); w.Bool(ok) {
 		typeParamIdx := w.dict.typeParamIndex(typeParam)
 		methodInfo := w.p.selectorIdx(fun)
 
@@ -2127,7 +2145,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	}
 
 	if !isInterface(recv) {
-		if named, ok := deref2(recv).(*types2.Named); ok {
+		if named, ok := types2.Unalias(deref2(recv)).(*types2.Named); ok {
 			obj, targs := splitNamed(named)
 			info := w.p.objInstIdx(obj, targs, w.dict)
 
@@ -2352,12 +2370,16 @@ func (w *writer) varDictIndex(obj *types2.Var) {
 	}
 }
 
+// isUntyped reports whether typ is an untyped type.
 func isUntyped(typ types2.Type) bool {
+	// Note: types2.Unalias is unnecessary here, since untyped types can't be aliased.
 	basic, ok := typ.(*types2.Basic)
 	return ok && basic.Info()&types2.IsUntyped != 0
 }
 
+// isTuple reports whether typ is a tuple type.
 func isTuple(typ types2.Type) bool {
+	// Note: types2.Unalias is unnecessary here, since tuple types can't be aliased.
 	_, ok := typ.(*types2.Tuple)
 	return ok
 }
@@ -2406,7 +2428,7 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
 // If typ is a type parameter, then isInterface reports an internal
 // compiler error instead.
 func isInterface(typ types2.Type) bool {
-	if _, ok := typ.(*types2.TypeParam); ok {
+	if _, ok := types2.Unalias(typ).(*types2.TypeParam); ok {
 		// typ is a type parameter and may be instantiated as either a
 		// concrete or interface type, so the writer can't depend on
 		// knowing this.
@@ -2437,7 +2459,7 @@ type typeDeclGen struct {
 	gen int
 
 	// Implicit type parameters in scope at this type declaration.
-	implicits []*types2.TypeName
+	implicits []*types2.TypeParam
 }
 
 type fileImports struct {
@@ -2455,7 +2477,7 @@ type declCollector struct {
 	typegen    *int
 	file       *fileImports
 	withinFunc bool
-	implicits  []*types2.TypeName
+	implicits  []*types2.TypeParam
 }
 
 func (c *declCollector) withTParams(obj types2.Object) *declCollector {
@@ -2468,7 +2490,7 @@ func (c *declCollector) withTParams(obj types2.Object) *declCollector {
 	copy := *c
 	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
 	for i := 0; i < n; i++ {
-		copy.implicits = append(copy.implicits, tparams.At(i).Obj())
+		copy.implicits = append(copy.implicits, tparams.At(i))
 	}
 	return &copy
 }
@@ -2483,7 +2505,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 	case *syntax.ImportDecl:
 		pw.checkPragmas(n.Pragma, 0, false)
 
-		switch pkgNameOf(pw.info, n).Imported().Path() {
+		switch pw.info.PkgNameOf(n).Imported().Path() {
 		case "embed":
 			c.file.importedEmbed = true
 		case "unsafe":
@@ -2857,9 +2879,9 @@ func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
 
 // recvBase returns the base type for the given receiver parameter.
 func recvBase(recv *types2.Var) *types2.Named {
-	typ := recv.Type()
+	typ := types2.Unalias(recv.Type())
 	if ptr, ok := typ.(*types2.Pointer); ok {
-		typ = ptr.Elem()
+		typ = types2.Unalias(ptr.Elem())
 	}
 	return typ.(*types2.Named)
 }
@@ -2935,7 +2957,7 @@ func asWasmImport(p syntax.Pragma) *WasmImport {
 
 // isPtrTo reports whether from is the type *to.
 func isPtrTo(from, to types2.Type) bool {
-	ptr, ok := from.(*types2.Pointer)
+	ptr, ok := types2.Unalias(from).(*types2.Pointer)
 	return ok && types2.Identical(ptr.Elem(), to)
 }
 

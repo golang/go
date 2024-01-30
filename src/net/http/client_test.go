@@ -946,7 +946,7 @@ func testResponseSetsTLSConnectionState(t *testing.T, mode testMode) {
 
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
-	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA}
+	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA}
 	tr.TLSClientConfig.MaxVersion = tls.VersionTLS12 // to get to pick the cipher suite
 	tr.Dial = func(netw, addr string) (net.Conn, error) {
 		return net.Dial(netw, ts.Listener.Addr().String())
@@ -959,7 +959,7 @@ func testResponseSetsTLSConnectionState(t *testing.T, mode testMode) {
 	if res.TLS == nil {
 		t.Fatal("Response didn't set TLS Connection State.")
 	}
-	if got, want := res.TLS.CipherSuite, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA; got != want {
+	if got, want := res.TLS.CipherSuite, tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA; got != want {
 		t.Errorf("TLS Cipher Suite = %d; want %d", got, want)
 	}
 }

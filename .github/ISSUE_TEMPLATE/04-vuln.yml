@@ -1,0 +1,52 @@
+name: Go vulnerability management - bugs and feature requests
+description: Issues or feature requests about Go vulnerability management
+title: "x/vuln: issue title"
+labels: ["vulncheck or vulndb"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
+  - type: textarea
+    id: govulncheck-version
+    attributes:
+      label: govulncheck version
+      description: What version of govulncheck are you using (`govulncheck -version`)?
+      placeholder: |
+        Go: devel go1.22-0262ea1ff9 Thu Oct 26 18:46:50 2023 +0000
+        Scanner: govulncheck@v1.0.2-0.20231108200754-fcf7dff7b242
+        DB: https://vuln.go.dev
+        DB updated: 2023-11-21 15:39:17 +0000 UTC
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce-latest-version
+    attributes:
+      label: "Does this issue reproduce at the latest version of golang.org/x/vuln?"
+    validations:
+      required: true
+  - type: textarea
+    id: go-env
+    attributes:
+      label: "Output of `go env` in your module/workspace:"
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: what-did-you-do
+    attributes:
+      label: "What did you do?"
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see happen?"
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "What did you expect to see?"
+    validations:
+      required: true

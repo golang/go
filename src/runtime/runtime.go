@@ -17,34 +17,100 @@ import (
 var ticks ticksType
 
 type ticksType struct {
-	lock mutex
-	val  atomic.Int64
+	// lock protects access to start* and val.
+	lock       mutex
+	startTicks int64
+	startTime  int64
+	val        atomic.Int64
 }
 
-// Note: Called by runtime/pprof in addition to runtime code.
-func tickspersecond() int64 {
+// init initializes ticks to maximize the chance that we have a good ticksPerSecond reference.
+//
+// Must not run concurrently with ticksPerSecond.
+func (t *ticksType) init() {
+	lock(&ticks.lock)
+	t.startTime = nanotime()
+	t.startTicks = cputicks()
+	unlock(&ticks.lock)
+}
+
+// minTimeForTicksPerSecond is the minimum elapsed time we require to consider our ticksPerSecond
+// measurement to be of decent enough quality for profiling.
+//
+// There's a linear relationship here between minimum time and error from the true value.
+// The error from the true ticks-per-second in a linux/amd64 VM seems to be:
+// -   1 ms -> ~0.02% error
+// -   5 ms -> ~0.004% error
+// -  10 ms -> ~0.002% error
+// -  50 ms -> ~0.0003% error
+// - 100 ms -> ~0.0001% error
+//
+// We're willing to take 0.004% error here, because ticksPerSecond is intended to be used for
+// converting durations, not timestamps. Durations are usually going to be much larger, and so
+// the tiny error doesn't matter. The error is definitely going to be a problem when trying to
+// use this for timestamps, as it'll make those timestamps much less likely to line up.
+const minTimeForTicksPerSecond = 5_000_000*(1-osHasLowResClockInt) + 100_000_000*osHasLowResClockInt
+
+// ticksPerSecond returns a conversion rate between the cputicks clock and the nanotime clock.
+//
+// Note: Clocks are hard. Using this as an actual conversion rate for timestamps is ill-advised
+// and should be avoided when possible. Use only for durations, where a tiny error term isn't going
+// to make a meaningful difference in even a 1ms duration. If an accurate timestamp is needed,
+// use nanotime instead. (The entire Windows platform is a broad exception to this rule, where nanotime
+// produces timestamps on such a coarse granularity that the error from this conversion is actually
+// preferable.)
+//
+// The strategy for computing the conversion rate is to write down nanotime and cputicks as
+// early in process startup as possible. From then, we just need to wait until we get values
+// from nanotime that we can use (some platforms have a really coarse system time granularity).
+// We require some amount of time to pass to ensure that the conversion rate is fairly accurate
+// in aggregate. But because we compute this rate lazily, there's a pretty good chance a decent
+// amount of time has passed by the time we get here.
+//
+// Must be called from a normal goroutine context (running regular goroutine with a P).
+//
+// Called by runtime/pprof in addition to runtime code.
+//
+// TODO(mknyszek): This doesn't account for things like CPU frequency scaling. Consider
+// a more sophisticated and general approach in the future.
+func ticksPerSecond() int64 {
+	// Get the conversion rate if we've already computed it.
 	r := ticks.val.Load()
 	if r != 0 {
 		return r
 	}
-	lock(&ticks.lock)
-	r = ticks.val.Load()
-	if r == 0 {
-		t0 := nanotime()
-		c0 := cputicks()
-		usleep(100 * 1000)
-		t1 := nanotime()
-		c1 := cputicks()
-		if t1 == t0 {
-			t1++
+
+	// Compute the conversion rate.
+	for {
+		lock(&ticks.lock)
+		r = ticks.val.Load()
+		if r != 0 {
+			unlock(&ticks.lock)
+			return r
 		}
-		r = (c1 - c0) * 1000 * 1000 * 1000 / (t1 - t0)
-		if r == 0 {
-			r++
+
+		// Grab the current time in both clocks.
+		nowTime := nanotime()
+		nowTicks := cputicks()
+
+		// See if we can use these times.
+		if nowTicks > ticks.startTicks && nowTime-ticks.startTime > minTimeForTicksPerSecond {
+			// Perform the calculation with floats. We don't want to risk overflow.
+			r = int64(float64(nowTicks-ticks.startTicks) * 1e9 / float64(nowTime-ticks.startTime))
+			if r == 0 {
+				// Zero is both a sentinel value and it would be bad if callers used this as
+				// a divisor. We tried out best, so just make it 1.
+				r++
+			}
+			ticks.val.Store(r)
+			unlock(&ticks.lock)
+			break
 		}
-		ticks.val.Store(r)
+		unlock(&ticks.lock)
+
+		// Sleep in one millisecond increments until we have a reliable time.
+		timeSleep(1_000_000)
 	}
-	unlock(&ticks.lock)
 	return r
 }
 
@@ -101,12 +167,17 @@ func (g *godebugInc) IncNonDefault() {
 		if newInc == nil {
 			return
 		}
-		// If other goroutines are racing here, no big deal. One will win,
-		// and all the inc functions will be using the same underlying
-		// *godebug.Setting.
 		inc = new(func())
 		*inc = (*newInc)(g.name)
-		g.inc.Store(inc)
+		if raceenabled {
+			racereleasemerge(unsafe.Pointer(&g.inc))
+		}
+		if !g.inc.CompareAndSwap(nil, inc) {
+			inc = g.inc.Load()
+		}
+	}
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&g.inc))
 	}
 	(*inc)()
 }

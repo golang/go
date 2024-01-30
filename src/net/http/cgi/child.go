@@ -46,7 +46,7 @@ func envMap(env []string) map[string]string {
 	return m
 }
 
-// RequestFromMap creates an http.Request from CGI variables.
+// RequestFromMap creates an [http.Request] from CGI variables.
 // The returned Request's Body field is not populated.
 func RequestFromMap(params map[string]string) (*http.Request, error) {
 	r := new(http.Request)
@@ -138,10 +138,10 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	return r, nil
 }
 
-// Serve executes the provided Handler on the currently active CGI
+// Serve executes the provided [Handler] on the currently active CGI
 // request, if any. If there's no current CGI environment
 // an error is returned. The provided handler may be nil to use
-// http.DefaultServeMux.
+// [http.DefaultServeMux].
 func Serve(handler http.Handler) error {
 	req, err := Request()
 	if err != nil {

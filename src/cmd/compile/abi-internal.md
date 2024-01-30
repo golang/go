@@ -633,6 +633,56 @@ modifying or saving the FPCR.
 Functions are allowed to modify it between calls (as long as they
 restore it), but as of this writing Go code never does.
 
+### loong64 architecture
+
+The loong64 architecture uses R4 – R19 for integer arguments and integer results.
+
+It uses F0 – F15 for floating-point arguments and results.
+
+Registers R20 - R21, R23 – R28, R30 - R31, F16 – F31 are permanent scratch registers.
+
+Register R2 is reserved and never used.
+
+Register R20, R21 is Used by runtime.duffcopy, runtime.duffzero.
+
+Special-purpose registers used within Go generated code and Go assembly code
+are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| R0 | Zero value | Same | Same |
+| R1 | Link register | Link register | Scratch |
+| R3 | Stack pointer | Same | Same |
+| R20,R21 | Scratch | Scratch | Used by duffcopy, duffzero |
+| R22 | Current goroutine | Same | Same |
+| R29 | Closure context pointer | Same | Same |
+| R30, R31 | used by the assembler | Same | Same |
+
+*Rationale*: These register meanings are compatible with Go’s stack-based
+calling convention.
+
+#### Stack layout
+
+The stack pointer, R3, grows down and is aligned to 8 bytes.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | return PC                    | ← R3 points to
+    +------------------------------+ ↓ lower addresses
+
+This stack layout is used by both register-based (ABIInternal) and
+stack-based (ABI0) calling conventions.
+
+The "return PC" is loaded to the link register, R1, as part of the
+loong64 `JAL` operation.
+
+#### Flags
+All bits in CSR are system flags and are not modified by Go.
+
 ### ppc64 architecture
 
 The ppc64 architecture uses R3 – R10 and R14 – R17 for integer arguments

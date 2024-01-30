@@ -64,7 +64,7 @@ type Func struct {
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
 	RegArgs []Spill
-	// AuxCall describing parameters and results for this function.
+	// OwnAux describes parameters and results for this function.
 	OwnAux *AuxCall
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
@@ -721,7 +721,6 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 		v.AddArg(sp)
 	}
 	return v
-
 }
 
 func (f *Func) Frontend() Frontend                                  { return f.fe }

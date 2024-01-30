@@ -390,6 +390,7 @@ func TestAddrPortMarshalTextString(t *testing.T) {
 		want string
 	}{
 		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[::]:80"), "[::]:80"},
 		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
 		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
 		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},
@@ -1690,7 +1691,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 	}
 }
 
-func BenchmarkIPString(b *testing.B) {
+func BenchmarkAddrString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
@@ -1714,11 +1715,15 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 	}
 }
 
-func BenchmarkIPMarshalText(b *testing.B) {
-	b.ReportAllocs()
-	ip := MustParseAddr("66.55.44.33")
-	for i := 0; i < b.N; i++ {
-		sinkBytes, _ = ip.MarshalText()
+func BenchmarkAddrMarshalText(b *testing.B) {
+	for _, test := range parseBenchInputs {
+		ip := MustParseAddr(test.ip)
+		b.Run(test.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sinkBytes, _ = ip.MarshalText()
+			}
+		})
 	}
 }
 

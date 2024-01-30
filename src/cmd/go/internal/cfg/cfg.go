@@ -408,13 +408,14 @@ var (
 	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
-	GO386    = envOr("GO386", buildcfg.GO386)
-	GOAMD64  = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
-	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
-	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
-	GOWASM   = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+	GOARM     = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+	GO386     = envOr("GO386", buildcfg.GO386)
+	GOAMD64   = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
+	GOMIPS    = envOr("GOMIPS", buildcfg.GOMIPS)
+	GOMIPS64  = envOr("GOMIPS64", buildcfg.GOMIPS64)
+	GOPPC64   = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+	GORISCV64 = envOr("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+	GOWASM    = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
 	GOPROXY    = envOr("GOPROXY", "")
 	GOSUMDB    = envOr("GOSUMDB", "")
@@ -445,6 +446,8 @@ func GetArchEnv() (key, val string) {
 		return "GOMIPS64", GOMIPS64
 	case "ppc64", "ppc64le":
 		return "GOPPC64", GOPPC64
+	case "riscv64":
+		return "GORISCV64", GORISCV64
 	case "wasm":
 		return "GOWASM", GOWASM
 	}

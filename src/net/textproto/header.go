@@ -23,7 +23,7 @@ func (h MIMEHeader) Set(key, value string) {
 }
 
 // Get gets the first value associated with the given key.
-// It is case insensitive; CanonicalMIMEHeaderKey is used
+// It is case insensitive; [CanonicalMIMEHeaderKey] is used
 // to canonicalize the provided key.
 // If there are no values associated with the key, Get returns "".
 // To use non-canonical keys, access the map directly.
@@ -39,7 +39,7 @@ func (h MIMEHeader) Get(key string) string {
 }
 
 // Values returns all values associated with the given key.
-// It is case insensitive; CanonicalMIMEHeaderKey is
+// It is case insensitive; [CanonicalMIMEHeaderKey] is
 // used to canonicalize the provided key. To use non-canonical
 // keys, access the map directly.
 // The returned slice is not a copy.

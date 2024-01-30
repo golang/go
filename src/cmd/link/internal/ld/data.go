@@ -43,6 +43,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"log"
 	"os"
 	"sort"
@@ -56,10 +57,11 @@ import (
 func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
-		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
-		"internal/abi",     // used by reflectcall (and maybe more)
-		"internal/bytealg", // for IndexByte
-		"internal/cpu":     // for cpu features
+		"sync/atomic",          // runtime may call to sync/atomic, due to go:linkname
+		"internal/abi",         // used by reflectcall (and maybe more)
+		"internal/bytealg",     // for IndexByte
+		"internal/chacha8rand", // for rand
+		"internal/cpu":         // for cpu features
 		return true
 	}
 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
@@ -1161,11 +1163,11 @@ func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 }
 
 func pdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.pdata}, addr, size, zeros[:])
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, sehp.pdata, addr, size, zeros[:])
 }
 
 func xdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.xdata}, addr, size, zeros[:])
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, sehp.xdata, addr, size, zeros[:])
 }
 
 var covCounterDataStartOff, covCounterDataLen uint64
@@ -2199,14 +2201,14 @@ func (state *dodataState) allocateDwarfSections(ctxt *Link) {
 // allocateSEHSections allocate a sym.Section object for SEH
 // symbols, and assigns symbols to sections.
 func (state *dodataState) allocateSEHSections(ctxt *Link) {
-	if sehp.pdata > 0 {
-		sect := state.allocateDataSectionForSym(&Segpdata, sehp.pdata, 04)
-		state.assignDsymsToSection(sect, []loader.Sym{sehp.pdata}, sym.SRODATA, aligndatsize)
+	if len(sehp.pdata) > 0 {
+		sect := state.allocateNamedDataSection(&Segpdata, ".pdata", []sym.SymKind{}, 04)
+		state.assignDsymsToSection(sect, sehp.pdata, sym.SRODATA, aligndatsize)
 		state.checkdatsize(sym.SSEHSECT)
 	}
-	if sehp.xdata > 0 {
+	if len(sehp.xdata) > 0 {
 		sect := state.allocateNamedDataSection(&Segxdata, ".xdata", []sym.SymKind{}, 04)
-		state.assignDsymsToSection(sect, []loader.Sym{sehp.xdata}, sym.SRODATA, aligndatsize)
+		state.assignDsymsToSection(sect, sehp.xdata, sym.SRODATA, aligndatsize)
 		state.checkdatsize(sym.SSEHSECT)
 	}
 }
@@ -2555,8 +2557,8 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		sect.Align = align
 	}
 
-	funcsize := uint64(MINFUNC) // spacing required for findfunctab
-	if ldr.SymSize(s) > MINFUNC {
+	funcsize := uint64(abi.MINFUNC) // spacing required for findfunctab
+	if ldr.SymSize(s) > abi.MINFUNC {
 		funcsize = uint64(ldr.SymSize(s))
 	}
 
@@ -2610,7 +2612,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 				// Assign its address directly in order to be the
 				// first symbol of this new section.
 				ntext.SetType(sym.STEXT)
-				ntext.SetSize(int64(MINFUNC))
+				ntext.SetSize(int64(abi.MINFUNC))
 				ntext.SetOnList(true)
 				ntext.SetAlign(sectAlign)
 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
@@ -2872,7 +2874,12 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	for _, s := range []loader.Sym{sehp.pdata, sehp.xdata} {
+	for _, s := range sehp.pdata {
+		if sect := ldr.SymSect(s); sect != nil {
+			ldr.AddToSymValue(s, int64(sect.Vaddr))
+		}
+	}
+	for _, s := range sehp.xdata {
 		if sect := ldr.SymSect(s); sect != nil {
 			ldr.AddToSymValue(s, int64(sect.Vaddr))
 		}

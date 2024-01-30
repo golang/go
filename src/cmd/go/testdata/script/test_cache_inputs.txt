@@ -114,6 +114,13 @@ go test testcache -run=TestOSArgs -failfast
 go test testcache -run=TestOSArgs -failfast
 stdout '\(cached\)'
 
+# golang.org/issue/64638: that includes the `-fullpath` argument.
+go test testcache -run=TestOSArgs -fullpath
+! stdout '\(cached\)'
+go test testcache -run=TestOSArgs -fullpath
+stdout '\(cached\)'
+
+
 # Executables within GOROOT and GOPATH should affect caching,
 # even if the test does not stat them explicitly.
 

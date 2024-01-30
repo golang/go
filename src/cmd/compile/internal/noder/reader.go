@@ -5,10 +5,10 @@
 package noder
 
 import (
+	"encoding/hex"
 	"fmt"
 	"go/constant"
 	"internal/buildcfg"
-	"internal/goexperiment"
 	"internal/pkgbits"
 	"path/filepath"
 	"strings"
@@ -16,12 +16,14 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/inline"
+	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -883,7 +885,16 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 		under = types.NewPtr(types.Types[types.TUINT8])
 	}
 
-	sym := types.ShapePkg.Lookup(under.LinkString())
+	// Hash long type names to bound symbol name length seen by users,
+	// particularly for large protobuf structs (#65030).
+	uls := under.LinkString()
+	if base.Debug.MaxShapeLen != 0 &&
+		len(uls) > base.Debug.MaxShapeLen {
+		h := notsha256.Sum256([]byte(uls))
+		uls = hex.EncodeToString(h[:])
+	}
+
+	sym := types.ShapePkg.Lookup(uls)
 	if sym.Def == nil {
 		name := ir.NewDeclNameAt(under.Pos(), ir.OTYPE, sym)
 		typ := types.NewNamed(name)
@@ -1103,7 +1114,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 				Cost:            int32(r.Len()),
 				CanDelayResults: r.Bool(),
 			}
-			if goexperiment.NewInliner {
+			if buildcfg.Experiment.NewInliner {
 				fn.Inl.Properties = r.String()
 			}
 		}
@@ -2442,6 +2453,10 @@ func (r *reader) expr() (res ir.Node) {
 			n.SetTypecheck(1)
 		}
 		return n
+
+	case exprRuntimeBuiltin:
+		builtin := typecheck.LookupRuntime(r.String())
+		return builtin
 	}
 }
 
@@ -3791,7 +3806,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// We generate wrappers after the global inlining pass,
 	// so we're responsible for applying inlining ourselves here.
 	// TODO(prattmic): plumb PGO.
-	inline.InlineCalls(fn, nil)
+	interleaved.DevirtualizeAndInlineFunc(fn, nil)
 
 	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
 	// we don't know whether wrapper function has been generated for it or not, so

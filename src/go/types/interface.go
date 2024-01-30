@@ -200,7 +200,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// use named receiver type if available (for better error messages)
 		var recvTyp Type = ityp
 		if def != nil {
-			if named, _ := def.typ.(*Named); named != nil {
+			if named := asNamed(def.typ); named != nil {
 				recvTyp = named
 			}
 		}

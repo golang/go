@@ -273,10 +273,6 @@ var (
 	symSize int32
 )
 
-const (
-	MINFUNC = 16 // minimum size for a function
-)
-
 // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
 // are used, 0 otherwise.
 var abiInternalVer = sym.SymVerABIInternal
@@ -878,7 +874,17 @@ func (ctxt *Link) linksetup() {
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
-			sb.AddUint8(uint8(buildcfg.GOARM))
+			sb.AddUint8(uint8(buildcfg.GOARM.Version))
+
+			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
+			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
+			sb2.SetType(sym.SDATA)
+			sb2.SetSize(0)
+			if buildcfg.GOARM.SoftFloat {
+				sb2.AddUint8(1)
+			} else {
+				sb2.AddUint8(0)
+			}
 		}
 
 		// Set runtime.disableMemoryProfiling bool if
@@ -1868,9 +1874,10 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("\n")
 	}
 
-	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
+	cmd := exec.Command(argv[0], argv[1:]...)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+		Exitf("running %s failed: %v\n%s\n%s", argv[0], err, cmd, out)
 	}
 
 	// Filter out useless linker warnings caused by bugs outside Go.
@@ -1953,7 +1960,7 @@ func (ctxt *Link) hostlink() {
 			ctxt.Logf("\n")
 		}
 		if out, err := cmd.CombinedOutput(); err != nil {
-			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+			Exitf("%s: running dsymutil failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
@@ -1972,8 +1979,9 @@ func (ctxt *Link) hostlink() {
 			}
 			ctxt.Logf("\n")
 		}
-		if out, err := exec.Command(stripCmd, stripArgs...).CombinedOutput(); err != nil {
-			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
+		cmd = exec.Command(stripCmd, stripArgs...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {
@@ -2220,15 +2228,21 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		0xc401, // arm
 		0x64aa: // arm64
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+			ls, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
 			}
-			if len(rsrc) != 0 {
-				setpersrc(ctxt, rsrc)
+			if len(ls.Resources) != 0 {
+				setpersrc(ctxt, ls.Resources)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			if ls.PData != 0 {
+				sehp.pdata = append(sehp.pdata, ls.PData)
+			}
+			if ls.XData != 0 {
+				sehp.xdata = append(sehp.xdata, ls.XData)
+			}
+			ctxt.Textp = append(ctxt.Textp, ls.Textp...)
 		}
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}

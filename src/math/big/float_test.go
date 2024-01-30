@@ -194,13 +194,11 @@ func alike(x, y *Float) bool {
 func alike32(x, y float32) bool {
 	// we can ignore NaNs
 	return x == y && math.Signbit(float64(x)) == math.Signbit(float64(y))
-
 }
 
 func alike64(x, y float64) bool {
 	// we can ignore NaNs
 	return x == y && math.Signbit(x) == math.Signbit(y)
-
 }
 
 func TestFloatMantExp(t *testing.T) {

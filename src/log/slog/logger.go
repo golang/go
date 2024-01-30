@@ -16,6 +16,36 @@ import (
 
 var defaultLogger atomic.Pointer[Logger]
 
+var logLoggerLevel LevelVar
+
+// SetLogLoggerLevel controls the level for the bridge to the [log] package.
+//
+// Before [SetDefault] is called, slog top-level logging functions call the default [log.Logger].
+// In that mode, SetLogLoggerLevel sets the minimum level for those calls.
+// By default, the minimum level is Info, so calls to [Debug]
+// (as well as top-level logging calls at lower levels)
+// will not be passed to the log.Logger. After calling
+//
+//	slog.SetLogLoggerLevel(slog.LevelDebug)
+//
+// calls to [Debug] will be passed to the log.Logger.
+//
+// After [SetDefault] is called, calls to the default [log.Logger] are passed to the
+// slog default handler. In that mode,
+// SetLogLoggerLevel sets the level at which those calls are logged.
+// That is, after calling
+//
+//	slog.SetLogLoggerLevel(slog.LevelDebug)
+//
+// A call to [log.Printf] will result in output at level [LevelDebug].
+//
+// SetLogLoggerLevel returns the previous value.
+func SetLogLoggerLevel(level Level) (oldLevel Level) {
+	oldLevel = logLoggerLevel.Level()
+	logLoggerLevel.Set(level)
+	return
+}
+
 func init() {
 	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
 }
@@ -23,9 +53,11 @@ func init() {
 // Default returns the default [Logger].
 func Default() *Logger { return defaultLogger.Load() }
 
-// SetDefault makes l the default [Logger].
+// SetDefault makes l the default [Logger], which is used by
+// the top-level functions [Info], [Debug] and so on.
 // After this call, output from the log package's default Logger
-// (as with [log.Print], etc.) will be logged at [LevelInfo] using l's Handler.
+// (as with [log.Print], etc.) will be logged using l's Handler,
+// at a level controlled by [SetLogLoggerLevel].
 func SetDefault(l *Logger) {
 	defaultLogger.Store(l)
 	// If the default's handler is a defaultHandler, then don't use a handleWriter,
@@ -36,7 +68,7 @@ func SetDefault(l *Logger) {
 	// See TestSetDefault.
 	if _, ok := l.Handler().(*defaultHandler); !ok {
 		capturePC := log.Flags()&(log.Lshortfile|log.Llongfile) != 0
-		log.SetOutput(&handlerWriter{l.Handler(), LevelInfo, capturePC})
+		log.SetOutput(&handlerWriter{l.Handler(), &logLoggerLevel, capturePC})
 		log.SetFlags(0) // we want just the log message, no time or location
 	}
 }
@@ -45,12 +77,13 @@ func SetDefault(l *Logger) {
 // It is used to link the default log.Logger to the default slog.Logger.
 type handlerWriter struct {
 	h         Handler
-	level     Level
+	level     Leveler
 	capturePC bool
 }
 
 func (w *handlerWriter) Write(buf []byte) (int, error) {
-	if !w.h.Enabled(context.Background(), w.level) {
+	level := w.level.Level()
+	if !w.h.Enabled(context.Background(), level) {
 		return 0, nil
 	}
 	var pc uintptr
@@ -66,7 +99,7 @@ func (w *handlerWriter) Write(buf []byte) (int, error) {
 	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
 		buf = buf[:len(buf)-1]
 	}
-	r := NewRecord(time.Now(), w.level, string(buf), pc)
+	r := NewRecord(time.Now(), level, string(buf), pc)
 	return origLen, w.h.Handle(context.Background(), r)
 }
 
@@ -113,7 +146,6 @@ func (l *Logger) WithGroup(name string) *Logger {
 	c := l.clone()
 	c.handler = l.handler.WithGroup(name)
 	return c
-
 }
 
 // New creates a new Logger with the given non-nil Handler.

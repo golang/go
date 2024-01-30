@@ -834,6 +834,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 

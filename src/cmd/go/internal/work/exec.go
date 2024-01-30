@@ -629,19 +629,6 @@ OverlayLoop:
 		}
 	}
 
-	// Run SWIG on each .swig and .swigcxx file.
-	// Each run will generate two files, a .go file and a .c or .cxx file.
-	// The .go file will use import "C" and is to be processed by cgo.
-	if p.UsesSwig() {
-		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
-		if err != nil {
-			return err
-		}
-		cgofiles = append(cgofiles, outGo...)
-		cfiles = append(cfiles, outC...)
-		cxxfiles = append(cxxfiles, outCXX...)
-	}
-
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if p.Internal.Cover.Mode != "" {
 		outfiles := []string{}
@@ -720,6 +707,22 @@ OverlayLoop:
 				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
 			}
 		}
+	}
+
+	// Run SWIG on each .swig and .swigcxx file.
+	// Each run will generate two files, a .go file and a .c or .cxx file.
+	// The .go file will use import "C" and is to be processed by cgo.
+	// For -cover test or build runs, this needs to happen after the cover
+	// tool is run; we don't want to instrument swig-generated Go files,
+	// see issue #64661.
+	if p.UsesSwig() {
+		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
+		if err != nil {
+			return err
+		}
+		cgofiles = append(cgofiles, outGo...)
+		cfiles = append(cfiles, outC...)
+		cxxfiles = append(cxxfiles, outCXX...)
 	}
 
 	// Run cgo.
@@ -3066,12 +3069,12 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		if !str.Contains(ldflags, "-no-pie") {
+		if !slices.Contains(ldflags, "-no-pie") {
 			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
 			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
 			ldflags = append(ldflags, "-pie")
 		}
-		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
+		if slices.Contains(ldflags, "-pie") && slices.Contains(ldflags, "-static") {
 			// -static -pie doesn't make sense, and causes link errors.
 			// Issue 26197.
 			n := make([]string, 0, len(ldflags)-1)

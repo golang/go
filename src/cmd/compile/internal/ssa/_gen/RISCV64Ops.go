@@ -429,6 +429,8 @@ func init() {
 		{name: "FNES", argLength: 2, reg: fp2gp, asm: "FNES", commutative: true},                                                            // arg0 != arg1
 		{name: "FLTS", argLength: 2, reg: fp2gp, asm: "FLTS"},                                                                               // arg0 < arg1
 		{name: "FLES", argLength: 2, reg: fp2gp, asm: "FLES"},                                                                               // arg0 <= arg1
+		{name: "LoweredFMAXS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXS", commutative: true, typ: "Float32"},             // max(arg0, arg1)
+		{name: "LoweredFMINS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINS", commutative: true, typ: "Float32"},             // min(arg0, arg1)
 
 		// D extension.
 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true, typ: "Float64"},                                           // arg0 + arg1
@@ -456,6 +458,8 @@ func init() {
 		{name: "FNED", argLength: 2, reg: fp2gp, asm: "FNED", commutative: true},                                                            // arg0 != arg1
 		{name: "FLTD", argLength: 2, reg: fp2gp, asm: "FLTD"},                                                                               // arg0 < arg1
 		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED"},                                                                               // arg0 <= arg1
+		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"},             // min(arg0, arg1)
+		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"},             // max(arg0, arg1)
 	}
 
 	RISCV64blocks := []blockData{

@@ -533,13 +533,13 @@ func cgoCheckPointer(ptr any, arg any) {
 }
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
-const cgoResultFail = "cgo result has Go pointer"
+const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned Go pointer"
 
 // cgoCheckArg is the real work of cgoCheckPointer. The argument p
 // is either a pointer to the value (of type t), or the value itself,
 // depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed. Go pointers to pinned objects are
-// always allowed.
+// allowed as long as they don't reference other unpinned pointers.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 	if t.PtrBytes == 0 || p == nil {
 		// If the type has no pointers there is nothing to do.
@@ -664,19 +664,32 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		if base == 0 {
 			return
 		}
-		n := span.elemsize
-		hbits := heapBitsForAddr(base, n)
-		for {
-			var addr uintptr
-			if hbits, addr = hbits.next(); addr == 0 {
-				break
+		if goexperiment.AllocHeaders {
+			tp := span.typePointersOfUnchecked(base)
+			for {
+				var addr uintptr
+				if tp, addr = tp.next(base + span.elemsize); addr == 0 {
+					break
+				}
+				pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+				if cgoIsGoPointer(pp) && !isPinned(pp) {
+					panic(errorString(msg))
+				}
 			}
-			pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
-			if cgoIsGoPointer(pp) && !isPinned(pp) {
-				panic(errorString(msg))
+		} else {
+			n := span.elemsize
+			hbits := heapBitsForAddr(base, n)
+			for {
+				var addr uintptr
+				if hbits, addr = hbits.next(); addr == 0 {
+					break
+				}
+				pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+				if cgoIsGoPointer(pp) && !isPinned(pp) {
+					panic(errorString(msg))
+				}
 			}
 		}
-
 		return
 	}
 
@@ -726,8 +739,8 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 }
 
 // cgoCheckResult is called to check the result parameter of an
-// exported Go function. It panics if the result is or contains a Go
-// pointer.
+// exported Go function. It panics if the result is or contains any
+// other pointer into unpinned Go memory.
 func cgoCheckResult(val any) {
 	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return

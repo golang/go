@@ -83,6 +83,8 @@
 package runtime
 
 import (
+	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"unsafe"
@@ -216,6 +218,19 @@ func init() {
 		}
 	}
 	lockInit(&userArenaState.lock, lockRankUserArenaState)
+}
+
+// userArenaChunkReserveBytes returns the amount of additional bytes to reserve for
+// heap metadata.
+func userArenaChunkReserveBytes() uintptr {
+	if goexperiment.AllocHeaders {
+		// In the allocation headers experiment, we reserve the end of the chunk for
+		// a pointer/scalar bitmap. We also reserve space for a dummy _type that
+		// refers to the bitmap. The PtrBytes field of the dummy _type indicates how
+		// many of those bits are valid.
+		return userArenaChunkBytes/goarch.PtrSize/8 + unsafe.Sizeof(_type{})
+	}
+	return 0
 }
 
 type userArena struct {
@@ -491,9 +506,9 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	// Set up heap bitmap and do extra accounting.
 	if typ.PtrBytes != 0 {
 		if cap >= 0 {
-			userArenaHeapBitsSetSliceType(typ, cap, ptr, s.base())
+			userArenaHeapBitsSetSliceType(typ, cap, ptr, s)
 		} else {
-			userArenaHeapBitsSetType(typ, ptr, s.base())
+			userArenaHeapBitsSetType(typ, ptr, s)
 		}
 		c := getMCache(mp)
 		if c == nil {
@@ -523,13 +538,13 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 // userArenaHeapBitsSetSliceType is the equivalent of heapBitsSetType but for
 // Go slice backing store values allocated in a user arena chunk. It sets up the
 // heap bitmap for n consecutive values with type typ allocated at address ptr.
-func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, base uintptr) {
+func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, s *mspan) {
 	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
 	if overflow || n < 0 || mem > maxAlloc {
 		panic(plainError("runtime: allocation size out of range"))
 	}
 	for i := 0; i < n; i++ {
-		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), base)
+		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), s)
 	}
 }
 
@@ -574,7 +589,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(span, span.base(), span.elemsize)
+		gcmarknewobject(span, span.base())
 	}
 
 	if raceenabled {
@@ -591,9 +606,12 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 		// TODO(mknyszek): Track individual objects.
 		rzSize := computeRZlog(span.elemsize)
 		span.elemsize -= rzSize
-		span.limit -= rzSize
-		span.userArenaChunkFree = makeAddrRange(span.base(), span.limit)
-		asanpoison(unsafe.Pointer(span.limit), span.npages*pageSize-span.elemsize)
+		if goexperiment.AllocHeaders {
+			span.largeType.Size_ = span.elemsize
+		}
+		rzStart := span.base() + span.elemsize
+		span.userArenaChunkFree = makeAddrRange(span.base(), rzStart)
+		asanpoison(unsafe.Pointer(rzStart), span.limit-rzStart)
 		asanunpoison(unsafe.Pointer(span.base()), span.elemsize)
 	}
 
@@ -694,7 +712,7 @@ func (s *mspan) setUserArenaChunkToFault() {
 	// the span gets off the quarantine list. The main reason is so that the
 	// amount of bytes allocated doesn't exceed how much is counted as
 	// "mapped ready," which could cause a deadlock in the pacer.
-	gcController.totalFree.Add(int64(s.npages * pageSize))
+	gcController.totalFree.Add(int64(s.elemsize))
 
 	// Update consistent stats to match.
 	//
@@ -704,11 +722,11 @@ func (s *mspan) setUserArenaChunkToFault() {
 	atomic.Xaddint64(&stats.committed, -int64(s.npages*pageSize))
 	atomic.Xaddint64(&stats.inHeap, -int64(s.npages*pageSize))
 	atomic.Xadd64(&stats.largeFreeCount, 1)
-	atomic.Xadd64(&stats.largeFree, int64(s.npages*pageSize))
+	atomic.Xadd64(&stats.largeFree, int64(s.elemsize))
 	memstats.heapStats.release()
 
 	// This counts as a free, so update heapLive.
-	gcController.update(-int64(s.npages*pageSize), 0)
+	gcController.update(-int64(s.elemsize), 0)
 
 	// Mark it as free for the race detector.
 	if raceenabled {
@@ -747,7 +765,7 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 		throw("invalid user arena span size")
 	}
 
-	// Mark the region as free to various santizers immediately instead
+	// Mark the region as free to various sanitizers immediately instead
 	// of handling them at sweep time.
 	if raceenabled {
 		racefree(unsafe.Pointer(s.base()), s.elemsize)
@@ -856,6 +874,10 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	spc := makeSpanClass(0, false)
 	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
 	s.isUserArenaChunk = true
+	s.elemsize -= userArenaChunkReserveBytes()
+	s.limit = s.base() + s.elemsize
+	s.freeindex = 1
+	s.allocCount = 1
 
 	// Account for this new arena chunk memory.
 	gcController.heapInUse.add(int64(userArenaChunkBytes))
@@ -866,22 +888,15 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	atomic.Xaddint64(&stats.committed, int64(userArenaChunkBytes))
 
 	// Model the arena as a single large malloc.
-	atomic.Xadd64(&stats.largeAlloc, int64(userArenaChunkBytes))
+	atomic.Xadd64(&stats.largeAlloc, int64(s.elemsize))
 	atomic.Xadd64(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
 
 	// Count the alloc in inconsistent, internal stats.
-	gcController.totalAlloc.Add(int64(userArenaChunkBytes))
+	gcController.totalAlloc.Add(int64(s.elemsize))
 
 	// Update heapLive.
-	gcController.update(int64(userArenaChunkBytes), 0)
-
-	// Put the large span in the mcentral swept list so that it's
-	// visible to the background sweeper.
-	h.central[spc].mcentral.fullSwept(h.sweepgen).push(s)
-	s.limit = s.base() + userArenaChunkBytes
-	s.freeindex = 1
-	s.allocCount = 1
+	gcController.update(int64(s.elemsize), 0)
 
 	// This must clear the entire heap bitmap so that it's safe
 	// to allocate noscan data without writing anything out.
@@ -902,6 +917,19 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	s.freeIndexForScan = 1
 
 	// Set up the range for allocation.
-	s.userArenaChunkFree = makeAddrRange(base, s.limit)
+	s.userArenaChunkFree = makeAddrRange(base, base+s.elemsize)
+
+	// Put the large span in the mcentral swept list so that it's
+	// visible to the background sweeper.
+	h.central[spc].mcentral.fullSwept(h.sweepgen).push(s)
+
+	if goexperiment.AllocHeaders {
+		// Set up an allocation header. Avoid write barriers here because this type
+		// is not a real type, and it exists in an invalid location.
+		*(*uintptr)(unsafe.Pointer(&s.largeType)) = uintptr(unsafe.Pointer(s.limit))
+		*(*uintptr)(unsafe.Pointer(&s.largeType.GCData)) = s.limit + unsafe.Sizeof(_type{})
+		s.largeType.PtrBytes = 0
+		s.largeType.Size_ = s.elemsize
+	}
 	return s
 }

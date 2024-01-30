@@ -116,10 +116,13 @@ func interfaceSwitch(s *byte, t *byte) (int, *byte)
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
+// panic for iteration after exit in range func
+func panicrangeexit()
+
 // defer in range over func
 func deferrangefunc() interface{}
 
-func fastrand() uint32
+func rand32() uint32
 
 // *byte is really *runtime.Type
 func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)

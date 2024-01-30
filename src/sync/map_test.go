@@ -278,7 +278,7 @@ func TestCompareAndSwap_NonExistingKey(t *testing.T) {
 	m := &sync.Map{}
 	if m.CompareAndSwap(m, nil, 42) {
 		// See https://go.dev/issue/51972#issuecomment-1126408637.
-		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
+		t.Fatalf("CompareAndSwap on a non-existing key succeeded")
 	}
 }
 

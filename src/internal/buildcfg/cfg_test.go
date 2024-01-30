@@ -23,4 +23,18 @@ func TestConfigFlags(t *testing.T) {
 	if goamd64(); Error == nil {
 		t.Errorf("Wrong parsing of GOAMD64=1")
 	}
+
+	os.Setenv("GORISCV64", "rva20u64")
+	if goriscv64() != 20 {
+		t.Errorf("Wrong parsing of RISCV64=rva20u64")
+	}
+	os.Setenv("GORISCV64", "rva22u64")
+	if goriscv64() != 22 {
+		t.Errorf("Wrong parsing of RISCV64=rva22u64")
+	}
+	Error = nil
+	os.Setenv("GORISCV64", "rva22")
+	if _ = goriscv64(); Error == nil {
+		t.Errorf("Wrong parsing of RISCV64=rva22")
+	}
 }

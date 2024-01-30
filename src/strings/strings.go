@@ -521,7 +521,7 @@ func Map(mapping func(rune) rune, s string) string {
 			if r < utf8.RuneSelf {
 				b.WriteByte(byte(r))
 			} else {
-				// r is not a ASCII rune.
+				// r is not an ASCII rune.
 				b.WriteRune(r)
 			}
 		}

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -22,7 +23,6 @@ import (
 
 var (
 	sockets         sync.Map // fakeSockAddr → *netFD
-	fakeSocketIDs   sync.Map // fakeNetFD.id → *netFD
 	fakePorts       sync.Map // int (port #) → *netFD
 	nextPortCounter atomic.Int32
 )
@@ -325,14 +325,27 @@ func (ffd *fakeNetFD) accept(laddr Addr) (*netFD, error) {
 		incoming []*netFD
 		ok       bool
 	)
+	expired := ffd.readDeadline.Load().expired
 	select {
-	case <-ffd.readDeadline.Load().expired:
+	case <-expired:
 		return nil, os.ErrDeadlineExceeded
 	case incoming, ok = <-ffd.incoming:
 		if !ok {
 			return nil, ErrClosed
 		}
+		select {
+		case <-expired:
+			ffd.incoming <- incoming
+			return nil, os.ErrDeadlineExceeded
+		default:
+		}
 	case incoming, ok = <-ffd.incomingFull:
+		select {
+		case <-expired:
+			ffd.incomingFull <- incoming
+			return nil, os.ErrDeadlineExceeded
+		default:
+		}
 	}
 
 	peer := incoming[0]
@@ -447,16 +460,6 @@ func (pq *packetQueue) put(q packetQueueState) {
 
 func (pq *packetQueue) closeRead() error {
 	q := pq.get()
-
-	// Discard any unread packets.
-	for q.head != nil {
-		p := q.head
-		q.head = p.next
-		p.clear()
-		packetPool.Put(p)
-	}
-	q.nBytes = 0
-
 	q.readClosed = true
 	pq.put(q)
 	return nil
@@ -513,6 +516,15 @@ func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bo
 	if !block {
 		full = pq.full
 	}
+
+	// Before we check dt.expired, yield to other goroutines.
+	// This may help to prevent starvation of the goroutine that runs the
+	// deadlineTimer's time.After callback.
+	//
+	// TODO(#65178): Remove this when the runtime scheduler no longer starves
+	// runnable goroutines.
+	runtime.Gosched()
+
 	select {
 	case <-dt.expired:
 		return 0, os.ErrDeadlineExceeded
@@ -535,7 +547,7 @@ func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bo
 	}
 	if q.writeClosed {
 		return 0, ErrClosed
-	} else if q.readClosed {
+	} else if q.readClosed && q.nBytes >= q.readBufferBytes {
 		return 0, os.NewSyscallError("send", syscall.ECONNRESET)
 	}
 
@@ -563,6 +575,15 @@ func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, c
 		// (Without this, TestZeroByteRead deadlocks.)
 		empty = pq.empty
 	}
+
+	// Before we check dt.expired, yield to other goroutines.
+	// This may help to prevent starvation of the goroutine that runs the
+	// deadlineTimer's time.After callback.
+	//
+	// TODO(#65178): Remove this when the runtime scheduler no longer starves
+	// runnable goroutines.
+	runtime.Gosched()
+
 	select {
 	case <-dt.expired:
 		return 0, nil, os.ErrDeadlineExceeded
@@ -572,11 +593,13 @@ func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, c
 	}
 	defer func() { pq.put(q) }()
 
+	if q.readClosed {
+		return 0, nil, ErrClosed
+	}
+
 	p := q.head
 	if p == nil {
 		switch {
-		case q.readClosed:
-			return 0, nil, ErrClosed
 		case q.writeClosed:
 			if q.noLinger {
 				return 0, nil, os.NewSyscallError("recvfrom", syscall.ECONNRESET)

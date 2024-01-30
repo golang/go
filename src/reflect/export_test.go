@@ -164,3 +164,7 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
 }
 
 var MethodValueCallCodePtr = methodValueCallCodePtr
+
+var InternalIsZero = isZero
+
+var IsRegularMemory = isRegularMemory

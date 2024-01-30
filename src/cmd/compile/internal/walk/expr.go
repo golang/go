@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 
@@ -559,30 +560,11 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		case "FuncPCABIInternal":
 			wantABI = obj.ABIInternal
 		}
-		if isIfaceOfFunc(arg) {
-			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
-			abi := fn.Func.ABI
-			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
-			}
-			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
-			e = ir.NewAddrExpr(n.Pos(), e)
-			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
+		if n.Type() != types.Types[types.TUINTPTR] {
+			base.FatalfAt(n.Pos(), "FuncPC intrinsic should return uintptr, got %v", n.Type()) // as expected by typecheck.FuncPC.
 		}
-		// fn is not a defined function. It must be ABIInternal.
-		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
-		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
-		}
-		arg = walkExpr(arg, init)
-		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
-		e.SetType(n.Type().PtrTo())
-		e.SetTypecheck(1)
-		e = ir.NewStarExpr(n.Pos(), e)
-		e.SetType(n.Type())
-		e.SetTypecheck(1)
-		return e
+		n := ir.FuncPC(n.Pos(), arg, wantABI)
+		return walkExpr(n, init)
 	}
 
 	if name, ok := n.Fun.(*ir.Name); ok {
@@ -844,7 +826,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > zeroValSize:
+	case t.Elem().Size() > abi.ZeroValSize:
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:

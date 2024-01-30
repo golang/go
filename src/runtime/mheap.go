@@ -11,6 +11,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -398,7 +399,7 @@ type mspan struct {
 	_    sys.NotInHeap
 	next *mspan     // next span in list, or nil if none
 	prev *mspan     // previous span in list, or nil if none
-	list *mSpanList // For debugging. TODO: Remove.
+	list *mSpanList // For debugging.
 
 	startAddr uintptr // address of first byte of span aka s.base()
 	npages    uintptr // number of pages in span
@@ -487,6 +488,7 @@ type mspan struct {
 	speciallock           mutex         // guards specials list and changes to pinnerBits
 	specials              *special      // linked list of special records sorted by offset.
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
+	largeType             *_type        // malloc header for large objects.
 }
 
 func (s *mspan) base() uintptr {
@@ -564,10 +566,12 @@ func makeSpanClass(sizeclass uint8, noscan bool) spanClass {
 	return spanClass(sizeclass<<1) | spanClass(bool2int(noscan))
 }
 
+//go:nosplit
 func (sc spanClass) sizeclass() int8 {
 	return int8(sc >> 1)
 }
 
+//go:nosplit
 func (sc spanClass) noscan() bool {
 	return sc&1 != 0
 }
@@ -787,8 +791,10 @@ func (h *mheap) reclaim(npage uintptr) {
 	// traceGCSweepStart/Done pair on the P.
 	mp := acquirem()
 
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	arenas := h.sweepArenas
@@ -835,8 +841,10 @@ func (h *mheap) reclaim(npage uintptr) {
 		unlock(&h.lock)
 	}
 
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
+		traceRelease(trace)
 	}
 	releasem(mp)
 }
@@ -907,10 +915,12 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		n -= uintptr(len(inUse) * 8)
 	}
 	sweep.active.end(sl)
-	if traceEnabled() {
+	trace := traceAcquire()
+	if trace.ok() {
 		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
-		traceGCSweepSpan((n0 - nFreed) * pageSize)
+		trace.GCSweepSpan((n0 - nFreed) * pageSize)
+		traceRelease(trace)
 		lock(&h.lock)
 	}
 
@@ -1387,7 +1397,12 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 			s.divMul = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
-			s.nelems = uint16(nbytes / s.elemsize)
+			if goexperiment.AllocHeaders && !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
+				// In the allocheaders experiment, reserve space for the pointer/scan bitmap at the end.
+				s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
+			} else {
+				s.nelems = uint16(nbytes / s.elemsize)
+			}
 			s.divMul = class_to_divmagic[sizeclass]
 		}
 

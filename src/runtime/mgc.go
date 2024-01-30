@@ -378,7 +378,6 @@ type workType struct {
 	// markDoneSema protects transitions from mark to mark termination.
 	markDoneSema uint32
 
-	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
 
@@ -418,8 +417,7 @@ type workType struct {
 	stwprocs, maxprocs                 int32
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
 
-	pauseNS    int64 // total STW time this cycle
-	pauseStart int64 // nanotime() of last STW
+	pauseNS int64 // total STW time this cycle
 
 	// debug.gctrace heap sizes for this cycle.
 	heap0, heap1, heap2 uint64
@@ -647,8 +645,10 @@ func gcStart(trigger gcTrigger) {
 	// Update it under gcsema to avoid gctrace getting wrong values.
 	work.userForced = trigger.kind == gcTriggerCycle
 
-	if traceEnabled() {
-		traceGCStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCStart()
+		traceRelease(trace)
 	}
 
 	// Check that all Ps have finished deferred mcache flushes.
@@ -675,8 +675,10 @@ func gcStart(trigger gcTrigger) {
 
 	now := nanotime()
 	work.tSweepTerm = now
-	work.pauseStart = now
-	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
+	var stw worldStop
+	systemstack(func() {
+		stw = stopTheWorldWithSema(stwGCSweepTerm)
+	})
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
 		finishsweep_m()
@@ -741,10 +743,9 @@ func gcStart(trigger gcTrigger) {
 
 	// Concurrent mark.
 	systemstack(func() {
-		now = startTheWorldWithSema()
-		work.pauseNS += now - work.pauseStart
+		now = startTheWorldWithSema(0, stw)
+		work.pauseNS += now - stw.start
 		work.tMark = now
-		memstats.gcPauseDist.record(now - work.pauseStart)
 
 		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
 		work.cpuStats.gcPauseTime += sweepTermCpu
@@ -822,31 +823,22 @@ top:
 
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
-	systemstack(func() {
-		gp := getg().m.curg
-		// Mark the user stack as preemptible so that it may be scanned.
-		// Otherwise, our attempt to force all P's to a safepoint could
-		// result in a deadlock as we attempt to preempt a worker that's
-		// trying to preempt us (e.g. for a stack scan).
-		casGToWaiting(gp, _Grunning, waitReasonGCMarkTermination)
-		forEachP(func(pp *p) {
-			// Flush the write barrier buffer, since this may add
-			// work to the gcWork.
-			wbBufFlush1(pp)
+	forEachP(waitReasonGCMarkTermination, func(pp *p) {
+		// Flush the write barrier buffer, since this may add
+		// work to the gcWork.
+		wbBufFlush1(pp)
 
-			// Flush the gcWork, since this may create global work
-			// and set the flushedWork flag.
-			//
-			// TODO(austin): Break up these workbufs to
-			// better distribute work.
-			pp.gcw.dispose()
-			// Collect the flushedWork flag.
-			if pp.gcw.flushedWork {
-				atomic.Xadd(&gcMarkDoneFlushed, 1)
-				pp.gcw.flushedWork = false
-			}
-		})
-		casgstatus(gp, _Gwaiting, _Grunning)
+		// Flush the gcWork, since this may create global work
+		// and set the flushedWork flag.
+		//
+		// TODO(austin): Break up these workbufs to
+		// better distribute work.
+		pp.gcw.dispose()
+		// Collect the flushedWork flag.
+		if pp.gcw.flushedWork {
+			atomic.Xadd(&gcMarkDoneFlushed, 1)
+			pp.gcw.flushedWork = false
+		}
 	})
 
 	if gcMarkDoneFlushed != 0 {
@@ -865,9 +857,11 @@ top:
 	// shaded. Transition to mark termination.
 	now := nanotime()
 	work.tMarkTerm = now
-	work.pauseStart = now
 	getg().m.preemptoff = "gcing"
-	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
+	var stw worldStop
+	systemstack(func() {
+		stw = stopTheWorldWithSema(stwGCMarkTerm)
+	})
 	// The gcphase is _GCmark, it will transition to _GCmarktermination
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
@@ -894,9 +888,8 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema()
-			work.pauseNS += now - work.pauseStart
-			memstats.gcPauseDist.record(now - work.pauseStart)
+			now := startTheWorldWithSema(0, stw)
+			work.pauseNS += now - stw.start
 		})
 		semrelease(&worldsema)
 		goto top
@@ -930,12 +923,12 @@ top:
 	gcController.endCycle(now, int(gomaxprocs), work.userForced)
 
 	// Perform mark termination. This will restart the world.
-	gcMarkTermination()
+	gcMarkTermination(stw)
 }
 
 // World must be stopped and mark assists and background workers must be
 // disabled.
-func gcMarkTermination() {
+func gcMarkTermination(stw worldStop) {
 	// Start marktermination (write barrier remains enabled for now).
 	setGCPhase(_GCmarktermination)
 
@@ -946,6 +939,9 @@ func gcMarkTermination() {
 	mp.preemptoff = "gcing"
 	mp.traceback = 2
 	curgp := mp.curg
+	// N.B. The execution tracer is not aware of this status
+	// transition and handles it specially based on the
+	// wait reason.
 	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
 
 	// Run gc on the g0 stack. We do this so that the g stack
@@ -989,8 +985,10 @@ func gcMarkTermination() {
 	mp.traceback = 0
 	casgstatus(curgp, _Gwaiting, _Grunning)
 
-	if traceEnabled() {
-		traceGCDone()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCDone()
+		traceRelease(trace)
 	}
 
 	// all done
@@ -1011,9 +1009,8 @@ func gcMarkTermination() {
 	now := nanotime()
 	sec, nsec, _ := time_now()
 	unixNow := sec*1e9 + int64(nsec)
-	work.pauseNS += now - work.pauseStart
+	work.pauseNS += now - stw.start
 	work.tEnd = now
-	memstats.gcPauseDist.record(now - work.pauseStart)
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
@@ -1086,7 +1083,18 @@ func gcMarkTermination() {
 		throw("non-concurrent sweep failed to drain all sweep queues")
 	}
 
-	systemstack(func() { startTheWorldWithSema() })
+	systemstack(func() {
+		// The memstats updated above must be updated with the world
+		// stopped to ensure consistency of some values, such as
+		// sched.idleTime and sched.totaltime. memstats also include
+		// the pause time (work,pauseNS), forcing computation of the
+		// total pause time before the pause actually ends.
+		//
+		// Here we reuse the same now for start the world so that the
+		// time added to /sched/pauses/total/gc:seconds will be
+		// consistent with the value in memstats.
+		startTheWorldWithSema(now, stw)
+	})
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
@@ -1112,18 +1120,16 @@ func gcMarkTermination() {
 	//
 	// Also, flush the pinner cache, to avoid leaking that memory
 	// indefinitely.
-	systemstack(func() {
-		forEachP(func(pp *p) {
-			pp.mcache.prepareForSweep()
-			if pp.status == _Pidle {
-				systemstack(func() {
-					lock(&mheap_.lock)
-					pp.pcache.flush(&mheap_.pages)
-					unlock(&mheap_.lock)
-				})
-			}
-			pp.pinnerCache = nil
-		})
+	forEachP(waitReasonFlushProcCaches, func(pp *p) {
+		pp.mcache.prepareForSweep()
+		if pp.status == _Pidle {
+			systemstack(func() {
+				lock(&mheap_.lock)
+				pp.pcache.flush(&mheap_.pages)
+				unlock(&mheap_.lock)
+			})
+		}
+		pp.pinnerCache = nil
 	})
 	if sl.valid {
 		// Now that we've swept stale spans in mcaches, they don't
@@ -1194,7 +1200,9 @@ func gcMarkTermination() {
 
 	// Enable huge pages on some metadata if we cross a heap threshold.
 	if gcController.heapGoal() > minHeapForMetadataHugePages {
-		mheap_.enableMetadataHugePages()
+		systemstack(func() {
+			mheap_.enableMetadataHugePages()
+		})
 	}
 
 	semrelease(&worldsema)
@@ -1221,11 +1229,34 @@ func gcBgMarkStartWorkers() {
 	//
 	// Worker Gs don't exit if gomaxprocs is reduced. If it is raised
 	// again, we can reuse the old workers; no need to create new workers.
-	for gcBgMarkWorkerCount < gomaxprocs {
-		go gcBgMarkWorker()
+	if gcBgMarkWorkerCount >= gomaxprocs {
+		return
+	}
 
-		notetsleepg(&work.bgMarkReady, -1)
-		noteclear(&work.bgMarkReady)
+	// Increment mp.locks when allocating. We are called within gcStart,
+	// and thus must not trigger another gcStart via an allocation. gcStart
+	// bails when allocating with locks held, so simulate that for these
+	// allocations.
+	//
+	// TODO(prattmic): cleanup gcStart to use a more explicit "in gcStart"
+	// check for bailing.
+	mp := acquirem()
+	ready := make(chan struct{}, 1)
+	releasem(mp)
+
+	for gcBgMarkWorkerCount < gomaxprocs {
+		mp := acquirem() // See above, we allocate a closure here.
+		go gcBgMarkWorker(ready)
+		releasem(mp)
+
+		// N.B. we intentionally wait on each goroutine individually
+		// rather than starting all in a batch and then waiting once
+		// afterwards. By running one goroutine at a time, we can take
+		// advantage of runnext to bounce back and forth between
+		// workers and this goroutine. In an overloaded application,
+		// this can reduce GC start latency by prioritizing these
+		// goroutines rather than waiting on the end of the run queue.
+		<-ready
 		// The worker is now guaranteed to be added to the pool before
 		// its P's next findRunnableGCWorker.
 
@@ -1264,7 +1295,7 @@ type gcBgMarkWorkerNode struct {
 	m muintptr
 }
 
-func gcBgMarkWorker() {
+func gcBgMarkWorker(ready chan struct{}) {
 	gp := getg()
 
 	// We pass node to a gopark unlock function, so it can't be on
@@ -1277,7 +1308,8 @@ func gcBgMarkWorker() {
 	node.gp.set(gp)
 
 	node.m.set(acquirem())
-	notewakeup(&work.bgMarkReady)
+
+	ready <- struct{}{}
 	// After this point, the background mark worker is generally scheduled
 	// cooperatively by gcController.findRunnableGCWorker. While performing
 	// work on the P, preemption is disabled because we are working on
@@ -1290,10 +1322,10 @@ func gcBgMarkWorker() {
 	// fine; it will eventually gopark again for further scheduling via
 	// findRunnableGCWorker.
 	//
-	// Since we disable preemption before notifying bgMarkReady, we
-	// guarantee that this G will be in the worker pool for the next
-	// findRunnableGCWorker. This isn't strictly necessary, but it reduces
-	// latency between _GCmark starting and the workers starting.
+	// Since we disable preemption before notifying ready, we guarantee that
+	// this G will be in the worker pool for the next findRunnableGCWorker.
+	// This isn't strictly necessary, but it reduces latency between
+	// _GCmark starting and the workers starting.
 
 	for {
 		// Go to sleep until woken by
@@ -1366,6 +1398,10 @@ func gcBgMarkWorker() {
 			// the G stack. However, stack shrinking is
 			// disabled for mark workers, so it is safe to
 			// read from the G stack.
+			//
+			// N.B. The execution tracer is not aware of this status
+			// transition and handles it specially based on the
+			// wait reason.
 			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:

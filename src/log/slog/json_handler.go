@@ -226,7 +226,7 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 	return buf
 }
 
-var hex = "0123456789abcdef"
+const hex = "0123456789abcdef"
 
 // Copied from encoding/json/tables.go.
 //

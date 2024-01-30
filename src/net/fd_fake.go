@@ -30,7 +30,7 @@ type netFD struct {
 	raddr       Addr
 
 	// The only networking available in WASI preview 1 is the ability to
-	// sock_accept on an pre-opened socket, and then fd_read, fd_write,
+	// sock_accept on a pre-opened socket, and then fd_read, fd_write,
 	// fd_close, and sock_shutdown on the resulting connection. We
 	// intercept applicable netFD calls on this instance, and then pass
 	// the remainder of the netFD calls to fakeNetFD.

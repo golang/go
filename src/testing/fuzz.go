@@ -59,7 +59,7 @@ type InternalFuzzTarget struct {
 // by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
 // any necessary setup and calls to (*F).Add, the fuzz test must then call
 // (*F).Fuzz to provide the fuzz target. See the testing package documentation
-// for an example, and see the F.Fuzz and F.Add method documentation for
+// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
 // *F methods can only be called before (*F).Fuzz. Once the test is
@@ -206,7 +206,7 @@ var supportedTypes = map[reflect.Type]bool{
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
+// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")

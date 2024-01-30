@@ -32,8 +32,6 @@ var sigset_all = ^sigset(0)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
-	_CTL_KERN = 1
-
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
 	_HW_PAGESIZE   = 7
@@ -144,11 +142,11 @@ func osinit() {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
