@@ -134,7 +134,7 @@ func branchCombine(p1, p2 pstate) pstate {
 }
 
 // stateForList walks through a list of statements and computes the
-// state/diposition for the entire list as a whole, as well
+// state/disposition for the entire list as a whole, as well
 // as updating disposition of intermediate nodes.
 func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
 	st := psTop

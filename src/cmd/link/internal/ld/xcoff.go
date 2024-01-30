@@ -143,7 +143,7 @@ const (
 	SSUBTYP_DWLINE  = 0x20000 // DWARF line-number section
 	SSUBTYP_DWPBNMS = 0x30000 // DWARF public names section
 	SSUBTYP_DWPBTYP = 0x40000 // DWARF public types section
-	SSUBTYP_DWARNGE = 0x50000 // DWARF aranges section
+	SSUBTYP_DWARNGE = 0x50000 // DWARF arranges section
 	SSUBTYP_DWABREV = 0x60000 // DWARF abbreviation section
 	SSUBTYP_DWSTR   = 0x70000 // DWARF strings section
 	SSUBTYP_DWRNGES = 0x80000 // DWARF ranges section
