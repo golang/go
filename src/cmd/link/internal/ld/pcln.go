@@ -827,9 +827,8 @@ func expandGoroot(s string) string {
 }
 
 const (
-	BUCKETSIZE    = 256 * abi.MINFUNC
 	SUBBUCKETS    = 16
-	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
+	SUBBUCKETSIZE = abi.Pcbucketsize / SUBBUCKETS
 	NOIDX         = 0x7fffffff
 )
 
@@ -847,7 +846,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 	// that map to that subbucket.
 	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
 
-	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
+	nbuckets := int32((max - min + abi.Pcbucketsize - 1) / abi.Pcbucketsize)
 
 	size := 4*int64(nbuckets) + int64(n)
 

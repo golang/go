@@ -497,8 +497,6 @@ type textsect struct {
 	baseaddr uintptr // relocated section address
 }
 
-const pcbucketsize = 256 * abi.MINFUNC // size of bucket in the pc->func lookup table
-
 // findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
 // Each subbucket represents 256 bytes of the text segment.
@@ -780,8 +778,8 @@ func findfunc(pc uintptr) funcInfo {
 	}
 
 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
-	b := x / pcbucketsize
-	i := x % pcbucketsize / (pcbucketsize / nsub)
+	b := x / abi.Pcbucketsize
+	i := x % abi.Pcbucketsize / (abi.Pcbucketsize / nsub)
 
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
