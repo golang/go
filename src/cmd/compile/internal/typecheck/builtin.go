@@ -227,7 +227,6 @@ var runtimeDecls = [...]struct {
 	{"libfuzzerTraceConstCmp8", funcTag, 151},
 	{"libfuzzerHookStrCmp", funcTag, 152},
 	{"libfuzzerHookEqualFold", funcTag, 152},
-	{"addCovMeta", funcTag, 154},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -237,7 +236,7 @@ var runtimeDecls = [...]struct {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [155]*types.Type
+	var typs [153]*types.Type
 	typs[0] = types.ByteType
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[types.TANY]
@@ -391,8 +390,6 @@ func runtimeTypes() []*types.Type {
 	typs[150] = newSig(params(typs[60], typs[60], typs[17]), nil)
 	typs[151] = newSig(params(typs[24], typs[24], typs[17]), nil)
 	typs[152] = newSig(params(typs[28], typs[28], typs[17]), nil)
-	typs[153] = types.NewArray(typs[0], 16)
-	typs[154] = newSig(params(typs[7], typs[60], typs[153], typs[28], typs[15], typs[64], typs[64]), params(typs[60]))
 	return typs[:]
 }
 
