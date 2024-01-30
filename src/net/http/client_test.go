@@ -2154,6 +2154,5 @@ func testClientTimeoutReturnsContextDeadlineExceeded(t *testing.T, timeout time.
 	if !errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("expected context.DeadlineExceeded, got %v", err)
 	}
-	t.Logf("passed with timeout %v", timeout)
 	return nil
 }
