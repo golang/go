@@ -522,21 +522,11 @@ func (c *hchan) sortkey() uintptr {
 // A runtimeSelect is a single case passed to rselect.
 // This must match ../reflect/value.go:/runtimeSelect
 type runtimeSelect struct {
-	dir selectDir
+	dir abi.SelectDir
 	typ unsafe.Pointer // channel type (not used here)
 	ch  *hchan         // channel
 	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
 }
-
-// These values must match ../reflect/value.go:/SelectDir.
-type selectDir int
-
-const (
-	_             selectDir = iota
-	selectSend              // case Chan <- Send
-	selectRecv              // case <-Chan:
-	selectDefault           // default
-)
 
 //go:linkname reflect_rselect reflect.rselect
 func reflect_rselect(cases []runtimeSelect) (int, bool) {
@@ -550,13 +540,13 @@ func reflect_rselect(cases []runtimeSelect) (int, bool) {
 	for i, rc := range cases {
 		var j int
 		switch rc.dir {
-		case selectDefault:
+		case abi.SelectDefault:
 			dflt = i
 			continue
-		case selectSend:
+		case abi.SelectSend:
 			j = nsends
 			nsends++
-		case selectRecv:
+		case abi.SelectRecv:
 			nrecvs++
 			j = len(cases) - nrecvs
 		}

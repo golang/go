@@ -729,6 +729,16 @@ const (
 	TraceArgsMaxLen = (TraceArgsMaxDepth*3+2)*TraceArgsLimit + 1
 )
 
+// A SelectDir describes the communication direction of a select case.
+type SelectDir int
+
+const (
+	_             SelectDir = iota
+	SelectSend              // case Chan <- Send
+	SelectRecv              // case <-Chan:
+	SelectDefault           // default
+)
+
 // Populate the data.
 // The data is a stream of bytes, which contains the offsets and sizes of the
 // non-aggregate arguments or non-aggregate fields/elements of aggregate-typed

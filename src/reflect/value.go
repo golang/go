@@ -3038,15 +3038,15 @@ type runtimeSelect struct {
 func rselect([]runtimeSelect) (chosen int, recvOK bool)
 
 // A SelectDir describes the communication direction of a select case.
-type SelectDir int
+type SelectDir = abi.SelectDir
 
 // NOTE: These values must match ../runtime/select.go:/selectDir.
 
 const (
 	_             SelectDir = iota
-	SelectSend              // case Chan <- Send
-	SelectRecv              // case <-Chan:
-	SelectDefault           // default
+	SelectSend              = abi.SelectSend    // case Chan <- Send
+	SelectRecv              = abi.SelectRecv    // case <-Chan:
+	SelectDefault           = abi.SelectDefault // default
 )
 
 // A SelectCase describes a single case in a select operation.
