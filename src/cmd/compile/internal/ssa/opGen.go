@@ -2433,6 +2433,10 @@ const (
 	OpRISCV64RORW
 	OpRISCV64XOR
 	OpRISCV64XORI
+	OpRISCV64MIN
+	OpRISCV64MAX
+	OpRISCV64MINU
+	OpRISCV64MAXU
 	OpRISCV64SEQZ
 	OpRISCV64SNEZ
 	OpRISCV64SLT
@@ -3074,6 +3078,10 @@ const (
 	OpRoundToEven
 	OpAbs
 	OpCopysign
+	OpMin64
+	OpMax64
+	OpMin64u
+	OpMax64u
 	OpMin64F
 	OpMin32F
 	OpMax64F
@@ -32784,6 +32792,66 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "MIN",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AMIN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:        "MAX",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AMAX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:        "MINU",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AMINU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:        "MAXU",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AMAXU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:   "SEQZ",
 		argLen: 1,
 		asm:    riscv.ASEQZ,
@@ -40029,6 +40097,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Copysign",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min64u",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max64u",
 		argLen:  2,
 		generic: true,
 	},

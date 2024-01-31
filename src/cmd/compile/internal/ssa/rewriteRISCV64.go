@@ -2,6 +2,7 @@
 
 package ssa
 
+import "internal/buildcfg"
 import "math"
 import "cmd/compile/internal/types"
 
@@ -329,15 +330,23 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpMax32F:
 		v.Op = OpRISCV64LoweredFMAXS
 		return true
+	case OpMax64:
+		return rewriteValueRISCV64_OpMax64(v)
 	case OpMax64F:
 		v.Op = OpRISCV64LoweredFMAXD
 		return true
+	case OpMax64u:
+		return rewriteValueRISCV64_OpMax64u(v)
 	case OpMin32F:
 		v.Op = OpRISCV64LoweredFMINS
 		return true
+	case OpMin64:
+		return rewriteValueRISCV64_OpMin64(v)
 	case OpMin64F:
 		v.Op = OpRISCV64LoweredFMIND
 		return true
+	case OpMin64u:
+		return rewriteValueRISCV64_OpMin64u(v)
 	case OpMod16:
 		return rewriteValueRISCV64_OpMod16(v)
 	case OpMod16u:
@@ -2391,6 +2400,78 @@ func rewriteValueRISCV64_OpLsh8x8(v *Value) bool {
 			break
 		}
 		v.reset(OpRISCV64SLL)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpMax64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Max64 x y)
+	// cond: buildcfg.GORISCV64 >= 22
+	// result: (MAX x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GORISCV64 >= 22) {
+			break
+		}
+		v.reset(OpRISCV64MAX)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpMax64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Max64u x y)
+	// cond: buildcfg.GORISCV64 >= 22
+	// result: (MAXU x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GORISCV64 >= 22) {
+			break
+		}
+		v.reset(OpRISCV64MAXU)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpMin64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Min64 x y)
+	// cond: buildcfg.GORISCV64 >= 22
+	// result: (MIN x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GORISCV64 >= 22) {
+			break
+		}
+		v.reset(OpRISCV64MIN)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpMin64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Min64u x y)
+	// cond: buildcfg.GORISCV64 >= 22
+	// result: (MINU x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GORISCV64 >= 22) {
+			break
+		}
+		v.reset(OpRISCV64MINU)
 		v.AddArg2(x, y)
 		return true
 	}

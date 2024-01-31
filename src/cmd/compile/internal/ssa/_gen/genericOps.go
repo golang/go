@@ -285,6 +285,12 @@ var genericOps = []opData{
 	{name: "Abs", argLength: 1},      // absolute value arg0
 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
+	// Integer min/max implementation, if hardware is available.
+	{name: "Min64", argLength: 2},  // min(arg0,arg1), signed
+	{name: "Max64", argLength: 2},  // max(arg0,arg1), signed
+	{name: "Min64u", argLength: 2}, // min(arg0,arg1), unsigned
+	{name: "Max64u", argLength: 2}, // max(arg0,arg1), unsigned
+
 	// Float min/max implementation, if hardware is available.
 	{name: "Min64F", argLength: 2}, // min(arg0,arg1)
 	{name: "Min32F", argLength: 2}, // min(arg0,arg1)
