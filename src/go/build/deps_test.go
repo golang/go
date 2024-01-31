@@ -54,7 +54,7 @@ var depsRules = `
 	internal/goarch, unsafe
 	< internal/abi, internal/chacha8rand;
 
-	unsafe < maps;
+	unsafe < maps, internal/runtime/rchan;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -63,6 +63,7 @@ var depsRules = `
 	internal/cpu,
 	internal/goarch,
 	internal/godebugs,
+	internal/runtime/rchan,
 	internal/goexperiment,
 	internal/goos
 	< internal/bytealg
@@ -189,7 +190,7 @@ var depsRules = `
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
-	arena, strconv, unicode
+	arena, strconv, unicode, internal/runtime/rchan
 	< reflect;
 
 	os, reflect

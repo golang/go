@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/rchan"
 	"unsafe"
 )
 
@@ -519,27 +520,8 @@ func (c *hchan) sortkey() uintptr {
 	return uintptr(unsafe.Pointer(c))
 }
 
-// A runtimeSelect is a single case passed to rselect.
-// This must match ../reflect/value.go:/runtimeSelect
-type runtimeSelect struct {
-	dir selectDir
-	typ unsafe.Pointer // channel type (not used here)
-	ch  *hchan         // channel
-	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
-}
-
-// These values must match ../reflect/value.go:/SelectDir.
-type selectDir int
-
-const (
-	_             selectDir = iota
-	selectSend              // case Chan <- Send
-	selectRecv              // case <-Chan:
-	selectDefault           // default
-)
-
 //go:linkname reflect_rselect reflect.rselect
-func reflect_rselect(cases []runtimeSelect) (int, bool) {
+func reflect_rselect(cases []rchan.Select) (int, bool) {
 	if len(cases) == 0 {
 		block()
 	}
@@ -549,19 +531,19 @@ func reflect_rselect(cases []runtimeSelect) (int, bool) {
 	dflt := -1
 	for i, rc := range cases {
 		var j int
-		switch rc.dir {
-		case selectDefault:
+		switch rc.Dir {
+		case rchan.SelectDefault:
 			dflt = i
 			continue
-		case selectSend:
+		case rchan.SelectSend:
 			j = nsends
 			nsends++
-		case selectRecv:
+		case rchan.SelectRecv:
 			nrecvs++
 			j = len(cases) - nrecvs
 		}
 
-		sel[j] = scase{c: rc.ch, elem: rc.val}
+		sel[j] = scase{c: (*hchan)(rc.Ch), elem: rc.Val}
 		orig[j] = i
 	}
 
