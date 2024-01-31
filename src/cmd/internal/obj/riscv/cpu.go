@@ -572,6 +572,58 @@ const (
 	// 4.2.1: Supervisor Memory-Management Fence Instruction
 	ASFENCEVMA
 
+	//
+	// RISC-V Bit-Manipulation ISA-extensions (1.0)
+	//
+
+	// 1.1: Address Generation Instructions (Zba)
+	AADDUW
+	ASH1ADD
+	ASH1ADDUW
+	ASH2ADD
+	ASH2ADDUW
+	ASH3ADD
+	ASH3ADDUW
+	ASLLIUW
+
+	// 1.2: Basic Bit Manipulation (Zbb)
+	AANDN
+	AORN
+	AXNOR
+	ACLZ
+	ACLZW
+	ACTZ
+	ACTZW
+	ACPOP
+	ACPOPW
+	AMAX
+	AMAXU
+	AMIN
+	AMINU
+	ASEXTB
+	ASEXTH
+	AZEXTH
+
+	// 1.3: Bitwise Rotation (Zbb)
+	AROL
+	AROLW
+	AROR
+	ARORI
+	ARORIW
+	ARORW
+	AORCB
+	AREV8
+
+	// 1.5: Single-bit Instructions (Zbs)
+	ABCLR
+	ABCLRI
+	ABEXT
+	ABEXTI
+	ABINV
+	ABINVI
+	ABSET
+	ABSETI
+
 	// The escape hatch. Inserts a single 32-bit word.
 	AWORD
 
@@ -605,12 +657,6 @@ const (
 	ANEG
 	ANEGW
 	ANOT
-	AROL
-	AROLW
-	AROR
-	ARORI
-	ARORIW
-	ARORW
 	ASEQZ
 	ASNEZ
 
