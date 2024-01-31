@@ -778,8 +778,8 @@ func findfunc(pc uintptr) funcInfo {
 	}
 
 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
-	b := x / abi.Pcbucketsize
-	i := x % abi.Pcbucketsize / (abi.Pcbucketsize / nsub)
+	b := x / abi.FuncTabBucketSize
+	i := x % abi.FuncTabBucketSize / (abi.FuncTabBucketSize / nsub)
 
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
