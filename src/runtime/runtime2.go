@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/chacha8rand"
 	"internal/goarch"
+	"internal/runtime/timer"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -505,7 +506,7 @@ type g struct {
 	waiting       *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
 	cgoCtxt       []uintptr      // cgo traceback context
 	labels        unsafe.Pointer // profiler labels
-	timer         *timer         // cached timer for time.Sleep
+	timer         *timer.Timer   // cached timer for time.Sleep
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
 
 	coroarg *coro // argument during coroutine transfers
@@ -758,7 +759,7 @@ type p struct {
 	// Actions to take at some time. This is used to implement the
 	// standard library's time package.
 	// Must hold timersLock to access.
-	timers []*timer
+	timers []*timer.Timer
 
 	// Number of timers in P's heap.
 	numTimers atomic.Uint32

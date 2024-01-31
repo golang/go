@@ -8,8 +8,6 @@ import (
 	"internal/runtime/timer"
 )
 
-type runtimeTimer = timer.Timer
-
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
@@ -42,7 +40,7 @@ func modTimer(t *timer.Timer, when, period int64, f func(any, uintptr), arg any,
 // A Timer must be created with NewTimer or AfterFunc.
 type Timer struct {
 	C <-chan Time
-	r runtimeTimer
+	r timer.Timer
 }
 
 // Stop prevents the Timer from firing.
@@ -80,7 +78,7 @@ func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
 	t := &Timer{
 		C: c,
-		r: runtimeTimer{
+		r: timer.Timer{
 			When: when(d),
 			F:    sendTime,
 			Arg:  c,
@@ -156,7 +154,7 @@ func After(d Duration) <-chan Time {
 // The returned Timer's C field is not used and will be nil.
 func AfterFunc(d Duration, f func()) *Timer {
 	t := &Timer{
-		r: runtimeTimer{
+		r: timer.Timer{
 			When: when(d),
 			F:    goFunc,
 			Arg:  f,

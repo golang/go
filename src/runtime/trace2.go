@@ -22,6 +22,7 @@
 package runtime
 
 import (
+	"internal/runtime/timer"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -907,7 +908,7 @@ const defaultTraceAdvancePeriod = 1e9 // 1 second.
 // close to free up resources. Once close is called, init
 // must be called before another use.
 type wakeableSleep struct {
-	timer *timer
+	timer *timer.Timer
 
 	// lock protects access to wakeup, but not send/recv on it.
 	lock   mutex
@@ -919,7 +920,7 @@ func newWakeableSleep() *wakeableSleep {
 	s := new(wakeableSleep)
 	lockInit(&s.lock, lockRankWakeableSleep)
 	s.wakeup = make(chan struct{}, 1)
-	s.timer = new(timer)
+	s.timer = new(timer.Timer)
 	s.timer.Arg = s
 	s.timer.F = func(s any, _ uintptr) {
 		s.(*wakeableSleep).wake()

@@ -4,6 +4,8 @@
 
 package time
 
+import "internal/runtime/timer"
+
 func init() {
 	// Force US/Pacific for time zone tests.
 	ForceUSPacificForTesting()
@@ -47,7 +49,7 @@ func CheckRuntimeTimerPeriodOverflow() {
 	// We manually create a runtimeTimer with huge period, but that expires
 	// immediately. The public Timer interface would require waiting for
 	// the entire period before the first update.
-	r := &runtimeTimer{
+	r := &timer.Timer{
 		When:   runtimeNano(),
 		Period: 1<<63 - 1,
 		F:      empty,

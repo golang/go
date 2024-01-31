@@ -92,6 +92,7 @@ package runtime
 
 import (
 	"internal/goos"
+	"internal/runtime/timer"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -285,7 +286,7 @@ type scavengerState struct {
 	parked bool
 
 	// timer is the timer used for the scavenger to sleep.
-	timer *timer
+	timer *timer.Timer
 
 	// sysmonWake signals to sysmon that it should wake the scavenger.
 	sysmonWake atomic.Uint32
@@ -360,7 +361,7 @@ func (s *scavengerState) init() {
 	lockInit(&s.lock, lockRankScavenge)
 	s.g = getg()
 
-	s.timer = new(timer)
+	s.timer = new(timer.Timer)
 	s.timer.Arg = s
 	s.timer.F = func(s any, _ uintptr) {
 		s.(*scavengerState).wake()

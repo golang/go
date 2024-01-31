@@ -4,11 +4,13 @@
 
 package time
 
+import "internal/runtime/timer"
+
 // A Ticker holds a channel that delivers “ticks” of a clock
 // at intervals.
 type Ticker struct {
 	C <-chan Time // The channel on which the ticks are delivered.
-	r runtimeTimer
+	r timer.Timer
 }
 
 // NewTicker returns a new Ticker containing a channel that will send
@@ -27,7 +29,7 @@ func NewTicker(d Duration) *Ticker {
 	c := make(chan Time, 1)
 	t := &Ticker{
 		C: c,
-		r: runtimeTimer{
+		r: timer.Timer{
 			When:   when(d),
 			Period: int64(d),
 			F:      sendTime,

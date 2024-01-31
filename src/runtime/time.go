@@ -8,42 +8,12 @@ package runtime
 
 import (
 	"internal/abi"
-	time "internal/runtime/timer"
+	"internal/runtime/timer"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
-type timer = time.Timer
-
-// Code outside this file has to be careful in using a timer value.
-//
-// The pp, status, and nextwhen fields may only be used by code in this file.
-//
-// Code that creates a new timer value can set the when, period, f,
-// arg, and seq fields.
-// A new timer value may be passed to addtimer (called by time.startTimer).
-// After doing that no fields may be touched.
-//
-// An active timer (one that has been passed to addtimer) may be
-// passed to deltimer (time.stopTimer), after which it is no longer an
-// active timer. It is an inactive timer.
-// In an inactive timer the period, f, arg, and seq fields may be modified,
-// but not the when field.
-// It's OK to just drop an inactive timer and let the GC collect it.
-// It's not OK to pass an inactive timer to addtimer.
-// Only newly allocated timer values may be passed to addtimer.
-//
-// An active timer may be passed to modtimer. No fields may be touched.
-// It remains an active timer.
-//
-// An inactive timer may be passed to resettimer to turn into an
-// active timer with an updated when field.
-// It's OK to pass a newly allocated timer value to resettimer.
-//
-// Timer operations are addtimer, deltimer, modtimer, resettimer,
-// cleantimers, adjusttimers, and runtimer.
-//
 // We don't permit calling addtimer/deltimer/modtimer/resettimer simultaneously,
 // but adjusttimers and runtimer can be called at the same time as any of those.
 //
@@ -160,7 +130,7 @@ func timeSleep(ns int64) {
 	gp := getg()
 	t := gp.timer
 	if t == nil {
-		t = new(timer)
+		t = new(timer.Timer)
 		gp.timer = t
 	}
 	t.F = goroutineReady
@@ -177,7 +147,7 @@ func timeSleep(ns int64) {
 // sleep and there are many goroutines then the P can wind up running the
 // timer function, goroutineReady, before the goroutine has been parked.
 func resetForSleep(gp *g, ut unsafe.Pointer) bool {
-	t := (*timer)(ut)
+	t := (*timer.Timer)(ut)
 	resettimer(t, t.Nextwhen)
 	return true
 }
@@ -185,7 +155,7 @@ func resetForSleep(gp *g, ut unsafe.Pointer) bool {
 // startTimer adds t to the timer heap.
 //
 //go:linkname startTimer time.startTimer
-func startTimer(t *timer) {
+func startTimer(t *timer.Timer) {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
@@ -196,7 +166,7 @@ func startTimer(t *timer) {
 // It reports whether t was stopped before being run.
 //
 //go:linkname stopTimer time.stopTimer
-func stopTimer(t *timer) bool {
+func stopTimer(t *timer.Timer) bool {
 	return deltimer(t)
 }
 
@@ -205,7 +175,7 @@ func stopTimer(t *timer) bool {
 // Reports whether the timer was modified before it was run.
 //
 //go:linkname resetTimer time.resetTimer
-func resetTimer(t *timer, when int64) bool {
+func resetTimer(t *timer.Timer, when int64) bool {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
@@ -215,7 +185,7 @@ func resetTimer(t *timer, when int64) bool {
 // modTimer modifies an existing timer.
 //
 //go:linkname modTimer time.modTimer
-func modTimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) {
+func modTimer(t *timer.Timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) {
 	modtimer(t, when, period, f, arg, seq)
 }
 
@@ -231,7 +201,7 @@ func goroutineReady(arg any, seq uintptr) {
 // This should only be called with a newly created timer.
 // That avoids the risk of changing the when field of a timer in some P's heap,
 // which could cause the heap to become unsorted.
-func addtimer(t *timer) {
+func addtimer(t *timer.Timer) {
 	// when must be positive. A negative value will cause runtimer to
 	// overflow during its delta calculation and never expire other runtime
 	// timers. Zero will cause checkTimers to fail to notice the timer.
@@ -264,7 +234,7 @@ func addtimer(t *timer) {
 
 // doaddtimer adds t to the current P's heap.
 // The caller must have locked the timers for pp.
-func doaddtimer(pp *p, t *timer) {
+func doaddtimer(pp *p, t *timer.Timer) {
 	// Timers rely on the network poller, so make sure the poller
 	// has started.
 	if netpollInited.Load() == 0 {
@@ -288,7 +258,7 @@ func doaddtimer(pp *p, t *timer) {
 // actually remove it from the timers heap. We can only mark it as deleted.
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was removed before it was run.
-func deltimer(t *timer) bool {
+func deltimer(t *timer.Timer) bool {
 	for {
 		switch s := atomic.Load(&t.Status); s {
 		case timerWaiting, timerModifiedLater:
@@ -413,7 +383,7 @@ func dodeltimer0(pp *p) {
 // modtimer modifies an existing timer.
 // This is called by the netpoll code or time.Ticker.Reset or time.Timer.Reset.
 // Reports whether the timer was modified before it was run.
-func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) bool {
+func modtimer(t *timer.Timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) bool {
 	if when <= 0 {
 		throw("timer when must be positive")
 	}
@@ -528,7 +498,7 @@ loop:
 // This should be called instead of addtimer if the timer value has been,
 // or may have been, used previously.
 // Reports whether the timer was modified before it was run.
-func resettimer(t *timer, when int64) bool {
+func resettimer(t *timer.Timer, when int64) bool {
 	return modtimer(t, when, t.Period, t.F, t.Arg, t.Seq)
 }
 
@@ -588,7 +558,7 @@ func cleantimers(pp *p) {
 // from a different P.
 // This is currently called when the world is stopped, but the caller
 // is expected to have locked the timers for pp.
-func moveTimers(pp *p, timers []*timer) {
+func moveTimers(pp *p, timers []*timer.Timer) {
 	for _, t := range timers {
 	loop:
 		for {
@@ -660,7 +630,7 @@ func adjusttimers(pp *p, now int64) {
 	// We are going to clear all timerModifiedEarlier timers.
 	pp.timerModifiedEarliest.Store(0)
 
-	var moved []*timer
+	var moved []*timer.Timer
 	for i := 0; i < len(pp.timers); i++ {
 		t := pp.timers[i]
 		if (*puintptr)(unsafe.Pointer(&t.Pp)).ptr() != pp {
@@ -716,7 +686,7 @@ func adjusttimers(pp *p, now int64) {
 
 // addAdjustedTimers adds any timers we adjusted in adjusttimers
 // back to the timer heap.
-func addAdjustedTimers(pp *p, moved []*timer) {
+func addAdjustedTimers(pp *p, moved []*timer.Timer) {
 	for _, t := range moved {
 		doaddtimer(pp, t)
 		if !atomic.Cas(&t.Status, timerMoving, timerWaiting) {
@@ -815,7 +785,7 @@ func runtimer(pp *p, now int64) int64 {
 // This will temporarily unlock the timers while running the timer function.
 //
 //go:systemstack
-func runOneTimer(pp *p, t *timer, now int64) {
+func runOneTimer(pp *p, t *timer.Timer, now int64) {
 	if raceenabled {
 		ppcur := getg().m.p.ptr()
 		if ppcur.timerRaceCtx == 0 {
@@ -1044,7 +1014,7 @@ func timeSleepUntil() int64 {
 // siftupTimer puts the timer at position i in the right place
 // in the heap by moving it up toward the top of the heap.
 // It returns the smallest changed index.
-func siftupTimer(t []*timer, i int) int {
+func siftupTimer(t []*timer.Timer, i int) int {
 	if i >= len(t) {
 		badTimer()
 	}
@@ -1069,7 +1039,7 @@ func siftupTimer(t []*timer, i int) int {
 
 // siftdownTimer puts the timer at position i in the right place
 // in the heap by moving it down toward the bottom of the heap.
-func siftdownTimer(t []*timer, i int) {
+func siftdownTimer(t []*timer.Timer, i int) {
 	n := len(t)
 	if i >= n {
 		badTimer()

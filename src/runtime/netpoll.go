@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/runtime/timer"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -102,14 +103,14 @@ type pollDesc struct {
 
 	lock    mutex // protects the following fields
 	closing bool
-	user    uint32    // user settable cookie
-	rseq    uintptr   // protects from stale read timers
-	rt      timer     // read deadline timer (set if rt.f != nil)
-	rd      int64     // read deadline (a nanotime in the future, -1 when expired)
-	wseq    uintptr   // protects from stale write timers
-	wt      timer     // write deadline timer
-	wd      int64     // write deadline (a nanotime in the future, -1 when expired)
-	self    *pollDesc // storage for indirect interface. See (*pollDesc).makeArg.
+	user    uint32      // user settable cookie
+	rseq    uintptr     // protects from stale read timers
+	rt      timer.Timer // read deadline timer (set if rt.f != nil)
+	rd      int64       // read deadline (a nanotime in the future, -1 when expired)
+	wseq    uintptr     // protects from stale write timers
+	wt      timer.Timer // write deadline timer
+	wd      int64       // write deadline (a nanotime in the future, -1 when expired)
+	self    *pollDesc   // storage for indirect interface. See (*pollDesc).makeArg.
 }
 
 // pollInfo is the bits needed by netpollcheckerr, stored atomically,
