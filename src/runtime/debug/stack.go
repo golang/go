@@ -38,6 +38,8 @@ func Stack() []byte {
 // SetCrashOutput duplicates f's file descriptor, so the caller may safely
 // close f as soon as SetCrashOutput returns.
 // To disable this additional crash output, call SetCrashOutput(nil).
+// If called concurrently with a crash, some in-progress output may be written
+// to the old file even after an overriding SetCrashOutput returns.
 func SetCrashOutput(f *os.File) error {
 	fd := ^uintptr(0)
 	if f != nil {
