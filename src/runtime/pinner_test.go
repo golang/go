@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 	"time"
@@ -557,7 +558,7 @@ func TestPinnerPinString(t *testing.T) {
 }
 
 func getHeapStr() string {
-	return string(byte(fastrand()))
+	return fmt.Sprintf("%d", fastrand())
 }
 
 func TestPinnerPinSlice(t *testing.T) {

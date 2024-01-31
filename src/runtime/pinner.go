@@ -118,7 +118,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	case kindSlice:
 		data = ((*slice)(e.data)).array
 	default:
-		panic(errorString("runtime.Pinner: argument is not a pointer or string: " + toRType(etyp).string()))
+		panic(errorString("runtime.Pinner: argument is not a pointer, string, or slice: " + toRType(etyp).string()))
 	}
 	if inUserArenaChunk(uintptr(e.data)) {
 		// Arena-allocated objects are not eligible for pinning.
