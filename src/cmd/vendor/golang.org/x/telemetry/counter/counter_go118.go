@@ -6,11 +6,15 @@
 
 package counter
 
-import "fmt"
+import (
+	"flag"
+	"fmt"
+)
 
-func Add(string, int64) {}
-func Inc(string)        {}
-func Open()             {}
+func Add(string, int64)                         {}
+func Inc(string)                                {}
+func Open()                                     {}
+func CountFlags(prefix string, fs flag.FlagSet) {}
 
 type Counter struct{ name string }
 
