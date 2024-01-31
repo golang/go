@@ -5,7 +5,6 @@
 package reflectlite
 
 import (
-	"internal/abi"
 	"unsafe"
 )
 
@@ -23,13 +22,13 @@ func Field(v Value, i int) Value {
 	typ := field.Typ
 
 	// Inherit permission bits from v, but clear flagEmbedRO.
-	fl := v.Flag&(abi.FlagStickyRO|abi.FlagIndir|abi.FlagAddr) | abi.Flag(typ.Kind())
+	fl := v.Flag&(FlagStickyRO|FlagIndir|FlagAddr) | Flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if !field.Name.IsExported() {
 		if field.Embedded() {
-			fl |= abi.FlagEmbedRO
+			fl |= FlagEmbedRO
 		} else {
-			fl |= abi.FlagStickyRO
+			fl |= FlagStickyRO
 		}
 	}
 	// Either flagIndir is set and v.ptr points at struct,
@@ -70,9 +69,9 @@ func Zero(typ Type) Value {
 		panic("reflect: Zero(nil)")
 	}
 	t := typ.common()
-	fl := abi.Flag(t.Kind())
+	fl := Flag(t.Kind())
 	if ifaceIndir(t) {
-		return Value{t, unsafe_New(t), fl | abi.FlagIndir}
+		return Value{t, unsafe_New(t), fl | FlagIndir}
 	}
 	return Value{t, nil, fl}
 }

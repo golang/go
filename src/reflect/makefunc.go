@@ -8,6 +8,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/reflectlite"
 	"unsafe"
 )
 
@@ -67,7 +68,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 		fn:   fn,
 	}
 
-	return Value{t, unsafe.Pointer(impl), abi.Flag(Func)}
+	return Value{t, unsafe.Pointer(impl), reflectlite.Flag(Func)}
 }
 
 // makeFuncStub is an assembly function that is the code half of
@@ -94,13 +95,13 @@ type methodValue struct {
 // reflect can tell, but the true func representation can be handled
 // by code like Convert and Interface and Assign.
 func makeMethodValue(op string, v Value) Value {
-	if v.flag&abi.FlagMethod == 0 {
+	if v.flag&reflectlite.FlagMethod == 0 {
 		panic("reflect: internal error: invalid use of makeMethodValue")
 	}
 
 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
-	fl := v.flag & (abi.FlagRO | abi.FlagAddr | abi.FlagIndir)
-	fl |= abi.Flag(v.typ().Kind())
+	fl := v.flag & (reflectlite.FlagRO | reflectlite.FlagAddr | reflectlite.FlagIndir)
+	fl |= reflectlite.Flag(v.typ().Kind())
 	rcvr := Value{v.typ(), v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
@@ -117,7 +118,7 @@ func makeMethodValue(op string, v Value) Value {
 			argLen:  abid.stackCallArgsSize,
 			regPtrs: abid.inRegPtrs,
 		},
-		method: int(v.flag) >> abi.FlagMethodShift,
+		method: int(v.flag) >> reflectlite.FlagMethodShift,
 		rcvr:   rcvr,
 	}
 
@@ -126,7 +127,7 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag&abi.FlagRO | abi.Flag(Func)}
+	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag&reflectlite.FlagRO | reflectlite.Flag(Func)}
 }
 
 func methodValueCallCodePtr() uintptr {

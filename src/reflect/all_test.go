@@ -13,6 +13,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/race"
+	"internal/reflectlite"
 	"internal/testenv"
 	"io"
 	"math"
@@ -4086,7 +4087,7 @@ func shouldPanic(expect string, f func()) {
 			switch r := r.(type) {
 			case string:
 				s = r
-			case *abi.ValueError:
+			case *reflectlite.ValueError:
 				s = r.Error()
 			case *ValueError:
 				s = r.Error()

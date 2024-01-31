@@ -230,6 +230,13 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Store",
 			"(*Pointer[go.shape.int]).Swap",
 		},
+		"internal/reflectlite": {
+			"Flag.mustBe",
+			"Flag.mustBeAssignable",
+			"Flag.mustBeExported",
+			"Flag.kind",
+			"Flag.ro",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {

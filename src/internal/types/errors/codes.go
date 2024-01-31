@@ -671,6 +671,11 @@ const (
 
 	// UnexportedName occurs when a selector refers to an unexported identifier
 	// of an imported package.
+	//
+	// Example:
+	//  import "reflect"
+	//
+	//  type _ reflect.rtype
 	UnexportedName
 
 	// UndeclaredName occurs when an identifier is not declared in the current
