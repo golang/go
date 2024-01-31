@@ -13,7 +13,7 @@ const (
 
 	// Maximum key or elem size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
-	// Fast versions cannot handle big elems - the cutoff size for
+	// Note: fast map functions cannot handle big elems (bigger than MapMaxElemBytes).
 	MapMaxKeyBytes  = 128
 	MapMaxElemBytes = 128 // Must fit in a uint8.
 )
