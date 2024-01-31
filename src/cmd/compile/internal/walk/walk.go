@@ -6,6 +6,7 @@ package walk
 
 import (
 	"fmt"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -188,8 +189,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Size() > 128 {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
