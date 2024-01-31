@@ -5,7 +5,7 @@
 package syscall_test
 
 import (
-	"runtime/internal/syscall"
+	"internal/runtime/syscall"
 	"testing"
 )
 

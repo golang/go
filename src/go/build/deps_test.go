@@ -69,7 +69,7 @@ var depsRules = `
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
-	< runtime/internal/syscall
+	< internal/runtime/syscall
 	< runtime/internal/atomic
 	< runtime/internal/math
 	< runtime
