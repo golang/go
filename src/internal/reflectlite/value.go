@@ -523,5 +523,24 @@ func (e *ValueError) Error() string {
 	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
 }
 
-//go:linkname valueMethodName runtime.valueMethodName
-func valueMethodName() string
+// valueMethodName returns the name of the exported calling method on Value.
+func valueMethodName() string {
+	var pc [5]uintptr
+	n := runtime.Callers(1,
+		(*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:],
+	)
+	frames := runtime.CallersFrames((*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:n])
+	var frame runtime.Frame
+	for more := true; more; {
+		const prefix = "reflect.Value."
+		frame, more = frames.Next()
+		name := frame.Function
+		if len(name) > len(prefix) && name[:len(prefix)] == prefix {
+			methodName := name[len(prefix):]
+			if len(methodName) > 0 && 'A' <= methodName[0] && methodName[0] <= 'Z' {
+				return name
+			}
+		}
+	}
+	return "unknown method"
+}
