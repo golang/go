@@ -49,7 +49,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/profile"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -145,51 +145,52 @@ type Profile struct {
 
 var wantHdr = "GO PREPROFILE V1\n"
 
-func isPreProfileFile(filename string) (bool, error) {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return false, err
+func isPreProfileFile(r *bufio.Reader) (bool, error) {
+	hdr, err := r.Peek(len(wantHdr))
+	if err == io.EOF {
+		// Empty file.
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("error reading profile header: %w", err)
 	}
 
-	/* check the header */
-	fileContent := string(content)
-	if strings.HasPrefix(fileContent, wantHdr) {
-		return true, nil
-	}
-	return false, nil
+	return string(hdr) == wantHdr, nil
 }
 
 // New generates a profile-graph from the profile or pre-processed profile.
 func New(profileFile string) (*Profile, error) {
-	var profile *Profile
-	var err error
-	isPreProf, err := isPreProfileFile(profileFile)
+	f, err := os.Open(profileFile)
 	if err != nil {
 		return nil, fmt.Errorf("error opening profile: %w", err)
 	}
-	if !isPreProf {
-		profile, err = processProto(profileFile)
-		if err != nil {
-			return nil, fmt.Errorf("error processing pprof PGO profile: %w", err)
-		}
-	} else {
-		profile, err = processPreprof(profileFile)
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+
+	isPreProf, err := isPreProfileFile(r)
+	if err != nil {
+		return nil, fmt.Errorf("error processing profile header: %w", err)
+	}
+
+	if isPreProf {
+		profile, err := processPreprof(r)
 		if err != nil {
 			return nil, fmt.Errorf("error processing preprocessed PGO profile: %w", err)
 		}
+		return profile, nil
+	}
+
+	profile, err := processProto(r)
+	if err != nil {
+		return nil, fmt.Errorf("error processing pprof PGO profile: %w", err)
 	}
 	return profile, nil
 
 }
 
 // processProto generates a profile-graph from the profile.
-func processProto(profileFile string) (*Profile, error) {
-	f, err := os.Open(profileFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening profile: %w", err)
-	}
-	defer f.Close()
-	p, err := profile.Parse(f)
+func processProto(r io.Reader) (*Profile, error) {
+	p, err := profile.Parse(r)
 	if errors.Is(err, profile.ErrNoData) {
 		// Treat a completely empty file the same as a profile with no
 		// samples: nothing to do.
@@ -242,8 +243,8 @@ func processProto(profileFile string) (*Profile, error) {
 }
 
 // processPreprof generates a profile-graph from the pre-procesed profile.
-func processPreprof(preprofileFile string) (*Profile, error) {
-	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(preprofileFile)
+func processPreprof(r io.Reader) (*Profile, error) {
+	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(r)
 	if err != nil {
 		return nil, err
 	}
@@ -297,14 +298,8 @@ func postProcessNamedEdgeMap(weight map[NamedCallEdge]int64, weightVal int64) (e
 
 // restore NodeMap information from a preprocessed profile.
 // The reader can refer to the format of preprocessed profile in cmd/preprofile/main.go.
-func createNamedEdgeMapFromPreprocess(preprofileFile string) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
-	readFile, err := os.Open(preprofileFile)
-	if err != nil {
-		return NamedEdgeMap{}, 0, fmt.Errorf("error opening preprocessed profile: %w", err)
-	}
-	defer readFile.Close()
-
-	fileScanner := bufio.NewScanner(readFile)
+func createNamedEdgeMapFromPreprocess(r io.Reader) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
+	fileScanner := bufio.NewScanner(r)
 	fileScanner.Split(bufio.ScanLines)
 	weight := make(map[NamedCallEdge]int64)
 
