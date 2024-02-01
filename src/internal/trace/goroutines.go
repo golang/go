@@ -5,8 +5,8 @@
 package trace
 
 import (
+	"internal/runtime/goroutine"
 	"sort"
-	"strings"
 )
 
 // GDesc contains statistics and execution details of a single goroutine.
@@ -134,7 +134,7 @@ func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
 	// "inherit" a task due to creation (EvGoCreate) from within a region.
 	// This may happen e.g. if the first GC is triggered within a region,
 	// starting the GC worker goroutines.
-	if !IsSystemGoroutine(g.Name) {
+	if !goroutine.IsSystemGoroutine(g.Name) {
 		for _, s := range g.activeRegions {
 			s.End = trigger
 			s.GExecutionStat = finalStat.sub(s.GExecutionStat)
@@ -348,11 +348,4 @@ func RelatedGoroutines(events []*Event, goid uint64) map[uint64]bool {
 	}
 	gmap[0] = true // for GC events
 	return gmap
-}
-
-func IsSystemGoroutine(entryFn string) bool {
-	// This mimics runtime.isSystemGoroutine as closely as
-	// possible.
-	// Also, locked g in extra M (with empty entryFn) is system goroutine.
-	return entryFn == "" || entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
 }
