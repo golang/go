@@ -141,5 +141,11 @@ func (tab *traceMap) reset() {
 	assertLockHeld(&tab.lock)
 	tab.mem.drop()
 	tab.seq.Store(0)
-	tab.tab = [1 << 13]atomic.UnsafePointer{}
+	// Clear table without write barriers. The table consists entirely
+	// of notinheap pointers, so this is fine.
+	//
+	// Write barriers may theoretically call into the tracer and acquire
+	// the lock again, and this lock ordering is expressed in the static
+	// lock ranking checker.
+	memclrNoHeapPointers(unsafe.Pointer(&tab.tab), unsafe.Sizeof(tab.tab))
 }
