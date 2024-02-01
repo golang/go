@@ -1298,7 +1298,7 @@ func preemptM(mp *m) {
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromSP(mp, c.sp())
 	if gp != nil && wantAsyncPreempt(gp) {
-		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr(), panicking.Load() != 0); ok {
+		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt
 			targetPC := abi.FuncPCABI0(asyncPreempt)
 			switch GOARCH {
