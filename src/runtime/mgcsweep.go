@@ -27,7 +27,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 

@@ -10,7 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )

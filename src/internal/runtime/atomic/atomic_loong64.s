@@ -316,7 +316,7 @@ TEXT ·Anduintptr(SB), NOSPLIT, $0-24
 TEXT ·Oruintptr(SB), NOSPLIT, $0-24
 	JMP	·Or64(SB)
 
-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+// uint32 internal∕runtime∕atomic·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOVV	ptr+0(FP), R19
 	DBAR
@@ -325,7 +325,7 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	R19, ret+8(FP)
 	RET
 
-// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
+// uint8 internal∕runtime∕atomic·Load8(uint8 volatile* ptr)
 TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
 	MOVV	ptr+0(FP), R19
 	DBAR
@@ -334,7 +334,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
 	MOVB	R19, ret+8(FP)
 	RET
 
-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+// uint64 internal∕runtime∕atomic·Load64(uint64 volatile* ptr)
 TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
 	MOVV	ptr+0(FP), R19
 	DBAR
@@ -343,7 +343,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
 	MOVV	R19, ret+8(FP)
 	RET
 
-// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
+// void *internal∕runtime∕atomic·Loadp(void *volatile *ptr)
 TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 	MOVV	ptr+0(FP), R19
 	DBAR
@@ -352,7 +352,7 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 	MOVV	R19, ret+8(FP)
 	RET
 
-// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
+// uint32 internal∕runtime∕atomic·LoadAcq(uint32 volatile* ptr)
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	·Load(SB)
 

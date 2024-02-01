@@ -85,7 +85,7 @@ package runtime
 import (
 	"internal/goarch"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/math"
 	"unsafe"
 )

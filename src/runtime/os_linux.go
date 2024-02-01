@@ -7,8 +7,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/atomic"
 	"internal/runtime/syscall"
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -402,9 +402,9 @@ func unminit() {
 func mdestroy(mp *m) {
 }
 
-//#ifdef GOARCH_386
-//#define sa_handler k_sa_handler
-//#endif
+// #ifdef GOARCH_386
+// #define sa_handler k_sa_handler
+// #endif
 
 func sigreturn__sigaction()
 func sigtramp() // Called via C ABI

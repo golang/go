@@ -199,7 +199,7 @@ func isAtomicStdPkg(p *Pkg) bool {
 	if p.Prefix == `""` {
 		panic("bad package prefix")
 	}
-	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
+	return p.Prefix == "sync/atomic" || p.Prefix == "internal/runtime/atomic"
 }
 
 // CalcSize calculates and stores the size, alignment, eq/hash algorithm,

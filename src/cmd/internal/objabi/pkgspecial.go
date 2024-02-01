@@ -43,7 +43,7 @@ type PkgSpecial struct {
 var runtimePkgs = []string{
 	"runtime",
 
-	"runtime/internal/atomic",
+	"internal/runtime/atomic",
 	"runtime/internal/math",
 	"runtime/internal/sys",
 	"internal/runtime/syscall",

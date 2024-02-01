@@ -182,8 +182,8 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		}
 	}
 
-	// runtime/internal/atomic functions call into kernel helpers on
-	// arm < 7. See runtime/internal/atomic/sys_linux_arm.s.
+	// internal/runtime/atomic functions call into kernel helpers on
+	// arm < 7. See internal/runtime/atomic/sys_linux_arm.s.
 	//
 	// Start in the caller's frame.
 	if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && frame.pc&0xffff0000 == 0xffff0000 {

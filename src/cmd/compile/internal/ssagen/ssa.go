@@ -2008,7 +2008,7 @@ func (s *state) stmt(n ir.Node) {
 		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
 			// Note: we can only use the cache if we have the right atomic load instruction.
 			// Double-check that here.
-			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
+			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
 				s.Fatalf("atomic load not available")
 			}
 			merge = s.f.NewBlock(ssa.BlockPlain)
@@ -4286,43 +4286,43 @@ func InitTables() {
 	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
 		sys.AMD64, sys.ARM64, sys.PPC64)
 
-	/******** runtime/internal/atomic ********/
-	addF("runtime/internal/atomic", "Load",
+	/******** internal/runtime/atomic ********/
+	addF("internal/runtime/atomic", "Load",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Load8",
+	addF("internal/runtime/atomic", "Load8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Load64",
+	addF("internal/runtime/atomic", "Load64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "LoadAcq",
+	addF("internal/runtime/atomic", "LoadAcq",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadAcq32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.PPC64, sys.S390X)
-	addF("runtime/internal/atomic", "LoadAcq64",
+	addF("internal/runtime/atomic", "LoadAcq64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.PPC64)
-	addF("runtime/internal/atomic", "Loadp",
+	addF("internal/runtime/atomic", "Loadp",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
@@ -4330,51 +4330,51 @@ func InitTables() {
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
-	addF("runtime/internal/atomic", "Store",
+	addF("internal/runtime/atomic", "Store",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Store8",
+	addF("internal/runtime/atomic", "Store8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Store64",
+	addF("internal/runtime/atomic", "Store64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "StorepNoWB",
+	addF("internal/runtime/atomic", "StorepNoWB",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "StoreRel",
+	addF("internal/runtime/atomic", "StoreRel",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64, sys.S390X)
-	addF("runtime/internal/atomic", "StoreRel64",
+	addF("internal/runtime/atomic", "StoreRel64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64)
 
-	addF("runtime/internal/atomic", "Xchg",
+	addF("internal/runtime/atomic", "Xchg",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicExchange32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Xchg64",
+	addF("internal/runtime/atomic", "Xchg64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicExchange64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
@@ -4429,21 +4429,21 @@ func InitTables() {
 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
 	}
-	addF("runtime/internal/atomic", "Xchg",
+	addF("internal/runtime/atomic", "Xchg",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "Xchg64",
+	addF("internal/runtime/atomic", "Xchg64",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 
-	addF("runtime/internal/atomic", "Xadd",
+	addF("internal/runtime/atomic", "Xadd",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicAdd32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Xadd64",
+	addF("internal/runtime/atomic", "Xadd64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
@@ -4451,28 +4451,28 @@ func InitTables() {
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
-	addF("runtime/internal/atomic", "Xadd",
+	addF("internal/runtime/atomic", "Xadd",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "Xadd64",
+	addF("internal/runtime/atomic", "Xadd64",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 
-	addF("runtime/internal/atomic", "Cas",
+	addF("internal/runtime/atomic", "Cas",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Cas64",
+	addF("internal/runtime/atomic", "Cas64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "CasRel",
+	addF("internal/runtime/atomic", "CasRel",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
@@ -4486,32 +4486,32 @@ func InitTables() {
 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
 	}
 
-	addF("runtime/internal/atomic", "Cas",
+	addF("internal/runtime/atomic", "Cas",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TUINT32, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "Cas64",
+	addF("internal/runtime/atomic", "Cas64",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TUINT64, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 
-	addF("runtime/internal/atomic", "And8",
+	addF("internal/runtime/atomic", "And8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "And",
+	addF("internal/runtime/atomic", "And",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Or8",
+	addF("internal/runtime/atomic", "Or8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("runtime/internal/atomic", "Or",
+	addF("internal/runtime/atomic", "Or",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
@@ -4522,65 +4522,65 @@ func InitTables() {
 		s.vars[memVar] = s.newValue3(op, types.TypeMem, args[0], args[1], s.mem())
 	}
 
-	addF("runtime/internal/atomic", "And8",
+	addF("internal/runtime/atomic", "And8",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "And",
+	addF("internal/runtime/atomic", "And",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "Or8",
+	addF("internal/runtime/atomic", "Or8",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
-	addF("runtime/internal/atomic", "Or",
+	addF("internal/runtime/atomic", "Or",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 
 	// Aliases for atomic load operations
-	alias("runtime/internal/atomic", "Loadint32", "runtime/internal/atomic", "Load", all...)
-	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
-	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
-	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
-	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
-	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
-	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
-	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...) // linknamed
-	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
-	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...) // linknamed
+	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
+	alias("internal/runtime/atomic", "Loadint64", "internal/runtime/atomic", "Load64", all...)
+	alias("internal/runtime/atomic", "Loaduintptr", "internal/runtime/atomic", "Load", p4...)
+	alias("internal/runtime/atomic", "Loaduintptr", "internal/runtime/atomic", "Load64", p8...)
+	alias("internal/runtime/atomic", "Loaduint", "internal/runtime/atomic", "Load", p4...)
+	alias("internal/runtime/atomic", "Loaduint", "internal/runtime/atomic", "Load64", p8...)
+	alias("internal/runtime/atomic", "LoadAcq", "internal/runtime/atomic", "Load", lwatomics...)
+	alias("internal/runtime/atomic", "LoadAcq64", "internal/runtime/atomic", "Load64", lwatomics...)
+	alias("internal/runtime/atomic", "LoadAcquintptr", "internal/runtime/atomic", "LoadAcq", p4...)
+	alias("sync", "runtime_LoadAcquintptr", "internal/runtime/atomic", "LoadAcq", p4...) // linknamed
+	alias("internal/runtime/atomic", "LoadAcquintptr", "internal/runtime/atomic", "LoadAcq64", p8...)
+	alias("sync", "runtime_LoadAcquintptr", "internal/runtime/atomic", "LoadAcq64", p8...) // linknamed
 
 	// Aliases for atomic store operations
-	alias("runtime/internal/atomic", "Storeint32", "runtime/internal/atomic", "Store", all...)
-	alias("runtime/internal/atomic", "Storeint64", "runtime/internal/atomic", "Store64", all...)
-	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
-	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
-	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
-	alias("runtime/internal/atomic", "StoreRel64", "runtime/internal/atomic", "Store64", lwatomics...)
-	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...)
-	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...) // linknamed
-	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
-	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...) // linknamed
+	alias("internal/runtime/atomic", "Storeint32", "internal/runtime/atomic", "Store", all...)
+	alias("internal/runtime/atomic", "Storeint64", "internal/runtime/atomic", "Store64", all...)
+	alias("internal/runtime/atomic", "Storeuintptr", "internal/runtime/atomic", "Store", p4...)
+	alias("internal/runtime/atomic", "Storeuintptr", "internal/runtime/atomic", "Store64", p8...)
+	alias("internal/runtime/atomic", "StoreRel", "internal/runtime/atomic", "Store", lwatomics...)
+	alias("internal/runtime/atomic", "StoreRel64", "internal/runtime/atomic", "Store64", lwatomics...)
+	alias("internal/runtime/atomic", "StoreReluintptr", "internal/runtime/atomic", "StoreRel", p4...)
+	alias("sync", "runtime_StoreReluintptr", "internal/runtime/atomic", "StoreRel", p4...) // linknamed
+	alias("internal/runtime/atomic", "StoreReluintptr", "internal/runtime/atomic", "StoreRel64", p8...)
+	alias("sync", "runtime_StoreReluintptr", "internal/runtime/atomic", "StoreRel64", p8...) // linknamed
 
 	// Aliases for atomic swap operations
-	alias("runtime/internal/atomic", "Xchgint32", "runtime/internal/atomic", "Xchg", all...)
-	alias("runtime/internal/atomic", "Xchgint64", "runtime/internal/atomic", "Xchg64", all...)
-	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
-	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
+	alias("internal/runtime/atomic", "Xchgint32", "internal/runtime/atomic", "Xchg", all...)
+	alias("internal/runtime/atomic", "Xchgint64", "internal/runtime/atomic", "Xchg64", all...)
+	alias("internal/runtime/atomic", "Xchguintptr", "internal/runtime/atomic", "Xchg", p4...)
+	alias("internal/runtime/atomic", "Xchguintptr", "internal/runtime/atomic", "Xchg64", p8...)
 
 	// Aliases for atomic add operations
-	alias("runtime/internal/atomic", "Xaddint32", "runtime/internal/atomic", "Xadd", all...)
-	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
-	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
-	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd64", p8...)
+	alias("internal/runtime/atomic", "Xaddint32", "internal/runtime/atomic", "Xadd", all...)
+	alias("internal/runtime/atomic", "Xaddint64", "internal/runtime/atomic", "Xadd64", all...)
+	alias("internal/runtime/atomic", "Xadduintptr", "internal/runtime/atomic", "Xadd", p4...)
+	alias("internal/runtime/atomic", "Xadduintptr", "internal/runtime/atomic", "Xadd64", p8...)
 
 	// Aliases for atomic CAS operations
-	alias("runtime/internal/atomic", "Casint32", "runtime/internal/atomic", "Cas", all...)
-	alias("runtime/internal/atomic", "Casint64", "runtime/internal/atomic", "Cas64", all...)
-	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas", p4...)
-	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
-	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
-	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
-	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
+	alias("internal/runtime/atomic", "Casint32", "internal/runtime/atomic", "Cas", all...)
+	alias("internal/runtime/atomic", "Casint64", "internal/runtime/atomic", "Cas64", all...)
+	alias("internal/runtime/atomic", "Casuintptr", "internal/runtime/atomic", "Cas", p4...)
+	alias("internal/runtime/atomic", "Casuintptr", "internal/runtime/atomic", "Cas64", p8...)
+	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas", p4...)
+	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas64", p8...)
+	alias("internal/runtime/atomic", "CasRel", "internal/runtime/atomic", "Cas", lwatomics...)
 
 	/******** math ********/
 	addF("math", "sqrt",
@@ -5021,42 +5021,42 @@ func InitTables() {
 	/******** sync/atomic ********/
 
 	// Note: these are disabled by flag_race in findIntrinsic below.
-	alias("sync/atomic", "LoadInt32", "runtime/internal/atomic", "Load", all...)
-	alias("sync/atomic", "LoadInt64", "runtime/internal/atomic", "Load64", all...)
-	alias("sync/atomic", "LoadPointer", "runtime/internal/atomic", "Loadp", all...)
-	alias("sync/atomic", "LoadUint32", "runtime/internal/atomic", "Load", all...)
-	alias("sync/atomic", "LoadUint64", "runtime/internal/atomic", "Load64", all...)
-	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load", p4...)
-	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load64", p8...)
+	alias("sync/atomic", "LoadInt32", "internal/runtime/atomic", "Load", all...)
+	alias("sync/atomic", "LoadInt64", "internal/runtime/atomic", "Load64", all...)
+	alias("sync/atomic", "LoadPointer", "internal/runtime/atomic", "Loadp", all...)
+	alias("sync/atomic", "LoadUint32", "internal/runtime/atomic", "Load", all...)
+	alias("sync/atomic", "LoadUint64", "internal/runtime/atomic", "Load64", all...)
+	alias("sync/atomic", "LoadUintptr", "internal/runtime/atomic", "Load", p4...)
+	alias("sync/atomic", "LoadUintptr", "internal/runtime/atomic", "Load64", p8...)
 
-	alias("sync/atomic", "StoreInt32", "runtime/internal/atomic", "Store", all...)
-	alias("sync/atomic", "StoreInt64", "runtime/internal/atomic", "Store64", all...)
+	alias("sync/atomic", "StoreInt32", "internal/runtime/atomic", "Store", all...)
+	alias("sync/atomic", "StoreInt64", "internal/runtime/atomic", "Store64", all...)
 	// Note: not StorePointer, that needs a write barrier.  Same below for {CompareAnd}Swap.
-	alias("sync/atomic", "StoreUint32", "runtime/internal/atomic", "Store", all...)
-	alias("sync/atomic", "StoreUint64", "runtime/internal/atomic", "Store64", all...)
-	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store", p4...)
-	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store64", p8...)
+	alias("sync/atomic", "StoreUint32", "internal/runtime/atomic", "Store", all...)
+	alias("sync/atomic", "StoreUint64", "internal/runtime/atomic", "Store64", all...)
+	alias("sync/atomic", "StoreUintptr", "internal/runtime/atomic", "Store", p4...)
+	alias("sync/atomic", "StoreUintptr", "internal/runtime/atomic", "Store64", p8...)
 
-	alias("sync/atomic", "SwapInt32", "runtime/internal/atomic", "Xchg", all...)
-	alias("sync/atomic", "SwapInt64", "runtime/internal/atomic", "Xchg64", all...)
-	alias("sync/atomic", "SwapUint32", "runtime/internal/atomic", "Xchg", all...)
-	alias("sync/atomic", "SwapUint64", "runtime/internal/atomic", "Xchg64", all...)
-	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg", p4...)
-	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg64", p8...)
+	alias("sync/atomic", "SwapInt32", "internal/runtime/atomic", "Xchg", all...)
+	alias("sync/atomic", "SwapInt64", "internal/runtime/atomic", "Xchg64", all...)
+	alias("sync/atomic", "SwapUint32", "internal/runtime/atomic", "Xchg", all...)
+	alias("sync/atomic", "SwapUint64", "internal/runtime/atomic", "Xchg64", all...)
+	alias("sync/atomic", "SwapUintptr", "internal/runtime/atomic", "Xchg", p4...)
+	alias("sync/atomic", "SwapUintptr", "internal/runtime/atomic", "Xchg64", p8...)
 
-	alias("sync/atomic", "CompareAndSwapInt32", "runtime/internal/atomic", "Cas", all...)
-	alias("sync/atomic", "CompareAndSwapInt64", "runtime/internal/atomic", "Cas64", all...)
-	alias("sync/atomic", "CompareAndSwapUint32", "runtime/internal/atomic", "Cas", all...)
-	alias("sync/atomic", "CompareAndSwapUint64", "runtime/internal/atomic", "Cas64", all...)
-	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas", p4...)
-	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas64", p8...)
+	alias("sync/atomic", "CompareAndSwapInt32", "internal/runtime/atomic", "Cas", all...)
+	alias("sync/atomic", "CompareAndSwapInt64", "internal/runtime/atomic", "Cas64", all...)
+	alias("sync/atomic", "CompareAndSwapUint32", "internal/runtime/atomic", "Cas", all...)
+	alias("sync/atomic", "CompareAndSwapUint64", "internal/runtime/atomic", "Cas64", all...)
+	alias("sync/atomic", "CompareAndSwapUintptr", "internal/runtime/atomic", "Cas", p4...)
+	alias("sync/atomic", "CompareAndSwapUintptr", "internal/runtime/atomic", "Cas64", p8...)
 
-	alias("sync/atomic", "AddInt32", "runtime/internal/atomic", "Xadd", all...)
-	alias("sync/atomic", "AddInt64", "runtime/internal/atomic", "Xadd64", all...)
-	alias("sync/atomic", "AddUint32", "runtime/internal/atomic", "Xadd", all...)
-	alias("sync/atomic", "AddUint64", "runtime/internal/atomic", "Xadd64", all...)
-	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd", p4...)
-	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd64", p8...)
+	alias("sync/atomic", "AddInt32", "internal/runtime/atomic", "Xadd", all...)
+	alias("sync/atomic", "AddInt64", "internal/runtime/atomic", "Xadd64", all...)
+	alias("sync/atomic", "AddUint32", "internal/runtime/atomic", "Xadd", all...)
+	alias("sync/atomic", "AddUint64", "internal/runtime/atomic", "Xadd64", all...)
+	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
+	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
 
 	/******** math/big ********/
 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
@@ -6663,7 +6663,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
 				// Note: we can only use the cache if we have the right atomic load instruction.
 				// Double-check that here.
-				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "runtime/internal/atomic", "Loadp"}]; !ok {
+				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
 					s.Fatalf("atomic load not available")
 				}
 				// Pick right size ops.

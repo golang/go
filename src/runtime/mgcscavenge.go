@@ -92,7 +92,7 @@ package runtime
 
 import (
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )

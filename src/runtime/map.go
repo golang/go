@@ -56,7 +56,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/math"
 	"unsafe"
 )
@@ -1498,7 +1498,7 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 	dst := makemap(t, src.count, nil)
 	dst.hash0 = src.hash0
 	dst.nevacuate = 0
-	//flags do not need to be copied here, just like a new map has no flags.
+	// flags do not need to be copied here, just like a new map has no flags.
 
 	if src.count == 0 {
 		return dst

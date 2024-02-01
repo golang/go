@@ -5,7 +5,7 @@
 package atomic_test
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"testing"
 )
 

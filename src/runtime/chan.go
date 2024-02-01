@@ -19,7 +19,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/math"
 	"unsafe"
 )

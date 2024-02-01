@@ -14,10 +14,10 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"internal/runtime/atomic"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/internal/atomic"
 	"strings"
 	"unsafe"
 )

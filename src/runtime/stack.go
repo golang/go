@@ -9,7 +9,7 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )

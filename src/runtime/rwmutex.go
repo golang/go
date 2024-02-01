@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 )
 
 // This is a copy of sync/rwmutex.go rewritten to work in the runtime.

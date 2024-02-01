@@ -70,7 +70,7 @@ var depsRules = `
 	< internal/unsafeheader
 	< runtime/internal/sys
 	< internal/runtime/syscall
-	< runtime/internal/atomic
+	< internal/runtime/atomic
 	< runtime/internal/math
 	< runtime
 	< sync/atomic

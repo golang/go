@@ -8,7 +8,7 @@ import (
 	"internal/abi"
 	"internal/chacha8rand"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )

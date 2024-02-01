@@ -11,11 +11,11 @@ package runtime_test
 
 import (
 	"internal/abi"
+	"internal/runtime/atomic"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"runtime"
-	"runtime/internal/atomic"
 	"strings"
 	"testing"
 	"time"

@@ -6,8 +6,8 @@ package atomic_test
 
 import (
 	"internal/goarch"
+	"internal/runtime/atomic"
 	"runtime"
-	"runtime/internal/atomic"
 	"testing"
 	"unsafe"
 )

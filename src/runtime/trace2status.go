@@ -8,7 +8,7 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import "internal/runtime/atomic"
 
 // traceGoStatus is the status of a goroutine.
 //
