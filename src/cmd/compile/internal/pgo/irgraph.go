@@ -49,7 +49,6 @@ import (
 	"errors"
 	"fmt"
 	"internal/profile"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -146,7 +145,7 @@ type Profile struct {
 var wantHdr = "GO PREPROFILE V1\n"
 
 func isPreProfileFile(filename string) (bool, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return false, err
 	}
