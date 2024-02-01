@@ -216,6 +216,6 @@ func (fd *netFD) accept() (*netFD, error) {
 // Unimplemented functions.
 
 func (fd *netFD) dup() (*os.File, error) {
-	// TODO: Implement this
+	// TODO: Implement this, perhaps using internal/poll.DupCloseOnExec.
 	return nil, syscall.EWINDOWS
 }

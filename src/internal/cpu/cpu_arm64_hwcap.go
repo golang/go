@@ -48,13 +48,13 @@ func hwcapInit(os string) {
 	if ARM64.HasCPUID {
 		midr := getMIDR()
 		part_num := uint16((midr >> 4) & 0xfff)
-		implementor := byte((midr >> 24) & 0xff)
+		implementer := byte((midr >> 24) & 0xff)
 
 		// d0c - NeoverseN1
 		// d40 - NeoverseV1
 		// d49 - NeoverseN2
 		// d4f - NeoverseV2
-		if implementor == 'A' && (part_num == 0xd0c || part_num == 0xd40 ||
+		if implementer == 'A' && (part_num == 0xd0c || part_num == 0xd40 ||
 			part_num == 0xd49 || part_num == 0xd4f) {
 			ARM64.IsNeoverse = true
 		}

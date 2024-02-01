@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Dec 27, 2023",
+	"Subtitle": "Language version go1.22 (Jan 30, 2023)",
 	"Path": "/ref/spec"
 }-->
 
@@ -6661,7 +6661,7 @@ array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
 channel         c  chan E, &lt;-chan E       element  e  E
-integer         n  integer type I         value    i  I
+integer         n  integer type           value    i  see below
 </pre>
 
 <ol>
@@ -6703,26 +6703,33 @@ is <code>nil</code>, the range expression blocks forever.
 
 <li>
 For an integer value <code>n</code>, the iteration values 0 through <code>n-1</code>
-are produced in increasing order, with the same type as <code>n</code>.
+are produced in increasing order.
 If <code>n</code> &lt= 0, the loop does not run any iterations.
 </li>
 </ol>
 
 <p>
-The iteration values are assigned to the respective
-iteration variables as in an <a href="#Assignment_statements">assignment statement</a>.
-</p>
-
-<p>
 The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
-In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement;
-each iteration has its own separate variables [<a href="#Go_1.22">Go 1.22</a>]
+In this case their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement
+and each iteration has its own new variables [<a href="#Go_1.22">Go 1.22</a>]
 (see also <a href="#For_clause">"for" statements with a ForClause</a>).
-If the iteration variables are declared outside the “for” statement,
-after execution their values will be those of the last iteration.
+If the range expression is a (possibly untyped) integer expression <code>n</code>,
+the variable has the same type as if it was
+<a href="#Variable_declarations">declared</a> with initialization
+expression <code>n</code>.
+Otherwise, the variables have the types of their respective iteration values.
+</p>
+
+<p>
+If the iteration variables are not explicitly declared by the "range" clause,
+they must be preexisting.
+In this case, the iteration values are assigned to the respective variables
+as in an <a href="#Assignment_statements">assignment statement</a>.
+If the range expression is a (possibly untyped) integer expression <code>n</code>,
+<code>n</code> too must be <a href="#Assignability">assignable</a> to the iteration variable;
+if there is no iteration variable, <code>n</code> must be assignable to <code>int</code>.
 </p>
 
 <pre>
@@ -6764,6 +6771,11 @@ for range ch {}
 for i := range 10 {
 	// type of i is int (default type for untyped constant 10)
 	f(i)
+}
+
+// invalid: 256 cannot be assigned to uint8
+var u uint8
+for u = range 256 {
 }
 </pre>
 
