@@ -410,6 +410,8 @@ The available conditions are:
 	platform always requires external linking
 [net:*]
 	can connect to external network host <suffix>
+[pielinkext]
+	platform requires external linking for PIE
 [race]
 	GOOS/GOARCH supports -race
 [root]
