@@ -5,9 +5,9 @@
 package trace
 
 import (
+	"internal/runtime/goroutine"
 	tracev2 "internal/trace/v2"
 	"sort"
-	"std/internal/runtime/goroutine"
 	"time"
 )
 

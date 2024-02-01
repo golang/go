@@ -10,6 +10,7 @@ import (
 	"internal/goarch"
 	"internal/runtime/goroutine"
 	"runtime/internal/sys"
+	"std/internal/runtime/goroutine"
 	"unsafe"
 )
 
