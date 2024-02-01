@@ -7,6 +7,7 @@ package trace
 import (
 	tracev2 "internal/trace/v2"
 	"sort"
+	"std/internal/runtime/goroutine"
 	"time"
 )
 
@@ -231,7 +232,7 @@ func (g *GoroutineSummary) finalize(lastTs tracev2.Time, trigger *tracev2.Event)
 	// "inherit" a task due to creation (EvGoCreate) from within a region.
 	// This may happen e.g. if the first GC is triggered within a region,
 	// starting the GC worker goroutines.
-	if !IsSystemGoroutine(g.Name) {
+	if !goroutine.IsSystemGoroutine(g.Name) {
 		for _, s := range g.activeRegions {
 			s.End = trigger
 			s.GoroutineExecStats = finalStat.sub(s.GoroutineExecStats)

@@ -9,6 +9,7 @@ import (
 	"internal/bytealg"
 	"internal/goarch"
 	"runtime/internal/sys"
+	"std/internal/runtime/goroutine"
 	"unsafe"
 )
 
@@ -1321,7 +1322,6 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 // system (that is, the finalizer goroutine) is considered a user
 // goroutine.
 func isSystemGoroutine(gp *g, fixed bool) bool {
-	// Keep this in sync with internal/trace.IsSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
 		return false
@@ -1339,7 +1339,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 		}
 		return fingStatus.Load()&fingRunningFinalizer == 0
 	}
-	return hasPrefix(funcname(f), "runtime.")
+	return goroutine.IsSystemGoroutine(funcname(f))
 }
 
 // SetCgoTraceback records three C functions to use to gather
