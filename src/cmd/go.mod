@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
 	golang.org/x/arch v0.7.0
-	golang.org/x/build v0.0.0-20240122184708-c291ad69d6be
+	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
 	golang.org/x/mod v0.14.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
