@@ -932,7 +932,13 @@ func newWakeableSleep() *wakeableSleep {
 func (s *wakeableSleep) sleep(ns int64) {
 	resetTimer(s.timer, nanotime()+ns)
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	wakeup := s.wakeup
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
+	}
 	unlock(&s.lock)
 	<-wakeup
 	stopTimer(s.timer)
@@ -945,6 +951,9 @@ func (s *wakeableSleep) wake() {
 	// Grab the wakeup channel, which may be nil if we're
 	// racing with close.
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	if s.wakeup != nil {
 		// Non-blocking send.
 		//
@@ -955,6 +964,9 @@ func (s *wakeableSleep) wake() {
 		case s.wakeup <- struct{}{}:
 		default:
 		}
+	}
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
 	}
 	unlock(&s.lock)
 }
@@ -969,11 +981,18 @@ func (s *wakeableSleep) wake() {
 func (s *wakeableSleep) close() {
 	// Set wakeup to nil so that a late timer ends up being a no-op.
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	wakeup := s.wakeup
 	s.wakeup = nil
 
 	// Close the channel.
 	close(wakeup)
+
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
+	}
 	unlock(&s.lock)
 	return
 }
