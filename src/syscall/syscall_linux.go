@@ -13,16 +13,10 @@ package syscall
 
 import (
 	"internal/itoa"
+	runtimesyscall "internal/runtime/syscall"
 	"runtime"
 	"unsafe"
 )
-
-// N.B. RawSyscall6 is provided via linkname by internal/runtime/syscall.
-//
-// Errno is uintptr and thus compatible with the internal/runtime/syscall
-// definition.
-
-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Pull in entersyscall/exitsyscall for Syscall/Syscall6.
 //
@@ -40,8 +34,7 @@ func runtime_exitsyscall()
 // N.B. For the Syscall functions below:
 //
 // //go:uintptrkeepalive because the uintptr argument may be converted pointers
-// that need to be kept alive in the caller (this is implied for RawSyscall6
-// since it has no body).
+// that need to be kept alive in the caller.
 //
 // //go:nosplit because stack copying does not account for uintptrkeepalive, so
 // the stack must not grow. Stack copying cannot blindly assume that all
@@ -60,6 +53,17 @@ func runtime_exitsyscall()
 //go:linkname RawSyscall
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
+}
+
+//go:uintptrkeepalive
+//go:nosplit
+//go:norace
+//go:linkname RawSyscall6
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	var errno uintptr
+	r1, r2, errno = runtimesyscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	err = Errno(errno)
+	return
 }
 
 //go:uintptrkeepalive
