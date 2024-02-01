@@ -115,7 +115,7 @@ var depsRules = `
 	unicode !< path;
 
 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
-	RUNTIME, unicode/utf8, unicode/utf16, internal/runtime/timer
+	RUNTIME, unicode/utf8, unicode/utf16
 	< internal/syscall/windows/sysdll, syscall/js
 	< syscall
 	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry
