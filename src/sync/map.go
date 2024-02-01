@@ -155,7 +155,7 @@ func (m *Map) Store(key, value any) {
 	_, _ = m.Swap(key, value)
 }
 
-// Clear deletes all the keys.
+// Clear deletes all the entries, resulting in an empty Map.
 func (m *Map) Clear() {
 	read := m.loadReadOnly()
 	if len(read.m) == 0 && !read.amended {
@@ -172,7 +172,8 @@ func (m *Map) Clear() {
 	}
 
 	clear(m.dirty)
-	m.misses = 0 // Don't immediately promote the newly-cleared dirty map on the next operation
+	// Don't immediately promote the newly-cleared dirty map on the next operation.
+	m.misses = 0
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
