@@ -282,7 +282,7 @@ func init() {
 
 		// Movement between float and integer registers with no change in bits; accomplished with stores+loads on PPC.
 		// Because the 32-bit load-literal-bits instructions have impoverished addressability, always widen the
-		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianess issues).
+		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianness issues).
 		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
 		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
 
