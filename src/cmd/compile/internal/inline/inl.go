@@ -919,7 +919,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 	return true, 0, metric
 }
 
-// canInlineCallsite returns true if the call n from caller to callee
+// canInlineCallExpr returns true if the call n from caller to callee
 // can be inlined, plus the score computed for the call expr in
 // question. bigCaller indicates that caller is a big function. log
 // indicates that the 'cannot inline' reason should be logged.
