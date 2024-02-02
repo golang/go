@@ -244,6 +244,8 @@ func writeErrData(data *byte, n int32) {
 // set by debug.SetCrashOutput (see #42888). If it is a valid fd (not
 // all ones), writeErr and related functions write to it in addition
 // to standard error.
+//
+// Initialized to -1 in schedinit.
 var crashFD atomic.Uintptr
 
 //go:linkname setCrashFD

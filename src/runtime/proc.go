@@ -775,6 +775,7 @@ func schedinit() {
 	}
 
 	sched.maxmcount = 10000
+	crashFD.Store(^uintptr(0))
 
 	// The world starts stopped.
 	worldStopped()
