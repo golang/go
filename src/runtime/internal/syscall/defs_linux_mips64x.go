@@ -12,6 +12,7 @@ const (
 	SYS_EPOLL_PWAIT   = 5272
 	SYS_EPOLL_CREATE1 = 5285
 	SYS_EPOLL_PWAIT2  = 5441
+	SYS_EVENTFD2      = 5284
 
 	EPOLLIN       = 0x1
 	EPOLLOUT      = 0x4
@@ -23,6 +24,7 @@ const (
 	EPOLL_CTL_ADD = 0x1
 	EPOLL_CTL_DEL = 0x2
 	EPOLL_CTL_MOD = 0x3
+	EFD_NONBLOCK  = 0x80
 )
 
 type EpollEvent struct {
