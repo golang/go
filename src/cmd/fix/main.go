@@ -13,7 +13,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
-	"internal/diff"
+	"go/version"
 	"io"
 	"io/fs"
 	"os"
@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"internal/diff"
 )
 
 var (
@@ -73,12 +75,10 @@ func main() {
 			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
 			os.Exit(exitCode)
 		}
-		version := (*goVersionStr)[len("go"):]
-		f := strings.SplitN(version, ".", 3)
-		majorStr := f[0]
+		majorStr := version.Lang(*goVersionStr)
 		minorStr := "0"
-		if len(f) >= 1 {
-			minorStr, _, _ = strings.Cut(f[1], "rc")
+		if before, after, found := strings.Cut(majorStr, "."); found {
+			majorStr, minorStr = before, after
 		}
 		major, err1 := strconv.Atoi(majorStr)
 		minor, err2 := strconv.Atoi(minorStr)
