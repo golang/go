@@ -71,11 +71,11 @@ func main() {
 	flag.Parse()
 
 	if *goVersionStr != "" {
-		if !strings.HasPrefix(*goVersionStr, "go") {
+		if !version.IsValid(*goVersionStr) {
 			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
 			os.Exit(exitCode)
 		}
-		majorStr := version.Lang(*goVersionStr)
+		majorStr := version.Lang(*goVersionStr)[len("go"):]
 		minorStr := "0"
 		if before, after, found := strings.Cut(majorStr, "."); found {
 			majorStr, minorStr = before, after
