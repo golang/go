@@ -52,11 +52,11 @@ func (err *error_) empty() bool {
 	return err.desc == nil
 }
 
-func (err *error_) pos() token.Pos {
+func (err *error_) posn() positioner {
 	if err.empty() {
-		return nopos
+		return noposn
 	}
-	return err.desc[0].posn.Pos()
+	return err.desc[0].posn
 }
 
 func (err *error_) msg(fset *token.FileSet, qf Qualifier) string {
@@ -82,13 +82,13 @@ func (err *error_) String() string {
 	if err.empty() {
 		return "no error"
 	}
-	return fmt.Sprintf("%d: %s", err.pos(), err.msg(nil, nil))
+	return fmt.Sprintf("%d: %s", err.posn().Pos(), err.msg(nil, nil))
 }
 
 // errorf adds formatted error information to err.
 // It may be called multiple times to provide additional information.
-func (err *error_) errorf(at token.Pos, format string, args ...interface{}) {
-	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
+func (err *error_) errorf(at positioner, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{at, format, args})
 }
 
 func (check *Checker) qualifier(pkg *Package) string {
@@ -228,7 +228,7 @@ func (check *Checker) report(errp *error_) {
 		panic("no error code provided")
 	}
 
-	// If we have an URL for error codes, add a link to the first line.
+	// If we have a URL for error codes, add a link to the first line.
 	if errp.code != 0 && check.conf._ErrorURL != "" {
 		u := fmt.Sprintf(check.conf._ErrorURL, errp.code)
 		if i := strings.Index(msg, "\n"); i >= 0 {
@@ -316,7 +316,7 @@ func (check *Checker) softErrorf(at positioner, code Code, format string, args .
 	check.report(err)
 }
 
-func (check *Checker) versionErrorf(at positioner, v version, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at positioner, v goVersion, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
 	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, v)

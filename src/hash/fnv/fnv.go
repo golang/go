@@ -38,35 +38,35 @@ const (
 	prime128Shift   = 24
 )
 
-// New32 returns a new 32-bit FNV-1 hash.Hash.
+// New32 returns a new 32-bit FNV-1 [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New32() hash.Hash32 {
 	var s sum32 = offset32
 	return &s
 }
 
-// New32a returns a new 32-bit FNV-1a hash.Hash.
+// New32a returns a new 32-bit FNV-1a [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New32a() hash.Hash32 {
 	var s sum32a = offset32
 	return &s
 }
 
-// New64 returns a new 64-bit FNV-1 hash.Hash.
+// New64 returns a new 64-bit FNV-1 [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New64() hash.Hash64 {
 	var s sum64 = offset64
 	return &s
 }
 
-// New64a returns a new 64-bit FNV-1a hash.Hash.
+// New64a returns a new 64-bit FNV-1a [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New64a() hash.Hash64 {
 	var s sum64a = offset64
 	return &s
 }
 
-// New128 returns a new 128-bit FNV-1 hash.Hash.
+// New128 returns a new 128-bit FNV-1 [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New128() hash.Hash {
 	var s sum128
@@ -75,7 +75,7 @@ func New128() hash.Hash {
 	return &s
 }
 
-// New128a returns a new 128-bit FNV-1a hash.Hash.
+// New128a returns a new 128-bit FNV-1a [hash.Hash].
 // Its Sum method will lay the value out in big-endian byte order.
 func New128a() hash.Hash {
 	var s sum128a
@@ -241,7 +241,6 @@ func (s *sum64) MarshalBinary() ([]byte, error) {
 	b = append(b, magic64...)
 	b = appendUint64(b, uint64(*s))
 	return b, nil
-
 }
 
 func (s *sum64a) MarshalBinary() ([]byte, error) {
@@ -335,35 +334,41 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+// readUint32 is semantically the same as [binary.BigEndian.Uint32]
+// We copied this function because we can not import "encoding/binary" here.
 func readUint32(b []byte) uint32 {
 	_ = b[3]
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
+// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
+// We copied this function because we can not import "encoding/binary" here.
 func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
+	return append(b,
+		byte(x>>24),
+		byte(x>>16),
+		byte(x>>8),
 		byte(x),
-	}
-	return append(b, a[:]...)
+	)
 }
 
+// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
+// We copied this function because we can not import "encoding/binary" here.
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
+	return append(b,
+		byte(x>>56),
+		byte(x>>48),
+		byte(x>>40),
+		byte(x>>32),
+		byte(x>>24),
+		byte(x>>16),
+		byte(x>>8),
 		byte(x),
-	}
-	return append(b, a[:]...)
+	)
 }
 
+// readUint64 is semantically the same as [binary.BigEndian.Uint64]
+// We copied this function because we can not import "encoding/binary" here.
 func readUint64(b []byte) uint64 {
 	_ = b[7]
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |

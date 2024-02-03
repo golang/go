@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -295,30 +293,6 @@ func TestPacketConnClose(t *testing.T) {
 	}
 }
 
-func TestListenCloseListen(t *testing.T) {
-	const maxTries = 10
-	for tries := 0; tries < maxTries; tries++ {
-		ln := newLocalListener(t, "tcp")
-		addr := ln.Addr().String()
-		// TODO: This is racy. The selected address could be reused in between this
-		// Close and the subsequent Listen.
-		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err, false); perr != nil {
-				t.Error(perr)
-			}
-			t.Fatal(err)
-		}
-		ln, err := Listen("tcp", addr)
-		if err == nil {
-			// Success. (This test didn't always make it here earlier.)
-			ln.Close()
-			return
-		}
-		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
-	}
-	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
-}
-
 // See golang.org/issue/6163, golang.org/issue/6987.
 func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 	switch runtime.GOOS {
@@ -383,8 +357,16 @@ func TestZeroByteRead(t *testing.T) {
 
 			ln := newLocalListener(t, network)
 			connc := make(chan Conn, 1)
+			defer func() {
+				ln.Close()
+				for c := range connc {
+					if c != nil {
+						c.Close()
+					}
+				}
+			}()
 			go func() {
-				defer ln.Close()
+				defer close(connc)
 				c, err := ln.Accept()
 				if err != nil {
 					t.Error(err)
@@ -440,8 +422,9 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c1.Close()
-		errc <- peer1(c1.(*TCPConn))
+		err = peer1(c1.(*TCPConn))
+		c1.Close()
+		errc <- err
 	}()
 	go func() {
 		c2, err := Dial("tcp", ln.Addr().String())
@@ -449,12 +432,13 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
 			errc <- err
 			return
 		}
-		defer c2.Close()
-		errc <- peer2(c2.(*TCPConn))
+		err = peer2(c2.(*TCPConn))
+		c2.Close()
+		errc <- err
 	}()
 	for i := 0; i < 2; i++ {
 		if err := <-errc; err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 	}
 }

@@ -571,7 +571,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
 				}
 
-				readVendorList(mainModule)
+				readVendorList(VendorDir())
 				if _, ok := vendorPkgModule[pkg]; !ok {
 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
 				}
@@ -777,7 +777,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 				longestPrefixVersion = v
 				suffix := filepath.ToSlash(str.TrimFilePathPrefix(dir, modRoot))
 				if strings.HasPrefix(suffix, "vendor/") {
-					longestPrefixPath = strings.TrimPrefix(suffix, "vendor/")
+					longestPrefixPath = suffix[len("vendor/"):]
 					continue
 				}
 				longestPrefixPath = pathpkg.Join(mms.PathPrefix(v), suffix)
@@ -1354,6 +1354,15 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				// In workspace mode / workspace pruning mode, the roots are the main modules
 				// rather than the main module's direct dependencies. The check below on the selected
 				// roots does not apply.
+				if cfg.BuildMod == "vendor" {
+					// In workspace vendor mode, we don't need to load the requirements of the workspace
+					// modules' dependencies so the check below doesn't work. But that's okay, because
+					// checking whether modules are required directly for the purposes of pruning is
+					// less important in vendor mode: if we were able to load the package, we have
+					// everything we need  to build the package, and dependencies' tests are pruned out
+					// of the vendor directory anyway.
+					continue
+				}
 				if mg, err := rs.Graph(ctx); err != nil {
 					return false, err
 				} else if _, ok := mg.RequiredBy(dep.mod); !ok {

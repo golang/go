@@ -399,12 +399,27 @@ func init() {
 		{name: "BTSQ", argLength: 2, reg: gp21, asm: "BTSQ", resultInArg0: true, clobberFlags: true},                   // set bit arg1%64 in arg0
 		{name: "BTLconst", argLength: 1, reg: gp1flags, asm: "BTL", typ: "Flags", aux: "Int8"},                         // test whether bit auxint in arg0 is set, 0 <= auxint < 32
 		{name: "BTQconst", argLength: 1, reg: gp1flags, asm: "BTQ", typ: "Flags", aux: "Int8"},                         // test whether bit auxint in arg0 is set, 0 <= auxint < 64
-		{name: "BTCLconst", argLength: 1, reg: gp11, asm: "BTCL", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // complement bit auxint in arg0, 0 <= auxint < 32
-		{name: "BTCQconst", argLength: 1, reg: gp11, asm: "BTCQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // complement bit auxint in arg0, 0 <= auxint < 64
-		{name: "BTRLconst", argLength: 1, reg: gp11, asm: "BTRL", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // reset bit auxint in arg0, 0 <= auxint < 32
-		{name: "BTRQconst", argLength: 1, reg: gp11, asm: "BTRQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // reset bit auxint in arg0, 0 <= auxint < 64
-		{name: "BTSLconst", argLength: 1, reg: gp11, asm: "BTSL", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // set bit auxint in arg0, 0 <= auxint < 32
-		{name: "BTSQconst", argLength: 1, reg: gp11, asm: "BTSQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // set bit auxint in arg0, 0 <= auxint < 64
+		{name: "BTCQconst", argLength: 1, reg: gp11, asm: "BTCQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // complement bit auxint in arg0, 31 <= auxint < 64
+		{name: "BTRQconst", argLength: 1, reg: gp11, asm: "BTRQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // reset bit auxint in arg0, 31 <= auxint < 64
+		{name: "BTSQconst", argLength: 1, reg: gp11, asm: "BTSQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // set bit auxint in arg0, 31 <= auxint < 64
+
+		// BT[SRC]Qconstmodify
+		//
+		//  S: set bit
+		//  R: reset (clear) bit
+		//  C: complement bit
+		//
+		// Apply operation to bit ValAndOff(AuxInt).Val() in the 64 bits at
+		// memory address arg0+ValAndOff(AuxInt).Off()+aux
+		// Bit index must be in range (31-63).
+		// (We use OR/AND/XOR for thinner targets and lower bit indexes.)
+		// arg1=mem, returns mem
+		//
+		// Note that there aren't non-const versions of these instructions.
+		// Well, there are such instructions, but they are slow and weird so we don't use them.
+		{name: "BTSQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTSQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},
+		{name: "BTRQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTRQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},
+		{name: "BTCQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTCQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},
 
 		// TESTx: compare (arg0 & arg1) to 0
 		{name: "TESTQ", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTQ", typ: "Flags"},
@@ -681,6 +696,12 @@ func init() {
 		// Any use must be preceded by a successful check of runtime.support_fma.
 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
 
+		// Note that these operations don't exactly match the semantics of Go's
+		// builtin min. In particular, these aren't commutative, because on various
+		// special cases the 2nd argument is preferred.
+		{name: "MINSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSD"}, // min(arg0,arg1)
+		{name: "MINSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSS"}, // min(arg0,arg1)
+
 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
@@ -697,16 +718,27 @@ func init() {
 		{name: "SETAE", argLength: 1, reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
 		{name: "SETO", argLength: 1, reg: readflags, asm: "SETOS"},  // extract if overflow flag is set from arg0
 		// Variants that store result to memory
-		{name: "SETEQstore", argLength: 3, reg: gpstoreconst, asm: "SETEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract == condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETNEstore", argLength: 3, reg: gpstoreconst, asm: "SETNE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract != condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETLstore", argLength: 3, reg: gpstoreconst, asm: "SETLT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract signed < condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETLEstore", argLength: 3, reg: gpstoreconst, asm: "SETLE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract signed <= condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETGstore", argLength: 3, reg: gpstoreconst, asm: "SETGT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract signed > condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETGEstore", argLength: 3, reg: gpstoreconst, asm: "SETGE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract signed >= condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETBstore", argLength: 3, reg: gpstoreconst, asm: "SETCS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract unsigned < condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETBEstore", argLength: 3, reg: gpstoreconst, asm: "SETLS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract unsigned <= condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETAstore", argLength: 3, reg: gpstoreconst, asm: "SETHI", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // extract unsigned > condition from arg1 to arg0+auxint+aux, arg2=mem
-		{name: "SETAEstore", argLength: 3, reg: gpstoreconst, asm: "SETCC", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract unsigned >= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETEQstore", argLength: 3, reg: gpstoreconst, asm: "SETEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract == condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETNEstore", argLength: 3, reg: gpstoreconst, asm: "SETNE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract != condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETLstore", argLength: 3, reg: gpstoreconst, asm: "SETLT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                // extract signed < condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETLEstore", argLength: 3, reg: gpstoreconst, asm: "SETLE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract signed <= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETGstore", argLength: 3, reg: gpstoreconst, asm: "SETGT", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                // extract signed > condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETGEstore", argLength: 3, reg: gpstoreconst, asm: "SETGE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract signed >= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETBstore", argLength: 3, reg: gpstoreconst, asm: "SETCS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                // extract unsigned < condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETBEstore", argLength: 3, reg: gpstoreconst, asm: "SETLS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract unsigned <= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETAstore", argLength: 3, reg: gpstoreconst, asm: "SETHI", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                // extract unsigned > condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETAEstore", argLength: 3, reg: gpstoreconst, asm: "SETCC", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},               // extract unsigned >= condition from arg1 to arg0+auxint+aux, arg2=mem
+		{name: "SETEQstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETEQ", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract == condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETNEstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETNE", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract != condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETLstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETLT", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"},  // extract signed < condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETLEstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETLE", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract signed <= condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETGstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETGT", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"},  // extract signed > condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETGEstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETGE", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract signed >= condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETBstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETCS", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"},  // extract unsigned < condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETBEstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETLS", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract unsigned <= condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETAstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETHI", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"},  // extract unsigned > condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+		{name: "SETAEstoreidx1", argLength: 4, reg: gpstoreconstidx, asm: "SETCC", aux: "SymOff", typ: "Mem", scale: 1, commutative: true, symEffect: "Write"}, // extract unsigned >= condition from arg2 to arg0+arg1+auxint+aux, arg3=mem
+
 		// Need different opcodes for floating point conditions because
 		// any comparison involving a NaN is always FALSE and thus
 		// the patterns for inverting conditions cannot be used.
@@ -746,7 +778,8 @@ func init() {
 		{name: "MOVLi2f", argLength: 1, reg: gpfp, typ: "Float32"}, // move 32 bits from int to float reg
 		{name: "MOVLf2i", argLength: 1, reg: fpgp, typ: "UInt32"},  // move 32 bits from float to int reg, zero extend
 
-		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
+		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs (for float negation).
+		{name: "POR", argLength: 2, reg: fp21, asm: "POR", commutative: true, resultInArg0: true},   // inclusive or, applied to X regs (for float min/max).
 
 		{name: "LEAQ", argLength: 1, reg: gp11sb, asm: "LEAQ", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
 		{name: "LEAL", argLength: 1, reg: gp11sb, asm: "LEAL", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux

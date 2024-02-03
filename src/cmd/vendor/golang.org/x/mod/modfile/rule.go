@@ -5,17 +5,17 @@
 // Package modfile implements a parser and formatter for go.mod files.
 //
 // The go.mod syntax is described in
-// https://golang.org/cmd/go/#hdr-The_go_mod_file.
+// https://pkg.go.dev/cmd/go/#hdr-The_go_mod_file.
 //
-// The Parse and ParseLax functions both parse a go.mod file and return an
+// The [Parse] and [ParseLax] functions both parse a go.mod file and return an
 // abstract syntax tree. ParseLax ignores unknown statements and may be used to
 // parse go.mod files that may have been developed with newer versions of Go.
 //
-// The File struct returned by Parse and ParseLax represent an abstract
-// go.mod file. File has several methods like AddNewRequire and DropReplace
-// that can be used to programmatically edit a file.
+// The [File] struct returned by Parse and ParseLax represent an abstract
+// go.mod file. File has several methods like [File.AddNewRequire] and
+// [File.DropReplace] that can be used to programmatically edit a file.
 //
-// The Format function formats a File back to a byte slice which can be
+// The [Format] function formats a File back to a byte slice which can be
 // written to a file.
 package modfile
 
@@ -226,7 +226,7 @@ var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
 // data is the content of the file.
 //
 // fix is an optional function that canonicalizes module versions.
-// If fix is nil, all module versions must be canonical (module.CanonicalVersion
+// If fix is nil, all module versions must be canonical ([module.CanonicalVersion]
 // must return the same string).
 func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
 	return parseToFile(file, data, fix, true)
@@ -367,7 +367,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 				}
 			}
 			if !fixed {
-				errorf("invalid go version '%s': must match format 1.23", args[0])
+				errorf("invalid go version '%s': must match format 1.23.0", args[0])
 				return
 			}
 		}
@@ -384,7 +384,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			errorf("toolchain directive expects exactly one argument")
 			return
 		} else if strict && !ToolchainRE.MatchString(args[0]) {
-			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
+			errorf("invalid toolchain version '%s': must match format go1.23.0 or local", args[0])
 			return
 		}
 		f.Toolchain = &Toolchain{Syntax: line}
@@ -542,7 +542,7 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 			if strings.Contains(ns, "@") {
 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
 			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
 		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
@@ -555,7 +555,6 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 		}
 		if IsDirectoryPath(ns) {
 			return nil, errorf("replacement module directory path %q cannot have version", ns)
-
 		}
 	}
 	return &Replace{
@@ -679,14 +678,15 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 	}
 }
 
-// IsDirectoryPath reports whether the given path should be interpreted
-// as a directory path. Just like on the go command line, relative paths
+// IsDirectoryPath reports whether the given path should be interpreted as a directory path.
+// Just like on the go command line, relative paths starting with a '.' or '..' path component
 // and rooted paths are directory paths; the rest are module paths.
 func IsDirectoryPath(ns string) bool {
 	// Because go.mod files can move from one system to another,
 	// we check all known path syntaxes, both Unix and Windows.
-	return strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, "/") ||
-		strings.HasPrefix(ns, `.\`) || strings.HasPrefix(ns, `..\`) || strings.HasPrefix(ns, `\`) ||
+	return ns == "." || strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, `.\`) ||
+		ns == ".." || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, `..\`) ||
+		strings.HasPrefix(ns, "/") || strings.HasPrefix(ns, `\`) ||
 		len(ns) >= 2 && ('A' <= ns[0] && ns[0] <= 'Z' || 'a' <= ns[0] && ns[0] <= 'z') && ns[1] == ':'
 }
 
@@ -923,7 +923,7 @@ func (f *File) Format() ([]byte, error) {
 }
 
 // Cleanup cleans up the file f after any edit operations.
-// To avoid quadratic behavior, modifications like DropRequire
+// To avoid quadratic behavior, modifications like [File.DropRequire]
 // clear the entry but do not remove it from the slice.
 // Cleanup cleans out all the cleared entries.
 func (f *File) Cleanup() {
@@ -1075,8 +1075,8 @@ func (f *File) AddNewRequire(path, vers string, indirect bool) {
 // The requirements in req must specify at most one distinct version for each
 // module path.
 //
-// If any existing requirements may be removed, the caller should call Cleanup
-// after all edits are complete.
+// If any existing requirements may be removed, the caller should call
+// [File.Cleanup] after all edits are complete.
 func (f *File) SetRequire(req []*Require) {
 	type elem struct {
 		version  string

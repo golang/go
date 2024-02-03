@@ -283,7 +283,7 @@ func TestTruncateRound(t *testing.T) {
 	testOne := func(ti, tns, di int64) bool {
 		t.Helper()
 
-		t0 := Unix(ti, int64(tns)).UTC()
+		t0 := Unix(ti, tns).UTC()
 		d := Duration(di)
 		if d < 0 {
 			d = -d
@@ -321,7 +321,7 @@ func TestTruncateRound(t *testing.T) {
 		// The commented out code would round half to even instead of up,
 		// but that makes it time-zone dependent, which is a bit strange.
 		if r > int64(d)/2 || r+r == int64(d) /*&& bq.Bit(0) == 1*/ {
-			t1 = t1.Add(Duration(d))
+			t1 = t1.Add(d)
 		}
 
 		// Check that time.Round works.
@@ -1106,14 +1106,14 @@ var subTests = []struct {
 	{Date(2009, 11, 23, 0, 0, 0, 0, UTC), Date(2009, 11, 24, 0, 0, 0, 0, UTC), -24 * Hour},
 	{Date(2009, 11, 24, 0, 0, 0, 0, UTC), Date(2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
 	{Date(-2009, 11, 24, 0, 0, 0, 0, UTC), Date(-2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
-	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), Duration(minDuration)},
-	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(maxDuration)},
-	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Duration(maxDuration)},
-	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(minDuration)},
+	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), minDuration},
+	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, maxDuration},
+	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), maxDuration},
+	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, minDuration},
 	{Date(2290, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), 290*365*24*Hour + 71*24*Hour},
-	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
+	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), maxDuration},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
-	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
+	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), minDuration},
 	{Date(2311, 11, 26, 02, 16, 47, 63535996, UTC), Date(2019, 8, 16, 2, 29, 30, 268436582, UTC), 9223372036795099414},
 	{MinMonoTime, MaxMonoTime, minDuration},
 	{MaxMonoTime, MinMonoTime, maxDuration},
@@ -1640,7 +1640,7 @@ func TestZeroMonthString(t *testing.T) {
 
 // Issue 24692: Out of range weekday panics
 func TestWeekdayString(t *testing.T) {
-	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
+	if got, want := Tuesday.String(), "Tuesday"; got != want {
 		t.Errorf("Tuesday weekday = %q; want %q", got, want)
 	}
 	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {

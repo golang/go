@@ -139,7 +139,7 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 func isAttr(t types.Type) bool {
-	return analysisutil.IsNamed(t, "log/slog", "Attr")
+	return analysisutil.IsNamedType(t, "log/slog", "Attr")
 }
 
 // shortName returns a name for the function that is shorter than FullName.
@@ -195,28 +195,28 @@ func kvFuncSkipArgs(fn *types.Func) (int, bool) {
 // The first key is the dereferenced receiver type name, or "" for a function.
 var kvFuncs = map[string]map[string]int{
 	"": map[string]int{
-		"Debug":    1,
-		"Info":     1,
-		"Warn":     1,
-		"Error":    1,
-		"DebugCtx": 2,
-		"InfoCtx":  2,
-		"WarnCtx":  2,
-		"ErrorCtx": 2,
-		"Log":      3,
-		"Group":    1,
+		"Debug":        1,
+		"Info":         1,
+		"Warn":         1,
+		"Error":        1,
+		"DebugContext": 2,
+		"InfoContext":  2,
+		"WarnContext":  2,
+		"ErrorContext": 2,
+		"Log":          3,
+		"Group":        1,
 	},
 	"Logger": map[string]int{
-		"Debug":    1,
-		"Info":     1,
-		"Warn":     1,
-		"Error":    1,
-		"DebugCtx": 2,
-		"InfoCtx":  2,
-		"WarnCtx":  2,
-		"ErrorCtx": 2,
-		"Log":      3,
-		"With":     0,
+		"Debug":        1,
+		"Info":         1,
+		"Warn":         1,
+		"Error":        1,
+		"DebugContext": 2,
+		"InfoContext":  2,
+		"WarnContext":  2,
+		"ErrorContext": 2,
+		"Log":          3,
+		"With":         0,
 	},
 	"Record": map[string]int{
 		"Add": 0,

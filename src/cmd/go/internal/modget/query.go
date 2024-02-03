@@ -55,7 +55,7 @@ type query struct {
 	// path.
 	matchWildcard func(path string) bool
 
-	// canMatchWildcard, if non-nil, reports whether the module with the given
+	// canMatchWildcardInModule, if non-nil, reports whether the module with the given
 	// path could lexically contain a package matching pattern, which must be a
 	// wildcard.
 	canMatchWildcardInModule func(mPath string) bool
@@ -239,10 +239,13 @@ func (q *query) matchesPath(path string) bool {
 // canMatchInModule reports whether the given module path can potentially
 // contain q.pattern.
 func (q *query) canMatchInModule(mPath string) bool {
+	if gover.IsToolchain(mPath) {
+		return false
+	}
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}
-	return str.HasPathPrefix(q.pattern, mPath) && !gover.IsToolchain(mPath)
+	return str.HasPathPrefix(q.pattern, mPath)
 }
 
 // pathOnce invokes f to generate the pathSet for the given path,

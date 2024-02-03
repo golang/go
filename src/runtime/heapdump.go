@@ -14,12 +14,13 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"unsafe"
 )
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
-	stopTheWorld(stwWriteHeapDump)
+	stw := stopTheWorld(stwWriteHeapDump)
 
 	// Keep m on this G's stack instead of the system stack.
 	// Both readmemstats_m and writeheapdump_m have pretty large
@@ -36,7 +37,7 @@ func runtime_debug_WriteHeapDump(fd uintptr) {
 		writeheapdump_m(fd, &m)
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 }
 
 const (
@@ -259,7 +260,7 @@ func dumpframe(s *stkframe, child *childInfo) {
 	pcdata := int32(-1) // Use the entry map at function entry
 	if pc != f.entry() {
 		pc--
-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc, nil)
+		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc)
 	}
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
@@ -398,7 +399,7 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 		eface := efaceOf(&p.arg)
 		dumpint(uint64(uintptr(unsafe.Pointer(eface._type))))
-		dumpint(uint64(uintptr(unsafe.Pointer(eface.data))))
+		dumpint(uint64(uintptr(eface.data)))
 		dumpint(0) // was p->defer, no longer recorded
 		dumpint(uint64(uintptr(unsafe.Pointer(p.link))))
 	}
@@ -488,8 +489,8 @@ func dumpobjs() {
 			throw("freemark array doesn't have enough entries")
 		}
 
-		for freeIndex := uintptr(0); freeIndex < s.nelems; freeIndex++ {
-			if s.isFree(freeIndex) {
+		for freeIndex := uint16(0); freeIndex < s.nelems; freeIndex++ {
+			if s.isFree(uintptr(freeIndex)) {
 				freemark[freeIndex] = true
 			}
 		}
@@ -737,16 +738,28 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	for i := uintptr(0); i < nptr/8+1; i++ {
 		tmpbuf[i] = 0
 	}
-
-	hbits := heapBitsForAddr(p, size)
-	for {
-		var addr uintptr
-		hbits, addr = hbits.next()
-		if addr == 0 {
-			break
+	if goexperiment.AllocHeaders {
+		s := spanOf(p)
+		tp := s.typePointersOf(p, size)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(p + size); addr == 0 {
+				break
+			}
+			i := (addr - p) / goarch.PtrSize
+			tmpbuf[i/8] |= 1 << (i % 8)
 		}
-		i := (addr - p) / goarch.PtrSize
-		tmpbuf[i/8] |= 1 << (i % 8)
+	} else {
+		hbits := heapBitsForAddr(p, size)
+		for {
+			var addr uintptr
+			hbits, addr = hbits.next()
+			if addr == 0 {
+				break
+			}
+			i := (addr - p) / goarch.PtrSize
+			tmpbuf[i/8] |= 1 << (i % 8)
+		}
 	}
 	return bitvector{int32(nptr), &tmpbuf[0]}
 }

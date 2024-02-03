@@ -34,7 +34,7 @@ type Use struct {
 // data is the content of the file.
 //
 // fix is an optional function that canonicalizes module versions.
-// If fix is nil, all module versions must be canonical (module.CanonicalVersion
+// If fix is nil, all module versions must be canonical ([module.CanonicalVersion]
 // must return the same string).
 func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 	fs, err := parse(file, data)
@@ -83,7 +83,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 }
 
 // Cleanup cleans up the file f after any edit operations.
-// To avoid quadratic behavior, modifications like DropRequire
+// To avoid quadratic behavior, modifications like [WorkFile.DropRequire]
 // clear the entry but do not remove it from the slice.
 // Cleanup cleans out all the cleared entries.
 func (f *WorkFile) Cleanup() {

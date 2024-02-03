@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
-	"internal/types/errors"
 	"math"
 	"math/big"
 	"unicode"
@@ -113,7 +112,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		base.Fatalf("unexpected untyped expression: %v", n)
 
 	case ir.OLITERAL:
-		v := convertVal(n.Val(), t, explicit)
+		v := ConvertVal(n.Val(), t, explicit)
 		if v.Kind() == constant.Unknown {
 			n = ir.NewConstExpr(n.Val(), n)
 			break
@@ -219,12 +218,13 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
 	return nil
 }
 
-// convertVal converts v into a representation appropriate for t. If
-// no such representation exists, it returns Val{} instead.
+// ConvertVal converts v into a representation appropriate for t. If
+// no such representation exists, it returns constant.MakeUnknown()
+// instead.
 //
 // If explicit is true, then conversions from integer to string are
 // also allowed.
-func convertVal(v constant.Value, t *types.Type, explicit bool) constant.Value {
+func ConvertVal(v constant.Value, t *types.Type, explicit bool) constant.Value {
 	switch ct := v.Kind(); ct {
 	case constant.Bool:
 		if t.IsBoolean() {
@@ -304,8 +304,7 @@ func toint(v constant.Value) constant.Value {
 	}
 
 	// Prevent follow-on errors.
-	// TODO(mdempsky): Use constant.MakeUnknown() instead.
-	return constant.MakeInt64(1)
+	return constant.MakeUnknown()
 }
 
 func tostr(v constant.Value) constant.Value {
@@ -319,35 +318,6 @@ func tostr(v constant.Value) constant.Value {
 	return v
 }
 
-var tokenForOp = [...]token.Token{
-	ir.OPLUS:   token.ADD,
-	ir.ONEG:    token.SUB,
-	ir.ONOT:    token.NOT,
-	ir.OBITNOT: token.XOR,
-
-	ir.OADD:    token.ADD,
-	ir.OSUB:    token.SUB,
-	ir.OMUL:    token.MUL,
-	ir.ODIV:    token.QUO,
-	ir.OMOD:    token.REM,
-	ir.OOR:     token.OR,
-	ir.OXOR:    token.XOR,
-	ir.OAND:    token.AND,
-	ir.OANDNOT: token.AND_NOT,
-	ir.OOROR:   token.LOR,
-	ir.OANDAND: token.LAND,
-
-	ir.OEQ: token.EQL,
-	ir.ONE: token.NEQ,
-	ir.OLT: token.LSS,
-	ir.OLE: token.LEQ,
-	ir.OGT: token.GTR,
-	ir.OGE: token.GEQ,
-
-	ir.OLSH: token.SHL,
-	ir.ORSH: token.SHR,
-}
-
 func makeFloat64(f float64) constant.Value {
 	if math.IsInf(f, 0) {
 		base.Fatalf("infinity is not a valid constant")
@@ -357,50 +327,6 @@ func makeFloat64(f float64) constant.Value {
 
 func makeComplex(real, imag constant.Value) constant.Value {
 	return constant.BinaryOp(constant.ToFloat(real), token.ADD, constant.MakeImag(constant.ToFloat(imag)))
-}
-
-// For matching historical "constant OP overflow" error messages.
-// TODO(mdempsky): Replace with error messages like go/types uses.
-var overflowNames = [...]string{
-	ir.OADD:    "addition",
-	ir.OSUB:    "subtraction",
-	ir.OMUL:    "multiplication",
-	ir.OLSH:    "shift",
-	ir.OXOR:    "bitwise XOR",
-	ir.OBITNOT: "bitwise complement",
-}
-
-// OrigConst returns an OLITERAL with orig n and value v.
-func OrigConst(n ir.Node, v constant.Value) ir.Node {
-	lno := ir.SetPos(n)
-	v = convertVal(v, n.Type(), false)
-	base.Pos = lno
-
-	switch v.Kind() {
-	case constant.Int:
-		if constant.BitLen(v) <= ir.ConstPrec {
-			break
-		}
-		fallthrough
-	case constant.Unknown:
-		what := overflowNames[n.Op()]
-		if what == "" {
-			base.Fatalf("unexpected overflow: %v", n.Op())
-		}
-		base.ErrorfAt(n.Pos(), errors.NumericOverflow, "constant %v overflow", what)
-		n.SetType(nil)
-		return n
-	}
-
-	return ir.NewConstExpr(v, n)
-}
-
-func OrigBool(n ir.Node, v bool) ir.Node {
-	return OrigConst(n, constant.MakeBool(v))
-}
-
-func OrigInt(n ir.Node, v int64) ir.Node {
-	return OrigConst(n, constant.MakeInt64(v))
 }
 
 // DefaultLit on both nodes simultaneously;
@@ -544,9 +470,10 @@ func callOrChan(n ir.Node) bool {
 		ir.ONEW,
 		ir.OPANIC,
 		ir.OPRINT,
-		ir.OPRINTN,
+		ir.OPRINTLN,
 		ir.OREAL,
 		ir.ORECOVER,
+		ir.ORECOVERFP,
 		ir.ORECV,
 		ir.OUNSAFEADD,
 		ir.OUNSAFESLICE,
@@ -556,97 +483,4 @@ func callOrChan(n ir.Node) bool {
 		return true
 	}
 	return false
-}
-
-// evalunsafe evaluates a package unsafe operation and returns the result.
-func evalunsafe(n ir.Node) int64 {
-	switch n.Op() {
-	case ir.OALIGNOF, ir.OSIZEOF:
-		n := n.(*ir.UnaryExpr)
-		n.X = Expr(n.X)
-		n.X = DefaultLit(n.X, nil)
-		tr := n.X.Type()
-		if tr == nil {
-			return 0
-		}
-		types.CalcSize(tr)
-		if n.Op() == ir.OALIGNOF {
-			return tr.Alignment()
-		}
-		return tr.Size()
-
-	case ir.OOFFSETOF:
-		// must be a selector.
-		n := n.(*ir.UnaryExpr)
-		// ODOT and ODOTPTR are allowed in case the OXDOT transformation has
-		// already happened (e.g. during -G=3 stenciling).
-		if n.X.Op() != ir.OXDOT && n.X.Op() != ir.ODOT && n.X.Op() != ir.ODOTPTR {
-			base.Errorf("invalid expression %v", n)
-			return 0
-		}
-		sel := n.X.(*ir.SelectorExpr)
-
-		// Remember base of selector to find it back after dot insertion.
-		// Since r->left may be mutated by typechecking, check it explicitly
-		// first to track it correctly.
-		sel.X = Expr(sel.X)
-		sbase := sel.X
-
-		// Implicit dot may already be resolved for instantiating generic function. So we
-		// need to remove any implicit dot until we reach the first non-implicit one, it's
-		// the right base selector. See issue #53137.
-		var clobberBase func(n ir.Node) ir.Node
-		clobberBase = func(n ir.Node) ir.Node {
-			if sel, ok := n.(*ir.SelectorExpr); ok && sel.Implicit() {
-				return clobberBase(sel.X)
-			}
-			return n
-		}
-		sbase = clobberBase(sbase)
-
-		tsel := Expr(sel)
-		n.X = tsel
-		if tsel.Type() == nil {
-			return 0
-		}
-		switch tsel.Op() {
-		case ir.ODOT, ir.ODOTPTR:
-			break
-		case ir.OMETHVALUE:
-			base.Errorf("invalid expression %v: argument is a method value", n)
-			return 0
-		default:
-			base.Errorf("invalid expression %v", n)
-			return 0
-		}
-
-		// Sum offsets for dots until we reach sbase.
-		var v int64
-		var next ir.Node
-		for r := tsel; r != sbase; r = next {
-			switch r.Op() {
-			case ir.ODOTPTR:
-				// For Offsetof(s.f), s may itself be a pointer,
-				// but accessing f must not otherwise involve
-				// indirection via embedded pointer types.
-				r := r.(*ir.SelectorExpr)
-				if r.X != sbase {
-					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.X)
-					return 0
-				}
-				fallthrough
-			case ir.ODOT:
-				r := r.(*ir.SelectorExpr)
-				v += r.Offset()
-				next = r.X
-			default:
-				ir.Dump("unsafenmagic", tsel)
-				base.Fatalf("impossible %v node after dot insertion", r.Op())
-			}
-		}
-		return v
-	}
-
-	base.Fatalf("unexpected op %v", n.Op())
-	return 0
 }

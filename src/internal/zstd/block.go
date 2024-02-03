@@ -50,10 +50,9 @@ func (r *Reader) compressedBlock(blockSize int) error {
 		if off < len(data) {
 			return r.makeError(off, "extraneous data after no sequences")
 		}
-		if len(litbuf) == 0 {
-			return r.makeError(off, "no sequences and no literals")
-		}
+
 		r.buffer = append(r.buffer, litbuf...)
+
 		return nil
 	}
 
@@ -374,9 +373,7 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 		}
 	}
 
-	if len(litbuf) > 0 {
-		r.buffer = append(r.buffer, litbuf...)
-	}
+	r.buffer = append(r.buffer, litbuf...)
 
 	if rbr.cnt != 0 {
 		return r.makeError(off, "extraneous data after sequences")
@@ -391,46 +388,38 @@ func (r *Reader) copyFromWindow(rbr *reverseBitReader, offset, match uint32) err
 		return rbr.makeError("invalid zero offset")
 	}
 
+	// Offset may point into the buffer or the window and
+	// match may extend past the end of the initial buffer.
+	// |--r.window--|--r.buffer--|
+	//        |<-----offset------|
+	//        |------match----------->|
+	bufferOffset := uint32(0)
 	lenBlock := uint32(len(r.buffer))
 	if lenBlock < offset {
-		lenWindow := uint32(len(r.window))
-		windowOffset := offset - lenBlock
-		if windowOffset > lenWindow {
+		lenWindow := r.window.len()
+		copy := offset - lenBlock
+		if copy > lenWindow {
 			return rbr.makeError("offset past window")
 		}
-		from := lenWindow - windowOffset
-		if from+match <= lenWindow {
-			r.buffer = append(r.buffer, r.window[from:from+match]...)
-			return nil
+		windowOffset := lenWindow - copy
+		if copy > match {
+			copy = match
 		}
-		r.buffer = append(r.buffer, r.window[from:]...)
-		copied := lenWindow - from
-		offset -= copied
-		match -= copied
-
-		if offset == 0 && match > 0 {
-			return rbr.makeError("invalid offset")
-		}
-	}
-
-	from := lenBlock - offset
-	if offset >= match {
-		r.buffer = append(r.buffer, r.buffer[from:from+match]...)
-		return nil
+		r.buffer = r.window.appendTo(r.buffer, windowOffset, windowOffset+copy)
+		match -= copy
+	} else {
+		bufferOffset = lenBlock - offset
 	}
 
 	// We are being asked to copy data that we are adding to the
 	// buffer in the same copy.
 	for match > 0 {
-		var copy uint32
-		if offset >= match {
+		copy := uint32(len(r.buffer)) - bufferOffset
+		if copy > match {
 			copy = match
-		} else {
-			copy = offset
 		}
-		r.buffer = append(r.buffer, r.buffer[from:from+copy]...)
+		r.buffer = append(r.buffer, r.buffer[bufferOffset:bufferOffset+copy]...)
 		match -= copy
-		from += copy
 	}
 	return nil
 }

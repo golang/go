@@ -478,3 +478,16 @@ func SetNonblock(fd int, nonblocking bool) error {
 	errno := fd_fdstat_set_flags(int32(fd), flags)
 	return errnoErr(errno)
 }
+
+type Rlimit struct {
+	Cur uint64
+	Max uint64
+}
+
+const (
+	RLIMIT_NOFILE = iota
+)
+
+func Getrlimit(which int, lim *Rlimit) error {
+	return ENOSYS
+}

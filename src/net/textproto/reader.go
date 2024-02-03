@@ -24,10 +24,10 @@ type Reader struct {
 	buf []byte // a re-usable buffer for readContinuedLineSlice
 }
 
-// NewReader returns a new Reader reading from r.
+// NewReader returns a new [Reader] reading from r.
 //
-// To avoid denial of service attacks, the provided bufio.Reader
-// should be reading from an io.LimitReader or similar Reader to bound
+// To avoid denial of service attacks, the provided [bufio.Reader]
+// should be reading from an [io.LimitReader] or similar Reader to bound
 // the size of responses.
 func NewReader(r *bufio.Reader) *Reader {
 	return &Reader{R: r}
@@ -40,7 +40,7 @@ func (r *Reader) ReadLine() (string, error) {
 	return string(line), err
 }
 
-// ReadLineBytes is like ReadLine but returns a []byte instead of a string.
+// ReadLineBytes is like [Reader.ReadLine] but returns a []byte instead of a string.
 func (r *Reader) ReadLineBytes() ([]byte, error) {
 	line, err := r.readLineSlice()
 	if line != nil {
@@ -106,7 +106,7 @@ func trim(s []byte) []byte {
 	return s[i:n]
 }
 
-// ReadContinuedLineBytes is like ReadContinuedLine but
+// ReadContinuedLineBytes is like [Reader.ReadContinuedLine] but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 	line, err := r.readContinuedLineSlice(noValidation)
@@ -289,7 +289,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 	return
 }
 
-// DotReader returns a new Reader that satisfies Reads using the
+// DotReader returns a new [Reader] that satisfies Reads using the
 // decoded text of a dot-encoded block read from r.
 // The returned Reader is only valid until the next call
 // to a method on r.
@@ -303,7 +303,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 //
 // The decoded form returned by the Reader's Read method
 // rewrites the "\r\n" line endings into the simpler "\n",
-// removes leading dot escapes if present, and stops with error io.EOF
+// removes leading dot escapes if present, and stops with error [io.EOF]
 // after consuming (and discarding) the end-of-sequence line.
 func (r *Reader) DotReader() io.Reader {
 	r.closeDot()
@@ -420,7 +420,7 @@ func (r *Reader) closeDot() {
 
 // ReadDotBytes reads a dot-encoding and returns the decoded data.
 //
-// See the documentation for the DotReader method for details about dot-encoding.
+// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
 func (r *Reader) ReadDotBytes() ([]byte, error) {
 	return io.ReadAll(r.DotReader())
 }
@@ -428,7 +428,7 @@ func (r *Reader) ReadDotBytes() ([]byte, error) {
 // ReadDotLines reads a dot-encoding and returns a slice
 // containing the decoded lines, with the final \r\n or \n elided from each.
 //
-// See the documentation for the DotReader method for details about dot-encoding.
+// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
 func (r *Reader) ReadDotLines() ([]string, error) {
 	// We could use ReadDotBytes and then Split it,
 	// but reading a line at a time avoids needing a
@@ -462,7 +462,7 @@ var colon = []byte(":")
 // ReadMIMEHeader reads a MIME-style header from r.
 // The header is a sequence of possibly continued Key: Value lines
 // ending in a blank line.
-// The returned map m maps CanonicalMIMEHeaderKey(key) to a
+// The returned map m maps [CanonicalMIMEHeaderKey](key) to a
 // sequence of values in the same order encountered in the input.
 //
 // For example, consider this input:
@@ -533,13 +533,6 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 			if !validHeaderValueByte(c) {
 				return m, ProtocolError("malformed MIME header line: " + string(kv))
 			}
-		}
-
-		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
-		// We could return a ProtocolError here, but better to be liberal in what we
-		// accept, so if we get an empty key, skip it.
-		if key == "" {
-			continue
 		}
 
 		maxHeaders--
@@ -725,6 +718,10 @@ func validHeaderValueByte(c byte) bool {
 // ReadMIMEHeader accepts header keys containing spaces, but does not
 // canonicalize them.
 func canonicalMIMEHeaderKey(a []byte) (_ string, ok bool) {
+	if len(a) == 0 {
+		return "", false
+	}
+
 	// See if a looks like a header key. If not, return it unchanged.
 	noCanon := false
 	for _, c := range a {

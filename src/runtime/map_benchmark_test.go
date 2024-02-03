@@ -168,6 +168,15 @@ func BenchmarkMegEmptyMap(b *testing.B) {
 	}
 }
 
+func BenchmarkMegEmptyMapWithInterfaceKey(b *testing.B) {
+	m := make(map[any]bool)
+	key := strings.Repeat("X", 1<<20)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key]
+	}
+}
+
 func BenchmarkSmallStrMap(b *testing.B) {
 	m := make(map[string]bool)
 	for suffix := 'A'; suffix <= 'G'; suffix++ {
@@ -429,9 +438,7 @@ func BenchmarkGoMapClear(b *testing.B) {
 				m := make(map[int]int, size)
 				for i := 0; i < b.N; i++ {
 					m[0] = size // Add one element so len(m) != 0 avoiding fast paths.
-					for k := range m {
-						delete(m, k)
-					}
+					clear(m)
 				}
 			})
 		}
@@ -442,9 +449,7 @@ func BenchmarkGoMapClear(b *testing.B) {
 				m := make(map[float64]int, size)
 				for i := 0; i < b.N; i++ {
 					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
-					for k := range m {
-						delete(m, k)
-					}
+					clear(m)
 				}
 			})
 		}

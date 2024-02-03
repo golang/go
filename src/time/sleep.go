@@ -160,6 +160,7 @@ func After(d Duration) <-chan Time {
 // AfterFunc waits for the duration to elapse and then calls f
 // in its own goroutine. It returns a Timer that can
 // be used to cancel the call using its Stop method.
+// The returned Timer's C field is not used and will be nil.
 func AfterFunc(d Duration, f func()) *Timer {
 	t := &Timer{
 		r: runtimeTimer{

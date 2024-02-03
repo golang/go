@@ -50,7 +50,7 @@ func TestFindExecutableVsNoexec(t *testing.T) {
 	// Check that it works as expected.
 	_, err = exec.LookPath(path)
 	if err != nil {
-		t.Fatalf("findExecutable: got %v, want nil", err)
+		t.Fatalf("LookPath: got %v, want nil", err)
 	}
 
 	for {

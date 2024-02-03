@@ -30,7 +30,6 @@ import (
 	"net/http/internal/testcert"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -108,8 +107,12 @@ type testConn struct {
 	readMu   sync.Mutex // for TestHandlerBodyClose
 	readBuf  bytes.Buffer
 	writeBuf bytes.Buffer
-	closec   chan bool // if non-nil, send value to it on close
+	closec   chan bool // 1-buffered; receives true when Close is called
 	noopConn
+}
+
+func newTestConn() *testConn {
+	return &testConn{closec: make(chan bool, 1)}
 }
 
 func (c *testConn) Read(b []byte) (int, error) {
@@ -647,30 +650,27 @@ func benchmarkServeMux(b *testing.B, runHandler bool) {
 
 func TestServerTimeouts(t *testing.T) { run(t, testServerTimeouts, []testMode{http1Mode}) }
 func testServerTimeouts(t *testing.T, mode testMode) {
-	// Try three times, with increasing timeouts.
-	tries := []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, 1 * time.Second}
-	for i, timeout := range tries {
-		err := testServerTimeoutsWithTimeout(t, timeout, mode)
-		if err == nil {
-			return
-		}
-		t.Logf("failed at %v: %v", timeout, err)
-		if i != len(tries)-1 {
-			t.Logf("retrying at %v ...", tries[i+1])
-		}
-	}
-	t.Fatal("all attempts failed")
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		return testServerTimeoutsWithTimeout(t, timeout, mode)
+	})
 }
 
 func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode testMode) error {
-	reqNum := 0
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		fmt.Fprintf(res, "req=%d", reqNum)
+	var reqNum atomic.Int32
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+		fmt.Fprintf(res, "req=%d", reqNum.Add(1))
 	}), func(ts *httptest.Server) {
 		ts.Config.ReadTimeout = timeout
 		ts.Config.WriteTimeout = timeout
-	}).ts
+	})
+	defer cst.close()
+	ts := cst.ts
 
 	// Hit the HTTP server successfully.
 	c := ts.Client()
@@ -866,16 +866,20 @@ func TestWriteDeadlineEnforcedPerStream(t *testing.T) {
 }
 
 func testWriteDeadlineEnforcedPerStream(t *testing.T, mode testMode, timeout time.Duration) error {
-	reqNum := 0
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		if reqNum == 1 {
-			return // first request succeeds
+	firstRequest := make(chan bool, 1)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+		select {
+		case firstRequest <- true:
+			// first request succeeds
+		default:
+			// second request times out
+			time.Sleep(timeout)
 		}
-		time.Sleep(timeout) // second request times out
 	}), func(ts *httptest.Server) {
 		ts.Config.WriteTimeout = timeout / 2
-	}).ts
+	})
+	defer cst.close()
+	ts := cst.ts
 
 	c := ts.Client()
 
@@ -922,14 +926,18 @@ func TestNoWriteDeadline(t *testing.T) {
 }
 
 func testNoWriteDeadline(t *testing.T, mode testMode, timeout time.Duration) error {
-	reqNum := 0
-	ts := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
-		reqNum++
-		if reqNum == 1 {
-			return // first request succeeds
+	firstRequest := make(chan bool, 1)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+		select {
+		case firstRequest <- true:
+			// first request succeeds
+		default:
+			// second request times out
+			time.Sleep(timeout)
 		}
-		time.Sleep(timeout) // second request timesout
-	})).ts
+	}))
+	defer cst.close()
+	ts := cst.ts
 
 	c := ts.Client()
 
@@ -1392,27 +1400,28 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 	run(t, testTLSHandshakeTimeout, []testMode{https1Mode, http2Mode})
 }
 func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
-	errc := make(chanWriter, 10) // but only expecting 1
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}),
+	errLog := new(strings.Builder)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}),
 		func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = 250 * time.Millisecond
-			ts.Config.ErrorLog = log.New(errc, "", 0)
+			ts.Config.ErrorLog = log.New(errLog, "", 0)
 		},
-	).ts
+	)
+	ts := cst.ts
+
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
-	defer conn.Close()
-
 	var buf [1]byte
 	n, err := conn.Read(buf[:])
 	if err == nil || n != 0 {
 		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
 	}
+	conn.Close()
 
-	v := <-errc
-	if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
+	cst.close()
+	if v := errLog.String(); !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
 		t.Errorf("expected a TLS handshake timeout error; got %q", v)
 	}
 }
@@ -2968,15 +2977,36 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type countReader struct {
-	r io.Reader
-	n *int64
+type bodyLimitReader struct {
+	mu     sync.Mutex
+	count  int
+	limit  int
+	closed chan struct{}
 }
 
-func (cr countReader) Read(p []byte) (n int, err error) {
-	n, err = cr.r.Read(p)
-	atomic.AddInt64(cr.n, int64(n))
-	return
+func (r *bodyLimitReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	select {
+	case <-r.closed:
+		return 0, errors.New("closed")
+	default:
+	}
+	if r.count > r.limit {
+		return 0, errors.New("at limit")
+	}
+	r.count += len(p)
+	for i := range p {
+		p[i] = 'a'
+	}
+	return len(p), nil
+}
+
+func (r *bodyLimitReader) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	close(r.closed)
+	return nil
 }
 
 func TestRequestBodyLimit(t *testing.T) { run(t, testRequestBodyLimit) }
@@ -3000,8 +3030,11 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 		}
 	}))
 
-	nWritten := new(int64)
-	req, _ := NewRequest("POST", cst.ts.URL, io.LimitReader(countReader{neverEnding('a'), nWritten}, limit*200))
+	body := &bodyLimitReader{
+		closed: make(chan struct{}),
+		limit:  limit * 200,
+	}
+	req, _ := NewRequest("POST", cst.ts.URL, body)
 
 	// Send the POST, but don't care it succeeds or not. The
 	// remote side is going to reply and then close the TCP
@@ -3016,10 +3049,13 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 	if err == nil {
 		resp.Body.Close()
 	}
+	// Wait for the Transport to finish writing the request body.
+	// It will close the body when done.
+	<-body.closed
 
-	if atomic.LoadInt64(nWritten) > limit*100 {
+	if body.count > limit*100 {
 		t.Errorf("handler restricted the request body to %d bytes, but client managed to write %d",
-			limit, nWritten)
+			limit, body.count)
 	}
 }
 
@@ -3075,47 +3111,71 @@ func TestServerBufferedChunking(t *testing.T) {
 // closing the TCP connection, causing the client to get a RST.
 // See https://golang.org/issue/3595
 func TestServerGracefulClose(t *testing.T) {
-	run(t, testServerGracefulClose, []testMode{http1Mode})
+	// Not parallel: modifies the global rstAvoidanceDelay.
+	run(t, testServerGracefulClose, []testMode{http1Mode}, testNotParallel)
 }
 func testServerGracefulClose(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Error(w, "bye", StatusUnauthorized)
-	})).ts
+	runTimeSensitiveTest(t, []time.Duration{
+		1 * time.Millisecond,
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		SetRSTAvoidanceDelay(t, timeout)
+		t.Logf("set RST avoidance delay to %v", timeout)
 
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	const bodySize = 5 << 20
-	req := []byte(fmt.Sprintf("POST / HTTP/1.1\r\nHost: foo.com\r\nContent-Length: %d\r\n\r\n", bodySize))
-	for i := 0; i < bodySize; i++ {
-		req = append(req, 'x')
-	}
-	writeErr := make(chan error)
-	go func() {
-		_, err := conn.Write(req)
-		writeErr <- err
-	}()
-	br := bufio.NewReader(conn)
-	lineNum := 0
-	for {
-		line, err := br.ReadString('\n')
-		if err == io.EOF {
-			break
+		const bodySize = 5 << 20
+		req := []byte(fmt.Sprintf("POST / HTTP/1.1\r\nHost: foo.com\r\nContent-Length: %d\r\n\r\n", bodySize))
+		for i := 0; i < bodySize; i++ {
+			req = append(req, 'x')
 		}
+
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			Error(w, "bye", StatusUnauthorized)
+		}))
+		// We need to close cst explicitly here so that in-flight server
+		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
+		defer cst.close()
+		ts := cst.ts
+
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
-			t.Fatalf("ReadLine: %v", err)
+			return err
 		}
-		lineNum++
-		if lineNum == 1 && !strings.Contains(line, "401 Unauthorized") {
-			t.Errorf("Response line = %q; want a 401", line)
+		writeErr := make(chan error)
+		go func() {
+			_, err := conn.Write(req)
+			writeErr <- err
+		}()
+		defer func() {
+			conn.Close()
+			// Wait for write to finish. This is a broken pipe on both
+			// Darwin and Linux, but checking this isn't the point of
+			// the test.
+			<-writeErr
+		}()
+
+		br := bufio.NewReader(conn)
+		lineNum := 0
+		for {
+			line, err := br.ReadString('\n')
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("ReadLine: %v", err)
+			}
+			lineNum++
+			if lineNum == 1 && !strings.Contains(line, "401 Unauthorized") {
+				t.Errorf("Response line = %q; want a 401", line)
+			}
 		}
-	}
-	// Wait for write to finish. This is a broken pipe on both
-	// Darwin and Linux, but checking this isn't the point of
-	// the test.
-	<-writeErr
+		return nil
+	})
 }
 
 func TestCaseSensitiveMethod(t *testing.T) { run(t, testCaseSensitiveMethod) }
@@ -3897,91 +3957,93 @@ func TestContentTypeOkayOn204(t *testing.T) {
 // and the http client), and both think they can close it on failure.
 // Therefore, all incoming server requests Bodies need to be thread-safe.
 func TestTransportAndServerSharedBodyRace(t *testing.T) {
-	run(t, testTransportAndServerSharedBodyRace)
+	run(t, testTransportAndServerSharedBodyRace, testNotParallel)
 }
 func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
-	const bodySize = 1 << 20
+	// The proxy server in the middle of the stack for this test potentially
+	// from its handler after only reading half of the body.
+	// That can trigger https://go.dev/issue/3595, which is otherwise
+	// irrelevant to this test.
+	runTimeSensitiveTest(t, []time.Duration{
+		1 * time.Millisecond,
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		SetRSTAvoidanceDelay(t, timeout)
+		t.Logf("set RST avoidance delay to %v", timeout)
 
-	// errorf is like t.Errorf, but also writes to println. When
-	// this test fails, it hangs. This helps debugging and I've
-	// added this enough times "temporarily".  It now gets added
-	// full time.
-	errorf := func(format string, args ...any) {
-		v := fmt.Sprintf(format, args...)
-		println(v)
-		t.Error(v)
-	}
+		const bodySize = 1 << 20
 
-	unblockBackend := make(chan bool)
-	backend := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		gone := rw.(CloseNotifier).CloseNotify()
-		didCopy := make(chan any)
-		go func() {
+		var wg sync.WaitGroup
+		backend := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+			// Work around https://go.dev/issue/38370: clientServerTest uses
+			// an httptest.Server under the hood, and in HTTP/2 mode it does not always
+			// “[block] until all outstanding requests on this server have completed”,
+			// causing the call to Logf below to race with the end of the test.
+			//
+			// Since the client doesn't cancel the request until we have copied half
+			// the body, this call to add happens before the test is cleaned up,
+			// preventing the race.
+			wg.Add(1)
+			defer wg.Done()
+
 			n, err := io.CopyN(rw, req.Body, bodySize)
-			didCopy <- []any{n, err}
+			t.Logf("backend CopyN: %v, %v", n, err)
+			<-req.Context().Done()
+		}))
+		// We need to close explicitly here so that in-flight server
+		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
+		defer func() {
+			wg.Wait()
+			backend.close()
 		}()
-		isGone := false
-	Loop:
-		for {
-			select {
-			case <-didCopy:
-				break Loop
-			case <-gone:
-				isGone = true
-			case <-time.After(time.Second):
-				println("1 second passes in backend, proxygone=", isGone)
+
+		var proxy *clientServerTest
+		proxy = newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+			req2, _ := NewRequest("POST", backend.ts.URL, req.Body)
+			req2.ContentLength = bodySize
+			cancel := make(chan struct{})
+			req2.Cancel = cancel
+
+			bresp, err := proxy.c.Do(req2)
+			if err != nil {
+				t.Errorf("Proxy outbound request: %v", err)
+				return
 			}
-		}
-		<-unblockBackend
-	}))
-	defer backend.close()
+			_, err = io.CopyN(io.Discard, bresp.Body, bodySize/2)
+			if err != nil {
+				t.Errorf("Proxy copy error: %v", err)
+				return
+			}
+			t.Cleanup(func() { bresp.Body.Close() })
 
-	backendRespc := make(chan *Response, 1)
-	var proxy *clientServerTest
-	proxy = newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		req2, _ := NewRequest("POST", backend.ts.URL, req.Body)
-		req2.ContentLength = bodySize
-		cancel := make(chan struct{})
-		req2.Cancel = cancel
+			// Try to cause a race. Canceling the client request will cause the client
+			// transport to close req2.Body. Returning from the server handler will
+			// cause the server to close req.Body. Since they are the same underlying
+			// ReadCloser, that will result in concurrent calls to Close (and possibly a
+			// Read concurrent with a Close).
+			if mode == http2Mode {
+				close(cancel)
+			} else {
+				proxy.c.Transport.(*Transport).CancelRequest(req2)
+			}
+			rw.Write([]byte("OK"))
+		}))
+		defer proxy.close()
 
-		bresp, err := proxy.c.Do(req2)
+		req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
+		res, err := proxy.c.Do(req)
 		if err != nil {
-			errorf("Proxy outbound request: %v", err)
-			return
+			return fmt.Errorf("original request: %v", err)
 		}
-		_, err = io.CopyN(io.Discard, bresp.Body, bodySize/2)
-		if err != nil {
-			errorf("Proxy copy error: %v", err)
-			return
-		}
-		backendRespc <- bresp // to close later
-
-		// Try to cause a race: Both the Transport and the proxy handler's Server
-		// will try to read/close req.Body (aka req2.Body)
-		if mode == http2Mode {
-			close(cancel)
-		} else {
-			proxy.c.Transport.(*Transport).CancelRequest(req2)
-		}
-		rw.Write([]byte("OK"))
-	}))
-	defer proxy.close()
-
-	defer close(unblockBackend)
-	req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
-	res, err := proxy.c.Do(req)
-	if err != nil {
-		t.Fatalf("Original request: %v", err)
-	}
-
-	// Cleanup, so we don't leak goroutines.
-	res.Body.Close()
-	select {
-	case res := <-backendRespc:
 		res.Body.Close()
-	default:
-		// We failed earlier. (e.g. on proxy.c.Do(req2))
-	}
+		return nil
+	})
 }
 
 // Test that a hanging Request.Body.Read from another goroutine can't
@@ -4316,7 +4378,8 @@ func (c *closeWriteTestConn) CloseWrite() error {
 }
 
 func TestCloseWrite(t *testing.T) {
-	setParallel(t)
+	SetRSTAvoidanceDelay(t, 1*time.Millisecond)
+
 	var srv Server
 	var testConn closeWriteTestConn
 	c := ExportServerNewConn(&srv, &testConn)
@@ -4552,10 +4615,10 @@ Host: foo
 }
 
 // If a Handler finishes and there's an unread request body,
-// verify the server try to do implicit read on it before replying.
+// verify the server implicitly tries to do a read on it before replying.
 func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	setParallel(t)
-	conn := &testConn{closec: make(chan bool)}
+	conn := newTestConn()
 	conn.readBuf.Write([]byte(fmt.Sprintf(
 		"POST / HTTP/1.1\r\n" +
 			"Host: test\r\n" +
@@ -4645,7 +4708,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		{"GET / HTTP/3.0", "", 505},
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		methodTarget := "GET / "
 		if !strings.HasPrefix(tt.proto, "HTTP/") {
 			methodTarget = ""
@@ -4736,6 +4799,10 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"Foo : bar\r\n", 400},
 		{"Foo\t: bar\r\n", 400},
 
+		// Empty header keys are invalid.
+		// See RFC 7230, Section 3.2.
+		{": empty key\r\n", 400},
+
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
@@ -4743,7 +4810,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
 
 		ln := &oneConnListener{conn}
@@ -4966,7 +5033,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode)
 // For use like:
 //
 //	$ go test -c
-//	$ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
+//	$ ./http.test -test.run='^$' -test.bench='^BenchmarkServer$' -test.benchtime=15s -test.cpuprofile=http.prof
 //	$ go tool pprof http.test http.prof
 //	(pprof) web
 func BenchmarkServer(b *testing.B) {
@@ -5005,7 +5072,7 @@ func BenchmarkServer(b *testing.B) {
 	defer ts.Close()
 	b.StartTimer()
 
-	cmd := exec.Command(os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkServer$")
+	cmd := testenv.Command(b, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkServer$")
 	cmd.Env = append([]string{
 		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
 		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),
@@ -5060,7 +5127,7 @@ func BenchmarkClient(b *testing.B) {
 
 	// Start server process.
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkClient$")
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkClient$")
 	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
@@ -5129,11 +5196,7 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 `)
 	res := []byte("Hello world!\n")
 
-	conn := &testConn{
-		// testConn.Close will not push into the channel
-		// if it's full.
-		closec: make(chan bool, 1),
-	}
+	conn := newTestConn()
 	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		rw.Write(res)
@@ -5356,49 +5419,75 @@ func testServerIdleTimeout(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		io.Copy(io.Discard, r.Body)
-		io.WriteString(w, r.RemoteAddr)
-	}), func(ts *httptest.Server) {
-		ts.Config.ReadHeaderTimeout = 1 * time.Second
-		ts.Config.IdleTimeout = 2 * time.Second
-	}).ts
-	c := ts.Client()
+	runTimeSensitiveTest(t, []time.Duration{
+		10 * time.Millisecond,
+		100 * time.Millisecond,
+		1 * time.Second,
+		10 * time.Second,
+	}, func(t *testing.T, readHeaderTimeout time.Duration) error {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			io.Copy(io.Discard, r.Body)
+			io.WriteString(w, r.RemoteAddr)
+		}), func(ts *httptest.Server) {
+			ts.Config.ReadHeaderTimeout = readHeaderTimeout
+			ts.Config.IdleTimeout = 2 * readHeaderTimeout
+		})
+		defer cst.close()
+		ts := cst.ts
+		t.Logf("ReadHeaderTimeout = %v", ts.Config.ReadHeaderTimeout)
+		t.Logf("IdleTimeout = %v", ts.Config.IdleTimeout)
+		c := ts.Client()
 
-	get := func() string {
-		res, err := c.Get(ts.URL)
-		if err != nil {
-			t.Fatal(err)
+		get := func() (string, error) {
+			res, err := c.Get(ts.URL)
+			if err != nil {
+				return "", err
+			}
+			defer res.Body.Close()
+			slurp, err := io.ReadAll(res.Body)
+			if err != nil {
+				// If we're at this point the headers have definitely already been
+				// read and the server is not idle, so neither timeout applies:
+				// this should never fail.
+				t.Fatal(err)
+			}
+			return string(slurp), nil
 		}
-		defer res.Body.Close()
-		slurp, err := io.ReadAll(res.Body)
+
+		a1, err := get()
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
-		return string(slurp)
-	}
+		a2, err := get()
+		if err != nil {
+			return err
+		}
+		if a1 != a2 {
+			return fmt.Errorf("did requests on different connections")
+		}
+		time.Sleep(ts.Config.IdleTimeout * 3 / 2)
+		a3, err := get()
+		if err != nil {
+			return err
+		}
+		if a2 == a3 {
+			return fmt.Errorf("request three unexpectedly on same connection")
+		}
 
-	a1, a2 := get(), get()
-	if a1 != a2 {
-		t.Fatalf("did requests on different connections")
-	}
-	time.Sleep(3 * time.Second)
-	a3 := get()
-	if a2 == a3 {
-		t.Fatal("request three unexpectedly on same connection")
-	}
+		// And test that ReadHeaderTimeout still works:
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo.com\r\n"))
+		time.Sleep(ts.Config.ReadHeaderTimeout * 2)
+		if _, err := io.CopyN(io.Discard, conn, 1); err == nil {
+			return fmt.Errorf("copy byte succeeded; want err")
+		}
 
-	// And test that ReadHeaderTimeout still works:
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo.com\r\n"))
-	time.Sleep(2 * time.Second)
-	if _, err := io.CopyN(io.Discard, conn, 1); err == nil {
-		t.Fatal("copy byte succeeded; want err")
-	}
+		return nil
+	})
 }
 
 func get(t *testing.T, c *Client, url string) string {
@@ -5658,7 +5747,7 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 		time.Second,
 		2 * time.Second,
 	}, func(t *testing.T, timeout time.Duration) error {
-		ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 			select {
 			case <-time.After(2 * timeout):
 				fmt.Fprint(w, "ok")
@@ -5667,7 +5756,9 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 			}
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = timeout
-		}).ts
+		})
+		defer cst.close()
+		ts := cst.ts
 
 		c := ts.Client()
 
@@ -5701,10 +5792,12 @@ func testServerCancelsReadHeaderTimeoutWhenIdle(t *testing.T, mode testMode) {
 		time.Second,
 		2 * time.Second,
 	}, func(t *testing.T, timeout time.Duration) error {
-		ts := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
+		cst := newClientServerTest(t, mode, serve(200), func(ts *httptest.Server) {
 			ts.Config.ReadHeaderTimeout = timeout
 			ts.Config.IdleTimeout = 0 // disable idle timeout
-		}).ts
+		})
+		defer cst.close()
+		ts := cst.ts
 
 		// rather than using an http.Client, create a single connection, so that
 		// we can ensure this connection is not closed.
@@ -5747,9 +5840,10 @@ func runTimeSensitiveTest(t *testing.T, durations []time.Duration, test func(t *
 		if err == nil {
 			return
 		}
-		if i == len(durations)-1 {
+		if i == len(durations)-1 || t.Failed() {
 			t.Fatalf("failed with duration %v: %v", d, err)
 		}
+		t.Logf("retrying after error with duration %v: %v", d, err)
 	}
 }
 
@@ -5929,7 +6023,7 @@ func TestServerValidatesMethod(t *testing.T) {
 		{"GE(T", 400},
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool, 1)}
+		conn := newTestConn()
 		io.WriteString(&conn.readBuf, tt.method+" / HTTP/1.1\r\nHost: foo.example\r\n\r\n")
 
 		ln := &oneConnListener{conn}
@@ -6594,7 +6688,7 @@ func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string,
 }
 
 func TestMaxBytesHandler(t *testing.T) {
-	setParallel(t)
+	// Not parallel: modifies the global rstAvoidanceDelay.
 	defer afterTest(t)
 
 	for _, maxSize := range []int64{100, 1_000, 1_000_000} {
@@ -6603,77 +6697,99 @@ func TestMaxBytesHandler(t *testing.T) {
 				func(t *testing.T) {
 					run(t, func(t *testing.T, mode testMode) {
 						testMaxBytesHandler(t, mode, maxSize, requestSize)
-					})
+					}, testNotParallel)
 				})
 		}
 	}
 }
 
 func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64) {
-	var (
-		handlerN   int64
-		handlerErr error
-	)
-	echo := HandlerFunc(func(w ResponseWriter, r *Request) {
-		var buf bytes.Buffer
-		handlerN, handlerErr = io.Copy(&buf, r.Body)
-		io.Copy(w, &buf)
-	})
+	runTimeSensitiveTest(t, []time.Duration{
+		1 * time.Millisecond,
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, timeout time.Duration) error {
+		SetRSTAvoidanceDelay(t, timeout)
+		t.Logf("set RST avoidance delay to %v", timeout)
 
-	ts := newClientServerTest(t, mode, MaxBytesHandler(echo, maxSize)).ts
-	defer ts.Close()
+		var (
+			handlerN   int64
+			handlerErr error
+		)
+		echo := HandlerFunc(func(w ResponseWriter, r *Request) {
+			var buf bytes.Buffer
+			handlerN, handlerErr = io.Copy(&buf, r.Body)
+			io.Copy(w, &buf)
+		})
 
-	c := ts.Client()
+		cst := newClientServerTest(t, mode, MaxBytesHandler(echo, maxSize))
+		// We need to close cst explicitly here so that in-flight server
+		// requests don't race with the call to SetRSTAvoidanceDelay for a retry.
+		defer cst.close()
+		ts := cst.ts
+		c := ts.Client()
 
-	body := strings.Repeat("a", int(requestSize))
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	getBody := func() (io.ReadCloser, error) {
-		wg.Add(1)
-		body := &wgReadCloser{
-			Reader: strings.NewReader(body),
-			wg:     &wg,
+		body := strings.Repeat("a", int(requestSize))
+		var wg sync.WaitGroup
+		defer wg.Wait()
+		getBody := func() (io.ReadCloser, error) {
+			wg.Add(1)
+			body := &wgReadCloser{
+				Reader: strings.NewReader(body),
+				wg:     &wg,
+			}
+			return body, nil
 		}
-		return body, nil
-	}
-	reqBody, _ := getBody()
-	req, err := NewRequest("POST", ts.URL, reqBody)
-	if err != nil {
-		reqBody.Close()
-		t.Fatal(err)
-	}
-	req.ContentLength = int64(len(body))
-	req.GetBody = getBody
-	req.Header.Set("Content-Type", "text/plain")
-
-	var buf strings.Builder
-	res, err := c.Do(req)
-	if err != nil {
-		t.Errorf("unexpected connection error: %v", err)
-	} else {
-		_, err = io.Copy(&buf, res.Body)
-		res.Body.Close()
+		reqBody, _ := getBody()
+		req, err := NewRequest("POST", ts.URL, reqBody)
 		if err != nil {
-			t.Errorf("unexpected read error: %v", err)
+			reqBody.Close()
+			t.Fatal(err)
 		}
-	}
-	if handlerN > maxSize {
-		t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
-	}
-	if requestSize > maxSize && handlerErr == nil {
-		t.Error("expected error on handler side; got nil")
-	}
-	if requestSize <= maxSize {
-		if handlerErr != nil {
-			t.Errorf("%d expected nil error on handler side; got %v", requestSize, handlerErr)
+		req.ContentLength = int64(len(body))
+		req.GetBody = getBody
+		req.Header.Set("Content-Type", "text/plain")
+
+		var buf strings.Builder
+		res, err := c.Do(req)
+		if err != nil {
+			return fmt.Errorf("unexpected connection error: %v", err)
+		} else {
+			_, err = io.Copy(&buf, res.Body)
+			res.Body.Close()
+			if err != nil {
+				return fmt.Errorf("unexpected read error: %v", err)
+			}
 		}
-		if handlerN != requestSize {
-			t.Errorf("expected request of size %d; got %d", requestSize, handlerN)
+		// We don't expect any of the errors after this point to occur due
+		// to rstAvoidanceDelay being too short, so we use t.Errorf for those
+		// instead of returning a (retriable) error.
+
+		if handlerN > maxSize {
+			t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
 		}
-	}
-	if buf.Len() != int(handlerN) {
-		t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
-	}
+		if requestSize > maxSize && handlerErr == nil {
+			t.Error("expected error on handler side; got nil")
+		}
+		if requestSize <= maxSize {
+			if handlerErr != nil {
+				t.Errorf("%d expected nil error on handler side; got %v", requestSize, handlerErr)
+			}
+			if handlerN != requestSize {
+				t.Errorf("expected request of size %d; got %d", requestSize, handlerN)
+			}
+		}
+		if buf.Len() != int(handlerN) {
+			t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
+		}
+
+		return nil
+	})
 }
 
 func TestEarlyHints(t *testing.T) {

@@ -48,15 +48,15 @@ type Reader struct {
 	fileList     []fileListEntry
 }
 
-// A ReadCloser is a Reader that must be closed when no longer needed.
+// A ReadCloser is a [Reader] that must be closed when no longer needed.
 type ReadCloser struct {
 	f *os.File
 	Reader
 }
 
 // A File is a single file in a ZIP archive.
-// The file information is in the embedded FileHeader.
-// The file content can be accessed by calling Open.
+// The file information is in the embedded [FileHeader].
+// The file content can be accessed by calling [File.Open].
 type File struct {
 	FileHeader
 	zip          *Reader
@@ -93,16 +93,16 @@ func OpenReader(name string) (*ReadCloser, error) {
 	return r, err
 }
 
-// NewReader returns a new Reader reading from r, which is assumed to
+// NewReader returns a new [Reader] reading from r, which is assumed to
 // have the given size in bytes.
 //
 // If any file inside the archive uses a non-local name
 // (as defined by [filepath.IsLocal]) or a name containing backslashes
 // and the GODEBUG environment variable contains `zipinsecurepath=0`,
-// NewReader returns the reader with an ErrInsecurePath error.
+// NewReader returns the reader with an [ErrInsecurePath] error.
 // A future version of Go may introduce this behavior by default.
 // Programs that want to accept non-local names can ignore
-// the ErrInsecurePath error and use the returned reader.
+// the [ErrInsecurePath] error and use the returned reader.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")
@@ -178,7 +178,7 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
 
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
-// Reader will default to looking up the decompressor at the package level.
+// [Reader] will default to looking up the decompressor at the package level.
 func (r *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
 	if r.decompressors == nil {
 		r.decompressors = make(map[uint16]Decompressor)
@@ -202,7 +202,7 @@ func (rc *ReadCloser) Close() error {
 // DataOffset returns the offset of the file's possibly-compressed
 // data, relative to the beginning of the zip file.
 //
-// Most callers should instead use Open, which transparently
+// Most callers should instead use [File.Open], which transparently
 // decompresses data and verifies checksums.
 func (f *File) DataOffset() (offset int64, err error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -212,7 +212,7 @@ func (f *File) DataOffset() (offset int64, err error) {
 	return f.headerOffset + bodyOffset, nil
 }
 
-// Open returns a ReadCloser that provides access to the File's contents.
+// Open returns a [ReadCloser] that provides access to the [File]'s contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -255,7 +255,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return rc, nil
 }
 
-// OpenRaw returns a Reader that provides access to the File's contents without
+// OpenRaw returns a [Reader] that provides access to the [File]'s contents without
 // decompression.
 func (f *File) OpenRaw() (io.Reader, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -469,8 +469,8 @@ parseExtras:
 
 				const ticksPerSecond = 1e7    // Windows timestamp resolution
 				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
-				secs := int64(ts / ticksPerSecond)
-				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
+				secs := ts / ticksPerSecond
+				nsecs := (1e9 / ticksPerSecond) * (ts % ticksPerSecond)
 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
 				modified = time.Unix(epoch.Unix()+secs, nsecs)
 			}

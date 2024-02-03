@@ -26,7 +26,7 @@ func (k KeySizeError) Error() string {
 	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
 }
 
-// NewCipher creates and returns a new cipher.Block.
+// NewCipher creates and returns a new [cipher.Block].
 // The key argument should be the AES key,
 // either 16, 24, or 32 bytes to select
 // AES-128, AES-192, or AES-256.

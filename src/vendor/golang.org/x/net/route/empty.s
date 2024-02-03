@@ -3,6 +3,5 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin && go1.12
-// +build darwin,go1.12
 
 // This exists solely so we can linkname in symbols from syscall.

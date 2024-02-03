@@ -298,7 +298,11 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
 	stk.Push("testmain")
 	deps := TestMainDeps // cap==len, so safe for append
-	for _, d := range LinkerDeps(p) {
+	ldDeps, err := LinkerDeps(p)
+	if err != nil && pmain.Error == nil {
+		pmain.Error = &PackageError{Err: err}
+	}
+	for _, d := range ldDeps {
 		deps = append(deps, d)
 	}
 	for _, dep := range deps {
@@ -384,15 +388,15 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 				// it contains p's Go files), whereas pmain contains only
 				// test harness code (don't want to instrument it, and
 				// we don't want coverage hooks in the pkg init).
-				ptest.Internal.CoverMode = p.Internal.CoverMode
-				pmain.Internal.CoverMode = "testmain"
+				ptest.Internal.Cover.Mode = p.Internal.Cover.Mode
+				pmain.Internal.Cover.Mode = "testmain"
 			}
 			// Should we apply coverage analysis locally, only for this
 			// package and only for this test? Yes, if -cover is on but
 			// -coverpkg has not specified a list of packages for global
 			// coverage.
 			if cover.Local {
-				ptest.Internal.CoverMode = cover.Mode
+				ptest.Internal.Cover.Mode = cover.Mode
 
 				if !cfg.Experiment.CoverageRedesign {
 					var coverFiles []string
@@ -473,6 +477,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			p.Target = ""
 			p.Internal.BuildInfo = nil
 			p.Internal.ForceLibrary = true
+			p.Internal.PGOProfile = preal.Internal.PGOProfile
 		}
 
 		// Update p.Internal.Imports to use test copies.
@@ -494,6 +499,11 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 		// compiled with '-p main' causes duplicate symbol errors.
 		// See golang.org/issue/30907, golang.org/issue/34114.
 		if p.Name == "main" && p != pmain && p != ptest {
+			split()
+		}
+		// Split and attach PGO information to test dependencies if preal
+		// is built with PGO.
+		if preal.Internal.PGOProfile != "" && p.Internal.PGOProfile == "" {
 			split()
 		}
 	}
@@ -554,7 +564,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 }
 
 // isTestFunc tells whether fn has the type of a testing function. arg
-// specifies the parameter type we look for: B, M or T.
+// specifies the parameter type we look for: B, F, M or T.
 func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
 		fn.Type.Params.List == nil ||
@@ -569,7 +579,7 @@ func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	// We can't easily check that the type is *testing.M
 	// because we don't know how testing has been imported,
 	// but at least check that it's *M or *something.M.
-	// Same applies for B and T.
+	// Same applies for B, F and T.
 	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == arg {
 		return true
 	}

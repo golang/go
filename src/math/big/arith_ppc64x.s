@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !math_big_pure_go && (ppc64 || ppc64le)
-// +build !math_big_pure_go
-// +build ppc64 ppc64le
 
 #include "textflag.h"
 
@@ -601,33 +599,80 @@ done:
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB), NOSPLIT, $0
-	MOVD z+0(FP), R10	// R10 = z[]
-	MOVD x+24(FP), R8	// R8 = x[]
-	MOVD y+48(FP), R9	// R9 = y
-	MOVD z_len+8(FP), R22	// R22 = z_len
+	MOVD	z+0(FP), R3	// R3 = z[]
+	MOVD	x+24(FP), R4	// R4 = x[]
+	MOVD	y+48(FP), R5	// R5 = y
+	MOVD	z_len+8(FP), R6	// R6 = z_len
 
-	MOVD R0, R3		// R3 will be the index register
-	CMP  R0, R22
-	MOVD R0, R4		// R4 = c = 0
-	MOVD R22, CTR		// Initialize loop counter
-	BEQ  done
-	PCALIGN $16
+	CMP	R6, $4
+	MOVD	R0, R9		// R9 = c = 0
+	BLT	tail
+	SRD	$2, R6, R7
+	MOVD	R7, CTR		// Initialize loop counter
+	PCALIGN	$16
 
 loop:
-	MOVD  (R8)(R3), R20	// Load x[i]
-	MOVD  (R10)(R3), R21	// Load z[i]
-	MULLD  R9, R20, R6	// R6 = Low-order(x[i]*y)
-	MULHDU R9, R20, R7	// R7 = High-order(x[i]*y)
-	ADDC   R21, R6		// R6 = z0
-	ADDZE  R7		// R7 = z1
-	ADDC   R4, R6		// R6 = z0 + c + 0
-	ADDZE  R7, R4           // c += z1
-	MOVD   R6, (R10)(R3)	// Store z[i]
-	ADD    $8, R3
-	BC  16, 0, loop		// bdnz
+	MOVD	0(R4), R14	// x[i]
+	MOVD	8(R4), R16	// x[i+1]
+	MOVD	16(R4), R18	// x[i+2]
+	MOVD	24(R4), R20	// x[i+3]
+	MOVD	0(R3), R15	// z[i]
+	MOVD	8(R3), R17	// z[i+1]
+	MOVD	16(R3), R19	// z[i+2]
+	MOVD	24(R3), R21	// z[i+3]
+	MULLD	R5, R14, R10	// low x[i]*y
+	MULHDU	R5, R14, R11	// high x[i]*y
+	ADDC	R15, R10
+	ADDZE	R11
+	ADDC	R9, R10
+	ADDZE	R11, R9
+	MULLD	R5, R16, R14	// low x[i+1]*y
+	MULHDU	R5, R16, R15	// high x[i+1]*y
+	ADDC	R17, R14
+	ADDZE	R15
+	ADDC	R9, R14
+	ADDZE	R15, R9
+	MULLD	R5, R18, R16    // low x[i+2]*y
+	MULHDU	R5, R18, R17    // high x[i+2]*y
+	ADDC	R19, R16
+	ADDZE	R17
+	ADDC	R9, R16
+	ADDZE	R17, R9
+	MULLD	R5, R20, R18    // low x[i+3]*y
+	MULHDU	R5, R20, R19    // high x[i+3]*y
+	ADDC	R21, R18
+	ADDZE	R19
+	ADDC	R9, R18
+	ADDZE	R19, R9
+	MOVD	R10, 0(R3)	// z[i]
+	MOVD	R14, 8(R3)	// z[i+1]
+	MOVD	R16, 16(R3)	// z[i+2]
+	MOVD	R18, 24(R3)	// z[i+3]
+	ADD	$32, R3
+	ADD	$32, R4
+	BDNZ	loop
+
+	ANDCC	$3, R6
+tail:
+	CMP	R0, R6
+	BEQ	done
+	MOVD	R6, CTR
+	PCALIGN $16
+tailloop:
+	MOVD	0(R4), R14
+	MOVD	0(R3), R15
+	MULLD	R5, R14, R10
+	MULHDU	R5, R14, R11
+	ADDC	R15, R10
+	ADDZE	R11
+	ADDC	R9, R10
+	ADDZE	R11, R9
+	MOVD	R10, 0(R3)
+	ADD	$8, R3
+	ADD	$8, R4
+	BDNZ	tailloop
 
 done:
-	MOVD R4, c+56(FP)
+	MOVD	R9, c+56(FP)
 	RET
-
 

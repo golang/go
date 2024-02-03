@@ -109,4 +109,22 @@ type Flags struct {
 	// CacheProg adds support to cmd/go to use a child process to implement
 	// the build cache; see https://github.com/golang/go/issues/59719.
 	CacheProg bool
+
+	// NewInliner enables a new+improved version of the function
+	// inlining phase within the Go compiler.
+	NewInliner bool
+
+	// RangeFunc enables range over func.
+	RangeFunc bool
+
+	// Range enables range over int and func.
+	Range bool
+
+	// AllocHeaders enables a different, more efficient way for the GC to
+	// manage heap metadata.
+	AllocHeaders bool
+
+	// ExecTracer2 controls whether to use the new execution trace
+	// implementation.
+	ExecTracer2 bool
 }

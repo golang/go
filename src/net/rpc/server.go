@@ -30,17 +30,17 @@ These requirements apply even if a different codec is used.
 The method's first argument represents the arguments provided by the caller; the
 second argument represents the result parameters to be returned to the caller.
 The method's return value, if non-nil, is passed back as a string that the client
-sees as if created by errors.New.  If an error is returned, the reply parameter
+sees as if created by [errors.New].  If an error is returned, the reply parameter
 will not be sent back to the client.
 
-The server may handle requests on a single connection by calling ServeConn.  More
-typically it will create a network listener and call Accept or, for an HTTP
-listener, HandleHTTP and http.Serve.
+The server may handle requests on a single connection by calling [ServeConn].  More
+typically it will create a network listener and call [Accept] or, for an HTTP
+listener, [HandleHTTP] and [http.Serve].
 
 A client wishing to use the service establishes a connection and then invokes
-NewClient on the connection.  The convenience function Dial (DialHTTP) performs
+[NewClient] on the connection.  The convenience function [Dial] ([DialHTTP]) performs
 both steps for a raw network connection (an HTTP connection).  The resulting
-Client object has two methods, Call and Go, that specify the service and method to
+[Client] object has two methods, [Call] and Go, that specify the service and method to
 call, a pointer containing the arguments, and a pointer to receive the result
 parameters.
 
@@ -48,7 +48,7 @@ The Call method waits for the remote call to complete while the Go method
 launches the call asynchronously and signals completion using the Call
 structure's Done channel.
 
-Unless an explicit codec is set up, package encoding/gob is used to
+Unless an explicit codec is set up, package [encoding/gob] is used to
 transport the data.
 
 Here is a simple example.  A server wishes to export an object of type Arith:
@@ -86,9 +86,9 @@ The server calls (for HTTP service):
 	arith := new(Arith)
 	rpc.Register(arith)
 	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
-	if e != nil {
-		log.Fatal("listen error:", e)
+	l, err := net.Listen("tcp", ":1234")
+	if err != nil {
+		log.Fatal("listen error:", err)
 	}
 	go http.Serve(l, nil)
 
@@ -146,9 +146,8 @@ const (
 	DefaultDebugPath = "/debug/rpc"
 )
 
-// Precompute the reflect type for error. Can't use error directly
-// because Typeof takes an empty interface value. This is annoying.
-var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+// Precompute the reflect type for error.
+var typeOfError = reflect.TypeFor[error]()
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -193,12 +192,12 @@ type Server struct {
 	freeResp   *Response
 }
 
-// NewServer returns a new Server.
+// NewServer returns a new [Server].
 func NewServer() *Server {
 	return &Server{}
 }
 
-// DefaultServer is the default instance of *Server.
+// DefaultServer is the default instance of [*Server].
 var DefaultServer = NewServer()
 
 // Is this type exported or a builtin?
@@ -226,7 +225,7 @@ func (server *Server) Register(rcvr any) error {
 	return server.register(rcvr, "", false)
 }
 
-// RegisterName is like Register but uses the provided name for the type
+// RegisterName is like [Register] but uses the provided name for the type
 // instead of the receiver's concrete type.
 func (server *Server) RegisterName(name string, rcvr any) error {
 	return server.register(rcvr, name, true)
@@ -441,8 +440,8 @@ func (c *gobServerCodec) Close() error {
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
-// connection. To use an alternate codec, use ServeCodec.
-// See NewClient's comment for information about concurrent access.
+// connection. To use an alternate codec, use [ServeCodec].
+// See [NewClient]'s comment for information about concurrent access.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	buf := bufio.NewWriter(conn)
 	srv := &gobServerCodec{
@@ -454,7 +453,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	server.ServeCodec(srv)
 }
 
-// ServeCodec is like ServeConn but uses the specified codec to
+// ServeCodec is like [ServeConn] but uses the specified codec to
 // decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
@@ -484,7 +483,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	codec.Close()
 }
 
-// ServeRequest is like ServeCodec but synchronously serves a single request.
+// ServeRequest is like [ServeCodec] but synchronously serves a single request.
 // It does not close the codec upon completion.
 func (server *Server) ServeRequest(codec ServerCodec) error {
 	sending := new(sync.Mutex)
@@ -636,10 +635,10 @@ func (server *Server) Accept(lis net.Listener) {
 	}
 }
 
-// Register publishes the receiver's methods in the DefaultServer.
+// Register publishes the receiver's methods in the [DefaultServer].
 func Register(rcvr any) error { return DefaultServer.Register(rcvr) }
 
-// RegisterName is like Register but uses the provided name for the type
+// RegisterName is like [Register] but uses the provided name for the type
 // instead of the receiver's concrete type.
 func RegisterName(name string, rcvr any) error {
 	return DefaultServer.RegisterName(name, rcvr)
@@ -647,12 +646,12 @@ func RegisterName(name string, rcvr any) error {
 
 // A ServerCodec implements reading of RPC requests and writing of
 // RPC responses for the server side of an RPC session.
-// The server calls ReadRequestHeader and ReadRequestBody in pairs
-// to read requests from the connection, and it calls WriteResponse to
-// write a response back. The server calls Close when finished with the
+// The server calls [ServerCodec.ReadRequestHeader] and [ServerCodec.ReadRequestBody] in pairs
+// to read requests from the connection, and it calls [ServerCodec.WriteResponse] to
+// write a response back. The server calls [ServerCodec.Close] when finished with the
 // connection. ReadRequestBody may be called with a nil
 // argument to force the body of the request to be read and discarded.
-// See NewClient's comment for information about concurrent access.
+// See [NewClient]'s comment for information about concurrent access.
 type ServerCodec interface {
 	ReadRequestHeader(*Request) error
 	ReadRequestBody(any) error
@@ -662,37 +661,37 @@ type ServerCodec interface {
 	Close() error
 }
 
-// ServeConn runs the DefaultServer on a single connection.
+// ServeConn runs the [DefaultServer] on a single connection.
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
-// connection. To use an alternate codec, use ServeCodec.
-// See NewClient's comment for information about concurrent access.
+// connection. To use an alternate codec, use [ServeCodec].
+// See [NewClient]'s comment for information about concurrent access.
 func ServeConn(conn io.ReadWriteCloser) {
 	DefaultServer.ServeConn(conn)
 }
 
-// ServeCodec is like ServeConn but uses the specified codec to
+// ServeCodec is like [ServeConn] but uses the specified codec to
 // decode requests and encode responses.
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
 }
 
-// ServeRequest is like ServeCodec but synchronously serves a single request.
+// ServeRequest is like [ServeCodec] but synchronously serves a single request.
 // It does not close the codec upon completion.
 func ServeRequest(codec ServerCodec) error {
 	return DefaultServer.ServeRequest(codec)
 }
 
 // Accept accepts connections on the listener and serves requests
-// to DefaultServer for each incoming connection.
+// to [DefaultServer] for each incoming connection.
 // Accept blocks; the caller typically invokes it in a go statement.
 func Accept(lis net.Listener) { DefaultServer.Accept(lis) }
 
 // Can connect to RPC service using HTTP CONNECT to rpcPath.
 var connected = "200 Connected to Go RPC"
 
-// ServeHTTP implements an http.Handler that answers RPC requests.
+// ServeHTTP implements an [http.Handler] that answers RPC requests.
 func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "CONNECT" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -711,15 +710,15 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // HandleHTTP registers an HTTP handler for RPC messages on rpcPath,
 // and a debugging handler on debugPath.
-// It is still necessary to invoke http.Serve(), typically in a go statement.
+// It is still necessary to invoke [http.Serve](), typically in a go statement.
 func (server *Server) HandleHTTP(rpcPath, debugPath string) {
 	http.Handle(rpcPath, server)
 	http.Handle(debugPath, debugHTTP{server})
 }
 
-// HandleHTTP registers an HTTP handler for RPC messages to DefaultServer
-// on DefaultRPCPath and a debugging handler on DefaultDebugPath.
-// It is still necessary to invoke http.Serve(), typically in a go statement.
+// HandleHTTP registers an HTTP handler for RPC messages to [DefaultServer]
+// on [DefaultRPCPath] and a debugging handler on [DefaultDebugPath].
+// It is still necessary to invoke [http.Serve](), typically in a go statement.
 func HandleHTTP() {
 	DefaultServer.HandleHTTP(DefaultRPCPath, DefaultDebugPath)
 }

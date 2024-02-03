@@ -60,7 +60,9 @@ pkg crypto/tls, method (*QUICConn) Close() error #44886
 pkg crypto/tls, method (*QUICConn) ConnectionState() ConnectionState #44886
 pkg crypto/tls, method (*QUICConn) HandleData(QUICEncryptionLevel, []uint8) error #44886
 pkg crypto/tls, method (*QUICConn) NextEvent() QUICEvent #44886
-pkg crypto/tls, method (*QUICConn) SendSessionTicket(bool) error #60107
+pkg crypto/tls, method (*QUICConn) SendSessionTicket(QUICSessionTicketOptions) error #60107
+pkg crypto/tls, type QUICSessionTicketOptions struct #60107
+pkg crypto/tls, type QUICSessionTicketOptions struct, EarlyData bool #60107
 pkg crypto/tls, method (*QUICConn) SetTransportParameters([]uint8) #44886
 pkg crypto/tls, method (*QUICConn) Start(context.Context) error #44886
 pkg crypto/tls, method (QUICEncryptionLevel) String() string #44886
@@ -165,7 +167,12 @@ pkg errors, var ErrUnsupported error #41198
 pkg flag, func BoolFunc(string, string, func(string) error) #53747
 pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747
 pkg go/ast, func IsGenerated(*File) bool #28089
+pkg go/ast, func NewPackage //deprecated #52463
 pkg go/ast, type File struct, GoVersion string #59033
+pkg go/ast, type Importer //deprecated #52463
+pkg go/ast, type Object //deprecated #52463
+pkg go/ast, type Package //deprecated #52463
+pkg go/ast, type Scope //deprecated #52463
 pkg go/build/constraint, func GoVersion(Expr) string #59033
 pkg go/build, type Directive struct #56986
 pkg go/build, type Directive struct, Pos token.Position #56986
@@ -174,6 +181,7 @@ pkg go/build, type Package struct, Directives []Directive #56986
 pkg go/build, type Package struct, TestDirectives []Directive #56986
 pkg go/build, type Package struct, XTestDirectives []Directive #56986
 pkg go/token, method (*File) Lines() []int #57708
+pkg go/types, method (*Package) GoVersion() string #61175
 pkg html/template, const ErrJSTemplate = 12 #59584
 pkg html/template, const ErrJSTemplate ErrorCode #59584
 pkg io/fs, func FormatDirEntry(DirEntry) string #54451
@@ -218,18 +226,18 @@ pkg log/slog, func Any(string, interface{}) Attr #56345
 pkg log/slog, func AnyValue(interface{}) Value #56345
 pkg log/slog, func Bool(string, bool) Attr #56345
 pkg log/slog, func BoolValue(bool) Value #56345
-pkg log/slog, func DebugCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, func DebugContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, func Debug(string, ...interface{}) #56345
 pkg log/slog, func Default() *Logger #56345
 pkg log/slog, func Duration(string, time.Duration) Attr #56345
 pkg log/slog, func DurationValue(time.Duration) Value #56345
-pkg log/slog, func ErrorCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, func ErrorContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, func Error(string, ...interface{}) #56345
 pkg log/slog, func Float64(string, float64) Attr #56345
 pkg log/slog, func Float64Value(float64) Value #56345
 pkg log/slog, func Group(string, ...interface{}) Attr #59204
 pkg log/slog, func GroupValue(...Attr) Value #56345
-pkg log/slog, func InfoCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, func InfoContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, func Info(string, ...interface{}) #56345
 pkg log/slog, func Int64(string, int64) Attr #56345
 pkg log/slog, func Int64Value(int64) Value #56345
@@ -249,7 +257,7 @@ pkg log/slog, func Time(string, time.Time) Attr #56345
 pkg log/slog, func TimeValue(time.Time) Value #56345
 pkg log/slog, func Uint64(string, uint64) Attr #56345
 pkg log/slog, func Uint64Value(uint64) Value #56345
-pkg log/slog, func WarnCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, func WarnContext(context.Context, string, ...interface{})  #61200
 pkg log/slog, func Warn(string, ...interface{}) #56345
 pkg log/slog, func With(...interface{}) *Logger #56345
 pkg log/slog, method (Attr) Equal(Attr) bool #56345
@@ -270,17 +278,17 @@ pkg log/slog, method (*LevelVar) MarshalText() ([]uint8, error) #56345
 pkg log/slog, method (*LevelVar) Set(Level) #56345
 pkg log/slog, method (*LevelVar) String() string #56345
 pkg log/slog, method (*LevelVar) UnmarshalText([]uint8) error #56345
-pkg log/slog, method (*Logger) DebugCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, method (*Logger) DebugContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, method (*Logger) Debug(string, ...interface{}) #56345
 pkg log/slog, method (*Logger) Enabled(context.Context, Level) bool #56345
-pkg log/slog, method (*Logger) ErrorCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, method (*Logger) ErrorContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, method (*Logger) Error(string, ...interface{}) #56345
 pkg log/slog, method (*Logger) Handler() Handler #56345
-pkg log/slog, method (*Logger) InfoCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, method (*Logger) InfoContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, method (*Logger) Info(string, ...interface{}) #56345
 pkg log/slog, method (*Logger) LogAttrs(context.Context, Level, string, ...Attr) #56345
 pkg log/slog, method (*Logger) Log(context.Context, Level, string, ...interface{}) #56345
-pkg log/slog, method (*Logger) WarnCtx(context.Context, string, ...interface{}) #56345
+pkg log/slog, method (*Logger) WarnContext(context.Context, string, ...interface{}) #61200
 pkg log/slog, method (*Logger) Warn(string, ...interface{}) #56345
 pkg log/slog, method (*Logger) WithGroup(string) *Logger #56345
 pkg log/slog, method (*Logger) With(...interface{}) *Logger #56345
@@ -343,8 +351,6 @@ pkg maps, func Copy[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 c
 pkg maps, func DeleteFunc[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, func($1, $2) bool) #57436
 pkg maps, func Equal[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 comparable, $3 comparable]($0, $1) bool #57436
 pkg maps, func EqualFunc[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$4 }, $2 comparable, $3 interface{}, $4 interface{}]($0, $1, func($3, $4) bool) bool #57436
-pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$1 #57436
-pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$2 #57436
 pkg math/big, method (*Int) Float64() (float64, Accuracy) #56984
 pkg net/http, method (*ProtocolError) Is(error) bool #41198
 pkg net/http, method (*ResponseController) EnableFullDuplex() error #57786

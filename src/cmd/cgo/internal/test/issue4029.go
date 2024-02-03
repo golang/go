@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows && !static && (!darwin || (!internal_pie && !arm64))
+//go:build !windows && !static && !(darwin && internal)
 
-// Excluded in darwin internal linking PIE mode, as dynamic export is not
-// supported.
-// Excluded in internal linking mode on darwin/arm64, as it is always PIE.
+// Excluded in darwin internal linking PIE (which is the default) mode,
+// as dynamic export is not supported.
 
 package cgotest
 

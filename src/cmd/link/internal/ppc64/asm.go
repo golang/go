@@ -270,9 +270,8 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 	for _, s := range ctxt.Textp {
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At(i)
-			switch r.Type() {
-			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
+			switch r := relocs.At(i); r.Type() {
+			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24), objabi.R_CALLPOWER:
 				switch ldr.SymType(r.Sym()) {
 				case sym.SDYNIMPORT:
 					// This call goes through the PLT, generate and call through a PLT stub.
@@ -633,7 +632,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		su.SetRelocAdd(rIdx, r.Add()+localEoffset)
 
 		if targType == sym.SDYNIMPORT {
-			// Should have been handled in elfsetupplt
+			// Should have been handled in genstubs
 			ldr.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
 
@@ -918,7 +917,6 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		emitReloc(ld.XCOFF_R_REF|0x3F<<8, 0)
 	}
 	return true
-
 }
 
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
@@ -1015,7 +1013,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// The dynamic linker stores the address of the
 		// dynamic resolver and the DSO identifier in the two
@@ -1575,7 +1573,6 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv 
 			var o1 uint32
 			if target.IsBigEndian() {
 				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
-
 			} else {
 				o1 = binary.LittleEndian.Uint32(p[r.Off():])
 			}

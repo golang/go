@@ -101,6 +101,9 @@ const (
 	_O_NONBLOCK = 0x4
 	_O_CREAT    = 0x200
 	_O_TRUNC    = 0x400
+
+	_VM_REGION_BASIC_INFO_COUNT_64 = 0x9
+	_VM_REGION_BASIC_INFO_64       = 0x9
 )
 
 type stackt struct {
@@ -371,3 +374,11 @@ type machTimebaseInfo struct {
 	numer uint32
 	denom uint32
 }
+
+type machPort uint32
+type machVMMapRead uint32
+type machVMAddress uint64
+type machVMSize uint64
+type machVMRegionFlavour int32
+type machVMRegionInfo *int32
+type machMsgTypeNumber uint32

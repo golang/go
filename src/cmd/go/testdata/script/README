@@ -398,6 +398,8 @@ The available conditions are:
 	GOOS/GOARCH supports -fuzz with instrumentation
 [git]
 	the 'git' executable exists and provides the standard CLI
+[go-builder]
+	GO_BUILDER_NAME is non-empty
 [link]
 	testenv.HasLink()
 [mismatched-goroot]

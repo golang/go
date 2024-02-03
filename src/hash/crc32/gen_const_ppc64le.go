@@ -141,7 +141,7 @@ func genCrc32ConstTable(w *bytes.Buffer, poly uint32, polyid string) {
 	}
 
 	fmt.Fprintf(w, "GLOBL ·%sConst(SB),RODATA,$4336\n", polyid)
-	fmt.Fprintf(w, "\n /* Barrett constant m - (4^32)/n */\n")
+	fmt.Fprintf(w, "\n\t/* Barrett constant m - (4^32)/n */\n")
 	fmt.Fprintf(w, "DATA ·%sBarConst(SB)/8,$0x%016x\n", polyid, reflect_bits(get_quotient(ref_poly, 32, 64), 33))
 	fmt.Fprintf(w, "DATA ·%sBarConst+8(SB)/8,$0x0000000000000000\n", polyid)
 	fmt.Fprintf(w, "DATA ·%sBarConst+16(SB)/8,$0x%016x\n", polyid, reflect_bits((uint64(1)<<32)|ref_poly, 33)) // reflected?

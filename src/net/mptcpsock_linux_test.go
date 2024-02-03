@@ -12,15 +12,22 @@ import (
 	"testing"
 )
 
-func newLocalListenerMPTCP(t *testing.T) Listener {
+func newLocalListenerMPTCP(t *testing.T, envVar bool) Listener {
 	lc := &ListenConfig{}
-	if lc.MultipathTCP() {
-		t.Error("MultipathTCP should be off by default")
-	}
 
-	lc.SetMultipathTCP(true)
-	if !lc.MultipathTCP() {
-		t.Fatal("MultipathTCP is not on after having been forced to on")
+	if envVar {
+		if !lc.MultipathTCP() {
+			t.Fatal("MultipathTCP Listen is not on despite GODEBUG=multipathtcp=1")
+		}
+	} else {
+		if lc.MultipathTCP() {
+			t.Error("MultipathTCP should be off by default")
+		}
+
+		lc.SetMultipathTCP(true)
+		if !lc.MultipathTCP() {
+			t.Fatal("MultipathTCP is not on after having been forced to on")
+		}
 	}
 
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -64,15 +71,22 @@ func postAcceptMPTCP(ls *localServer, ch chan<- error) {
 	}
 }
 
-func dialerMPTCP(t *testing.T, addr string) {
+func dialerMPTCP(t *testing.T, addr string, envVar bool) {
 	d := &Dialer{}
-	if d.MultipathTCP() {
-		t.Error("MultipathTCP should be off by default")
-	}
 
-	d.SetMultipathTCP(true)
-	if !d.MultipathTCP() {
-		t.Fatal("MultipathTCP is not on after having been forced to on")
+	if envVar {
+		if !d.MultipathTCP() {
+			t.Fatal("MultipathTCP Dialer is not on despite GODEBUG=multipathtcp=1")
+		}
+	} else {
+		if d.MultipathTCP() {
+			t.Error("MultipathTCP should be off by default")
+		}
+
+		d.SetMultipathTCP(true)
+		if !d.MultipathTCP() {
+			t.Fatal("MultipathTCP is not on after having been forced to on")
+		}
 	}
 
 	c, err := d.Dial("tcp", addr)
@@ -128,12 +142,16 @@ func canCreateMPTCPSocket() bool {
 	return true
 }
 
-func TestMultiPathTCP(t *testing.T) {
-	if !canCreateMPTCPSocket() {
-		t.Skip("Cannot create MPTCP sockets")
+func testMultiPathTCP(t *testing.T, envVar bool) {
+	if envVar {
+		t.Log("Test with GODEBUG=multipathtcp=1")
+		t.Setenv("GODEBUG", "multipathtcp=1")
+	} else {
+		t.Log("Test with GODEBUG=multipathtcp=0")
+		t.Setenv("GODEBUG", "multipathtcp=0")
 	}
 
-	ln := newLocalListenerMPTCP(t)
+	ln := newLocalListenerMPTCP(t, envVar)
 
 	// similar to tcpsock_test:TestIPv6LinkLocalUnicastTCP
 	ls := (&streamListener{Listener: ln}).newLocalServer()
@@ -153,12 +171,22 @@ func TestMultiPathTCP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dialerMPTCP(t, ln.Addr().String())
+	dialerMPTCP(t, ln.Addr().String(), envVar)
 
 	if err := <-genericCh; err != nil {
 		t.Error(err)
 	}
 	if err := <-mptcpCh; err != nil {
 		t.Error(err)
+	}
+}
+
+func TestMultiPathTCP(t *testing.T) {
+	if !canCreateMPTCPSocket() {
+		t.Skip("Cannot create MPTCP sockets")
+	}
+
+	for _, envVar := range []bool{false, true} {
+		testMultiPathTCP(t, envVar)
 	}
 }

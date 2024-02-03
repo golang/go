@@ -622,6 +622,11 @@ func (ctxt *Context) saveCgo(filename string, di *build.Package, text string) er
 			continue
 		}
 
+		// #cgo (nocallback|noescape) <function name>
+		if fields := strings.Fields(line); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
+			continue
+		}
+
 		// Split at colon.
 		line, argstr, ok := strings.Cut(strings.TrimSpace(line[4:]), ":")
 		if !ok {

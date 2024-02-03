@@ -24,10 +24,21 @@ import (
 var toRemove []string
 
 func TestMain(m *testing.M) {
+	_, coreErrBefore := os.Stat("core")
+
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}
+
+	_, coreErrAfter := os.Stat("core")
+	if coreErrBefore != nil && coreErrAfter == nil {
+		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
+		if status == 0 {
+			status = 1
+		}
+	}
+
 	os.Exit(status)
 }
 
@@ -534,7 +545,7 @@ func TestMemPprof(t *testing.T) {
 
 	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("testprog failed: %s, output:\n%s", err, got)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
@@ -762,11 +773,21 @@ func init() {
 		// We expect to crash, so exit 0 to indicate failure.
 		os.Exit(0)
 	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_READMEMSTATS") == "1" {
+		runtime.ReadMemStats(nil)
+		os.Exit(0)
+	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_FUNCMETHOD") == "1" {
+		var f *runtime.Func
+		_ = f.Entry()
+		os.Exit(0)
+	}
+
 }
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -777,22 +798,56 @@ func TestRuntimePanic(t *testing.T) {
 	}
 }
 
+func TestTracebackRuntimeFunction(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.ReadMemStats"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeMethod(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.(*Func).Entry"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
 // Test that g0 stack overflows are handled gracefully.
 func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	switch runtime.GOOS {
-	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
-		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 62671)
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
 		out, err := cmd.CombinedOutput()
+		t.Logf("output:\n%s", out)
 		// Don't check err since it's expected to crash.
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		if runtime.CrashStackImplemented {
+			// check for a stack trace
+			want := "runtime.stackOverflow"
+			if n := strings.Count(string(out), want); n < 5 {
+				t.Errorf("output does not contain %q at least 5 times:\n%s", want, out)
+			}
+			return // it's not a signal-style traceback
 		}
 		// Check that it's a signal-style traceback.
 		if runtime.GOOS != "windows" {
@@ -867,5 +922,14 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+func TestNetpollWaiters(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprognet", "NetpollWaiters")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output is not %q\n%s", want, output)
 	}
 }

@@ -318,30 +318,41 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		mods = append(mods, module.Version{})
 	}
 	// -mod=vendor is special.
-	// Everything must be in the main module or the main module's vendor directory.
+	// Everything must be in the main modules or the main module's or workspace's vendor directory.
 	if cfg.BuildMod == "vendor" {
-		mainModule := MainModules.mustGetSingleMainModule()
-		modRoot := MainModules.ModRoot(mainModule)
 		var mainErr error
-		if modRoot != "" {
-			mainDir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
-			mainErr = err
-			if mainOK {
-				mods = append(mods, mainModule)
-				dirs = append(dirs, mainDir)
-				roots = append(roots, modRoot)
+		for _, mainModule := range MainModules.Versions() {
+			modRoot := MainModules.ModRoot(mainModule)
+			if modRoot != "" {
+				dir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+				if mainErr == nil {
+					mainErr = err
+				}
+				if mainOK {
+					mods = append(mods, mainModule)
+					dirs = append(dirs, dir)
+					roots = append(roots, modRoot)
+				}
 			}
-			vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
+		}
+
+		if HasModRoot() {
+			vendorDir := VendorDir()
+			dir, vendorOK, _ := dirInModule(path, "", vendorDir, false)
 			if vendorOK {
-				readVendorList(mainModule)
+				readVendorList(vendorDir)
+				// TODO(#60922): It's possible for a package to manually have been added to the
+				// vendor directory, causing the dirInModule to succeed, but no vendorPkgModule
+				// to exist, causing an empty module path to be reported. Do better checking
+				// here.
 				mods = append(mods, vendorPkgModule[path])
-				dirs = append(dirs, vendorDir)
-				roots = append(roots, modRoot)
+				dirs = append(dirs, dir)
+				roots = append(roots, vendorDir)
 			}
 		}
 
 		if len(dirs) > 1 {
-			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
+			return module.Version{}, "", "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
 		}
 
 		if mainErr != nil {
@@ -349,7 +360,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		}
 
 		if len(dirs) == 0 {
-			return module.Version{}, modRoot, "", nil, &ImportMissingError{Path: path}
+			return module.Version{}, "", "", nil, &ImportMissingError{Path: path}
 		}
 
 		return mods[0], roots[0], dirs[0], nil, nil
@@ -695,7 +706,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Now committed to returning dir (not "").
 
 	// Are there Go source files in the directory?
-	// We don't care about build tags, not even "+build ignore".
+	// We don't care about build tags, not even "go:build ignore".
 	// We're just looking for a plausible directory.
 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which

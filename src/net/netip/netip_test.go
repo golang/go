@@ -14,6 +14,7 @@ import (
 	"net"
 	. "net/netip"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -389,6 +390,7 @@ func TestAddrPortMarshalTextString(t *testing.T) {
 		want string
 	}{
 		{mustIPPort("1.2.3.4:80"), "1.2.3.4:80"},
+		{mustIPPort("[::]:80"), "[::]:80"},
 		{mustIPPort("[1::CAFE]:80"), "[1::cafe]:80"},
 		{mustIPPort("[1::CAFE%en0]:80"), "[1::cafe%en0]:80"},
 		{mustIPPort("[::FFFF:192.168.140.255]:80"), "[::ffff:192.168.140.255]:80"},
@@ -812,7 +814,7 @@ func TestAddrWellKnown(t *testing.T) {
 	}
 }
 
-func TestLessCompare(t *testing.T) {
+func TestAddrLessCompare(t *testing.T) {
 	tests := []struct {
 		a, b Addr
 		want bool
@@ -877,6 +879,109 @@ func TestLessCompare(t *testing.T) {
 	sort.Slice(values, func(i, j int) bool { return values[i].Less(values[j]) })
 	got := fmt.Sprintf("%s", values)
 	want := `[invalid IP 1.2.3.4 8.8.8.8 ::1 ::1%foo ::2]`
+	if got != want {
+		t.Errorf("unexpected sort\n got: %s\nwant: %s\n", got, want)
+	}
+}
+
+func TestAddrPortCompare(t *testing.T) {
+	tests := []struct {
+		a, b AddrPort
+		want int
+	}{
+		{AddrPort{}, AddrPort{}, 0},
+		{AddrPort{}, mustIPPort("1.2.3.4:80"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("1.2.3.4:80"), 0},
+		{mustIPPort("[::1]:80"), mustIPPort("[::1]:80"), 0},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("2.3.4.5:22"), -1},
+		{mustIPPort("[::1]:80"), mustIPPort("[::2]:22"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("1.2.3.4:443"), -1},
+		{mustIPPort("[::1]:80"), mustIPPort("[::1]:443"), -1},
+
+		{mustIPPort("1.2.3.4:80"), mustIPPort("[0102:0304::0]:80"), -1},
+	}
+	for _, tt := range tests {
+		got := tt.a.Compare(tt.b)
+		if got != tt.want {
+			t.Errorf("Compare(%q, %q) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+
+		// Also check inverse.
+		if got == tt.want {
+			got2 := tt.b.Compare(tt.a)
+			if want2 := -1 * tt.want; got2 != want2 {
+				t.Errorf("Compare(%q, %q) was correctly %v, but Compare(%q, %q) was %v", tt.a, tt.b, got, tt.b, tt.a, got2)
+			}
+		}
+	}
+
+	// And just sort.
+	values := []AddrPort{
+		mustIPPort("[::1]:80"),
+		mustIPPort("[::2]:80"),
+		AddrPort{},
+		mustIPPort("1.2.3.4:443"),
+		mustIPPort("8.8.8.8:8080"),
+		mustIPPort("[::1%foo]:1024"),
+	}
+	slices.SortFunc(values, func(a, b AddrPort) int { return a.Compare(b) })
+	got := fmt.Sprintf("%s", values)
+	want := `[invalid AddrPort 1.2.3.4:443 8.8.8.8:8080 [::1]:80 [::1%foo]:1024 [::2]:80]`
+	if got != want {
+		t.Errorf("unexpected sort\n got: %s\nwant: %s\n", got, want)
+	}
+}
+
+func TestPrefixCompare(t *testing.T) {
+	tests := []struct {
+		a, b Prefix
+		want int
+	}{
+		{Prefix{}, Prefix{}, 0},
+		{Prefix{}, mustPrefix("1.2.3.0/24"), -1},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("1.2.3.0/24"), 0},
+		{mustPrefix("fe80::/64"), mustPrefix("fe80::/64"), 0},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("1.2.4.0/24"), -1},
+		{mustPrefix("fe80::/64"), mustPrefix("fe90::/64"), -1},
+
+		{mustPrefix("1.2.0.0/16"), mustPrefix("1.2.0.0/24"), -1},
+		{mustPrefix("fe80::/48"), mustPrefix("fe80::/64"), -1},
+
+		{mustPrefix("1.2.3.0/24"), mustPrefix("fe80::/8"), -1},
+	}
+	for _, tt := range tests {
+		got := tt.a.Compare(tt.b)
+		if got != tt.want {
+			t.Errorf("Compare(%q, %q) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+
+		// Also check inverse.
+		if got == tt.want {
+			got2 := tt.b.Compare(tt.a)
+			if want2 := -1 * tt.want; got2 != want2 {
+				t.Errorf("Compare(%q, %q) was correctly %v, but Compare(%q, %q) was %v", tt.a, tt.b, got, tt.b, tt.a, got2)
+			}
+		}
+	}
+
+	// And just sort.
+	values := []Prefix{
+		mustPrefix("1.2.3.0/24"),
+		mustPrefix("fe90::/64"),
+		mustPrefix("fe80::/64"),
+		mustPrefix("1.2.0.0/16"),
+		Prefix{},
+		mustPrefix("fe80::/48"),
+		mustPrefix("1.2.0.0/24"),
+	}
+	slices.SortFunc(values, func(a, b Prefix) int { return a.Compare(b) })
+	got := fmt.Sprintf("%s", values)
+	want := `[invalid Prefix 1.2.0.0/16 1.2.0.0/24 1.2.3.0/24 fe80::/48 fe80::/64 fe90::/64]`
 	if got != want {
 		t.Errorf("unexpected sort\n got: %s\nwant: %s\n", got, want)
 	}
@@ -1352,7 +1457,7 @@ func TestParsePrefixError(t *testing.T) {
 		},
 		{
 			prefix: "1.1.1.0/-1",
-			errstr: "out of range",
+			errstr: "bad bits",
 		},
 		{
 			prefix: "1.1.1.0/33",
@@ -1370,6 +1475,22 @@ func TestParsePrefixError(t *testing.T) {
 		{
 			prefix: "2001:db8::%a/32",
 			errstr: "zones cannot be present",
+		},
+		{
+			prefix: "1.1.1.0/+32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/-32",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/032",
+			errstr: "bad bits",
+		},
+		{
+			prefix: "1.1.1.0/0032",
+			errstr: "bad bits",
 		},
 	}
 	for _, test := range tests {
@@ -1570,7 +1691,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 	}
 }
 
-func BenchmarkIPString(b *testing.B) {
+func BenchmarkAddrString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
@@ -1594,11 +1715,15 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 	}
 }
 
-func BenchmarkIPMarshalText(b *testing.B) {
-	b.ReportAllocs()
-	ip := MustParseAddr("66.55.44.33")
-	for i := 0; i < b.N; i++ {
-		sinkBytes, _ = ip.MarshalText()
+func BenchmarkAddrMarshalText(b *testing.B) {
+	for _, test := range parseBenchInputs {
+		ip := MustParseAddr(test.ip)
+		b.Run(test.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sinkBytes, _ = ip.MarshalText()
+			}
+		})
 	}
 }
 

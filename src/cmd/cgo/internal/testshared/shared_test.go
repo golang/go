@@ -96,6 +96,10 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		return m.Run(), nil
+	}
 	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
 		globalSkip = func(t testing.TB) { t.Skip("shared build mode not supported") }
 		return m.Run(), nil
@@ -1153,6 +1157,12 @@ func TestIssue47873(t *testing.T) {
 	globalSkip(t)
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
 	goCmd(t, "run", "-linkshared", "./issue47837/main")
+}
+
+func TestIssue62277(t *testing.T) {
+	globalSkip(t)
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue62277/p")
+	goCmd(t, "test", "-linkshared", "./issue62277")
 }
 
 // Test that we can build std in shared mode.

@@ -11,7 +11,6 @@ const SigeventMaxSize = _sigev_max_size
 
 var NewOSProc0 = newosproc0
 var Mincore = mincore
-var Add = add
 
 type Siginfo siginfo
 type Sigevent sigevent

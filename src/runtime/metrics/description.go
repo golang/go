@@ -96,11 +96,11 @@ var allDesc = []Description{
 		Description: "Estimated total CPU time spent with the application paused by " +
 			"the GC. Even if only one thread is running during the pause, this is " +
 			"computed as GOMAXPROCS times the pause latency because nothing else " +
-			"can be executing. This is the exact sum of samples in /gc/pause:seconds " +
-			"if each sample is multiplied by GOMAXPROCS at the time it is taken. " +
-			"This metric is an overestimate, and not directly comparable to " +
-			"system CPU time measurements. Compare only with other /cpu/classes " +
-			"metrics.",
+			"can be executing. This is the exact sum of samples in " +
+			"/sched/pauses/total/gc:seconds if each sample is multiplied by " +
+			"GOMAXPROCS at the time it is taken. This metric is an overestimate, " +
+			"and not directly comparable to system CPU time measurements. Compare " +
+			"only with other /cpu/classes metrics.",
 		Kind:       KindFloat64,
 		Cumulative: true,
 	},
@@ -289,7 +289,7 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/gc/pauses:seconds",
-		Description: "Distribution of individual GC-related stop-the-world pause latencies. Bucket counts increase monotonically.",
+		Description: "Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.",
 		Kind:        KindFloat64Histogram,
 		Cumulative:  true,
 	},
@@ -339,9 +339,11 @@ var allDesc = []Description{
 		Kind: KindUint64,
 	},
 	{
-		Name:        "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/stacks:bytes",
+		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use. " +
+			"Currently, this represents all stack memory for goroutines. It also includes all OS thread stacks in non-cgo programs. " +
+			"Note that stacks may be allocated differently in the future, and this may change.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/unused:bytes",
@@ -374,9 +376,13 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
-		Name:        "/memory/classes/os-stacks:bytes",
-		Description: "Stack memory allocated by the underlying operating system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/os-stacks:bytes",
+		Description: "Stack memory allocated by the underlying operating system. " +
+			"In non-cgo programs this metric is currently zero. This may change in the future." +
+			"In cgo programs this metric includes OS thread stacks allocated directly from the OS. " +
+			"Currently, this only accounts for one stack in c-shared and c-archive build modes, " +
+			"and other sources of stacks from the OS are not measured. This too may change in the future.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/other:bytes",
@@ -410,8 +416,32 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name:        "/sched/pauses/stopping/gc:seconds",
+		Description: "Distribution of individual GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total GC-related stop-the-world time (/sched/pauses/total/gc:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/stopping/other:seconds",
+		Description: "Distribution of individual non-GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total non-GC-related stop-the-world time (/sched/pauses/total/other:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/total/gc:seconds",
+		Description: "Distribution of individual GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (this is measured directly in /sched/pauses/stopping/gc:seconds), during which some threads may still be running. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/total/other:seconds",
+		Description: "Distribution of individual non-GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (measured directly in /sched/pauses/stopping/other:seconds). Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
 		Name:        "/sync/mutex/wait/total:seconds",
-		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex or sync.RWMutex. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
+		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
 		Kind:        KindFloat64,
 		Cumulative:  true,
 	},

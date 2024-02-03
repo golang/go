@@ -576,7 +576,7 @@ func CopyBytesToGo(dst []byte, src Value) int {
 	n, ok := copyBytesToGo(dst, src.ref)
 	runtime.KeepAlive(src)
 	if !ok {
-		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array or Uint8ClampedArray")
+		panic("syscall/js: CopyBytesToGo: expected src to be a Uint8Array or Uint8ClampedArray")
 	}
 	return n
 }
@@ -591,7 +591,7 @@ func CopyBytesToJS(dst Value, src []byte) int {
 	n, ok := copyBytesToJS(dst.ref, src)
 	runtime.KeepAlive(dst)
 	if !ok {
-		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array or Uint8ClampedArray")
+		panic("syscall/js: CopyBytesToJS: expected dst to be a Uint8Array or Uint8ClampedArray")
 	}
 	return n
 }

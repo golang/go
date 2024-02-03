@@ -49,6 +49,7 @@ func scriptConditions() map[string]script.Cond {
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
+	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
 	add("msan", sysCondition("-msan", platform.MSanSupported, true))

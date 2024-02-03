@@ -124,13 +124,13 @@ func MustHaveGoBuild(t testing.TB) {
 	}
 }
 
-// HasGoRun reports whether the current system can run programs with “go run.”
+// HasGoRun reports whether the current system can run programs with “go run”.
 func HasGoRun() bool {
 	// For now, having go run and having go build are the same.
 	return HasGoBuild()
 }
 
-// MustHaveGoRun checks that the current system can run programs with “go run.”
+// MustHaveGoRun checks that the current system can run programs with “go run”.
 // If not, MustHaveGoRun calls t.Skip with an explanation.
 func MustHaveGoRun(t testing.TB) {
 	if !HasGoRun() {

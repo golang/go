@@ -15,6 +15,7 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
@@ -99,6 +100,19 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 }
 
 func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
+	if ctxt.Target.IsRISCV64() {
+		// Avoid adding local symbols to the pcln table - RISC-V
+		// linking generates a very large number of these, particularly
+		// for HI20 symbols (which we need to load in order to be able
+		// to resolve relocations). Unnecessarily including all of
+		// these symbols quickly blows out the size of the pcln table
+		// and overflows hash buckets.
+		symName := ctxt.loader.SymName(s)
+		if symName == "" || strings.HasPrefix(symName, ".L") {
+			return false
+		}
+	}
+
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
 	return !container.Has(s)
@@ -713,6 +727,17 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		for j := range funcdata {
 			dataoff := off + int64(4*j)
 			fdsym := funcdata[j]
+
+			// cmd/internal/obj optimistically populates ArgsPointerMaps and
+			// ArgInfo for assembly functions, hoping that the compiler will
+			// emit appropriate symbols from their Go stub declarations. If
+			// it didn't though, just ignore it.
+			//
+			// TODO(cherryyz): Fix arg map generation (see discussion on CL 523335).
+			if fdsym != 0 && (j == abi.FUNCDATA_ArgsPointerMaps || j == abi.FUNCDATA_ArgInfo) && ldr.IsFromAssembly(s) && ldr.Data(fdsym) == nil {
+				fdsym = 0
+			}
+
 			if fdsym == 0 {
 				sb.SetUint32(ctxt.Arch, dataoff, ^uint32(0)) // ^0 is a sentinel for "no value"
 				continue
@@ -802,7 +827,7 @@ func expandGoroot(s string) string {
 }
 
 const (
-	BUCKETSIZE    = 256 * MINFUNC
+	BUCKETSIZE    = 256 * abi.MINFUNC
 	SUBBUCKETS    = 16
 	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
 	NOIDX         = 0x7fffffff

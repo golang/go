@@ -164,10 +164,13 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	}
 
 	if cfg.BuildMod == "vendor" {
-		mod := MainModules.mustGetSingleMainModule()
-		if modRoot := MainModules.ModRoot(mod); modRoot != "" {
-			walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
-			walkPkgs(filepath.Join(modRoot, "vendor"), "", pruneVendor)
+		for _, mod := range MainModules.Versions() {
+			if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+				walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+			}
+		}
+		if HasModRoot() {
+			walkPkgs(VendorDir(), "", pruneVendor)
 		}
 		return
 	}
@@ -210,8 +213,6 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		}
 		walkPkgs(root, modPrefix, prune)
 	}
-
-	return
 }
 
 // walkFromIndex matches packages in a module using the module index. modroot

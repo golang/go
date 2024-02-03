@@ -235,68 +235,10 @@
 package typecheck
 
 import (
-	"go/constant"
-	"strconv"
 	"strings"
-
-	"cmd/compile/internal/base"
-	"cmd/compile/internal/ir"
-	"cmd/compile/internal/types"
 )
-
-// predeclReserved is the number of type offsets reserved for types
-// implicitly declared in the universe block.
-const predeclReserved = 32
-
-// An itag distinguishes the kind of type that was written into the
-// indexed export format.
-type itag uint64
-
-const (
-	// Types
-	definedType itag = iota
-	pointerType
-	sliceType
-	arrayType
-	chanType
-	mapType
-	signatureType
-	structType
-	interfaceType
-	typeParamType
-	instanceType // Instantiation of a generic type
-	unionType
-)
-
-const (
-	debug = false
-	magic = 0x6742937dc293105
-)
-
-// exportPath returns the path for pkg as it appears in the iexport
-// file format. For historical reasons (before cmd/compile required
-// the -p flag), the local package is represented as the empty string,
-// instead of its actual path.
-func exportPath(pkg *types.Pkg) string {
-	if pkg == types.LocalPkg {
-		return ""
-	}
-	return pkg.Path
-}
 
 const blankMarker = "$"
-
-// TparamExportName creates a unique name for type param in a method or a generic
-// type, using the specified unique prefix and the index of the type param. The index
-// is only used if the type param is blank, in which case the blank is replace by
-// "$<index>". A unique name is needed for later substitution in the compiler and
-// export/import that keeps blank type params associated with the correct constraint.
-func TparamExportName(prefix string, name string, index int) string {
-	if name == "_" {
-		name = blankMarker + strconv.Itoa(index)
-	}
-	return prefix + "." + name
-}
 
 // TparamName returns the real name of a type parameter, after stripping its
 // qualifying prefix and reverting blank-name encoding. See TparamExportName
@@ -312,84 +254,6 @@ func TparamName(exportName string) string {
 		return "_"
 	}
 	return name
-}
-
-func constTypeOf(typ *types.Type) constant.Kind {
-	switch typ {
-	case types.UntypedInt, types.UntypedRune:
-		return constant.Int
-	case types.UntypedFloat:
-		return constant.Float
-	case types.UntypedComplex:
-		return constant.Complex
-	}
-
-	switch typ.Kind() {
-	case types.TBOOL:
-		return constant.Bool
-	case types.TSTRING:
-		return constant.String
-	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
-		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
-		return constant.Int
-	case types.TFLOAT32, types.TFLOAT64:
-		return constant.Float
-	case types.TCOMPLEX64, types.TCOMPLEX128:
-		return constant.Complex
-	}
-
-	base.Fatalf("unexpected constant type: %v", typ)
-	return 0
-}
-
-func intSize(typ *types.Type) (signed bool, maxBytes uint) {
-	if typ.IsUntyped() {
-		return true, ir.ConstPrec / 8
-	}
-
-	switch typ.Kind() {
-	case types.TFLOAT32, types.TCOMPLEX64:
-		return true, 3
-	case types.TFLOAT64, types.TCOMPLEX128:
-		return true, 7
-	}
-
-	signed = typ.IsSigned()
-	maxBytes = uint(typ.Size())
-
-	// The go/types API doesn't expose sizes to importers, so they
-	// don't know how big these types are.
-	switch typ.Kind() {
-	case types.TINT, types.TUINT, types.TUINTPTR:
-		maxBytes = 8
-	}
-
-	return
-}
-
-func isNonEmptyAssign(n ir.Node) bool {
-	switch n.Op() {
-	case ir.OAS:
-		if n.(*ir.AssignStmt).Y != nil {
-			return true
-		}
-	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
-		return true
-	}
-	return false
-}
-func isNamedTypeSwitch(x ir.Node) bool {
-	guard, ok := x.(*ir.TypeSwitchGuard)
-	return ok && guard.Tag != nil
-}
-
-func simplifyForExport(n ir.Node) ir.Node {
-	switch n.Op() {
-	case ir.OPAREN:
-		n := n.(*ir.ParenExpr)
-		return simplifyForExport(n.X)
-	}
-	return n
 }
 
 // The name used for dictionary parameters or local variables.

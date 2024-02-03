@@ -93,7 +93,7 @@ func (e errorAddressString) Error() string {
 // The address provided is best-effort.
 // The veracity of the result may depend on the platform.
 // Errors providing this method will only be returned as
-// a result of using runtime/debug.SetPanicOnFault.
+// a result of using [runtime/debug.SetPanicOnFault].
 func (e errorAddressString) Addr() uintptr {
 	return e.addr
 }

@@ -98,16 +98,81 @@ func queryReuse(ctx context.Context, path, query, current string, allowed Allowe
 	return info, err
 }
 
-// checkReuse checks whether a revision of a given module or a version list
+// checkReuse checks whether a revision of a given module
 // for a given module may be reused, according to the information in origin.
-func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
+func checkReuse(ctx context.Context, m module.Version, old *codehost.Origin) error {
 	return modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(ctx, proxy, path)
+		repo, err := lookupRepo(ctx, proxy, m.Path)
 		if err != nil {
 			return err
 		}
-		return repo.CheckReuse(ctx, old)
+		return checkReuseRepo(ctx, repo, m.Path, m.Version, old)
 	})
+}
+
+func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, origin *codehost.Origin) error {
+	if origin == nil {
+		return errors.New("nil Origin")
+	}
+
+	// Ensure that the Origin actually includes enough fields to resolve the query.
+	// If we got the previous Origin data from a proxy, it may be missing something
+	// that we would have needed to resolve the query directly from the repo.
+	switch {
+	case origin.RepoSum != "":
+		// A RepoSum is always acceptable, since it incorporates everything
+		// (and is often associated with an error result).
+
+	case query == module.CanonicalVersion(query):
+		// This query refers to a specific version, and Go module versions
+		// are supposed to be cacheable and immutable (confirmed with checksums).
+		// If the version exists at all, we shouldn't need any extra information
+		// to identify which commit it resolves to.
+		//
+		// It may be associated with a Ref for a semantic-version tag, but if so
+		// we don't expect that tag to change in the future. We also don't need a
+		// TagSum: if a tag is removed from some ancestor commit, the version may
+		// change from valid to invalid, but we're ok with keeping stale versions
+		// as long as they were valid at some point in the past.
+		//
+		// If the version did not successfully resolve, the origin may indicate
+		// a TagSum and/or RepoSum instead of a Hash, in which case we still need
+		// to check those to ensure that the error is still applicable.
+		if origin.Hash == "" && origin.Ref == "" && origin.TagSum == "" {
+			return errors.New("no Origin information to check")
+		}
+
+	case IsRevisionQuery(path, query):
+		// This query may refer to a branch, non-version tag, or commit ID.
+		//
+		// If it is a commit ID, we expect to see a Hash in the Origin data. On
+		// the other hand, if it is not a commit ID, we expect to see either a Ref
+		// (for a positive result) or a RepoSum (for a negative result), since
+		// we don't expect refs in general to remain stable over time.
+		if origin.Hash == "" && origin.Ref == "" {
+			return fmt.Errorf("query %q requires a Hash or Ref", query)
+		}
+		// Once we resolve the query to a particular commit, we will need to
+		// also identify the most appropriate version to assign to that commit.
+		// (It may correspond to more than one valid version.)
+		//
+		// The most appropriate version depends on the tags associated with
+		// both the commit itself (if the commit is a tagged version)
+		// and its ancestors (if we need to produce a pseudo-version for it).
+		if origin.TagSum == "" {
+			return fmt.Errorf("query %q requires a TagSum", query)
+		}
+
+	default:
+		// The query may be "latest" or a version inequality or prefix.
+		// Its result depends on the absence of higher tags matching the query,
+		// not just the state of an individual ref or tag.
+		if origin.TagSum == "" {
+			return fmt.Errorf("query %q requires a TagSum", query)
+		}
+	}
+
+	return repo.CheckReuse(ctx, origin)
 }
 
 // AllowedFunc is used by Query and other functions to filter out unsuitable
@@ -164,7 +229,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	}
 
 	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
-		if err := repo.CheckReuse(ctx, old.Origin); err == nil {
+		if err := checkReuseRepo(ctx, repo, path, query, old.Origin); err == nil {
 			info := &modfetch.RevInfo{
 				Version: old.Version,
 				Origin:  old.Origin,
@@ -216,34 +281,35 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	if err != nil {
 		return nil, err
 	}
-	revErr := &modfetch.RevInfo{Origin: versions.Origin} // RevInfo to return with error
+	origin := versions.Origin
+
+	revWithOrigin := func(rev *modfetch.RevInfo) *modfetch.RevInfo {
+		if rev == nil {
+			if origin == nil {
+				return nil
+			}
+			return &modfetch.RevInfo{Origin: origin}
+		}
+
+		clone := *rev
+		clone.Origin = origin
+		return &clone
+	}
 
 	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
 	if err != nil {
-		return revErr, err
-	}
-
-	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
-		merged := mergeOrigin(rev.Origin, origin)
-		if merged == rev.Origin {
-			return rev
-		}
-		clone := new(modfetch.RevInfo)
-		*clone = *rev
-		clone.Origin = merged
-		return clone
+		return revWithOrigin(nil), err
 	}
 
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(ctx, v)
-		// Stat can return a non-nil rev and a non-nil err,
-		// in order to provide origin information to make the error cacheable.
-		if rev == nil && err != nil {
-			return revErr, err
+		if rev != nil {
+			// Note that Stat can return a non-nil rev and a non-nil err,
+			// in order to provide origin information to make the error cacheable.
+			origin = mergeOrigin(origin, rev.Origin)
 		}
-		rev = mergeRevOrigin(rev, versions.Origin)
 		if err != nil {
-			return rev, err
+			return revWithOrigin(nil), err
 		}
 
 		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
@@ -268,18 +334,20 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			currentTime, err := module.PseudoVersionTime(current)
 			if err == nil && rev.Time.Before(currentTime) {
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
-					return revErr, err
+					return revWithOrigin(nil), err
 				}
 				rev, err = repo.Stat(ctx, current)
-				if rev == nil && err != nil {
-					return revErr, err
+				if rev != nil {
+					origin = mergeOrigin(origin, rev.Origin)
 				}
-				rev = mergeRevOrigin(rev, versions.Origin)
-				return rev, err
+				if err != nil {
+					return revWithOrigin(nil), err
+				}
+				return revWithOrigin(rev), nil
 			}
 		}
 
-		return rev, nil
+		return revWithOrigin(rev), nil
 	}
 
 	if qm.preferLower {
@@ -300,24 +368,27 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 
 	if qm.mayUseLatest {
 		latest, err := repo.Latest(ctx)
+		if latest != nil {
+			origin = mergeOrigin(origin, latest.Origin)
+		}
 		if err == nil {
 			if qm.allowsVersion(ctx, latest.Version) {
 				return lookup(latest.Version)
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			return revErr, err
+			return revWithOrigin(nil), err
 		}
 	}
 
 	if (query == "upgrade" || query == "patch") && current != "" && current != "none" {
 		// "upgrade" and "patch" may stay on the current version if allowed.
 		if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
-			return nil, err
+			return revWithOrigin(nil), err
 		}
 		return lookup(current)
 	}
 
-	return revErr, &NoMatchingVersionError{query: query, current: current}
+	return revWithOrigin(nil), &NoMatchingVersionError{query: query, current: current}
 }
 
 // IsRevisionQuery returns true if vers is a version query that may refer to
@@ -473,7 +544,11 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 // AllowedFunc of qm.
 func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 	if qm.prefix != "" && !strings.HasPrefix(v, qm.prefix) {
-		return false
+		if gover.IsToolchain(qm.path) && strings.TrimSuffix(qm.prefix, ".") == v {
+			// Allow 1.21 to match "1.21." prefix.
+		} else {
+			return false
+		}
 	}
 	if qm.filter != nil && !qm.filter(v) {
 		return false
@@ -816,11 +891,12 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 	// is most likely to find helpful: the most useful class of error at the
 	// longest matching path.
 	var (
-		noPackage   *PackageNotInModuleError
-		noVersion   *NoMatchingVersionError
-		noPatchBase *NoPatchBaseError
-		invalidPath *module.InvalidPathError // see comment in case below
-		notExistErr error
+		noPackage      *PackageNotInModuleError
+		noVersion      *NoMatchingVersionError
+		noPatchBase    *NoPatchBaseError
+		invalidPath    *module.InvalidPathError // see comment in case below
+		invalidVersion error
+		notExistErr    error
 	)
 	for _, r := range results {
 		switch rErr := r.err.(type) {
@@ -856,6 +932,10 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 				if notExistErr == nil {
 					notExistErr = rErr
 				}
+			} else if iv := (*module.InvalidVersionError)(nil); errors.As(rErr, &iv) {
+				if invalidVersion == nil {
+					invalidVersion = rErr
+				}
 			} else if err == nil {
 				if len(found) > 0 || noPackage != nil {
 					// golang.org/issue/34094: If we have already found a module that
@@ -886,6 +966,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 			err = noPatchBase
 		case invalidPath != nil:
 			err = invalidPath
+		case invalidVersion != nil:
+			err = invalidVersion
 		case notExistErr != nil:
 			err = notExistErr
 		default:

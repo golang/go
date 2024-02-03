@@ -71,7 +71,6 @@ type tester struct {
 
 	short      bool
 	cgoEnabled bool
-	partial    bool
 	json       bool
 
 	tests        []distTest // use addTest to extend
@@ -81,14 +80,24 @@ type tester struct {
 	worklist []*work
 }
 
+// work tracks command execution for a test.
 type work struct {
-	dt    *distTest
-	cmd   *exec.Cmd // Must write stdout/stderr to work.out
-	flush func()    // If non-nil, called after cmd.Run
-	start chan bool
-	out   bytes.Buffer
-	err   error
-	end   chan bool
+	dt    *distTest     // unique test name, etc.
+	cmd   *exec.Cmd     // must write stdout/stderr to out
+	flush func()        // if non-nil, called after cmd.Run
+	start chan bool     // a true means to start, a false means to skip
+	out   bytes.Buffer  // combined stdout/stderr from cmd
+	err   error         // work result
+	end   chan struct{} // a value means cmd ended (or was skipped)
+}
+
+// printSkip prints a skip message for all of work.
+func (w *work) printSkip(t *tester, msg string) {
+	if t.json {
+		synthesizeSkipEvent(json.NewEncoder(&w.out), w.dt.name, msg)
+		return
+	}
+	fmt.Fprintln(&w.out, msg)
 }
 
 // A distTest is a test run by dist test.
@@ -225,11 +234,13 @@ func (t *tester) run() {
 		}
 	}
 
+	var anyIncluded, someExcluded bool
 	for _, dt := range t.tests {
 		if !t.shouldRunTest(dt.name) {
-			t.partial = true
+			someExcluded = true
 			continue
 		}
+		anyIncluded = true
 		dt := dt // dt used in background after this iteration
 		if err := dt.fn(&dt); err != nil {
 			t.runPending(&dt) // in case that hasn't been done yet
@@ -247,7 +258,11 @@ func (t *tester) run() {
 	if !t.json {
 		if t.failed {
 			fmt.Println("\nFAILED")
-		} else if t.partial {
+		} else if !anyIncluded {
+			fmt.Println()
+			errprintf("go tool dist: warning: %q matched no tests; use the -list flag to list available tests\n", t.runRxStr)
+			fmt.Println("NO TESTS TO RUN")
+		} else if someExcluded {
 			fmt.Println("\nALL TESTS PASSED (some were excluded)")
 		} else {
 			fmt.Println("\nALL TESTS PASSED")
@@ -405,6 +420,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	if opts.timeout != 0 {
 		d := opts.timeout * time.Duration(t.timeoutScale)
 		run = append(run, "-timeout="+d.String())
+	} else if t.timeoutScale != 1 {
+		const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
+		run = append(run, "-timeout="+(goTestDefaultTimeout*time.Duration(t.timeoutScale)).String())
 	}
 	if opts.short || t.short {
 		run = append(run, "-short")
@@ -497,6 +515,18 @@ func (opts *goTest) packages() []string {
 		panic("no packages")
 	}
 	return pkgs
+}
+
+// printSkip prints a skip message for all of goTest.
+func (opts *goTest) printSkip(t *tester, msg string) {
+	if t.json {
+		enc := json.NewEncoder(os.Stdout)
+		for _, pkg := range opts.packages() {
+			synthesizeSkipEvent(enc, pkg, msg)
+		}
+		return
+	}
+	fmt.Println(msg)
 }
 
 // ranGoTest and stdMatches are state closed over by the stdlib
@@ -598,9 +628,22 @@ func (t *tester) registerTests() {
 			}
 		}
 	} else {
-		// Use a format string to only list packages and commands that have tests.
-		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		cmd := exec.Command(gorootBinGo, "list", "-f", format)
+		// Use 'go list std cmd' to get a list of all Go packages
+		// that running 'go test std cmd' could find problems in.
+		// (In race test mode, also set -tags=race.)
+		//
+		// In long test mode, this includes vendored packages and other
+		// packages without tests so that 'dist test' finds if any of
+		// them don't build, have a problem reported by high-confidence
+		// vet checks that come with 'go test', and anything else it
+		// may check in the future. See go.dev/issue/60463.
+		cmd := exec.Command(gorootBinGo, "list")
+		if t.short {
+			// In short test mode, use a format string to only
+			// list packages and commands that have tests.
+			const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+			cmd.Args = append(cmd.Args, "-f", format)
+		}
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
@@ -676,8 +719,33 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// morestack tests. We only run these on in long-test mode
-	// (with GO_TEST_SHORT=false) because the runtime test is
+	// GOEXPERIMENT=rangefunc tests
+	if !t.compileOnly {
+		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
+			&goTest{
+				variant: "iter",
+				short:   t.short,
+				env:     []string{"GOEXPERIMENT=rangefunc"},
+				pkg:     "iter",
+			})
+	}
+
+	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
+	// mode (with GO_TEST_SHORT=0) because this is just testing a
+	// non-critical debug setting.
+	if !t.compileOnly && !t.short {
+		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
+			&goTest{
+				variant: "runtime:gcstoptheworld2",
+				timeout: 300 * time.Second,
+				short:   true,
+				env:     []string{"GODEBUG=gcstoptheworld=2"},
+				pkg:     "archive/zip",
+			})
+	}
+
+	// morestack tests. We only run these in long-test mode
+	// (with GO_TEST_SHORT=0) because the runtime test is
 	// already quite long and mayMoreStackMove makes it about
 	// twice as slow.
 	if !t.compileOnly && !t.short {
@@ -834,8 +902,11 @@ func (t *tester) registerTests() {
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	//
+	// The same logic applies to the release notes that correspond to each api/next file.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 	}
 }
 
@@ -902,7 +973,7 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
 			if skipFunc != nil {
 				msg, skip := skipFunc(dt)
 				if skip {
-					t.printSkip(test, msg)
+					test.printSkip(t, msg)
 					return nil
 				}
 			}
@@ -927,30 +998,6 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
 		test1 := *test
 		test1.pkg, test1.pkgs = pkg, nil
 		register1(&test1)
-	}
-}
-
-func (t *tester) printSkip(test *goTest, msg string) {
-	if !t.json {
-		fmt.Println(msg)
-		return
-	}
-	type event struct {
-		Time    time.Time
-		Action  string
-		Package string
-		Output  string `json:",omitempty"`
-	}
-	out := json.NewEncoder(os.Stdout)
-	for _, pkg := range test.packages() {
-		ev := event{Time: time.Now(), Package: testName(pkg, test.variant), Action: "start"}
-		out.Encode(ev)
-		ev.Action = "output"
-		ev.Output = msg
-		out.Encode(ev)
-		ev.Action = "skip"
-		ev.Output = ""
-		out.Encode(ev)
 	}
 }
 
@@ -1215,8 +1262,8 @@ func (t *tester) registerCgoTests(heading string) {
 	}
 }
 
-// run pending test commands, in parallel, emitting headers as appropriate.
-// When finished, emit header for nextTest, which is going to run after the
+// runPending runs pending test commands, in parallel, emitting headers as appropriate.
+// When finished, it emits header for nextTest, which is going to run after the
 // pending commands are done (and runPending returns).
 // A test should call runPending if it wants to make sure that it is not
 // running in parallel with earlier tests, or if it has some other reason
@@ -1226,7 +1273,7 @@ func (t *tester) runPending(nextTest *distTest) {
 	t.worklist = nil
 	for _, w := range worklist {
 		w.start = make(chan bool)
-		w.end = make(chan bool)
+		w.end = make(chan struct{})
 		// w.cmd must be set up to write to w.out. We can't check that, but we
 		// can check for easy mistakes.
 		if w.cmd.Stdout == nil || w.cmd.Stdout == os.Stdout || w.cmd.Stderr == nil || w.cmd.Stderr == os.Stderr {
@@ -1235,7 +1282,7 @@ func (t *tester) runPending(nextTest *distTest) {
 		go func(w *work) {
 			if !<-w.start {
 				timelog("skip", w.dt.name)
-				w.out.WriteString("skipped due to earlier error\n")
+				w.printSkip(t, "skipped due to earlier error")
 			} else {
 				timelog("start", w.dt.name)
 				w.err = w.cmd.Run()
@@ -1246,13 +1293,13 @@ func (t *tester) runPending(nextTest *distTest) {
 					if isUnsupportedVMASize(w) {
 						timelog("skip", w.dt.name)
 						w.out.Reset()
-						w.out.WriteString("skipped due to unsupported VMA\n")
+						w.printSkip(t, "skipped due to unsupported VMA")
 						w.err = nil
 					}
 				}
 			}
 			timelog("end", w.dt.name)
-			w.end <- true
+			w.end <- struct{}{}
 		}(w)
 	}
 
@@ -1500,7 +1547,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 // internal/platform.RaceDetectorSupported, which can't be used here
 // because cmd/dist can not import internal packages during bootstrap.
 // The race detector only supports 48-bit VMA on arm64. But we don't have
-// a good solution to check VMA size(See https://golang.org/issue/29948)
+// a good solution to check VMA size (see https://go.dev/issue/29948).
 // raceDetectorSupported will always return true for arm64. But race
 // detector tests may abort on non 48-bit VMA configuration, the tests
 // will be marked as "skipped" in this case.
@@ -1594,7 +1641,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "plugin":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
 			"android/amd64", "android/386",
 			"darwin/amd64", "darwin/arm64",
 			"freebsd/amd64":
@@ -1609,10 +1656,10 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 // isUnsupportedVMASize reports whether the failure is caused by an unsupported
 // VMA for the race detector (for example, running the race detector on an
-// arm64 machine configured with 39-bit VMA)
+// arm64 machine configured with 39-bit VMA).
 func isUnsupportedVMASize(w *work) bool {
 	unsupportedVMA := []byte("unsupported VMA range")
-	return w.dt.name == "race" && bytes.Contains(w.out.Bytes(), unsupportedVMA)
+	return strings.Contains(w.dt.name, ":race") && bytes.Contains(w.out.Bytes(), unsupportedVMA)
 }
 
 // isEnvSet reports whether the environment variable evar is

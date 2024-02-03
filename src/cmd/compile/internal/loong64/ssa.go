@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -80,6 +81,28 @@ func storeByType(t *types.Type, r int16) obj.As {
 	panic("bad store type")
 }
 
+// largestMove returns the largest move instruction possible and its size,
+// given the alignment of the total size of the move.
+//
+// e.g., a 16-byte move may use MOVV, but an 11-byte move must use MOVB.
+//
+// Note that the moves may not be on naturally aligned addresses depending on
+// the source and destination.
+//
+// This matches the calculation in ssa.moveSize.
+func largestMove(alignment int64) (obj.As, int64) {
+	switch {
+	case alignment%8 == 0:
+		return loong64.AMOVV, 8
+	case alignment%4 == 0:
+		return loong64.AMOVW, 4
+	case alignment%2 == 0:
+		return loong64.AMOVH, 2
+	default:
+		return loong64.AMOVB, 1
+	}
+}
+
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpLOONG64MOVVreg:
@@ -122,6 +145,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
+		// The loop only runs once.
+		for _, a := range v.Block.Func.RegArgs {
+			// Pass the spill/unspill information along to the assembler, offset by size of
+			// the saved LR slot.
+			addr := ssagen.SpillSlotAddr(a, loong64.REGSP, base.Ctxt.Arch.FixedFrameSize)
+			s.FuncInfo().AddSpill(
+				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type, a.Reg), Spill: storeByType(a.Type, a.Reg)})
+		}
+		v.Block.Func.RegArgs = nil
+		ssagen.CheckArgReg(v)
 	case ssa.OpLOONG64ADDV,
 		ssa.OpLOONG64SUBV,
 		ssa.OpLOONG64AND,
@@ -340,62 +375,36 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpLOONG64DUFFZERO:
-		// runtime.duffzero expects start address - 8 in R19
-		p := s.Prog(loong64.ASUBVU)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 8
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = loong64.REG_R19
-		p = s.Prog(obj.ADUFFZERO)
+		// runtime.duffzero expects start address in R20
+		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredZero:
-		// SUBV	$8, R19
-		// MOVV	R0, 8(R19)
-		// ADDV	$8, R19
-		// BNE	Rarg1, R19, -2(PC)
-		// arg1 is the address of the last element to zero
-		var sz int64
-		var mov obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			mov = loong64.AMOVV
-		case v.AuxInt%4 == 0:
-			sz = 4
-			mov = loong64.AMOVW
-		case v.AuxInt%2 == 0:
-			sz = 2
-			mov = loong64.AMOVH
-		default:
-			sz = 1
-			mov = loong64.AMOVB
-		}
-		p := s.Prog(loong64.ASUBVU)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = sz
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = loong64.REG_R19
-		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = loong64.REGZERO
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = loong64.REG_R19
-		p2.To.Offset = sz
-		p3 := s.Prog(loong64.AADDVU)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = sz
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = loong64.REG_R19
-		p4 := s.Prog(loong64.ABNE)
-		p4.From.Type = obj.TYPE_REG
-		p4.From.Reg = v.Args[1].Reg()
-		p4.Reg = loong64.REG_R19
-		p4.To.Type = obj.TYPE_BRANCH
-		p4.To.SetTarget(p2)
+		// MOVx	R0, (Rarg0)
+		// ADDV	$sz, Rarg0
+		// BGEU	Rarg1, Rarg0, -2(PC)
+		mov, sz := largestMove(v.AuxInt)
+		p := s.Prog(mov)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = loong64.REGZERO
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+
+		p2 := s.Prog(loong64.AADDVU)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = sz
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Args[0].Reg()
+
+		p3 := s.Prog(loong64.ABGEU)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = v.Args[1].Reg()
+		p3.Reg = v.Args[0].Reg()
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p)
+
 	case ssa.OpLOONG64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
@@ -403,61 +412,43 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 	case ssa.OpLOONG64LoweredMove:
-		// SUBV	$8, R19
-		// MOVV	8(R19), Rtmp
-		// MOVV	Rtmp, (R4)
-		// ADDV	$8, R19
-		// ADDV	$8, R4
-		// BNE	Rarg2, R19, -4(PC)
-		// arg2 is the address of the last element of src
-		var sz int64
-		var mov obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			mov = loong64.AMOVV
-		case v.AuxInt%4 == 0:
-			sz = 4
-			mov = loong64.AMOVW
-		case v.AuxInt%2 == 0:
-			sz = 2
-			mov = loong64.AMOVH
-		default:
-			sz = 1
-			mov = loong64.AMOVB
-		}
-		p := s.Prog(loong64.ASUBVU)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = sz
+		// MOVx	(Rarg1), Rtmp
+		// MOVx	Rtmp, (Rarg0)
+		// ADDV	$sz, Rarg1
+		// ADDV	$sz, Rarg0
+		// BGEU	Rarg2, Rarg0, -4(PC)
+		mov, sz := largestMove(v.AuxInt)
+		p := s.Prog(mov)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = loong64.REG_R19
+		p.To.Reg = loong64.REGTMP
+
 		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_MEM
-		p2.From.Reg = loong64.REG_R19
-		p2.From.Offset = sz
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = loong64.REGTMP
-		p3 := s.Prog(mov)
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = loong64.REGTMP
-		p3.To.Type = obj.TYPE_MEM
-		p3.To.Reg = loong64.REG_R4
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = loong64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+
+		p3 := s.Prog(loong64.AADDVU)
+		p3.From.Type = obj.TYPE_CONST
+		p3.From.Offset = sz
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = v.Args[1].Reg()
+
 		p4 := s.Prog(loong64.AADDVU)
 		p4.From.Type = obj.TYPE_CONST
 		p4.From.Offset = sz
 		p4.To.Type = obj.TYPE_REG
-		p4.To.Reg = loong64.REG_R19
-		p5 := s.Prog(loong64.AADDVU)
-		p5.From.Type = obj.TYPE_CONST
-		p5.From.Offset = sz
-		p5.To.Type = obj.TYPE_REG
-		p5.To.Reg = loong64.REG_R4
-		p6 := s.Prog(loong64.ABNE)
-		p6.From.Type = obj.TYPE_REG
-		p6.From.Reg = v.Args[2].Reg()
-		p6.Reg = loong64.REG_R19
-		p6.To.Type = obj.TYPE_BRANCH
-		p6.To.SetTarget(p2)
+		p4.To.Reg = v.Args[0].Reg()
+
+		p5 := s.Prog(loong64.ABGEU)
+		p5.From.Type = obj.TYPE_REG
+		p5.From.Reg = v.Args[2].Reg()
+		p5.Reg = v.Args[1].Reg()
+		p5.To.Type = obj.TYPE_BRANCH
+		p5.To.SetTarget(p)
+
 	case ssa.OpLOONG64CALLstatic, ssa.OpLOONG64CALLclosure, ssa.OpLOONG64CALLinter:
 		s.Call(v)
 	case ssa.OpLOONG64CALLtail:
@@ -817,4 +808,23 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
+}
+
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p := s.Prog(loadByType(t, reg))
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_AUTO
+	p.From.Sym = n.Linksym()
+	p.From.Offset = n.FrameOffset() + off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = reg
+	return p
+}
+
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p = pp.Append(p, storeByType(t, reg), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p.To.Name = obj.NAME_PARAM
+	p.To.Sym = n.Linksym()
+	p.Pos = p.Pos.WithNotStmt()
+	return p
 }

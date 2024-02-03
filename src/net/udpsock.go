@@ -129,7 +129,7 @@ func (c *UDPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
 // ReadFromUDP acts like ReadFrom but returns a UDPAddr.

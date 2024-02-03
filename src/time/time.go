@@ -76,6 +76,14 @@
 // For debugging, the result of t.String does include the monotonic
 // clock reading if present. If t != u because of different monotonic clock readings,
 // that difference will be visible when printing t.String() and u.String().
+//
+// # Timer Resolution
+//
+// Timer resolution varies depending on the Go runtime, the operating system
+// and the underlying hardware.
+// On Unix, the resolution is approximately 1ms.
+// On Windows, the default resolution is approximately 16ms, but
+// a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
 package time
 
 import (
@@ -101,12 +109,10 @@ import (
 // As this time is unlikely to come up in practice, the IsZero method gives
 // a simple way of detecting a time that has not been initialized explicitly.
 //
-// Each Time has associated with it a Location, consulted when computing the
-// presentation form of the time, such as in the Format, Hour, and Year methods.
-// The methods Local, UTC, and In return a Time with a specific location.
-// Changing the location in this way changes only the presentation; it does not
-// change the instant in time being denoted and therefore does not affect the
-// computations described in earlier paragraphs.
+// Each time has an associated Location. The methods Local, UTC, and In return a
+// Time with a specific Location. Changing the Location of a Time value with
+// these methods does not change the actual instant it represents, only the time
+// zone in which to interpret it.
 //
 // Representations of a Time value saved by the GobEncode, MarshalBinary,
 // MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
@@ -642,8 +648,17 @@ const (
 // second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
 // that the leading digit is non-zero. The zero duration formats as 0s.
 func (d Duration) String() string {
+	// This is inlinable to take advantage of "function outlining".
+	// Thus, the caller can decide whether a string must be heap allocated.
+	var arr [32]byte
+	n := d.format(&arr)
+	return string(arr[n:])
+}
+
+// format formats the representation of d into the end of buf and
+// returns the offset of the first character.
+func (d Duration) format(buf *[32]byte) int {
 	// Largest time is 2540400h10m10.000000000s
-	var buf [32]byte
 	w := len(buf)
 
 	u := uint64(d)
@@ -661,7 +676,8 @@ func (d Duration) String() string {
 		w--
 		switch {
 		case u == 0:
-			return "0s"
+			buf[w] = '0'
+			return w
 		case u < uint64(Microsecond):
 			// print nanoseconds
 			prec = 0
@@ -711,7 +727,7 @@ func (d Duration) String() string {
 		buf[w] = '-'
 	}
 
-	return string(buf[w:])
+	return w
 }
 
 // fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
@@ -883,16 +899,7 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
-		te := t.ext
-		ue := u.ext
-		d := Duration(te - ue)
-		if d < 0 && te > ue {
-			return maxDuration // t - u is positive out of range
-		}
-		if d > 0 && te < ue {
-			return minDuration // t - u is negative out of range
-		}
-		return d
+		return subMono(t.ext, u.ext)
 	}
 	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
 	// Check for overflow or underflow.
@@ -906,36 +913,50 @@ func (t Time) Sub(u Time) Duration {
 	}
 }
 
+func subMono(t, u int64) Duration {
+	d := Duration(t - u)
+	if d < 0 && t > u {
+		return maxDuration // t - u is positive out of range
+	}
+	if d > 0 && t < u {
+		return minDuration // t - u is negative out of range
+	}
+	return d
+}
+
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(runtimeNano()-startNano, t.ext)
 	}
-	return now.Sub(t)
+	return Now().Sub(t)
 }
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	var now Time
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
-	} else {
-		now = Now()
+		return subMono(t.ext, runtimeNano()-startNano)
 	}
-	return t.Sub(now)
+	return t.Sub(Now())
 }
 
 // AddDate returns the time corresponding to adding the
 // given number of years, months, and days to t.
 // For example, AddDate(-1, 2, 3) applied to January 1, 2011
 // returns March 4, 2010.
+//
+// Note that dates are fundamentally coupled to timezones, and calendrical
+// periods like days don't have fixed durations. AddDate uses the Location of
+// the Time value to determine these durations. That means that the same
+// AddDate arguments can produce a different shift in absolute time depending on
+// the base Time value and its Location. For example, AddDate(0, 0, 1) applied
+// to 12:00 on March 27 always returns 12:00 on March 28. At some locations and
+// in some years this is a 24 hour shift. In others it's a 23 hour shift due to
+// daylight savings time transitions.
 //
 // AddDate normalizes its result in the same way that Date does,
 // so, for example, adding one month to October 31 yields

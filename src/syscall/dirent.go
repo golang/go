@@ -6,7 +6,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // readInt returns the size-bytes unsigned integer in native byte order at offset off.
 func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
@@ -75,7 +78,9 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 		if !ok {
 			break
 		}
-		if ino == 0 { // File absent in directory.
+		// See src/os/dir_unix.go for the reason why this condition is
+		// excluded on wasip1.
+		if ino == 0 && runtime.GOOS != "wasip1" { // File absent in directory.
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))

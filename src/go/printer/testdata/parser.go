@@ -1127,7 +1127,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 
 // checkExpr checks that x is an expression (and not a type).
 func (p *parser) checkExpr(x ast.Expr) ast.Expr {
-	switch t := unparen(x).(type) {
+	switch t := ast.Unparen(x).(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.BasicLit:
@@ -1200,18 +1200,10 @@ func deref(x ast.Expr) ast.Expr {
 	return x
 }
 
-// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
-func unparen(x ast.Expr) ast.Expr {
-	if p, isParen := x.(*ast.ParenExpr); isParen {
-		x = unparen(p.X)
-	}
-	return x
-}
-
 // checkExprOrType checks that x is an expression or a type
 // (and not a raw type such as [...]T).
 func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
-	switch t := unparen(x).(type) {
+	switch t := ast.Unparen(x).(type) {
 	case *ast.ParenExpr:
 		panic("unreachable")
 	case *ast.UnaryExpr:

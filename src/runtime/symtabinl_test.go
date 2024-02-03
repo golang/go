@@ -34,10 +34,9 @@ func XTestInlineUnwinder(t TestingT) {
 
 	// Iterate over the PCs in tiuTest and walk the inline stack for each.
 	prevStack := "x"
-	var cache pcvalueCache
 	for pc := pc1; pc < pc1+1024 && findfunc(pc) == f; pc += sys.PCQuantum {
 		stack := ""
-		u, uf := newInlineUnwinder(f, pc, &cache)
+		u, uf := newInlineUnwinder(f, pc)
 		if file, _ := u.fileLine(uf); file == "?" {
 			// We're probably in the trailing function padding, where findfunc
 			// still returns f but there's no symbolic information. Just keep

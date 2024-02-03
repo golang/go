@@ -221,6 +221,10 @@ const (
 	// Discussion:
 	//   Package html/template does not support actions inside of JS template
 	//   literals.
+	//
+	// Deprecated: ErrJSTemplate is no longer returned when an action is present
+	// in a JS template literal. Actions inside of JS template literals are now
+	// escaped as expected.
 	ErrJSTemplate
 )
 

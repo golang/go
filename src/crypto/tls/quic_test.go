@@ -85,7 +85,7 @@ func (q *testQUICConn) setWriteSecret(level QUICEncryptionLevel, suite uint16, s
 
 var errTransportParametersRequired = errors.New("transport parameters required")
 
-func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandleCryptoData func()) error {
+func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent func(e QUICEvent, src, dst *testQUICConn) bool) error {
 	a, b := cli, srv
 	for _, c := range []*testQUICConn{a, b} {
 		if !c.conn.conn.quic.started {
@@ -97,6 +97,9 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandle
 	idleCount := 0
 	for {
 		e := a.conn.NextEvent()
+		if onEvent != nil && onEvent(e, a, b) {
+			continue
+		}
 		switch e.Kind {
 		case QUICNoEvent:
 			idleCount++
@@ -125,7 +128,8 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandle
 		case QUICHandshakeDone:
 			a.complete = true
 			if a == srv {
-				if err := srv.conn.SendSessionTicket(false); err != nil {
+				opts := QUICSessionTicketOptions{}
+				if err := srv.conn.SendSessionTicket(opts); err != nil {
 					return err
 				}
 			}
@@ -210,6 +214,37 @@ func TestQUICSessionResumption(t *testing.T) {
 	}
 }
 
+func TestQUICFragmentaryData(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.MinVersion = VersionTLS13
+	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+	clientConfig.ServerName = "example.go.dev"
+
+	serverConfig := testConfig.Clone()
+	serverConfig.MinVersion = VersionTLS13
+
+	cli := newTestQUICClient(t, clientConfig)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, serverConfig)
+	srv.conn.SetTransportParameters(nil)
+	onEvent := func(e QUICEvent, src, dst *testQUICConn) bool {
+		if e.Kind == QUICWriteData {
+			// Provide the data one byte at a time.
+			for i := range e.Data {
+				if err := dst.conn.HandleData(e.Level, e.Data[i:i+1]); err != nil {
+					t.Errorf("HandleData: %v", err)
+					break
+				}
+			}
+			return true
+		}
+		return false
+	}
+	if err := runTestQUICConnection(context.Background(), cli, srv, onEvent); err != nil {
+		t.Fatalf("error during first connection handshake: %v", err)
+	}
+}
+
 func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
 	// RFC 9001, Section 4.4.
 	config := testConfig.Clone()
@@ -263,6 +298,28 @@ func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 	}
 }
 
+func TestQUICPostHandshakeMessageTooLarge(t *testing.T) {
+	config := testConfig.Clone()
+	config.MinVersion = VersionTLS13
+	cli := newTestQUICClient(t, config)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, config)
+	srv.conn.SetTransportParameters(nil)
+	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
+		t.Fatalf("error during connection handshake: %v", err)
+	}
+
+	size := maxHandshake + 1
+	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, []byte{
+		byte(typeNewSessionTicket),
+		byte(size >> 16),
+		byte(size >> 8),
+		byte(size),
+	}); err == nil {
+		t.Fatalf("%v-byte post-handshake message: got no error, want one", size)
+	}
+}
+
 func TestQUICHandshakeError(t *testing.T) {
 	clientConfig := testConfig.Clone()
 	clientConfig.MinVersion = VersionTLS13
@@ -297,26 +354,22 @@ func TestQUICConnectionState(t *testing.T) {
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, config)
 	srv.conn.SetTransportParameters(nil)
-	onHandleCryptoData := func() {
+	onEvent := func(e QUICEvent, src, dst *testQUICConn) bool {
 		cliCS := cli.conn.ConnectionState()
-		cliWantALPN := ""
 		if _, ok := cli.readSecret[QUICEncryptionLevelApplication]; ok {
-			cliWantALPN = "h3"
+			if want, got := cliCS.NegotiatedProtocol, "h3"; want != got {
+				t.Errorf("cli.ConnectionState().NegotiatedProtocol = %q, want %q", want, got)
+			}
 		}
-		if want, got := cliCS.NegotiatedProtocol, cliWantALPN; want != got {
-			t.Errorf("cli.ConnectionState().NegotiatedProtocol = %q, want %q", want, got)
-		}
-
 		srvCS := srv.conn.ConnectionState()
-		srvWantALPN := ""
 		if _, ok := srv.readSecret[QUICEncryptionLevelHandshake]; ok {
-			srvWantALPN = "h3"
+			if want, got := srvCS.NegotiatedProtocol, "h3"; want != got {
+				t.Errorf("srv.ConnectionState().NegotiatedProtocol = %q, want %q", want, got)
+			}
 		}
-		if want, got := srvCS.NegotiatedProtocol, srvWantALPN; want != got {
-			t.Errorf("srv.ConnectionState().NegotiatedProtocol = %q, want %q", want, got)
-		}
+		return false
 	}
-	if err := runTestQUICConnection(context.Background(), cli, srv, onHandleCryptoData); err != nil {
+	if err := runTestQUICConnection(context.Background(), cli, srv, onEvent); err != nil {
 		t.Fatalf("error during connection handshake: %v", err)
 	}
 }

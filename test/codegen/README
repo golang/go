@@ -29,7 +29,7 @@ The test harness compiles the tests with the same go toolchain that is
 used to run the test. After writing tests for a newly added codegen
 transformation, it can be useful to first run the test harness with a
 toolchain from a released Go version (and verify that the new tests
-fail), and then re-runnig the tests using the devel toolchain.
+fail), and then re-running the tests using the devel toolchain.
 
 
 - Regexps comments syntax

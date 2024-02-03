@@ -478,7 +478,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				if arg1 != zero && arg != zero {
+				if arg1.IsValid() && arg.IsValid() {
 					return false, errBadComparison
 				}
 			}

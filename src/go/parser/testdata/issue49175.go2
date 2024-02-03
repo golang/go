@@ -10,4 +10,4 @@ type _[_ [1]t]t
 func _[_ []t]() {}
 func _[_ [1]t]() {}
 
-type t [t /* ERROR "type parameters must be named" */ [0]]t
+type t [t /* ERROR "missing type parameter name or invalid array length" */ [0]]t

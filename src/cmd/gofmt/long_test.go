@@ -126,7 +126,7 @@ func genFilenames(t *testing.T, filenames chan<- string) {
 	if *files != "" {
 		for _, filename := range strings.Split(*files, ",") {
 			fi, err := os.Stat(filename)
-			handleFile(filename, &statDirEntry{fi}, err)
+			handleFile(filename, fs.FileInfoToDirEntry(fi), err)
 		}
 		return // ignore files under -root
 	}
@@ -169,17 +169,4 @@ func TestAll(t *testing.T) {
 	if *verbose {
 		fmt.Printf("processed %d files\n", nfiles)
 	}
-}
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
-
-func (d *statDirEntry) String() string {
-	return fs.FormatDirEntry(d)
 }

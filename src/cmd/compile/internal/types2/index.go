@@ -29,7 +29,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.mode = invalid
 		// TODO(gri) here we re-evaluate e.X - try to avoid this
 		x.typ = check.varType(e)
-		if x.typ != Typ[Invalid] {
+		if isValid(x.typ) {
 			x.mode = typexpr
 		}
 		return false
@@ -428,7 +428,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
-			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
+			if typ, i := check.index(kv.Key, length); isValid(typ) {
 				if i >= 0 {
 					index = i
 					validIndex = true

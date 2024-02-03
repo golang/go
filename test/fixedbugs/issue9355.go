@@ -1,5 +1,6 @@
-// +build !js,!wasip1,gc
 // run
+
+//go:build !js && !wasip1 && gc
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -32,10 +33,10 @@ func main() {
 
 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
 	patterns := []string{
-		`rel 0\+\d t=1 p\.x\+8\r?\n`,       // y = &x.b
-		`rel 0\+\d t=1 p\.x\+(28|1c)\r?\n`, // z = &x.d.q
-		`rel 0\+\d t=1 p\.b\+5\r?\n`,       // c = &b[5]
-		`rel 0\+\d t=1 p\.x\+(88|58)\r?\n`, // w = &x.f[3].r
+		`rel 0\+\d t=R_ADDR p\.x\+8\r?\n`,       // y = &x.b
+		`rel 0\+\d t=R_ADDR p\.x\+(28|1c)\r?\n`, // z = &x.d.q
+		`rel 0\+\d t=R_ADDR p\.b\+5\r?\n`,       // c = &b[5]
+		`rel 0\+\d t=R_ADDR p\.x\+(88|58)\r?\n`, // w = &x.f[3].r
 	}
 	for _, p := range patterns {
 		if ok, err := regexp.Match(p, out); !ok || err != nil {

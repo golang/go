@@ -6,6 +6,10 @@ go list -f '{{with .Error}}{{.}}{{end}}' -e -export ./...
 ! stderr '.'
 stdout '^# example.com/p2\np2'${/}'main\.go:7:.*'
 
+go list -export -e -f '{{.ImportPath}} -- {{.Incomplete}} -- {{.Error}}' ./...
+stdout 'example.com/p1 -- false -- <nil>'
+stdout 'example.com/p2 -- true -- # example.com/p2'
+
 go list -e -export -json=Error ./...
 stdout '"Err": "# example.com/p2'
 

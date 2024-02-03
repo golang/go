@@ -12,10 +12,13 @@ import (
 	"log/slog"
 	"reflect"
 	"runtime"
+	"testing"
 	"time"
 )
 
 type testCase struct {
+	// Subtest name.
+	name string
 	// If non-empty, explanation explains the violated constraint.
 	explanation string
 	// f executes a single log event using its argument logger.
@@ -30,18 +33,215 @@ type testCase struct {
 	checks []check
 }
 
+var cases = []testCase{
+	{
+		name:        "built-ins",
+		explanation: withSource("this test expects slog.TimeKey, slog.LevelKey and slog.MessageKey"),
+		f: func(l *slog.Logger) {
+			l.Info("message")
+		},
+		checks: []check{
+			hasKey(slog.TimeKey),
+			hasKey(slog.LevelKey),
+			hasAttr(slog.MessageKey, "message"),
+		},
+	},
+	{
+		name:        "attrs",
+		explanation: withSource("a Handler should output attributes passed to the logging function"),
+		f: func(l *slog.Logger) {
+			l.Info("message", "k", "v")
+		},
+		checks: []check{
+			hasAttr("k", "v"),
+		},
+	},
+	{
+		name:        "empty-attr",
+		explanation: withSource("a Handler should ignore an empty Attr"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "a", "b", "", nil, "c", "d")
+		},
+		checks: []check{
+			hasAttr("a", "b"),
+			missingKey(""),
+			hasAttr("c", "d"),
+		},
+	},
+	{
+		name:        "zero-time",
+		explanation: withSource("a Handler should ignore a zero Record.Time"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "k", "v")
+		},
+		mod: func(r *slog.Record) { r.Time = time.Time{} },
+		checks: []check{
+			missingKey(slog.TimeKey),
+		},
+	},
+	{
+		name:        "WithAttrs",
+		explanation: withSource("a Handler should include the attributes from the WithAttrs method"),
+		f: func(l *slog.Logger) {
+			l.With("a", "b").Info("msg", "k", "v")
+		},
+		checks: []check{
+			hasAttr("a", "b"),
+			hasAttr("k", "v"),
+		},
+	},
+	{
+		name:        "groups",
+		explanation: withSource("a Handler should handle Group attributes"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "a", "b", slog.Group("G", slog.String("c", "d")), "e", "f")
+		},
+		checks: []check{
+			hasAttr("a", "b"),
+			inGroup("G", hasAttr("c", "d")),
+			hasAttr("e", "f"),
+		},
+	},
+	{
+		name:        "empty-group",
+		explanation: withSource("a Handler should ignore an empty group"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "a", "b", slog.Group("G"), "e", "f")
+		},
+		checks: []check{
+			hasAttr("a", "b"),
+			missingKey("G"),
+			hasAttr("e", "f"),
+		},
+	},
+	{
+		name:        "inline-group",
+		explanation: withSource("a Handler should inline the Attrs of a group with an empty key"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "a", "b", slog.Group("", slog.String("c", "d")), "e", "f")
+
+		},
+		checks: []check{
+			hasAttr("a", "b"),
+			hasAttr("c", "d"),
+			hasAttr("e", "f"),
+		},
+	},
+	{
+		name:        "WithGroup",
+		explanation: withSource("a Handler should handle the WithGroup method"),
+		f: func(l *slog.Logger) {
+			l.WithGroup("G").Info("msg", "a", "b")
+		},
+		checks: []check{
+			hasKey(slog.TimeKey),
+			hasKey(slog.LevelKey),
+			hasAttr(slog.MessageKey, "msg"),
+			missingKey("a"),
+			inGroup("G", hasAttr("a", "b")),
+		},
+	},
+	{
+		name:        "multi-With",
+		explanation: withSource("a Handler should handle multiple WithGroup and WithAttr calls"),
+		f: func(l *slog.Logger) {
+			l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg", "e", "f")
+		},
+		checks: []check{
+			hasKey(slog.TimeKey),
+			hasKey(slog.LevelKey),
+			hasAttr(slog.MessageKey, "msg"),
+			hasAttr("a", "b"),
+			inGroup("G", hasAttr("c", "d")),
+			inGroup("G", inGroup("H", hasAttr("e", "f"))),
+		},
+	},
+	{
+		name:        "empty-group-record",
+		explanation: withSource("a Handler should not output groups if there are no attributes"),
+		f: func(l *slog.Logger) {
+			l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg")
+		},
+		checks: []check{
+			hasKey(slog.TimeKey),
+			hasKey(slog.LevelKey),
+			hasAttr(slog.MessageKey, "msg"),
+			hasAttr("a", "b"),
+			inGroup("G", hasAttr("c", "d")),
+			inGroup("G", missingKey("H")),
+		},
+	},
+	{
+		name:        "resolve",
+		explanation: withSource("a Handler should call Resolve on attribute values"),
+		f: func(l *slog.Logger) {
+			l.Info("msg", "k", &replace{"replaced"})
+		},
+		checks: []check{hasAttr("k", "replaced")},
+	},
+	{
+		name:        "resolve-groups",
+		explanation: withSource("a Handler should call Resolve on attribute values in groups"),
+		f: func(l *slog.Logger) {
+			l.Info("msg",
+				slog.Group("G",
+					slog.String("a", "v1"),
+					slog.Any("b", &replace{"v2"})))
+		},
+		checks: []check{
+			inGroup("G", hasAttr("a", "v1")),
+			inGroup("G", hasAttr("b", "v2")),
+		},
+	},
+	{
+		name:        "resolve-WithAttrs",
+		explanation: withSource("a Handler should call Resolve on attribute values from WithAttrs"),
+		f: func(l *slog.Logger) {
+			l = l.With("k", &replace{"replaced"})
+			l.Info("msg")
+		},
+		checks: []check{hasAttr("k", "replaced")},
+	},
+	{
+		name:        "resolve-WithAttrs-groups",
+		explanation: withSource("a Handler should call Resolve on attribute values in groups from WithAttrs"),
+		f: func(l *slog.Logger) {
+			l = l.With(slog.Group("G",
+				slog.String("a", "v1"),
+				slog.Any("b", &replace{"v2"})))
+			l.Info("msg")
+		},
+		checks: []check{
+			inGroup("G", hasAttr("a", "v1")),
+			inGroup("G", hasAttr("b", "v2")),
+		},
+	},
+	{
+		name:        "empty-PC",
+		explanation: withSource("a Handler should not output SourceKey if the PC is zero"),
+		f: func(l *slog.Logger) {
+			l.Info("message")
+		},
+		mod: func(r *slog.Record) { r.PC = 0 },
+		checks: []check{
+			missingKey(slog.SourceKey),
+		},
+	},
+}
+
 // TestHandler tests a [slog.Handler].
 // If TestHandler finds any misbehaviors, it returns an error for each,
-// combined into a single error with errors.Join.
+// combined into a single error with [errors.Join].
 //
 // TestHandler installs the given Handler in a [slog.Logger] and
 // makes several calls to the Logger's output methods.
+// The Handler should be enabled for levels Info and above.
 //
 // The results function is invoked after all such calls.
 // It should return a slice of map[string]any, one for each call to a Logger output method.
 // The keys and values of the map should correspond to the keys and values of the Handler's
 // output. Each group in the output should be represented as its own nested map[string]any.
-// The standard keys slog.TimeKey, slog.LevelKey and slog.MessageKey should be used.
+// The standard keys [slog.TimeKey], [slog.LevelKey] and [slog.MessageKey] should be used.
 //
 // If the Handler outputs JSON, then calling [encoding/json.Unmarshal] with a `map[string]any`
 // will create the right data structure.
@@ -49,162 +249,6 @@ type testCase struct {
 // If a Handler intentionally drops an attribute that is checked by a test,
 // then the results function should check for its absence and add it to the map it returns.
 func TestHandler(h slog.Handler, results func() []map[string]any) error {
-	cases := []testCase{
-		{
-			explanation: withSource("this test expects slog.TimeKey, slog.LevelKey and slog.MessageKey"),
-			f: func(l *slog.Logger) {
-				l.Info("message")
-			},
-			checks: []check{
-				hasKey(slog.TimeKey),
-				hasKey(slog.LevelKey),
-				hasAttr(slog.MessageKey, "message"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should output attributes passed to the logging function"),
-			f: func(l *slog.Logger) {
-				l.Info("message", "k", "v")
-			},
-			checks: []check{
-				hasAttr("k", "v"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should ignore an empty Attr"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "a", "b", "", nil, "c", "d")
-			},
-			checks: []check{
-				hasAttr("a", "b"),
-				missingKey(""),
-				hasAttr("c", "d"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should ignore a zero Record.Time"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "k", "v")
-			},
-			mod: func(r *slog.Record) { r.Time = time.Time{} },
-			checks: []check{
-				missingKey(slog.TimeKey),
-			},
-		},
-		{
-			explanation: withSource("a Handler should include the attributes from the WithAttrs method"),
-			f: func(l *slog.Logger) {
-				l.With("a", "b").Info("msg", "k", "v")
-			},
-			checks: []check{
-				hasAttr("a", "b"),
-				hasAttr("k", "v"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should handle Group attributes"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "a", "b", slog.Group("G", slog.String("c", "d")), "e", "f")
-			},
-			checks: []check{
-				hasAttr("a", "b"),
-				inGroup("G", hasAttr("c", "d")),
-				hasAttr("e", "f"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should ignore an empty group"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "a", "b", slog.Group("G"), "e", "f")
-			},
-			checks: []check{
-				hasAttr("a", "b"),
-				missingKey("G"),
-				hasAttr("e", "f"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should inline the Attrs of a group with an empty key"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "a", "b", slog.Group("", slog.String("c", "d")), "e", "f")
-
-			},
-			checks: []check{
-				hasAttr("a", "b"),
-				hasAttr("c", "d"),
-				hasAttr("e", "f"),
-			},
-		},
-		{
-			explanation: withSource("a Handler should handle the WithGroup method"),
-			f: func(l *slog.Logger) {
-				l.WithGroup("G").Info("msg", "a", "b")
-			},
-			checks: []check{
-				hasKey(slog.TimeKey),
-				hasKey(slog.LevelKey),
-				hasAttr(slog.MessageKey, "msg"),
-				missingKey("a"),
-				inGroup("G", hasAttr("a", "b")),
-			},
-		},
-		{
-			explanation: withSource("a Handler should handle multiple WithGroup and WithAttr calls"),
-			f: func(l *slog.Logger) {
-				l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg", "e", "f")
-			},
-			checks: []check{
-				hasKey(slog.TimeKey),
-				hasKey(slog.LevelKey),
-				hasAttr(slog.MessageKey, "msg"),
-				hasAttr("a", "b"),
-				inGroup("G", hasAttr("c", "d")),
-				inGroup("G", inGroup("H", hasAttr("e", "f"))),
-			},
-		},
-		{
-			explanation: withSource("a Handler should call Resolve on attribute values"),
-			f: func(l *slog.Logger) {
-				l.Info("msg", "k", &replace{"replaced"})
-			},
-			checks: []check{hasAttr("k", "replaced")},
-		},
-		{
-			explanation: withSource("a Handler should call Resolve on attribute values in groups"),
-			f: func(l *slog.Logger) {
-				l.Info("msg",
-					slog.Group("G",
-						slog.String("a", "v1"),
-						slog.Any("b", &replace{"v2"})))
-			},
-			checks: []check{
-				inGroup("G", hasAttr("a", "v1")),
-				inGroup("G", hasAttr("b", "v2")),
-			},
-		},
-		{
-			explanation: withSource("a Handler should call Resolve on attribute values from WithAttrs"),
-			f: func(l *slog.Logger) {
-				l = l.With("k", &replace{"replaced"})
-				l.Info("msg")
-			},
-			checks: []check{hasAttr("k", "replaced")},
-		},
-		{
-			explanation: withSource("a Handler should call Resolve on attribute values in groups from WithAttrs"),
-			f: func(l *slog.Logger) {
-				l = l.With(slog.Group("G",
-					slog.String("a", "v1"),
-					slog.Any("b", &replace{"v2"})))
-				l.Info("msg")
-			},
-			checks: []check{
-				inGroup("G", hasAttr("a", "v1")),
-				inGroup("G", hasAttr("b", "v2")),
-			},
-		},
-	}
-
 	// Run the handler on the test cases.
 	for _, c := range cases {
 		ht := h
@@ -224,12 +268,35 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 	for i, got := range results() {
 		c := cases[i]
 		for _, check := range c.checks {
-			if p := check(got); p != "" {
-				errs = append(errs, fmt.Errorf("%s: %s", p, c.explanation))
+			if problem := check(got); problem != "" {
+				errs = append(errs, fmt.Errorf("%s: %s", problem, c.explanation))
 			}
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// Run exercises a [slog.Handler] on the same test cases as [TestHandler], but
+// runs each case in a subtest. For each test case, it first calls newHandler to
+// get an instance of the handler under test, then runs the test case, then
+// calls result to get the result. If the test case fails, it calls t.Error.
+func Run(t *testing.T, newHandler func(*testing.T) slog.Handler, result func(*testing.T) map[string]any) {
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHandler(t)
+			if c.mod != nil {
+				h = &wrapper{h, c.mod}
+			}
+			l := slog.New(h)
+			c.f(l)
+			got := result(t)
+			for _, check := range c.checks {
+				if p := check(got); p != "" {
+					t.Errorf("%s: %s", p, c.explanation)
+				}
+			}
+		})
+	}
 }
 
 type check func(map[string]any) string

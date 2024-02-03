@@ -26,7 +26,7 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// A ProxyRequest contains a request to be rewritten by a ReverseProxy.
+// A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
 type ProxyRequest struct {
 	// In is the request received by the proxy.
 	// The Rewrite function must not modify In.
@@ -45,7 +45,7 @@ type ProxyRequest struct {
 //
 // SetURL rewrites the outbound Host header to match the target's host.
 // To preserve the inbound request's Host header (the default behavior
-// of NewSingleHostReverseProxy):
+// of [NewSingleHostReverseProxy]):
 //
 //	rewriteFunc := func(r *httputil.ProxyRequest) {
 //		r.SetURL(url)
@@ -68,7 +68,7 @@ func (r *ProxyRequest) SetURL(target *url.URL) {
 // If the outbound request contains an existing X-Forwarded-For header,
 // SetXForwarded appends the client IP address to it. To append to the
 // inbound request's X-Forwarded-For header (the default behavior of
-// ReverseProxy when using a Director function), copy the header
+// [ReverseProxy] when using a Director function), copy the header
 // from the inbound request before calling SetXForwarded:
 //
 //	rewriteFunc := func(r *httputil.ProxyRequest) {
@@ -200,7 +200,7 @@ type ReverseProxy struct {
 }
 
 // A BufferPool is an interface for getting and returning temporary
-// byte slices for use by io.CopyBuffer.
+// byte slices for use by [io.CopyBuffer].
 type BufferPool interface {
 	Get() []byte
 	Put([]byte)
@@ -239,7 +239,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	return a.Path + b.Path, apath + bpath
 }
 
-// NewSingleHostReverseProxy returns a new ReverseProxy that routes
+// NewSingleHostReverseProxy returns a new [ReverseProxy] that routes
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
@@ -461,10 +461,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.WriteHeader(code)
 
 			// Clear headers, it's not automatically done by ResponseWriter.WriteHeader() for 1xx responses
-			for k := range h {
-				delete(h, k)
-			}
-
+			clear(h)
 			return nil
 		},
 	}

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !math_big_pure_go
-// +build !math_big_pure_go
 
 #include "textflag.h"
 

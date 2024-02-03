@@ -172,14 +172,14 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	pc := ctx.pc
 	fi := findfunc(pc)
 	if fi.valid() {
-		u, uf := newInlineUnwinder(fi, pc, nil)
+		u, uf := newInlineUnwinder(fi, pc)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {
 				// Ignore wrappers, unless we're at the outermost frame of u.
 				// A non-inlined wrapper frame always means we have a physical
 				// frame consisting entirely of wrappers, in which case we'll
-				// take a outermost wrapper over nothing.
+				// take an outermost wrapper over nothing.
 				continue
 			}
 
@@ -223,6 +223,7 @@ type symbolizeDataContext struct {
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
 	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
+		// TODO: Does this need to handle malloc headers?
 		ctx.heap = 1
 		ctx.start = base
 		ctx.size = span.elemsize

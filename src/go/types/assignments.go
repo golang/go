@@ -101,7 +101,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -136,7 +136,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -201,7 +201,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 		v.used = v_used // restore v.used
 	}
 
-	if x.mode == invalid || x.typ == Typ[Invalid] {
+	if x.mode == invalid || !isValid(x.typ) {
 		return Typ[Invalid]
 	}
 
@@ -231,9 +231,9 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
 // If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
 // If the assignment check fails and x != nil, x.mode is set to invalid.
-func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
+func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
 	T := check.lhsVar(lhs) // nil if lhs is _
-	if T == Typ[Invalid] {
+	if !isValid(T) {
 		if x != nil {
 			x.mode = invalid
 		} else {
@@ -243,12 +243,18 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
 	}
 
 	if x == nil {
+		var target *target
+		// avoid calling ExprString if not needed
+		if T != nil {
+			if _, ok := under(T).(*Signature); ok {
+				target = newTarget(T, ExprString(lhs))
+			}
+		}
 		x = new(operand)
-		check.expr(T, x, rhs)
+		check.expr(target, x, rhs)
 	}
 
-	context := "assignment"
-	if T == nil {
+	if T == nil && context == "assignment" {
 		context = "assignment to _ identifier"
 	}
 	check.assignment(x, T, context)
@@ -281,7 +287,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
 		switch {
 		case t == nil:
 			fallthrough // should not happen but be cautious
-		case t == Typ[Invalid]:
+		case !isValid(t):
 			s = "unknown type"
 		case isUntyped(t):
 			if isNumeric(t) {
@@ -338,9 +344,9 @@ func (check *Checker) returnError(at positioner, lhs []*Var, rhs []*operand) {
 	}
 	var err error_
 	err.code = WrongResultCount
-	err.errorf(at.Pos(), "%s return values", qualifier)
-	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
-	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+	err.errorf(at, "%s return values", qualifier)
+	err.errorf(noposn, "have %s", check.typesSummary(operandTypes(rhs), false))
+	err.errorf(noposn, "want %s", check.typesSummary(varTypes(lhs), false))
 	check.report(&err)
 }
 
@@ -368,7 +374,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 	if l == r && !isCall {
 		var x operand
 		for i, lhs := range lhs {
-			check.expr(lhs.typ, &x, orig_rhs[i])
+			desc := lhs.name
+			if returnStmt != nil && desc == "" {
+				desc = "result variable"
+			}
+			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return
@@ -442,7 +452,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 	// each value can be assigned to its corresponding variable.
 	if l == r && !isCall {
 		for i, lhs := range lhs {
-			check.assignVar(lhs, orig_rhs[i], nil)
+			check.assignVar(lhs, orig_rhs[i], nil, "assignment")
 		}
 		return
 	}
@@ -463,7 +473,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 	r = len(rhs)
 	if l == r {
 		for i, lhs := range lhs {
-			check.assignVar(lhs, nil, rhs[i])
+			check.assignVar(lhs, nil, rhs[i], "assignment")
 		}
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).

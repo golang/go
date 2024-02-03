@@ -247,6 +247,28 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
 	}
 }
 
+func TestNilPool(t *testing.T) {
+	catch := func() {
+		if recover() == nil {
+			t.Error("expected panic")
+		}
+	}
+
+	var p *Pool
+	t.Run("Get", func(t *testing.T) {
+		defer catch()
+		if p.Get() != nil {
+			t.Error("expected empty")
+		}
+		t.Error("should have panicked already")
+	})
+	t.Run("Put", func(t *testing.T) {
+		defer catch()
+		p.Put("a")
+		t.Error("should have panicked already")
+	})
+}
+
 func BenchmarkPool(b *testing.B) {
 	var p Pool
 	b.RunParallel(func(pb *testing.PB) {

@@ -43,7 +43,7 @@ var errOpen = errors.New("cipher: message authentication failed")
 var _ gcmAble = (*aesCipherGCM)(nil)
 
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by crypto/cipher.NewGCM via the gcmAble interface.
+// called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
 	gcmAesInit(&g.productTable, g.ks)
@@ -86,7 +86,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 	return
 }
 
-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
+// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
 func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
@@ -123,7 +123,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	return ret
 }
 
-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
+// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
 func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	// Sanity check to prevent the authentication from always succeeding if an implementation

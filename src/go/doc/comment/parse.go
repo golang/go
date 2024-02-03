@@ -5,7 +5,7 @@
 package comment
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -176,7 +176,7 @@ type DocLink struct {
 func (*DocLink) text() {}
 
 // A Parser is a doc comment parser.
-// The fields in the struct can be filled in before calling Parse
+// The fields in the struct can be filled in before calling [Parser.Parse]
 // in order to customize the details of the parsing process.
 type Parser struct {
 	// Words is a map of Go identifier words that
@@ -260,14 +260,12 @@ func (d *parseDoc) lookupPkg(pkg string) (importPath string, ok bool) {
 }
 
 func isStdPkg(path string) bool {
-	// TODO(rsc): Use sort.Find once we don't have to worry about
-	// copying this code into older Go environments.
-	i := sort.Search(len(stdPkgs), func(i int) bool { return stdPkgs[i] >= path })
-	return i < len(stdPkgs) && stdPkgs[i] == path
+	_, ok := slices.BinarySearch(stdPkgs, path)
+	return ok
 }
 
 // DefaultLookupPackage is the default package lookup
-// function, used when [Parser].LookupPackage is nil.
+// function, used when [Parser.LookupPackage] is nil.
 // It recognizes names of the packages from the standard
 // library with single-element import paths, such as math,
 // which would otherwise be impossible to name.
@@ -281,7 +279,7 @@ func DefaultLookupPackage(name string) (importPath string, ok bool) {
 	return "", false
 }
 
-// Parse parses the doc comment text and returns the *Doc form.
+// Parse parses the doc comment text and returns the *[Doc] form.
 // Comment markers (/* // and */) in the text must have already been removed.
 func (p *Parser) Parse(text string) *Doc {
 	lines := unindent(strings.Split(text, "\n"))

@@ -40,7 +40,7 @@ type Interface interface {
 // It makes one call to data.Len to determine n and O(n*log(n)) calls to
 // data.Less and data.Swap. The sort is not guaranteed to be stable.
 //
-// Note: in many situations, the newer slices.SortFunc function is more
+// Note: in many situations, the newer [slices.SortFunc] function is more
 // ergonomic and runs faster.
 func Sort(data Interface) {
 	n := data.Len()
@@ -100,7 +100,7 @@ func Reverse(data Interface) Interface {
 
 // IsSorted reports whether data is sorted.
 //
-// Note: in many situations, the newer slices.IsSortedFunc function is more
+// Note: in many situations, the newer [slices.IsSortedFunc] function is more
 // ergonomic and runs faster.
 func IsSorted(data Interface) bool {
 	n := data.Len()
@@ -161,35 +161,35 @@ func (x StringSlice) Sort() { Sort(x) }
 
 // Ints sorts a slice of ints in increasing order.
 //
-// Note: consider using the newer slices.Sort function, which runs faster.
-func Ints(x []int) { Sort(IntSlice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Ints(x []int) { intsImpl(x) }
 
 // Float64s sorts a slice of float64s in increasing order.
 // Not-a-number (NaN) values are ordered before other values.
 //
-// Note: consider using the newer slices.Sort function, which runs faster.
-func Float64s(x []float64) { Sort(Float64Slice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Float64s(x []float64) { float64sImpl(x) }
 
 // Strings sorts a slice of strings in increasing order.
 //
-// Note: consider using the newer slices.Sort function, which runs faster.
-func Strings(x []string) { Sort(StringSlice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Strings(x []string) { stringsImpl(x) }
 
 // IntsAreSorted reports whether the slice x is sorted in increasing order.
 //
-// Note: consider using the newer slices.IsSorted function, which runs faster.
-func IntsAreSorted(x []int) bool { return IsSorted(IntSlice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func IntsAreSorted(x []int) bool { return intsAreSortedImpl(x) }
 
 // Float64sAreSorted reports whether the slice x is sorted in increasing order,
 // with not-a-number (NaN) values before any other values.
 //
-// Note: consider using the newer slices.IsSorted function, which runs faster.
-func Float64sAreSorted(x []float64) bool { return IsSorted(Float64Slice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func Float64sAreSorted(x []float64) bool { return float64sAreSortedImpl(x) }
 
 // StringsAreSorted reports whether the slice x is sorted in increasing order.
 //
-// Note: consider using the newer slices.IsSorted function, which runs faster.
-func StringsAreSorted(x []string) bool { return IsSorted(StringSlice(x)) }
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func StringsAreSorted(x []string) bool { return stringsAreSortedImpl(x) }
 
 // Notes on stable sorting:
 // The used algorithms are simple and provable correct on all input and use

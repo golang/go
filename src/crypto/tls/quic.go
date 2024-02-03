@@ -46,7 +46,7 @@ type QUICConn struct {
 	sessionTicketSent bool
 }
 
-// A QUICConfig configures a QUICConn.
+// A QUICConfig configures a [QUICConn].
 type QUICConfig struct {
 	TLSConfig *Config
 }
@@ -163,7 +163,7 @@ func newQUICConn(conn *Conn) *QUICConn {
 }
 
 // Start starts the client or server handshake protocol.
-// It may produce connection events, which may be read with NextEvent.
+// It may produce connection events, which may be read with [QUICConn.NextEvent].
 //
 // Start must be called at most once.
 func (q *QUICConn) Start(ctx context.Context) error {
@@ -182,7 +182,7 @@ func (q *QUICConn) Start(ctx context.Context) error {
 }
 
 // NextEvent returns the next event occurring on the connection.
-// It returns an event with a Kind of QUICNoEvent when no events are available.
+// It returns an event with a Kind of [QUICNoEvent] when no events are available.
 func (q *QUICConn) NextEvent() QUICEvent {
 	qs := q.conn.quic
 	if last := qs.nextEvent - 1; last >= 0 && len(qs.events[last].Data) > 0 {
@@ -214,7 +214,7 @@ func (q *QUICConn) Close() error {
 }
 
 // HandleData handles handshake bytes received from the peer.
-// It may produce connection events, which may be read with NextEvent.
+// It may produce connection events, which may be read with [QUICConn.NextEvent].
 func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 	c := q.conn
 	if c.in.level != level {
@@ -228,16 +228,22 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 		return nil
 	}
 	// The handshake goroutine has exited.
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
 	c.hand.Write(c.quic.readbuf)
 	c.quic.readbuf = nil
 	for q.conn.hand.Len() >= 4 && q.conn.handshakeErr == nil {
 		b := q.conn.hand.Bytes()
 		n := int(b[1])<<16 | int(b[2])<<8 | int(b[3])
-		if 4+n < len(b) {
+		if n > maxHandshake {
+			q.conn.handshakeErr = fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake)
+			break
+		}
+		if len(b) < 4+n {
 			return nil
 		}
 		if err := q.conn.handlePostHandshakeMessage(); err != nil {
-			return quicError(err)
+			q.conn.handshakeErr = err
 		}
 	}
 	if q.conn.handshakeErr != nil {
@@ -246,10 +252,15 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 	return nil
 }
 
+type QUICSessionTicketOptions struct {
+	// EarlyData specifies whether the ticket may be used for 0-RTT.
+	EarlyData bool
+}
+
 // SendSessionTicket sends a session ticket to the client.
-// It produces connection events, which may be read with NextEvent.
+// It produces connection events, which may be read with [QUICConn.NextEvent].
 // Currently, it can only be called once.
-func (q *QUICConn) SendSessionTicket(earlyData bool) error {
+func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 	c := q.conn
 	if !c.isHandshakeComplete.Load() {
 		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
@@ -261,7 +272,7 @@ func (q *QUICConn) SendSessionTicket(earlyData bool) error {
 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
 	}
 	q.sessionTicketSent = true
-	return quicError(c.sendSessionTicket(earlyData))
+	return quicError(c.sendSessionTicket(opts.EarlyData))
 }
 
 // ConnectionState returns basic TLS details about the connection.
@@ -272,7 +283,7 @@ func (q *QUICConn) ConnectionState() ConnectionState {
 // SetTransportParameters sets the transport parameters to send to the peer.
 //
 // Server connections may delay setting the transport parameters until after
-// receiving the client's transport parameters. See QUICTransportParametersRequired.
+// receiving the client's transport parameters. See [QUICTransportParametersRequired].
 func (q *QUICConn) SetTransportParameters(params []byte) {
 	if params == nil {
 		params = []byte{}

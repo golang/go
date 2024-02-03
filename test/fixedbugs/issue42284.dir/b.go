@@ -8,7 +8,7 @@ import "./a"
 
 func g() {
 	h := a.E() // ERROR "inlining call to a.E" "T\(0\) does not escape"
-	h.M()      // ERROR "devirtualizing h.M to a.T"
+	h.M()      // ERROR "devirtualizing h.M to a.T" "inlining call to a.T.M"
 
 	// BAD: T(0) could be stack allocated.
 	i := a.F(a.T(0)) // ERROR "inlining call to a.F" "a.T\(0\) escapes to heap"

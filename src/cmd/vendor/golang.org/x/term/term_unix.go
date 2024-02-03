@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
 
 package term
 
@@ -60,7 +59,7 @@ func restore(fd int, state *State) error {
 func getSize(fd int) (width, height int, err error) {
 	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
 	if err != nil {
-		return -1, -1, err
+		return 0, 0, err
 	}
 	return int(ws.Col), int(ws.Row), nil
 }

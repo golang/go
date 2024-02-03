@@ -339,6 +339,17 @@ var optab = []Optab{
 	// 2 byte no-operation
 	{i: 66, as: ANOPH},
 
+	// crypto instructions
+
+	// KM
+	{i: 124, as: AKM, a1: C_REG, a6: C_REG},
+
+	// KDSA
+	{i: 125, as: AKDSA, a1: C_REG, a6: C_REG},
+
+	// KMA
+	{i: 126, as: AKMA, a1: C_REG, a2: C_REG, a6: C_REG},
+
 	// vector instructions
 
 	// VRX store
@@ -680,7 +691,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xffff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
+			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -1480,6 +1491,12 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMSDB, r)
 			opset(AWFMSDB, r)
 			opset(AVPERM, r)
+		case AKM:
+			opset(AKMC, r)
+			opset(AKLMD, r)
+			opset(AKIMD, r)
+		case AKMA:
+			opset(AKMCTR, r)
 		}
 	}
 }
@@ -1884,6 +1901,7 @@ const (
 	op_KM      uint32 = 0xB92E // FORMAT_RRE        CIPHER MESSAGE
 	op_KMAC    uint32 = 0xB91E // FORMAT_RRE        COMPUTE MESSAGE AUTHENTICATION CODE
 	op_KMC     uint32 = 0xB92F // FORMAT_RRE        CIPHER MESSAGE WITH CHAINING
+	op_KMA     uint32 = 0xB929 // FORMAT_RRF2       CIPHER MESSAGE WITH AUTHENTICATION
 	op_KMCTR   uint32 = 0xB92D // FORMAT_RRF2       CIPHER MESSAGE WITH COUNTER
 	op_KMF     uint32 = 0xB92A // FORMAT_RRE        CIPHER MESSAGE WITH CFB
 	op_KMO     uint32 = 0xB92B // FORMAT_RRE        CIPHER MESSAGE WITH OFB
@@ -2629,6 +2647,10 @@ const (
 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
 	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
+
+	// added in z15
+	op_KDSA uint32 = 0xB93A // FORMAT_RRE        COMPUTE DIGITAL SIGNATURE AUTHENTICATION (KDSA)
+
 )
 
 func oclass(a *obj.Addr) int {
@@ -4366,6 +4388,83 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		op, _, _ := vop(p.As)
 		m4 := c.regoff(&p.From)
 		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), 0, 0, uint32(m4), asm)
+
+	case 124:
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKM, AKMC, AKLMD:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			if p.As == AKM {
+				opcode = op_KM
+			} else if p.As == AKMC {
+				opcode = op_KMC
+			} else {
+				opcode = op_KLMD
+			}
+		case AKIMD:
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("second argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("second argument must be even register in %v", p)
+			}
+			opcode = op_KIMD
+		}
+		zRRE(opcode, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+
+	case 125: // KDSA sign and verify
+		if p.To.Reg == REG_R0 {
+			c.ctxt.Diag("second argument must not be R0 in %v", p)
+		}
+		if p.To.Reg&1 != 0 {
+			c.ctxt.Diag("second argument must be an even register in %v", p)
+		}
+		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+
+	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH COUNTER
+		var opcode uint32
+		switch p.As {
+		default:
+			c.ctxt.Diag("unexpected opcode %v", p.As)
+		case AKMA, AKMCTR:
+			if p.From.Reg == REG_R0 {
+				c.ctxt.Diag("input argument must not be R0 in %v", p)
+			}
+			if p.From.Reg&1 != 0 {
+				c.ctxt.Diag("input argument must be even register in %v", p)
+			}
+			if p.To.Reg == REG_R0 {
+				c.ctxt.Diag("output argument must not be R0 in %v", p)
+			}
+			if p.To.Reg&1 != 0 {
+				c.ctxt.Diag("output argument must be an even register in %v", p)
+			}
+			if p.Reg == REG_R0 {
+				c.ctxt.Diag("third argument must not be R0 in %v", p)
+			}
+			if p.Reg&1 != 0 {
+				c.ctxt.Diag("third argument must be even register in %v", p)
+			}
+			if p.As == AKMA {
+				opcode = op_KMA
+			} else if p.As == AKMCTR {
+				opcode = op_KMCTR
+			}
+		}
+		zRRF(opcode, uint32(p.Reg), 0, uint32(p.From.Reg), uint32(p.To.Reg), asm)
 	}
 }
 

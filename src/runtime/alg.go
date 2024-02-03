@@ -66,7 +66,7 @@ func f32hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
 	default:
 		return memhash(p, h, 4)
 	}
@@ -78,7 +78,7 @@ func f64hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
 	default:
 		return memhash(p, h, 8)
 	}
@@ -190,6 +190,74 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		// Should never happen, as typehash should only be called
 		// with comparable types.
 		panic(errorString("hash of unhashable type " + toRType(t).string()))
+	}
+}
+
+func mapKeyError(t *maptype, p unsafe.Pointer) error {
+	if !t.HashMightPanic() {
+		return nil
+	}
+	return mapKeyError2(t.Key, p)
+}
+
+func mapKeyError2(t *_type, p unsafe.Pointer) error {
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
+		return nil
+	}
+	switch t.Kind_ & kindMask {
+	case kindFloat32, kindFloat64, kindComplex64, kindComplex128, kindString:
+		return nil
+	case kindInterface:
+		i := (*interfacetype)(unsafe.Pointer(t))
+		var t *_type
+		var pdata *unsafe.Pointer
+		if len(i.Methods) == 0 {
+			a := (*eface)(p)
+			t = a._type
+			if t == nil {
+				return nil
+			}
+			pdata = &a.data
+		} else {
+			a := (*iface)(p)
+			if a.tab == nil {
+				return nil
+			}
+			t = a.tab._type
+			pdata = &a.data
+		}
+
+		if t.Equal == nil {
+			return errorString("hash of unhashable type " + toRType(t).string())
+		}
+
+		if isDirectIface(t) {
+			return mapKeyError2(t, unsafe.Pointer(pdata))
+		} else {
+			return mapKeyError2(t, *pdata)
+		}
+	case kindArray:
+		a := (*arraytype)(unsafe.Pointer(t))
+		for i := uintptr(0); i < a.Len; i++ {
+			if err := mapKeyError2(a.Elem, add(p, i*a.Elem.Size_)); err != nil {
+				return err
+			}
+		}
+		return nil
+	case kindStruct:
+		s := (*structtype)(unsafe.Pointer(t))
+		for _, f := range s.Fields {
+			if f.Name.IsBlank() {
+				continue
+			}
+			if err := mapKeyError2(f.Typ, add(p, f.Offset)); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		// Should never happen, keep this case for robustness.
+		return errorString("hash of unhashable type " + toRType(t).string())
 	}
 }
 
@@ -322,17 +390,18 @@ func alginit() {
 		initAlgAES()
 		return
 	}
-	getRandomData((*[len(hashkey) * goarch.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
-	hashkey[0] |= 1 // make sure these numbers are odd
-	hashkey[1] |= 1
-	hashkey[2] |= 1
-	hashkey[3] |= 1
+	for i := range hashkey {
+		hashkey[i] = uintptr(rand()) | 1 // make sure these numbers are odd
+	}
 }
 
 func initAlgAES() {
 	useAeshash = true
 	// Initialize with random data so hash collisions will be hard to engineer.
-	getRandomData(aeskeysched[:])
+	key := (*[hashRandomBytes / 8]uint64)(unsafe.Pointer(&aeskeysched))
+	for i := range key {
+		key[i] = bootstrapRand()
+	}
 }
 
 // Note: These routines perform the read with a native endianness.

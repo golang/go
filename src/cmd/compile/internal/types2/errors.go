@@ -250,7 +250,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 		pos = check.errpos
 	}
 
-	// If we have an URL for error codes, add a link to the first line.
+	// If we have a URL for error codes, add a link to the first line.
 	if code != 0 && check.conf.ErrorURL != "" {
 		u := fmt.Sprintf(check.conf.ErrorURL, code)
 		if i := strings.Index(msg, "\n"); i >= 0 {
@@ -297,7 +297,7 @@ func (check *Checker) softErrorf(at poser, code Code, format string, args ...int
 	check.err(at, code, check.sprintf(format, args...), true)
 }
 
-func (check *Checker) versionErrorf(at poser, v version, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	msg = fmt.Sprintf("%s requires %s or later", msg, v)
 	check.err(at, UnsupportedFeature, msg, true)

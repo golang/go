@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !plan9 && !wasip1 && !windows
+//go:build !plan9 && !windows
 
 package net
 
@@ -20,6 +20,10 @@ import (
 func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	if !testableNetwork("unixgram") {
 		t.Skip("unixgram test")
+	}
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skipf("skipping: syscall.Socket not implemented on %s", runtime.GOOS)
 	}
 	if runtime.GOOS == "openbsd" {
 		testenv.SkipFlaky(t, 15157)
@@ -359,6 +363,11 @@ func TestUnixUnlink(t *testing.T) {
 	if !testableNetwork("unix") {
 		t.Skip("unix test")
 	}
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skipf("skipping: %s does not support Unlink", runtime.GOOS)
+	}
+
 	name := testUnixAddr(t)
 
 	listen := func(t *testing.T) *UnixListener {

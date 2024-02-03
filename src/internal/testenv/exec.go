@@ -100,11 +100,14 @@ func MustHaveExecPath(t testing.TB, path string) {
 // CleanCmdEnv will fill cmd.Env with the environment, excluding certain
 // variables that could modify the behavior of the Go tools such as
 // GODEBUG and GOTRACEBACK.
+//
+// If the caller wants to set cmd.Dir, set it before calling this function,
+// so PWD will be set correctly in the environment.
 func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
 	if cmd.Env != nil {
 		panic("environment already set")
 	}
-	for _, env := range os.Environ() {
+	for _, env := range cmd.Environ() {
 		// Exclude GODEBUG from the environment to prevent its output
 		// from breaking tests that are trying to parse other command output.
 		if strings.HasPrefix(env, "GODEBUG=") {
@@ -163,8 +166,8 @@ func CommandContext(t testing.TB, ctx context.Context, name string, args ...stri
 			// grace periods to clean up: one for the delay between the first
 			// termination signal being sent (via the Cancel callback when the Context
 			// expires) and the process being forcibly terminated (via the WaitDelay
-			// field), and a second one for the delay becween the process being
-			// terminated and and the test logging its output for debugging.
+			// field), and a second one for the delay between the process being
+			// terminated and the test logging its output for debugging.
 			//
 			// (We want to ensure that the test process itself has enough time to
 			// log the output before it is also terminated.)

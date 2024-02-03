@@ -16,7 +16,7 @@
 // Called from msanread.
 TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __msan_read_go(void *addr, uintptr_t sz);
 	MOVD	$__msan_read_go(SB), FARG
 	JMP	msancall<>(SB)
@@ -25,7 +25,7 @@ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
 // Called from instrumented code.
 TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __msan_write_go(void *addr, uintptr_t sz);
 	MOVD	$__msan_write_go(SB), FARG
 	JMP	msancall<>(SB)
@@ -33,7 +33,7 @@ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
 // func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __msan_malloc_go(void *addr, uintptr_t sz);
 	MOVD	$__msan_malloc_go(SB), FARG
 	JMP	msancall<>(SB)
@@ -41,7 +41,7 @@ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
 // func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
 	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVD	sz+8(FP), RARG1
 	// void __msan_free_go(void *addr, uintptr_t sz);
 	MOVD	$__msan_free_go(SB), FARG
 	JMP	msancall<>(SB)
@@ -50,7 +50,7 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
 TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
 	MOVD	dst+0(FP), RARG0
 	MOVD	src+8(FP), RARG1
-	MOVD	size+16(FP), RARG2
+	MOVD	sz+16(FP), RARG2
 	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
 	MOVD	$__msan_memmove(SB), FARG
 	JMP	msancall<>(SB)

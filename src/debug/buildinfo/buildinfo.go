@@ -89,10 +89,10 @@ type exe interface {
 	// ReadData reads and returns up to size bytes starting at virtual address addr.
 	ReadData(addr, size uint64) ([]byte, error)
 
-	// DataStart returns the virtual address of the segment or section that
+	// DataStart returns the virtual address and size of the segment or section that
 	// should contain build information. This is either a specially named section
 	// or the first writable non-zero data segment.
-	DataStart() uint64
+	DataStart() (uint64, uint64)
 }
 
 // readRawBuildInfo extracts the Go toolchain version and module information
@@ -148,13 +148,16 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 		return "", "", errUnrecognizedFormat
 	}
 
-	// Read the first 64kB of dataAddr to find the build info blob.
+	// Read segment or section to find the build info blob.
 	// On some platforms, the blob will be in its own section, and DataStart
 	// returns the address of that section. On others, it's somewhere in the
 	// data segment; the linker puts it near the beginning.
 	// See cmd/link/internal/ld.Link.buildinfo.
-	dataAddr := x.DataStart()
-	data, err := x.ReadData(dataAddr, 64*1024)
+	dataAddr, dataSize := x.DataStart()
+	if dataSize == 0 {
+		return "", "", errNotGoExe
+	}
+	data, err := x.ReadData(dataAddr, dataSize)
 	if err != nil {
 		return "", "", err
 	}
@@ -234,7 +237,7 @@ func hasPlan9Magic(magic []byte) bool {
 
 func decodeString(data []byte) (s string, rest []byte) {
 	u, n := binary.Uvarint(data)
-	if n <= 0 || u >= uint64(len(data)-n) {
+	if n <= 0 || u > uint64(len(data)-n) {
 		return "", nil
 	}
 	return string(data[n : uint64(n)+u]), data[uint64(n)+u:]
@@ -273,18 +276,18 @@ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
 	return nil, errUnrecognizedFormat
 }
 
-func (x *elfExe) DataStart() uint64 {
+func (x *elfExe) DataStart() (uint64, uint64) {
 	for _, s := range x.f.Sections {
 		if s.Name == ".go.buildinfo" {
-			return s.Addr
+			return s.Addr, s.Size
 		}
 	}
 	for _, p := range x.f.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
-			return p.Vaddr
+			return p.Vaddr, p.Memsz
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 // peExe is the PE (Windows Portable Executable) implementation of the exe interface.
@@ -316,7 +319,7 @@ func (x *peExe) ReadData(addr, size uint64) ([]byte, error) {
 	return nil, errUnrecognizedFormat
 }
 
-func (x *peExe) DataStart() uint64 {
+func (x *peExe) DataStart() (uint64, uint64) {
 	// Assume data is first writable section.
 	const (
 		IMAGE_SCN_CNT_CODE               = 0x00000020
@@ -332,10 +335,10 @@ func (x *peExe) DataStart() uint64 {
 	for _, sect := range x.f.Sections {
 		if sect.VirtualAddress != 0 && sect.Size != 0 &&
 			sect.Characteristics&^IMAGE_SCN_ALIGN_32BYTES == IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE {
-			return uint64(sect.VirtualAddress) + x.imageBase()
+			return uint64(sect.VirtualAddress) + x.imageBase(), uint64(sect.VirtualSize)
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 // machoExe is the Mach-O (Apple macOS/iOS) implementation of the exe interface.
@@ -363,11 +366,11 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
 	return nil, errUnrecognizedFormat
 }
 
-func (x *machoExe) DataStart() uint64 {
+func (x *machoExe) DataStart() (uint64, uint64) {
 	// Look for section named "__go_buildinfo".
 	for _, sec := range x.f.Sections {
 		if sec.Name == "__go_buildinfo" {
-			return sec.Addr
+			return sec.Addr, sec.Size
 		}
 	}
 	// Try the first non-empty writable segment.
@@ -375,10 +378,10 @@ func (x *machoExe) DataStart() uint64 {
 	for _, load := range x.f.Loads {
 		seg, ok := load.(*macho.Segment)
 		if ok && seg.Addr != 0 && seg.Filesz != 0 && seg.Prot == RW && seg.Maxprot == RW {
-			return seg.Addr
+			return seg.Addr, seg.Memsz
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 // xcoffExe is the XCOFF (AIX eXtended COFF) implementation of the exe interface.
@@ -399,11 +402,11 @@ func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
 	return nil, errors.New("address not mapped")
 }
 
-func (x *xcoffExe) DataStart() uint64 {
+func (x *xcoffExe) DataStart() (uint64, uint64) {
 	if s := x.f.SectionByType(xcoff.STYP_DATA); s != nil {
-		return s.VirtualAddress
+		return s.VirtualAddress, s.Size
 	}
-	return 0
+	return 0, 0
 }
 
 // plan9objExe is the Plan 9 a.out implementation of the exe interface.
@@ -411,11 +414,11 @@ type plan9objExe struct {
 	f *plan9obj.File
 }
 
-func (x *plan9objExe) DataStart() uint64 {
+func (x *plan9objExe) DataStart() (uint64, uint64) {
 	if s := x.f.Section("data"); s != nil {
-		return uint64(s.Offset)
+		return uint64(s.Offset), uint64(s.Size)
 	}
-	return 0
+	return 0, 0
 }
 
 func (x *plan9objExe) ReadData(addr, size uint64) ([]byte, error) {

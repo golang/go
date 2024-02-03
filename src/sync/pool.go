@@ -76,7 +76,8 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrandn(n uint32) uint32
+//go:linkname runtime_randn runtime.randn
+func runtime_randn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -97,7 +98,7 @@ func (p *Pool) Put(x any) {
 		return
 	}
 	if race.Enabled {
-		if fastrandn(4) == 0 {
+		if runtime_randn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}
@@ -196,6 +197,13 @@ func (p *Pool) getSlow(pid int) any {
 // returns poolLocal pool for the P and the P's id.
 // Caller must call runtime_procUnpin() when done with the pool.
 func (p *Pool) pin() (*poolLocal, int) {
+	// Check whether p is nil to get a panic.
+	// Otherwise the nil dereference happens while the m is pinned,
+	// causing a fatal error rather than a panic.
+	if p == nil {
+		panic("nil Pool")
+	}
+
 	pid := runtime_procPin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.

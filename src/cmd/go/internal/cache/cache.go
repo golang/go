@@ -477,7 +477,7 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 	return nil
 }
 
-// noVerifyReadSeeker is a io.ReadSeeker wrapper sentinel type
+// noVerifyReadSeeker is an io.ReadSeeker wrapper sentinel type
 // that says that Cache.Put should skip the verify check
 // (from GODEBUG=goverifycache=1).
 type noVerifyReadSeeker struct {

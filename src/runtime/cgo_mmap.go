@@ -4,7 +4,7 @@
 
 // Support for memory sanitizer. See runtime/cgo/mmap.go.
 
-//go:build (linux && amd64) || (linux && arm64) || (freebsd && amd64)
+//go:build (linux && (amd64 || arm64 || loong64)) || (freebsd && amd64)
 
 package runtime
 

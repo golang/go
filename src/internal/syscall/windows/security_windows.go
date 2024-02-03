@@ -126,3 +126,9 @@ type UserInfo4 struct {
 }
 
 //sys	NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, flags uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32) (neterr error) = netapi32.NetUserGetLocalGroups
+
+// GetSystemDirectory retrieves the path to current location of the system
+// directory, which is typically, though not always, `C:\Windows\System32`.
+//
+//go:linkname GetSystemDirectory
+func GetSystemDirectory() string // Implemented in runtime package.

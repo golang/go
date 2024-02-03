@@ -140,7 +140,7 @@ func Compare(v, w string) int {
 // Max canonicalizes its arguments and then returns the version string
 // that compares greater.
 //
-// Deprecated: use Compare instead. In most cases, returning a canonicalized
+// Deprecated: use [Compare] instead. In most cases, returning a canonicalized
 // version is not expected or desired.
 func Max(v, w string) string {
 	v = Canonical(v)
@@ -151,7 +151,7 @@ func Max(v, w string) string {
 	return w
 }
 
-// ByVersion implements sort.Interface for sorting semantic version strings.
+// ByVersion implements [sort.Interface] for sorting semantic version strings.
 type ByVersion []string
 
 func (vs ByVersion) Len() int      { return len(vs) }
@@ -164,7 +164,7 @@ func (vs ByVersion) Less(i, j int) bool {
 	return vs[i] < vs[j]
 }
 
-// Sort sorts a list of semantic version strings using ByVersion.
+// Sort sorts a list of semantic version strings using [ByVersion].
 func Sort(list []string) {
 	sort.Sort(ByVersion(list))
 }

@@ -326,10 +326,10 @@ type BadPathEmbeddedB struct {
 var badPathTests = []struct {
 	v, e any
 }{
-	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
-	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
-	{&BadPathTestC{}, &TagPathError{reflect.TypeOf(BadPathTestC{}), "First", "", "Second", "First"}},
-	{&BadPathTestD{}, &TagPathError{reflect.TypeOf(BadPathTestD{}), "First", "", "Second", "First"}},
+	{&BadPathTestA{}, &TagPathError{reflect.TypeFor[BadPathTestA](), "First", "items>item1", "Second", "items"}},
+	{&BadPathTestB{}, &TagPathError{reflect.TypeFor[BadPathTestB](), "First", "items>item1", "Second", "items>item1>value"}},
+	{&BadPathTestC{}, &TagPathError{reflect.TypeFor[BadPathTestC](), "First", "", "Second", "First"}},
+	{&BadPathTestD{}, &TagPathError{reflect.TypeFor[BadPathTestD](), "First", "", "Second", "First"}},
 }
 
 func TestUnmarshalBadPaths(t *testing.T) {

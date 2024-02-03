@@ -1,5 +1,5 @@
 # setup
-env TESTGO_VERSION=go1.99.0
+env TESTGO_VERSION=go1.99rc1
 env TESTGO_VERSION_SWITCH=switch
 
 # go get go should use the latest Go 1.23
@@ -7,28 +7,28 @@ cp go.mod.orig go.mod
 go get go
 stderr '^go: upgraded go 1.21 => 1.23.9$'
 grep 'go 1.23.9' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # go get go@1.23 should use the latest Go 1.23
 cp go.mod.orig go.mod
 go get go@1.23
 stderr '^go: upgraded go 1.21 => 1.23.9$'
 grep 'go 1.23.9' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # go get go@1.22 should use the latest Go 1.22
 cp go.mod.orig go.mod
 go get go@1.22
 stderr '^go: upgraded go 1.21 => 1.22.9$'
 grep 'go 1.22.9' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # go get go@patch should use the latest patch release
 go get go@1.22.1
 go get go@patch
 stderr '^go: upgraded go 1.22.1 => 1.22.9$'
 grep 'go 1.22.9' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # go get go@1.24 does NOT find the release candidate
 cp go.mod.orig go.mod
@@ -40,20 +40,20 @@ cp go.mod.orig go.mod
 go get go@1.24rc1
 stderr '^go: upgraded go 1.21 => 1.24rc1$'
 grep 'go 1.24rc1' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # go get go@latest finds the latest Go 1.23
 cp go.mod.orig go.mod
 go get go@latest
 stderr '^go: upgraded go 1.21 => 1.23.9$'
 grep 'go 1.23.9' go.mod
-grep 'toolchain go1.99.0' go.mod
+grep 'toolchain go1.99rc1' go.mod
 
 # Again, with toolchains.
 
 # go get toolchain should find go1.999testmod.
 go get toolchain
-stderr '^go: upgraded toolchain go1.99.0 => go1.999testmod$'
+stderr '^go: upgraded toolchain go1.99rc1 => go1.999testmod$'
 grep 'go 1.23.9' go.mod
 grep 'toolchain go1.999testmod' go.mod
 
@@ -95,6 +95,33 @@ go get toolchain@latest
 stderr '^go: added toolchain go1.999testmod$'
 grep 'go 1.21' go.mod
 grep 'toolchain go1.999testmod' go.mod
+
+# Bug fixes.
+
+# go get go@garbage should fail but not crash
+! go get go@garbage
+! stderr panic
+stderr '^go: invalid go version garbage$'
+
+# go get go@go1.21.0 is OK - we silently correct to 1.21.0
+go get go@1.19
+go get go@go1.21.0
+stderr '^go: upgraded go 1.19 => 1.21.0'
+
+# go get toolchain@1.24rc1 is OK too.
+go get toolchain@1.24rc1
+stderr '^go: downgraded toolchain go1.999testmod => go1.24rc1$'
+
+# go get go@1.21 should work if we are the Go 1.21 language version,
+# even though there's no toolchain for it.
+# (Older versions resolve to the latest release in that version, so for example
+# go get go@1.20 might resolve to 1.20.9, but if we're the devel copy of
+# Go 1.21, there's no release yet to resolve to, so we resolve to ourselves.)
+env TESTGO_VERSION=go1.21
+go get go@1.19 toolchain@none
+go get go@1.21
+grep 'go 1.21$' go.mod
+! grep toolchain go.mod
 
 -- go.mod.orig --
 module m

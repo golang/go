@@ -17,8 +17,10 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"internal/godebug"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -524,6 +526,10 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
+	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
+		tlsrsakex.IncNonDefault()
+	}
+
 	hs.c.cipherSuite = hs.suite.id
 	return nil
 }
@@ -936,6 +942,24 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 	return nil
 }
 
+// defaultMaxRSAKeySize is the maximum RSA key size in bits that we are willing
+// to verify the signatures of during a TLS handshake.
+const defaultMaxRSAKeySize = 8192
+
+var tlsmaxrsasize = godebug.New("tlsmaxrsasize")
+
+func checkKeySize(n int) (max int, ok bool) {
+	if v := tlsmaxrsasize.Value(); v != "" {
+		if max, err := strconv.Atoi(v); err == nil {
+			if (n <= max) != (n <= defaultMaxRSAKeySize) {
+				tlsmaxrsasize.IncNonDefault()
+			}
+			return max, n <= max
+		}
+	}
+	return defaultMaxRSAKeySize, n <= defaultMaxRSAKeySize
+}
+
 // verifyServerCertificate parses and verifies the provided chain, setting
 // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
 func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
@@ -946,6 +970,13 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
+		}
+		if cert.cert.PublicKeyAlgorithm == x509.RSA {
+			n := cert.cert.PublicKey.(*rsa.PublicKey).N.BitLen()
+			if max, ok := checkKeySize(n); !ok {
+				c.sendAlert(alertBadCertificate)
+				return fmt.Errorf("tls: server sent certificate containing RSA key larger than %d bits", max)
+			}
 		}
 		activeHandles[i] = cert
 		certs[i] = cert.cert

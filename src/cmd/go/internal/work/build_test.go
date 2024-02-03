@@ -222,15 +222,13 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	var b Builder
-
 	// Check that `cp` is called instead of `mv` by looking at the output
-	// of `(*Builder).ShowCmd` afterwards as a sanity check.
+	// of `(*Shell).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf strings.Builder
-	b.Print = func(a ...any) (int, error) {
+	sh := NewShell("", func(a ...any) (int, error) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
-	}
+	})
 
 	setgiddir, err := os.MkdirTemp("", "SetGroupID")
 	if err != nil {
@@ -271,12 +269,12 @@ func TestRespectSetgidDir(t *testing.T) {
 	defer pkgfile.Close()
 
 	dirGIDFile := filepath.Join(setgiddir, "setgid")
-	if err := b.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
+	if err := sh.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
 		t.Fatalf("moveOrCopyFile: %v", err)
 	}
 
 	got := strings.TrimSpace(cmdBuf.String())
-	want := b.fmtcmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
+	want := sh.fmtCmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
 	if got != want {
 		t.Fatalf("moveOrCopyFile(%q, %q): want %q, got %q", dirGIDFile, pkgfile.Name(), want, got)
 	}

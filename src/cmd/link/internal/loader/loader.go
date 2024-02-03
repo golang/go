@@ -27,7 +27,7 @@ var _ = fmt.Print
 
 // Sym encapsulates a global symbol index, used to identify a specific
 // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
-type Sym uint32
+type Sym = sym.LoaderSym
 
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
@@ -988,7 +988,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
 	return l.attrExternal.Has(l.extIndex(i))
 }
 
-// SetAttrExternal sets the "external" property for an host object
+// SetAttrExternal sets the "external" property for a host object
 // symbol (see AttrExternal).
 func (l *Loader) SetAttrExternal(i Sym, v bool) {
 	if !l.IsExternal(i) {
@@ -1314,14 +1314,6 @@ func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
 		l.symSects = append(l.symSects, make([]uint16, l.NSym()-len(l.symSects))...)
 	}
 	l.symSects[i] = sect.Index
-}
-
-// growSects grows the slice used to store symbol sections.
-func (l *Loader) growSects(reqLen int) {
-	curLen := len(l.symSects)
-	if reqLen > curLen {
-		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
-	}
 }
 
 // NewSection creates a new (output) section.

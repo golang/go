@@ -215,6 +215,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FNMULD,
 		ssa.OpARM64FDIVS,
 		ssa.OpARM64FDIVD,
+		ssa.OpARM64FMINS,
+		ssa.OpARM64FMIND,
+		ssa.OpARM64FMAXS,
+		ssa.OpARM64FMAXD,
 		ssa.OpARM64ROR,
 		ssa.OpARM64RORW:
 		r := v.Reg()

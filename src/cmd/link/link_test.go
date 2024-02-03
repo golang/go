@@ -8,9 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"debug/macho"
+	"errors"
 	"internal/platform"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -265,9 +267,9 @@ func TestBuildForTvOS(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
-	// Only run this on darwin/amd64, where we can cross build for tvOS.
-	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
-		t.Skip("skipping on non-darwin/amd64 platform")
+	// Only run this on darwin, where we can cross build for tvOS.
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping on non-darwin platform")
 	}
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
@@ -296,14 +298,16 @@ func TestBuildForTvOS(t *testing.T) {
 
 	ar := filepath.Join(tmpDir, "lib.a")
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
-	cmd.Env = append(os.Environ(),
+	env := []string{
 		"CGO_ENABLED=1",
 		"GOOS=ios",
 		"GOARCH=arm64",
-		"CC="+strings.Join(CC, " "),
+		"CC=" + strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
-		"CGO_LDFLAGS="+strings.Join(CGO_LDFLAGS, " "),
-	)
+		"CGO_LDFLAGS=" + strings.Join(CGO_LDFLAGS, " "),
+	}
+	cmd.Env = append(os.Environ(), env...)
+	t.Logf("%q %v", env, cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
@@ -312,6 +316,7 @@ func TestBuildForTvOS(t *testing.T) {
 	link.Args = append(link.Args, CGO_LDFLAGS...)
 	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
+	t.Log(link)
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
@@ -1167,6 +1172,86 @@ func TestUnlinkableObj(t *testing.T) {
 	}
 }
 
+func TestExtLinkCmdlineDeterminism(t *testing.T) {
+	// Test that we pass flags in deterministic order to the external linker
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t) // this test requires -linkmode=external
+	t.Parallel()
+
+	// test source code, with some cgo exports
+	testSrc := `
+package main
+import "C"
+//export F1
+func F1() {}
+//export F2
+func F2() {}
+//export F3
+func F3() {}
+func main() {}
+`
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(testSrc), 0666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "x.exe")
+
+	// Use a deterministc tmp directory so the temporary file paths are
+	// deterministc.
+	linktmp := filepath.Join(tmpdir, "linktmp")
+	if err := os.Mkdir(linktmp, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	// Link with -v -linkmode=external to see the flags we pass to the
+	// external linker.
+	ldflags := "-ldflags=-v -linkmode=external -tmpdir=" + linktmp
+	var out0 []byte
+	for i := 0; i < 5; i++ {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", ldflags, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed: %v, output:\n%s", err, out)
+		}
+		if err := os.Remove(exe); err != nil {
+			t.Fatal(err)
+		}
+
+		// extract the "host link" invocaton
+		j := bytes.Index(out, []byte("\nhost link:"))
+		if j == -1 {
+			t.Fatalf("host link step not found, output:\n%s", out)
+		}
+		out = out[j+1:]
+		k := bytes.Index(out, []byte("\n"))
+		if k == -1 {
+			t.Fatalf("no newline after host link, output:\n%s", out)
+		}
+		out = out[:k]
+
+		// filter out output file name, which is passed by the go
+		// command and is nondeterministic.
+		fs := bytes.Fields(out)
+		for i, f := range fs {
+			if bytes.Equal(f, []byte(`"-o"`)) && i+1 < len(fs) {
+				fs[i+1] = []byte("a.out")
+				break
+			}
+		}
+		out = bytes.Join(fs, []byte{' '})
+
+		if i == 0 {
+			out0 = out
+			continue
+		}
+		if !bytes.Equal(out0, out) {
+			t.Fatalf("output differ:\n%s\n==========\n%s", out0, out)
+		}
+	}
+}
+
 // TestResponseFile tests that creating a response file to pass to the
 // external linker works correctly.
 func TestResponseFile(t *testing.T) {
@@ -1207,5 +1292,86 @@ func TestResponseFile(t *testing.T) {
 	}
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDynimportVar(t *testing.T) {
+	// Test that we can access dynamically imported variables.
+	// Currently darwin only.
+	if runtime.GOOS != "darwin" {
+		t.Skip("skip on non-darwin platform")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	exe := filepath.Join(tmpdir, "a.exe")
+	src := filepath.Join("testdata", "dynimportvar", "main.go")
+
+	for _, mode := range []string{"internal", "external"} {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode="+mode, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (linkmode=%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = testenv.Command(t, exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
+		}
+	}
+}
+
+const helloSrc = `
+package main
+var X = 42
+var Y int
+func main() { println("hello", X, Y) }
+`
+
+func TestFlagS(t *testing.T) {
+	// Test that the -s flag strips the symbol table.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	exe := filepath.Join(tmpdir, "a.exe")
+	src := filepath.Join(tmpdir, "a.go")
+	err := os.WriteFile(src, []byte(helloSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	modes := []string{"auto"}
+	if testenv.HasCGO() {
+		modes = append(modes, "external")
+	}
+
+	// check a text symbol, a data symbol, and a BSS symbol
+	syms := []string{"main.main", "main.X", "main.Y"}
+
+	for _, mode := range modes {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-s -linkmode="+mode, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build (linkmode=%s) failed: %v\n%s", mode, err, out)
+		}
+		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil && !errors.As(err, new(*exec.ExitError)) {
+			// Error exit is fine as it may have no symbols.
+			// On darwin we need to emit dynamic symbol references so it
+			// actually has some symbols, and nm succeeds.
+			t.Errorf("(mode=%s) go tool nm failed: %v\n%s", mode, err, out)
+		}
+		for _, s := range syms {
+			if bytes.Contains(out, []byte(s)) {
+				t.Errorf("(mode=%s): unexpected symbol %s", mode, s)
+			}
+		}
 	}
 }

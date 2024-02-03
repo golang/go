@@ -286,7 +286,12 @@ func Cause(c Context) error {
 		defer cc.mu.Unlock()
 		return cc.cause
 	}
-	return nil
+	// There is no cancelCtxKey value, so we know that c is
+	// not a descendant of some Context created by WithCancelCause.
+	// Therefore, there is no specific cause to return.
+	// If this is not one of the standard Context types,
+	// it might still have an error even though it won't have a cause.
+	return c.Err()
 }
 
 // AfterFunc arranges to call f in its own goroutine after ctx is done

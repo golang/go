@@ -55,6 +55,7 @@ var hashDebug *HashDebug
 
 var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
 var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
+var PGOHash *HashDebug     // for debugging PGO optimization decisions
 
 // DebugHashMatchPkgFunc reports whether debug variable Gossahash
 //
@@ -203,7 +204,6 @@ func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
 		i++
 	}
 	return hd
-
 }
 
 // TODO: Delete when we switch to bisect-only.
@@ -274,8 +274,36 @@ func (d *HashDebug) MatchPos(pos src.XPos, desc func() string) bool {
 }
 
 func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) bool {
+	return d.matchPosWithInfo(ctxt, pos, nil, note)
+}
+
+func (d *HashDebug) matchPosWithInfo(ctxt *obj.Link, pos src.XPos, info any, note func() string) bool {
 	hash := d.hashPos(ctxt, pos)
-	return d.matchAndLog(hash, func() string { return d.fmtPos(ctxt, pos) }, note)
+	if info != nil {
+		hash = bisect.Hash(hash, info)
+	}
+	return d.matchAndLog(hash,
+		func() string {
+			r := d.fmtPos(ctxt, pos)
+			if info != nil {
+				r += fmt.Sprintf(" (%v)", info)
+			}
+			return r
+		},
+		note)
+}
+
+// MatchPosWithInfo is similar to MatchPos, but with additional information
+// that is included for hash computation, so it can distinguish multiple
+// matches on the same source location.
+// Note that the default answer for no environment variable (d == nil)
+// is "yes", do the thing.
+func (d *HashDebug) MatchPosWithInfo(pos src.XPos, info any, desc func() string) bool {
+	if d == nil {
+		return true
+	}
+	// Written this way to make inlining likely.
+	return d.matchPosWithInfo(Ctxt, pos, info, desc)
 }
 
 // matchAndLog is the core matcher. It reports whether the hash matches the pattern.

@@ -1,5 +1,5 @@
 // cmd/7c/7.out.h  from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/src/cmd/7c/7.out.h
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/src/cmd/7c/7.out.h
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -341,21 +341,21 @@ const (
 	// optab is sorted based on the order of these constants
 	// and the first match is chosen.
 	// The more specific class needs to come earlier.
-	C_NONE   = iota
-	C_REG    // R0..R30
-	C_ZREG   // R0..R30, ZR
-	C_RSP    // R0..R30, RSP
-	C_FREG   // F0..F31
-	C_VREG   // V0..V31
-	C_PAIR   // (Rn, Rm)
-	C_SHIFT  // Rn<<2
-	C_EXTREG // Rn.UXTB[<<3]
-	C_SPR    // REG_NZCV
-	C_COND   // condition code, EQ, NE, etc.
-	C_SPOP   // special operand, PLDL1KEEP, VMALLE1IS, etc.
-	C_ARNG   // Vn.<T>
-	C_ELEM   // Vn.<T>[index]
-	C_LIST   // [V1, V2, V3]
+	C_NONE   = iota + 1 // starting from 1, leave unclassified Addr's class as 0
+	C_REG               // R0..R30
+	C_ZREG              // R0..R30, ZR
+	C_RSP               // R0..R30, RSP
+	C_FREG              // F0..F31
+	C_VREG              // V0..V31
+	C_PAIR              // (Rn, Rm)
+	C_SHIFT             // Rn<<2
+	C_EXTREG            // Rn.UXTB[<<3]
+	C_SPR               // REG_NZCV
+	C_COND              // condition code, EQ, NE, etc.
+	C_SPOP              // special operand, PLDL1KEEP, VMALLE1IS, etc.
+	C_ARNG              // Vn.<T>
+	C_ELEM              // Vn.<T>[index]
+	C_LIST              // [V1, V2, V3]
 
 	C_ZCON     // $0
 	C_ABCON0   // could be C_ADDCON0 or C_BITCON
@@ -414,7 +414,8 @@ const (
 	C_UAUTO32K_16 // 0 to 32760, 0 mod 16 + C_PSAUTO
 	C_UAUTO32K    // 0 to 32760, 0 mod 8 + C_PSAUTO
 	C_UAUTO64K    // 0 to 65520, 0 mod 16 + C_PSAUTO
-	C_LAUTO       // any other 32-bit constant
+	C_LAUTOPOOL   // any other constant up to 64 bits (needs pool literal)
+	C_LAUTO       // any other constant up to 64 bits
 
 	C_SEXT1  // 0 to 4095, direct
 	C_SEXT2  // 0 to 8190
@@ -454,6 +455,7 @@ const (
 	C_UOREG32K_16
 	C_UOREG32K
 	C_UOREG64K
+	C_LOREGPOOL
 	C_LOREG
 
 	C_ADDR // TODO(aram): explain difference from C_VCONADDR

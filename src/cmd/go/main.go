@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go test cmd/go -v -run=TestDocsUpToDate -fixdocs
+//go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
 
 package main
 
 import (
-	"cmd/go/internal/toolchain"
-	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
 	"fmt"
@@ -16,7 +14,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	rtrace "runtime/trace"
 	"slices"
 	"strings"
@@ -30,7 +27,6 @@ import (
 	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
-	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -40,10 +36,14 @@ import (
 	"cmd/go/internal/run"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/version"
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
+	"cmd/go/internal/workcmd"
+
+	"golang.org/x/telemetry/counter"
 )
 
 func init() {
@@ -75,11 +75,9 @@ func init() {
 		help.HelpFileType,
 		modload.HelpGoMod,
 		help.HelpGopath,
-		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
-		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
 		help.HelpPackages,
 		modfetch.HelpPrivate,
@@ -93,6 +91,7 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
+	counter.Open() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
@@ -104,23 +103,25 @@ func main() {
 		base.Usage()
 	}
 
-	if args[0] == "get" || args[0] == "help" {
-		if !modload.WillBeEnabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
-		}
-	}
-
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
 		help.Help(os.Stdout, args[1:])
 		return
 	}
 
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
+	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+		os.Exit(2)
+	}
+
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(runtime.GOROOT()) {
+	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(cfg.GOROOT) {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
@@ -149,15 +150,6 @@ func main() {
 		}
 	}
 
-	if cfg.GOROOT == "" {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
-		os.Exit(2)
-	}
-	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
-		os.Exit(2)
-	}
-
 	cmd, used := lookupCmd(args)
 	cfg.CmdName = strings.Join(args[:used], " ")
 	if len(cmd.Commands) > 0 {
@@ -175,7 +167,11 @@ func main() {
 		if used > 0 {
 			helpArg += " " + strings.Join(args[:used], " ")
 		}
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		cmdName := cfg.CmdName
+		if cmdName == "" {
+			cmdName = args[0]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -300,10 +296,10 @@ func maybeStartTrace(pctx context.Context) context.Context {
 //
 // We have to handle the -C flag this way for two reasons:
 //
-//   1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
+//  1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
 //
-//   2. A toolchain switch later on reinvokes the new go command with the same arguments.
-//      The parent toolchain has already done the chdir; the child must not try to do it again.
+//  2. A toolchain switch later on reinvokes the new go command with the same arguments.
+//     The parent toolchain has already done the chdir; the child must not try to do it again.
 func handleChdirFlag() {
 	_, used := lookupCmd(os.Args[1:])
 	used++ // because of [1:]

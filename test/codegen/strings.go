@@ -67,4 +67,14 @@ func ConstantLoad() {
 	bsink = []byte("0123456789ab")
 }
 
+// self-equality is always true. See issue 60777.
+func EqualSelf(s string) bool {
+	// amd64:`MOVL\t\$1, AX`,-`.*memequal.*`
+	return s == s
+}
+func NotEqualSelf(s string) bool {
+	// amd64:`XORL\tAX, AX`,-`.*memequal.*`
+	return s != s
+}
+
 var bsink []byte

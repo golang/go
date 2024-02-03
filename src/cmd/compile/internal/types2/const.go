@@ -73,7 +73,6 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 
 	sizeof := func(T Type) int64 {
 		s := conf.sizeof(T)
-		assert(s == 4 || s == 8)
 		return s
 	}
 

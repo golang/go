@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 func TestHmapSize(t *testing.T) {
@@ -1254,5 +1255,212 @@ func TestMapInterfaceKey(t *testing.T) {
 	m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] = true
 	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
 		panic("array not found")
+	}
+}
+
+type panicStructKey struct {
+	sli []int
+}
+
+func (p panicStructKey) String() string {
+	return "panic"
+}
+
+type structKey struct {
+}
+
+func (structKey) String() string {
+	return "structKey"
+}
+
+func TestEmptyMapWithInterfaceKey(t *testing.T) {
+	var (
+		b    bool
+		i    int
+		i8   int8
+		i16  int16
+		i32  int32
+		i64  int64
+		ui   uint
+		ui8  uint8
+		ui16 uint16
+		ui32 uint32
+		ui64 uint64
+		uipt uintptr
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		a    [4]string
+		s    string
+		p    *int
+		up   unsafe.Pointer
+		ch   chan int
+		i0   any
+		i1   interface {
+			String() string
+		}
+		structKey structKey
+		i0Panic   any = []int{}
+		i1Panic   interface {
+			String() string
+		} = panicStructKey{}
+		panicStructKey = panicStructKey{}
+		sli            []int
+		me             = map[any]struct{}{}
+		mi             = map[interface {
+			String() string
+		}]struct{}{}
+	)
+	mustNotPanic := func(f func()) {
+		f()
+	}
+	mustPanic := func(f func()) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("didn't panic")
+			}
+		}()
+		f()
+	}
+	mustNotPanic(func() {
+		_ = me[b]
+	})
+	mustNotPanic(func() {
+		_ = me[i]
+	})
+	mustNotPanic(func() {
+		_ = me[i8]
+	})
+	mustNotPanic(func() {
+		_ = me[i16]
+	})
+	mustNotPanic(func() {
+		_ = me[i32]
+	})
+	mustNotPanic(func() {
+		_ = me[i64]
+	})
+	mustNotPanic(func() {
+		_ = me[ui]
+	})
+	mustNotPanic(func() {
+		_ = me[ui8]
+	})
+	mustNotPanic(func() {
+		_ = me[ui16]
+	})
+	mustNotPanic(func() {
+		_ = me[ui32]
+	})
+	mustNotPanic(func() {
+		_ = me[ui64]
+	})
+	mustNotPanic(func() {
+		_ = me[uipt]
+	})
+	mustNotPanic(func() {
+		_ = me[f32]
+	})
+	mustNotPanic(func() {
+		_ = me[f64]
+	})
+	mustNotPanic(func() {
+		_ = me[c64]
+	})
+	mustNotPanic(func() {
+		_ = me[c128]
+	})
+	mustNotPanic(func() {
+		_ = me[a]
+	})
+	mustNotPanic(func() {
+		_ = me[s]
+	})
+	mustNotPanic(func() {
+		_ = me[p]
+	})
+	mustNotPanic(func() {
+		_ = me[up]
+	})
+	mustNotPanic(func() {
+		_ = me[ch]
+	})
+	mustNotPanic(func() {
+		_ = me[i0]
+	})
+	mustNotPanic(func() {
+		_ = me[i1]
+	})
+	mustNotPanic(func() {
+		_ = me[structKey]
+	})
+	mustPanic(func() {
+		_ = me[i0Panic]
+	})
+	mustPanic(func() {
+		_ = me[i1Panic]
+	})
+	mustPanic(func() {
+		_ = me[panicStructKey]
+	})
+	mustPanic(func() {
+		_ = me[sli]
+	})
+	mustPanic(func() {
+		_ = me[me]
+	})
+
+	mustNotPanic(func() {
+		_ = mi[structKey]
+	})
+	mustPanic(func() {
+		_ = mi[panicStructKey]
+	})
+}
+
+func TestLoadFactor(t *testing.T) {
+	for b := uint8(0); b < 20; b++ {
+		count := 13 * (1 << b) / 2 // 6.5
+		if b == 0 {
+			count = 8
+		}
+		if runtime.OverLoadFactor(count, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
+		}
+		if !runtime.OverLoadFactor(count+1, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
+		}
+	}
+}
+
+func TestMapKeys(t *testing.T) {
+	type key struct {
+		s   string
+		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
+	}
+	m := map[key]int{{s: "a"}: 1, {s: "b"}: 2}
+	keys := make([]key, 0, len(m))
+	runtime.MapKeys(m, unsafe.Pointer(&keys))
+	for _, k := range keys {
+		if len(k.s) != 1 {
+			t.Errorf("len(k.s) == %d, want 1", len(k.s))
+		}
+	}
+}
+
+func TestMapValues(t *testing.T) {
+	type val struct {
+		s   string
+		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes
+	}
+	m := map[int]val{1: {s: "a"}, 2: {s: "b"}}
+	vals := make([]val, 0, len(m))
+	runtime.MapValues(m, unsafe.Pointer(&vals))
+	for _, v := range vals {
+		if len(v.s) != 1 {
+			t.Errorf("len(v.s) == %d, want 1", len(v.s))
+		}
 	}
 }

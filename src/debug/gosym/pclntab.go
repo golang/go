@@ -29,7 +29,7 @@ const (
 
 // A LineTable is a data structure mapping program counters to line numbers.
 //
-// In Go 1.1 and earlier, each function (represented by a Func) had its own LineTable,
+// In Go 1.1 and earlier, each function (represented by a [Func]) had its own LineTable,
 // and the line number corresponded to a numbering of all source lines in the
 // program, across all files. That absolute line number would then have to be
 // converted separately to a file name and line number within the file.
@@ -39,7 +39,7 @@ const (
 // numbers, just line numbers within specific files.
 //
 // For the most part, LineTable's methods should be treated as an internal
-// detail of the package; callers should use the methods on Table instead.
+// detail of the package; callers should use the methods on [Table] instead.
 type LineTable struct {
 	Data []byte
 	PC   uint64
@@ -148,7 +148,11 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 // NewLineTable returns a new PC/line table
 // corresponding to the encoded data.
 // Text must be the start address of the
-// corresponding text segment.
+// corresponding text segment, with the exact
+// value stored in the 'runtime.text' symbol.
+// This value may differ from the start
+// address of the text segment if
+// binary was built with cgo enabled.
 func NewLineTable(data []byte, text uint64) *LineTable {
 	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
 }

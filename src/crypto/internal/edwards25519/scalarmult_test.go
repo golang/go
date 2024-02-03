@@ -10,10 +10,6 @@ import (
 )
 
 var (
-	// quickCheckConfig32 will make each quickcheck test run (32 * -quickchecks)
-	// times. The default value of -quickchecks is 100.
-	quickCheckConfig32 = &quick.Config{MaxCountScale: 1 << 5}
-
 	// a random scalar generated using dalek.
 	dalekScalar, _ = (&Scalar{}).SetCanonicalBytes([]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
 	// the above, times the edwards25519 basepoint.
@@ -83,7 +79,7 @@ func TestScalarMultDistributesOverAdd(t *testing.T) {
 		return check.Equal(&r) == 1
 	}
 
-	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -105,7 +101,7 @@ func TestScalarMultNonIdentityPoint(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -149,7 +145,7 @@ func TestScalarMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&q) == 1
 	}
 
-	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }
@@ -177,7 +173,7 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
 		return p.Equal(&check) == 1
 	}
 
-	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig32); err != nil {
+	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
 		t.Error(err)
 	}
 }

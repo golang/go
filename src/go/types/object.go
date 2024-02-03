@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -52,7 +53,9 @@ type Object interface {
 	setParent(*Scope)
 
 	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
-	sameId(pkg *Package, name string) bool
+	// If foldCase is true, names are considered equal if they are equal with case folding
+	// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
+	sameId(pkg *Package, name string, foldCase bool) bool
 
 	// scopePos returns the start position of the scope of this Object
 	scopePos() token.Pos
@@ -165,26 +168,24 @@ func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = 
 func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
 func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
 
-func (obj *object) sameId(pkg *Package, name string) bool {
+func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
+	// If we don't care about capitalization, we also ignore packages.
+	if foldCase && strings.EqualFold(obj.name, name) {
+		return true
+	}
 	// spec:
 	// "Two identifiers are different if they are spelled differently,
 	// or if they appear in different packages and are not exported.
 	// Otherwise, they are the same."
-	if name != obj.name {
+	if obj.name != name {
 		return false
 	}
 	// obj.Name == name
 	if obj.Exported() {
 		return true
 	}
-	// not exported, so packages must be the same (pkg == nil for
-	// fields in Universe scope; this can only happen for types
-	// introduced via Eval)
-	if pkg == nil || obj.pkg == nil {
-		return pkg == obj.pkg
-	}
-	// pkg != nil && obj.pkg != nil
-	return pkg.path == obj.pkg.path
+	// not exported, so packages must be the same
+	return samePkg(obj.pkg, pkg)
 }
 
 // less reports whether object a is ordered before object b.
@@ -287,6 +288,8 @@ func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
 	case nil:
 		return false
+	// case *Alias:
+	//	handled by default case
 	case *Basic:
 		// unsafe.Pointer is not an alias.
 		if obj.pkg == Unsafe {
@@ -407,6 +410,12 @@ func (obj *Func) Origin() *Func {
 	}
 	return obj
 }
+
+// Pkg returns the package to which the function belongs.
+//
+// The result is nil for methods of types in the Universe scope,
+// like method Error of the error built-in interface type.
+func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
 
 // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
 func (obj *Func) hasPtrRecv() bool {

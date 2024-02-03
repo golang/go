@@ -394,6 +394,8 @@ const (
 	AROTRV
 	ASC
 	ASCV
+	ASEB
+	ASEH
 	ASGT
 	ASGTU
 	ASLL
@@ -415,6 +417,7 @@ const (
 	ATLBWR
 	ATNE
 	AWORD
+	AWSBH
 	AXOR
 
 	/* 64-bit */
@@ -434,6 +437,8 @@ const (
 	AADDVU
 	ASUBV
 	ASUBVU
+	ADSBH
+	ADSHD
 
 	/* 64-bit FP */
 	ATRUNCFV

@@ -563,11 +563,11 @@ function viewer(baseUrl, nodes, options) {
     return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
   }
 
-  function setSampleIndexLink(id) {
-    const elem = document.getElementById(id);
+  function setSampleIndexLink(si) {
+    const elem = document.getElementById('sampletype-' + si);
     if (elem != null) {
       setHrefParams(elem, function (params) {
-        params.set("si", id);
+        params.set("si", si);
       });
     }
   }
@@ -682,8 +682,10 @@ function viewer(baseUrl, nodes, options) {
     toptable.addEventListener('touchstart', handleTopClick);
   }
 
-  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'flamegraph2', 'peek', 'list',
-	       'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
+  const ids = ['topbtn', 'graphbtn',
+               'flamegraph', 'flamegraph2', 'flamegraphold',
+               'peek', 'list',
+               'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
   ids.forEach(makeSearchLinkDynamic);
 
   const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];

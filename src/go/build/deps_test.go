@@ -45,20 +45,26 @@ var depsRules = `
 	  internal/cpu, internal/goarch, internal/godebugs,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
+	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
 	# These packages depend only on internal/goarch and unsafe.
 	internal/goarch, unsafe
-	< internal/abi;
+	< internal/abi, internal/chacha8rand;
 
 	unsafe < maps;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/abi, internal/cpu, internal/goarch,
-	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
-	internal/goos, unsafe
+	internal/abi,
+	internal/chacha8rand,
+	internal/coverage/rtcov,
+	internal/cpu,
+	internal/goarch,
+	internal/godebugs,
+	internal/goexperiment,
+	internal/goos
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -77,8 +83,18 @@ var depsRules = `
 	< internal/oserror, math/bits
 	< RUNTIME;
 
-	RUNTIME
-	< sort
+	internal/race
+	< iter;
+
+	# slices depends on unsafe for overlapping check, cmp for comparison
+	# semantics, and math/bits for # calculating bitlength of numbers.
+	unsafe, cmp, math/bits
+	< slices;
+
+	RUNTIME, slices
+	< sort;
+
+	sort
 	< container/heap;
 
 	RUNTIME
@@ -124,7 +140,7 @@ var depsRules = `
 	< math/cmplx;
 
 	MATH
-	< math/rand;
+	< math/rand, math/rand/v2;
 
 	MATH
 	< runtime/metrics;
@@ -157,7 +173,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, STR
+	os/signal, internal/safefilepath, STR
 	< path/filepath
 	< io/ioutil;
 
@@ -203,7 +219,7 @@ var depsRules = `
 
 	# encodings
 	# core ones do not use fmt.
-	io, strconv
+	io, strconv, slices
 	< encoding;
 
 	encoding, reflect
@@ -223,11 +239,6 @@ var depsRules = `
 	< hash
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
-	# slices depends on unsafe for overlapping check, cmp for comparison
-	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
-	< slices;
-
 	# math/big
 	FMT, encoding/binary, math/rand
 	< math/big;
@@ -245,14 +256,14 @@ var depsRules = `
 	< text/template
 	< internal/lazytemplate;
 
-	encoding/json, html, text/template
-	< html/template;
-
 	# regexp
 	FMT
 	< regexp/syntax
 	< regexp
 	< internal/lazyregexp;
+
+	encoding/json, html, text/template, regexp
+	< html/template;
 
 	# suffix array
 	encoding/binary, regexp
@@ -268,6 +279,8 @@ var depsRules = `
 
 	# go parser and friends.
 	FMT
+	< internal/gover
+	< go/version
 	< go/token
 	< go/scanner
 	< go/ast
@@ -286,7 +299,10 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
 	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.
@@ -296,9 +312,6 @@ var depsRules = `
 
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
-
-	FMT, internal/goexperiment
-	< internal/buildcfg;
 
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
 	< go/build;
@@ -562,7 +575,7 @@ var depsRules = `
 	< net/rpc/jsonrpc;
 
 	# System Information
-	internal/cpu, sync
+	bufio, bytes, internal/cpu, io, os, strings, sync
 	< internal/sysinfo;
 
 	# Test-only
@@ -570,14 +583,14 @@ var depsRules = `
 	< testing/iotest
 	< testing/fstest;
 
-	log/slog
-	< testing/slogtest;
-
 	FMT, flag, math/rand
 	< testing/quick;
 
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
+
+	log/slog, testing
+	< testing/slogtest;
 
 	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
 	internal/godebug, math/rand, encoding/hex, crypto/sha256
@@ -601,12 +614,46 @@ var depsRules = `
 	syscall
 	< os/exec/internal/fdtest;
 
-	FMT, container/heap, math/rand
-	< internal/trace;
-
 	FMT
 	< internal/diff, internal/txtar;
 
+	# v2 execution trace parser.
+	FMT
+	< internal/trace/v2/event;
+
+	internal/trace/v2/event
+	< internal/trace/v2/event/go122;
+
+	FMT, io, internal/trace/v2/event/go122
+	< internal/trace/v2/version;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2/raw;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2;
+
+	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
+	< internal/trace/v2/testtrace;
+
+	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
+	< internal/trace/v2/internal/testgen/go122;
+
+	FMT, container/heap, math/rand, internal/trace/v2
+	< internal/trace;
+
+	# cmd/trace dependencies.
+	FMT,
+	embed,
+	encoding/json,
+	html/template,
+	internal/profile,
+	internal/trace,
+	internal/trace/traceviewer/format,
+	net/http
+	< internal/trace/traceviewer;
+
+	# Coverage.
 	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
 	internal/coverage, internal/coverage/uleb128
 	< internal/coverage/cmerge,
@@ -622,7 +669,10 @@ var depsRules = `
 	internal/coverage/cmerge
 	< internal/coverage/cformat;
 
-    encoding/json,
+	internal/coverage, crypto/sha256, FMT
+	< cmd/internal/cov/covcmd;
+
+	encoding/json,
 	runtime/debug,
 	internal/coverage/calloc,
 	internal/coverage/cformat,
@@ -630,6 +680,11 @@ var depsRules = `
 	internal/coverage/encodecounter, internal/coverage/encodemeta,
 	internal/coverage/pods
 	< runtime/coverage;
+
+	# Test-only packages can have anything they want
+	CGO, internal/syscall/unix < net/internal/cgotest;
+
+
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

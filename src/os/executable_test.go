@@ -30,7 +30,7 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
 
-	cmd := testenv.Command(t, fn, "-test.run=XXXX")
+	cmd := testenv.Command(t, fn, "-test.run=^$")
 	// make child start with a relative program path
 	cmd.Dir = dir
 	cmd.Path = fn

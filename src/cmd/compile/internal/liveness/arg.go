@@ -97,8 +97,8 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 	// Gather all register arg spill slots.
 	for _, a := range f.OwnAux.ABIInfo().InParams() {
-		n, ok := a.Name.(*ir.Name)
-		if !ok || len(a.Registers) == 0 {
+		n := a.Name
+		if n == nil || len(a.Registers) == 0 {
 			continue
 		}
 		_, offs := a.RegisterTypesAndOffsets()
@@ -116,7 +116,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 
 	// We spill address-taken or non-SSA-able value upfront, so they are always live.
-	alwaysLive := func(n *ir.Name) bool { return n.Addrtaken() || !f.Frontend().CanSSA(n.Type()) }
+	alwaysLive := func(n *ir.Name) bool { return n.Addrtaken() || !ssa.CanSSA(n.Type()) }
 
 	// We'll emit the smallest offset for the slots that need liveness info.
 	// No need to include a slot with a lower offset if it is always live.

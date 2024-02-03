@@ -124,3 +124,15 @@ func BenchmarkEfaceInteger(b *testing.B) {
 func i2int(i interface{}) int {
 	return i.(int)
 }
+
+func BenchmarkTypeAssert(b *testing.B) {
+	e := any(Int(0))
+	r := true
+	for i := 0; i < b.N; i++ {
+		_, ok := e.(I)
+		if !ok {
+			r = false
+		}
+	}
+	sink = r
+}

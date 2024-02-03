@@ -29,17 +29,6 @@ import (
 	"strings"
 )
 
-// seekStart, seekCurrent, seekEnd are copies of
-// io.SeekStart, io.SeekCurrent, and io.SeekEnd.
-// We can't use the ones from package io because
-// we want this code to build with Go 1.4 during
-// cmd/dist bootstrap.
-const (
-	seekStart   int = 0
-	seekCurrent int = 1
-	seekEnd     int = 2
-)
-
 // TODO: error reporting detail
 
 /*
@@ -114,7 +103,7 @@ type Section struct {
 // Even if the section is stored compressed in the ELF file,
 // Data returns uncompressed data.
 //
-// For an SHT_NOBITS section, Data always returns a non-nil error.
+// For an [SHT_NOBITS] section, Data always returns a non-nil error.
 func (s *Section) Data() ([]byte, error) {
 	return saferio.ReadData(s.Open(), s.Size)
 }
@@ -132,7 +121,7 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 // Even if the section is stored compressed in the ELF file,
 // the ReadSeeker reads uncompressed data.
 //
-// For an SHT_NOBITS section, all calls to the opened reader
+// For an [SHT_NOBITS] section, all calls to the opened reader
 // will return a non-nil error.
 func (s *Section) Open() io.ReadSeeker {
 	if s.Type == SHT_NOBITS {
@@ -245,7 +234,7 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as an ELF binary.
+// Open opens the named file using [os.Open] and prepares it for use as an ELF binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -260,8 +249,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -283,7 +272,7 @@ func (f *File) SectionByType(typ SectionType) *Section {
 	return nil
 }
 
-// NewFile creates a new File for accessing an ELF binary in an underlying reader.
+// NewFile creates a new [File] for accessing an ELF binary in an underlying reader.
 // The ELF binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -332,7 +321,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	switch f.Class {
 	case ELFCLASS32:
 		hdr := new(Header32)
-		sr.Seek(0, seekStart)
+		sr.Seek(0, io.SeekStart)
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
 			return nil, err
 		}
@@ -351,7 +340,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	case ELFCLASS64:
 		hdr := new(Header64)
-		sr.Seek(0, seekStart)
+		sr.Seek(0, io.SeekStart)
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
 			return nil, err
 		}
@@ -402,7 +391,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	f.Progs = make([]*Prog, phnum)
 	for i := 0; i < phnum; i++ {
 		off := phoff + int64(i)*int64(phentsize)
-		sr.Seek(off, seekStart)
+		sr.Seek(off, io.SeekStart)
 		p := new(Prog)
 		switch f.Class {
 		case ELFCLASS32:
@@ -453,7 +442,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	// header at index 0.
 	if shoff > 0 && shnum == 0 {
 		var typ, link uint32
-		sr.Seek(shoff, seekStart)
+		sr.Seek(shoff, io.SeekStart)
 		switch f.Class {
 		case ELFCLASS32:
 			sh := new(Section32)
@@ -498,7 +487,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	c := saferio.SliceCap((*Section)(nil), uint64(shnum))
+	c := saferio.SliceCap[Section](uint64(shnum))
 	if c < 0 {
 		return nil, &FormatError{0, "too many sections", shnum}
 	}
@@ -506,7 +495,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	names := make([]uint32, 0, c)
 	for i := 0; i < shnum; i++ {
 		off := shoff + int64(i)*int64(shentsize)
-		sr.Seek(off, seekStart)
+		sr.Seek(off, io.SeekStart)
 		s := new(Section)
 		switch f.Class {
 		case ELFCLASS32:
@@ -625,7 +614,7 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
-// ErrNoSymbols is returned by File.Symbols and File.DynamicSymbols
+// ErrNoSymbols is returned by [File.Symbols] and [File.DynamicSymbols]
 // if there is no such section in the File.
 var ErrNoSymbols = errors.New("no symbol section")
 
@@ -639,8 +628,10 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	symtab := bytes.NewReader(data)
-	if symtab.Len()%Sym32Size != 0 {
+	if len(data) == 0 {
+		return nil, nil, errors.New("symbol section is empty")
+	}
+	if len(data)%Sym32Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
 	}
 
@@ -650,15 +641,19 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	}
 
 	// The first entry is all zeros.
-	var skip [Sym32Size]byte
-	symtab.Read(skip[:])
+	data = data[Sym32Size:]
 
-	symbols := make([]Symbol, symtab.Len()/Sym32Size)
+	symbols := make([]Symbol, len(data)/Sym32Size)
 
 	i := 0
 	var sym Sym32
-	for symtab.Len() > 0 {
-		binary.Read(symtab, f.ByteOrder, &sym)
+	for len(data) > 0 {
+		sym.Name = f.ByteOrder.Uint32(data[0:4])
+		sym.Value = f.ByteOrder.Uint32(data[4:8])
+		sym.Size = f.ByteOrder.Uint32(data[8:12])
+		sym.Info = data[12]
+		sym.Other = data[13]
+		sym.Shndx = f.ByteOrder.Uint16(data[14:16])
 		str, _ := getString(strdata, int(sym.Name))
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
@@ -667,6 +662,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Value = uint64(sym.Value)
 		symbols[i].Size = uint64(sym.Size)
 		i++
+		data = data[Sym32Size:]
 	}
 
 	return symbols, strdata, nil
@@ -682,8 +678,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
 	}
-	symtab := bytes.NewReader(data)
-	if symtab.Len()%Sym64Size != 0 {
+	if len(data)%Sym64Size != 0 {
 		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
 
@@ -693,15 +688,19 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	}
 
 	// The first entry is all zeros.
-	var skip [Sym64Size]byte
-	symtab.Read(skip[:])
+	data = data[Sym64Size:]
 
-	symbols := make([]Symbol, symtab.Len()/Sym64Size)
+	symbols := make([]Symbol, len(data)/Sym64Size)
 
 	i := 0
 	var sym Sym64
-	for symtab.Len() > 0 {
-		binary.Read(symtab, f.ByteOrder, &sym)
+	for len(data) > 0 {
+		sym.Name = f.ByteOrder.Uint32(data[0:4])
+		sym.Info = data[4]
+		sym.Other = data[5]
+		sym.Shndx = f.ByteOrder.Uint16(data[6:8])
+		sym.Value = f.ByteOrder.Uint64(data[8:16])
+		sym.Size = f.ByteOrder.Uint64(data[16:24])
 		str, _ := getString(strdata, int(sym.Name))
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
@@ -710,6 +709,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Value = sym.Value
 		symbols[i].Size = sym.Size
 		i++
+		data = data[Sym64Size:]
 	}
 
 	return symbols, strdata, nil
@@ -1434,10 +1434,10 @@ func (f *File) Symbols() ([]Symbol, error) {
 // DynamicSymbols returns the dynamic symbol table for f. The symbols
 // will be listed in the order they appear in f.
 //
-// If f has a symbol version table, the returned Symbols will have
-// initialized Version and Library fields.
+// If f has a symbol version table, the returned [File.Symbols] will have
+// initialized [Version] and Library fields.
 //
-// For compatibility with Symbols, DynamicSymbols omits the null symbol at index 0.
+// For compatibility with [File.Symbols], [File.DynamicSymbols] omits the null symbol at index 0.
 // After retrieving the symbols as symtab, an externally supplied index x
 // corresponds to symtab[x-1], not symtab[x].
 func (f *File) DynamicSymbols() ([]Symbol, error) {
@@ -1590,8 +1590,8 @@ func (f *File) ImportedLibraries() ([]string, error) {
 // DynString returns the strings listed for the given tag in the file's dynamic
 // section.
 //
-// The tag must be one that takes string values: DT_NEEDED, DT_SONAME, DT_RPATH, or
-// DT_RUNPATH.
+// The tag must be one that takes string values: [DT_NEEDED], [DT_SONAME], [DT_RPATH], or
+// [DT_RUNPATH].
 func (f *File) DynString(tag DynTag) ([]string, error) {
 	switch tag {
 	case DT_NEEDED, DT_SONAME, DT_RPATH, DT_RUNPATH:
@@ -1607,6 +1607,15 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
+	}
+
 	str, err := f.stringTable(ds.Link)
 	if err != nil {
 		return nil, err
@@ -1645,6 +1654,14 @@ func (f *File) DynValue(tag DynTag) ([]uint64, error) {
 	d, err := ds.Data()
 	if err != nil {
 		return nil, err
+	}
+
+	dynSize := 8
+	if f.Class == ELFCLASS64 {
+		dynSize = 16
+	}
+	if len(d)%dynSize != 0 {
+		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
 	}
 
 	// Parse the .dynamic section as a string of bytes.

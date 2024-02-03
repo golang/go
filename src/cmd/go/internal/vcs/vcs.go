@@ -283,15 +283,13 @@ var vcsGit = &Cmd{
 var scpSyntaxRe = lazyregexp.New(`^(\w+)@([\w.-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
-	cmd := "config remote.origin.url"
-	errParse := errors.New("unable to parse output of git " + cmd)
-	errRemoteOriginNotFound := errors.New("remote origin not found")
+	const cmd = "config remote.origin.url"
 	outb, err := vcsGit.run1(rootDir, cmd, nil, false)
 	if err != nil {
 		// if it doesn't output any message, it means the config argument is correct,
 		// but the config value itself doesn't exist
 		if outb != nil && len(outb) == 0 {
-			return "", errRemoteOriginNotFound
+			return "", errors.New("remote origin not found")
 		}
 		return "", err
 	}
@@ -323,7 +321,7 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
 			return repoURL.String(), nil
 		}
 	}
-	return "", errParse
+	return "", errors.New("unable to parse output of git " + cmd)
 }
 
 func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
@@ -680,7 +678,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 		args = args[2:]
 	}
 
-	_, err := exec.LookPath(v.Cmd)
+	_, err := cfg.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
@@ -1015,11 +1013,11 @@ var defaultGOVCS = govcsConfig{
 	{"public", []string{"git", "hg"}},
 }
 
-// CheckGOVCS checks whether the policy defined by the environment variable
+// checkGOVCS checks whether the policy defined by the environment variable
 // GOVCS allows the given vcs command to be used with the given repository
 // root path. Note that root may not be a real package or module path; it's
 // the same as the root path in the go-import meta tag.
-func CheckGOVCS(vcs *Cmd, root string) error {
+func checkGOVCS(vcs *Cmd, root string) error {
 	if vcs == vcsMod {
 		// Direct module (proxy protocol) fetches don't
 		// involve an external version control system
@@ -1042,37 +1040,6 @@ func CheckGOVCS(vcs *Cmd, root string) error {
 			what = "private"
 		}
 		return fmt.Errorf("GOVCS disallows using %s for %s %s; see 'go help vcs'", vcs.Cmd, what, root)
-	}
-
-	return nil
-}
-
-// CheckNested checks for an incorrectly-nested VCS-inside-VCS
-// situation for dir, checking parents up until srcRoot.
-func CheckNested(vcs *Cmd, dir, srcRoot string) error {
-	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
-		return fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
-	}
-
-	otherDir := dir
-	for len(otherDir) > len(srcRoot) {
-		for _, otherVCS := range vcsList {
-			if isVCSRoot(otherDir, otherVCS.RootNames) {
-				// Allow expected vcs in original dir.
-				if otherDir == dir && otherVCS == vcs {
-					continue
-				}
-				// Otherwise, we have one VCS inside a different VCS.
-				return fmt.Errorf("directory %q uses %s, but parent %q uses %s", dir, vcs.Cmd, otherDir, otherVCS.Cmd)
-			}
-		}
-		// Move to parent.
-		newDir := filepath.Dir(otherDir)
-		if len(newDir) >= len(otherDir) {
-			// Shouldn't happen, but just in case, stop.
-			break
-		}
-		otherDir = newDir
 	}
 
 	return nil
@@ -1193,7 +1160,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
-		if err := CheckGOVCS(vcs, match["root"]); err != nil {
+		if err := checkGOVCS(vcs, match["root"]); err != nil {
 			return nil, err
 		}
 		var repoURL string
@@ -1204,18 +1171,31 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 			var ok bool
 			repoURL, ok = interceptVCSTest(repo, vcs, security)
 			if !ok {
-				scheme := vcs.Scheme[0] // default to first scheme
-				if vcs.PingCmd != "" {
-					// If we know how to test schemes, scan to find one.
+				scheme, err := func() (string, error) {
 					for _, s := range vcs.Scheme {
 						if security == web.SecureOnly && !vcs.isSecureScheme(s) {
 							continue
 						}
-						if vcs.Ping(s, repo) == nil {
-							scheme = s
-							break
+
+						// If we know how to ping URL schemes for this VCS,
+						// check that this repo works.
+						// Otherwise, default to the first scheme
+						// that meets the requested security level.
+						if vcs.PingCmd == "" {
+							return s, nil
+						}
+						if err := vcs.Ping(s, repo); err == nil {
+							return s, nil
 						}
 					}
+					securityFrag := ""
+					if security == web.SecureOnly {
+						securityFrag = "secure "
+					}
+					return "", fmt.Errorf("no %sprotocol found for repository", securityFrag)
+				}()
+				if err != nil {
+					return nil, err
 				}
 				repoURL = scheme + "://" + repo
 			}
@@ -1369,7 +1349,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 	}
 
-	if err := CheckGOVCS(vcs, mmi.Prefix); err != nil {
+	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
 		return nil, err
 	}
 
@@ -1474,7 +1454,7 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// A ImportMismatchError is returned where metaImport/s are present
+// An ImportMismatchError is returned where metaImport/s are present
 // but none match our import path.
 type ImportMismatchError struct {
 	importPath string

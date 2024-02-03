@@ -445,7 +445,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			//   BC x,CR0EQ,...
 			//   BC x,CR1LT,...
 			//   BC x,CR1GT,...
-			// The first and second case demonstrate a symbol name which is
+			// The first and second cases demonstrate a symbol name which is
 			// effectively discarded. In these cases, the offset determines
 			// the CR bit.
 			prog.Reg = a[1].Reg
@@ -909,7 +909,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	p.append(prog, cond, true)
 }
 
-// symbolName returns the symbol name, or an error string if none if available.
+// symbolName returns the symbol name, or an error string if none is available.
 func symbolName(addr *obj.Addr) string {
 	if addr.Sym != nil {
 		return addr.Sym.Name

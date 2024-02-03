@@ -310,7 +310,7 @@ func TestInvalidExec(t *testing.T) {
 // TestExec is for issue #41702.
 func TestExec(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelper")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestExecHelper$")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
 	o, err := cmd.CombinedOutput()
 	if err != nil {
@@ -343,7 +343,7 @@ func TestExecHelper(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	argv := []string{os.Args[0], "-test.run=TestExecHelper"}
+	argv := []string{os.Args[0], "-test.run=^TestExecHelper$"}
 	syscall.Exec(os.Args[0], argv, os.Environ())
 
 	t.Error("syscall.Exec returned")
@@ -357,7 +357,7 @@ func TestRlimitRestored(t *testing.T) {
 	}
 
 	orig := syscall.OrigRlimitNofile()
-	if orig.Cur == 0 {
+	if orig == nil {
 		t.Skip("skipping test because rlimit not adjusted at startup")
 	}
 
@@ -366,7 +366,7 @@ func TestRlimitRestored(t *testing.T) {
 		executable = os.Args[0]
 	}
 
-	cmd := testenv.Command(t, executable, "-test.run=TestRlimitRestored")
+	cmd := testenv.Command(t, executable, "-test.run=^TestRlimitRestored$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 

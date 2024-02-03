@@ -184,3 +184,7 @@ var RelROMap = map[SymKind]SymKind{
 func (t SymKind) IsData() bool {
 	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
 }
+
+func (t SymKind) IsDWARF() bool {
+	return t >= SDWARFSECT && t <= SDWARFLINES
+}

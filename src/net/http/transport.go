@@ -35,8 +35,8 @@ import (
 	"golang.org/x/net/http/httpproxy"
 )
 
-// DefaultTransport is the default implementation of Transport and is
-// used by DefaultClient. It establishes network connections as needed
+// DefaultTransport is the default implementation of [Transport] and is
+// used by [DefaultClient]. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
 // as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
 // and NO_PROXY (or the lowercase versions thereof).
@@ -53,42 +53,42 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-// DefaultMaxIdleConnsPerHost is the default value of Transport's
+// DefaultMaxIdleConnsPerHost is the default value of [Transport]'s
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
 
-// Transport is an implementation of RoundTripper that supports HTTP,
+// Transport is an implementation of [RoundTripper] that supports HTTP,
 // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
 //
 // By default, Transport caches connections for future re-use.
 // This may leave many open connections when accessing many hosts.
-// This behavior can be managed using Transport's CloseIdleConnections method
-// and the MaxIdleConnsPerHost and DisableKeepAlives fields.
+// This behavior can be managed using [Transport.CloseIdleConnections] method
+// and the [Transport.MaxIdleConnsPerHost] and [Transport.DisableKeepAlives] fields.
 //
 // Transports should be reused instead of created as needed.
 // Transports are safe for concurrent use by multiple goroutines.
 //
 // A Transport is a low-level primitive for making HTTP and HTTPS requests.
-// For high-level functionality, such as cookies and redirects, see Client.
+// For high-level functionality, such as cookies and redirects, see [Client].
 //
 // Transport uses HTTP/1.1 for HTTP URLs and either HTTP/1.1 or HTTP/2
 // for HTTPS URLs, depending on whether the server supports HTTP/2,
-// and how the Transport is configured. The DefaultTransport supports HTTP/2.
+// and how the Transport is configured. The [DefaultTransport] supports HTTP/2.
 // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
 // and call ConfigureTransport. See the package docs for more about HTTP/2.
 //
 // Responses with status codes in the 1xx range are either handled
 // automatically (100 expect-continue) or ignored. The one
 // exception is HTTP status code 101 (Switching Protocols), which is
-// considered a terminal status and returned by RoundTrip. To see the
+// considered a terminal status and returned by [Transport.RoundTrip]. To see the
 // ignored 1xx responses, use the httptrace trace package's
 // ClientTrace.Got1xxResponse.
 //
 // Transport only retries a request upon encountering a network error
 // if the connection has been already been used successfully and if the
-// request is idempotent and either has no body or has its Request.GetBody
+// request is idempotent and either has no body or has its [Request.GetBody]
 // defined. HTTP requests are considered idempotent if they have HTTP methods
-// GET, HEAD, OPTIONS, or TRACE; or if their Header map contains an
+// GET, HEAD, OPTIONS, or TRACE; or if their [Header] map contains an
 // "Idempotency-Key" or "X-Idempotency-Key" entry. If the idempotency key
 // value is a zero-length slice, the request is treated as idempotent but the
 // header is not sent on the wire.
@@ -116,6 +116,10 @@ type Transport struct {
 	// The proxy type is determined by the URL scheme. "http",
 	// "https", and "socks5" are supported. If the scheme is empty,
 	// "http" is assumed.
+	//
+	// If the proxy URL contains a userinfo subcomponent,
+	// the proxy request will pass the username and password
+	// in a Proxy-Authorization header.
 	//
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
@@ -233,7 +237,7 @@ type Transport struct {
 
 	// TLSNextProto specifies how the Transport switches to an
 	// alternate protocol (such as HTTP/2) after a TLS ALPN
-	// protocol negotiation. If Transport dials an TLS connection
+	// protocol negotiation. If Transport dials a TLS connection
 	// with a non-empty protocol name and TLSNextProto contains a
 	// map entry for that key (such as "h2"), then the func is
 	// called with the request's authority (such as "example.com"
@@ -449,7 +453,7 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	return envProxyFunc()(req.URL)
 }
 
-// ProxyURL returns a proxy function (for use in a Transport)
+// ProxyURL returns a proxy function (for use in a [Transport])
 // that always returns the same URL.
 func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, error) {
 	return func(*Request) (*url.URL, error) {
@@ -748,14 +752,14 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
 
 // RegisterProtocol registers a new protocol with scheme.
-// The Transport will pass requests using the given scheme to rt.
+// The [Transport] will pass requests using the given scheme to rt.
 // It is rt's responsibility to simulate HTTP request semantics.
 //
 // RegisterProtocol can be used by other packages to provide
 // implementations of protocol schemes like "ftp" or "file".
 //
-// If rt.RoundTrip returns ErrSkipAltProtocol, the Transport will
-// handle the RoundTrip itself for that one request, as if the
+// If rt.RoundTrip returns [ErrSkipAltProtocol], the Transport will
+// handle the [Transport.RoundTrip] itself for that one request, as if the
 // protocol were not registered.
 func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	t.altMu.Lock()
@@ -795,9 +799,9 @@ func (t *Transport) CloseIdleConnections() {
 }
 
 // CancelRequest cancels an in-flight request by closing its connection.
-// CancelRequest should only be called after RoundTrip has returned.
+// CancelRequest should only be called after [Transport.RoundTrip] has returned.
 //
-// Deprecated: Use Request.WithContext to create a request with a
+// Deprecated: Use [Request.WithContext] to create a request with a
 // cancelable context instead. CancelRequest cannot cancel HTTP/2
 // requests.
 func (t *Transport) CancelRequest(req *Request) {
@@ -1205,7 +1209,6 @@ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, e
 type wantConn struct {
 	cm    connectMethod
 	key   connectMethodKey // cm.key()
-	ctx   context.Context  // context for dial
 	ready chan struct{}    // closed when pc, err pair is delivered
 
 	// hooks for testing to know when dials are done
@@ -1214,7 +1217,8 @@ type wantConn struct {
 	beforeDial func()
 	afterDial  func()
 
-	mu  sync.Mutex // protects pc, err, close(ready)
+	mu  sync.Mutex      // protects ctx, pc, err, close(ready)
+	ctx context.Context // context for dial, cleared after delivered or canceled
 	pc  *persistConn
 	err error
 }
@@ -1229,6 +1233,13 @@ func (w *wantConn) waiting() bool {
 	}
 }
 
+// getCtxForDial returns context for dial or nil if connection was delivered or canceled.
+func (w *wantConn) getCtxForDial() context.Context {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.ctx
+}
+
 // tryDeliver attempts to deliver pc, err to w and reports whether it succeeded.
 func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 	w.mu.Lock()
@@ -1238,6 +1249,7 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error) bool {
 		return false
 	}
 
+	w.ctx = nil
 	w.pc = pc
 	w.err = err
 	if w.pc == nil && w.err == nil {
@@ -1255,6 +1267,7 @@ func (w *wantConn) cancel(t *Transport, err error) {
 		close(w.ready) // catch misbehavior in future delivery
 	}
 	pc := w.pc
+	w.ctx = nil
 	w.pc = nil
 	w.err = err
 	w.mu.Unlock()
@@ -1463,8 +1476,12 @@ func (t *Transport) queueForDial(w *wantConn) {
 // If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
 func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
+	ctx := w.getCtxForDial()
+	if ctx == nil {
+		return
+	}
 
-	pc, err := t.dialConn(w.ctx, w.cm)
+	pc, err := t.dialConn(ctx, w.cm)
 	delivered := w.tryDeliver(pc, err)
 	if err == nil && (!delivered || pc.alt != nil) {
 		// pconn was not passed to w,
@@ -1560,6 +1577,11 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	}()
 	if err := <-errc; err != nil {
 		plainConn.Close()
+		if err == (tlsHandshakeTimeoutError{}) {
+			// Now that we have closed the connection,
+			// wait for the call to HandshakeContext to return.
+			<-errc
+		}
 		if trace != nil && trace.TLSHandshakeDone != nil {
 			trace.TLSHandshakeDone(tls.ConnectionState{}, err)
 		}
@@ -2248,7 +2270,7 @@ func (pc *persistConn) readLoop() {
 			}
 		case <-rc.req.Cancel:
 			alive = false
-			pc.t.CancelRequest(rc.req)
+			pc.t.cancelRequest(rc.cancelKey, errRequestCanceled)
 		case <-rc.req.Context().Done():
 			alive = false
 			pc.t.cancelRequest(rc.cancelKey, rc.req.Context().Err())

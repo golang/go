@@ -137,7 +137,7 @@ func issue10260() {
 	_ = x /* ERROR "impossible type assertion: x.(T1)\n\tT1 does not implement I1 (method foo has pointer receiver)" */ .(T1)
 
 	T1{}.foo /* ERROR "cannot call pointer method foo on T1" */ ()
-	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have foo)" */ ()
+	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have method foo)" */ ()
 
 	_ = i2 /* ERROR "impossible type assertion: i2.(*T1)\n\t*T1 does not implement I2 (wrong type for method foo)\n\t\thave foo()\n\t\twant foo(int)" */ .(*T1)
 
@@ -282,7 +282,7 @@ type issue25301b /* ERROR "invalid recursive type" */ = interface {
 }
 
 type issue25301c interface {
-	notE // ERROR "non-interface type struct{}"
+	notE // ERRORx "non-interface type (struct{}|notE)"
 }
 
 type notE = struct{}

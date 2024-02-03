@@ -15,13 +15,20 @@ import (
 // FromToolchain returns the Go version for the named toolchain,
 // derived from the name itself (not by running the toolchain).
 // A toolchain is named "goVERSION".
-// A suffix after the VERSION introduced by a +, -, space, or tab is removed.
+// A suffix after the VERSION introduced by a -, space, or tab is removed.
 // Examples:
 //
 //	FromToolchain("go1.2.3") == "1.2.3"
 //	FromToolchain("go1.2.3-bigcorp") == "1.2.3"
 //	FromToolchain("invalid") == ""
 func FromToolchain(name string) string {
+	if strings.ContainsAny(name, "\\/") {
+		// The suffix must not include a path separator, since that would cause
+		// exec.LookPath to resolve it from a relative directory instead of from
+		// $PATH.
+		return ""
+	}
+
 	var v string
 	if strings.HasPrefix(name, "go") {
 		v = name[2:]
@@ -43,6 +50,16 @@ func maybeToolchainVersion(name string) string {
 		return name
 	}
 	return FromToolchain(name)
+}
+
+// ToolchainMax returns the maximum of x and y interpreted as toolchain names,
+// compared using Compare(FromToolchain(x), FromToolchain(y)).
+// If x and y compare equal, Max returns x.
+func ToolchainMax(x, y string) string {
+	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
+		return y
+	}
+	return x
 }
 
 // Startup records the information that went into the startup-time version switch.

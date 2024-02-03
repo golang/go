@@ -14,14 +14,18 @@ import (
 
 type Plist struct {
 	Firstpc *Prog
-	Curfn   interface{} // holds a *gc.Node, if non-nil
+	Curfn   Func
 }
 
 // ProgAlloc is a function that allocates Progs.
 // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
 type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+	if ctxt.Pkgpath == "" {
+		panic("Flushplist called without Pkgpath")
+	}
+
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -96,8 +100,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 
 	// Add reference to Go arguments for assembly functions without them.
 	if ctxt.IsAsm {
+		pkgPrefix := objabi.PathToPrefix(ctxt.Pkgpath) + "."
 		for _, s := range text {
-			if !strings.HasPrefix(s.Name, "\"\".") {
+			if !strings.HasPrefix(s.Name, pkgPrefix) {
 				continue
 			}
 			// The current args_stackmap generation in the compiler assumes
@@ -105,6 +110,16 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			// an args_stackmap reference if the func is not ABI0 (better to
 			// have no stackmap than an incorrect/lying stackmap).
 			if s.ABI() != ABI0 {
+				continue
+			}
+			// runtime.addmoduledata is a host ABI function, so it doesn't
+			// need FUNCDATA anyway. Moreover, cmd/link has special logic
+			// for linking it in eccentric build modes, which breaks if it
+			// has FUNCDATA references (e.g., cmd/cgo/internal/testplugin).
+			//
+			// TODO(cherryyz): Fix cmd/link's handling of plugins (see
+			// discussion on CL 523355).
+			if s.Name == "runtime.addmoduledata" {
 				continue
 			}
 			foundArgMap, foundArgInfo := false, false
@@ -155,9 +170,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		if myimportpath != "" {
-			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
-		}
+		ctxt.populateDWARF(plist.Curfn, s)
 		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
 			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
 		}
@@ -178,15 +191,16 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
 		return
 	}
+	if strings.HasPrefix(s.Name, `"".`) {
+		ctxt.Diag("%s: unqualified symbol name: %s", ctxt.PosTable.Pos(start), s.Name)
+	}
 
 	// startLine should be the same line number that would be displayed via
 	// pcln, etc for the declaration (i.e., relative line number, as
 	// adjusted by //line).
-	_, startLine := ctxt.getFileSymbolAndLine(start)
+	_, startLine := ctxt.getFileIndexAndLine(start)
 
-	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
-	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
-	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
 	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)

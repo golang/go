@@ -105,9 +105,9 @@ func TestImportTestdata(t *testing.T) {
 
 		importMap := map[string]string{}
 		for _, pkg := range wantImports {
-			export, _ := FindPkg(pkg, "testdata")
+			export, _, err := FindPkg(pkg, "testdata")
 			if export == "" {
-				t.Fatalf("no export data found for %s", pkg)
+				t.Fatalf("no export data found for %s: %v", pkg, err)
 			}
 			importMap[pkg] = export
 		}
@@ -268,7 +268,7 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
-	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
+	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string, err error)"},
 
 	// interfaces
 	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
@@ -437,9 +437,9 @@ func TestIssue13566(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	jsonExport, _ := FindPkg("encoding/json", "testdata")
+	jsonExport, _, err := FindPkg("encoding/json", "testdata")
 	if jsonExport == "" {
-		t.Fatalf("no export data found for encoding/json")
+		t.Fatalf("no export data found for encoding/json: %v", err)
 	}
 
 	compile(t, "testdata", "a.go", testoutdir, map[string]string{"encoding/json": jsonExport})

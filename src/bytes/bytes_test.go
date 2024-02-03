@@ -629,6 +629,11 @@ func BenchmarkEqual(b *testing.B) {
 	})
 
 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
+
+	b.Run("same", func(b *testing.B) {
+		benchBytes(b, sizes, bmEqual(func(a, b []byte) bool { return Equal(a, a) }))
+	})
+
 	benchBytes(b, sizes, bmEqual(Equal))
 }
 
@@ -649,6 +654,38 @@ func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
 		}
 		buf1[n-1] = '\x00'
 		buf2[n-1] = '\x00'
+	}
+}
+
+func BenchmarkEqualBothUnaligned(b *testing.B) {
+	sizes := []int{64, 4 << 10}
+	if !isRaceBuilder {
+		sizes = append(sizes, []int{4 << 20, 64 << 20}...)
+	}
+	maxSize := 2 * (sizes[len(sizes)-1] + 8)
+	if len(bmbuf) < maxSize {
+		bmbuf = make([]byte, maxSize)
+	}
+
+	for _, n := range sizes {
+		for _, off := range []int{0, 1, 4, 7} {
+			buf1 := bmbuf[off : off+n]
+			buf2Start := (len(bmbuf) / 2) + off
+			buf2 := bmbuf[buf2Start : buf2Start+n]
+			buf1[n-1] = 'x'
+			buf2[n-1] = 'x'
+			b.Run(fmt.Sprint(n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					eq := Equal(buf1, buf2)
+					if !eq {
+						b.Fatal("bad equal")
+					}
+				}
+			})
+			buf1[n-1] = '\x00'
+			buf2[n-1] = '\x00'
+		}
 	}
 }
 

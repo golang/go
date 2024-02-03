@@ -44,7 +44,7 @@ type fileInfo struct {
 func (i fileInfo) Name() string       { return path.Base(i.f.Name) }
 func (i fileInfo) ModTime() time.Time { return i.f.Time }
 func (i fileInfo) Mode() fs.FileMode  { return i.f.Mode }
-func (i fileInfo) IsDir() bool        { return false }
+func (i fileInfo) IsDir() bool        { return i.f.Mode&fs.ModeDir != 0 }
 func (i fileInfo) Size() int64        { return i.f.Size }
 func (i fileInfo) Sys() any           { return nil }
 
@@ -91,13 +91,29 @@ func (a *Archive) Add(name, src string, info fs.FileInfo) {
 	})
 }
 
+func nameLess(x, y string) bool {
+	for i := 0; i < len(x) && i < len(y); i++ {
+		if x[i] != y[i] {
+			// foo/bar/baz before foo/bar.go, because foo/bar is before foo/bar.go
+			if x[i] == '/' {
+				return true
+			}
+			if y[i] == '/' {
+				return false
+			}
+			return x[i] < y[i]
+		}
+	}
+	return len(x) < len(y)
+}
+
 // Sort sorts the files in the archive.
 // It is only necessary to call Sort after calling Add or RenameGoMod.
-// ArchiveDir returns a sorted archive, and the other methods
+// NewArchive returns a sorted archive, and the other methods
 // preserve the sorting of the archive.
 func (a *Archive) Sort() {
 	sort.Slice(a.Files, func(i, j int) bool {
-		return a.Files[i].Name < a.Files[j].Name
+		return nameLess(a.Files[i].Name, a.Files[j].Name)
 	})
 }
 

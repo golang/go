@@ -449,13 +449,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if listJson {
 		do = func(x any) {
 			if !listJsonFields.needAll() {
-				v := reflect.ValueOf(x).Elem() // do is always called with a non-nil pointer.
-				// Clear all non-requested fields.
+				//  Set x to a copy of itself with all non-requested fields cleared.
+				v := reflect.New(reflect.TypeOf(x).Elem()).Elem() // do is always called with a non-nil pointer.
+				v.Set(reflect.ValueOf(x).Elem())
 				for i := 0; i < v.NumField(); i++ {
 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
 						v.Field(i).SetZero()
 					}
 				}
+				x = v.Interface()
 			}
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
@@ -723,15 +725,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
+		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+			load.PrepareForCoverageBuild(pkgs)
+		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
-		}
-		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
-			load.PrepareForCoverageBuild(pkgs)
 		}
 		b.Do(ctx, a)
 	}
@@ -780,9 +782,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					p.Imports[i] = new
 				}
 			}
-			for old := range m {
-				delete(m, old)
-			}
+			clear(m)
 		}
 	}
 
@@ -959,7 +959,10 @@ func collectDepsErrors(p *load.Package) {
 			if len(stkj) != 0 {
 				return true
 			}
+
 			return p.DepsErrors[i].Err.Error() < p.DepsErrors[j].Err.Error()
+		} else if len(stkj) == 0 {
+			return false
 		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
 		return pathi < pathj

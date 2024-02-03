@@ -6,16 +6,43 @@ package json
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
 )
+
+// TODO(https://go.dev/issue/52751): Replace with native testing support.
+
+// CaseName is a case name annotated with a file and line.
+type CaseName struct {
+	Name  string
+	Where CasePos
+}
+
+// Name annotates a case name with the file and line of the caller.
+func Name(s string) (c CaseName) {
+	c.Name = s
+	runtime.Callers(2, c.Where.pc[:])
+	return c
+}
+
+// CasePos represents a file and line number.
+type CasePos struct{ pc [1]uintptr }
+
+func (pos CasePos) String() string {
+	frames := runtime.CallersFrames(pos.pc[:])
+	frame, _ := frames.Next()
+	return fmt.Sprintf("%s:%d", path.Base(frame.File), frame.Line)
+}
 
 // Test values for the stream test.
 // One of each JSON kind.
@@ -49,11 +76,11 @@ func TestEncoder(t *testing.T) {
 		enc.SetIndent("", "")
 		for j, v := range streamTest[0:i] {
 			if err := enc.Encode(v); err != nil {
-				t.Fatalf("encode #%d: %v", j, err)
+				t.Fatalf("#%d.%d Encode error: %v", i, j, err)
 			}
 		}
 		if have, want := buf.String(), nlines(streamEncoded, i); have != want {
-			t.Errorf("encoding %d items: mismatch", i)
+			t.Errorf("encoding %d items: mismatch:", i)
 			diff(t, []byte(have), []byte(want))
 			break
 		}
@@ -76,24 +103,24 @@ func TestEncoderErrorAndReuseEncodeState(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	if err := enc.Encode(dummy); err == nil {
-		t.Errorf("Encode(dummy) == nil; want error")
+		t.Errorf("Encode(dummy) error: got nil, want non-nil")
 	}
 
 	type Data struct {
 		A string
 		I int
 	}
-	data := Data{A: "a", I: 1}
-	if err := enc.Encode(data); err != nil {
-		t.Errorf("Marshal(%v) = %v", data, err)
+	want := Data{A: "a", I: 1}
+	if err := enc.Encode(want); err != nil {
+		t.Errorf("Marshal error: %v", err)
 	}
 
-	var data2 Data
-	if err := Unmarshal(buf.Bytes(), &data2); err != nil {
-		t.Errorf("Unmarshal(%v) = %v", data2, err)
+	var got Data
+	if err := Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Errorf("Unmarshal error: %v", err)
 	}
-	if data2 != data {
-		t.Errorf("expect: %v, but get: %v", data, data2)
+	if got != want {
+		t.Errorf("Marshal/Unmarshal roundtrip:\n\tgot:  %v\n\twant: %v", got, want)
 	}
 }
 
@@ -122,7 +149,7 @@ func TestEncoderIndent(t *testing.T) {
 		enc.Encode(v)
 	}
 	if have, want := buf.String(), streamEncodedIndent; have != want {
-		t.Error("indented encoding mismatch")
+		t.Error("Encode mismatch:")
 		diff(t, []byte(have), []byte(want))
 	}
 }
@@ -160,50 +187,51 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		Bar string `json:"bar,string"`
 	}{`<html>foobar</html>`}
 
-	for _, tt := range []struct {
-		name       string
+	tests := []struct {
+		CaseName
 		v          any
 		wantEscape string
 		want       string
 	}{
-		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
-		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
-		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
+		{Name("c"), c, `"\u003c\u0026\u003e"`, `"<&>"`},
+		{Name("ct"), ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
+		{Name(`"<&>"`), "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
 		{
-			"tagStruct", tagStruct,
+			Name("tagStruct"), tagStruct,
 			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
 			`{"<>&#! ":0,"Invalid":0}`,
 		},
 		{
-			`"<str>"`, marshalerStruct,
+			Name(`"<str>"`), marshalerStruct,
 			`{"NonPtr":"\u003cstr\u003e","Ptr":"\u003cstr\u003e"}`,
 			`{"NonPtr":"<str>","Ptr":"<str>"}`,
 		},
 		{
-			"stringOption", stringOption,
+			Name("stringOption"), stringOption,
 			`{"bar":"\"\\u003chtml\\u003efoobar\\u003c/html\\u003e\""}`,
 			`{"bar":"\"<html>foobar</html>\""}`,
 		},
-	} {
-		var buf strings.Builder
-		enc := NewEncoder(&buf)
-		if err := enc.Encode(tt.v); err != nil {
-			t.Errorf("Encode(%s): %s", tt.name, err)
-			continue
-		}
-		if got := strings.TrimSpace(buf.String()); got != tt.wantEscape {
-			t.Errorf("Encode(%s) = %#q, want %#q", tt.name, got, tt.wantEscape)
-		}
-		buf.Reset()
-		enc.SetEscapeHTML(false)
-		if err := enc.Encode(tt.v); err != nil {
-			t.Errorf("SetEscapeHTML(false) Encode(%s): %s", tt.name, err)
-			continue
-		}
-		if got := strings.TrimSpace(buf.String()); got != tt.want {
-			t.Errorf("SetEscapeHTML(false) Encode(%s) = %#q, want %#q",
-				tt.name, got, tt.want)
-		}
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			var buf strings.Builder
+			enc := NewEncoder(&buf)
+			if err := enc.Encode(tt.v); err != nil {
+				t.Fatalf("%s: Encode(%s) error: %s", tt.Where, tt.Name, err)
+			}
+			if got := strings.TrimSpace(buf.String()); got != tt.wantEscape {
+				t.Errorf("%s: Encode(%s):\n\tgot:  %s\n\twant: %s", tt.Where, tt.Name, got, tt.wantEscape)
+			}
+			buf.Reset()
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(tt.v); err != nil {
+				t.Fatalf("%s: SetEscapeHTML(false) Encode(%s) error: %s", tt.Where, tt.Name, err)
+			}
+			if got := strings.TrimSpace(buf.String()); got != tt.want {
+				t.Errorf("%s: SetEscapeHTML(false) Encode(%s):\n\tgot:  %s\n\twant: %s",
+					tt.Where, tt.Name, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -224,14 +252,14 @@ func TestDecoder(t *testing.T) {
 		dec := NewDecoder(&buf)
 		for j := range out {
 			if err := dec.Decode(&out[j]); err != nil {
-				t.Fatalf("decode #%d/%d: %v", j, i, err)
+				t.Fatalf("decode #%d/%d error: %v", j, i, err)
 			}
 		}
 		if !reflect.DeepEqual(out, streamTest[0:i]) {
-			t.Errorf("decoding %d items: mismatch", i)
+			t.Errorf("decoding %d items: mismatch:", i)
 			for j := range out {
 				if !reflect.DeepEqual(out[j], streamTest[j]) {
-					t.Errorf("#%d: have %v want %v", j, out[j], streamTest[j])
+					t.Errorf("#%d:\n\tgot:  %v\n\twant: %v", j, out[j], streamTest[j])
 				}
 			}
 			break
@@ -250,14 +278,14 @@ func TestDecoderBuffered(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m.Name != "Gopher" {
-		t.Errorf("Name = %q; want Gopher", m.Name)
+		t.Errorf("Name = %s, want Gopher", m.Name)
 	}
 	rest, err := io.ReadAll(d.Buffered())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g, w := string(rest), " extra "; g != w {
-		t.Errorf("Remaining = %q; want %q", g, w)
+	if got, want := string(rest), " extra "; got != want {
+		t.Errorf("Remaining = %s, want %s", got, want)
 	}
 }
 
@@ -282,20 +310,20 @@ func TestRawMessage(t *testing.T) {
 		Y  float32
 	}
 	const raw = `["\u0056",null]`
-	const msg = `{"X":0.1,"Id":["\u0056",null],"Y":0.2}`
-	err := Unmarshal([]byte(msg), &data)
+	const want = `{"X":0.1,"Id":["\u0056",null],"Y":0.2}`
+	err := Unmarshal([]byte(want), &data)
 	if err != nil {
-		t.Fatalf("Unmarshal: %v", err)
+		t.Fatalf("Unmarshal error: %v", err)
 	}
 	if string([]byte(data.Id)) != raw {
-		t.Fatalf("Raw mismatch: have %#q want %#q", []byte(data.Id), raw)
+		t.Fatalf("Unmarshal:\n\tgot:  %s\n\twant: %s", []byte(data.Id), raw)
 	}
-	b, err := Marshal(&data)
+	got, err := Marshal(&data)
 	if err != nil {
-		t.Fatalf("Marshal: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
-	if string(b) != msg {
-		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+	if string(got) != want {
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -306,159 +334,156 @@ func TestNullRawMessage(t *testing.T) {
 		IdPtr *RawMessage
 		Y     float32
 	}
-	const msg = `{"X":0.1,"Id":null,"IdPtr":null,"Y":0.2}`
-	err := Unmarshal([]byte(msg), &data)
+	const want = `{"X":0.1,"Id":null,"IdPtr":null,"Y":0.2}`
+	err := Unmarshal([]byte(want), &data)
 	if err != nil {
-		t.Fatalf("Unmarshal: %v", err)
+		t.Fatalf("Unmarshal error: %v", err)
 	}
 	if want, got := "null", string(data.Id); want != got {
-		t.Fatalf("Raw mismatch: have %q, want %q", got, want)
+		t.Fatalf("Unmarshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 	if data.IdPtr != nil {
-		t.Fatalf("Raw pointer mismatch: have non-nil, want nil")
+		t.Fatalf("pointer mismatch: got non-nil, want nil")
 	}
-	b, err := Marshal(&data)
+	got, err := Marshal(&data)
 	if err != nil {
-		t.Fatalf("Marshal: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
-	if string(b) != msg {
-		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+	if string(got) != want {
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
-}
-
-var blockingTests = []string{
-	`{"x": 1}`,
-	`[1, 2, 3]`,
 }
 
 func TestBlocking(t *testing.T) {
-	for _, enc := range blockingTests {
-		r, w := net.Pipe()
-		go w.Write([]byte(enc))
-		var val any
-
-		// If Decode reads beyond what w.Write writes above,
-		// it will block, and the test will deadlock.
-		if err := NewDecoder(r).Decode(&val); err != nil {
-			t.Errorf("decoding %s: %v", enc, err)
-		}
-		r.Close()
-		w.Close()
+	tests := []struct {
+		CaseName
+		in string
+	}{
+		{Name(""), `{"x": 1}`},
+		{Name(""), `[1, 2, 3]`},
 	}
-}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			r, w := net.Pipe()
+			go w.Write([]byte(tt.in))
+			var val any
 
-type tokenStreamCase struct {
-	json      string
-	expTokens []any
+			// If Decode reads beyond what w.Write writes above,
+			// it will block, and the test will deadlock.
+			if err := NewDecoder(r).Decode(&val); err != nil {
+				t.Errorf("%s: NewDecoder(%s).Decode error: %v", tt.Where, tt.in, err)
+			}
+			r.Close()
+			w.Close()
+		})
+	}
 }
 
 type decodeThis struct {
 	v any
 }
 
-var tokenStreamCases = []tokenStreamCase{
-	// streaming token cases
-	{json: `10`, expTokens: []any{float64(10)}},
-	{json: ` [10] `, expTokens: []any{
-		Delim('['), float64(10), Delim(']')}},
-	{json: ` [false,10,"b"] `, expTokens: []any{
-		Delim('['), false, float64(10), "b", Delim(']')}},
-	{json: `{ "a": 1 }`, expTokens: []any{
-		Delim('{'), "a", float64(1), Delim('}')}},
-	{json: `{"a": 1, "b":"3"}`, expTokens: []any{
-		Delim('{'), "a", float64(1), "b", "3", Delim('}')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
-		Delim('['),
-		Delim('{'), "a", float64(1), Delim('}'),
-		Delim('{'), "a", float64(2), Delim('}'),
-		Delim(']')}},
-	{json: `{"obj": {"a": 1}}`, expTokens: []any{
-		Delim('{'), "obj", Delim('{'), "a", float64(1), Delim('}'),
-		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
-		Delim('{'), "obj", Delim('['),
-		Delim('{'), "a", float64(1), Delim('}'),
-		Delim(']'), Delim('}')}},
-
-	// streaming tokens with intermittent Decode()
-	{json: `{ "a": 1 }`, expTokens: []any{
-		Delim('{'), "a",
-		decodeThis{float64(1)},
-		Delim('}')}},
-	{json: ` [ { "a" : 1 } ] `, expTokens: []any{
-		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
-		Delim(']')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
-		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
-		decodeThis{map[string]any{"a": float64(2)}},
-		Delim(']')}},
-	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []any{
-		Delim('{'), "obj", Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
-		Delim(']'), Delim('}')}},
-
-	{json: `{"obj": {"a": 1}}`, expTokens: []any{
-		Delim('{'), "obj",
-		decodeThis{map[string]any{"a": float64(1)}},
-		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
-		Delim('{'), "obj",
-		decodeThis{[]any{
-			map[string]any{"a": float64(1)},
-		}},
-		Delim('}')}},
-	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
-		Delim('['),
-		decodeThis{map[string]any{"a": float64(1)}},
-		decodeThis{&SyntaxError{"expected comma after array element", 11}},
-	}},
-	{json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
-		Delim('{'), strings.Repeat("a", 513),
-		decodeThis{&SyntaxError{"expected colon after object key", 518}},
-	}},
-	{json: `{ "\a" }`, expTokens: []any{
-		Delim('{'),
-		&SyntaxError{"invalid character 'a' in string escape code", 3},
-	}},
-	{json: ` \a`, expTokens: []any{
-		&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
-	}},
-}
-
 func TestDecodeInStream(t *testing.T) {
-	for ci, tcase := range tokenStreamCases {
+	tests := []struct {
+		CaseName
+		json      string
+		expTokens []any
+	}{
+		// streaming token cases
+		{CaseName: Name(""), json: `10`, expTokens: []any{float64(10)}},
+		{CaseName: Name(""), json: ` [10] `, expTokens: []any{
+			Delim('['), float64(10), Delim(']')}},
+		{CaseName: Name(""), json: ` [false,10,"b"] `, expTokens: []any{
+			Delim('['), false, float64(10), "b", Delim(']')}},
+		{CaseName: Name(""), json: `{ "a": 1 }`, expTokens: []any{
+			Delim('{'), "a", float64(1), Delim('}')}},
+		{CaseName: Name(""), json: `{"a": 1, "b":"3"}`, expTokens: []any{
+			Delim('{'), "a", float64(1), "b", "3", Delim('}')}},
+		{CaseName: Name(""), json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
+			Delim('['),
+			Delim('{'), "a", float64(1), Delim('}'),
+			Delim('{'), "a", float64(2), Delim('}'),
+			Delim(']')}},
+		{CaseName: Name(""), json: `{"obj": {"a": 1}}`, expTokens: []any{
+			Delim('{'), "obj", Delim('{'), "a", float64(1), Delim('}'),
+			Delim('}')}},
+		{CaseName: Name(""), json: `{"obj": [{"a": 1}]}`, expTokens: []any{
+			Delim('{'), "obj", Delim('['),
+			Delim('{'), "a", float64(1), Delim('}'),
+			Delim(']'), Delim('}')}},
 
-		dec := NewDecoder(strings.NewReader(tcase.json))
-		for i, etk := range tcase.expTokens {
+		// streaming tokens with intermittent Decode()
+		{CaseName: Name(""), json: `{ "a": 1 }`, expTokens: []any{
+			Delim('{'), "a",
+			decodeThis{float64(1)},
+			Delim('}')}},
+		{CaseName: Name(""), json: ` [ { "a" : 1 } ] `, expTokens: []any{
+			Delim('['),
+			decodeThis{map[string]any{"a": float64(1)}},
+			Delim(']')}},
+		{CaseName: Name(""), json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
+			Delim('['),
+			decodeThis{map[string]any{"a": float64(1)}},
+			decodeThis{map[string]any{"a": float64(2)}},
+			Delim(']')}},
+		{CaseName: Name(""), json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []any{
+			Delim('{'), "obj", Delim('['),
+			decodeThis{map[string]any{"a": float64(1)}},
+			Delim(']'), Delim('}')}},
 
-			var tk any
-			var err error
+		{CaseName: Name(""), json: `{"obj": {"a": 1}}`, expTokens: []any{
+			Delim('{'), "obj",
+			decodeThis{map[string]any{"a": float64(1)}},
+			Delim('}')}},
+		{CaseName: Name(""), json: `{"obj": [{"a": 1}]}`, expTokens: []any{
+			Delim('{'), "obj",
+			decodeThis{[]any{
+				map[string]any{"a": float64(1)},
+			}},
+			Delim('}')}},
+		{CaseName: Name(""), json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
+			Delim('['),
+			decodeThis{map[string]any{"a": float64(1)}},
+			decodeThis{&SyntaxError{"expected comma after array element", 11}},
+		}},
+		{CaseName: Name(""), json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
+			Delim('{'), strings.Repeat("a", 513),
+			decodeThis{&SyntaxError{"expected colon after object key", 518}},
+		}},
+		{CaseName: Name(""), json: `{ "\a" }`, expTokens: []any{
+			Delim('{'),
+			&SyntaxError{"invalid character 'a' in string escape code", 3},
+		}},
+		{CaseName: Name(""), json: ` \a`, expTokens: []any{
+			&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			dec := NewDecoder(strings.NewReader(tt.json))
+			for i, want := range tt.expTokens {
+				var got any
+				var err error
 
-			if dt, ok := etk.(decodeThis); ok {
-				etk = dt.v
-				err = dec.Decode(&tk)
-			} else {
-				tk, err = dec.Token()
-			}
-			if experr, ok := etk.(error); ok {
-				if err == nil || !reflect.DeepEqual(err, experr) {
-					t.Errorf("case %v: Expected error %#v in %q, but was %#v", ci, experr, tcase.json, err)
+				if dt, ok := want.(decodeThis); ok {
+					want = dt.v
+					err = dec.Decode(&got)
+				} else {
+					got, err = dec.Token()
 				}
-				break
-			} else if err == io.EOF {
-				t.Errorf("case %v: Unexpected EOF in %q", ci, tcase.json)
-				break
-			} else if err != nil {
-				t.Errorf("case %v: Unexpected error '%#v' in %q", ci, err, tcase.json)
-				break
+				if errWant, ok := want.(error); ok {
+					if err == nil || !reflect.DeepEqual(err, errWant) {
+						t.Fatalf("%s:\n\tinput: %s\n\tgot error:  %v\n\twant error: %v", tt.Where, tt.json, err, errWant)
+					}
+					break
+				} else if err != nil {
+					t.Fatalf("%s:\n\tinput: %s\n\tgot error:  %v\n\twant error: nil", tt.Where, tt.json, err)
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("%s: token %d:\n\tinput: %s\n\tgot:  %T(%v)\n\twant: %T(%v)", tt.Where, i, tt.json, got, got, want, want)
+				}
 			}
-			if !reflect.DeepEqual(tk, etk) {
-				t.Errorf(`case %v: %q @ %v expected %T(%v) was %T(%v)`, ci, tcase.json, i, etk, etk, tk, tk)
-				break
-			}
-		}
+		})
 	}
 }
 
@@ -472,7 +497,7 @@ func TestHTTPDecoding(t *testing.T) {
 	defer ts.Close()
 	res, err := http.Get(ts.URL)
 	if err != nil {
-		log.Fatalf("GET failed: %v", err)
+		log.Fatalf("http.Get error: %v", err)
 	}
 	defer res.Body.Close()
 
@@ -483,15 +508,15 @@ func TestHTTPDecoding(t *testing.T) {
 	d := NewDecoder(res.Body)
 	err = d.Decode(&foo)
 	if err != nil {
-		t.Fatalf("Decode: %v", err)
+		t.Fatalf("Decode error: %v", err)
 	}
 	if foo.Foo != "bar" {
-		t.Errorf("decoded %q; want \"bar\"", foo.Foo)
+		t.Errorf(`Decode: got %q, want "bar"`, foo.Foo)
 	}
 
 	// make sure we get the EOF the second time
 	err = d.Decode(&foo)
 	if err != io.EOF {
-		t.Errorf("err = %v; want io.EOF", err)
+		t.Errorf("Decode error:\n\tgot:  %v\n\twant: io.EOF", err)
 	}
 }

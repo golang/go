@@ -169,6 +169,7 @@ var exprTests = [][2]string{
 	dup(`'a'`),
 	dup(`"foo"`),
 	dup("`bar`"),
+	dup("any"),
 
 	// func and composite literals
 	dup("func() {}"),
@@ -197,11 +198,17 @@ var exprTests = [][2]string{
 	// new interfaces
 	dup("interface{int}"),
 	dup("interface{~int}"),
-	dup("interface{~int}"),
+
+	// generic constraints
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
-	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
+
+	// generic types
+	dup("x[T]"),
+	dup("x[N | A | S]"),
+	dup("x[N, A]"),
 
 	// non-type expressions
 	dup("(x)"),
@@ -249,6 +256,12 @@ var exprTests = [][2]string{
 	dup("f(x, x + y)"),
 	dup("f(s...)"),
 	dup("f(a, s...)"),
+
+	// generic functions
+	dup("f[T]()"),
+	dup("f[T](T)"),
+	dup("f[T, T1]()"),
+	dup("f[T, T1](T, T1)"),
 
 	dup("*x"),
 	dup("&x"),

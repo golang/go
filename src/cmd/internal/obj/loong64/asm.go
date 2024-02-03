@@ -349,6 +349,8 @@ var optab = []Optab{
 	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 40, 4, 0, 0},
 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
+	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
+
 	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 
@@ -676,6 +678,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SOREG
 			}
 			return C_LOREG
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 		}
 
 		return C_GOK
@@ -753,7 +758,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xfff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && (instoffset & (1<<31)) == 0)
+			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && ((instoffset & (1<<31)) == 0)
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -1776,6 +1781,22 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
 		a := OP_TEN(8, 1334)
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_LOONG64_GOT_HI
+		rel.Add = 0x0
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Type = objabi.R_LOONG64_GOT_LO
+		rel2.Add = 0x0
 	}
 
 	out[0] = o1

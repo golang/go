@@ -15,7 +15,6 @@ import (
 	"internal/cfg"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -161,7 +160,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := exec.LookPath(cc); err != nil {
+				if _, err := LookPath(cc); err != nil {
 					ctxt.CgoEnabled = false
 				}
 			}
@@ -409,13 +408,14 @@ var (
 	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
-	GO386    = envOr("GO386", buildcfg.GO386)
-	GOAMD64  = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
-	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
-	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
-	GOWASM   = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+	GOARM     = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+	GO386     = envOr("GO386", buildcfg.GO386)
+	GOAMD64   = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
+	GOMIPS    = envOr("GOMIPS", buildcfg.GOMIPS)
+	GOMIPS64  = envOr("GOMIPS64", buildcfg.GOMIPS64)
+	GOPPC64   = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+	GORISCV64 = envOr("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+	GOWASM    = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
 	GOPROXY    = envOr("GOPROXY", "")
 	GOSUMDB    = envOr("GOSUMDB", "")
@@ -446,6 +446,8 @@ func GetArchEnv() (key, val string) {
 		return "GOMIPS64", GOMIPS64
 	case "ppc64", "ppc64le":
 		return "GOPPC64", GOPPC64
+	case "riscv64":
+		return "GORISCV64", GORISCV64
 	case "wasm":
 		return "GOWASM", GOWASM
 	}
@@ -490,25 +492,43 @@ func findGOROOT(env string) string {
 		// depend on the executable's location.
 		return def
 	}
+
+	// canonical returns a directory path that represents
+	// the same directory as dir,
+	// preferring the spelling in def if the two are the same.
+	canonical := func(dir string) string {
+		if isSameDir(def, dir) {
+			return def
+		}
+		return dir
+	}
+
 	exe, err := os.Executable()
 	if err == nil {
 		exe, err = filepath.Abs(exe)
 		if err == nil {
+			// cmd/go may be installed in GOROOT/bin or GOROOT/bin/GOOS_GOARCH,
+			// depending on whether it was cross-compiled with a different
+			// GOHOSTOS (see https://go.dev/issue/62119). Try both.
 			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-				// If def (runtime.GOROOT()) and dir are the same
-				// directory, prefer the spelling used in def.
-				if isSameDir(def, dir) {
-					return def
-				}
-				return dir
+				return canonical(dir)
 			}
+			if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+				return canonical(dir)
+			}
+
+			// Depending on what was passed on the command line, it is possible
+			// that os.Executable is a symlink (like /usr/local/bin/go) referring
+			// to a binary installed in a real GOROOT elsewhere
+			// (like /usr/lib/go/bin/go).
+			// Try to find that GOROOT by resolving the symlinks.
 			exe, err = filepath.EvalSymlinks(exe)
 			if err == nil {
 				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
-					if isSameDir(def, dir) {
-						return def
-					}
-					return dir
+					return canonical(dir)
+				}
+				if dir := filepath.Join(exe, "../../.."); isGOROOT(dir) {
+					return canonical(dir)
 				}
 			}
 		}

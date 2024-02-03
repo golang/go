@@ -30,3 +30,21 @@ func BenchmarkPhioptPass(b *testing.B) {
 		}
 	}
 }
+
+type Point struct {
+	X, Y int
+}
+
+//go:noinline
+func sign(p1, p2, p3 Point) bool {
+	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
+}
+
+func BenchmarkInvertLessThanNoov(b *testing.B) {
+	p1 := Point{1, 2}
+	p2 := Point{2, 3}
+	p3 := Point{3, 4}
+	for i := 0; i < b.N; i++ {
+		sign(p1, p2, p3)
+	}
+}

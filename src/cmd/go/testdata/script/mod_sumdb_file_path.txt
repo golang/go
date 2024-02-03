@@ -1,7 +1,9 @@
 [!net:proxy.golang.org] skip
+[!net:sum.golang.org] skip
 
 env GO111MODULE=on
-env GOSUMDB=
+[go-builder] env GOSUMDB=
+[!go-builder] env GOSUMDB=sum.golang.org  # Set explicitly in case GOROOT/go.env is modified.
 env GOPATH=$WORK/gopath1
 
 # With a file-based proxy with an empty checksum directory,

@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-// ValueKind is a tag for a metric Value which indicates its type.
+// ValueKind is a tag for a metric [Value] which indicates its type.
 type ValueKind int
 
 const (

@@ -6,7 +6,6 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
-	"fmt"
 	. "internal/types/errors"
 	"sort"
 	"strings"
@@ -212,7 +211,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	// we can get rid of the mpos map below and simply use the cloned method's
 	// position.
 
-	var todo []*Func
 	var seen objset
 	var allMethods []*Func
 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
@@ -222,36 +220,30 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			allMethods = append(allMethods, m)
 			mpos[m] = pos
 		case explicit:
-			if check == nil {
-				panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
+			if check != nil {
+				var err error_
+				err.code = DuplicateDecl
+				err.errorf(pos, "duplicate method %s", m.name)
+				err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+				check.report(&err)
 			}
-			// check != nil
-			var err error_
-			err.code = DuplicateDecl
-			err.errorf(pos, "duplicate method %s", m.name)
-			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
-			check.report(&err)
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
 			// Check method signatures after all types are computed (go.dev/issue/33656).
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.
-			if check == nil {
-				// check method signatures after all locally embedded interfaces are computed
-				todo = append(todo, m, other.(*Func))
-				break
+			if check != nil {
+				check.later(func() {
+					if !check.allowVersion(m.pkg, pos, go1_14) || !Identical(m.typ, other.Type()) {
+						var err error_
+						err.code = DuplicateDecl
+						err.errorf(pos, "duplicate method %s", m.name)
+						err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+						check.report(&err)
+					}
+				}).describef(pos, "duplicate method check for %s", m.name)
 			}
-			// check != nil
-			check.later(func() {
-				if !check.allowVersion(m.pkg, pos, go1_14) || !Identical(m.typ, other.Type()) {
-					var err error_
-					err.code = DuplicateDecl
-					err.errorf(pos, "duplicate method %s", m.name)
-					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
-					check.report(&err)
-				}
-			}).describef(pos, "duplicate method check for %s", m.name)
 		}
 	}
 
@@ -298,7 +290,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			assert(len(tset.methods) == 0)
 			terms = tset.terms
 		default:
-			if u == Typ[Invalid] {
+			if !isValid(u) {
 				continue
 			}
 			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
@@ -311,16 +303,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		// Due to language restrictions, only embedded interfaces can add methods, they are handled
 		// separately. Here we only need to intersect the term lists and comparable bits.
 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
-	}
-	ityp.embedPos = nil // not needed anymore (errors have been reported)
-
-	// process todo's (this only happens if check == nil)
-	for i := 0; i < len(todo); i += 2 {
-		m := todo[i]
-		other := todo[i+1]
-		if !Identical(m.typ, other.typ) {
-			panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
-		}
 	}
 
 	ityp.tset.comparable = allComparable
@@ -406,7 +388,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(t.typ))
 			terms = computeInterfaceTypeSet(check, pos, ui).terms
-		} else if u == Typ[Invalid] {
+		} else if !isValid(u) {
 			continue
 		} else {
 			if t.tilde && !Identical(t.typ, u) {

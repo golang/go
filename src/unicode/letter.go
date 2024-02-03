@@ -76,9 +76,9 @@ const (
 
 type d [MaxCase]rune // to make the CaseRanges text shorter
 
-// If the Delta field of a CaseRange is UpperLower, it means
+// If the Delta field of a [CaseRange] is UpperLower, it means
 // this CaseRange represents a sequence of the form (say)
-// Upper Lower Upper Lower.
+// [Upper] [Lower] [Upper] [Lower].
 const (
 	UpperLower = MaxRune + 1 // (Cannot be a valid delta.)
 )
@@ -106,7 +106,7 @@ func is16(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -139,7 +139,7 @@ func is32(ranges []Range32, r uint32) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
@@ -216,7 +216,7 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
 	lo := 0
 	hi := len(caseRange)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		cr := caseRange[m]
 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
 			delta := cr.Delta[_case]
@@ -244,7 +244,7 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
 	return r, false
 }
 
-// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
+// To maps the rune to the specified case: [UpperCase], [LowerCase], or [TitleCase].
 func To(_case int, r rune) rune {
 	r, _ = to(_case, r, CaseRanges)
 	return r
@@ -350,7 +350,7 @@ func SimpleFold(r rune) rune {
 	lo := 0
 	hi := len(caseOrbit)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if rune(caseOrbit[m].From) < r {
 			lo = m + 1
 		} else {

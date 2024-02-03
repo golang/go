@@ -94,7 +94,7 @@ type missingValType struct{}
 
 var missingVal = reflect.ValueOf(missingValType{})
 
-var missingValReflectType = reflect.TypeOf(missingValType{})
+var missingValReflectType = reflect.TypeFor[missingValType]()
 
 func isMissing(v reflect.Value) bool {
 	return v.IsValid() && v.Type() == missingValReflectType
@@ -708,9 +708,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType        = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
-	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
+	errorType        = reflect.TypeFor[error]()
+	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so

@@ -1,0 +1,62 @@
+# This test checks to see if we only start in workspace vendor
+# mode if the modules.txt specifies ## workspace (and only in
+# standard vendor if it doesn't).
+
+# vendor directory produced for workspace, workspace mode
+# runs in mod=vendor
+go work vendor
+cmp vendor/modules.txt want_workspace_modules_txt
+go list -f {{.Dir}} example.com/b
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
+
+# vendor directory produced for workspace, module mode
+# runs in mod=readonly
+env GOWORK=off
+go list -f {{.Dir}} example.com/b
+stdout $GOPATH[\\/]src[\\/]b
+
+# vendor directory produced for module, module mode
+# runs in mod=vendor
+go mod vendor
+cmp vendor/modules.txt want_module_modules_txt
+go list -f {{.Dir}} example.com/b
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
+
+# vendor directory produced for module, workspace mode
+# runs in mod=readonly
+env GOWORK=
+go list -f {{.Dir}} example.com/b
+stdout $GOPATH[\\/]src[\\/]b
+
+-- want_workspace_modules_txt --
+## workspace
+# example.com/b v0.0.0 => ./b
+## explicit; go 1.21
+example.com/b
+# example.com/b => ./b
+-- want_module_modules_txt --
+# example.com/b v0.0.0 => ./b
+## explicit; go 1.21
+example.com/b
+# example.com/b => ./b
+-- go.work --
+go 1.21
+
+use .
+-- go.mod --
+module example.com/a
+
+go 1.21
+
+require example.com/b v0.0.0
+replace example.com/b => ./b
+-- a.go --
+package a
+
+import _ "example.com/b"
+-- b/go.mod --
+module example.com/b
+
+go 1.21
+-- b/b.go --
+package b

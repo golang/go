@@ -1,0 +1,19 @@
+# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
+# golang.org/issue/61877: 'go get' would panic in case of an insecure redirect in module mode
+
+[!git] skip
+
+env GOPRIVATE=vcs-test.golang.org
+
+! go get -d vcs-test.golang.org/insecure/go/insecure
+stderr 'redirected .* to insecure URL'
+
+[short] stop 'builds a git repo'
+
+env GOINSECURE=vcs-test.golang.org/insecure/go/insecure
+go get -d vcs-test.golang.org/insecure/go/insecure
+
+-- go.mod --
+module example
+go 1.21
+

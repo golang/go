@@ -34,9 +34,9 @@ env GOTOOLCHAIN=go1.600+auto
 go version
 stdout go1.600
 
-env GOTOOLCHAIN=go1.400+auto
+env GOTOOLCHAIN=go1.400.0+auto
 go version
-stdout go1.400
+stdout go1.400.0
 
 # GOTOOLCHAIN=version+path sets a minimum too.
 env GOTOOLCHAIN=go1.600+path
@@ -163,11 +163,24 @@ go mod edit -go=1.499 -toolchain=none
 go version
 stdout go1.500-bigcorp
 
+go mod edit -go=1.499 -toolchain=go1.499
+go version
+stdout go1.500-bigcorp
+
 go mod edit -go=1.500 -toolchain=none
 go version
 stdout go1.500-bigcorp
 
+go mod edit -go=1.500 -toolchain=go1.500
+go version
+stdout go1.500-bigcorp
+
 go mod edit -go=1.501 -toolchain=none
+go version
+stdout go1.501
+
+	# If toolchain > go, we must upgrade to the indicated toolchain (not just the go version).
+go mod edit -go=1.499 -toolchain=go1.501
 go version
 stdout go1.501
 

@@ -100,7 +100,7 @@ func TestScalarAliasing(t *testing.T) {
 			}, v, x, y)
 		},
 	} {
-		err := quick.Check(f, &quick.Config{MaxCountScale: 1 << 5})
+		err := quick.Check(f, quickCheckConfig(32))
 		if err != nil {
 			t.Errorf("%v: %v", name, err)
 		}

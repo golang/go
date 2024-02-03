@@ -389,13 +389,6 @@ func addAt(z, x nat, i int) {
 	}
 }
 
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
-
 // karatsubaLen computes an approximation to the maximum k <= n such that
 // k = p<<i for a number p <= threshold and an i >= 0. Thus, the
 // result is the largest number that can be divided repeatedly by 2 before
@@ -631,7 +624,7 @@ func (z nat) mulRange(a, b uint64) nat {
 	case a+1 == b:
 		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
 	}
-	m := (a + b) / 2
+	m := a + (b-a)/2 // avoid overflow
 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
 }
 

@@ -38,7 +38,7 @@ The vendor directory may be updated with 'go mod vendor'.
 A typical sequence might be:
 
     cd src
-    go get golang.org/x/net@latest
+    go get golang.org/x/net@master
     go mod tidy
     go mod vendor
 

@@ -83,6 +83,12 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		}
 	}
 
+	if inst.Op == CMP {
+		// Use reads-left-to-right ordering for comparisons.
+		// See issue 60920.
+		args[0], args[1] = args[1], args[0]
+	}
+
 	if args != nil {
 		op += " " + strings.Join(args, ", ")
 	}

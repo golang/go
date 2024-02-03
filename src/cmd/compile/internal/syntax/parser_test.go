@@ -374,3 +374,22 @@ func TestLineDirectives(t *testing.T) {
 		}
 	}
 }
+
+// Test that typical uses of UnpackListExpr don't allocate.
+func TestUnpackListExprAllocs(t *testing.T) {
+	var x Expr = NewName(Pos{}, "x")
+	allocs := testing.AllocsPerRun(1000, func() {
+		list := UnpackListExpr(x)
+		if len(list) != 1 || list[0] != x {
+			t.Fatalf("unexpected result")
+		}
+	})
+
+	if allocs > 0 {
+		errorf := t.Errorf
+		if testenv.OptimizationOff() {
+			errorf = t.Logf // noopt builder disables inlining
+		}
+		errorf("UnpackListExpr allocated %v times", allocs)
+	}
+}

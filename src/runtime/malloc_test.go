@@ -268,7 +268,7 @@ func TestArenaCollision(t *testing.T) {
 	// Test that mheap.sysAlloc handles collisions with other
 	// memory mappings.
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestArenaCollision", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestArenaCollision$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
 		out, err := cmd.CombinedOutput()
 		if race.Enabled {

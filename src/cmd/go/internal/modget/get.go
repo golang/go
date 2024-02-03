@@ -128,23 +128,6 @@ See also: go build, go install, go clean, go mod.
 	`,
 }
 
-// Note that this help text is a stopgap to make the module-aware get help text
-// available even in non-module settings. It should be deleted when the old get
-// is deleted. It should NOT be considered to set a precedent of having hierarchical
-// help names with dashes.
-var HelpModuleGet = &base.Command{
-	UsageLine: "module-get",
-	Short:     "module-aware go get",
-	Long: `
-The 'go get' command changes behavior depending on whether the
-go command is running in module-aware mode or legacy GOPATH mode.
-This help text, accessible as 'go help module-get' even in legacy GOPATH mode,
-describes 'go get' as it operates in module-aware mode.
-
-Usage: ` + CmdGet.UsageLine + `
-` + CmdGet.Long,
-}
-
 var HelpVCS = &base.Command{
 	UsageLine: "vcs",
 	Short:     "controlling version control with GOVCS",
@@ -344,7 +327,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			// The result of any version query for a given module — even "upgrade" or
 			// "patch" — is always relative to the build list at the start of
 			// the 'go get' command, not an intermediate state, and is therefore
-			// deterministic and therefore cachable, and the constraints on the
+			// deterministic and therefore cacheable, and the constraints on the
 			// selected version of each module can only narrow as we iterate.
 			//
 			// "all" is functionally very similar to a wildcard pattern. The set of

@@ -31,7 +31,7 @@ type mstats struct {
 
 	// Statistics about the garbage collector.
 
-	// Protected by mheap or stopping the world during GC.
+	// Protected by mheap or worldsema during GC.
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
@@ -44,12 +44,6 @@ type mstats struct {
 	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
 
 	enablegc bool
-
-	// gcPauseDist represents the distribution of all GC-related
-	// application pauses in the runtime.
-	//
-	// Each individual pause is counted separately, unlike pause_ns.
-	gcPauseDist timeHistogram
 }
 
 var memstats mstats
@@ -199,7 +193,17 @@ type MemStats struct {
 	// StackSys is bytes of stack memory obtained from the OS.
 	//
 	// StackSys is StackInuse, plus any memory obtained directly
-	// from the OS for OS thread stacks (which should be minimal).
+	// from the OS for OS thread stacks.
+	//
+	// In non-cgo programs this metric is currently equal to StackInuse
+	// (but this should not be relied upon, and the value may change in
+	// the future).
+	//
+	// In cgo programs this metric includes OS thread stacks allocated
+	// directly from the OS. Currently, this only accounts for one stack in
+	// c-shared and c-archive build modes and other sources of stacks from
+	// the OS (notably, any allocated by C code) are not currently measured.
+	// Note this too may change in the future.
 	StackSys uint64
 
 	// Off-heap memory statistics.
@@ -347,14 +351,20 @@ func init() {
 // which is a snapshot as of the most recently completed garbage
 // collection cycle.
 func ReadMemStats(m *MemStats) {
-	stopTheWorld(stwReadMemStats)
+	_ = m.Alloc // nil check test before we switch stacks, see issue 61158
+	stw := stopTheWorld(stwReadMemStats)
 
 	systemstack(func() {
 		readmemstats_m(m)
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 }
+
+// doubleCheckReadMemStats controls a double-check mode for ReadMemStats that
+// ensures consistency between the values that ReadMemStats is using and the
+// runtime-internal stats.
+var doubleCheckReadMemStats = false
 
 // readmemstats_m populates stats for internal runtime values.
 //
@@ -430,56 +440,65 @@ func readmemstats_m(stats *MemStats) {
 
 	heapGoal := gcController.heapGoal()
 
-	// The world is stopped, so the consistent stats (after aggregation)
-	// should be identical to some combination of memstats. In particular:
-	//
-	// * memstats.heapInUse == inHeap
-	// * memstats.heapReleased == released
-	// * memstats.heapInUse + memstats.heapFree == committed - inStacks - inWorkBufs - inPtrScalarBits
-	// * memstats.totalAlloc == totalAlloc
-	// * memstats.totalFree == totalFree
-	//
-	// Check if that's actually true.
-	//
-	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
-	// bug in otherwise benign accounting caused the whole application
-	// to crash.
-	if gcController.heapInUse.load() != uint64(consStats.inHeap) {
-		print("runtime: heapInUse=", gcController.heapInUse.load(), "\n")
-		print("runtime: consistent value=", consStats.inHeap, "\n")
-		throw("heapInUse and consistent stats are not equal")
-	}
-	if gcController.heapReleased.load() != uint64(consStats.released) {
-		print("runtime: heapReleased=", gcController.heapReleased.load(), "\n")
-		print("runtime: consistent value=", consStats.released, "\n")
-		throw("heapReleased and consistent stats are not equal")
-	}
-	heapRetained := gcController.heapInUse.load() + gcController.heapFree.load()
-	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
-	if heapRetained != consRetained {
-		print("runtime: global value=", heapRetained, "\n")
-		print("runtime: consistent value=", consRetained, "\n")
-		throw("measures of the retained heap are not equal")
-	}
-	if gcController.totalAlloc.Load() != totalAlloc {
-		print("runtime: totalAlloc=", gcController.totalAlloc.Load(), "\n")
-		print("runtime: consistent value=", totalAlloc, "\n")
-		throw("totalAlloc and consistent stats are not equal")
-	}
-	if gcController.totalFree.Load() != totalFree {
-		print("runtime: totalFree=", gcController.totalFree.Load(), "\n")
-		print("runtime: consistent value=", totalFree, "\n")
-		throw("totalFree and consistent stats are not equal")
-	}
-	// Also check that mappedReady lines up with totalMapped - released.
-	// This isn't really the same type of "make sure consistent stats line up" situation,
-	// but this is an opportune time to check.
-	if gcController.mappedReady.Load() != totalMapped-uint64(consStats.released) {
-		print("runtime: mappedReady=", gcController.mappedReady.Load(), "\n")
-		print("runtime: totalMapped=", totalMapped, "\n")
-		print("runtime: released=", uint64(consStats.released), "\n")
-		print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
-		throw("mappedReady and other memstats are not equal")
+	if doubleCheckReadMemStats {
+		// Only check this if we're debugging. It would be bad to crash an application
+		// just because the debugging stats are wrong. We mostly rely on tests to catch
+		// these issues, and we enable the double check mode for tests.
+		//
+		// The world is stopped, so the consistent stats (after aggregation)
+		// should be identical to some combination of memstats. In particular:
+		//
+		// * memstats.heapInUse == inHeap
+		// * memstats.heapReleased == released
+		// * memstats.heapInUse + memstats.heapFree == committed - inStacks - inWorkBufs - inPtrScalarBits
+		// * memstats.totalAlloc == totalAlloc
+		// * memstats.totalFree == totalFree
+		//
+		// Check if that's actually true.
+		//
+		// Prevent sysmon and the tracer from skewing the stats since they can
+		// act without synchronizing with a STW. See #64401.
+		lock(&sched.sysmonlock)
+		lock(&trace.lock)
+		if gcController.heapInUse.load() != uint64(consStats.inHeap) {
+			print("runtime: heapInUse=", gcController.heapInUse.load(), "\n")
+			print("runtime: consistent value=", consStats.inHeap, "\n")
+			throw("heapInUse and consistent stats are not equal")
+		}
+		if gcController.heapReleased.load() != uint64(consStats.released) {
+			print("runtime: heapReleased=", gcController.heapReleased.load(), "\n")
+			print("runtime: consistent value=", consStats.released, "\n")
+			throw("heapReleased and consistent stats are not equal")
+		}
+		heapRetained := gcController.heapInUse.load() + gcController.heapFree.load()
+		consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
+		if heapRetained != consRetained {
+			print("runtime: global value=", heapRetained, "\n")
+			print("runtime: consistent value=", consRetained, "\n")
+			throw("measures of the retained heap are not equal")
+		}
+		if gcController.totalAlloc.Load() != totalAlloc {
+			print("runtime: totalAlloc=", gcController.totalAlloc.Load(), "\n")
+			print("runtime: consistent value=", totalAlloc, "\n")
+			throw("totalAlloc and consistent stats are not equal")
+		}
+		if gcController.totalFree.Load() != totalFree {
+			print("runtime: totalFree=", gcController.totalFree.Load(), "\n")
+			print("runtime: consistent value=", totalFree, "\n")
+			throw("totalFree and consistent stats are not equal")
+		}
+		// Also check that mappedReady lines up with totalMapped - released.
+		// This isn't really the same type of "make sure consistent stats line up" situation,
+		// but this is an opportune time to check.
+		if gcController.mappedReady.Load() != totalMapped-uint64(consStats.released) {
+			print("runtime: mappedReady=", gcController.mappedReady.Load(), "\n")
+			print("runtime: totalMapped=", totalMapped, "\n")
+			print("runtime: released=", uint64(consStats.released), "\n")
+			print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
+			throw("mappedReady and other memstats are not equal")
+		}
+		unlock(&trace.lock)
+		unlock(&sched.sysmonlock)
 	}
 
 	// We've calculated all the values we need. Now, populate stats.

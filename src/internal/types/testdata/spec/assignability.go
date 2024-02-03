@@ -37,7 +37,7 @@ func _[TP any](X TP) {
 // and at least one of V or T is not a named type."
 // (here a named type is a type with a name)
 func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
-	b = B // ERRORx `cannot use B .* as int value`
+	b = B // ERRORx `cannot use B .* as (int|_Basic.*) value`
 	a = A
 	l = L
 	s = S
@@ -134,7 +134,7 @@ func _[
 		_ TP0 = C // ERRORx `cannot use C .* as TP0 value`
 		_ TP1 = c
 		_ TP1 = C // ERRORx `cannot use C .* as TP1 value`
-		_ TP2 = c // ERRORx `.* cannot assign chan int to chan byte`
+		_ TP2 = c // ERRORx `.* cannot assign (chan int|_Chan.*) to chan byte`
 	)
 }
 
@@ -148,7 +148,7 @@ func _[
 	I = X0
 	c = X1
 	C = X1 // ERRORx `cannot use X1 .* as Chan value`
-	c = X2 // ERRORx `.* cannot assign chan byte \(in TP2\) to chan int`
+	c = X2 // ERRORx `.* cannot assign chan byte \(in TP2\) to (chan int|_Chan.*)`
 }
 
 // "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"

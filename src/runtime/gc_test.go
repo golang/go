@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goexperiment"
 	"math/rand"
 	"os"
 	"reflect"
@@ -457,11 +458,17 @@ func BenchmarkSetTypeNode1024Slice(b *testing.B) {
 }
 
 func benchSetType[T any](b *testing.B) {
+	if goexperiment.AllocHeaders {
+		b.Skip("not supported with allocation headers experiment")
+	}
 	b.SetBytes(int64(unsafe.Sizeof(*new(T))))
 	runtime.BenchSetType[T](b.N, b.ResetTimer)
 }
 
 func benchSetTypeSlice[T any](b *testing.B, len int) {
+	if goexperiment.AllocHeaders {
+		b.Skip("not supported with allocation headers experiment")
+	}
 	b.SetBytes(int64(unsafe.Sizeof(*new(T)) * uintptr(len)))
 	runtime.BenchSetTypeSlice[T](b.N, b.ResetTimer, len)
 }
@@ -568,6 +575,11 @@ func TestPageAccounting(t *testing.T) {
 	if pagesInUse != counted {
 		t.Fatalf("mheap_.pagesInUse is %d, but direct count is %d", pagesInUse, counted)
 	}
+}
+
+func init() {
+	// Enable ReadMemStats' double-check mode.
+	*runtime.DoubleCheckReadMemStats = true
 }
 
 func TestReadMemStats(t *testing.T) {
@@ -928,4 +940,8 @@ func TestMemoryLimitNoGCPercent(t *testing.T) {
 	if got != want {
 		t.Fatalf("expected %q, but got %q", want, got)
 	}
+}
+
+func TestMyGenericFunc(t *testing.T) {
+	runtime.MyGenericFunc[int]()
 }

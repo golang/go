@@ -17,15 +17,15 @@ import (
 // driver package to provide consistent implementations of conversions
 // between drivers. The ValueConverters have several uses:
 //
-//   - converting from the Value types as provided by the sql package
+//   - converting from the [Value] types as provided by the sql package
 //     into a database table's specific column type and making sure it
 //     fits, such as making sure a particular int64 fits in a
 //     table's uint16 column.
 //
 //   - converting a value as given from the database into one of the
-//     driver Value types.
+//     driver [Value] types.
 //
-//   - by the sql package, for converting from a driver's Value type
+//   - by the [database/sql] package, for converting from a driver's [Value] type
 //     to a user's type in a scan.
 type ValueConverter interface {
 	// ConvertValue converts a value to a driver Value.
@@ -35,14 +35,14 @@ type ValueConverter interface {
 // Valuer is the interface providing the Value method.
 //
 // Types implementing Valuer interface are able to convert
-// themselves to a driver Value.
+// themselves to a driver [Value].
 type Valuer interface {
 	// Value returns a driver Value.
 	// Value must not panic.
 	Value() (Value, error)
 }
 
-// Bool is a ValueConverter that converts input values to bools.
+// Bool is a [ValueConverter] that converts input values to bool.
 //
 // The conversion rules are:
 //   - booleans are returned unchanged
@@ -50,7 +50,7 @@ type Valuer interface {
 //     1 is true
 //     0 is false,
 //     other integers are an error
-//   - for strings and []byte, same rules as strconv.ParseBool
+//   - for strings and []byte, same rules as [strconv.ParseBool]
 //   - all other types are an error
 var Bool boolType
 
@@ -97,7 +97,7 @@ func (boolType) ConvertValue(src any) (Value, error) {
 	return nil, fmt.Errorf("sql/driver: couldn't convert %v (%T) into type bool", src, src)
 }
 
-// Int32 is a ValueConverter that converts input values to int64,
+// Int32 is a [ValueConverter] that converts input values to int64,
 // respecting the limits of an int32 value.
 var Int32 int32Type
 
@@ -130,7 +130,7 @@ func (int32Type) ConvertValue(v any) (Value, error) {
 	return nil, fmt.Errorf("sql/driver: unsupported value %v (type %T) converting to int32", v, v)
 }
 
-// String is a ValueConverter that converts its input to a string.
+// String is a [ValueConverter] that converts its input to a string.
 // If the value is already a string or []byte, it's unchanged.
 // If the value is of another type, conversion to string is done
 // with fmt.Sprintf("%v", v).
@@ -146,8 +146,8 @@ func (stringType) ConvertValue(v any) (Value, error) {
 	return fmt.Sprintf("%v", v), nil
 }
 
-// Null is a type that implements ValueConverter by allowing nil
-// values but otherwise delegating to another ValueConverter.
+// Null is a type that implements [ValueConverter] by allowing nil
+// values but otherwise delegating to another [ValueConverter].
 type Null struct {
 	Converter ValueConverter
 }
@@ -159,8 +159,8 @@ func (n Null) ConvertValue(v any) (Value, error) {
 	return n.Converter.ConvertValue(v)
 }
 
-// NotNull is a type that implements ValueConverter by disallowing nil
-// values but otherwise delegating to another ValueConverter.
+// NotNull is a type that implements [ValueConverter] by disallowing nil
+// values but otherwise delegating to another [ValueConverter].
 type NotNull struct {
 	Converter ValueConverter
 }
@@ -172,7 +172,7 @@ func (n NotNull) ConvertValue(v any) (Value, error) {
 	return n.Converter.ConvertValue(v)
 }
 
-// IsValue reports whether v is a valid Value parameter type.
+// IsValue reports whether v is a valid [Value] parameter type.
 func IsValue(v any) bool {
 	if v == nil {
 		return true
@@ -186,32 +186,33 @@ func IsValue(v any) bool {
 	return false
 }
 
-// IsScanValue is equivalent to IsValue.
+// IsScanValue is equivalent to [IsValue].
 // It exists for compatibility.
 func IsScanValue(v any) bool {
 	return IsValue(v)
 }
 
 // DefaultParameterConverter is the default implementation of
-// ValueConverter that's used when a Stmt doesn't implement
-// ColumnConverter.
+// [ValueConverter] that's used when a [Stmt] doesn't implement
+// [ColumnConverter].
 //
 // DefaultParameterConverter returns its argument directly if
-// IsValue(arg). Otherwise, if the argument implements Valuer, its
-// Value method is used to return a Value. As a fallback, the provided
-// argument's underlying type is used to convert it to a Value:
+// IsValue(arg). Otherwise, if the argument implements [Valuer], its
+// Value method is used to return a [Value]. As a fallback, the provided
+// argument's underlying type is used to convert it to a [Value]:
 // underlying integer types are converted to int64, floats to float64,
 // bool, string, and []byte to themselves. If the argument is a nil
-// pointer, ConvertValue returns a nil Value. If the argument is a
-// non-nil pointer, it is dereferenced and ConvertValue is called
-// recursively. Other types are an error.
+// pointer, defaultConverter.ConvertValue returns a nil [Value].
+// If the argument is a non-nil pointer, it is dereferenced and
+// defaultConverter.ConvertValue is called recursively. Other types
+// are an error.
 var DefaultParameterConverter defaultConverter
 
 type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
-var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
+var valuerReflectType = reflect.TypeFor[Valuer]()
 
 // callValuerValue returns vr.Value(), with one exception:
 // If vr.Value is an auto-generated method on a pointer type and the

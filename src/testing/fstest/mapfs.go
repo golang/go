@@ -19,8 +19,8 @@ import (
 //
 // The map need not include parent directories for files contained
 // in the map; those will be synthesized if needed.
-// But a directory can still be included by setting the MapFile.Mode's ModeDir bit;
-// this may be necessary for detailed control over the directory's FileInfo
+// But a directory can still be included by setting the [MapFile.Mode]'s [fs.ModeDir] bit;
+// this may be necessary for detailed control over the directory's [fs.FileInfo]
 // or to create an empty directory.
 //
 // File system operations read directly from the map,
@@ -32,12 +32,12 @@ import (
 // than a few hundred entries or directory reads.
 type MapFS map[string]*MapFile
 
-// A MapFile describes a single file in a MapFS.
+// A MapFile describes a single file in a [MapFS].
 type MapFile struct {
 	Data    []byte      // file content
-	Mode    fs.FileMode // FileInfo.Mode
-	ModTime time.Time   // FileInfo.ModTime
-	Sys     any         // FileInfo.Sys
+	Mode    fs.FileMode // fs.FileInfo.Mode
+	ModTime time.Time   // fs.FileInfo.ModTime
+	Sys     any         // fs.FileInfo.Sys
 }
 
 var _ fs.FS = MapFS(nil)
@@ -98,14 +98,14 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		delete(need, fi.name)
 	}
 	for name := range need {
-		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir}})
+		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir | 0555}})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].name < list[j].name
 	})
 
 	if file == nil {
-		file = &MapFile{Mode: fs.ModeDir}
+		file = &MapFile{Mode: fs.ModeDir | 0555}
 	}
 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
 }

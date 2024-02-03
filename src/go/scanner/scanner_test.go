@@ -813,6 +813,7 @@ var errors = []struct {
 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
 	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
 	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
+	{"“abc”", token.ILLEGAL, 0, "abc", `curly quotation mark '“' (use neutral '"')`},
 }
 
 func TestScanErrors(t *testing.T) {

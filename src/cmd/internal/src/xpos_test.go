@@ -62,8 +62,8 @@ func TestConversion(t *testing.T) {
 		}
 	}
 
-	if len(tab.baseList) != len(tab.indexMap) {
-		t.Errorf("table length discrepancy: %d != %d", len(tab.baseList), len(tab.indexMap))
+	if len(tab.baseList) != 1+len(tab.indexMap) { // indexMap omits nil
+		t.Errorf("table length discrepancy: %d != 1+%d", len(tab.baseList), len(tab.indexMap))
 	}
 
 	const wantLen = 4

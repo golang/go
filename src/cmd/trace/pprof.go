@@ -7,51 +7,25 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"internal/trace"
-	"io"
+	"internal/trace/traceviewer"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"time"
-
-	"github.com/google/pprof/profile"
 )
 
-func goCmd() string {
-	var exeSuffix string
-	if runtime.GOOS == "windows" {
-		exeSuffix = ".exe"
-	}
-	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
-	if _, err := os.Stat(path); err == nil {
-		return path
-	}
-	return "go"
-}
-
 func init() {
-	http.HandleFunc("/io", serveSVGProfile(pprofByGoroutine(computePprofIO)))
-	http.HandleFunc("/block", serveSVGProfile(pprofByGoroutine(computePprofBlock)))
-	http.HandleFunc("/syscall", serveSVGProfile(pprofByGoroutine(computePprofSyscall)))
-	http.HandleFunc("/sched", serveSVGProfile(pprofByGoroutine(computePprofSched)))
+	http.HandleFunc("/io", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofIO)))
+	http.HandleFunc("/block", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofBlock)))
+	http.HandleFunc("/syscall", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSyscall)))
+	http.HandleFunc("/sched", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSched)))
 
-	http.HandleFunc("/regionio", serveSVGProfile(pprofByRegion(computePprofIO)))
-	http.HandleFunc("/regionblock", serveSVGProfile(pprofByRegion(computePprofBlock)))
-	http.HandleFunc("/regionsyscall", serveSVGProfile(pprofByRegion(computePprofSyscall)))
-	http.HandleFunc("/regionsched", serveSVGProfile(pprofByRegion(computePprofSched)))
-}
-
-// Record represents one entry in pprof-like profiles.
-type Record struct {
-	stk  []*trace.Frame
-	n    uint64
-	time int64
+	http.HandleFunc("/regionio", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofIO)))
+	http.HandleFunc("/regionblock", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofBlock)))
+	http.HandleFunc("/regionsyscall", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSyscall)))
+	http.HandleFunc("/regionsched", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSched)))
 }
 
 // interval represents a time interval in the trace.
@@ -59,34 +33,34 @@ type interval struct {
 	begin, end int64 // nanoseconds.
 }
 
-func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
-	return func(w io.Writer, r *http.Request) error {
+func pprofByGoroutine(compute computePprofFunc) traceviewer.ProfileFunc {
+	return func(r *http.Request) ([]traceviewer.ProfileRecord, error) {
 		id := r.FormValue("id")
 		events, err := parseEvents()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		gToIntervals, err := pprofMatchingGoroutines(id, events)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return compute(w, gToIntervals, events)
+		return compute(gToIntervals, events)
 	}
 }
 
-func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
-	return func(w io.Writer, r *http.Request) error {
+func pprofByRegion(compute computePprofFunc) traceviewer.ProfileFunc {
+	return func(r *http.Request) ([]traceviewer.ProfileRecord, error) {
 		filter, err := newRegionFilter(r)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		gToIntervals, err := pprofMatchingRegions(filter)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		events, _ := parseEvents()
 
-		return compute(w, gToIntervals, events)
+		return compute(gToIntervals, events)
 	}
 }
 
@@ -170,9 +144,11 @@ func pprofMatchingRegions(filter *regionFilter) (map[uint64][]interval, error) {
 	return gToIntervals, nil
 }
 
+type computePprofFunc func(gToIntervals map[uint64][]interval, events []*trace.Event) ([]traceviewer.ProfileRecord, error)
+
 // computePprofIO generates IO pprof-like profile (time spent in IO wait, currently only network blocking event).
-func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
-	prof := make(map[uint64]Record)
+func computePprofIO(gToIntervals map[uint64][]interval, events []*trace.Event) ([]traceviewer.ProfileRecord, error) {
+	prof := make(map[uint64]traceviewer.ProfileRecord)
 	for _, ev := range events {
 		if ev.Type != trace.EvGoBlockNet || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
@@ -180,18 +156,18 @@ func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, events []*t
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = ev.Stk
-			rec.n++
-			rec.time += overlapping.Nanoseconds()
+			rec.Stack = ev.Stk
+			rec.Count++
+			rec.Time += overlapping
 			prof[ev.StkID] = rec
 		}
 	}
-	return buildProfile(prof).Write(w)
+	return recordsOf(prof), nil
 }
 
 // computePprofBlock generates blocking pprof-like profile (time spent blocked on synchronization primitives).
-func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
-	prof := make(map[uint64]Record)
+func computePprofBlock(gToIntervals map[uint64][]interval, events []*trace.Event) ([]traceviewer.ProfileRecord, error) {
+	prof := make(map[uint64]traceviewer.ProfileRecord)
 	for _, ev := range events {
 		switch ev.Type {
 		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
@@ -208,18 +184,18 @@ func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events [
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = ev.Stk
-			rec.n++
-			rec.time += overlapping.Nanoseconds()
+			rec.Stack = ev.Stk
+			rec.Count++
+			rec.Time += overlapping
 			prof[ev.StkID] = rec
 		}
 	}
-	return buildProfile(prof).Write(w)
+	return recordsOf(prof), nil
 }
 
 // computePprofSyscall generates syscall pprof-like profile (time spent blocked in syscalls).
-func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
-	prof := make(map[uint64]Record)
+func computePprofSyscall(gToIntervals map[uint64][]interval, events []*trace.Event) ([]traceviewer.ProfileRecord, error) {
+	prof := make(map[uint64]traceviewer.ProfileRecord)
 	for _, ev := range events {
 		if ev.Type != trace.EvGoSysCall || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
@@ -227,19 +203,19 @@ func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, events
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = ev.Stk
-			rec.n++
-			rec.time += overlapping.Nanoseconds()
+			rec.Stack = ev.Stk
+			rec.Count++
+			rec.Time += overlapping
 			prof[ev.StkID] = rec
 		}
 	}
-	return buildProfile(prof).Write(w)
+	return recordsOf(prof), nil
 }
 
 // computePprofSched generates scheduler latency pprof-like profile
 // (time between a goroutine become runnable and actually scheduled for execution).
-func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
-	prof := make(map[uint64]Record)
+func computePprofSched(gToIntervals map[uint64][]interval, events []*trace.Event) ([]traceviewer.ProfileRecord, error) {
+	prof := make(map[uint64]traceviewer.ProfileRecord)
 	for _, ev := range events {
 		if (ev.Type != trace.EvGoUnblock && ev.Type != trace.EvGoCreate) ||
 			ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
@@ -248,13 +224,13 @@ func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, events [
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = ev.Stk
-			rec.n++
-			rec.time += overlapping.Nanoseconds()
+			rec.Stack = ev.Stk
+			rec.Count++
+			rec.Time += overlapping
 			prof[ev.StkID] = rec
 		}
 	}
-	return buildProfile(prof).Write(w)
+	return recordsOf(prof), nil
 }
 
 // pprofOverlappingDuration returns the overlapping duration between
@@ -278,100 +254,10 @@ func pprofOverlappingDuration(gToIntervals map[uint64][]interval, ev *trace.Even
 	return overlapping
 }
 
-// serveSVGProfile serves pprof-like profile generated by prof as svg.
-func serveSVGProfile(prof func(w io.Writer, r *http.Request) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		if r.FormValue("raw") != "" {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			if err := prof(w, r); err != nil {
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-				w.Header().Set("X-Go-Pprof", "1")
-				http.Error(w, fmt.Sprintf("failed to get profile: %v", err), http.StatusInternalServerError)
-				return
-			}
-			return
-		}
-
-		blockf, err := os.CreateTemp("", "block")
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
-			return
-		}
-		defer func() {
-			blockf.Close()
-			os.Remove(blockf.Name())
-		}()
-		blockb := bufio.NewWriter(blockf)
-		if err := prof(blockb, r); err != nil {
-			http.Error(w, fmt.Sprintf("failed to generate profile: %v", err), http.StatusInternalServerError)
-			return
-		}
-		if err := blockb.Flush(); err != nil {
-			http.Error(w, fmt.Sprintf("failed to flush temp file: %v", err), http.StatusInternalServerError)
-			return
-		}
-		if err := blockf.Close(); err != nil {
-			http.Error(w, fmt.Sprintf("failed to close temp file: %v", err), http.StatusInternalServerError)
-			return
-		}
-		svgFilename := blockf.Name() + ".svg"
-		if output, err := exec.Command(goCmd(), "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
-			http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v\n%s", err, output), http.StatusInternalServerError)
-			return
-		}
-		defer os.Remove(svgFilename)
-		w.Header().Set("Content-Type", "image/svg+xml")
-		http.ServeFile(w, r, svgFilename)
+func recordsOf(records map[uint64]traceviewer.ProfileRecord) []traceviewer.ProfileRecord {
+	result := make([]traceviewer.ProfileRecord, 0, len(records))
+	for _, record := range records {
+		result = append(result, record)
 	}
-}
-
-func buildProfile(prof map[uint64]Record) *profile.Profile {
-	p := &profile.Profile{
-		PeriodType: &profile.ValueType{Type: "trace", Unit: "count"},
-		Period:     1,
-		SampleType: []*profile.ValueType{
-			{Type: "contentions", Unit: "count"},
-			{Type: "delay", Unit: "nanoseconds"},
-		},
-	}
-	locs := make(map[uint64]*profile.Location)
-	funcs := make(map[string]*profile.Function)
-	for _, rec := range prof {
-		var sloc []*profile.Location
-		for _, frame := range rec.stk {
-			loc := locs[frame.PC]
-			if loc == nil {
-				fn := funcs[frame.File+frame.Fn]
-				if fn == nil {
-					fn = &profile.Function{
-						ID:         uint64(len(p.Function) + 1),
-						Name:       frame.Fn,
-						SystemName: frame.Fn,
-						Filename:   frame.File,
-					}
-					p.Function = append(p.Function, fn)
-					funcs[frame.File+frame.Fn] = fn
-				}
-				loc = &profile.Location{
-					ID:      uint64(len(p.Location) + 1),
-					Address: frame.PC,
-					Line: []profile.Line{
-						{
-							Function: fn,
-							Line:     int64(frame.Line),
-						},
-					},
-				}
-				p.Location = append(p.Location, loc)
-				locs[frame.PC] = loc
-			}
-			sloc = append(sloc, loc)
-		}
-		p.Sample = append(p.Sample, &profile.Sample{
-			Value:    []int64{int64(rec.n), rec.time},
-			Location: sloc,
-		})
-	}
-	return p
+	return result
 }

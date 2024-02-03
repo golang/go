@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -299,6 +300,27 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
 	return false
 }
 
+// blockUntilEmptyFinalizerQueue blocks until either the finalizer
+// queue is emptied (and the finalizers have executed) or the timeout
+// is reached. Returns true if the finalizer queue was emptied.
+// This is used by the runtime and sync tests.
+func blockUntilEmptyFinalizerQueue(timeout int64) bool {
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&finlock)
+		// We know the queue has been drained when both finq is nil
+		// and the finalizer g has stopped executing.
+		empty := finq == nil
+		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+		unlock(&finlock)
+		if empty {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}
+
 // SetFinalizer sets the finalizer associated with obj to the provided
 // finalizer function. When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
@@ -330,11 +352,11 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
 // There is no guarantee that finalizers will run before a program exits,
 // so typically they are useful only for releasing non-memory resources
 // associated with an object during a long-running program.
-// For example, an os.File object could use a finalizer to close the
+// For example, an [os.File] object could use a finalizer to close the
 // associated operating system file descriptor when a program discards
 // an os.File without calling Close, but it would be a mistake
 // to depend on a finalizer to flush an in-memory I/O buffer such as a
-// bufio.Writer, because the buffer would not be flushed at program exit.
+// [bufio.Writer], because the buffer would not be flushed at program exit.
 //
 // It is not guaranteed that a finalizer will run if the size of *obj is
 // zero bytes, because it may share same address with other zero-size
@@ -357,14 +379,14 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
 // the object is reachable until it is no longer required.
 // Objects stored in global variables, or that can be found by tracing
 // pointers from a global variable, are reachable. For other objects,
-// pass the object to a call of the KeepAlive function to mark the
+// pass the object to a call of the [KeepAlive] function to mark the
 // last point in the function where the object must be reachable.
 //
 // For example, if p points to a struct, such as os.File, that contains
 // a file descriptor d, and p has a finalizer that closes that file
 // descriptor, and if the last use of p in a function is a call to
 // syscall.Write(p.d, buf, size), then p may be unreachable as soon as
-// the program enters syscall.Write. The finalizer may run at that moment,
+// the program enters [syscall.Write]. The finalizer may run at that moment,
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
@@ -410,13 +432,18 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	// find the containing object
-	base, _, _ := findObject(uintptr(e.data), 0, 0)
+	base, span, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
 		if isGoPointerWithoutSpan(e.data) {
 			return
 		}
 		throw("runtime.SetFinalizer: pointer not in allocated block")
+	}
+
+	// Move base forward if we've got an allocation header.
+	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+		base += mallocHeaderSize
 	}
 
 	if uintptr(e.data) != base {
@@ -464,7 +491,7 @@ func SetFinalizer(obj any, finalizer any) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
+		if itab := assertE2I2(ityp, efaceOf(&obj)._type); itab != nil {
 			goto okarg
 		}
 	}
@@ -473,7 +500,7 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.OutSlice() {
-		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
+		nret = alignUp(nret, uintptr(t.Align_)) + t.Size_
 	}
 	nret = alignUp(nret, goarch.PtrSize)
 
@@ -509,11 +536,11 @@ okarg:
 //	// No more uses of p after this point.
 //
 // Without the KeepAlive call, the finalizer could run at the start of
-// syscall.Read, closing the file descriptor before syscall.Read makes
+// [syscall.Read], closing the file descriptor before syscall.Read makes
 // the actual system call.
 //
 // Note: KeepAlive should only be used to prevent finalizers from
-// running prematurely. In particular, when used with unsafe.Pointer,
+// running prematurely. In particular, when used with [unsafe.Pointer],
 // the rules for valid uses of unsafe.Pointer still apply.
 func KeepAlive(x any) {
 	// Introduce a use of x that the compiler can't eliminate.

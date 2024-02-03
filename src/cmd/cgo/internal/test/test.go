@@ -23,7 +23,7 @@ package cgotest
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
-#cgo LDFLAGS: -lm
+#cgo !darwin LDFLAGS: -lm
 
 #ifndef WIN32
 #include <pthread.h>
@@ -114,6 +114,14 @@ enum E myConstFunc(struct S *const ctx, int const id, struct S **const filter) {
 int add(int x, int y) {
 	return x+y;
 };
+
+// escape vs noescape
+
+// TODO(#56378): enable in Go 1.23:
+// #cgo noescape handleGoStringPointerNoescape
+void handleGoStringPointerNoescape(void *s) {}
+
+void handleGoStringPointerEscape(void *s) {}
 
 // Following mimics vulkan complex definitions for benchmarking cgocheck overhead.
 
@@ -1104,6 +1112,18 @@ func benchCgoCall(b *testing.B) {
 		var a0 C.VkDeviceCreateInfo
 		for i := 0; i < b.N; i++ {
 			C.handleComplexPointer(&a0)
+		}
+	})
+	b.Run("string-pointer-escape", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var s string
+			C.handleGoStringPointerEscape(unsafe.Pointer(&s))
+		}
+	})
+	b.Run("string-pointer-noescape", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var s string
+			C.handleGoStringPointerNoescape(unsafe.Pointer(&s))
 		}
 	})
 	b.Run("eight-pointers", func(b *testing.B) {

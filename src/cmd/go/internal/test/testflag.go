@@ -61,7 +61,7 @@ func init() {
 	cf.String("run", "", "")
 	cf.Bool("short", false, "")
 	cf.String("skip", "", "")
-	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "") // known to cmd/dist
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")

@@ -584,27 +584,41 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sect = &elfobj.sect[elfsym.shndx]
 		if sect.sym == 0 {
-			if strings.HasPrefix(elfsym.name, ".Linfo_string") { // clang does this
+			if elfsym.type_ == 0 {
+				if strings.HasPrefix(sect.name, ".debug_") && elfsym.name == "" {
+					// clang on arm and riscv64.
+					// This reportedly happens with clang 3.7 on ARM.
+					// See issue 13139.
+					continue
+				}
+				if strings.HasPrefix(elfsym.name, ".Ldebug_") || elfsym.name == ".L0 " {
+					// gcc on riscv64.
+					continue
+				}
+				if elfsym.name == ".Lline_table_start0" {
+					// clang on riscv64.
+					continue
+				}
+
+				if strings.HasPrefix(elfsym.name, "$d") && sect.name == ".debug_frame" {
+					// "$d" is a marker, not a real symbol.
+					// This happens with gcc on ARM64.
+					// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
+					continue
+				}
+			}
+
+			if strings.HasPrefix(elfsym.name, ".Linfo_string") {
+				// clang does this
 				continue
 			}
 
-			if elfsym.name == "" && elfsym.type_ == 0 && sect.name == ".debug_str" {
-				// This reportedly happens with clang 3.7 on ARM.
-				// See issue 13139.
+			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") {
+				// gcc on s390x and riscv64 does this.
 				continue
 			}
 
-			if strings.HasPrefix(elfsym.name, "$d") && elfsym.type_ == 0 && sect.name == ".debug_frame" {
-				// "$d" is a marker, not a real symbol.
-				// This happens with gcc on ARM64.
-				// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
-				continue
-			}
-
-			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
-				continue
-			}
-			return errorf("%v: sym#%d (%s): ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, elfsym.type_)
+			return errorf("%v: sym#%d (%q): ignoring symbol in section %d (%q) (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, sect.name, elfsym.type_)
 		}
 
 		s := elfsym.sym
@@ -1004,18 +1018,37 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_CALL16)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
-		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
+		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16,
+		MIPS64 | uint32(elf.R_MIPS_PC32)<<16:
 		return 4, 4, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_ADD8)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB8)<<16:
+		return 1, 1, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_ADD16)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB16)<<16:
+		return 2, 2, nil
 
 	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
 		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
 		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
 		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
 		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
-		LOONG64 | uint32(elf.R_LARCH_64)<<16,
 		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD24)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD32)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB24)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB32)<<16,
+		LOONG64 | uint32(elf.R_LARCH_B26)<<16,
 		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
 		return 4, 4, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_64_PCREL)<<16:
+		return 8, 8, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
 		return 1, 1, nil

@@ -154,13 +154,13 @@ func netpollBreak() {
 // delay > 0: block for up to that many nanoseconds
 //
 //go:nowritebarrierrec
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	var timeout uintptr
 	if delay < 0 {
 		timeout = ^uintptr(0)
 	} else if delay == 0 {
 		// TODO: call poll with timeout == 0
-		return gList{}
+		return gList{}, 0
 	} else if delay < 1e6 {
 		timeout = 1
 	} else if delay < 1e15 {
@@ -186,7 +186,7 @@ retry:
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
 		if timeout > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
@@ -206,6 +206,7 @@ retry:
 		n--
 	}
 	var toRun gList
+	delta := int32(0)
 	for i := 1; i < len(pfds) && n > 0; i++ {
 		pfd := &pfds[i]
 
@@ -220,10 +221,10 @@ retry:
 		}
 		if mode != 0 {
 			pds[i].setEventErr(pfd.revents == _POLLERR, 0)
-			netpollready(&toRun, pds[i], mode)
+			delta += netpollready(&toRun, pds[i], mode)
 			n--
 		}
 	}
 	unlock(&mtxset)
-	return toRun
+	return toRun, delta
 }

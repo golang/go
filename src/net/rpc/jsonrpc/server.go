@@ -33,7 +33,7 @@ type serverCodec struct {
 	pending map[uint64]*json.RawMessage
 }
 
-// NewServerCodec returns a new rpc.ServerCodec using JSON-RPC on conn.
+// NewServerCodec returns a new [rpc.ServerCodec] using JSON-RPC on conn.
 func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
 	return &serverCodec{
 		dec:     json.NewDecoder(conn),

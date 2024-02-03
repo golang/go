@@ -95,9 +95,9 @@ func netpollBreak() {
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	if epfd == -1 {
-		return gList{}
+		return gList{}, 0
 	}
 	var waitms int32
 	if delay < 0 {
@@ -124,11 +124,12 @@ retry:
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
 		if waitms > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
 	var toRun gList
+	delta := int32(0)
 	for i := int32(0); i < n; i++ {
 		ev := events[i]
 		if ev.Events == 0 {
@@ -164,9 +165,9 @@ retry:
 			tag := tp.tag()
 			if pd.fdseq.Load() == tag {
 				pd.setEventErr(ev.Events == syscall.EPOLLERR, tag)
-				netpollready(&toRun, pd, mode)
+				delta += netpollready(&toRun, pd, mode)
 			}
 		}
 	}
-	return toRun
+	return toRun, delta
 }
