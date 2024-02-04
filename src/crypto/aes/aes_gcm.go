@@ -45,7 +45,7 @@ var _ gcmAble = (*aesCipherGCM)(nil)
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
 // called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
-	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+	g := &gcmAsm{ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
 	gcmAesInit(&g.productTable, g.ks)
 	return g, nil
 }

@@ -16,8 +16,9 @@ const BlockSize = 16
 
 // A cipher is an instance of AES encryption using a particular key.
 type aesCipher struct {
-	enc []uint32
-	dec []uint32
+	l   uint8 // only this length of the enc and dec array is actually used
+	enc [28 + 32]uint32
+	dec [28 + 32]uint32
 }
 
 type KeySizeError int
@@ -47,9 +48,8 @@ func NewCipher(key []byte) (cipher.Block, error) {
 // newCipherGeneric creates and returns a new cipher.Block
 // implemented in pure Go.
 func newCipherGeneric(key []byte) (cipher.Block, error) {
-	n := len(key) + 28
-	c := aesCipher{make([]uint32, n), make([]uint32, n)}
-	expandKeyGo(key, c.enc, c.dec)
+	c := aesCipher{l: uint8(len(key) + 28)}
+	expandKeyGo(key, c.enc[:c.l], c.dec[:c.l])
 	return &c, nil
 }
 
@@ -65,7 +65,7 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	encryptBlockGo(c.enc, dst, src)
+	encryptBlockGo(c.enc[:c.l], dst, src)
 }
 
 func (c *aesCipher) Decrypt(dst, src []byte) {
@@ -78,5 +78,5 @@ func (c *aesCipher) Decrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	decryptBlockGo(c.dec, dst, src)
+	decryptBlockGo(c.dec[:c.l], dst, src)
 }
