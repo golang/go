@@ -75,12 +75,14 @@ type T struct {
 	PSI *[]int
 	NIL *int
 	// Function (not method)
-	BinaryFunc      func(string, string) string
-	VariadicFunc    func(...string) string
-	VariadicFuncInt func(int, ...string) string
-	NilOKFunc       func(*int) bool
-	ErrFunc         func() (string, error)
-	PanicFunc       func() string
+	BinaryFunc             func(string, string) string
+	VariadicFunc           func(...string) string
+	VariadicFuncInt        func(int, ...string) string
+	NilOKFunc              func(*int) bool
+	ErrFunc                func() (string, error)
+	PanicFunc              func() string
+	InvalidReturnCountFunc func() (string, error, int)
+	InvalidReturnTypeFunc  func() (string, bool)
 	// Template to test evaluation of templates.
 	Tmpl *Template
 	// Unexported field; cannot be accessed by template.
@@ -168,6 +170,8 @@ var tVal = &T{
 	NilOKFunc:                 func(s *int) bool { return s == nil },
 	ErrFunc:                   func() (string, error) { return "bla", nil },
 	PanicFunc:                 func() string { panic("test panic") },
+	InvalidReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
+	InvalidReturnTypeFunc:     func() (string, bool) { return "", false },
 	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -1701,6 +1705,68 @@ func TestExecutePanicDuringCall(t *testing.T) {
 		if err == nil {
 			t.Errorf("%s: expected error; got none", tc.name)
 		} else if !strings.Contains(err.Error(), tc.wantErr) {
+			if *debug {
+				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
+			}
+			t.Errorf("%s: expected error:\n%s\ngot:\n%s", tc.name, tc.wantErr, err)
+		}
+	}
+}
+
+func TestFunctionCheckDuringCall(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		data    any
+		wantErr string
+	}{{
+		name:    "call nothing",
+		input:   `{{call}}`,
+		data:    tVal,
+		wantErr: "wrong number of args for call: want at least 1 got 0",
+	},
+		{
+			name:    "call non-function",
+			input:   "{{call .True}}",
+			data:    tVal,
+			wantErr: "error calling call: non-function .True of type bool",
+		},
+		{
+			name:    "call func with wrong argument",
+			input:   "{{call .BinaryFunc 1}}",
+			data:    tVal,
+			wantErr: "error calling call: wrong number of args for .BinaryFunc: got 1 want 2",
+		},
+		{
+			name:    "call variadic func with wrong argument",
+			input:   `{{call .VariadicFuncInt}}`,
+			data:    tVal,
+			wantErr: "error calling call: wrong number of args for .VariadicFuncInt: got 0 want at least 1",
+		},
+		{
+			name:    "call invalid return number func",
+			input:   `{{call .InvalidReturnCountFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: too many return values for .InvalidReturnCountFunc",
+		},
+		{
+			name:    "call invalid return type func",
+			input:   `{{call .InvalidReturnTypeFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool",
+		},
+	}
+
+	for _, tc := range tests {
+		b := new(bytes.Buffer)
+		tmpl, err := New("t").Parse(tc.input)
+		if err != nil {
+			t.Fatalf("parse error: %s", err)
+		}
+		err = tmpl.Execute(b, tc.data)
+		if err == nil {
+			t.Errorf("%s: expected error; got none", tc.name)
+		} else if tc.wantErr == "" || !strings.Contains(err.Error(), tc.wantErr) {
 			if *debug {
 				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
 			}
