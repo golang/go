@@ -7,6 +7,7 @@ package sort_test
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // This example demonstrates searching a list sorted in ascending order.
@@ -39,6 +40,26 @@ func ExampleSearch_descendingOrder() {
 	}
 	// Output:
 	// found 6 at index 7 in [55 45 36 28 21 15 10 6 3 1]
+}
+
+// This example demonstrates finding a string in a list sorted in ascending order.
+func ExampleFind() {
+	a := []string{"apple", "banana", "lemon", "mango", "pear", "strawberry"}
+
+	for _, x := range []string{"banana", "orange"} {
+		i, found := sort.Find(len(a), func(i int) int {
+			return strings.Compare(x, a[i])
+		})
+		if found {
+			fmt.Printf("found %s at index %d\n", x, i)
+		} else {
+			fmt.Printf("%s not found, would insert at %d\n", x, i)
+		}
+	}
+
+	// Output:
+	// found banana at index 1
+	// orange not found, would insert at 4
 }
 
 // This example demonstrates searching for float64 in a list sorted in ascending order.
