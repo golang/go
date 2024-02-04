@@ -31,6 +31,7 @@ const (
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
 	invReflectString  = "<invalid reflect.Value>"
+	newLineString     = "\n"
 )
 
 // State represents the printer state passed to custom formatters.
