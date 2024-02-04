@@ -650,19 +650,6 @@ func (t *transferReader) parseTransferEncoding() error {
 		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}
 	}
 
-	// RFC 7230 3.3.2 says "A sender MUST NOT send a Content-Length header field
-	// in any message that contains a Transfer-Encoding header field."
-	//
-	// but also: "If a message is received with both a Transfer-Encoding and a
-	// Content-Length header field, the Transfer-Encoding overrides the
-	// Content-Length. Such a message might indicate an attempt to perform
-	// request smuggling (Section 9.5) or response splitting (Section 9.4) and
-	// ought to be handled as an error. A sender MUST remove the received
-	// Content-Length field prior to forwarding such a message downstream."
-	//
-	// Reportedly, these appear in the wild.
-	delete(t.Header, "Content-Length")
-
 	t.Chunked = true
 	return nil
 }
@@ -670,7 +657,7 @@ func (t *transferReader) parseTransferEncoding() error {
 // Determine the expected body length, using RFC 7230 Section 3.3. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
-func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (int64, error) {
+func fixLength(isResponse bool, status int, requestMethod string, header Header, chunked bool) (n int64, err error) {
 	isRequest := !isResponse
 	contentLens := header["Content-Length"]
 
@@ -694,6 +681,14 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		contentLens = header["Content-Length"]
 	}
 
+	// Reject requests with invalid Content-Length headers.
+	if len(contentLens) > 0 {
+		n, err = parseContentLength(contentLens)
+		if err != nil {
+			return -1, err
+		}
+	}
+
 	// Logic based on response type or status
 	if isResponse && noResponseBodyExpected(requestMethod) {
 		return 0, nil
@@ -706,17 +701,26 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		return 0, nil
 	}
 
+	// According to RFC 9112, "If a message is received with both a
+	// Transfer-Encoding and a Content-Length header field, the Transfer-Encoding
+	// overrides the Content-Length. Such a message might indicate an attempt to
+	// perform request smuggling (Section 11.2) or response splitting (Section 11.1)
+	// and ought to be handled as an error. An intermediary that chooses to forward
+	// the message MUST first remove the received Content-Length field and process
+	// the Transfer-Encoding (as described below) prior to forwarding the message downstream."
+	//
+	// Chunked-encoding requests with either valid Content-Length
+	// headers or no Content-Length headers are accepted after removing
+	// the Content-Length field from header.
+	//
 	// Logic based on Transfer-Encoding
 	if chunked {
+		header.Del("Content-Length")
 		return -1, nil
 	}
 
+	// Logic based on Content-Length
 	if len(contentLens) > 0 {
-		// Logic based on Content-Length
-		n, err := parseContentLength(contentLens)
-		if err != nil {
-			return -1, err
-		}
 		return n, nil
 	}
 

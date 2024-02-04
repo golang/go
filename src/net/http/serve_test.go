@@ -4819,6 +4819,12 @@ func TestServerValidatesHeaders(t *testing.T) {
 		// See RFC 7230, Section 3.2.
 		{": empty key\r\n", 400},
 
+		// Requests with invalid Content-Length headers should be rejected
+		// regardless of the presence of a Transfer-Encoding header.
+		// Check out RFC 9110, Section 8.6 and RFC 9112, Section 6.3.3.
+		{"Content-Length: notdigits\r\n", 400},
+		{"Content-Length: notdigits\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", 400},
+
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
