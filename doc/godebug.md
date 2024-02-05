@@ -183,7 +183,7 @@ and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
 
 Go 1.22 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing the cipher suites which used RSA based key
-exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+exchange. The default can be reverted using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
 
 Go 1.22 disabled
 [`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
