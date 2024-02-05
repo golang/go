@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package graph represents a pprof profile as a directed graph.
+// Package profile represents a pprof profile as a directed graph.
 //
 // This package is a simplified fork of github.com/google/pprof/internal/graph.
 package profile
