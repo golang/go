@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,19 @@ import (
 
 var toRemove []string
 
+const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
+
 func TestMain(m *testing.M) {
+	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
+	case "crash":
+		crash()
+		panic("unreachable")
+	default:
+		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
+	case "":
+		// fall through to normal behavior
+	}
+
 	_, coreErrBefore := os.Stat("core")
 
 	status := m.Run()
