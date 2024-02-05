@@ -419,6 +419,10 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVD	(g_sched+gobuf_sp)(R11), R12
 	MOVD	R12, RSP
 call:
+	// Decrement SP past where the frame pointer is saved in the Go arm64
+	// ABI (one word below the stack pointer) so the race detector library
+	// code doesn't clobber it
+	SUB	$16, RSP
 	BL	R9
 	MOVD	R19, RSP
 	JMP	(R20)
