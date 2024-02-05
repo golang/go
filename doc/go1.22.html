@@ -101,9 +101,10 @@ func main() {
 
 <!-- CL 495447 -->
 <p>
-<code>go</code> <code>test</code> <code>-cover</code> now prints coverage summaries for covered
-packages that do not have their own test files. Prior to Go 1.22 a
-<code>go</code> <code>test</code> <code>-cover</code> run for such a package would report
+  <code>go</code> <code>test</code> <code>-cover</code> now prints coverage summaries
+  for covered packages that do not have their own test files. Prior to Go 1.22 a
+  <code>go</code> <code>test</code> <code>-cover</code> run for such a package would
+  report
 </p>
 
 <p>
@@ -117,6 +118,13 @@ packages that do not have their own test files. Prior to Go 1.22 a
 <p>
   <code>mymod/mypack    coverage: 0.0% of statements</code>
 </p>
+
+<p>
+  Note that if a package contains no executable code at all, we can't report
+  a meaningful coverage percentage; for such packages the <code>go</code> tool
+  will continue to report that there are no test files.
+</p>
+
 
 <h3 id="trace">Trace</h3>
 
