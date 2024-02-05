@@ -39,7 +39,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
 		inlProfile = profile
 	}
 	if inlProfile != nil {
-		inline.PGOInlinePrologue(inlProfile, pkg.Funcs)
+		inline.PGOInlinePrologue(inlProfile)
 	}
 
 	ir.VisitFuncsBottomUp(pkg.Funcs, func(funcs []*ir.Func, recursive bool) {

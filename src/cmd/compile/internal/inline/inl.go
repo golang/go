@@ -78,7 +78,7 @@ var (
 )
 
 // PGOInlinePrologue records the hot callsites from ir-graph.
-func PGOInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
+func PGOInlinePrologue(p *pgo.Profile) {
 	if base.Debug.PGOInlineCDFThreshold != "" {
 		if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil && s >= 0 && s <= 100 {
 			inlineCDFHotCallSiteThresholdPercent = s
@@ -119,7 +119,7 @@ func PGOInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 // a percent, is the lower bound of weight for nodes to be considered hot
 // (currently only used in debug prints) (in case of equal weights,
 // comparing with the threshold may not accurately reflect which nodes are
-// considiered hot).
+// considered hot).
 func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NamedCallEdge) {
 	cum := int64(0)
 	for i, n := range p.NamedEdgeMap.ByWeight {
@@ -138,7 +138,7 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NamedCallEdge) {
 // CanInlineFuncs computes whether a batch of functions are inlinable.
 func CanInlineFuncs(funcs []*ir.Func, profile *pgo.Profile) {
 	if profile != nil {
-		PGOInlinePrologue(profile, funcs)
+		PGOInlinePrologue(profile)
 	}
 
 	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
@@ -227,7 +227,7 @@ func GarbageCollectUnreferencedHiddenClosures() {
 }
 
 // inlineBudget determines the max budget for function 'fn' prior to
-// analyzing the hairyness of the body of 'fn'. We pass in the pgo
+// analyzing the hairiness of the body of 'fn'. We pass in the pgo
 // profile if available (which can change the budget), also a
 // 'relaxed' flag, which expands the budget slightly to allow for the
 // possibility that a call to the function might have its score
@@ -239,7 +239,7 @@ func inlineBudget(fn *ir.Func, profile *pgo.Profile, relaxed bool, verbose bool)
 	if profile != nil {
 		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
 			if _, ok := candHotCalleeMap[n]; ok {
-				budget = int32(inlineHotMaxBudget)
+				budget = inlineHotMaxBudget
 				if verbose {
 					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
 				}
@@ -322,10 +322,9 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	}
 
 	n.Func.Inl = &ir.Inline{
-		Cost:    budget - visitor.budget,
-		Dcl:     pruneUnusedAutos(n.Func.Dcl, &visitor),
-		HaveDcl: true,
-
+		Cost:            budget - visitor.budget,
+		Dcl:             pruneUnusedAutos(n.Func.Dcl, &visitor),
+		HaveDcl:         true,
 		CanDelayResults: canDelayResults(fn),
 	}
 	if base.Flag.LowerM != 0 || logopt.Enabled() {
