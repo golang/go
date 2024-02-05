@@ -156,3 +156,35 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
 	b = a
 	return
 }
+
+// ---------------- //
+//  Float Min/Max   //
+// ---------------- //
+
+func Float64Min(a, b float64) float64 {
+	// amd64:"MINSD"
+	// arm64:"FMIND"
+	// riscv64:"FMIN"
+	return min(a, b)
+}
+
+func Float64Max(a, b float64) float64 {
+	// amd64:"MINSD"
+	// arm64:"FMAXD"
+	// riscv64:"FMAX"
+	return max(a, b)
+}
+
+func Float32Min(a, b float32) float32 {
+	// amd64:"MINSS"
+	// arm64:"FMINS"
+	// riscv64:"FMINS"
+	return min(a, b)
+}
+
+func Float32Max(a, b float32) float32 {
+	// amd64:"MINSS"
+	// arm64:"FMAXS"
+	// riscv64:"FMAXS"
+	return max(a, b)
+}
