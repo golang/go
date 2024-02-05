@@ -133,13 +133,23 @@ func TestWSASocketConflict(t *testing.T) {
 	var outbuf _TCP_INFO_v0
 	cbbr := uint32(0)
 
-	var ov syscall.Overlapped
+	var ovs []syscall.Overlapped = make([]syscall.Overlapped, 2)
+	// Attempt to exercise behavior where a user-owned syscall.Overlapped
+	// induces an invalid pointer dereference in the Windows-specific version
+	// of runtime.netpoll.
+	ovs[1].Internal -= 1
+
 	// Create an event so that we can efficiently wait for completion
 	// of a requested overlapped I/O operation.
-	ov.HEvent, _ = windows.CreateEvent(nil, 0, 0, nil)
-	if ov.HEvent == 0 {
+	ovs[0].HEvent, _ = windows.CreateEvent(nil, 0, 0, nil)
+	if ovs[0].HEvent == 0 {
 		t.Fatalf("could not create the event!")
 	}
+
+	// Set the low bit of the Event Handle so that the completion
+	// of the overlapped I/O event will not trigger a completion event
+	// on any I/O completion port associated with the handle.
+	ovs[0].HEvent |= 0x1
 
 	if err = fd.WSAIoctl(
 		SIO_TCP_INFO,
@@ -148,7 +158,7 @@ func TestWSASocketConflict(t *testing.T) {
 		(*byte)(unsafe.Pointer(&outbuf)),
 		uint32(unsafe.Sizeof(outbuf)),
 		&cbbr,
-		&ov,
+		&ovs[0],
 		0,
 	); err != nil && !errors.Is(err, syscall.ERROR_IO_PENDING) {
 		t.Fatalf("could not perform the WSAIoctl: %v", err)
@@ -157,12 +167,12 @@ func TestWSASocketConflict(t *testing.T) {
 	if err != nil && errors.Is(err, syscall.ERROR_IO_PENDING) {
 		// It is possible that the overlapped I/O operation completed
 		// immediately so there is no need to wait for it to complete.
-		if res, err := syscall.WaitForSingleObject(ov.HEvent, syscall.INFINITE); res != 0 {
+		if res, err := syscall.WaitForSingleObject(ovs[0].HEvent, syscall.INFINITE); res != 0 {
 			t.Fatalf("waiting for the completion of the overlapped IO failed: %v", err)
 		}
 	}
 
-	if err = syscall.CloseHandle(ov.HEvent); err != nil {
+	if err = syscall.CloseHandle(ovs[0].HEvent); err != nil {
 		t.Fatalf("could not close the event handle: %v", err)
 	}
 }
