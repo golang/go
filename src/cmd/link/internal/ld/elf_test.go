@@ -187,42 +187,46 @@ func main() {
 func TestElfBindNow(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t, false)
 
 	const (
-		prog   = `package main; func main() {}`
-		prog_C = `package main; import "C"; func main() {}`
+		prog  = `package main; func main() {}`
+		progC = `package main; import "C"; func main() {}`
 	)
 
 	tests := []struct {
-		name          string
-		args          []string
-		prog          string
-		wantDf1Now    bool
-		wantDf1Pie    bool
-		wantDfBindNow bool
+		name                 string
+		args                 []string
+		prog                 string
+		mustHaveCGO          bool
+		mustHaveBuildModePIE bool
+		wantDf1Now           bool
+		wantDf1Pie           bool
+		wantDfBindNow        bool
 	}{
 		{name: "default", prog: prog},
 		{
-			name:       "pie",
-			args:       []string{"-buildmode=pie", "-ldflags", "-linkmode=internal"},
-			prog:       prog,
-			wantDf1Pie: true,
+			name:                 "pie",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=internal"},
+			mustHaveBuildModePIE: true,
+			prog:                 prog,
+			wantDf1Pie:           true,
 		},
 		{
 			name:          "bindnow",
 			args:          []string{"-ldflags", "-bindnow -linkmode=internal"},
-			prog:          prog_C,
+			prog:          progC,
+			mustHaveCGO:   true,
 			wantDf1Now:    true,
 			wantDfBindNow: true,
 		},
 		{
-			name:          "bindnow-pie",
-			args:          []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=internal"},
-			prog:          prog,
-			wantDf1Now:    true,
-			wantDf1Pie:    true,
-			wantDfBindNow: true,
+			name:                 "bindnow-pie",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=internal"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			wantDf1Now:           true,
+			wantDf1Pie:           true,
+			wantDfBindNow:        true,
 		},
 	}
 
@@ -238,6 +242,14 @@ func TestElfBindNow(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			testenv.MustInternalLink(t, test.mustHaveCGO)
+			if test.mustHaveCGO {
+				testenv.MustHaveCGO(t)
+			}
+			if test.mustHaveBuildModePIE {
+				testenv.MustHaveBuildMode(t, "pie")
+			}
+
 			var (
 				gotDfBindNow, gotDf1Now, gotDf1Pie bool
 
