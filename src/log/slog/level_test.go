@@ -51,9 +51,9 @@ func TestLevelVar(t *testing.T) {
 
 }
 
-func TestMarshalJSON(t *testing.T) {
+func TestLevelMarshalJSON(t *testing.T) {
 	want := LevelWarn - 3
-	want_data := []byte{'"', 'I', 'N', 'F', 'O', '+', '1', '"'}
+	want_data := []byte(`"INFO+1"`)
 	data, err := want.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestMarshalJSON(t *testing.T) {
 
 func TestLevelMarshalText(t *testing.T) {
 	want := LevelWarn - 3
-	want_data := []byte{'I', 'N', 'F', 'O', '+', '1'}
+	want_data := []byte("INFO+1")
 	data, err := want.MarshalText()
 	if err != nil {
 		t.Fatal(err)
