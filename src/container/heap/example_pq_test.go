@@ -67,7 +67,7 @@ func Example_priorityQueue() {
 	}
 
 	// Create a priority queue, put the items in it, and
-	// establish the priority queue (heap) invariants.
+	// bring the items into order to produce a valid heap.
 	pq := make(PriorityQueue, len(items))
 	i := 0
 	for value, priority := range items {

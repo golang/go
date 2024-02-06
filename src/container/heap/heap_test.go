@@ -39,14 +39,14 @@ func (h myHeap) verify(t *testing.T, i int) {
 	j2 := 2*i + 2
 	if j1 < n {
 		if h.Less(j1, i) {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, h[i], j1, h[j1])
+			t.Errorf("heap is invalid: [%d] = %d > [%d] = %d", i, h[i], j1, h[j1])
 			return
 		}
 		h.verify(t, j1)
 	}
 	if j2 < n {
 		if h.Less(j2, i) {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, h[i], j1, h[j2])
+			t.Errorf("heap is invalid: [%d] = %d > [%d] = %d", i, h[i], j1, h[j2])
 			return
 		}
 		h.verify(t, j2)
