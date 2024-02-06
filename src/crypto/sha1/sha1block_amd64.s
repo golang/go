@@ -10,6 +10,7 @@
 // Ronen Zohar <ronen.zohar@intel.com>
 // Chandramouli Narayanan <mouli@linux.intel.com>
 
+//go:build !purego
 
 #include "textflag.h"
 

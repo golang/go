@@ -691,6 +691,14 @@ func (t *tester) registerTests() {
 			})
 	}
 
+	// Check that all crypto packages compile with the purego build tag.
+	t.registerTest("crypto with tag purego", &goTest{
+		variant:  "purego",
+		tags:     []string{"purego"},
+		pkg:      "crypto/...",
+		runTests: "^$", // only ensure they compile
+	})
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
