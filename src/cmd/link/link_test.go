@@ -348,7 +348,7 @@ func TestXFlag(t *testing.T) {
 	}
 }
 
-var testMachOBuildVersionSrc = `
+var trivialSrc = `
 package main
 func main() { }
 `
@@ -361,7 +361,7 @@ func TestMachOBuildVersion(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "main.go")
-	err := os.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
+	err := os.WriteFile(src, []byte(trivialSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1373,5 +1373,45 @@ func TestFlagS(t *testing.T) {
 				t.Errorf("(mode=%s): unexpected symbol %s", mode, s)
 			}
 		}
+	}
+}
+
+func TestRandLayout(t *testing.T) {
+	// Test that the -randlayout flag randomizes function order and
+	// generates a working binary.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err := os.WriteFile(src, []byte(trivialSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var syms [2]string
+	for i, seed := range []string{"123", "456"} {
+		exe := filepath.Join(tmpdir, "hello"+seed+".exe")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-randlayout="+seed, "-o", exe, src)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("build failed: %v\n%s", err, out)
+		}
+		cmd = testenv.Command(t, exe)
+		err = cmd.Run()
+		if err != nil {
+			t.Fatalf("executable failed to run: %v\n%s", err, out)
+		}
+		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fail to run \"go tool nm\": %v\n%s", err, out)
+		}
+		syms[i] = string(out)
+	}
+	if syms[0] == syms[1] {
+		t.Errorf("randlayout with different seeds produced same layout:\n%s\n===\n\n%s", syms[0], syms[1])
 	}
 }
