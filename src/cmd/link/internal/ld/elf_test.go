@@ -189,7 +189,8 @@ func TestElfBindNow(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const (
-		prog  = `package main; func main() {}`
+		prog = `package main; func main() {}`
+		// with default buildmode code compiles in a statically linked binary, hence CGO
 		progC = `package main; import "C"; func main() {}`
 	)
 
@@ -197,36 +198,65 @@ func TestElfBindNow(t *testing.T) {
 		name                 string
 		args                 []string
 		prog                 string
-		mustHaveCGO          bool
 		mustHaveBuildModePIE bool
+		mustHaveCGO          bool
+		mustInternalLink     bool
+		wantDfBindNow        bool
 		wantDf1Now           bool
 		wantDf1Pie           bool
-		wantDfBindNow        bool
 	}{
 		{name: "default", prog: prog},
 		{
-			name:                 "pie",
+			name:                 "pie-linkmode-internal",
 			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=internal"},
-			mustHaveBuildModePIE: true,
 			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			mustInternalLink:     true,
 			wantDf1Pie:           true,
 		},
 		{
-			name:          "bindnow",
-			args:          []string{"-ldflags", "-bindnow -linkmode=internal"},
-			prog:          progC,
-			mustHaveCGO:   true,
-			wantDf1Now:    true,
-			wantDfBindNow: true,
+			name:                 "pie-linkmode-external",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=external"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			wantDf1Pie:           true,
 		},
 		{
-			name:                 "bindnow-pie",
+			name:             "bindnow-linkmode-internal",
+			args:             []string{"-ldflags", "-bindnow -linkmode=internal"},
+			prog:             progC,
+			mustHaveCGO:      true,
+			mustInternalLink: true,
+			wantDfBindNow:    true,
+			wantDf1Now:       true,
+		},
+		{
+			name:             "bindnow-linkmode-external",
+			args:             []string{"-ldflags", "-bindnow -linkmode=external"},
+			prog:             progC,
+			mustHaveCGO:      true,
+			mustInternalLink: true,
+			wantDfBindNow:    true,
+			wantDf1Now:       true,
+		},
+		{
+			name:                 "bindnow-pie-linkmode-internal",
 			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=internal"},
 			prog:                 prog,
 			mustHaveBuildModePIE: true,
+			mustInternalLink:     true,
+			wantDfBindNow:        true,
 			wantDf1Now:           true,
 			wantDf1Pie:           true,
+		},
+		{
+			name:                 "bindnow-pie-linkmode-external",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=external"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
 			wantDfBindNow:        true,
+			wantDf1Now:           true,
+			wantDf1Pie:           true,
 		},
 	}
 
@@ -242,7 +272,9 @@ func TestElfBindNow(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			testenv.MustInternalLink(t, test.mustHaveCGO)
+			if test.mustInternalLink {
+				testenv.MustInternalLink(t, test.mustHaveCGO)
+			}
 			if test.mustHaveCGO {
 				testenv.MustHaveCGO(t)
 			}
