@@ -219,6 +219,7 @@ func TestElfBindNow(t *testing.T) {
 			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=external"},
 			prog:                 prog,
 			mustHaveBuildModePIE: true,
+			mustHaveCGO:          true,
 			wantDf1Pie:           true,
 		},
 		{
@@ -254,6 +255,7 @@ func TestElfBindNow(t *testing.T) {
 			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=external"},
 			prog:                 prog,
 			mustHaveBuildModePIE: true,
+			mustHaveCGO:          true,
 			wantDfBindNow:        true,
 			wantDf1Now:           true,
 			wantDf1Pie:           true,
@@ -280,6 +282,9 @@ func TestElfBindNow(t *testing.T) {
 			}
 			if test.mustHaveBuildModePIE {
 				testenv.MustHaveBuildMode(t, "pie")
+			}
+			if test.mustHaveBuildModePIE && test.mustInternalLink {
+				testenv.MustInternalLinkPIE(t)
 			}
 
 			var (
