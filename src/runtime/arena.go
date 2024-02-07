@@ -83,6 +83,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
 	"internal/runtime/atomic"
@@ -110,7 +111,7 @@ func arena_newArena() unsafe.Pointer {
 //go:linkname arena_arena_New arena.runtime_arena_arena_New
 func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	t := (*_type)(efaceOf(&typ).data)
-	if t.Kind_&kindMask != kindPtr {
+	if t.Kind_&abi.KindMask != abi.Pointer {
 		throw("arena_New: non-pointer type")
 	}
 	te := (*ptrtype)(unsafe.Pointer(t)).Elem
@@ -144,12 +145,12 @@ func arena_heapify(s any) any {
 	var v unsafe.Pointer
 	e := efaceOf(&s)
 	t := e._type
-	switch t.Kind_ & kindMask {
-	case kindString:
+	switch t.Kind_ & abi.KindMask {
+	case abi.String:
 		v = stringStructOf((*string)(e.data)).str
-	case kindSlice:
+	case abi.Slice:
 		v = (*slice)(e.data).array
-	case kindPtr:
+	case abi.Pointer:
 		v = e.data
 	default:
 		panic("arena: Clone only supports pointers, slices, and strings")
@@ -161,13 +162,13 @@ func arena_heapify(s any) any {
 	}
 	// Heap-allocate storage for a copy.
 	var x any
-	switch t.Kind_ & kindMask {
-	case kindString:
+	switch t.Kind_ & abi.KindMask {
+	case abi.String:
 		s1 := s.(string)
 		s2, b := rawstring(len(s1))
 		copy(b, s1)
 		x = s2
-	case kindSlice:
+	case abi.Slice:
 		len := (*slice)(e.data).len
 		et := (*slicetype)(unsafe.Pointer(t)).Elem
 		sl := new(slice)
@@ -175,7 +176,7 @@ func arena_heapify(s any) any {
 		xe := efaceOf(&x)
 		xe._type = t
 		xe.data = unsafe.Pointer(sl)
-	case kindPtr:
+	case abi.Pointer:
 		et := (*ptrtype)(unsafe.Pointer(t)).Elem
 		e2 := newobject(et)
 		typedmemmove(et, e2, e.data)
@@ -295,11 +296,11 @@ func (a *userArena) slice(sl any, cap int) {
 	}
 	i := efaceOf(&sl)
 	typ := i._type
-	if typ.Kind_&kindMask != kindPtr {
+	if typ.Kind_&abi.KindMask != abi.Pointer {
 		panic("slice result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
-	if typ.Kind_&kindMask != kindSlice {
+	if typ.Kind_&abi.KindMask != abi.Slice {
 		panic("slice of non-ptr-to-slice type")
 	}
 	typ = (*slicetype)(unsafe.Pointer(typ)).Elem

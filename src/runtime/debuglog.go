@@ -16,6 +16,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -277,8 +278,8 @@ func (l *dlogger) p(x any) *dlogger {
 		l.w.uvarint(0)
 	} else {
 		v := efaceOf(&x)
-		switch v._type.Kind_ & kindMask {
-		case kindChan, kindFunc, kindMap, kindPtr, kindUnsafePointer:
+		switch v._type.Kind_ & abi.KindMask {
+		case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
 			l.w.uvarint(uint64(uintptr(v.data)))
 		default:
 			throw("not a pointer type")

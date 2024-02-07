@@ -215,7 +215,7 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 //go:nosplit
 func (span *mspan) typePointersOfType(typ *abi.Type, addr uintptr) typePointers {
 	const doubleCheck = false
-	if doubleCheck && (typ == nil || typ.Kind_&kindGCProg != 0) {
+	if doubleCheck && (typ == nil || typ.Kind_&abi.KindGCProg != 0) {
 		throw("bad type passed to typePointersOfType")
 	}
 	if span.spanclass.noscan() {
@@ -459,7 +459,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 	}
 
 	var tp typePointers
-	if typ != nil && typ.Kind_&kindGCProg == 0 {
+	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
 		tp = s.typePointersOfType(typ, dst)
 	} else {
 		tp = s.typePointersOf(dst, size)
@@ -520,7 +520,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
 	}
 
 	var tp typePointers
-	if typ != nil && typ.Kind_&kindGCProg == 0 {
+	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
 		tp = s.typePointersOfType(typ, dst)
 	} else {
 		tp = s.typePointersOf(dst, size)
@@ -860,7 +860,7 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
 		// Handle the case where we have no malloc header.
 		scanSize = span.writeHeapBitsSmall(x, dataSize, typ)
 	} else {
-		if typ.Kind_&kindGCProg != 0 {
+		if typ.Kind_&abi.KindGCProg != 0 {
 			// Allocate space to unroll the gcprog. This space will consist of
 			// a dummy _type value and the unrolled gcprog. The dummy _type will
 			// refer to the bitmap, and the mspan will refer to the dummy _type.
@@ -964,7 +964,7 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
 		}
 		println("runtime: extra pointer:", hex(addr))
 	}
-	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&kindGCProg != 0, "\n")
+	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&abi.KindGCProg != 0, "\n")
 	print("runtime: x=", hex(x), " dataSize=", dataSize, " elemsize=", span.elemsize, "\n")
 	print("runtime: typ=", unsafe.Pointer(typ), " typ.PtrBytes=", typ.PtrBytes, "\n")
 	print("runtime: limit=", hex(x+span.elemsize), "\n")
@@ -1062,10 +1062,10 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
 
 //go:nosplit
 func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
-	if typ == nil || typ.Kind_&kindGCProg != 0 {
+	if typ == nil || typ.Kind_&abi.KindGCProg != 0 {
 		return
 	}
-	if typ.Kind_&kindMask == kindInterface {
+	if typ.Kind_&abi.KindMask == abi.Interface {
 		// Interfaces are unfortunately inconsistently handled
 		// when it comes to the type pointer, so it's easy to
 		// produce a lot of false positives here.
@@ -1130,7 +1130,7 @@ func getgcmask(ep any) (mask []byte) {
 	t := e._type
 
 	var et *_type
-	if t.Kind_&kindMask != kindPtr {
+	if t.Kind_&abi.KindMask != abi.Pointer {
 		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
 	}
 	et = (*ptrtype)(unsafe.Pointer(t)).Elem
@@ -1200,7 +1200,7 @@ func getgcmask(ep any) (mask []byte) {
 			maskFromHeap = maskFromHeap[:len(maskFromHeap)-1]
 		}
 
-		if et.Kind_&kindGCProg == 0 {
+		if et.Kind_&abi.KindGCProg == 0 {
 			// Unroll again, but this time from the type information.
 			maskFromType := make([]byte, (limit-base)/goarch.PtrSize)
 			tp = s.typePointersOfType(et, base)
@@ -1298,7 +1298,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 
 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Expand gc program, using the object itself for storage.
 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
 		p = (*byte)(ptr)
@@ -1327,7 +1327,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 	h = h.pad(s, typ.Size_-typ.PtrBytes)
 	h.flush(s, uintptr(ptr), typ.Size_)
 
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Zero out temporary ptrmask buffer inside object.
 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
 	}

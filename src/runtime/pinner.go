@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -107,7 +108,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	if etyp == nil {
 		panic(errorString("runtime.Pinner: argument is nil"))
 	}
-	if kind := etyp.Kind_ & kindMask; kind != kindPtr && kind != kindUnsafePointer {
+	if kind := etyp.Kind_ & abi.KindMask; kind != abi.Pointer && kind != abi.UnsafePointer {
 		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
 	}
 	if inUserArenaChunk(uintptr(e.data)) {
