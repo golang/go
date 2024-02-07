@@ -95,3 +95,23 @@ func TestUnixConnLocalWindows(t *testing.T) {
 		}
 	}
 }
+
+func TestModeSocket(t *testing.T) {
+	addr := testUnixAddr(t)
+
+	l, err := Listen("unix", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	stat, err := os.Stat(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mode := stat.Mode()
+	if mode&os.ModeSocket == 0 {
+		t.Fatalf("%v should have ModeSocket", mode)
+	}
+}
