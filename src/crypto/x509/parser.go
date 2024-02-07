@@ -741,6 +741,10 @@ func processExtensions(out *Certificate) error {
 				}
 			case 14:
 				// RFC 5280, 4.2.1.2
+				if e.Critical {
+					// Conforming CAs MUST mark this extension as non-critical
+					return errors.New("x509: subject key identifier incorrectly marked critical")
+				}
 				val := cryptobyte.String(e.Value)
 				var skid cryptobyte.String
 				if !val.ReadASN1(&skid, cryptobyte_asn1.OCTET_STRING) {
