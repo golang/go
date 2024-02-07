@@ -764,6 +764,10 @@ func processExtensions(out *Certificate) error {
 			}
 		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
 			// RFC 5280 4.2.2.1: Authority Information Access
+			if e.Critical {
+				// Conforming CAs MUST mark this extension as non-critical
+				return errors.New("x509: authority info access incorrectly marked critical")
+			}
 			val := cryptobyte.String(e.Value)
 			if !val.ReadASN1(&val, cryptobyte_asn1.SEQUENCE) {
 				return errors.New("x509: invalid authority info access")

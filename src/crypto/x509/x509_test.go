@@ -4010,3 +4010,28 @@ func TestGob(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRejectCriticalAIA(t *testing.T) {
+	template := Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Cert"},
+		NotBefore:    time.Unix(1000, 0),
+		NotAfter:     time.Unix(100000, 0),
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 1},
+				Critical: true,
+				Value:    []byte{1, 2, 3},
+			},
+		},
+	}
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+	expectedErr := "x509: authority info access incorrectly marked critical"
+	_, err = ParseCertificate(certDER)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
+	}
+}
