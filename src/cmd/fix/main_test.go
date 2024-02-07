@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"strings"
-	"testing"
-
 	"internal/diff"
 	"internal/testenv"
+	"strings"
+	"testing"
 )
 
 type testCase struct {

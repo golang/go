@@ -14,14 +14,13 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/version"
+	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"internal/diff"
 )
 
 var (
