@@ -3,9 +3,9 @@ function openURL(url) {
 }
 
 function addLinks() {
-  var links = document.getElementsByTagName("a");
-  for (var i = 0; i < links.length; i++) {
-    var url = links[i].getAttribute("url");
+  const links = document.getElementsByTagName("a");
+  for (let i = 0; i < links.length; i++) {
+    const url = links[i].getAttribute("url");
     if (url)
       links[i].addEventListener("click", function () {
         openURL(this.getAttribute("url"));
@@ -21,22 +21,22 @@ window.addEventListener("load", function () {
 
 window.addEventListener("submit", function () {
   console.log("submitting form");
-  var box = document.getElementById("inputbox");
+  const box = document.getElementById("inputbox");
   box.focus();
 
-  var t = box.value;
-  if (t == "") {
+  const t = box.value;
+  if (t === "") {
     return false;
   }
 
-  var success = function(url) {
+  const success = function (url) {
     console.log("matched " + t + " to: " + url)
     box.value = "";
     openURL(url);
     return false;  // cancel form submission
   };
 
-  var url = urlForInput(t);
+  const url = urlForInput(t);
   if (url) {
     return success(url);
   }
