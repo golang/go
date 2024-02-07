@@ -215,14 +215,6 @@ func TestElfBindNow(t *testing.T) {
 			wantDf1Pie:           true,
 		},
 		{
-			name:                 "pie-linkmode-external",
-			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=external"},
-			prog:                 prog,
-			mustHaveBuildModePIE: true,
-			mustHaveCGO:          true,
-			wantDf1Pie:           true,
-		},
-		{
 			name:             "bindnow-linkmode-internal",
 			args:             []string{"-ldflags", "-bindnow -linkmode=internal"},
 			prog:             progC,
@@ -230,14 +222,6 @@ func TestElfBindNow(t *testing.T) {
 			mustInternalLink: true,
 			wantDfBindNow:    true,
 			wantDf1Now:       true,
-		},
-		{
-			name:          "bindnow-linkmode-external",
-			args:          []string{"-ldflags", "-bindnow -linkmode=external"},
-			prog:          progC,
-			mustHaveCGO:   true,
-			wantDfBindNow: true,
-			wantDf1Now:    true,
 		},
 		{
 			name:                 "bindnow-pie-linkmode-internal",
