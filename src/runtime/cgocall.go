@@ -642,7 +642,6 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)
 		}
 	case abi.Pointer, abi.UnsafePointer:
-
 		if indir {
 			p = *(*unsafe.Pointer)(p)
 			if p == nil {
