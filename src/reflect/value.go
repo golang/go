@@ -9,6 +9,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/itoa"
+	"internal/runtime/itab"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
@@ -208,14 +209,7 @@ type emptyInterface struct {
 
 // nonEmptyInterface is the header for an interface value with methods.
 type nonEmptyInterface struct {
-	// see ../runtime/iface.go:/Itab
-	itab *struct {
-		ityp *abi.Type // static interface type
-		typ  *abi.Type // dynamic concrete type
-		hash uint32    // copy of typ.hash
-		_    [4]byte
-		fun  [100000]unsafe.Pointer // method table
-	}
+	itab *itab.Itab
 	word unsafe.Pointer
 }
 
@@ -883,7 +877,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 // The return value t gives the method type signature (without the receiver).
 // The return value fn is a pointer to the method code.
 func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *abi.Type, t *funcType, fn unsafe.Pointer) {
-	i := methodIndex
+	i := uintptr(methodIndex)
 	if v.typ().Kind() == abi.Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ()))
 		if uint(i) >= uint(len(tt.Methods)) {
@@ -897,8 +891,8 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *abi.Type, t 
 		if iface.itab == nil {
 			panic("reflect: " + op + " of method on nil interface value")
 		}
-		rcvrtype = iface.itab.typ
-		fn = unsafe.Pointer(&iface.itab.fun[i])
+		rcvrtype = iface.itab.Type
+		fn = unsafe.Add(unsafe.Pointer(&iface.itab.Fun[0]), unsafe.Sizeof(iface.itab.Fun[0])*i)
 		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.Typ)))
 	} else {
 		rcvrtype = v.typ()

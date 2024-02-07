@@ -56,6 +56,8 @@ var depsRules = `
 
 	unsafe < maps;
 
+	internal/abi < internal/runtime/itab;
+
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
 	internal/chacha8rand,
@@ -64,7 +66,8 @@ var depsRules = `
 	internal/goarch,
 	internal/godebugs,
 	internal/goexperiment,
-	internal/goos
+	internal/goos,
+	internal/runtime/itab
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -189,7 +192,7 @@ var depsRules = `
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
-	arena, strconv, unicode
+	arena, strconv, unicode, internal/runtime/itab
 	< reflect;
 
 	os, reflect

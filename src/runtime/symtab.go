@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/itab"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -356,7 +357,7 @@ type moduledata struct {
 
 	textsectmap []textsect
 	typelinks   []int32 // offsets from types
-	itablinks   []*itab
+	itablinks   []*itab.Itab
 
 	ptab []ptabEntry
 

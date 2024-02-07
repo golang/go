@@ -15,6 +15,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
+	"internal/runtime/itab"
 	"unsafe"
 )
 
@@ -539,8 +540,8 @@ func dumpparams() {
 	dumpint(uint64(ncpu))
 }
 
-func itab_callback(tab *itab) {
-	t := tab._type
+func itab_callback(tab *itab.Itab) {
+	t := tab.Type
 	dumptype(t)
 	dumpint(tagItab)
 	dumpint(uint64(uintptr(unsafe.Pointer(tab))))

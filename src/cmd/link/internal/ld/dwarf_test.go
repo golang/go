@@ -65,7 +65,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 		"internal/abi.SliceType":     true,
 		"internal/abi.StructType":    true,
 		"internal/abi.InterfaceType": true,
-		"runtime.itab":               true,
+		"internal/runtime/itab.Itab": true,
 	}
 
 	found := findTypes(t, dwarf, want)

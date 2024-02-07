@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/runtime/itab"
 	"unsafe"
 )
 
@@ -100,7 +101,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	if tab == nil {
 		return h
 	}
-	t := tab._type
+	t := tab.Type
 	if t.Equal == nil {
 		// Check hashability here. We could do this check inside
 		// typehash, but we want to report the topmost type in
@@ -223,7 +224,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 			if a.tab == nil {
 				return nil
 			}
-			t = a.tab._type
+			t = a.tab.Type
 			pdata = &a.data
 		}
 
@@ -325,11 +326,11 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 	}
 	return eq(x, y)
 }
-func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
+func ifaceeq(tab *itab.Itab, x, y unsafe.Pointer) bool {
 	if tab == nil {
 		return true
 	}
-	t := tab._type
+	t := tab.Type
 	eq := t.Equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
