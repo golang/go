@@ -773,6 +773,16 @@ func init() {
 		// We expect to crash, so exit 0 to indicate failure.
 		os.Exit(0)
 	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_READMEMSTATS") == "1" {
+		runtime.ReadMemStats(nil)
+		os.Exit(0)
+	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_FUNCMETHOD") == "1" {
+		var f *runtime.Func
+		_ = f.Entry()
+		os.Exit(0)
+	}
+
 }
 
 func TestRuntimePanic(t *testing.T) {
@@ -784,6 +794,32 @@ func TestRuntimePanic(t *testing.T) {
 	if err == nil {
 		t.Error("child process did not fail")
 	} else if want := "runtime.unexportedPanicForTesting"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeFunction(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.ReadMemStats"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeMethod(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.(*Func).Entry"; !bytes.Contains(out, []byte(want)) {
 		t.Errorf("output did not contain expected string %q", want)
 	}
 }

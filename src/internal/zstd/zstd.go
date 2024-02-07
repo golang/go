@@ -237,7 +237,7 @@ retry:
 
 	// Figure out the maximum amount of data we need to retain
 	// for backreferences.
-	var windowSize int
+	var windowSize uint64
 	if !singleSegment {
 		// Window descriptor. RFC 3.1.1.1.2.
 		windowDescriptor := r.scratch[0]
@@ -246,7 +246,7 @@ retry:
 		windowLog := exponent + 10
 		windowBase := uint64(1) << windowLog
 		windowAdd := (windowBase / 8) * mantissa
-		windowSize = int(windowBase + windowAdd)
+		windowSize = windowBase + windowAdd
 
 		// Default zstd sets limits on the window size.
 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
@@ -288,12 +288,13 @@ retry:
 	// When Single_Segment_Flag is set, Window_Descriptor is not present.
 	// In this case, Window_Size is Frame_Content_Size.
 	if singleSegment {
-		windowSize = int(r.remainingFrameSize)
+		windowSize = r.remainingFrameSize
 	}
 
 	// RFC 8878 3.1.1.1.1.2. permits us to set an 8M max on window size.
-	if windowSize > 8<<20 {
-		windowSize = 8 << 20
+	const maxWindowSize = 8 << 20
+	if windowSize > maxWindowSize {
+		windowSize = maxWindowSize
 	}
 
 	relativeOffset += headerSize
@@ -307,7 +308,7 @@ retry:
 	r.repeatedOffset2 = 4
 	r.repeatedOffset3 = 8
 	r.huffmanTableBits = 0
-	r.window.reset(windowSize)
+	r.window.reset(int(windowSize))
 	r.seqTables[0] = nil
 	r.seqTables[1] = nil
 	r.seqTables[2] = nil

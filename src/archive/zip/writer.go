@@ -433,6 +433,10 @@ func writeHeader(w io.Writer, h *header) error {
 // [Writer.CreateHeader], [Writer.CreateRaw], or [Writer.Close].
 //
 // In contrast to [Writer.CreateHeader], the bytes passed to Writer are not compressed.
+//
+// CreateRaw's argument is stored in w. If the argument is a pointer to the embedded
+// [FileHeader] in a [File] obtained from a [Reader] created from in-memory data,
+// then w will refer to all of that memory.
 func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 	if err := w.prepare(fh); err != nil {
 		return nil, err
@@ -471,7 +475,10 @@ func (w *Writer) Copy(f *File) error {
 	if err != nil {
 		return err
 	}
-	fw, err := w.CreateRaw(&f.FileHeader)
+	// Copy the FileHeader so w doesn't store a pointer to the data
+	// of f's entire archive. See #65499.
+	fh := f.FileHeader
+	fw, err := w.CreateRaw(&fh)
 	if err != nil {
 		return err
 	}

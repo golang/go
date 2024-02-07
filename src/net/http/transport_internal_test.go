@@ -58,8 +58,8 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 
 	<-pc.closech
 	err = pc.closed
-	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
-		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
+	if !isNothingWrittenError(err) && !isTransportReadFromServerError(err) && err != errServerClosedIdle {
+		t.Errorf("pc.closed = %#v, %v; want errServerClosedIdle or transportReadFromServerError, or nothingWrittenError", err, err)
 	}
 }
 

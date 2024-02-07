@@ -2052,6 +2052,10 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 		if !hasRT || rtt == 0 {
 			continue
 		}
+		// ... except unsafe.Pointer...
+		if name, _ := die.Val(intdwarf.DW_AT_name).(string); name == "unsafe.Pointer" {
+			continue
+		}
 		typesChecked++
 		// ... we want to see a meaningful DW_AT_go_kind value.
 		if val, ok := die.Val(intdwarf.DW_AT_go_kind).(int64); !ok || val == 0 {

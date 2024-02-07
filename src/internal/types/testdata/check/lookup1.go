@@ -62,12 +62,12 @@ func _() {
 func _() {
 	var x big.Float
 	_ = x.neg // ERROR "x.neg undefined (type big.Float has no field or method neg, but does have method Neg)"
-	_ = x.nEg // ERROR "x.nEg undefined (type big.Float has no field or method nEg, but does have method Neg)"
+	_ = x.nEg // ERROR "x.nEg undefined (type big.Float has no field or method nEg)"
 	_ = x.Neg
 	_ = x.NEg // ERROR "x.NEg undefined (type big.Float has no field or method NEg, but does have method Neg)"
 
-	_ = x.form // ERROR "x.form undefined (field form is not exported)"
+	_ = x.form // ERROR "x.form undefined (cannot refer to unexported field form)"
 	_ = x.fOrm // ERROR "x.fOrm undefined (type big.Float has no field or method fOrm)"
-	_ = x.Form // ERROR "x.Form undefined (type big.Float has no field or method Form)"
+	_ = x.Form // ERROR "x.Form undefined (type big.Float has no field or method Form, but does have unexported field form)"
 	_ = x.FOrm // ERROR "x.FOrm undefined (type big.Float has no field or method FOrm)"
 }
