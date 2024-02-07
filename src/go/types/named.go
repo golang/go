@@ -337,6 +337,12 @@ func (t *Named) NumMethods() int {
 // For an ordinary or instantiated type t, the receiver base type of this
 // method is the named type t. For an uninstantiated generic type t, each
 // method receiver is instantiated with its receiver type parameters.
+//
+// Methods are numbered deterministically: given the same list of source files
+// presented to the type checker, or the same sequence of NewMethod and AddMethod
+// calls, the mapping from method index to corresponding method remains the same.
+// But the specific ordering is not specified and must not be relied on as it may
+// change in the future.
 func (t *Named) Method(i int) *Func {
 	t.resolve()
 
