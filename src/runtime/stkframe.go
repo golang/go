@@ -264,7 +264,7 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
-	if abiRegArgsType.Kind_&kindGCProg != 0 {
+	if abiRegArgsType.Kind_&abi.KindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
 	}
 	// Set methodValueCallFrameObjs[0].gcdataoff so that
