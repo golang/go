@@ -4,6 +4,11 @@
 
 //go:build unix
 
+// When cross-compiling to linux/armv5, atomics are emulated and cause a
+// compiler warning. This results in a build failure since cgo uses
+// -Werror. See #65290.
+#pragma GCC diagnostic ignored "-Watomic-alignment"
+
 #include <pthread.h>
 #include <errno.h>
 #include <stdio.h>
