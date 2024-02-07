@@ -57,7 +57,7 @@ func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
 
 // LookupMethod returns the index of and method with matching package and name, or (-1, nil).
 func (s *_TypeSet) LookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
-	return lookupMethod(s.methods, pkg, name, foldCase)
+	return methodIndex(s.methods, pkg, name, foldCase)
 }
 
 func (s *_TypeSet) String() string {
