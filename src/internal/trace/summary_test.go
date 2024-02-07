@@ -18,6 +18,10 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
 		hasSyncBlockTime    bool
 		hasGCMarkAssistTime bool
 	)
+
+	assertContainsGoroutine(t, summaries, "runtime.gcBgMarkWorker")
+	assertContainsGoroutine(t, summaries, "main.main.func1")
+
 	for _, summary := range summaries {
 		basicGoroutineSummaryChecks(t, summary)
 		hasSchedWaitTime = hasSchedWaitTime || summary.SchedWaitTime > 0
@@ -230,6 +234,15 @@ func TestSummarizeTasksTrace(t *testing.T) {
 	if len(wantTasks) != 0 {
 		t.Errorf("failed to find tasks: %#v", wantTasks)
 	}
+}
+
+func assertContainsGoroutine(t *testing.T, summaries map[tracev2.GoID]*GoroutineSummary, name string) {
+	for _, summary := range summaries {
+		if summary.Name == name {
+			return
+		}
+	}
+	t.Errorf("missing goroutine %s", name)
 }
 
 func basicGoroutineSummaryChecks(t *testing.T, summary *GoroutineSummary) {
