@@ -4799,6 +4799,10 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"Foo : bar\r\n", 400},
 		{"Foo\t: bar\r\n", 400},
 
+		// Empty header keys are invalid.
+		// See RFC 7230, Section 3.2.
+		{": empty key\r\n", 400},
+
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad

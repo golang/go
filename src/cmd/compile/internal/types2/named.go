@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -444,13 +445,38 @@ func (t *Named) SetUnderlying(underlying Type) {
 }
 
 // AddMethod adds method m unless it is already in the method list.
-// t must not have type arguments.
+// The method must be in the same package as t, and t must not have
+// type arguments.
 func (t *Named) AddMethod(m *Func) {
+	assert(samePkg(t.obj.pkg, m.pkg))
 	assert(t.inst == nil)
 	t.resolve()
-	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
+	if t.methodIndex(m.name, false) < 0 {
 		t.methods = append(t.methods, m)
 	}
+}
+
+// methodIndex returns the index of the method with the given name.
+// If foldCase is set, capitalization in the name is ignored.
+// The result is negative if no such method exists.
+func (t *Named) methodIndex(name string, foldCase bool) int {
+	if name == "_" {
+		return -1
+	}
+	if foldCase {
+		for i, m := range t.methods {
+			if strings.EqualFold(m.name, name) {
+				return i
+			}
+		}
+	} else {
+		for i, m := range t.methods {
+			if m.name == name {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // TODO(gri) Investigate if Unalias can be moved to where underlying is set.
@@ -553,15 +579,16 @@ loop:
 
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
 	n.resolve()
-	// If n is an instance, we may not have yet instantiated all of its methods.
-	// Look up the method index in orig, and only instantiate method at the
-	// matching index (if any).
-	i, _ := lookupMethod(n.Origin().methods, pkg, name, foldCase)
-	if i < 0 {
-		return -1, nil
+	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
+		// If n is an instance, we may not have yet instantiated all of its methods.
+		// Look up the method index in orig, and only instantiate method at the
+		// matching index (if any).
+		if i := n.Origin().methodIndex(name, foldCase); i >= 0 {
+			// For instances, m.Method(i) will be different from the orig method.
+			return i, n.Method(i)
+		}
 	}
-	// For instances, m.Method(i) will be different from the orig method.
-	return i, n.Method(i)
+	return -1, nil
 }
 
 // context returns the type-checker context.

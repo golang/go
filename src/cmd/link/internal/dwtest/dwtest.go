@@ -69,8 +69,8 @@ func (ex *Examiner) Populate(rdr *dwarf.Reader) error {
 	return nil
 }
 
-func (e *Examiner) DIEs() []*dwarf.Entry {
-	return e.dies
+func (ex *Examiner) DIEs() []*dwarf.Entry {
+	return ex.dies
 }
 
 func indent(ilevel int) {

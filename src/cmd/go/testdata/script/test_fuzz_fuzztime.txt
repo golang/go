@@ -5,6 +5,13 @@ env GOCACHE=$WORK/cache
 # There are no seed values, so 'go test' should finish quickly.
 go test
 
+# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
+# resources during the test. Ideally this would just free up resources to run
+# other parallel tests more quickly, but unfortunately it is actually necessary
+# in some 32-bit environments to prevent the fuzzing engine from running out of
+# address space (see https://go.dev/issue/65434).
+env GOMAXPROCS=2
+
 # Fuzzing should exit 0 after fuzztime, even if timeout is short.
 go test -timeout=3s -fuzz=FuzzFast -fuzztime=5s
 

@@ -2,6 +2,16 @@
 [short] skip
 env GOCACHE=$WORK/cache
 
+# Warm up the build cache with GOMAXPROCS unrestricted.
+go test -c -o $devnull
+
+# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
+# resources during the test. Ideally this would just free up resources to run
+# other parallel tests more quickly, but unfortunately it is actually necessary
+# in some 32-bit environments to prevent the fuzzing engine from running out of
+# address space (see https://go.dev/issue/65434).
+env GOMAXPROCS=2
+
 # The fuzz function should be able to detect whether -timeout
 # was set with T.Deadline. Note there is no F.Deadline, and
 # there is no timeout while fuzzing, even if -fuzztime is set.

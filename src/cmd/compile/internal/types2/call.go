@@ -824,22 +824,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		if isInterfacePtr(x.typ) {
 			why = check.interfacePtrError(x.typ)
 		} else {
-			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// check if there's a field or method with different capitalization
-			if obj, _, _ = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true); obj != nil {
-				var what string // empty or description with trailing space " " (default case, should never be reached)
-				switch obj.(type) {
-				case *Var:
-					what = "field "
-				case *Func:
-					what = "method "
-				}
-				if samePkg(obj.Pkg(), check.pkg) || obj.Exported() {
-					why = check.sprintf("%s, but does have %s%s", why, what, obj.Name())
-				} else if obj.Name() == sel {
-					why = check.sprintf("%s%s is not exported", what, obj.Name())
-				}
-			}
+			alt, _, _ := lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error

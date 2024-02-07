@@ -32,7 +32,7 @@ func TestCheckAPIFragments(t *testing.T) {
 	docFS := os.DirFS(filepath.Join(root, "doc", "next"))
 	// Check that each api/next file has a corresponding release note fragment.
 	for _, apiFile := range files {
-		if err := relnote.CheckAPIFile(rootFS, apiFile, docFS); err != nil {
+		if err := relnote.CheckAPIFile(rootFS, apiFile, docFS, "doc/next"); err != nil {
 			t.Errorf("%s: %v", apiFile, err)
 		}
 	}
