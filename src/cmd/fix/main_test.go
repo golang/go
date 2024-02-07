@@ -106,10 +106,10 @@ func TestRewrite(t *testing.T) {
 					t.Parallel()
 				}
 			} else {
-				old := goVersion
-				goVersion = tt.Version
+				old := *goVersion
+				*goVersion = tt.Version
 				defer func() {
-					goVersion = old
+					*goVersion = old
 				}()
 			}
 

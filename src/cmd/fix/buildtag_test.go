@@ -11,7 +11,7 @@ func init() {
 var buildtagTests = []testCase{
 	{
 		Name:    "buildtag.oldGo",
-		Version: "go1_10",
+		Version: "go1.10",
 		In: `//go:build yes
 // +build yes
 
@@ -20,7 +20,7 @@ package main
 	},
 	{
 		Name:    "buildtag.new",
-		Version: "go1_99",
+		Version: "go1.99",
 		In: `//go:build yes
 // +build yes
 
