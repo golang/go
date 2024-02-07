@@ -151,7 +151,7 @@ func main() {
   the new semantics (see above) of loop variables in Go 1.22.
   When analyzing a file that requires Go 1.22 or newer
   (due to its go.mod file or a per-file build constraint),
-  <code>vet</code>code> no longer reports references to
+  <code>vet</code> no longer reports references to
   loop variables from within a function literal that
   might outlive the iteration of the loop.
   In Go 1.22, loop variables are created anew for each iteration,
