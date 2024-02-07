@@ -16,6 +16,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"math/big"
 	"net"
 	"net/url"
@@ -815,6 +816,8 @@ func processExtensions(out *Certificate) error {
 	return nil
 }
 
+var x509negativeserial = godebug.New("x509negativeserial")
+
 func parseCertificate(der []byte) (*Certificate, error) {
 	cert := &Certificate{}
 
@@ -858,11 +861,13 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	if !tbs.ReadASN1Integer(serial) {
 		return nil, errors.New("x509: malformed serial number")
 	}
-	// we ignore the presence of negative serial numbers because
-	// of their prevalence, despite them being invalid
-	// TODO(rolandshoemaker): revisit this decision, there are currently
-	// only 10 trusted certificates with negative serial numbers
-	// according to censys.io.
+	if serial.Sign() == -1 {
+		if x509negativeserial.Value() != "1" {
+			return nil, errors.New("x509: negative serial number")
+		} else {
+			x509negativeserial.IncNonDefault()
+		}
+	}
 	cert.SerialNumber = serial
 
 	var sigAISeq cryptobyte.String
@@ -999,6 +1004,10 @@ func parseCertificate(der []byte) (*Certificate, error) {
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
+//
+// Before Go 1.23, ParseCertificate accepted certificates with negative serial
+// numbers. This behavior can be restored by including "x509negativeserial=1" in
+// the GODEBUG environment variable.
 func ParseCertificate(der []byte) (*Certificate, error) {
 	cert, err := parseCertificate(der)
 	if err != nil {

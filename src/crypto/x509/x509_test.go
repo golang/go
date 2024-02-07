@@ -1930,9 +1930,8 @@ func TestRSAMissingNULLParameters(t *testing.T) {
 	}
 }
 
-const certISOOID = `
------BEGIN CERTIFICATE-----
-MIIB5TCCAVKgAwIBAgIQtwyL3RPWV7dJQp34HwZG9DAJBgUrDgMCHQUAMBExDzAN
+const certISOOID = `-----BEGIN CERTIFICATE-----
+MIIB5TCCAVKgAwIBAgIQNwyL3RPWV7dJQp34HwZG9DAJBgUrDgMCHQUAMBExDzAN
 BgNVBAMTBm15dGVzdDAeFw0xNjA4MDkyMjExMDVaFw0zOTEyMzEyMzU5NTlaMBEx
 DzANBgNVBAMTBm15dGVzdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEArzIH
 GsyDB3ohIGkkvijF2PTRUX1bvOtY1eUUpjwHyu0twpAKSuaQv2Ha+/63+aHe8O86
@@ -3564,7 +3563,7 @@ func TestLargeOID(t *testing.T) {
 }
 
 const uniqueIDPEM = `-----BEGIN CERTIFICATE-----
-MIIFsDCCBJigAwIBAgIIrOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
+MIIFsDCCBJigAwIBAgIILOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
 A1UEAx6BgABNAGkAYwByAG8AcwBvAGYAdAAgAEYAbwByAGUAZgByAG8AbgB0ACAA
 VABNAEcAIABIAFQAVABQAFMAIABJAG4AcwBwAGUAYwB0AGkAbwBuACAAQwBlAHIA
 dABpAGYAaQBjAGEAdABpAG8AbgAgAEEAdQB0AGgAbwByAGkAdAB5MB4XDTE0MDEx
@@ -3831,8 +3830,8 @@ RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
 func TestParseNegativeSerial(t *testing.T) {
 	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
 	_, err := ParseCertificate(pemBlock.Bytes)
-	if err != nil {
-		t.Fatalf("failed to parse certificate: %s", err)
+	if err == nil {
+		t.Fatal("parsed certificate with negative serial")
 	}
 }
 
