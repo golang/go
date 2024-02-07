@@ -280,7 +280,7 @@ const shardPoolsSize = 256
 
 var (
 	// allPools is the set of pools that have non-empty primary
-	// caches. Protected by either 1) allPoolsMu and pinning or 2)
+	// caches. Protected by either 1) lock of elem or 2)
 	// STW.
 	allPools [shardPoolsSize]struct {
 		lock Mutex
