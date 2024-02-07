@@ -399,11 +399,20 @@ var coverageDecls = [...]struct {
 	typ  int
 }{
 	{"initHook", funcTag, 1},
+	{"addCovMeta", funcTag, 9},
 }
 
 func coverageTypes() []*types.Type {
-	var typs [2]*types.Type
+	var typs [10]*types.Type
 	typs[0] = types.Types[types.TBOOL]
 	typs[1] = newSig(params(typs[0]), nil)
+	typs[2] = types.Types[types.TUNSAFEPTR]
+	typs[3] = types.Types[types.TUINT32]
+	typs[4] = types.ByteType
+	typs[5] = types.NewArray(typs[4], 16)
+	typs[6] = types.Types[types.TSTRING]
+	typs[7] = types.Types[types.TINT]
+	typs[8] = types.Types[types.TUINT8]
+	typs[9] = newSig(params(typs[2], typs[3], typs[5], typs[6], typs[7], typs[8], typs[8]), params(typs[3]))
 	return typs[:]
 }

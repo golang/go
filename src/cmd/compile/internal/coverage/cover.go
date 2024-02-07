@@ -165,29 +165,13 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	//
 	//   pkgIdVar = runtime/coverage.addCovMeta(&sym, len, hash, pkgpath, pkid, cmode, cgran)
 	//
-	fn := ir.NewFunc(base.Pos,
-		base.Pos,
-		addCovMetaName,
-		types.NewSignature(nil,
-			[]*types.Field{
-				types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
-				types.NewField(base.Pos, nil, types.Types[types.TUINT32]),
-				types.NewField(base.Pos, nil, types.NewArray(types.Types[types.TUINT8], 16)),
-				types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
-				types.NewField(base.Pos, nil, types.Types[types.TINT]),
-				types.NewField(base.Pos, nil, types.Types[types.TUINT8]),
-				types.NewField(base.Pos, nil, types.Types[types.TUINT8]),
-			},
-			[]*types.Field{
-				types.NewField(base.Pos, nil, types.Types[types.TUINT32]),
-			}),
-	)
+	fn := typecheck.LookupCoverage("addCovMeta")
 	pkid := coverage.HardCodedPkgID(base.Ctxt.Pkgpath)
 	pkIdNode := ir.NewInt(base.Pos, int64(pkid))
 	cmodeNode := ir.NewInt(base.Pos, int64(cnames.CounterMode))
 	cgranNode := ir.NewInt(base.Pos, int64(cnames.CounterGran))
 	pkPathNode := ir.NewString(base.Pos, base.Ctxt.Pkgpath)
-	callx := typecheck.Call(pos, fn.Nname, []ir.Node{mdauspx, lenx, hashx,
+	callx := typecheck.Call(pos, fn, []ir.Node{mdauspx, lenx, hashx,
 		pkPathNode, pkIdNode, cmodeNode, cgranNode}, false)
 	assign := callx
 	if pkid == coverage.NotHardCoded {
@@ -200,16 +184,11 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	cnames.InitFn.Body.Prepend(assign)
 }
 
-var coveragePkg = types.NewPkg("runtime/coverage", "coverage")
-
-var addCovMetaName = &types.Sym{Pkg: coveragePkg, Name: "addCovMeta"}
-
 // addInitHookCall generates a call to runtime/coverage.initHook() and
 // inserts it into the package main init function, which will kick off
 // the process for coverage data writing (emit meta data, and register
 // an exit hook to emit counter data).
 func addInitHookCall(initfn *ir.Func, cmode coverage.CounterMode) {
-	typecheck.InitCoverage()
 	pos := initfn.Pos()
 	istest := cmode == coverage.CtrModeTestMain
 	initf := typecheck.LookupCoverage("initHook")

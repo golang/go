@@ -11,4 +11,8 @@
 
 package coverage
 
+import "unsafe"
+
 func initHook(istest bool)
+
+func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pkid int, cmode uint8, cgran uint8) uint32
