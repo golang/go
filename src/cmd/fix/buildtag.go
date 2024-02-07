@@ -24,7 +24,7 @@ var buildtagFix = fix{
 }
 
 func buildtag(f *ast.File) bool {
-	if version.Compare(*goVersion, buildtagGoVersionCutoff) == -1 {
+	if version.Compare(*goVersion, buildtagGoVersionCutoff) < 0 {
 		return false
 	}
 
