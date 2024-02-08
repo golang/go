@@ -98,6 +98,20 @@ var trace struct {
 	goStopReasons    [2][len(traceGoStopReasonStrings)]traceArg
 	goBlockReasons   [2][len(traceBlockReasonStrings)]traceArg
 
+	// enabled indicates whether tracing is enabled, but it is only an optimization,
+	// NOT the source of truth on whether tracing is enabled. Tracing is only truly
+	// enabled if gen != 0. This is used as an optimistic fast path check.
+	//
+	// Transitioning this value from true -> false is easy (once gen is 0)
+	// because it's OK for enabled to have a stale "true" value. traceAcquire will
+	// always double-check gen.
+	//
+	// Transitioning this value from false -> true is harder. We need to make sure
+	// this is observable as true strictly before gen != 0. To maintain this invariant
+	// we only make this transition with the world stopped and use the store to gen
+	// as a publication barrier.
+	enabled bool
+
 	// Trace generation counter.
 	gen            atomic.Uintptr
 	lastNonZeroGen uintptr // last non-zero value of gen
@@ -211,8 +225,19 @@ func StartTrace() error {
 
 	// Start tracing.
 	//
-	// After this executes, other Ms may start creating trace buffers and emitting
+	// Set trace.enabled. This is *very* subtle. We need to maintain the invariant that if
+	// trace.gen != 0, then trace.enabled is always observed as true. Simultaneously, for
+	// performance, we need trace.enabled to be read without any synchronization.
+	//
+	// We ensure this is safe by stopping the world, which acts a global barrier on almost
+	// every M, and explicitly synchronize with any other Ms that could be running concurrently
+	// with us. Today, there are only two such cases:
+	// - sysmon, which we synchronized with by acquiring sysmonlock.
+	// - goroutines exiting syscalls, which we synchronize with via trace.exitingSyscall.
+	//
+	// After trace.gen is updated, other Ms may start creating trace buffers and emitting
 	// data into them.
+	trace.enabled = true
 	trace.gen.Store(firstGen)
 
 	// Wait for exitingSyscall to drain.
@@ -222,8 +247,9 @@ func StartTrace() error {
 	// goroutines to run on.
 	//
 	// Because we set gen before checking this, and because exitingSyscall is always incremented
-	// *after* traceAcquire (which checks gen), we can be certain that when exitingSyscall is zero
-	// that any goroutine that goes to exit a syscall from then on *must* observe the new gen.
+	// *before* traceAcquire (which checks gen), we can be certain that when exitingSyscall is zero
+	// that any goroutine that goes to exit a syscall from then on *must* observe the new gen as
+	// well as trace.enabled being set to true.
 	//
 	// The critical section on each goroutine here is going to be quite short, so the likelihood
 	// that we observe a zero value is high.
@@ -376,6 +402,10 @@ func traceAdvance(stopTrace bool) {
 			trace.shutdown.Store(true)
 			trace.gen.Store(0)
 			unlock(&trace.lock)
+
+			// Clear trace.enabled. It is totally OK for this value to be stale,
+			// because traceAcquire will always double-check gen.
+			trace.enabled = false
 		})
 	} else {
 		trace.gen.Store(traceNextGen(gen))
