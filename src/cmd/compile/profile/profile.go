@@ -135,12 +135,10 @@ func main() {
 
 func hash(s []byte) string {
 	Md5 := md5.New()
-	var seed []byte
-	ret, err := time.Now().MarshalBinary()
+	seed, err := time.Now().MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
-	seed = ret
 	Md5.Write(seed)
 	hashraw := Md5.Sum(s)
 	hashresult := make([]byte, 0, len(hashraw)/4)
