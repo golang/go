@@ -100,11 +100,16 @@ var filemap = map[string]action{
 	"api_predicates.go": nil,
 	"basic.go":          nil,
 	"builtins.go": func(f *ast.File) {
-		renameImportPath(f, `"cmd/compile/internal/syntax"`, `"go/ast"`)
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameIdents(f, "syntax->ast")
 		renameSelectors(f, "ArgList->Args")
 		fixSelValue(f)
 		fixAtPosCall(f)
+	},
+	"builtins_test.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`, `"cmd/compile/internal/types2"->"go/types"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "p.Value->p.Name") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
 	},
 	"chan.go":         nil,
 	"const.go":        func(f *ast.File) { fixTokenPos(f) },
@@ -113,17 +118,17 @@ var filemap = map[string]action{
 	"errsupport.go":   nil,
 	"gccgosizes.go":   nil,
 	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
-	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
-	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
 	"main_test.go":        nil,
 	"map.go":              nil,
 	"named.go":            func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
-	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"objset.go":           nil,
 	"package.go":          nil,
 	"pointer.go":          nil,
@@ -150,7 +155,7 @@ var filemap = map[string]action{
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
 //           For now this is a good starting point.
 
-// A renameMap maps old names to new names.
+// A renameMap maps old strings to new strings.
 type renameMap map[string]string
 
 // makeRenameMap returns a renameMap populates from renames entries of the form "from->to".
@@ -166,10 +171,26 @@ func makeRenameMap(renames ...string) renameMap {
 	return m
 }
 
-// rename renames the given name if a corresponding rename exists in m.
-func (m renameMap) rename(name *string) {
-	if new, ok := m[*name]; ok {
-		*name = new
+// rename renames the given string s if a corresponding rename exists in m.
+func (m renameMap) rename(s *string) {
+	if r, ok := m[*s]; ok {
+		*s = r
+	}
+}
+
+// renameSel renames a selector expression of the form a.x to b.x (where a, b are identifiers)
+// if m contains the ("a.x" : "b.y") key-value pair.
+func (m renameMap) renameSel(n *ast.SelectorExpr) {
+	if a, _ := n.X.(*ast.Ident); a != nil {
+		a_x := a.Name + "." + n.Sel.Name
+		if r, ok := m[a_x]; ok {
+			b_y := strings.Split(r, ".")
+			if len(b_y) != 2 {
+				panic("invalid selector expression: " + r)
+			}
+			a.Name = b_y[0]
+			n.Sel.Name = b_y[1]
+		}
 	}
 }
 
@@ -201,15 +222,31 @@ func renameSelectors(f *ast.File, renames ...string) {
 
 }
 
-// renameImportPath renames an import path.
-func renameImportPath(f *ast.File, from, to string) {
+// renameSelectorExprs is like renameIdents but only looks at selector expressions.
+// Each renames entry must be of the form "x.a->y.b".
+func renameSelectorExprs(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			m.renameSel(n)
+			return false
+		}
+		return true
+	})
+}
+
+// renameImportPath is like renameIdents but renames import paths.
+func renameImportPath(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ImportSpec:
-			if n.Path.Kind == token.STRING && n.Path.Value == from {
-				n.Path.Value = to
-				return false
+			if n.Path.Kind != token.STRING {
+				panic("invalid import path")
 			}
+			m.rename(&n.Path.Value)
+			return false
 		}
 		return true
 	})
@@ -218,24 +255,24 @@ func renameImportPath(f *ast.File, from, to string) {
 // fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",
 // uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
 func fixTokenPos(f *ast.File) {
+	m := makeRenameMap(`"cmd/compile/internal/syntax"->"go/token"`, "syntax.Pos->token.Pos", "IsKnown->IsValid")
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ImportSpec:
 			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
-			if n.Path.Kind == token.STRING && n.Path.Value == `"cmd/compile/internal/syntax"` {
-				n.Path.Value = `"go/token"`
-				return false
+			if n.Path.Kind != token.STRING {
+				panic("invalid import path")
 			}
+			m.rename(&n.Path.Value)
+			return false
 		case *ast.SelectorExpr:
 			// rewrite syntax.Pos to token.Pos
-			if x := asIdent(n.X, "syntax"); x != nil && n.Sel.Name == "Pos" {
-				x.Name = "token"
-				return false
-			}
+			m.renameSel(n)
+			return false
 		case *ast.CallExpr:
 			// rewrite x.IsKnown() to x.IsValid()
-			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && fun.Sel.Name == "IsKnown" && len(n.Args) == 0 {
-				fun.Sel.Name = "IsValid"
+			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && len(n.Args) == 0 {
+				m.rename(&fun.Sel.Name)
 				return false
 			}
 		}
@@ -243,7 +280,7 @@ func fixTokenPos(f *ast.File) {
 	})
 }
 
-// fixSelValue updates the selector Sel.Value to Sel.Name.
+// fixSelValue updates the selector x.Sel.Value to x.Sel.Name.
 func fixSelValue(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
