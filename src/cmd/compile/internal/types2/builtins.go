@@ -1034,14 +1034,3 @@ func arrayPtrDeref(typ Type) Type {
 	}
 	return typ
 }
-
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}

@@ -995,7 +995,7 @@ func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
 func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	var x operand
 	x.mode = value // anything but invalid
-	switch n := unparen(e).(type) {
+	switch n := ast.Unparen(e).(type) {
 	case nil:
 		// nothing to do
 	case *ast.Ident:

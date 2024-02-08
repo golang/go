@@ -705,7 +705,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
 		// (no argument evaluated yet)
 		arg0 := argList[0]
-		selx, _ := unparen(arg0).(*ast.SelectorExpr)
+		selx, _ := ast.Unparen(arg0).(*ast.SelectorExpr)
 		if selx == nil {
 			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
 			check.use(arg0)
@@ -1033,5 +1033,3 @@ func arrayPtrDeref(typ Type) Type {
 	}
 	return typ
 }
-
-func unparen(e ast.Expr) ast.Expr { return ast.Unparen(e) }
