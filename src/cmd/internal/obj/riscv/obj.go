@@ -59,7 +59,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			AADDIW, ASLLIW, ASRLIW, ASRAIW, AADDW, ASUBW, ASLLW, ASRLW, ASRAW,
 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
 			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
-			AREM, AREMU, AREMW, AREMUW:
+			AREM, AREMU, AREMW, AREMUW,
+			AROL, AROLW, AROR, ARORW, ARORI, ARORIW:
 			p.Reg = p.To.Reg
 		}
 	}
@@ -90,6 +91,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = ASRAI
 		case AADDW:
 			p.As = AADDIW
+		case AROR:
+			p.As = ARORI
+		case ARORW:
+			p.As = ARORIW
 		case ASUBW:
 			p.As, p.From.Offset = AADDIW, -p.From.Offset
 		case ASLLW:
@@ -2193,6 +2198,47 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	return inss
 }
 
+// instructionsForRotate returns the machine instructions for a bitwise rotation.
+func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
+	switch ins.as {
+	case AROL, AROLW, AROR, ARORW:
+		// ROL -> OR (SLL x y) (SRL x (NEG y))
+		// ROR -> OR (SRL x y) (SLL x (NEG y))
+		sllOp, srlOp := ASLL, ASRL
+		if ins.as == AROLW || ins.as == ARORW {
+			sllOp, srlOp = ASLLW, ASRLW
+		}
+		shift1, shift2 := sllOp, srlOp
+		if ins.as == AROR || ins.as == ARORW {
+			shift1, shift2 = shift2, shift1
+		}
+		return []*instruction{
+			&instruction{as: ASUB, rs1: REG_ZERO, rs2: ins.rs2, rd: REG_TMP},
+			&instruction{as: shift2, rs1: ins.rs1, rs2: REG_TMP, rd: REG_TMP},
+			&instruction{as: shift1, rs1: ins.rs1, rs2: ins.rs2, rd: ins.rd},
+			&instruction{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
+		}
+
+	case ARORI, ARORIW:
+		// ROR -> OR (SLLI -x y) (SRLI x y)
+		sllOp, srlOp := ASLLI, ASRLI
+		sllImm := int64(int8(-ins.imm) & 63)
+		if ins.as == ARORIW {
+			sllOp, srlOp = ASLLIW, ASRLIW
+			sllImm = int64(int8(-ins.imm) & 31)
+		}
+		return []*instruction{
+			&instruction{as: srlOp, rs1: ins.rs1, rd: REG_TMP, imm: ins.imm},
+			&instruction{as: sllOp, rs1: ins.rs1, rd: ins.rd, imm: sllImm},
+			&instruction{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
+		}
+
+	default:
+		p.Ctxt.Diag("%v: unknown rotation", p)
+		return nil
+	}
+}
+
 // instructionsForProg returns the machine instructions for an *obj.Prog.
 func instructionsForProg(p *obj.Prog) []*instruction {
 	ins := instructionForProg(p)
@@ -2362,6 +2408,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// FNEGD rs, rd -> FSGNJND rs, rs, rd
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
+
+	case AROL, AROLW, AROR, ARORW, ARORI, ARORIW:
+		inss = instructionsForRotate(p, ins)
 
 	case ASLLI, ASRLI, ASRAI:
 		if ins.imm < 0 || ins.imm > 63 {

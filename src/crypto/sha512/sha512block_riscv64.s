@@ -46,11 +46,6 @@
 // H6 = g + H6
 // H7 = h + H7
 
-#define ROR(s, r, d, t1, t2) \
-	SLL	$(64-s), r, t1; \
-	SRL	$(s), r, t2; \
-	OR	t1, t2, d
-
 // Wt = Mt; for 0 <= t <= 15
 #define MSGSCHEDULE0(index) \
 	MOVBU	((index*8)+0)(X29), X5; \
@@ -85,14 +80,14 @@
 	MOV	(((index-15)&0xf)*8)(X19), X6; \
 	MOV	(((index-7)&0xf)*8)(X19), X9; \
 	MOV	(((index-16)&0xf)*8)(X19), X21; \
-	ROR(19, X5, X7, X23, X24); \
-	ROR(61, X5, X8, X23, X24); \
+	ROR	$19, X5, X7; \
+	ROR	$61, X5, X8; \
 	SRL	$6, X5; \
 	XOR	X7, X5; \
 	XOR	X8, X5; \
 	ADD	X9, X5; \
-	ROR(1, X6, X7, X23, X24); \
-	ROR(8, X6, X8, X23, X24); \
+	ROR	$1, X6, X7; \
+	ROR	$8, X6, X8; \
 	SRL	$7, X6; \
 	XOR	X7, X6; \
 	XOR	X8, X6; \
@@ -108,11 +103,11 @@
 #define SHA512T1(index, e, f, g, h) \
 	MOV	(index*8)(X18), X8; \
 	ADD	X5, h; \
-	ROR(14, e, X6, X23, X24); \
+	ROR	$14, e, X6; \
 	ADD	X8, h; \
-	ROR(18, e, X7, X23, X24); \
+	ROR	$18, e, X7; \
 	XOR	X7, X6; \
-	ROR(41, e, X8, X23, X24); \
+	ROR	$41, e, X8; \
 	XOR	X8, X6; \
 	ADD	X6, h; \
 	AND	e, f, X5; \
@@ -126,10 +121,10 @@
 //     BIGSIGMA0(x) = ROTR(28,x) XOR ROTR(34,x) XOR ROTR(39,x)
 //     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
 #define SHA512T2(a, b, c) \
-	ROR(28, a, X6, X23, X24); \
-	ROR(34, a, X7, X23, X24); \
+	ROR	$28, a, X6; \
+	ROR	$34, a, X7; \
 	XOR	X7, X6; \
-	ROR(39, a, X8, X23, X24); \
+	ROR	$39, a, X8; \
 	XOR	X8, X6; \
 	AND	a, b, X7; \
 	AND	a, c, X8; \
