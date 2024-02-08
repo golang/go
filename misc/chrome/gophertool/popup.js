@@ -1,3 +1,5 @@
+import {urlForInput} from "./gopher.js";
+
 function openURL(url) {
   chrome.tabs.create({ "url": url })
 }
