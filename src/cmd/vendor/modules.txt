@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
+# golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
 ## explicit; go 1.20
 golang.org/x/telemetry/counter
 golang.org/x/telemetry/internal/counter

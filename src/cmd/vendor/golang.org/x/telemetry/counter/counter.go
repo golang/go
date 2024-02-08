@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.19
+//go:build go1.19 && !openbsd && !js && !wasip1 && !solaris && !android && !plan9 && !386
 
 package counter
 
