@@ -24,5 +24,16 @@ func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
 // hasDots reports whether the last argument in the call is followed by ...
 func hasDots(call *syntax.CallExpr) bool { return call.HasDots }
 
+// dddErrPos returns the node (poser) for reporting an invalid ... use in a call.
+func dddErrPos(call *syntax.CallExpr) *syntax.CallExpr {
+	// TODO(gri) should use "..." instead of call position
+	return call
+}
+
+// argErrPos returns the node (poser) for reportign an invalid argument count.
+func argErrPos(call *syntax.CallExpr) *syntax.CallExpr {
+	return call
+}
+
 // ExprString returns a string representation of x.
 func ExprString(x syntax.Node) string { return syntax.String(x) }
