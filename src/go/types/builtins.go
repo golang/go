@@ -22,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
-	if call.Ellipsis.IsValid() && id != _Append {
+	if hasDots(call) && id != _Append {
 		check.errorf(atPos(call.Ellipsis),
 			InvalidDotDotDot,
 			invalidOp+"invalid use of ... with built-in %s", bin.name)
@@ -113,7 +113,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() {
+		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				if t := coreString(y.typ); t != nil && isString(t) {
