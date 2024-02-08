@@ -14,6 +14,12 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/internal/boring"
+	"encoding/hex"
+	"fmt"
+	"math/rand"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -98,5 +104,230 @@ func TestCTR_AES(t *testing.T) {
 		if t.Failed() {
 			break
 		}
+	}
+}
+
+// This wrapper type disables method NewCTR (interface ctrAble)
+// to force generic implementation.
+type nonCtrAble struct {
+	impl cipher.Block
+}
+
+func (n *nonCtrAble) BlockSize() int {
+	return n.impl.BlockSize()
+}
+
+func (n *nonCtrAble) Encrypt(dst, src []byte) {
+	n.impl.Encrypt(dst, src)
+}
+
+func (n *nonCtrAble) Decrypt(dst, src []byte) {
+	panic("must not be called")
+}
+
+func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multiblockCtr cipher.Stream) {
+	return cipher.NewCTR(&nonCtrAble{impl: aesBlock}, iv), cipher.NewCTR(aesBlock, iv)
+}
+
+func randBytes(t *testing.T, r *rand.Rand, count int) []byte {
+	t.Helper()
+	buf := make([]byte, count)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != count {
+		t.Fatal("short read from Rand")
+	}
+	return buf
+}
+
+const aesBlockSize = 16
+
+type ctrAble interface {
+	NewCTR(iv []byte) cipher.Stream
+}
+
+// Verify that multiblock AES CTR (src/crypto/aes/ctr_*.s)
+// produces the same results as generic single-block implementation.
+// This test runs checks on random IV.
+func TestCTR_AES_multiblock_random_IV(t *testing.T) {
+	r := rand.New(rand.NewSource(54321))
+	iv := randBytes(t, r, aesBlockSize)
+	const Size = 100
+
+	for _, keySize := range []int{16, 24, 32} {
+		keySize := keySize
+		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
+			key := randBytes(t, r, keySize)
+			aesBlock, err := aes.NewCipher(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := aesBlock.(ctrAble); !ok {
+				t.Skip("Skipping the test - multiblock implementation is not available")
+			}
+			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
+
+			plaintext := randBytes(t, r, Size)
+
+			// Generate reference ciphertext.
+			genericCiphertext := make([]byte, len(plaintext))
+			genericCtr.XORKeyStream(genericCiphertext, plaintext)
+
+			// Split the text in 3 parts in all possible ways and encrypt them
+			// individually using multiblock implementation to catch edge cases.
+
+			for part1 := 0; part1 <= Size; part1++ {
+				part1 := part1
+				t.Run(fmt.Sprintf("part1=%d", part1), func(t *testing.T) {
+					for part2 := 0; part2 <= Size-part1; part2++ {
+						part2 := part2
+						t.Run(fmt.Sprintf("part2=%d", part2), func(t *testing.T) {
+							_, multiblockCtr := makeTestingCiphers(aesBlock, iv)
+							multiblockCiphertext := make([]byte, len(plaintext))
+							multiblockCtr.XORKeyStream(multiblockCiphertext[:part1], plaintext[:part1])
+							multiblockCtr.XORKeyStream(multiblockCiphertext[part1:part1+part2], plaintext[part1:part1+part2])
+							multiblockCtr.XORKeyStream(multiblockCiphertext[part1+part2:], plaintext[part1+part2:])
+							if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
+								t.Fatal("multiblock CTR's output does not match generic CTR's output")
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+func parseHex(str string) []byte {
+	b, err := hex.DecodeString(strings.ReplaceAll(str, " ", ""))
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// Verify that multiblock AES CTR (src/crypto/aes/ctr_*.s)
+// produces the same results as generic single-block implementation.
+// This test runs checks on edge cases (IV overflows).
+func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
+	r := rand.New(rand.NewSource(987654))
+
+	const Size = 4096
+	plaintext := randBytes(t, r, Size)
+
+	ivs := [][]byte{
+		parseHex("00 00 00 00 00 00 00 00   FF FF FF FF FF FF FF FF"),
+		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF FF"),
+		parseHex("FF FF FF FF FF FF FF FF   00 00 00 00 00 00 00 00"),
+		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF fe"),
+		parseHex("00 00 00 00 00 00 00 00   FF FF FF FF FF FF FF fe"),
+		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF 00"),
+		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF 00"),
+		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF FF"),
+		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF fe"),
+		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF 00"),
+	}
+
+	for _, keySize := range []int{16, 24, 32} {
+		keySize := keySize
+		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
+			for _, iv := range ivs {
+				key := randBytes(t, r, keySize)
+				aesBlock, err := aes.NewCipher(key)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, ok := aesBlock.(ctrAble); !ok {
+					t.Skip("Skipping the test - multiblock implementation is not available")
+				}
+
+				t.Run(fmt.Sprintf("iv=%s", hex.EncodeToString(iv)), func(t *testing.T) {
+					for _, offset := range []int{0, 1, 16, 1024} {
+						offset := offset
+						t.Run(fmt.Sprintf("offset=%d", offset), func(t *testing.T) {
+							genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
+
+							// Generate reference ciphertext.
+							genericCiphertext := make([]byte, Size)
+							genericCtr.XORKeyStream(genericCiphertext, plaintext)
+
+							multiblockCiphertext := make([]byte, Size)
+							multiblockCtr.XORKeyStream(multiblockCiphertext, plaintext[:offset])
+							multiblockCtr.XORKeyStream(multiblockCiphertext[offset:], plaintext[offset:])
+							if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
+								t.Fatal("multiblock CTR's output does not match generic CTR's output")
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+// Check that method XORKeyStreamAt works correctly.
+func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("XORKeyStreamAt is not available in boring mode")
+	}
+
+	type XORKeyStreamAtable interface {
+		XORKeyStreamAt(dst, src []byte, offset uint64)
+	}
+
+	r := rand.New(rand.NewSource(12345))
+	const Size = 32 * 1024 * 1024
+	plaintext := randBytes(t, r, Size)
+
+	for _, keySize := range []int{16, 24, 32} {
+		keySize := keySize
+		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
+			key := randBytes(t, r, keySize)
+			iv := randBytes(t, r, aesBlockSize)
+
+			aesBlock, err := aes.NewCipher(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := aesBlock.(ctrAble); !ok {
+				t.Skip("Skipping the test - multiblock implementation is not available")
+			}
+			genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
+			ctrAt, ok := multiblockCtr.(XORKeyStreamAtable)
+			if !ok {
+				t.Fatal("cipher is expected to have method XORKeyStreamAt")
+			}
+
+			// Generate reference ciphertext.
+			genericCiphertext := make([]byte, Size)
+			genericCtr.XORKeyStream(genericCiphertext, plaintext)
+
+			multiblockCiphertext := make([]byte, Size)
+			// Split the range to random slices.
+			const N = 1000
+			boundaries := make([]int, 0, N+2)
+			for i := 0; i < N; i++ {
+				boundaries = append(boundaries, r.Intn(Size))
+			}
+			boundaries = append(boundaries, 0)
+			boundaries = append(boundaries, Size)
+			sort.Ints(boundaries)
+
+			for _, i := range r.Perm(N + 1) {
+				begin := boundaries[i]
+				end := boundaries[i+1]
+				ctrAt.XORKeyStreamAt(
+					multiblockCiphertext[begin:end],
+					plaintext[begin:end],
+					uint64(begin),
+				)
+			}
+
+			if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
+				t.Fatal("multiblock CTR's output does not match generic CTR's output")
+			}
+		})
 	}
 }
