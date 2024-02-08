@@ -358,7 +358,7 @@ func dumpInlCalls(inlcalls dwarf.InlCalls) {
 func dumpInlVars(dwvars []*dwarf.Var) {
 	for i, dwv := range dwvars {
 		typ := "local"
-		if dwv.Abbrev == dwarf.DW_ABRV_PARAM_LOCLIST || dwv.Abbrev == dwarf.DW_ABRV_PARAM {
+		if dwv.Tag == dwarf.DW_TAG_formal_parameter {
 			typ = "param"
 		}
 		ia := 0
