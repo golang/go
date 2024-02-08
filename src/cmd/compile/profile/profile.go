@@ -141,7 +141,7 @@ func hash(s []byte) string {
 	}
 	Md5.Write(seed)
 	hashraw := Md5.Sum(s)
-	hashresult := make([]byte, 0, len(hashraw)/4)
+	hashresult := make([]byte, 0, len(hashraw)/6)
 	tmp := 0
 	maxbyte := int(^byte(0))
 	// because it is use for file name, avoid generating excessively long string.
