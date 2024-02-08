@@ -698,14 +698,14 @@ func TestIssue51093(t *testing.T) {
 				n++
 				tpar, _ := tv.Type.(*TypeParam)
 				if tpar == nil {
-					t.Fatalf("%s: got type %s, want type parameter", syntax.String(x), tv.Type)
+					t.Fatalf("%s: got type %s, want type parameter", ExprString(x), tv.Type)
 				}
 				if name := tpar.Obj().Name(); name != "P" {
-					t.Fatalf("%s: got type parameter name %s, want P", syntax.String(x), name)
+					t.Fatalf("%s: got type parameter name %s, want P", ExprString(x), name)
 				}
 				// P(val) must not be constant
 				if tv.Value != nil {
-					t.Errorf("%s: got constant value %s (%s), want no constant", syntax.String(x), tv.Value, tv.Value.String())
+					t.Errorf("%s: got constant value %s (%s), want no constant", ExprString(x), tv.Value, tv.Value.String())
 				}
 			}
 		}

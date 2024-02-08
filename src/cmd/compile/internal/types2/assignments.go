@@ -218,7 +218,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 			var op operand
 			check.expr(nil, &op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(x.expr))
+				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(x.expr))
 				return Typ[Invalid]
 			}
 		}
@@ -248,7 +248,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 		// avoid calling syntax.String if not needed
 		if T != nil {
 			if _, ok := under(T).(*Signature); ok {
-				target = newTarget(T, syntax.String(lhs))
+				target = newTarget(T, ExprString(lhs))
 			}
 		}
 		x = new(operand)

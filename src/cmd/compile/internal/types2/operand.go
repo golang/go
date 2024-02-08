@@ -124,7 +124,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	var expr string
 	if x.expr != nil {
-		expr = syntax.String(x.expr)
+		expr = ExprString(x.expr)
 	} else {
 		switch x.mode {
 		case builtin:
