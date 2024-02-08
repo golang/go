@@ -19,8 +19,11 @@ type devirtualization struct {
 	callee string
 }
 
+const profFileName = "devirt.pprof"
+const preProfFileName = "devirt.pprof.node_map"
+
 // testPGODevirtualize tests that specific PGO devirtualize rewrites are performed.
-func testPGODevirtualize(t *testing.T, dir string, want []devirtualization) {
+func testPGODevirtualize(t *testing.T, dir string, want []devirtualization, pgoProfileName string) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
@@ -45,7 +48,7 @@ go 1.21
 	}
 
 	// Build the test with the profile.
-	pprof := filepath.Join(dir, "devirt.pprof")
+	pprof := filepath.Join(dir, pgoProfileName)
 	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=3", pprof)
 	out := filepath.Join(dir, "test.exe")
 	cmd = testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-o", out, gcflag, "."))
@@ -126,7 +129,7 @@ func TestPGODevirtualize(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
 		t.Fatalf("error creating dir: %v", err)
 	}
-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
+	for _, file := range []string{"devirt.go", "devirt_test.go", profFileName, filepath.Join("mult.pkg", "mult.go")} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
@@ -172,7 +175,70 @@ func TestPGODevirtualize(t *testing.T) {
 		//},
 	}
 
-	testPGODevirtualize(t, dir, want)
+	testPGODevirtualize(t, dir, want, profFileName)
+}
+
+// TestPGOPreprocessDevirtualize tests that specific functions are devirtualized when PGO
+// is applied to the exact source that was profiled. The input profile is PGO preprocessed file.
+func TestPGOPreprocessDevirtualize(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting wd: %v", err)
+	}
+	srcDir := filepath.Join(wd, "testdata", "pgo", "devirtualize")
+
+	// Copy the module to a scratch location so we can add a go.mod.
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
+		t.Fatalf("error creating dir: %v", err)
+	}
+	for _, file := range []string{"devirt.go", "devirt_test.go", preProfFileName, filepath.Join("mult.pkg", "mult.go")} {
+		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+			t.Fatalf("error copying %s: %v", file, err)
+		}
+	}
+
+	want := []devirtualization{
+		// ExerciseIface
+		{
+			pos:    "./devirt.go:101:20",
+			callee: "mult.Mult.Multiply",
+		},
+		{
+			pos:    "./devirt.go:101:39",
+			callee: "Add.Add",
+		},
+		// ExerciseFuncConcrete
+		{
+			pos:    "./devirt.go:173:36",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:173:15",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncField
+		{
+			pos:    "./devirt.go:207:35",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:207:19",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncClosure
+		// TODO(prattmic): Closure callees not implemented.
+		//{
+		//	pos:    "./devirt.go:249:27",
+		//	callee: "AddClosure.func1",
+		//},
+		//{
+		//	pos:    "./devirt.go:249:15",
+		//	callee: "mult.MultClosure.func1",
+		//},
+	}
+
+	testPGODevirtualize(t, dir, want, preProfFileName)
 }
 
 // Regression test for https://go.dev/issue/65615. If a target function changes
@@ -190,7 +256,7 @@ func TestLookupFuncGeneric(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
 		t.Fatalf("error creating dir: %v", err)
 	}
-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
+	for _, file := range []string{"devirt.go", "devirt_test.go", profFileName, filepath.Join("mult.pkg", "mult.go")} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
@@ -238,7 +304,7 @@ func TestLookupFuncGeneric(t *testing.T) {
 		//},
 	}
 
-	testPGODevirtualize(t, dir, want)
+	testPGODevirtualize(t, dir, want, profFileName)
 }
 
 var multFnRe = regexp.MustCompile(`func MultFn\(a, b int64\) int64`)

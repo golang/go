@@ -108,7 +108,6 @@ type NamedCallEdge struct {
 	CallerName     string
 	CalleeName     string
 	CallSiteOffset int // Line offset from function start line.
-	CallStartLine  int // Start line of the function. Can be 0 which means missing.
 }
 
 // NamedEdgeMap contains all unique call edges in the profile and their
@@ -336,20 +335,19 @@ func createNamedEdgeMapFromPreprocess(r io.Reader) (edgeMap NamedEdgeMap, totalW
 
 		split := strings.Split(readStr, " ")
 
-		if len(split) != 5 {
-			return NamedEdgeMap{}, 0, fmt.Errorf("preprocessed profile entry got %v want 5 fields", split)
+		if len(split) != 2 {
+			return NamedEdgeMap{}, 0, fmt.Errorf("preprocessed profile entry got %v want 2 fields", split)
 		}
 
 		co, _ := strconv.Atoi(split[0])
-		cs, _ := strconv.Atoi(split[1])
 
 		namedEdge := NamedCallEdge{
 			CallerName:     callerName,
-			CallSiteOffset: co - cs,
+			CalleeName:     calleeName,
+			CallSiteOffset: co,
 		}
 
-		namedEdge.CalleeName = calleeName
-		EWeight, _ := strconv.ParseInt(split[4], 10, 64)
+		EWeight, _ := strconv.ParseInt(split[1], 10, 64)
 
 		weight[namedEdge] += EWeight
 		totalWeight += EWeight
