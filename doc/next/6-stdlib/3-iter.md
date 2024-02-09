@@ -19,3 +19,5 @@ with iterators:
   comparison function.
 - [SortedStableFunc](/pkg/slices#SortedStableFunc) is like `SortFunc`
   but uses a stable sort algorithm.
+- [Chunk](/pkg/slices#Chunk) returns an iterator over consecutive
+  sub-slices of up to n elements of a slice.

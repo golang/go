@@ -1,0 +1,1 @@
+pkg slices, func Chunk[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) iter.Seq[$0] #53987
