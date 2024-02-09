@@ -1434,7 +1434,7 @@ func (f *File) Symbols() ([]Symbol, error) {
 // will be listed in the order they appear in f.
 //
 // If f has a symbol version table, the returned [File.Symbols] will have
-// initialized [Version] and Library fields.
+// initialized Version and Library fields.
 //
 // For compatibility with [File.Symbols], [File.DynamicSymbols] omits the null symbol at index 0.
 // After retrieving the symbols as symtab, an externally supplied index x
