@@ -2577,8 +2577,8 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 
 	n, matches := mux.tree.match(host, method, path)
 	// If we have an exact match, or we were asked not to try trailing-slash redirection,
-	// then we're done.
-	if !exactMatch(n, path) && u != nil {
+	// or the URL already has a trailing slash, then we're done.
+	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") {
 		// If there is an exact match with a trailing slash, then redirect.
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)
