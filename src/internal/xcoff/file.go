@@ -262,7 +262,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		r2 := r
 		if scnptr == 0 { // .bss must have all 0s
-			r2 = nobitsSectionReader{}
+			r2 = new(nobitsSectionReader)
 		}
 		s.sr = io.NewSectionReader(r2, int64(scnptr), int64(s.Size))
 		s.ReaderAt = s.sr
@@ -454,7 +454,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 type nobitsSectionReader struct{}
 
-func (nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 	return 0, errors.New("unexpected read from section with uninitialized data")
 }
 
