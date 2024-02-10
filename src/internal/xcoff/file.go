@@ -262,7 +262,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		r2 := r
 		if scnptr == 0 { // .bss must have all 0s
-			r2 = new(nobitsSectionReader)
+			r2 = &nobitsSectionReader{}
 		}
 		s.sr = io.NewSectionReader(r2, int64(scnptr), int64(s.Size))
 		s.ReaderAt = s.sr
