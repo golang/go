@@ -749,6 +749,10 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 //
 // Certificates other than c in the returned chains should not be modified.
 //
+// This function does not enforce any limitations on the size of the public key within
+// any certificate. It is the caller's responsibility to ensure that the provided
+// public keys do not cause excessive CPU usage
+//
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
