@@ -1,4 +1,4 @@
-# Test query for non-defaults in the env 
+# Test query for non-defaults in the env
 
 env GOTOOLCHAIN=local
 env GOSUMDB=nodefault
