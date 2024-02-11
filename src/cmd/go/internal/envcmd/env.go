@@ -548,7 +548,7 @@ func printEnvAsJSON(env []cfg.EnvVar, onlyChanged bool) {
 			continue
 		}
 		if onlyChanged && !e.Changed {
-			break
+			continue
 		}
 		m[e.Name] = e.Value
 	}
