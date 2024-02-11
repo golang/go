@@ -342,6 +342,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	r := newResolver(ctx, queries)
 	r.performLocalQueries(ctx)
 	r.performPathQueries(ctx)
+	r.performToolQueries(ctx)
 
 	for {
 		r.performWildcardQueries(ctx)
@@ -515,6 +516,7 @@ type resolver struct {
 	pathQueries       []*query // package path literal queries in original order
 	wildcardQueries   []*query // path wildcard queries in original order
 	patternAllQueries []*query // queries with the pattern "all"
+	toolQueries       []*query // queries with the pattern "tool"
 
 	// Indexed "none" queries. These are also included in the slices above;
 	// they are indexed here to speed up noneForPath.
@@ -574,6 +576,8 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 	for _, q := range queries {
 		if q.pattern == "all" {
 			r.patternAllQueries = append(r.patternAllQueries, q)
+		} else if q.pattern == "tool" {
+			r.toolQueries = append(r.toolQueries, q)
 		} else if q.patternIsLocal {
 			r.localQueries = append(r.localQueries, q)
 		} else if q.isWildcard() {
@@ -1048,6 +1052,19 @@ func (r *resolver) queryPath(ctx context.Context, q *query) {
 		}
 		return pathSet{pkgMods: pkgMods, mod: mod}
 	})
+}
+
+// performToolQueries populates the candidates for each query whose
+// pattern is "tool".
+func (r *resolver) performToolQueries(ctx context.Context) {
+	for _, q := range r.toolQueries {
+		for tool := range modload.MainModules.Tools() {
+			q.pathOnce(tool, func() pathSet {
+				pkgMods, err := r.queryPackages(ctx, tool, q.version, r.initialSelected)
+				return pathSet{pkgMods: pkgMods, err: err}
+			})
+		}
+	}
 }
 
 // performPatternAllQueries populates the candidates for each query whose

@@ -1,6 +1,9 @@
 # test go get -tool
-go get -tool example.com/tools/cmd/hello
+go get -tool example.com/tools/cmd/hello@v1.0.0
 cmp go.mod go.mod.want
+
+go get -u tool
+cmp go.mod go.mod.upgraded
 
 # test -tool with @none
 go get -tool example.com/tools/cmd/hello@none
@@ -19,6 +22,10 @@ stderr 'can''t request explicit version "none" of path "./cmd/..." in main modul
 ! go get -tool all
 stderr 'go get -tool does not work with "all"'
 
+# test tool@none
+! go get tool@none
+stderr 'can''t request explicit version of "tool" pattern'
+
 -- main.go --
 package main
 
@@ -36,12 +43,20 @@ go 1.24
 tool example.com/tools/cmd/hello
 
 require example.com/tools v1.0.0 // indirect
+-- go.mod.upgraded --
+module example.com/foo
+
+go 1.24
+
+tool example.com/tools/cmd/hello
+
+require example.com/tools v1.1.0 // indirect
 -- go.mod.gone --
 module example.com/foo
 
 go 1.24
 
-require example.com/tools v1.0.0 // indirect
+require example.com/tools v1.1.0 // indirect
 -- go.mod.empty --
 module example.com/foo
 
