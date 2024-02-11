@@ -120,6 +120,11 @@ field"`,
 	Output:     [][]string{{`a "word"`, `1"2`, `a"`, `b`}},
 	LazyQuotes: true,
 }, {
+	Name:       "QuotedLazyQuotes",
+	Input:      `§"a "word"",§"1"2",§a",§"b`,
+	Output:     [][]string{{`a "word"`, `1"2`, `a"`, `b`}},
+	LazyQuotes: true,
+}, {
 	Name:       "BareQuotes",
 	Input:      `§a "word",§"1"2",§a"`,
 	Output:     [][]string{{`a "word"`, `1"2`, `a"`}},
