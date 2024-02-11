@@ -456,7 +456,7 @@
 //
 // Usage:
 //
-//	go env [-json] [-u] [-w] [var ...]
+//	go env [-json] [-changed] [-u] [-w] [var ...]
 //
 // Env prints Go environment information.
 //

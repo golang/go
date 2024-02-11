@@ -336,7 +336,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 		// GOARM, GOMIPS, etc.
-		key, val := cfg.GetArchEnv()
+		key, val, _ := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
 		if cfg.CleanGOEXPERIMENT != "" {
@@ -1399,7 +1399,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		}
 
 		// GOARM, GOMIPS, etc.
-		key, val := cfg.GetArchEnv()
+		key, val, _ := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
 		if cfg.CleanGOEXPERIMENT != "" {
