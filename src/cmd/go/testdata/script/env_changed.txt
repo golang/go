@@ -6,12 +6,12 @@ env GOPROXY=nodefault
 env GO111MODULE=auto
 
 go env -changed
-# LUCI linux-amd64-boringcrypto output like GOTOOLCHAIN='local'
-# LUCI linux-arm64 output like GOTOOLCHAIN='local'
-stdout 'GOTOOLCHAIN=local|GOTOOLCHAIN='local'|GOTOOLCHAIN='local''
-stdout 'GOSUMDB=nodefault|GOSUMDB='nodefault'|GOPROXY='nodefault'
-stdout 'GOPROXY=nodefault|GOPROXY='nodefault'|GOSUMDB='nodefault''
-stdout 'GO111MODULE=auto|GO111MODULE='auto'|GO111MODULE='auto''
+# linux output like GOTOOLCHAIN='local'
+# windows output like GOTOOLCHAIN=local
+stdout 'GOTOOLCHAIN=local|GOTOOLCHAIN=''local'''
+stdout 'GOSUMDB=nodefault|GOSUMDB=''nodefault'''
+stdout 'GOPROXY=nodefault|GOPROXY=''nodefault'''
+stdout 'GO111MODULE=auto|GO111MODULE=''auto'''
 
 go env -changed -json
 stdout '"GOTOOLCHAIN": "local"'
