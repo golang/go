@@ -53,6 +53,9 @@ The -w flag requires one or more arguments of the
 form NAME=VALUE and changes the default settings
 of the named environment variables to the given values.
 
+The -changed flag output rusult of
+query for non-defaults in the env
+
 For more about environment variables, see 'go help environment'.
 	`,
 }
@@ -108,14 +111,12 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
 	}
 
+	// See go.dev/issue/34208
+	// GOOS and GOARCH are deliberately not set Changed
 	for i := range env {
 		switch env[i].Name {
 		case "GO111MODULE":
 			if env[i].Value != "on" && env[i].Value != "" {
-				env[i].Changed = true
-			}
-		case "GOARCH":
-			if env[i].Value != runtime.GOARCH {
 				env[i].Changed = true
 			}
 		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPRIVATE", "GOTMPDIR", "GOVCS":
@@ -124,10 +125,6 @@ func MkEnv() []cfg.EnvVar {
 			}
 		case "GOCACHE":
 			env[i].Value, env[i].Changed = cache.DefaultDir()
-		case "GOOS":
-			if env[i].Value != runtime.GOOS {
-				env[i].Changed = true
-			}
 		case "GOTOOLCHAIN":
 			if env[i].Value != "auto" {
 				env[i].Changed = true

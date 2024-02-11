@@ -476,6 +476,9 @@
 // form NAME=VALUE and changes the default settings
 // of the named environment variables to the given values.
 //
+// The -changed flag output rusult of
+// query for non-defaults in the env
+//
 // For more about environment variables, see 'go help environment'.
 //
 // # Update packages to use new APIs
