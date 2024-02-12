@@ -62,6 +62,9 @@ func grandchild() {
 // golang.org/x/telemetry/crashmonitor.
 func TestTracebackSystem(t *testing.T) {
 	testenv.MustHaveExec(t)
+	if runtime.GOOS == "android" {
+		t.Skip("Can't read source code for this file on Android")
+	}
 
 	// Fork+exec the crashing process.
 	exe, err := os.Executable()
