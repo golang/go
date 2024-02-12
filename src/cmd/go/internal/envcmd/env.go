@@ -169,6 +169,15 @@ func MkEnv() []cfg.EnvVar {
 	return env
 }
 
+func findCfgEnv(env []cfg.EnvVar, name string) cfg.EnvVar {
+	for _, e := range env {
+		if e.Name == name {
+			return e
+		}
+	}
+	return cfg.EnvVar{}
+}
+
 func findEnv(env []cfg.EnvVar, name string) string {
 	for _, e := range env {
 		if e.Name == name {
@@ -319,6 +328,14 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if *envChanged {
+		if len(args) > 0 {
+			var es []cfg.EnvVar
+			for _, name := range args {
+				es = append(es, findCfgEnv(env, name))
+			}
+			env = es
+		}
+
 		if *envJson {
 			printEnvAsJSON(env, true)
 			return

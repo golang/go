@@ -18,3 +18,18 @@ stdout '"GOTOOLCHAIN": "local"'
 stdout '"GOSUMDB": "nodefault"'
 stdout '"GOPROXY": "nodefault"'
 stdout '"GO111MODULE": "auto"'
+
+[GOOS:windows] env GOOS=linux
+[!GOOS:windows] env GOOS=windows
+[GOARCH:amd64] env GOARCH=arm64
+[!GOARCH:amd64] env GOARCH=amd64
+
+go env -changed GOOS
+! stdout 'GOOS'
+go env -changed GOARCH
+! stdout 'GOARCH'
+
+go env -changed -json GOOS
+stdout '^{}$'
+go env -changed -json GOARCH
+stdout '^{}$'
