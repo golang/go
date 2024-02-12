@@ -237,16 +237,37 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 		return q
 	}
 
-	return []cfg.EnvVar{
+	ret := []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
-		{Name: "CGO_CFLAGS", Value: join(cflags), Changed: cfg.Getenv("CGO_CFLAGS") != ""},
-		{Name: "CGO_CPPFLAGS", Value: join(cppflags), Changed: cfg.Getenv("CGO_CPPFLAGS") != ""},
-		{Name: "CGO_CXXFLAGS", Value: join(cxxflags), Changed: cfg.Getenv("CGO_CXXFLAGS") != ""},
-		{Name: "CGO_FFLAGS", Value: join(fflags), Changed: cfg.Getenv("CGO_FFLAGS") != ""},
-		{Name: "CGO_LDFLAGS", Value: join(ldflags), Changed: cfg.Getenv("CGO_LDFLAGS") != ""},
-		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd(), Changed: cfg.Getenv("PKG_CONFIG") != ""},
+		{Name: "CGO_CFLAGS", Value: join(cflags)},
+		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
+		{Name: "CGO_CXXFLAGS", Value: join(cxxflags)},
+		{Name: "CGO_FFLAGS", Value: join(fflags)},
+		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
+		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
 	}
+
+	for i := range ret {
+		switch ret[i].Name {
+		// GOGCCFLAGS cannot be modified
+		case "GOGCCFLAGS":
+		case "CGO_CPPFLAGS":
+			if ret[i].Value != "" {
+				ret[i].Changed = true
+			}
+		case "PKG_CONFIG":
+			if ret[i].Value != cfg.DefaultPkgConfig {
+				ret[i].Changed = true
+			}
+		default:
+			if ret[i].Value != work.DefaultCFlags {
+				ret[i].Changed = true
+			}
+		}
+	}
+
+	return ret
 }
 
 // argKey returns the KEY part of the arg KEY=VAL, or else arg itself.

@@ -277,9 +277,8 @@ var OrigEnv []string
 var CmdEnv []EnvVar
 
 var envCache struct {
-	once   sync.Once
-	m      map[string]string
-	goroot map[string]string
+	once sync.Once
+	m    map[string]string
 }
 
 // EnvFile returns the name of the Go environment configuration file.
@@ -301,7 +300,7 @@ func EnvFile() (string, bool, error) {
 }
 
 func initEnvCache() {
-	envCache.m, envCache.goroot = make(map[string]string), make(map[string]string)
+	envCache.m = make(map[string]string)
 	if file, _, _ := EnvFile(); file != "" {
 		readEnvFile(file, "user")
 	}
@@ -353,7 +352,6 @@ func readEnvFile(file string, source string) {
 			if _, ok := envCache.m[string(key)]; ok {
 				continue
 			}
-			envCache.goroot[string(key)] = string(val)
 		}
 		envCache.m[string(key)] = string(val)
 	}
@@ -429,7 +427,7 @@ var (
 func EnvOrAndChanged(name, def string) (string, bool) {
 	val := Getenv(name)
 	if val != "" {
-		return val, envCache.goroot[name] != val
+		return val, true
 	}
 	return def, false
 }

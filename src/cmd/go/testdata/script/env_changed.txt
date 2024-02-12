@@ -4,6 +4,8 @@ env GOTOOLCHAIN=local
 env GOSUMDB=nodefault
 env GOPROXY=nodefault
 env GO111MODULE=auto
+env CGO_CFLAGS=nodefault
+env CGO_CPPFLAGS=nodefault
 
 go env -changed
 # linux output like GOTOOLCHAIN='local'
@@ -12,12 +14,16 @@ stdout 'GOTOOLCHAIN=local|GOTOOLCHAIN=''local'''
 stdout 'GOSUMDB=nodefault|GOSUMDB=''nodefault'''
 stdout 'GOPROXY=nodefault|GOPROXY=''nodefault'''
 stdout 'GO111MODULE=auto|GO111MODULE=''auto'''
+stdout 'CGO_CFLAGS=nodefault|CGO_CFLAGS=''nodefault'''
+stdout 'CGO_CPPFLAGS=nodefault|CGO_CPPFLAGS=''nodefault'''
 
 go env -changed -json
 stdout '"GOTOOLCHAIN": "local"'
 stdout '"GOSUMDB": "nodefault"'
 stdout '"GOPROXY": "nodefault"'
 stdout '"GO111MODULE": "auto"'
+stdout '"CGO_CFLAGS": "nodefault"'
+stdout '"CGO_CPPFLAGS": "nodefault"'
 
 [GOOS:windows] env GOOS=linux
 [!GOOS:windows] env GOOS=windows
