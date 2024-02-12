@@ -40,7 +40,7 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< cmp, container/list, container/ring,
-	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+	  internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
 	  internal/cpu, internal/goarch, internal/godebugs,
 	  internal/goexperiment, internal/goos,
@@ -323,7 +323,9 @@ var depsRules = `
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
 
-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
+	os, path/filepath, runtime < internal/cfg;
+
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/cfg
 	< go/build;
 
 	# databases

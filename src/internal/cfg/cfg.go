@@ -7,6 +7,12 @@
 // cmd/go/internal/cfg instead of this package.
 package cfg
 
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+)
+
 // KnownEnv is a list of environment variables that affect the operation
 // of the Go command.
 const KnownEnv = `
@@ -70,3 +76,22 @@ const KnownEnv = `
 	GO_EXTLINK_ENABLED
 	PKG_CONFIG
 `
+
+func DefaultGOPATH() string {
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		def := filepath.Join(home, "go")
+		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
+			// Don't set the default GOPATH to GOROOT,
+			// as that will trigger warnings from the go tool.
+			return ""
+		}
+		return def
+	}
+	return ""
+}

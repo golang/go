@@ -112,7 +112,7 @@ func defaultContext() build.Context {
 
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
-	ctxt.GOPATH, GOPATHChanged = EnvOrAndChanged("GOPATH", gopath(ctxt))
+	ctxt.GOPATH, GOPATHChanged = EnvOrAndChanged("GOPATH", cfg.DefaultGOPATH())
 	ctxt.GOOS = Goos
 	ctxt.GOARCH = Goarch
 
@@ -427,7 +427,7 @@ var (
 func EnvOrAndChanged(name, def string) (string, bool) {
 	val := Getenv(name)
 	if val != "" {
-		return val, true
+		return val, val != def
 	}
 	return def, false
 }
@@ -575,27 +575,6 @@ func gopathDir(rel string) string {
 		return ""
 	}
 	return filepath.Join(list[0], rel)
-}
-
-func gopath(ctxt build.Context) string {
-	if len(ctxt.GOPATH) > 0 {
-		return ctxt.GOPATH
-	}
-	env := "HOME"
-	if runtime.GOOS == "windows" {
-		env = "USERPROFILE"
-	} else if runtime.GOOS == "plan9" {
-		env = "home"
-	}
-	if home := os.Getenv(env); home != "" {
-		def := filepath.Join(home, "go")
-		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
-			GoPathError = "cannot set GOROOT as GOPATH"
-		}
-		return ""
-	}
-	GoPathError = fmt.Sprintf("%s is not set", env)
-	return ""
 }
 
 // WithBuildXWriter returns a Context in which BuildX output is written
