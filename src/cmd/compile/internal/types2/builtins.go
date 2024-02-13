@@ -22,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
-	if call.HasDots && id != _Append {
+	if hasDots(call) && id != _Append {
 		//check.errorf(call.Ellipsis, invalidOp + "invalid use of ... with built-in %s", bin.name)
 		check.errorf(call,
 			InvalidDotDotDot,
@@ -114,7 +114,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.HasDots {
+		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				if t := coreString(y.typ); t != nil && isString(t) {
@@ -1033,15 +1033,4 @@ func arrayPtrDeref(typ Type) Type {
 		}
 	}
 	return typ
-}
-
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
 }

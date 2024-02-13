@@ -7380,7 +7380,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			if b.Pos == src.NoXPos {
 				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
 				if b.Pos == src.NoXPos {
-					b.Pos = pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
+					b.Pos = s.pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
 				}
 			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
@@ -7415,14 +7415,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// still be inside the function in question. So if
 		// it ends in a call which doesn't return, add a
 		// nop (which will never execute) after the call.
-		Arch.Ginsnop(pp)
+		Arch.Ginsnop(s.pp)
 	}
 	if openDeferInfo != nil {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
 		s.pp.NextLive = s.livenessMap.DeferReturn
-		p := pp.Prog(obj.ACALL)
+		p := s.pp.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Deferreturn
@@ -7439,7 +7439,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 		}
 
-		pp.Prog(obj.ARET)
+		s.pp.Prog(obj.ARET)
 	}
 
 	if inlMarks != nil {
@@ -7448,7 +7448,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// We have some inline marks. Try to find other instructions we're
 		// going to emit anyway, and use those instructions instead of the
 		// inline marks.
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || Arch.LinkArch.Family == sys.Wasm {
 				// Don't use 0-sized instructions as inline marks, because we need
 				// to identify inline mark instructions by pc offset.
@@ -7466,16 +7466,16 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				hasCall = true
 			}
 			pos := p.Pos.AtColumn1()
-			s := inlMarksByPos[pos]
-			if len(s) == 0 {
+			marks := inlMarksByPos[pos]
+			if len(marks) == 0 {
 				continue
 			}
-			for _, m := range s {
+			for _, m := range marks {
 				// We found an instruction with the same source position as
 				// some of the inline marks.
 				// Use this instruction instead.
 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
-				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[m])
+				s.pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[m])
 				// Make the inline mark a real nop, so it doesn't generate any code.
 				m.As = obj.ANOP
 				m.Pos = src.NoXPos
@@ -7487,7 +7487,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
 		for _, p := range inlMarkList {
 			if p.As != obj.ANOP {
-				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
+				s.pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
 			}
 		}
 
@@ -7498,27 +7498,27 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			// equal to the start of the function.
 			// This ensures that runtime.FuncForPC(uintptr(reflect.ValueOf(fn).Pointer())).Name()
 			// returns the right answer. See issue 58300.
-			for p := pp.Text; p != nil; p = p.Link {
+			for p := s.pp.Text; p != nil; p = p.Link {
 				if p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.ANOP {
 					continue
 				}
 				if base.Ctxt.PosTable.Pos(p.Pos).Base().InliningIndex() >= 0 {
 					// Make a real (not 0-sized) nop.
-					nop := Arch.Ginsnop(pp)
+					nop := Arch.Ginsnop(s.pp)
 					nop.Pos = e.curfn.Pos().WithIsStmt()
 
 					// Unfortunately, Ginsnop puts the instruction at the
 					// end of the list. Move it up to just before p.
 
 					// Unlink from the current list.
-					for x := pp.Text; x != nil; x = x.Link {
+					for x := s.pp.Text; x != nil; x = x.Link {
 						if x.Link == nop {
 							x.Link = nop.Link
 							break
 						}
 					}
 					// Splice in right before p.
-					for x := pp.Text; x != nil; x = x.Link {
+					for x := s.pp.Text; x != nil; x = x.Link {
 						if x.Link == p {
 							nop.Link = p
 							x.Link = nop
@@ -7588,13 +7588,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// Add to list of jump tables to be resolved at assembly time.
 		// The assembler converts from *Prog entries to absolute addresses
 		// once it knows instruction byte offsets.
-		fi := pp.CurFunc.LSym.Func()
+		fi := s.pp.CurFunc.LSym.Func()
 		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
 	if e.log { // spew to stdout
 		filename := ""
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
 				filename = p.InnermostFilename()
 				f.Logf("# %s\n", filename)
@@ -7616,7 +7616,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")
 		filename := ""
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			// Don't spam every line with the file name, which is often huge.
 			// Only print changes, and "unknown" is not a change.
 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
@@ -7664,7 +7664,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			var allPosOld []src.Pos
 			var allPos []src.Pos
 
-			for p := pp.Text; p != nil; p = p.Link {
+			for p := s.pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
 					allPos = allPos[:0]
 					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })

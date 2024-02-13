@@ -53,6 +53,8 @@ type fmt struct {
 
 func (f *fmt) clearflags() {
 	f.fmtFlags = fmtFlags{}
+	f.wid = 0
+	f.prec = 0
 }
 
 func (f *fmt) init(buf *buffer) {

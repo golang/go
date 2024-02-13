@@ -391,7 +391,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	g, R4
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
-	B	runtime·abort(SB)	
+	B	runtime·abort(SB)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.

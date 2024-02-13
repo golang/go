@@ -43,7 +43,12 @@ go 1.19
 }
 
 // testPGOIntendedInlining tests that specific functions are inlined.
-func testPGOIntendedInlining(t *testing.T, dir string) {
+func testPGOIntendedInlining(t *testing.T, dir string, preprocessed ...bool) {
+	defaultPGOPackValue := false
+	if len(preprocessed) > 0 {
+		defaultPGOPackValue = preprocessed[0]
+	}
+
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
@@ -86,7 +91,12 @@ func testPGOIntendedInlining(t *testing.T, dir string) {
 
 	// Build the test with the profile. Use a smaller threshold to test.
 	// TODO: maybe adjust the test to work with default threshold.
-	pprof := filepath.Join(dir, "inline_hot.pprof")
+	var pprof string
+	if defaultPGOPackValue == false {
+		pprof = filepath.Join(dir, "inline_hot.pprof")
+	} else {
+		pprof = filepath.Join(dir, "inline_hot.pprof.node_map")
+	}
 	gcflag := fmt.Sprintf("-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
 	out := buildPGOInliningTest(t, dir, gcflag)
 
@@ -162,6 +172,27 @@ func TestPGOIntendedInlining(t *testing.T) {
 	}
 
 	testPGOIntendedInlining(t, dir)
+}
+
+// TestPGOIntendedInlining tests that specific functions are inlined when PGO
+// is applied to the exact source that was profiled.
+func TestPGOPreprocessInlining(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting wd: %v", err)
+	}
+	srcDir := filepath.Join(wd, "testdata/pgo/inline")
+
+	// Copy the module to a scratch location so we can add a go.mod.
+	dir := t.TempDir()
+
+	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof.node_map"} {
+		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+			t.Fatalf("error copying %s: %v", file, err)
+		}
+	}
+
+	testPGOIntendedInlining(t, dir, true)
 }
 
 // TestPGOIntendedInlining tests that specific functions are inlined when PGO

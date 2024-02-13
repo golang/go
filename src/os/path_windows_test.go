@@ -16,7 +16,7 @@ import (
 )
 
 func TestFixLongPath(t *testing.T) {
-	if os.CanUseLongPaths {
+	if windows.CanUseLongPaths {
 		return
 	}
 	t.Parallel()

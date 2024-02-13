@@ -352,7 +352,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 
 	var size int
 	for {
-		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
+		size := _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
 			return nil, errors.New("res_nsearch failure")
 		}
