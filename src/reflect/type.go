@@ -18,7 +18,6 @@ package reflect
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/reflectlite"
 	"strconv"
 	"sync"
 	"unicode"
@@ -601,7 +600,7 @@ func (t *rtype) Method(i int) (m Method) {
 	p := methods[i]
 	pname := t.nameOff(p.Name)
 	m.Name = pname.Name()
-	fl := reflectlite.Flag(Func)
+	fl := kindAsFlag(Func)
 	mtyp := t.typeOff(p.Mtyp)
 	ft := (*funcType)(unsafe.Pointer(mtyp))
 	in := make([]Type, 0, 1+ft.NumIn())
