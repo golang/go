@@ -29,7 +29,6 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
@@ -1875,7 +1874,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+			if a.Package.Root == "" || str.HasFilePathPrefix(name, a.Package.Root) {
 				// Do not recheck files outside the module, GOPATH, or GOROOT root.
 				break
 			}
@@ -1884,7 +1883,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+			if a.Package.Root == "" || str.HasFilePathPrefix(name, a.Package.Root) {
 				// Do not recheck files outside the module, GOPATH, or GOROOT root.
 				break
 			}
