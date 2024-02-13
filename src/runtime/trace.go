@@ -578,6 +578,9 @@ func StopTrace() {
 	})
 }
 
+// traceAdvance is called from panic, it does nothing for the legacy tracer.
+func traceAdvance(stopTrace bool) {}
+
 // ReadTrace returns the next chunk of binary tracing data, blocking until data
 // is available. If tracing is turned off and all the data accumulated while it
 // was on has been returned, ReadTrace returns nil. The caller must copy the

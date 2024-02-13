@@ -63,7 +63,7 @@ var (
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
 	t14 int = i << j
-	t15 math /* ERROR "not in selector" */
+	t15 math /* ERROR "math is not a type" */
 	t16 math.xxx /* ERROR "undefined" */
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0

@@ -8,7 +8,6 @@ package os
 
 var (
 	FixLongPath        = fixLongPath
-	CanUseLongPaths    = canUseLongPaths
 	NewConsoleFile     = newConsoleFile
 	CommandLineToArgv  = commandLineToArgv
 	AllowReadDirFileID = &allowReadDirFileID

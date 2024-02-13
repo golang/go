@@ -201,7 +201,7 @@ func (d *deadcodePass) flood() {
 				rs := r.Sym()
 				if d.ldr.IsItab(rs) {
 					// This relocation can also point at an itab, in which case it
-					// means "the _type field of that itab".
+					// means "the Type field of that itab".
 					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
 				}
 				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {

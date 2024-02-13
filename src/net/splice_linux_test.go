@@ -9,14 +9,11 @@ package net
 import (
 	"internal/poll"
 	"io"
-	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 	"syscall"
 	"testing"
-	"time"
 )
 
 func TestSplice(t *testing.T) {
@@ -62,30 +59,33 @@ type spliceTestCase struct {
 func (tc spliceTestCase) test(t *testing.T) {
 	hook := hookSplice(t)
 
-	clientUp, serverUp := spliceTestSocketPair(t, tc.upNet)
-	defer serverUp.Close()
-	cleanup, err := startSpliceClient(clientUp, "w", tc.chunkSize, tc.totalSize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cleanup()
-	clientDown, serverDown := spliceTestSocketPair(t, tc.downNet)
-	defer serverDown.Close()
-	cleanup, err = startSpliceClient(clientDown, "r", tc.chunkSize, tc.totalSize)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cleanup()
-
-	var (
-		r    io.Reader = serverUp
-		size           = tc.totalSize
-	)
+	// We need to use the actual size for startTestSocketPeer when testing with LimitedReader,
+	// otherwise the child process created in startTestSocketPeer will hang infinitely because of
+	// the mismatch of data size to transfer.
+	size := tc.totalSize
 	if tc.limitReadSize > 0 {
 		if tc.limitReadSize < size {
 			size = tc.limitReadSize
 		}
+	}
 
+	clientUp, serverUp := spawnTestSocketPair(t, tc.upNet)
+	defer serverUp.Close()
+	cleanup, err := startTestSocketPeer(t, clientUp, "w", tc.chunkSize, size)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup(t)
+	clientDown, serverDown := spawnTestSocketPair(t, tc.downNet)
+	defer serverDown.Close()
+	cleanup, err = startTestSocketPeer(t, clientDown, "r", tc.chunkSize, size)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup(t)
+
+	var r io.Reader = serverUp
+	if tc.limitReadSize > 0 {
 		r = &io.LimitedReader{
 			N: int64(tc.limitReadSize),
 			R: serverUp,
@@ -167,31 +167,34 @@ func verifySpliceFds(t *testing.T, c Conn, hook *spliceHook, fdType string) {
 func (tc spliceTestCase) testFile(t *testing.T) {
 	hook := hookSplice(t)
 
+	// We need to use the actual size for startTestSocketPeer when testing with LimitedReader,
+	// otherwise the child process created in startTestSocketPeer will hang infinitely because of
+	// the mismatch of data size to transfer.
+	actualSize := tc.totalSize
+	if tc.limitReadSize > 0 {
+		if tc.limitReadSize < actualSize {
+			actualSize = tc.limitReadSize
+		}
+	}
+
 	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
 
-	client, server := spliceTestSocketPair(t, tc.upNet)
+	client, server := spawnTestSocketPair(t, tc.upNet)
 	defer server.Close()
 
-	cleanup, err := startSpliceClient(client, "w", tc.chunkSize, tc.totalSize)
+	cleanup, err := startTestSocketPeer(t, client, "w", tc.chunkSize, actualSize)
 	if err != nil {
 		client.Close()
 		t.Fatal("failed to start splice client:", err)
 	}
-	defer cleanup()
+	defer cleanup(t)
 
-	var (
-		r          io.Reader = server
-		actualSize           = tc.totalSize
-	)
+	var r io.Reader = server
 	if tc.limitReadSize > 0 {
-		if tc.limitReadSize < actualSize {
-			actualSize = tc.limitReadSize
-		}
-
 		r = &io.LimitedReader{
 			N: int64(tc.limitReadSize),
 			R: r,
@@ -234,9 +237,9 @@ func testSpliceReaderAtEOF(t *testing.T, upNet, downNet string) {
 
 	hook := hookSplice(t)
 
-	clientUp, serverUp := spliceTestSocketPair(t, upNet)
+	clientUp, serverUp := spawnTestSocketPair(t, upNet)
 	defer clientUp.Close()
-	clientDown, serverDown := spliceTestSocketPair(t, downNet)
+	clientDown, serverDown := spawnTestSocketPair(t, downNet)
 	defer clientDown.Close()
 	defer serverDown.Close()
 
@@ -343,10 +346,10 @@ func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
 }
 
 func testSpliceNoUnixpacket(t *testing.T) {
-	clientUp, serverUp := spliceTestSocketPair(t, "unixpacket")
+	clientUp, serverUp := spawnTestSocketPair(t, "unixpacket")
 	defer clientUp.Close()
 	defer serverUp.Close()
-	clientDown, serverDown := spliceTestSocketPair(t, "tcp")
+	clientDown, serverDown := spawnTestSocketPair(t, "tcp")
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// If splice called poll.Splice here, we'd get err == syscall.EINVAL
@@ -374,7 +377,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer up.Close()
-	clientDown, serverDown := spliceTestSocketPair(t, "tcp")
+	clientDown, serverDown := spawnTestSocketPair(t, "tcp")
 	defer clientDown.Close()
 	defer serverDown.Close()
 	// Analogous to testSpliceNoUnixpacket.
@@ -409,23 +412,23 @@ func (tc spliceTestCase) bench(b *testing.B) {
 	// To benchmark the genericReadFrom code path, set this to false.
 	useSplice := true
 
-	clientUp, serverUp := spliceTestSocketPair(b, tc.upNet)
+	clientUp, serverUp := spawnTestSocketPair(b, tc.upNet)
 	defer serverUp.Close()
 
-	cleanup, err := startSpliceClient(clientUp, "w", tc.chunkSize, tc.chunkSize*b.N)
+	cleanup, err := startTestSocketPeer(b, clientUp, "w", tc.chunkSize, tc.chunkSize*b.N)
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer cleanup()
+	defer cleanup(b)
 
-	clientDown, serverDown := spliceTestSocketPair(b, tc.downNet)
+	clientDown, serverDown := spawnTestSocketPair(b, tc.downNet)
 	defer serverDown.Close()
 
-	cleanup, err = startSpliceClient(clientDown, "r", tc.chunkSize, tc.chunkSize*b.N)
+	cleanup, err = startTestSocketPeer(b, clientDown, "r", tc.chunkSize, tc.chunkSize*b.N)
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer cleanup()
+	defer cleanup(b)
 
 	b.SetBytes(int64(tc.chunkSize))
 	b.ResetTimer()
@@ -442,128 +445,6 @@ func (tc spliceTestCase) bench(b *testing.B) {
 		_, err := io.Copy(serverDown, onlyReader{serverUp})
 		if err != nil {
 			b.Fatal(err)
-		}
-	}
-}
-
-func spliceTestSocketPair(t testing.TB, net string) (client, server Conn) {
-	t.Helper()
-	ln := newLocalListener(t, net)
-	defer ln.Close()
-	var cerr, serr error
-	acceptDone := make(chan struct{})
-	go func() {
-		server, serr = ln.Accept()
-		acceptDone <- struct{}{}
-	}()
-	client, cerr = Dial(ln.Addr().Network(), ln.Addr().String())
-	<-acceptDone
-	if cerr != nil {
-		if server != nil {
-			server.Close()
-		}
-		t.Fatal(cerr)
-	}
-	if serr != nil {
-		if client != nil {
-			client.Close()
-		}
-		t.Fatal(serr)
-	}
-	return client, server
-}
-
-func startSpliceClient(conn Conn, op string, chunkSize, totalSize int) (func(), error) {
-	f, err := conn.(interface{ File() (*os.File, error) }).File()
-	if err != nil {
-		return nil, err
-	}
-
-	cmd := exec.Command(os.Args[0], os.Args[1:]...)
-	cmd.Env = []string{
-		"GO_NET_TEST_SPLICE=1",
-		"GO_NET_TEST_SPLICE_OP=" + op,
-		"GO_NET_TEST_SPLICE_CHUNK_SIZE=" + strconv.Itoa(chunkSize),
-		"GO_NET_TEST_SPLICE_TOTAL_SIZE=" + strconv.Itoa(totalSize),
-		"TMPDIR=" + os.Getenv("TMPDIR"),
-	}
-	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	donec := make(chan struct{})
-	go func() {
-		cmd.Wait()
-		conn.Close()
-		f.Close()
-		close(donec)
-	}()
-
-	return func() {
-		select {
-		case <-donec:
-		case <-time.After(5 * time.Second):
-			log.Printf("killing splice client after 5 second shutdown timeout")
-			cmd.Process.Kill()
-			select {
-			case <-donec:
-			case <-time.After(5 * time.Second):
-				log.Printf("splice client didn't die after 10 seconds")
-			}
-		}
-	}, nil
-}
-
-func init() {
-	if os.Getenv("GO_NET_TEST_SPLICE") == "" {
-		return
-	}
-	defer os.Exit(0)
-
-	f := os.NewFile(uintptr(3), "splice-test-conn")
-	defer f.Close()
-
-	conn, err := FileConn(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var chunkSize int
-	if chunkSize, err = strconv.Atoi(os.Getenv("GO_NET_TEST_SPLICE_CHUNK_SIZE")); err != nil {
-		log.Fatal(err)
-	}
-	buf := make([]byte, chunkSize)
-
-	var totalSize int
-	if totalSize, err = strconv.Atoi(os.Getenv("GO_NET_TEST_SPLICE_TOTAL_SIZE")); err != nil {
-		log.Fatal(err)
-	}
-
-	var fn func([]byte) (int, error)
-	switch op := os.Getenv("GO_NET_TEST_SPLICE_OP"); op {
-	case "r":
-		fn = conn.Read
-	case "w":
-		defer conn.Close()
-
-		fn = conn.Write
-	default:
-		log.Fatalf("unknown op %q", op)
-	}
-
-	var n int
-	for count := 0; count < totalSize; count += n {
-		if count+chunkSize > totalSize {
-			buf = buf[:totalSize-count]
-		}
-
-		var err error
-		if n, err = fn(buf); err != nil {
-			return
 		}
 	}
 }
@@ -598,15 +479,15 @@ func (bench spliceFileBench) benchSpliceFile(b *testing.B) {
 
 	totalSize := b.N * bench.chunkSize
 
-	client, server := spliceTestSocketPair(b, bench.proto)
+	client, server := spawnTestSocketPair(b, bench.proto)
 	defer server.Close()
 
-	cleanup, err := startSpliceClient(client, "w", bench.chunkSize, totalSize)
+	cleanup, err := startTestSocketPeer(b, client, "w", bench.chunkSize, totalSize)
 	if err != nil {
 		client.Close()
 		b.Fatalf("failed to start splice client: %v", err)
 	}
-	defer cleanup()
+	defer cleanup(b)
 
 	b.ReportAllocs()
 	b.SetBytes(int64(bench.chunkSize))

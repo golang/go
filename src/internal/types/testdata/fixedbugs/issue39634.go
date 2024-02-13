@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Examples adjusted to match new [T any] syntax for type parameters.
+// Examples from the issue adjusted to match new [T any] syntax for type parameters.
 // Also, previously permitted empty type parameter lists and instantiations
 // are now syntax errors.
+//
+// The primary concern here is that these tests shouldn't crash the type checker.
+// The quality of the error messages is secondary as these are all pretty esoteric
+// or artificial test cases.
 
 package p
 
@@ -39,7 +43,7 @@ type foo9[A any] interface { foo9 /* ERROR "invalid recursive type" */ [A] }
 func _() { var _ = new(foo9[int]) }
 
 // crash 12
-var u /* ERROR "cycle" */ , i [func /* ERROR "used as value" */ /* ERROR "used as value" */ (u, c /* ERROR "undefined" */ /* ERROR "undefined" */ ) {}(0, len /* ERROR "must be called" */ /* ERROR "must be called" */ )]c /* ERROR "undefined" */ /* ERROR "undefined" */
+var u, i [func /* ERROR "used as value" */ /* ERROR "used as value" */ (u /* ERROR "u is not a type" */ /* ERROR "u is not a type" */ , c /* ERROR "undefined" */ /* ERROR "undefined" */ ) {}(0, len /* ERROR "must be called" */ /* ERROR "must be called" */ )]c /* ERROR "undefined" */ /* ERROR "undefined" */
 
 // crash 15
 func y15() { var a /* ERROR "declared and not used" */ interface{ p() } = G15[string]{} }

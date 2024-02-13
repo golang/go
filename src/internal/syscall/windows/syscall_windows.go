@@ -10,6 +10,12 @@ import (
 	"unsafe"
 )
 
+// CanUseLongPaths is true when the OS supports opting into
+// proper long path handling without the need for fixups.
+//
+//go:linkname CanUseLongPaths
+var CanUseLongPaths bool
+
 // UTF16PtrToString is like UTF16ToString, but takes *uint16
 // as a parameter instead of []uint16.
 func UTF16PtrToString(p *uint16) string {

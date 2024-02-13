@@ -14,8 +14,13 @@ import (
 	"testing"
 )
 
+type devirtualization struct {
+	pos    string
+	callee string
+}
+
 // testPGODevirtualize tests that specific PGO devirtualize rewrites are performed.
-func testPGODevirtualize(t *testing.T, dir string) {
+func testPGODevirtualize(t *testing.T, dir string, want []devirtualization) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
@@ -23,7 +28,7 @@ func testPGODevirtualize(t *testing.T, dir string) {
 
 	// Add a go.mod so we have a consistent symbol names in this temp dir.
 	goMod := fmt.Sprintf(`module %s
-go 1.19
+go 1.21
 `, pkg)
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0644); err != nil {
 		t.Fatalf("error writing go.mod: %v", err)
@@ -58,51 +63,6 @@ go 1.19
 	pw.Close()
 	if err != nil {
 		t.Fatalf("error starting go test: %v", err)
-	}
-
-	type devirtualization struct {
-		pos    string
-		callee string
-	}
-
-	want := []devirtualization{
-		// ExerciseIface
-		{
-			pos:    "./devirt.go:101:20",
-			callee: "mult.Mult.Multiply",
-		},
-		{
-			pos:    "./devirt.go:101:39",
-			callee: "Add.Add",
-		},
-		// ExerciseFuncConcrete
-		{
-			pos:    "./devirt.go:173:36",
-			callee: "AddFn",
-		},
-		{
-			pos:    "./devirt.go:173:15",
-			callee: "mult.MultFn",
-		},
-		// ExerciseFuncField
-		{
-			pos:    "./devirt.go:207:35",
-			callee: "AddFn",
-		},
-		{
-			pos:    "./devirt.go:207:19",
-			callee: "mult.MultFn",
-		},
-		// ExerciseFuncClosure
-		// TODO(prattmic): Closure callees not implemented.
-		//{
-		//	pos:    "./devirt.go:249:27",
-		//	callee: "AddClosure.func1",
-		//},
-		//{
-		//	pos:    "./devirt.go:249:15",
-		//	callee: "mult.MultClosure.func1",
-		//},
 	}
 
 	got := make(map[devirtualization]struct{})
@@ -172,5 +132,130 @@ func TestPGODevirtualize(t *testing.T) {
 		}
 	}
 
-	testPGODevirtualize(t, dir)
+	want := []devirtualization{
+		// ExerciseIface
+		{
+			pos:    "./devirt.go:101:20",
+			callee: "mult.Mult.Multiply",
+		},
+		{
+			pos:    "./devirt.go:101:39",
+			callee: "Add.Add",
+		},
+		// ExerciseFuncConcrete
+		{
+			pos:    "./devirt.go:173:36",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:173:15",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncField
+		{
+			pos:    "./devirt.go:207:35",
+			callee: "AddFn",
+		},
+		{
+			pos:    "./devirt.go:207:19",
+			callee: "mult.MultFn",
+		},
+		// ExerciseFuncClosure
+		// TODO(prattmic): Closure callees not implemented.
+		//{
+		//	pos:    "./devirt.go:249:27",
+		//	callee: "AddClosure.func1",
+		//},
+		//{
+		//	pos:    "./devirt.go:249:15",
+		//	callee: "mult.MultClosure.func1",
+		//},
+	}
+
+	testPGODevirtualize(t, dir, want)
+}
+
+// Regression test for https://go.dev/issue/65615. If a target function changes
+// from non-generic to generic we can't devirtualize it (don't know the type
+// parameters), but the compiler should not crash.
+func TestLookupFuncGeneric(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting wd: %v", err)
+	}
+	srcDir := filepath.Join(wd, "testdata", "pgo", "devirtualize")
+
+	// Copy the module to a scratch location so we can add a go.mod.
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
+		t.Fatalf("error creating dir: %v", err)
+	}
+	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
+		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+			t.Fatalf("error copying %s: %v", file, err)
+		}
+	}
+
+	// Change MultFn from a concrete function to a parameterized function.
+	if err := convertMultToGeneric(filepath.Join(dir, "mult.pkg", "mult.go")); err != nil {
+		t.Fatalf("error editing mult.go: %v", err)
+	}
+
+	// Same as TestPGODevirtualize except for MultFn, which we cannot
+	// devirtualize to because it has become generic.
+	//
+	// Note that the important part of this test is that the build is
+	// successful, not the specific devirtualizations.
+	want := []devirtualization{
+		// ExerciseIface
+		{
+			pos:    "./devirt.go:101:20",
+			callee: "mult.Mult.Multiply",
+		},
+		{
+			pos:    "./devirt.go:101:39",
+			callee: "Add.Add",
+		},
+		// ExerciseFuncConcrete
+		{
+			pos:    "./devirt.go:173:36",
+			callee: "AddFn",
+		},
+		// ExerciseFuncField
+		{
+			pos:    "./devirt.go:207:35",
+			callee: "AddFn",
+		},
+		// ExerciseFuncClosure
+		// TODO(prattmic): Closure callees not implemented.
+		//{
+		//	pos:    "./devirt.go:249:27",
+		//	callee: "AddClosure.func1",
+		//},
+		//{
+		//	pos:    "./devirt.go:249:15",
+		//	callee: "mult.MultClosure.func1",
+		//},
+	}
+
+	testPGODevirtualize(t, dir, want)
+}
+
+var multFnRe = regexp.MustCompile(`func MultFn\(a, b int64\) int64`)
+
+func convertMultToGeneric(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("error opening: %w", err)
+	}
+
+	if !multFnRe.Match(content) {
+		return fmt.Errorf("MultFn not found; update regexp?")
+	}
+
+	// Users of MultFn shouldn't need adjustment, type inference should
+	// work OK.
+	content = multFnRe.ReplaceAll(content, []byte(`func MultFn[T int32|int64](a, b T) T`))
+
+	return os.WriteFile(path, content, 0644)
 }

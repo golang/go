@@ -174,7 +174,8 @@ type FscryptPolicyV2 struct {
 	Contents_encryption_mode  uint8
 	Filenames_encryption_mode uint8
 	Flags                     uint8
-	_                         [4]uint8
+	Log2_data_unit_size       uint8
+	_                         [3]uint8
 	Master_key_identifier     [16]uint8
 }
 
@@ -455,60 +456,63 @@ type Ucred struct {
 }
 
 type TCPInfo struct {
-	State           uint8
-	Ca_state        uint8
-	Retransmits     uint8
-	Probes          uint8
-	Backoff         uint8
-	Options         uint8
-	Rto             uint32
-	Ato             uint32
-	Snd_mss         uint32
-	Rcv_mss         uint32
-	Unacked         uint32
-	Sacked          uint32
-	Lost            uint32
-	Retrans         uint32
-	Fackets         uint32
-	Last_data_sent  uint32
-	Last_ack_sent   uint32
-	Last_data_recv  uint32
-	Last_ack_recv   uint32
-	Pmtu            uint32
-	Rcv_ssthresh    uint32
-	Rtt             uint32
-	Rttvar          uint32
-	Snd_ssthresh    uint32
-	Snd_cwnd        uint32
-	Advmss          uint32
-	Reordering      uint32
-	Rcv_rtt         uint32
-	Rcv_space       uint32
-	Total_retrans   uint32
-	Pacing_rate     uint64
-	Max_pacing_rate uint64
-	Bytes_acked     uint64
-	Bytes_received  uint64
-	Segs_out        uint32
-	Segs_in         uint32
-	Notsent_bytes   uint32
-	Min_rtt         uint32
-	Data_segs_in    uint32
-	Data_segs_out   uint32
-	Delivery_rate   uint64
-	Busy_time       uint64
-	Rwnd_limited    uint64
-	Sndbuf_limited  uint64
-	Delivered       uint32
-	Delivered_ce    uint32
-	Bytes_sent      uint64
-	Bytes_retrans   uint64
-	Dsack_dups      uint32
-	Reord_seen      uint32
-	Rcv_ooopack     uint32
-	Snd_wnd         uint32
-	Rcv_wnd         uint32
-	Rehash          uint32
+	State                uint8
+	Ca_state             uint8
+	Retransmits          uint8
+	Probes               uint8
+	Backoff              uint8
+	Options              uint8
+	Rto                  uint32
+	Ato                  uint32
+	Snd_mss              uint32
+	Rcv_mss              uint32
+	Unacked              uint32
+	Sacked               uint32
+	Lost                 uint32
+	Retrans              uint32
+	Fackets              uint32
+	Last_data_sent       uint32
+	Last_ack_sent        uint32
+	Last_data_recv       uint32
+	Last_ack_recv        uint32
+	Pmtu                 uint32
+	Rcv_ssthresh         uint32
+	Rtt                  uint32
+	Rttvar               uint32
+	Snd_ssthresh         uint32
+	Snd_cwnd             uint32
+	Advmss               uint32
+	Reordering           uint32
+	Rcv_rtt              uint32
+	Rcv_space            uint32
+	Total_retrans        uint32
+	Pacing_rate          uint64
+	Max_pacing_rate      uint64
+	Bytes_acked          uint64
+	Bytes_received       uint64
+	Segs_out             uint32
+	Segs_in              uint32
+	Notsent_bytes        uint32
+	Min_rtt              uint32
+	Data_segs_in         uint32
+	Data_segs_out        uint32
+	Delivery_rate        uint64
+	Busy_time            uint64
+	Rwnd_limited         uint64
+	Sndbuf_limited       uint64
+	Delivered            uint32
+	Delivered_ce         uint32
+	Bytes_sent           uint64
+	Bytes_retrans        uint64
+	Dsack_dups           uint32
+	Reord_seen           uint32
+	Rcv_ooopack          uint32
+	Snd_wnd              uint32
+	Rcv_wnd              uint32
+	Rehash               uint32
+	Total_rto            uint16
+	Total_rto_recoveries uint16
+	Total_rto_time       uint32
 }
 
 type CanFilter struct {
@@ -551,7 +555,7 @@ const (
 	SizeofIPv6MTUInfo       = 0x20
 	SizeofICMPv6Filter      = 0x20
 	SizeofUcred             = 0xc
-	SizeofTCPInfo           = 0xf0
+	SizeofTCPInfo           = 0xf8
 	SizeofCanFilter         = 0x8
 	SizeofTCPRepairOpt      = 0x8
 )
@@ -3399,7 +3403,7 @@ const (
 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
 	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x4
+	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x5
 )
 
 type FsverityDigest struct {
@@ -4183,7 +4187,8 @@ const (
 )
 
 type LandlockRulesetAttr struct {
-	Access_fs uint64
+	Access_fs  uint64
+	Access_net uint64
 }
 
 type LandlockPathBeneathAttr struct {
@@ -5134,7 +5139,7 @@ const (
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
-	NL80211_FREQUENCY_ATTR_MAX                              = 0x1b
+	NL80211_FREQUENCY_ATTR_MAX                              = 0x1c
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
@@ -5547,7 +5552,7 @@ const (
 	NL80211_REGDOM_TYPE_CUSTOM_WORLD                        = 0x2
 	NL80211_REGDOM_TYPE_INTERSECTION                        = 0x3
 	NL80211_REGDOM_TYPE_WORLD                               = 0x1
-	NL80211_REG_RULE_ATTR_MAX                               = 0x7
+	NL80211_REG_RULE_ATTR_MAX                               = 0x8
 	NL80211_REKEY_DATA_AKM                                  = 0x4
 	NL80211_REKEY_DATA_KCK                                  = 0x2
 	NL80211_REKEY_DATA_KEK                                  = 0x1

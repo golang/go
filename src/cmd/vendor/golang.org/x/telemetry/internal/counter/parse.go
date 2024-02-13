@@ -88,43 +88,10 @@ func Parse(filename string, data []byte) (*File, error) {
 			if _, ok := f.Count[string(ename)]; ok {
 				return corrupt()
 			}
-			ctrName := expandName(ename)
+			ctrName := DecodeStack(string(ename))
 			f.Count[ctrName] = v.Load()
 			off = next
 		}
 	}
 	return f, nil
-}
-
-func expandName(ename []byte) string {
-	if !bytes.Contains(ename, []byte{'\n'}) {
-		// not a stack counter
-		return string(ename)
-	}
-	lines := bytes.Split(ename, []byte{'\n'})
-	var lastPath []byte // empty or ends with .
-	for i, line := range lines {
-		path, rest := splitLine(line)
-		if len(path) == 0 {
-			continue // unchanged
-		}
-		if len(path) == 1 && path[0] == '"' {
-			path = append([]byte{}, lastPath...) //need a deep copy
-			lines[i] = append(path, rest...)
-		} else {
-			lastPath = append(path, '.')
-			// line unchanged
-		}
-	}
-	return string(bytes.Join(lines, []byte{'\n'})) // trailing \n?
-}
-
-// input is <import path>.<function name>
-// output is (import path, function name)
-func splitLine(x []byte) ([]byte, []byte) {
-	i := bytes.LastIndex(x, []byte{'.'})
-	if i < 0 {
-		return []byte{}, x
-	}
-	return x[:i], x[i+1:]
 }

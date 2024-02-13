@@ -270,7 +270,7 @@ L:
 // isNil reports whether the expression e denotes the predeclared value nil.
 func (check *Checker) isNil(e ast.Expr) bool {
 	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
-	if name, _ := unparen(e).(*ast.Ident); name != nil {
+	if name, _ := ast.Unparen(e).(*ast.Ident); name != nil {
 		_, ok := check.lookup(name.Name).(*Nil)
 		return ok
 	}
@@ -779,7 +779,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			// if present, rhs must be a receive operation
 			if rhs != nil {
-				if x, _ := unparen(rhs).(*ast.UnaryExpr); x != nil && x.Op == token.ARROW {
+				if x, _ := ast.Unparen(rhs).(*ast.UnaryExpr); x != nil && x.Op == token.ARROW {
 					valid = true
 				}
 			}

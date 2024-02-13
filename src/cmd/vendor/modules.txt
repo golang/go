@@ -23,10 +23,10 @@ golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20240122184708-c291ad69d6be
+# golang.org/x/build v0.0.0-20240201175143-3ee44a092755
 ## explicit; go 1.21
 golang.org/x/build/relnote
-# golang.org/x/mod v0.14.0
+# golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
 ## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -40,12 +40,12 @@ golang.org/x/mod/zip
 # golang.org/x/sync v0.6.0
 ## explicit; go 1.18
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+# golang.org/x/sys v0.17.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
+# golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
 ## explicit; go 1.20
 golang.org/x/telemetry/counter
 golang.org/x/telemetry/internal/counter

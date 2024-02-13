@@ -597,6 +597,22 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 	}
 }
 
+// Test that we don't attempt trailing-slash redirect on a path that already has
+// a trailing slash.
+// See issue #65624.
+func TestMuxNoSlashRedirectWithTrailingSlash(t *testing.T) {
+	mux := NewServeMux()
+	mux.HandleFunc("/{x}/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	w := httptest.NewRecorder()
+	req, _ := NewRequest("GET", "/", nil)
+	mux.ServeHTTP(w, req)
+	if g, w := w.Code, 404; g != w {
+		t.Errorf("got %d, want %d", g, w)
+	}
+}
+
 func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
 func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -2659,7 +2675,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
 		{MethodHead, nil, "text/html; charset=utf-8", ""},
 		{MethodPost, nil, "", ""},
 		{MethodDelete, nil, "", ""},

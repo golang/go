@@ -15,7 +15,7 @@ func main() {
 	i1 := it{Floats: true}
 	if i1.floats { // ERROR "(type it .* field or method floats, but does have field Floats)|undefined field or method"
 	}
-	i2 := &it{floats: false} // ERROR "(but does have field Floats)|unknown field|declared and not used"
+	i2 := &it{floats: false} // ERROR "cannot refer to unexported field floats in struct literal|unknown field|declared and not used"
 	_ = &it{InneR: "foo"}    // ERROR "(but does have field inner)|unknown field"
 	_ = i2
 }
