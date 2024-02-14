@@ -393,31 +393,31 @@ func cleantimers(pp *p) {
 		if t.pp.ptr() != pp {
 			throw("cleantimers: bad p")
 		}
-		switch s := t.status.Load(); s {
-		case timerModified:
-			if !t.status.CompareAndSwap(s, timerLocked) {
-				continue
-			}
-			if t.nextwhen == 0 {
-				dodeltimer0(pp)
-				pp.deletedTimers.Add(-1)
-				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
-					badTimer()
-				}
-			} else {
-				// Now we can change the when field.
-				t.when = t.nextwhen
-				// Move t to the right position.
-				dodeltimer0(pp)
-				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-					badTimer()
-				}
-			}
-		default:
-			// Head of timers does not need adjustment.
+
+		status := t.status.Load()
+		if status != timerModified {
+			// Fast path: head of timers does not need adjustment.
 			return
 		}
+
+		status, mp := t.lock()
+		if status != timerModified {
+			// Head of timers does not need adjustment.
+			t.unlock(status, mp)
+			return
+		}
+		dodeltimer0(pp)
+		if t.nextwhen == 0 {
+			pp.deletedTimers.Add(-1)
+			status = timerRemoved
+		} else {
+			// Now we can change the when field.
+			t.when = t.nextwhen
+			// Move t to the right position.
+			doaddtimer(pp, t)
+			status = timerWaiting
+		}
+		t.unlock(status, mp)
 	}
 }
 
