@@ -44,18 +44,16 @@ type timer struct {
 // The pp, status, and nextwhen fields may only be used by code in this file.
 //
 // Code that creates a new timer value can set the when, period, f,
-// arg, and seq fields.
-// A new timer value may be passed to addtimer (called by time.startTimer).
-// After doing that no fields may be touched.
+// arg, and seq fields before the first call to modtimer.
+// After that, period, f, arg, and seq are immutable.
+// They may be read but not modified.
 //
-// An active timer (one that has been passed to addtimer) may be
+// An active timer (one that has been passed to modtimer) may be
 // passed to deltimer (time.stopTimer), after which it is no longer an
 // active timer. It is an inactive timer.
 // In an inactive timer the period, f, arg, and seq fields may be modified,
 // but not the when field.
 // It's OK to just drop an inactive timer and let the GC collect it.
-// It's not OK to pass an inactive timer to addtimer.
-// Only newly allocated timer values may be passed to addtimer.
 //
 // An active timer may be passed to modtimer. No fields may be touched.
 // It remains an active timer.
@@ -64,18 +62,14 @@ type timer struct {
 // active timer with an updated when field.
 // It's OK to pass a newly allocated timer value to resettimer.
 //
-// Timer operations are addtimer, deltimer, modtimer, resettimer,
-// cleantimers, adjusttimers, and runtimer.
+// Timer operations are deltimer, modtimer, adjusttimers, and runtimer.
 //
-// We don't permit calling addtimer/deltimer/modtimer/resettimer simultaneously,
+// We don't permit calling deltimer/modtimer simultaneously,
 // but adjusttimers and runtimer can be called at the same time as any of those.
 //
 // Active timers live in heaps attached to P, in the timers field.
 // Inactive timers live there too temporarily, until they are removed.
 //
-// addtimer:
-//   timerNoStatus   -> timerWaiting
-//   anything else   -> panic: invalid value
 // deltimer:
 //   timerWaiting         -> timerModifying -> timerDeleted
 //   timerModifiedEarlier -> timerModifying -> timerDeleted
@@ -209,7 +203,10 @@ func startTimer(t *timer) {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
-	addtimer(t)
+	if t.status.Load() != timerNoStatus {
+		throw("startTimer called with initialized timer")
+	}
+	resettimer(t, t.when)
 }
 
 // stopTimer stops a timer.
@@ -235,8 +232,8 @@ func resetTimer(t *timer, when int64) bool {
 // modTimer modifies an existing timer.
 //
 //go:linkname modTimer time.modTimer
-func modTimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) {
-	modtimer(t, when, period, f, arg, seq)
+func modTimer(t *timer, when, period int64) {
+	modtimer(t, when, period, t.f, t.arg, t.seq)
 }
 
 // Go runtime.
@@ -244,42 +241,6 @@ func modTimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 // Ready the goroutine arg.
 func goroutineReady(arg any, seq uintptr) {
 	goready(arg.(*g), 0)
-}
-
-// Note: this changes some unsynchronized operations to synchronized operations
-// addtimer adds a timer to the current P.
-// This should only be called with a newly created timer.
-// That avoids the risk of changing the when field of a timer in some P's heap,
-// which could cause the heap to become unsorted.
-func addtimer(t *timer) {
-	// when must be positive. A negative value will cause runtimer to
-	// overflow during its delta calculation and never expire other runtime
-	// timers. Zero will cause checkTimers to fail to notice the timer.
-	if t.when <= 0 {
-		throw("timer when must be positive")
-	}
-	if t.period < 0 {
-		throw("timer period must be non-negative")
-	}
-	if t.status.Load() != timerNoStatus {
-		throw("addtimer called with initialized timer")
-	}
-	t.status.Store(timerWaiting)
-
-	when := t.when
-
-	// Disable preemption while using pp to avoid changing another P's heap.
-	mp := acquirem()
-
-	pp := getg().m.p.ptr()
-	lock(&pp.timersLock)
-	cleantimers(pp)
-	doaddtimer(pp, t)
-	unlock(&pp.timersLock)
-
-	wakeNetPoller(when)
-
-	releasem(mp)
 }
 
 // doaddtimer adds t to the current P's heap.
@@ -429,7 +390,6 @@ loop:
 			mp = acquirem()
 
 			// Timer was already run and t is no longer in a heap.
-			// Act like addtimer.
 			if t.status.CompareAndSwap(status, timerModifying) {
 				wasRemoved = true
 				pending = false // timer already run or stopped
@@ -511,16 +471,14 @@ loop:
 
 // resettimer resets the time when a timer should fire.
 // If used for an inactive timer, the timer will become active.
-// This should be called instead of addtimer if the timer value has been,
-// or may have been, used previously.
-// Reports whether the timer was modified before it was run.
+// Reports whether the timer was active and was stopped.
 func resettimer(t *timer, when int64) bool {
 	return modtimer(t, when, t.period, t.f, t.arg, t.seq)
 }
 
 // cleantimers cleans up the head of the timer queue. This speeds up
 // programs that create and delete timers; leaving them in the heap
-// slows down addtimer. Reports whether no timer problems were found.
+// slows down heap operations. Reports whether no timer problems were found.
 // The caller must have locked the timers for pp.
 func cleantimers(pp *p) {
 	gp := getg()

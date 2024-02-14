@@ -41,7 +41,7 @@ func when(d Duration) int64 {
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
 func resetTimer(*runtimeTimer, int64) bool
-func modTimer(t *runtimeTimer, when, period int64, f func(any, uintptr), arg any, seq uintptr)
+func modTimer(t *runtimeTimer, when, period int64)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
