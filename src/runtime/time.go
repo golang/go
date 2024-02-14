@@ -72,8 +72,7 @@ type timer struct {
 //
 // deltimer:
 //   timerWaiting         -> timerModifying -> timerDeleted
-//   timerModifiedEarlier -> timerModifying -> timerDeleted
-//   timerModifiedLater   -> timerModifying -> timerDeleted
+//   timerModified        -> timerModifying -> timerDeleted
 //   timerNoStatus        -> do nothing
 //   timerDeleted         -> do nothing
 //   timerRemoving        -> do nothing
@@ -82,25 +81,25 @@ type timer struct {
 //   timerMoving          -> wait until status changes
 //   timerModifying       -> wait until status changes
 // modtimer:
-//   timerWaiting    -> timerModifying -> timerModifiedXX
-//   timerModifiedXX -> timerModifying -> timerModifiedYY
+//   timerWaiting    -> timerModifying -> timerModified
+//   timerModified   -> timerModifying -> timerModified
 //   timerNoStatus   -> timerModifying -> timerWaiting
 //   timerRemoved    -> timerModifying -> timerWaiting
-//   timerDeleted    -> timerModifying -> timerModifiedXX
+//   timerDeleted    -> timerModifying -> timerModified
 //   timerRunning    -> wait until status changes
 //   timerMoving     -> wait until status changes
 //   timerRemoving   -> wait until status changes
 //   timerModifying  -> wait until status changes
 // adjusttimers (looks in P's timer heap):
 //   timerDeleted    -> timerRemoving -> timerRemoved
-//   timerModifiedXX -> timerMoving -> timerWaiting
+//   timerModified   -> timerMoving -> timerWaiting
 // runtimer (looks in P's timer heap):
 //   timerNoStatus   -> panic: uninitialized timer
 //   timerWaiting    -> timerWaiting or
 //   timerWaiting    -> timerRunning -> timerNoStatus or
 //   timerWaiting    -> timerRunning -> timerWaiting
 //   timerModifying  -> wait until status changes
-//   timerModifiedXX -> timerMoving -> timerWaiting
+//   timerModified   -> timerMoving -> timerWaiting
 //   timerDeleted    -> timerRemoving -> timerRemoved
 //   timerRunning    -> panic: concurrent runtimer calls
 //   timerRemoved    -> panic: inconsistent timer heap
@@ -136,15 +135,11 @@ const (
 	// The timer will only have this status briefly.
 	timerModifying
 
-	// The timer has been modified to an earlier time.
+	// The timer has been modified to a different time.
 	// The new when value is in the nextwhen field.
-	// The timer is in some P's heap, possibly in the wrong place.
-	timerModifiedEarlier
-
-	// The timer has been modified to the same or a later time.
-	// The new when value is in the nextwhen field.
-	// The timer is in some P's heap, possibly in the wrong place.
-	timerModifiedLater
+	// The timer is in some P's heap, possibly in the wrong place
+	// (the right place by .when; the wrong place by .nextwhen).
+	timerModified
 
 	// The timer has been modified and is being moved.
 	// The timer will only have this status briefly.
@@ -272,7 +267,7 @@ func doaddtimer(pp *p, t *timer) {
 func deltimer(t *timer) bool {
 	for {
 		switch s := t.status.Load(); s {
-		case timerWaiting, timerModifiedLater:
+		case timerWaiting, timerModified:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
@@ -280,24 +275,6 @@ func deltimer(t *timer) bool {
 				// Must fetch t.pp before changing status,
 				// as cleantimers in another goroutine
 				// can clear t.pp of a timerDeleted timer.
-				tpp := t.pp.ptr()
-				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
-					badTimer()
-				}
-				releasem(mp)
-				tpp.deletedTimers.Add(1)
-				// Timer was not yet run.
-				return true
-			} else {
-				releasem(mp)
-			}
-		case timerModifiedEarlier:
-			// Prevent preemption while the timer is in timerModifying.
-			// This could lead to a self-deadlock. See #38070.
-			mp := acquirem()
-			if t.status.CompareAndSwap(s, timerModifying) {
-				// Must fetch t.pp before setting status
-				// to timerDeleted.
 				tpp := t.pp.ptr()
 				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
 					badTimer()
@@ -375,7 +352,7 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 loop:
 	for {
 		switch status = t.status.Load(); status {
-		case timerWaiting, timerModifiedEarlier, timerModifiedLater:
+		case timerWaiting, timerModified:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
@@ -442,26 +419,19 @@ loop:
 		// nextwhen field, and let the other P set the when field
 		// when it is prepared to resort the heap.
 		t.nextwhen = when
-
-		newStatus := uint32(timerModifiedLater)
-		if when < t.when {
-			newStatus = timerModifiedEarlier
-		}
-
-		tpp := t.pp.ptr()
-
-		if newStatus == timerModifiedEarlier {
-			updateTimerModifiedEarliest(tpp, when)
+		earlier := when < t.when
+		if earlier {
+			updateTimerModifiedEarliest(t.pp.ptr(), when)
 		}
 
 		// Set the new status of the timer.
-		if !t.status.CompareAndSwap(timerModifying, newStatus) {
+		if !t.status.CompareAndSwap(timerModifying, timerModified) {
 			badTimer()
 		}
 		releasem(mp)
 
 		// If the new status is earlier, wake up the poller.
-		if newStatus == timerModifiedEarlier {
+		if earlier {
 			wakeNetPoller(when)
 		}
 	}
@@ -509,7 +479,7 @@ func cleantimers(pp *p) {
 				badTimer()
 			}
 			pp.deletedTimers.Add(-1)
-		case timerModifiedEarlier, timerModifiedLater:
+		case timerModified:
 			if !t.status.CompareAndSwap(s, timerMoving) {
 				continue
 			}
@@ -568,7 +538,7 @@ func moveTimers(pp *p, timers []*timer) {
 					badTimer()
 				}
 				break loop
-			case timerModifiedEarlier, timerModifiedLater:
+			case timerModified:
 				if !t.status.CompareAndSwap(s, timerMoving) {
 					continue
 				}
@@ -609,7 +579,7 @@ func moveTimers(pp *p, timers []*timer) {
 // it also moves timers that have been modified to run later,
 // and removes deleted timers. The caller must have locked the timers for pp.
 func adjusttimers(pp *p, now int64, force bool) {
-	// If we haven't yet reached the time of the first timerModifiedEarlier
+	// If we haven't yet reached the time of the earliest timerModified
 	// timer, don't do anything. This speeds up programs that adjust
 	// a lot of timers back and forth if the timers rarely expire.
 	// We'll postpone looking through all the adjusted timers until
@@ -624,7 +594,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 		}
 	}
 
-	// We are going to clear all timerModifiedEarlier timers.
+	// We are going to clear all timerModified timers.
 	pp.timerModifiedEarliest.Store(0)
 
 	changed := false
@@ -648,7 +618,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 				i--
 				changed = true
 			}
-		case timerModifiedEarlier, timerModifiedLater:
+		case timerModified:
 			if t.status.CompareAndSwap(s, timerMoving) {
 				// Now we can change the when field.
 				t.when = t.nextwhen
@@ -800,7 +770,7 @@ func runtimer(pp *p, now int64) int64 {
 				return -1
 			}
 
-		case timerModifiedEarlier, timerModifiedLater:
+		case timerModified:
 			if !t.status.CompareAndSwap(s, timerMoving) {
 				continue
 			}
