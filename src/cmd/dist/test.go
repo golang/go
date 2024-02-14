@@ -1282,8 +1282,8 @@ func (t *tester) runPending(nextTest *distTest) {
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
-		w.start = make(chan bool)
-		w.end = make(chan struct{})
+		w.start = make(chan bool, runtime.NumCPU()*2)
+		w.end = make(chan struct{}, runtime.NumCPU()*2)
 		// w.cmd must be set up to write to w.out. We can't check that, but we
 		// can check for easy mistakes.
 		if w.cmd.Stdout == nil || w.cmd.Stdout == os.Stdout || w.cmd.Stderr == nil || w.cmd.Stderr == os.Stderr {
@@ -1311,6 +1311,21 @@ func (t *tester) runPending(nextTest *distTest) {
 			timelog("end", w.dt.name)
 			w.end <- struct{}{}
 		}(w)
+	}
+
+	// for runtime.NumCPU() > 4 , do not change maxbg.
+	// Because there is not enough CPU to parallel the testing of multiple packages.
+	if runtime.NumCPU() > 4 {
+		for _, w := range worklist {
+			// because GOMAXPROCS=2 runtime CPU usage is low,
+			// so increase maxbg to avoid slowing down execution with low CPU usage.
+			// This makes testing a single package slower,
+			// but testing multiple packages together faster.
+			if strings.Contains(w.dt.heading, "GOMAXPROCS=2 runtime") {
+				maxbg = runtime.NumCPU() * 2
+				break
+			}
+		}
 	}
 
 	started := 0
