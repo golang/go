@@ -114,6 +114,7 @@ const (
 // It returns the current m and the status prior to the lock.
 // The caller must call unlock with the same m and an updated status.
 func (t *timer) lock() (status uint32, mp *m) {
+	acquireLockRank(lockRankTimer)
 	for {
 		status := t.status.Load()
 		if status == timerLocked {
@@ -132,6 +133,7 @@ func (t *timer) lock() (status uint32, mp *m) {
 
 // unlock unlocks the timer.
 func (t *timer) unlock(status uint32, mp *m) {
+	releaseLockRank(lockRankTimer)
 	if t.status.Load() != timerLocked {
 		badTimer()
 	}

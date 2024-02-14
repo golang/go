@@ -80,6 +80,7 @@ assistQueue,
 sched < allg, allp;
 allp, wakeableSleep < timers;
 timers < netpollInit;
+timers < timer;
 
 # Channels
 scavenge, sweep, testR, wakeableSleep < hchan;
@@ -161,7 +162,8 @@ gscan < hchanLeaf;
 defer,
   gscan,
   mspanSpecial,
-  sudog
+  sudog,
+  timer
 # Anything that can have write barriers can acquire WB.
 # Above WB, we can have write barriers.
 < WB
