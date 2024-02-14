@@ -657,67 +657,57 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 //
 //go:systemstack
 func runtimer(pp *p, now int64) int64 {
-	for {
-		t := pp.timers[0]
-		if t.pp.ptr() != pp {
-			throw("runtimer: bad p")
-		}
-		switch s := t.status.Load(); s {
-		case timerWaiting:
-			if t.when > now {
-				// Not ready to run.
-				return t.when
-			}
-
-			if !t.status.CompareAndSwap(s, timerLocked) {
-				continue
-			}
-			// Note that runOneTimer may temporarily unlock
-			// pp.timersLock.
-			runOneTimer(pp, t, now)
-			return 0
-
-		case timerModified:
-			if !t.status.CompareAndSwap(s, timerLocked) {
-				continue
-			}
-			if t.nextwhen == 0 {
-				dodeltimer0(pp)
-				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
-					badTimer()
-				}
-				pp.deletedTimers.Add(-1)
-				if len(pp.timers) == 0 {
-					return -1
-				}
-			} else {
-				t.when = t.nextwhen
-				dodeltimer0(pp)
-				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-					badTimer()
-				}
-			}
-
-		case timerLocked:
-			// Wait for modification to complete.
-			osyield()
-
-		case timerRemoved:
-			// Should not see a new or inactive timer on the heap.
-			badTimer()
-		default:
-			badTimer()
-		}
+Redo:
+	if len(pp.timers) == 0 {
+		return -1
 	}
+	t := pp.timers[0]
+	if t.pp.ptr() != pp {
+		throw("runtimer: bad p")
+	}
+
+	if t.status.Load() == timerWaiting && t.when > now {
+		// Fast path: not ready to run.
+		// The access of t.when is protected by the caller holding
+		// pp.timersLock, even though t itself is unlocked.
+		return t.when
+	}
+
+	status, mp := t.lock()
+	if status == timerModified {
+		dodeltimer0(pp)
+		if t.nextwhen == 0 {
+			status = timerRemoved
+			pp.deletedTimers.Add(-1)
+		} else {
+			t.when = t.nextwhen
+			doaddtimer(pp, t)
+			status = timerWaiting
+		}
+		t.unlock(status, mp)
+		goto Redo
+	}
+
+	if status != timerWaiting {
+		badTimer()
+	}
+
+	if t.when > now {
+		// Not ready to run.
+		t.unlock(status, mp)
+		return t.when
+	}
+
+	unlockAndRunTimer(pp, t, now, status, mp)
+	return 0
 }
 
-// runOneTimer runs a single timer.
+// unlockAndRunTimer unlocks and runs a single timer.
 // The caller must have locked the timers for pp.
 // This will temporarily unlock the timers while running the timer function.
 //
 //go:systemstack
-func runOneTimer(pp *p, t *timer, now int64) {
+func unlockAndRunTimer(pp *p, t *timer, now int64, status uint32, mp *m) {
 	if raceenabled {
 		ppcur := getg().m.p.ptr()
 		if ppcur.timerRaceCtx == 0 {
@@ -738,17 +728,14 @@ func runOneTimer(pp *p, t *timer, now int64) {
 			t.when = maxWhen
 		}
 		siftdownTimer(pp.timers, 0)
-		if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-			badTimer()
-		}
+		status = timerWaiting
 		updateTimer0When(pp)
 	} else {
 		// Remove from heap.
 		dodeltimer0(pp)
-		if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
-			badTimer()
-		}
+		status = timerRemoved
 	}
+	t.unlock(status, mp)
 
 	if raceenabled {
 		// Temporarily use the current P's racectx for g0.
