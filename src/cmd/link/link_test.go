@@ -388,9 +388,9 @@ func TestMachOBuildVersion(t *testing.T) {
 	found := false
 	const LC_BUILD_VERSION = 0x32
 	checkMin := func(ver uint32) {
-		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
-		if major != 10 || minor < 9 {
-			t.Errorf("LC_BUILD_VERSION version %d.%d < 10.9", major, minor)
+		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
+		if major < 11 {
+			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 11.0.0", major, minor, patch)
 		}
 	}
 	for _, cmd := range exem.Loads {
