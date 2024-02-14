@@ -705,45 +705,20 @@ func (t *tester) registerTests() {
 
 	// Runtime CPU tests.
 	if !t.compileOnly && t.hasParallelism() {
-		t.registerTest("GOMAXPROCS=2 runtime -cpu=1 -quick",
-			&goTest{
-				variant:   "cpu1",
-				timeout:   300 * time.Second,
-				cpu:       "1",
-				short:     true,
-				testFlags: []string{"-quick"},
-				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-				// creation of first goroutines and first garbage collections in the parallel setting.
-				env: []string{"GOMAXPROCS=2"},
-				pkg: "runtime",
-			},
-		)
-		t.registerTest("GOMAXPROCS=2 runtime -cpu=2 -quick",
-			&goTest{
-				variant:   "cpu2",
-				timeout:   300 * time.Second,
-				cpu:       "2",
-				short:     true,
-				testFlags: []string{"-quick"},
-				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-				// creation of first goroutines and first garbage collections in the parallel setting.
-				env: []string{"GOMAXPROCS=2"},
-				pkg: "runtime",
-			},
-		)
-		t.registerTest("GOMAXPROCS=2 runtime -cpu=4 -quick",
-			&goTest{
-				variant:   "cpu4",
-				timeout:   300 * time.Second,
-				cpu:       "4",
-				short:     true,
-				testFlags: []string{"-quick"},
-				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-				// creation of first goroutines and first garbage collections in the parallel setting.
-				env: []string{"GOMAXPROCS=2"},
-				pkg: "runtime",
-			},
-		)
+		for i := 1; i <= 4; i *= 2 {
+			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
+				&goTest{
+					variant:   "cpu" + strconv.Itoa(i),
+					timeout:   300 * time.Second,
+					cpu:       strconv.Itoa(i),
+					short:     true,
+					testFlags: []string{"-quick"},
+					// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+					// creation of first goroutines and first garbage collections in the parallel setting.
+					env: []string{"GOMAXPROCS=2"},
+					pkg: "runtime",
+				})
+		}
 	}
 
 	// GOEXPERIMENT=rangefunc tests
