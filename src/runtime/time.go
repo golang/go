@@ -71,27 +71,23 @@ type timer struct {
 // Inactive timers live there too temporarily, until they are removed.
 //
 // deltimer:
-//   timerWaiting         -> timerModifying -> timerModified
-//   timerModified        -> timerModifying -> timerModified
+//   timerWaiting         -> timerLocked -> timerModified
+//   timerModified        -> timerLocked -> timerModified
 //   timerRemoved         -> do nothing
-//   timerRunning         -> wait until status changes
-//   timerModifying       -> wait until status changes
+//   timerLocked       -> wait until status changes
 // modtimer:
-//   timerWaiting    -> timerModifying -> timerModified
-//   timerModified   -> timerModifying -> timerModified
-//   timerRemoved    -> timerModifying -> timerWaiting
-//   timerRunning    -> wait until status changes
-//   timerModifying  -> wait until status changes
+//   timerWaiting    -> timerLocked -> timerModified
+//   timerModified   -> timerLocked -> timerModified
+//   timerRemoved    -> timerLocked -> timerWaiting
+//   timerLocked  -> wait until status changes
 // adjusttimers (looks in P's timer heap):
-//   timerModified   -> timerModifying -> timerWaiting/timerRemoved
+//   timerModified   -> timerLocked -> timerWaiting/timerRemoved
 // runtimer (looks in P's timer heap):
 //   timerRemoved   -> panic: uninitialized timer
 //   timerWaiting    -> timerWaiting or
-//   timerWaiting    -> timerRunning -> timerRemoved or
-//   timerWaiting    -> timerRunning -> timerWaiting
-//   timerModifying  -> wait until status changes
-//   timerModified   -> timerModifying -> timerWaiting/timerRemoved
-//   timerRunning    -> panic: concurrent runtimer calls
+//   timerWaiting    -> timerLocked -> timerWaiting/timerRemoved
+//   timerLocked  -> wait until status changes
+//   timerModified   -> timerLocked -> timerWaiting/timerRemoved
 
 // Values for the timer status field.
 const (
@@ -103,13 +99,9 @@ const (
 	// The timer is in some P's heap.
 	timerWaiting
 
-	// Running the timer function.
-	// A timer will only have this status briefly.
-	timerRunning
-
-	// The timer is being modified.
+	// The timer is locked for exclusive use.
 	// The timer will only have this status briefly.
-	timerModifying
+	timerLocked
 
 	// The timer has been modified to a different time.
 	// The new when value is in the nextwhen field.
@@ -117,6 +109,38 @@ const (
 	// (the right place by .when; the wrong place by .nextwhen).
 	timerModified
 )
+
+// lock locks the timer, allowing reading or writing any of the timer fields.
+// It returns the current m and the status prior to the lock.
+// The caller must call unlock with the same m and an updated status.
+func (t *timer) lock() (status uint32, mp *m) {
+	for {
+		status := t.status.Load()
+		if status == timerLocked {
+			osyield()
+			continue
+		}
+		// Prevent preemption while the timer is locked.
+		// This could lead to a self-deadlock. See #38070.
+		mp := acquirem()
+		if t.status.CompareAndSwap(status, timerLocked) {
+			return status, mp
+		}
+		releasem(mp)
+	}
+}
+
+// unlock unlocks the timer.
+func (t *timer) unlock(status uint32, mp *m) {
+	if t.status.Load() != timerLocked {
+		badTimer()
+	}
+	if status == timerLocked {
+		badTimer()
+	}
+	t.status.Store(status)
+	releasem(mp)
+}
 
 // maxWhen is the maximum value for timer's when field.
 const maxWhen = 1<<63 - 1
@@ -237,46 +261,18 @@ func doaddtimer(pp *p, t *timer) {
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was removed before it was run.
 func deltimer(t *timer) bool {
-	for {
-		switch s := t.status.Load(); s {
-		case timerWaiting, timerModified:
-			// Prevent preemption while the timer is in timerModifying.
-			// This could lead to a self-deadlock. See #38070.
-			mp := acquirem()
-			if !t.status.CompareAndSwap(s, timerModifying) {
-				releasem(mp)
-				break
-			}
-			if s == timerModified && t.nextwhen == 0 {
-				if !t.status.CompareAndSwap(timerModifying, timerModified) {
-					badTimer()
-				}
-				releasem(mp)
-				return false
-			}
-			// Must fetch t.pp before changing status,
-			// as cleantimers in another goroutine
-			// can clear t.pp of a deleted timer.
-			t.pp.ptr().deletedTimers.Add(1)
-			t.nextwhen = 0
-			if !t.status.CompareAndSwap(timerModifying, timerModified) {
-				badTimer()
-			}
-			releasem(mp)
-			// Timer was not yet run.
-			return true
-
-		case timerRemoved:
-			// Timer was already run.
-			return false
-		case timerRunning, timerModifying:
-			// The timer is being run or modified, by a different P.
-			// Wait for it to complete.
-			osyield()
-		default:
-			badTimer()
-		}
+	status, mp := t.lock()
+	if status == timerWaiting || (status == timerModified && t.nextwhen != 0) {
+		// Timer pending: stop it.
+		t.pp.ptr().deletedTimers.Add(1)
+		t.nextwhen = 0
+		t.unlock(timerModified, mp)
+		return true
 	}
+
+	// Timer already run or deleted.
+	t.unlock(status, mp)
+	return false
 }
 
 // dodeltimer0 removes timer 0 from the current P's heap.
@@ -325,10 +321,10 @@ loop:
 	for {
 		switch status = t.status.Load(); status {
 		case timerWaiting, timerModified, timerRemoved:
-			// Prevent preemption while the timer is in timerModifying.
+			// Prevent preemption while the timer is in timerLocked.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if !t.status.CompareAndSwap(status, timerModifying) {
+			if !t.status.CompareAndSwap(status, timerLocked) {
 				releasem(mp)
 				break
 			}
@@ -346,7 +342,7 @@ loop:
 				pending = false // timer already run or stopped
 				break loop
 			}
-		case timerRunning, timerModifying:
+		case timerLocked:
 			// The timer is being run or modified, by a different P.
 			// Wait for it to complete.
 			osyield()
@@ -366,7 +362,7 @@ loop:
 		lock(&pp.timersLock)
 		doaddtimer(pp, t)
 		unlock(&pp.timersLock)
-		if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+		if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 			badTimer()
 		}
 		releasem(mp)
@@ -384,7 +380,7 @@ loop:
 		}
 
 		// Set the new status of the timer.
-		if !t.status.CompareAndSwap(timerModifying, timerModified) {
+		if !t.status.CompareAndSwap(timerLocked, timerModified) {
 			badTimer()
 		}
 		releasem(mp)
@@ -430,13 +426,13 @@ func cleantimers(pp *p) {
 		}
 		switch s := t.status.Load(); s {
 		case timerModified:
-			if !t.status.CompareAndSwap(s, timerModifying) {
+			if !t.status.CompareAndSwap(s, timerLocked) {
 				continue
 			}
 			if t.nextwhen == 0 {
 				dodeltimer0(pp)
 				pp.deletedTimers.Add(-1)
-				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
 					badTimer()
 				}
 			} else {
@@ -445,7 +441,7 @@ func cleantimers(pp *p) {
 				// Move t to the right position.
 				dodeltimer0(pp)
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 					badTimer()
 				}
 			}
@@ -487,41 +483,37 @@ func moveTimers(pp *p, timers []*timer) {
 		for {
 			switch s := t.status.Load(); s {
 			case timerWaiting:
-				if !t.status.CompareAndSwap(s, timerModifying) {
+				if !t.status.CompareAndSwap(s, timerLocked) {
 					continue
 				}
 				t.pp = 0
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 					badTimer()
 				}
 				break loop
 			case timerModified:
-				if !t.status.CompareAndSwap(s, timerModifying) {
+				if !t.status.CompareAndSwap(s, timerLocked) {
 					continue
 				}
 				t.pp = 0
 				if t.nextwhen != 0 {
 					t.when = t.nextwhen
 					doaddtimer(pp, t)
-					if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+					if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 						badTimer()
 					}
 				} else {
-					if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+					if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
 						continue
 					}
 				}
 				break loop
-			case timerModifying:
+			case timerLocked:
 				// Loop until the modification is complete.
 				osyield()
 			case timerRemoved:
 				// We should not see these status values in a timers heap.
-				badTimer()
-			case timerRunning:
-				// Some other P thinks it owns this timer,
-				// which should not happen.
 				badTimer()
 			default:
 				badTimer()
@@ -562,7 +554,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 		}
 		switch s := t.status.Load(); s {
 		case timerModified:
-			if !t.status.CompareAndSwap(s, timerModifying) {
+			if !t.status.CompareAndSwap(s, timerLocked) {
 				// TODO(rsc): Try harder to lock.
 				break
 			}
@@ -572,7 +564,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 				pp.timers[n-1] = nil
 				pp.timers = pp.timers[:n-1]
 				t.pp = 0
-				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
 					badTimer()
 				}
 				pp.deletedTimers.Add(-1)
@@ -582,15 +574,15 @@ func adjusttimers(pp *p, now int64, force bool) {
 				// Now we can change the when field.
 				t.when = t.nextwhen
 				changed = true
-				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 					badTimer()
 				}
 			}
-		case timerRunning, timerRemoved:
+		case timerRemoved:
 			badTimer()
 		case timerWaiting:
 			// OK, nothing to do.
-		case timerModifying:
+		case timerLocked:
 			// Check again after modification is complete.
 			osyield()
 			i--
@@ -708,7 +700,7 @@ func runtimer(pp *p, now int64) int64 {
 				return t.when
 			}
 
-			if !t.status.CompareAndSwap(s, timerRunning) {
+			if !t.status.CompareAndSwap(s, timerLocked) {
 				continue
 			}
 			// Note that runOneTimer may temporarily unlock
@@ -717,12 +709,12 @@ func runtimer(pp *p, now int64) int64 {
 			return 0
 
 		case timerModified:
-			if !t.status.CompareAndSwap(s, timerModifying) {
+			if !t.status.CompareAndSwap(s, timerLocked) {
 				continue
 			}
 			if t.nextwhen == 0 {
 				dodeltimer0(pp)
-				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
 					badTimer()
 				}
 				pp.deletedTimers.Add(-1)
@@ -733,21 +725,17 @@ func runtimer(pp *p, now int64) int64 {
 				t.when = t.nextwhen
 				dodeltimer0(pp)
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 					badTimer()
 				}
 			}
 
-		case timerModifying:
+		case timerLocked:
 			// Wait for modification to complete.
 			osyield()
 
 		case timerRemoved:
 			// Should not see a new or inactive timer on the heap.
-			badTimer()
-		case timerRunning:
-			// These should only be set when timers are locked,
-			// and we didn't do it.
 			badTimer()
 		default:
 			badTimer()
@@ -781,14 +769,14 @@ func runOneTimer(pp *p, t *timer, now int64) {
 			t.when = maxWhen
 		}
 		siftdownTimer(pp.timers, 0)
-		if !t.status.CompareAndSwap(timerRunning, timerWaiting) {
+		if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
 			badTimer()
 		}
 		updateTimer0When(pp)
 	} else {
 		// Remove from heap.
 		dodeltimer0(pp)
-		if !t.status.CompareAndSwap(timerRunning, timerRemoved) {
+		if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
 			badTimer()
 		}
 	}
