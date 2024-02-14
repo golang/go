@@ -132,6 +132,8 @@ func (t *timer) lock() (status uint32, mp *m) {
 }
 
 // unlock unlocks the timer.
+// If mp == nil, the caller is responsible for calling
+// releasem(mp) with the mp returned by t.lock.
 func (t *timer) unlock(status uint32, mp *m) {
 	releaseLockRank(lockRankTimer)
 	if t.status.Load() != timerLocked {
@@ -141,7 +143,9 @@ func (t *timer) unlock(status uint32, mp *m) {
 		badTimer()
 	}
 	t.status.Store(status)
-	releasem(mp)
+	if mp != nil {
+		releasem(mp)
+	}
 }
 
 // maxWhen is the maximum value for timer's when field.
@@ -237,7 +241,8 @@ func goroutineReady(arg any, seq uintptr) {
 }
 
 // doaddtimer adds t to the current P's heap.
-// The caller must have locked the timers for pp.
+// The caller must have set t.pp = pp, unlocked t,
+// and then locked the timers for pp.
 func doaddtimer(pp *p, t *timer) {
 	// Timers rely on the network poller, so make sure the poller
 	// has started.
@@ -245,10 +250,9 @@ func doaddtimer(pp *p, t *timer) {
 		netpollGenericInit()
 	}
 
-	if t.pp != 0 {
-		throw("doaddtimer: P already set in timer")
+	if t.pp.ptr() != pp {
+		throw("doaddtimer: P not set in timer")
 	}
-	t.pp.set(pp)
 	i := len(pp.timers)
 	pp.timers = append(pp.timers, t)
 	siftupTimer(pp.timers, i)
@@ -327,12 +331,17 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 		// Since t is not in a heap yet, nothing will
 		// find and modify it until after the doaddtimer.
 		t.when = when
-		t.unlock(timerWaiting, mp)
-
 		pp := getg().m.p.ptr()
+		t.pp.set(pp)
+		// pass mp=nil to t.unlock to avoid preemption
+		// between t.unlock and lock of timersLock.
+		// releasem done manually below
+		t.unlock(timerWaiting, nil)
+
 		lock(&pp.timersLock)
 		doaddtimer(pp, t)
 		unlock(&pp.timersLock)
+		releasem(mp)
 		wakeNetPoller(when)
 		return false
 	}
@@ -410,14 +419,16 @@ func cleantimers(pp *p) {
 		if t.nextwhen == 0 {
 			pp.deletedTimers.Add(-1)
 			status = timerRemoved
+			t.unlock(status, mp)
 		} else {
 			// Now we can change the when field.
 			t.when = t.nextwhen
+			t.pp.set(pp)
+			status = timerWaiting
+			t.unlock(status, mp)
 			// Move t to the right position.
 			doaddtimer(pp, t)
-			status = timerWaiting
 		}
-		t.unlock(status, mp)
 	}
 }
 
@@ -448,46 +459,32 @@ func adoptTimers(pp *p) {
 // is expected to have locked the timers for pp.
 func moveTimers(pp *p, timers []*timer) {
 	for _, t := range timers {
-	loop:
-		for {
-			switch s := t.status.Load(); s {
-			case timerWaiting:
-				if !t.status.CompareAndSwap(s, timerLocked) {
-					continue
-				}
-				t.pp = 0
+		status, mp := t.lock()
+		switch status {
+		case timerWaiting:
+			t.pp.set(pp)
+			// Unlock before add, to avoid append (allocation)
+			// while holding lock. This would be correct even if the world wasn't
+			// stopped (but it is), and it makes staticlockranking happy.
+			t.unlock(status, mp)
+			doaddtimer(pp, t)
+			continue
+		case timerModified:
+			t.pp = 0
+			if t.nextwhen != 0 {
+				t.when = t.nextwhen
+				status = timerWaiting
+				t.pp.set(pp)
+				t.unlock(status, mp)
 				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-					badTimer()
-				}
-				break loop
-			case timerModified:
-				if !t.status.CompareAndSwap(s, timerLocked) {
-					continue
-				}
-				t.pp = 0
-				if t.nextwhen != 0 {
-					t.when = t.nextwhen
-					doaddtimer(pp, t)
-					if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-						badTimer()
-					}
-				} else {
-					if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
-						continue
-					}
-				}
-				break loop
-			case timerLocked:
-				// Loop until the modification is complete.
-				osyield()
-			case timerRemoved:
-				// We should not see these status values in a timers heap.
-				badTimer()
-			default:
-				badTimer()
+				continue
+			} else {
+				status = timerRemoved
 			}
+		case timerRemoved:
+			badTimer()
 		}
+		t.unlock(status, mp)
 	}
 }
 
@@ -666,12 +663,14 @@ Redo:
 		if t.nextwhen == 0 {
 			status = timerRemoved
 			pp.deletedTimers.Add(-1)
+			t.unlock(status, mp)
 		} else {
 			t.when = t.nextwhen
-			doaddtimer(pp, t)
+			t.pp.set(pp)
 			status = timerWaiting
+			t.unlock(status, mp)
+			doaddtimer(pp, t)
 		}
-		t.unlock(status, mp)
 		goto Redo
 	}
 
