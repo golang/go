@@ -97,9 +97,6 @@ type timer struct {
 //   timerMoving     -> wait until status changes
 //   timerRemoving   -> wait until status changes
 //   timerModifying  -> wait until status changes
-// cleantimers (looks in P's timer heap):
-//   timerDeleted    -> timerRemoving -> timerRemoved
-//   timerModifiedXX -> timerMoving -> timerWaiting
 // adjusttimers (looks in P's timer heap):
 //   timerDeleted    -> timerRemoving -> timerRemoved
 //   timerModifiedXX -> timerMoving -> timerWaiting
@@ -632,18 +629,20 @@ func moveTimers(pp *p, timers []*timer) {
 // the correct place in the heap. While looking for those timers,
 // it also moves timers that have been modified to run later,
 // and removes deleted timers. The caller must have locked the timers for pp.
-func adjusttimers(pp *p, now int64) {
+func adjusttimers(pp *p, now int64, force bool) {
 	// If we haven't yet reached the time of the first timerModifiedEarlier
 	// timer, don't do anything. This speeds up programs that adjust
 	// a lot of timers back and forth if the timers rarely expire.
 	// We'll postpone looking through all the adjusted timers until
 	// one would actually expire.
-	first := pp.timerModifiedEarliest.Load()
-	if first == 0 || first > now {
-		if verifyTimers {
-			verifyTimerHeap(pp)
+	if !force {
+		first := pp.timerModifiedEarliest.Load()
+		if first == 0 || first > now {
+			if verifyTimers {
+				verifyTimerHeap(pp)
+			}
+			return
 		}
-		return
 	}
 
 	// We are going to clear all timerModifiedEarlier timers.
@@ -843,91 +842,6 @@ func runOneTimer(pp *p, t *timer, now int64) {
 	if raceenabled {
 		gp := getg()
 		gp.racectx = 0
-	}
-}
-
-// clearDeletedTimers removes all deleted timers from the P's timer heap.
-// This is used to avoid clogging up the heap if the program
-// starts a lot of long-running timers and then stops them.
-// For example, this can happen via context.WithTimeout.
-//
-// This is the only function that walks through the entire timer heap,
-// other than moveTimers which only runs when the world is stopped.
-//
-// The caller must have locked the timers for pp.
-func clearDeletedTimers(pp *p) {
-	// We are going to clear all timerModifiedEarlier timers.
-	// Do this now in case new ones show up while we are looping.
-	pp.timerModifiedEarliest.Store(0)
-
-	cdel := int32(0)
-	to := 0
-	changedHeap := false
-	timers := pp.timers
-nextTimer:
-	for _, t := range timers {
-		for {
-			switch s := t.status.Load(); s {
-			case timerWaiting:
-				if changedHeap {
-					timers[to] = t
-					siftupTimer(timers, to)
-				}
-				to++
-				continue nextTimer
-			case timerModifiedEarlier, timerModifiedLater:
-				if t.status.CompareAndSwap(s, timerMoving) {
-					t.when = t.nextwhen
-					timers[to] = t
-					siftupTimer(timers, to)
-					to++
-					changedHeap = true
-					if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
-						badTimer()
-					}
-					continue nextTimer
-				}
-			case timerDeleted:
-				if t.status.CompareAndSwap(s, timerRemoving) {
-					t.pp = 0
-					cdel++
-					if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
-						badTimer()
-					}
-					changedHeap = true
-					continue nextTimer
-				}
-			case timerModifying:
-				// Loop until modification complete.
-				osyield()
-			case timerNoStatus, timerRemoved:
-				// We should not see these status values in a timer heap.
-				badTimer()
-			case timerRunning, timerRemoving, timerMoving:
-				// Some other P thinks it owns this timer,
-				// which should not happen.
-				badTimer()
-			default:
-				badTimer()
-			}
-		}
-	}
-
-	// Set remaining slots in timers slice to nil,
-	// so that the timer values can be garbage collected.
-	for i := to; i < len(timers); i++ {
-		timers[i] = nil
-	}
-
-	pp.deletedTimers.Add(-cdel)
-	pp.numTimers.Add(-cdel)
-
-	timers = timers[:to]
-	pp.timers = timers
-	updateTimer0When(pp)
-
-	if verifyTimers {
-		verifyTimerHeap(pp)
 	}
 }
 

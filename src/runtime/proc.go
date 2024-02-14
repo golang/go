@@ -3990,7 +3990,11 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 	lock(&pp.timersLock)
 
 	if len(pp.timers) > 0 {
-		adjusttimers(pp, now)
+		// If this is the local P, and there are a lot of deleted timers,
+		// clear them out. We only do this for the local P to reduce
+		// lock contention on timersLock.
+		force := pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4
+		adjusttimers(pp, now, force)
 		for len(pp.timers) > 0 {
 			// Note that runtimer may temporarily unlock
 			// pp.timersLock.
@@ -4002,13 +4006,6 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 			}
 			ran = true
 		}
-	}
-
-	// If this is the local P, and there are a lot of deleted timers,
-	// clear them out. We only do this for the local P to reduce
-	// lock contention on timersLock.
-	if pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4 {
-		clearDeletedTimers(pp)
 	}
 
 	unlock(&pp.timersLock)
