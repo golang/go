@@ -28,10 +28,7 @@ import (
 // Package time knows the layout of this structure.
 // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
 type timer struct {
-	// If this timer is on a heap, which P's heap it is on.
-	// puintptr rather than *p to match uintptr in the versions
-	// of this struct defined in other packages.
-	pp puintptr
+	ts *timers
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, now) in the timer goroutine, so f must be
@@ -53,6 +50,39 @@ type timer struct {
 
 	// The state field holds state bits, defined below.
 	state atomic.Uint32
+}
+
+// A timers is a per-P set of timers.
+type timers struct {
+	// lock protects timers; timers are per-P, but the scheduler can
+	// access the timers of another P, so we have to lock.
+	lock mutex
+
+	// heap is the set of timers, ordered by t.when.
+	// Must hold lock to access.
+	heap []*timer
+
+	// len is an atomic copy of len(heap).
+	len atomic.Uint32
+
+	// zombies is the number of deleted timers left in heap.
+	zombies atomic.Uint32
+
+	// raceCtx is the race context used while executing timer functions.
+	raceCtx uintptr
+
+	// timer0When is an atomic copy of of heap[0].when.
+	// If len(heap) == 0, timer0When is 0.
+	timer0When atomic.Int64
+
+	// timerModifiedEarliest holds the earliest known heap[i].nextWhen field
+	// for the heap entries with a new nextWhen pending
+	// (that is, with the timerNextWhen bit set in t.state).
+	// Because timers can be modified multiple times,
+	// timerModifiedEarliest can be set to a nextWhen that has since
+	// been replaced with a later time.
+	// If this is 0, it means there are no timerNextWhen timers in the heap.
+	timerModifiedEarliest atomic.Int64
 }
 
 // Timer state field.
@@ -117,33 +147,33 @@ func (t *timer) unlock(state uint32, mp *m) {
 
 // updateWhen updates t.when as directed by state, returning the new state
 // and a bool indicating whether the state (and t.when) changed.
-// If pp != nil, then the caller must have locked pp.timers,
-// t must be pp.timers[0], and updateWhen takes care of
-// moving t within the pp.timers heap when t.when is changed.
-func (t *timer) updateWhen(state uint32, pp *p) (newState uint32, updated bool) {
+// If ts != nil, then the caller must have locked ts,
+// t must be ts.heap[0], and updateWhen takes care of
+// moving t within the timers heap when t.when is changed.
+func (t *timer) updateWhen(state uint32, ts *timers) (newState uint32, updated bool) {
 	if state&timerNextWhen == 0 {
 		return state, false
 	}
 	state &^= timerNextWhen
 	if t.nextWhen == 0 {
-		if pp != nil {
-			if t != pp.timers[0] {
+		if ts != nil {
+			if t != ts.heap[0] {
 				badTimer()
 			}
-			pp.deletedTimers.Add(-1)
-			dodeltimer0(pp)
+			ts.zombies.Add(-1)
+			ts.deleteMin()
 		}
 		state &^= timerHeaped
 	} else {
 		// Now we can change the when field.
 		t.when = t.nextWhen
 		// Move t to the right position.
-		if pp != nil {
-			if t != pp.timers[0] {
+		if ts != nil {
+			if t != ts.heap[0] {
 				badTimer()
 			}
-			siftdownTimer(pp.timers, 0)
-			updateTimer0When(pp)
+			ts.siftDown(0)
+			ts.updateTimer0When()
 		}
 	}
 	return state, true
@@ -241,26 +271,26 @@ func goroutineReady(arg any, seq uintptr) {
 	goready(arg.(*g), 0)
 }
 
-// doaddtimer adds t to the current P's heap.
-// The caller must have set t.pp = pp, unlocked t,
-// and then locked the timers for pp.
-func doaddtimer(pp *p, t *timer) {
+// add adds t to the timers.
+// The caller must have set t.ts = t, unlocked t,
+// and then locked ts.lock.
+func (ts *timers) add(t *timer) {
+	assertLockHeld(&ts.lock)
 	// Timers rely on the network poller, so make sure the poller
 	// has started.
 	if netpollInited.Load() == 0 {
 		netpollGenericInit()
 	}
 
-	if t.pp.ptr() != pp {
-		throw("doaddtimer: P not set in timer")
+	if t.ts != ts {
+		throw("ts not set in timer")
 	}
-	i := len(pp.timers)
-	pp.timers = append(pp.timers, t)
-	siftupTimer(pp.timers, i)
-	if t == pp.timers[0] {
-		pp.timer0When.Store(t.when)
+	ts.heap = append(ts.heap, t)
+	ts.siftUp(len(ts.heap) - 1)
+	if t == ts.heap[0] {
+		ts.timer0When.Store(t.when)
 	}
-	pp.numTimers.Add(1)
+	ts.len.Add(1)
 }
 
 // stop deletes the timer t. It may be on some other P, so we can't
@@ -271,7 +301,7 @@ func (t *timer) stop() bool {
 	state, mp := t.lock()
 	if state&timerHeaped != 0 && (state&timerNextWhen == 0 || t.nextWhen != 0) {
 		// Timer pending: stop it.
-		t.pp.ptr().deletedTimers.Add(1)
+		t.ts.zombies.Add(1)
 		t.nextWhen = 0
 		state |= timerNextWhen
 		t.unlock(state, mp)
@@ -283,30 +313,29 @@ func (t *timer) stop() bool {
 	return false
 }
 
-// dodeltimer0 removes timer 0 from the current P's heap.
-// We are locked on the P when this is called.
-// It reports whether it saw no problems due to races.
-// The caller must have locked the timers for pp.
-func dodeltimer0(pp *p) {
-	if t := pp.timers[0]; t.pp.ptr() != pp {
-		throw("dodeltimer0: wrong P")
-	} else {
-		t.pp = 0
+// deleteMin removes timer 0 from ts.
+// ts must be locked.
+func (ts *timers) deleteMin() {
+	assertLockHeld(&ts.lock)
+	t := ts.heap[0]
+	if t.ts != ts {
+		throw("wrong timers")
 	}
-	last := len(pp.timers) - 1
+	t.ts = nil
+	last := len(ts.heap) - 1
 	if last > 0 {
-		pp.timers[0] = pp.timers[last]
+		ts.heap[0] = ts.heap[last]
 	}
-	pp.timers[last] = nil
-	pp.timers = pp.timers[:last]
+	ts.heap[last] = nil
+	ts.heap = ts.heap[:last]
 	if last > 0 {
-		siftdownTimer(pp.timers, 0)
+		ts.siftDown(0)
 	}
-	updateTimer0When(pp)
-	n := pp.numTimers.Add(-1)
+	ts.updateTimer0When()
+	n := ts.len.Add(-1)
 	if n == 0 {
 		// If there are no timers, then clearly none are modified.
-		pp.timerModifiedEarliest.Store(0)
+		ts.timerModifiedEarliest.Store(0)
 	}
 }
 
@@ -331,28 +360,29 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 		// Set up t for insertion but unlock first,
 		// to avoid lock inversion with timers lock.
 		// Since t is not in a heap yet, nothing will
-		// find and modify it until after the doaddtimer.
+		// find and modify it until after the ts.add.
 		state |= timerHeaped
 		t.when = when
 
-		pp := getg().m.p.ptr()
-		t.pp.set(pp)
+		ts := &getg().m.p.ptr().timers
+		t.ts = ts
 		// pass mp=nil to t.unlock to avoid preemption
 		// between t.unlock and lock of timersLock.
 		// releasem done manually below
 		t.unlock(state, nil)
 
-		lock(&pp.timersLock)
-		doaddtimer(pp, t)
-		unlock(&pp.timersLock)
+		lock(&ts.lock)
+		ts.add(t)
+		unlock(&ts.lock)
 		releasem(mp)
+
 		wakeNetPoller(when)
 		return false
 	}
 
 	pending := state&timerNextWhen == 0 || t.nextWhen != 0 // timerHeaped is set (checked above)
 	if !pending {
-		t.pp.ptr().deletedTimers.Add(-1)
+		t.ts.zombies.Add(-1)
 	}
 
 	// The timer is in some other P's heap, so we can't change
@@ -364,7 +394,7 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 	state |= timerNextWhen
 	earlier := when < t.when
 	if earlier {
-		updateTimerModifiedEarliest(t.pp.ptr(), when)
+		t.ts.updateTimerModifiedEarliest(when)
 	}
 
 	t.unlock(state, mp)
@@ -384,14 +414,15 @@ func (t *timer) reset(when int64) bool {
 	return t.modify(when, t.period, t.f, t.arg, t.seq)
 }
 
-// cleantimers cleans up the head of the timer queue. This speeds up
+// cleanHead cleans up the head of the timer queue. This speeds up
 // programs that create and delete timers; leaving them in the heap
 // slows down heap operations.
-// The caller must have locked the timers for pp.
-func cleantimers(pp *p) {
+// The caller must have locked ts.
+func (ts *timers) cleanHead() {
+	assertLockHeld(&ts.lock)
 	gp := getg()
 	for {
-		if len(pp.timers) == 0 {
+		if len(ts.heap) == 0 {
 			return
 		}
 
@@ -403,9 +434,9 @@ func cleantimers(pp *p) {
 			return
 		}
 
-		t := pp.timers[0]
-		if t.pp.ptr() != pp {
-			throw("cleantimers: bad p")
+		t := ts.heap[0]
+		if t.ts != ts {
+			throw("bad ts")
 		}
 
 		if t.state.Load()&timerNextWhen == 0 {
@@ -414,7 +445,7 @@ func cleantimers(pp *p) {
 		}
 
 		state, mp := t.lock()
-		state, updated := t.updateWhen(state, pp)
+		state, updated := t.updateWhen(state, ts)
 		t.unlock(state, mp)
 		if !updated {
 			// Head of timers does not need adjustment.
@@ -424,78 +455,83 @@ func cleantimers(pp *p) {
 	}
 }
 
-// adoptTimers adopts any timers from pp into the local P,
-// because pp is being destroyed.
-func adoptTimers(pp *p) {
-	if len(pp.timers) > 0 {
-		plocal := getg().m.p.ptr()
+// take moves any timers from src into ts
+// and then clears the timer state from src,
+// because src is being destroyed.
+// The caller must not have locked either timers.
+// For now this is only called when the world is stopped.
+func (ts *timers) take(src *timers) {
+	assertWorldStopped()
+	if len(src.heap) > 0 {
 		// The world is stopped, but we acquire timersLock to
 		// protect against sysmon calling timeSleepUntil.
-		// This is the only case where we hold the timersLock of
-		// more than one P, so there are no deadlock concerns.
-		lock(&plocal.timersLock)
-		lock(&pp.timersLock)
-		moveTimers(plocal, pp.timers)
-		pp.timers = nil
-		pp.numTimers.Store(0)
-		pp.deletedTimers.Store(0)
-		pp.timer0When.Store(0)
-		unlock(&pp.timersLock)
-		unlock(&plocal.timersLock)
+		// This is the only case where we hold more than one ts.lock,
+		// so there are no deadlock concerns.
+		lock(&src.lock)
+		lock(&ts.lock)
+		ts.move(src.heap)
+		src.heap = nil
+		src.len.Store(0)
+		src.zombies.Store(0)
+		src.timer0When.Store(0)
+		unlock(&ts.lock)
+		unlock(&src.lock)
 	}
 }
 
 // moveTimers moves a slice of timers to pp. The slice has been taken
 // from a different P.
 // This is currently called when the world is stopped, but the caller
-// is expected to have locked the timers for pp.
-func moveTimers(pp *p, timers []*timer) {
+// is expected to have locked ts.
+func (ts *timers) move(timers []*timer) {
+	assertLockHeld(&ts.lock)
 	for _, t := range timers {
 		state, mp := t.lock()
-		t.pp = 0
+		t.ts = nil
 		state, _ = t.updateWhen(state, nil)
 		// Unlock before add, to avoid append (allocation)
 		// while holding lock. This would be correct even if the world wasn't
 		// stopped (but it is), and it makes staticlockranking happy.
 		if state&timerHeaped != 0 {
-				t.pp.set(pp)
+			t.ts = ts
 		}
 		t.unlock(state, mp)
 		if state&timerHeaped != 0 {
-			doaddtimer(pp, t)
+			ts.add(t)
 		}
 	}
 }
 
-// adjusttimers looks through the timers in the current P's heap for
+// adjust looks through the timers in ts.heap for
 // any timers that have been modified to run earlier, and puts them in
 // the correct place in the heap. While looking for those timers,
 // it also moves timers that have been modified to run later,
-// and removes deleted timers. The caller must have locked the timers for pp.
-func adjusttimers(pp *p, now int64, force bool) {
+// and removes deleted timers. The caller must have locked ts.
+func (ts *timers) adjust(now int64, force bool) {
+	assertLockHeld(&ts.lock)
 	// If we haven't yet reached the time of the earliest timerModified
 	// timer, don't do anything. This speeds up programs that adjust
 	// a lot of timers back and forth if the timers rarely expire.
 	// We'll postpone looking through all the adjusted timers until
 	// one would actually expire.
 	if !force {
-		first := pp.timerModifiedEarliest.Load()
+		first := ts.timerModifiedEarliest.Load()
 		if first == 0 || first > now {
 			if verifyTimers {
-				verifyTimerHeap(pp)
+				ts.verify()
 			}
 			return
 		}
 	}
 
 	// We are going to clear all timerModified timers.
-	pp.timerModifiedEarliest.Store(0)
+	ts.timerModifiedEarliest.Store(0)
 
 	changed := false
-	for i := 0; i < len(pp.timers); i++ {
-		t := pp.timers[i]
-		if t.pp.ptr() != pp {
-			throw("adjusttimers: bad p")
+	for i := 0; i < len(ts.heap); i++ {
+		t := ts.heap[i]
+		if t.ts != ts {
+			throw("bad ts")
 		}
 
 		state, mp := t.lock()
@@ -506,12 +542,12 @@ func adjusttimers(pp *p, now int64, force bool) {
 		if updated {
 			changed = true
 			if state&timerHeaped == 0 {
-				n := len(pp.timers)
-				pp.timers[i] = pp.timers[n-1]
-				pp.timers[n-1] = nil
-				pp.timers = pp.timers[:n-1]
-				t.pp = 0
-				pp.deletedTimers.Add(-1)
+				n := len(ts.heap)
+				ts.heap[i] = ts.heap[n-1]
+				ts.heap[n-1] = nil
+				ts.heap = ts.heap[:n-1]
+				t.ts = nil
+				ts.zombies.Add(-1)
 				i--
 			}
 		}
@@ -519,31 +555,31 @@ func adjusttimers(pp *p, now int64, force bool) {
 	}
 
 	if changed {
-		initTimerHeap(pp.timers)
-		updateTimer0When(pp)
+		ts.initHeap()
+		ts.updateTimer0When()
 	}
 
 	if verifyTimers {
-		verifyTimerHeap(pp)
+		ts.verify()
 	}
 }
 
-// nobarrierWakeTime looks at P's timers and returns the time when we
+// wakeTime looks at ts's timers and returns the time when we
 // should wake up the netpoller. It returns 0 if there are no timers.
-// This function is invoked when dropping a P, and must run without
+// This function is invoked when dropping a P, so it must run without
 // any write barriers.
 //
 //go:nowritebarrierrec
-func nobarrierWakeTime(pp *p) int64 {
-	next := pp.timer0When.Load()
-	nextAdj := pp.timerModifiedEarliest.Load()
+func (ts *timers) wakeTime() int64 {
+	next := ts.timer0When.Load()
+	nextAdj := ts.timerModifiedEarliest.Load()
 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
 		next = nextAdj
 	}
 	return next
 }
 
-// checkTimers runs any timers for the P that are ready.
+// check runs any timers in ts that are ready.
 // If now is not 0 it is the current time.
 // It returns the passed time or the current time if now was passed as 0.
 // and the time when the next timer should run or 0 if there is no next timer,
@@ -553,11 +589,11 @@ func nobarrierWakeTime(pp *p) int64 {
 // We pass now in and out to avoid extra calls of nanotime.
 //
 //go:yeswritebarrierrec
-func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 	// If it's not yet time for the first timer, or the first adjusted
 	// timer, then there is nothing to do.
-	next := pp.timer0When.Load()
-	nextAdj := pp.timerModifiedEarliest.Load()
+	next := ts.timer0When.Load()
+	nextAdj := ts.timerModifiedEarliest.Load()
 	if next == 0 || (nextAdj != 0 && nextAdj < next) {
 		next = nextAdj
 	}
@@ -570,28 +606,23 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 	if now == 0 {
 		now = nanotime()
 	}
-	if now < next {
-		// Next timer is not ready to run, but keep going
-		// if we would clear deleted timers.
-		// This corresponds to the condition below where
-		// we decide whether to call clearDeletedTimers.
-		if pp != getg().m.p.ptr() || int(pp.deletedTimers.Load()) <= int(pp.numTimers.Load()/4) {
-			return now, next, false
-		}
+
+	// If this is the local P, and there are a lot of deleted timers,
+	// clear them out. We only do this for the local P to reduce
+	// lock contention on timersLock.
+	force := ts == &getg().m.p.ptr().timers && int(ts.zombies.Load()) > int(ts.len.Load())/4
+
+	if now < next && !force {
+		// Next timer is not ready to run, and we don't need to clear deleted timers.
+		return now, next, false
 	}
 
-	lock(&pp.timersLock)
-
-	if len(pp.timers) > 0 {
-		// If this is the local P, and there are a lot of deleted timers,
-		// clear them out. We only do this for the local P to reduce
-		// lock contention on timersLock.
-		force := pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4
-		adjusttimers(pp, now, force)
-		for len(pp.timers) > 0 {
-			// Note that runtimer may temporarily unlock
-			// pp.timersLock.
-			if tw := runtimer(pp, now); tw != 0 {
+	lock(&ts.lock)
+	if len(ts.heap) > 0 {
+		ts.adjust(now, force)
+		for len(ts.heap) > 0 {
+			// Note that runtimer may temporarily unlock ts.
+			if tw := ts.run(now); tw != 0 {
 				if tw > 0 {
 					pollUntil = tw
 				}
@@ -601,38 +632,39 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 		}
 	}
 
-	unlock(&pp.timersLock)
+	unlock(&ts.lock)
 
 	return now, pollUntil, ran
 }
 
-// runtimer examines the first timer in timers. If it is ready based on now,
+// run examines the first timer in ts. If it is ready based on now,
 // it runs the timer and removes or updates it.
 // Returns 0 if it ran a timer, -1 if there are no more timers, or the time
 // when the first timer should run.
-// The caller must have locked the timers for pp.
-// If a timer is run, this will temporarily unlock the timers.
+// The caller must have locked ts.
+// If a timer is run, this will temporarily unlock ts.
 //
 //go:systemstack
-func runtimer(pp *p, now int64) int64 {
+func (ts *timers) run(now int64) int64 {
+	assertLockHeld(&ts.lock)
 Redo:
-	if len(pp.timers) == 0 {
+	if len(ts.heap) == 0 {
 		return -1
 	}
-	t := pp.timers[0]
-	if t.pp.ptr() != pp {
-		throw("runtimer: bad p")
+	t := ts.heap[0]
+	if t.ts != ts {
+		throw("bad ts")
 	}
 
 	if t.state.Load()&timerNextWhen == 0 && t.when > now {
 		// Fast path: not ready to run.
 		// The access of t.when is protected by the caller holding
-		// pp.timersLock, even though t itself is unlocked.
+		// ts.lock, even though t itself is unlocked.
 		return t.when
 	}
 
 	state, mp := t.lock()
-	state, updated := t.updateWhen(state, pp)
+	state, updated := t.updateWhen(state, ts)
 	if updated {
 		t.unlock(state, mp)
 		goto Redo
@@ -648,22 +680,24 @@ Redo:
 		return t.when
 	}
 
-	unlockAndRunTimer(pp, t, now, state, mp)
+	ts.unlockAndRun(t, now, state, mp)
+	assertLockHeld(&ts.lock) // t is unlocked now, but not ts
 	return 0
 }
 
-// unlockAndRunTimer unlocks and runs a single timer.
-// The caller must have locked the timers for pp.
+// unlockAndRun unlocks and runs a single timer.
+// The caller must have locked ts.
 // This will temporarily unlock the timers while running the timer function.
 //
 //go:systemstack
-func unlockAndRunTimer(pp *p, t *timer, now int64, state uint32, mp *m) {
+func (ts *timers) unlockAndRun(t *timer, now int64, state uint32, mp *m) {
+	assertLockHeld(&ts.lock)
 	if raceenabled {
-		ppcur := getg().m.p.ptr()
-		if ppcur.timerRaceCtx == 0 {
-			ppcur.timerRaceCtx = racegostart(abi.FuncPCABIInternal(runtimer) + sys.PCQuantum)
+		tsLocal := &getg().m.p.ptr().timers
+		if tsLocal.raceCtx == 0 {
+			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
 		}
-		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
+		raceacquirectx(tsLocal.raceCtx, unsafe.Pointer(t))
 	}
 
 	f := t.f
@@ -680,23 +714,21 @@ func unlockAndRunTimer(pp *p, t *timer, now int64, state uint32, mp *m) {
 	} else {
 		t.nextWhen = 0
 	}
-	state, _ = t.updateWhen(state|timerNextWhen, pp)
+	state, _ = t.updateWhen(state|timerNextWhen, ts)
 	t.unlock(state, mp)
 
 	if raceenabled {
 		// Temporarily use the current P's racectx for g0.
 		gp := getg()
 		if gp.racectx != 0 {
-			throw("runOneTimer: unexpected racectx")
+			throw("unexpected racectx")
 		}
-		gp.racectx = gp.m.p.ptr().timerRaceCtx
+		gp.racectx = gp.m.p.ptr().timers.raceCtx
 	}
 
-	unlock(&pp.timersLock)
-
+	unlock(&ts.lock)
 	f(arg, seq)
-
-	lock(&pp.timersLock)
+	lock(&ts.lock)
 
 	if raceenabled {
 		gp := getg()
@@ -730,25 +762,26 @@ func unlockAndRunTimer(pp *p, t *timer, now int64, state uint32, mp *m) {
 // TODO(prattmic): Additional targeted updates may improve the above cases.
 // e.g., updating the mask when stealing a timer.
 func updateTimerPMask(pp *p) {
-	if pp.numTimers.Load() > 0 {
+	if pp.timers.len.Load() > 0 {
 		return
 	}
 
 	// Looks like there are no timers, however another P may transiently
 	// decrement numTimers when handling a timerModified timer in
 	// checkTimers. We must take timersLock to serialize with these changes.
-	lock(&pp.timersLock)
-	if pp.numTimers.Load() == 0 {
+	lock(&pp.timers.lock)
+	if pp.timers.len.Load() == 0 {
 		timerpMask.clear(pp.id)
 	}
-	unlock(&pp.timersLock)
+	unlock(&pp.timers.lock)
 }
 
-// verifyTimerHeap verifies that the timer heap is in a valid state.
+// verifyTimerHeap verifies that the timers is in a valid state.
 // This is only for debugging, and is only called if verifyTimers is true.
-// The caller must have locked the timers.
-func verifyTimerHeap(pp *p) {
-	for i, t := range pp.timers {
+// The caller must have locked ts.
+func (ts *timers) verify() {
+	assertLockHeld(&ts.lock)
+	for i, t := range ts.heap {
 		if i == 0 {
 			// First timer has no parent.
 			continue
@@ -756,38 +789,38 @@ func verifyTimerHeap(pp *p) {
 
 		// The heap is 4-ary. See siftupTimer and siftdownTimer.
 		p := (i - 1) / 4
-		if t.when < pp.timers[p].when {
-			print("bad timer heap at ", i, ": ", p, ": ", pp.timers[p].when, ", ", i, ": ", t.when, "\n")
+		if t.when < ts.heap[p].when {
+			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", t.when, "\n")
 			throw("bad timer heap")
 		}
 	}
-	if numTimers := int(pp.numTimers.Load()); len(pp.timers) != numTimers {
-		println("timer heap len", len(pp.timers), "!= numTimers", numTimers)
+	if n := int(ts.len.Load()); len(ts.heap) != n {
+		println("timer heap len", len(ts.heap), "!= atomic len", n)
 		throw("bad timer heap len")
 	}
 }
 
-// updateTimer0When sets the P's timer0When field.
-// The caller must have locked the timers for pp.
-func updateTimer0When(pp *p) {
-	if len(pp.timers) == 0 {
-		pp.timer0When.Store(0)
+// updateTimer0When sets ts.timer0When to ts.heap[0].when.
+// The caller must have locked ts.
+func (ts *timers) updateTimer0When() {
+	assertLockHeld(&ts.lock)
+	if len(ts.heap) == 0 {
+		ts.timer0When.Store(0)
 	} else {
-		pp.timer0When.Store(pp.timers[0].when)
+		ts.timer0When.Store(ts.heap[0].when)
 	}
 }
 
-// updateTimerModifiedEarliest updates the recorded nextwhen field of the
-// earlier timerModifiedEarier value.
-// The timers for pp will not be locked.
-func updateTimerModifiedEarliest(pp *p, nextwhen int64) {
+// updateTimerModifiedEarliest updates ts.timerModifiedEarliest to be <= nextwhen.
+// The timers for ts need not be locked.
+func (ts *timers) updateTimerModifiedEarliest(nextwhen int64) {
 	for {
-		old := pp.timerModifiedEarliest.Load()
+		old := ts.timerModifiedEarliest.Load()
 		if old != 0 && old < nextwhen {
 			return
 		}
 
-		if pp.timerModifiedEarliest.CompareAndSwap(old, nextwhen) {
+		if ts.timerModifiedEarliest.CompareAndSwap(old, nextwhen) {
 			return
 		}
 	}
@@ -808,12 +841,12 @@ func timeSleepUntil() int64 {
 			continue
 		}
 
-		w := pp.timer0When.Load()
+		w := pp.timers.timer0When.Load()
 		if w != 0 && w < next {
 			next = w
 		}
 
-		w = pp.timerModifiedEarliest.Load()
+		w = pp.timers.timerModifiedEarliest.Load()
 		if w != 0 && w < next {
 			next = w
 		}
@@ -831,10 +864,10 @@ func timeSleepUntil() int64 {
 // "panic holding locks" message. Instead, we panic while not
 // holding a lock.
 
-// siftupTimer puts the timer at position i in the right place
+// siftUp puts the timer at position i in the right place
 // in the heap by moving it up toward the top of the heap.
-// It returns the smallest changed index.
-func siftupTimer(t []*timer, i int) int {
+func (ts *timers) siftUp(i int) {
+	t := ts.heap
 	if i >= len(t) {
 		badTimer()
 	}
@@ -854,12 +887,12 @@ func siftupTimer(t []*timer, i int) int {
 	if tmp != t[i] {
 		t[i] = tmp
 	}
-	return i
 }
 
-// siftdownTimer puts the timer at position i in the right place
+// siftDown puts the timer at position i in the right place
 // in the heap by moving it down toward the bottom of the heap.
-func siftdownTimer(t []*timer, i int) {
+func (ts *timers) siftDown(i int) {
+	t := ts.heap
 	n := len(t)
 	if i >= n {
 		badTimer()
@@ -902,16 +935,16 @@ func siftdownTimer(t []*timer, i int) {
 	}
 }
 
-// initTimerHeap reestablishes the heap order in the slice t.
-// It takes O(n) time for n=len(t), not the O(n log n) of n repeated add operations.
-func initTimerHeap(t []*timer) {
+// initHeap reestablishes the heap order in the slice ts.heap.
+// It takes O(n) time for n=len(ts.heap), not the O(n log n) of n repeated add operations.
+func (ts *timers) initHeap() {
 	// Last possible element that needs sifting down is parent of last element;
 	// last element is len(t)-1; parent of last element is (len(t)-1-1)/4.
-	if len(t) <= 1 {
+	if len(ts.heap) <= 1 {
 		return
 	}
-	for i := (len(t) - 1 - 1) / 4; i >= 0; i-- {
-		siftdownTimer(t, i)
+	for i := (len(ts.heap) - 1 - 1) / 4; i >= 0; i-- {
+		ts.siftDown(i)
 	}
 }
 

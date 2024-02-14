@@ -4,6 +4,8 @@
 
 package time
 
+import "unsafe"
+
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
@@ -11,7 +13,7 @@ func Sleep(d Duration)
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
-	pp       uintptr
+	ts       unsafe.Pointer
 	when     int64
 	period   int64
 	f        func(any, uintptr) // NOTE: must not be closure
