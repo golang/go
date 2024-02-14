@@ -13,6 +13,18 @@ import (
 	"unsafe"
 )
 
+// A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
+// Timers are allocated by client code, often as part of other data structures.
+// Each P has a heap of pointers to timers that it manages.
+//
+// A timer is expected to be used by only one client goroutine at a time,
+// but there will be concurrent access by the P managing that timer.
+// The fundamental state about the timer is managed in the atomic state field,
+// including a lock bit to manage access to the other fields.
+// The lock bit supports a manual cas-based spin lock that handles
+// contention by yielding the OS thread. The expectation is that critical
+// sections are very short and contention on the lock bit is low.
+//
 // Package time knows the layout of this structure.
 // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
 type timer struct {
@@ -26,106 +38,61 @@ type timer struct {
 	// a well-behaved function and not block.
 	//
 	// when must be positive on an active timer.
+	// Timers in heaps are ordered by when.
 	when   int64
 	period int64
 	f      func(any, uintptr)
 	arg    any
 	seq    uintptr
 
-	// What to set the when field to in timerModifiedXX status.
-	nextwhen int64
+	// nextWhen is the next value for when,
+	// set if state&timerNextWhen is true.
+	// In that case, the actual update of when = nextWhen
+	// must be delayed until the heap can be fixed at the same time.
+	nextWhen int64
 
-	// The status field holds one of the values below.
-	status atomic.Uint32
+	// The state field holds state bits, defined below.
+	state atomic.Uint32
 }
 
-// Code outside this file has to be careful in using a timer value.
-//
-// The pp, status, and nextwhen fields may only be used by code in this file.
-//
-// Code that creates a new timer value can set the when, period, f,
-// arg, and seq fields before the first call to modtimer.
-// After that, period, f, arg, and seq are immutable.
-// They may be read but not modified.
-//
-// An active timer (one that has been passed to modtimer) may be
-// passed to deltimer (time.stopTimer), after which it is no longer an
-// active timer. It is an inactive timer.
-// In an inactive timer the period, f, arg, and seq fields may be modified,
-// but not the when field.
-// It's OK to just drop an inactive timer and let the GC collect it.
-//
-// An active timer may be passed to modtimer. No fields may be touched.
-// It remains an active timer.
-//
-// An inactive timer may be passed to resettimer to turn into an
-// active timer with an updated when field.
-// It's OK to pass a newly allocated timer value to resettimer.
-//
-// Timer operations are deltimer, modtimer, adjusttimers, and runtimer.
-//
-// We don't permit calling deltimer/modtimer simultaneously,
-// but adjusttimers and runtimer can be called at the same time as any of those.
-//
-// Active timers live in heaps attached to P, in the timers field.
-// Inactive timers live there too temporarily, until they are removed.
-//
-// deltimer:
-//   timerWaiting         -> timerLocked -> timerModified
-//   timerModified        -> timerLocked -> timerModified
-//   timerRemoved         -> do nothing
-//   timerLocked       -> wait until status changes
-// modtimer:
-//   timerWaiting    -> timerLocked -> timerModified
-//   timerModified   -> timerLocked -> timerModified
-//   timerRemoved    -> timerLocked -> timerWaiting
-//   timerLocked  -> wait until status changes
-// adjusttimers (looks in P's timer heap):
-//   timerModified   -> timerLocked -> timerWaiting/timerRemoved
-// runtimer (looks in P's timer heap):
-//   timerRemoved   -> panic: uninitialized timer
-//   timerWaiting    -> timerWaiting or
-//   timerWaiting    -> timerLocked -> timerWaiting/timerRemoved
-//   timerLocked  -> wait until status changes
-//   timerModified   -> timerLocked -> timerWaiting/timerRemoved
-
-// Values for the timer status field.
+// Timer state field.
+// Note that state 0 must be "unlocked, not in heap" and usable,
+// at least for time.Timer.Stop. See go.dev/issue/21874.
 const (
-	// Timer has no status set yet or is removed from the heap.
-	// Must be zero value; see issue 21874.
-	timerRemoved = iota
+	// timerLocked is set when the timer is locked,
+	// meaning other goroutines cannot read or write mutable fields.
+	// Goroutines can still read the state word atomically to see
+	// what the state was before it was locked.
+	// The lock is implemented as a cas on the state field with osyield on contention;
+	// the expectation is very short critical sections with little to no contention.
+	timerLocked = 1 << iota
 
-	// Waiting for timer to fire.
-	// The timer is in some P's heap.
-	timerWaiting
+	// timerHeaped is set when the timer is stored in some P's heap.
+	timerHeaped
 
-	// The timer is locked for exclusive use.
-	// The timer will only have this status briefly.
-	timerLocked
-
-	// The timer has been modified to a different time.
-	// The new when value is in the nextwhen field.
-	// The timer is in some P's heap, possibly in the wrong place
-	// (the right place by .when; the wrong place by .nextwhen).
-	timerModified
+	// timerNextWhen is set when a pending change to the timer's when
+	// field has been stored in t.nextwhen. The change to t.when waits
+	// until the heap in which the timer appears can also be updated.
+	// Only set when timerHeaped is also set.
+	timerNextWhen
 )
 
 // lock locks the timer, allowing reading or writing any of the timer fields.
 // It returns the current m and the status prior to the lock.
 // The caller must call unlock with the same m and an updated status.
-func (t *timer) lock() (status uint32, mp *m) {
+func (t *timer) lock() (state uint32, mp *m) {
 	acquireLockRank(lockRankTimer)
 	for {
-		status := t.status.Load()
-		if status == timerLocked {
+		state := t.state.Load()
+		if state&timerLocked != 0 {
 			osyield()
 			continue
 		}
 		// Prevent preemption while the timer is locked.
 		// This could lead to a self-deadlock. See #38070.
 		mp := acquirem()
-		if t.status.CompareAndSwap(status, timerLocked) {
-			return status, mp
+		if t.state.CompareAndSwap(state, state|timerLocked) {
+			return state, mp
 		}
 		releasem(mp)
 	}
@@ -134,18 +101,52 @@ func (t *timer) lock() (status uint32, mp *m) {
 // unlock unlocks the timer.
 // If mp == nil, the caller is responsible for calling
 // releasem(mp) with the mp returned by t.lock.
-func (t *timer) unlock(status uint32, mp *m) {
+func (t *timer) unlock(state uint32, mp *m) {
 	releaseLockRank(lockRankTimer)
-	if t.status.Load() != timerLocked {
+	if t.state.Load()&timerLocked == 0 {
 		badTimer()
 	}
-	if status == timerLocked {
+	if state&timerLocked != 0 {
 		badTimer()
 	}
-	t.status.Store(status)
+	t.state.Store(state)
 	if mp != nil {
 		releasem(mp)
 	}
+}
+
+// updateWhen updates t.when as directed by state, returning the new state
+// and a bool indicating whether the state (and t.when) changed.
+// If pp != nil, then the caller must have locked pp.timers,
+// t must be pp.timers[0], and updateWhen takes care of
+// moving t within the pp.timers heap when t.when is changed.
+func (t *timer) updateWhen(state uint32, pp *p) (newState uint32, updated bool) {
+	if state&timerNextWhen == 0 {
+		return state, false
+	}
+	state &^= timerNextWhen
+	if t.nextWhen == 0 {
+		if pp != nil {
+			if t != pp.timers[0] {
+				badTimer()
+			}
+			pp.deletedTimers.Add(-1)
+			dodeltimer0(pp)
+		}
+		state &^= timerHeaped
+	} else {
+		// Now we can change the when field.
+		t.when = t.nextWhen
+		// Move t to the right position.
+		if pp != nil {
+			if t != pp.timers[0] {
+				badTimer()
+			}
+			siftdownTimer(pp.timers, 0)
+			updateTimer0When(pp)
+		}
+	}
+	return state, true
 }
 
 // maxWhen is the maximum value for timer's when field.
@@ -176,9 +177,9 @@ func timeSleep(ns int64) {
 	}
 	t.f = goroutineReady
 	t.arg = gp
-	t.nextwhen = nanotime() + ns
-	if t.nextwhen < 0 { // check for overflow.
-		t.nextwhen = maxWhen
+	t.nextWhen = nanotime() + ns
+	if t.nextWhen < 0 { // check for overflow.
+		t.nextWhen = maxWhen
 	}
 	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceBlockSleep, 1)
 }
@@ -189,7 +190,7 @@ func timeSleep(ns int64) {
 // timer function, goroutineReady, before the goroutine has been parked.
 func resetForSleep(gp *g, ut unsafe.Pointer) bool {
 	t := (*timer)(ut)
-	resettimer(t, t.nextwhen)
+	resettimer(t, t.nextWhen)
 	return true
 }
 
@@ -200,7 +201,7 @@ func startTimer(t *timer) {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
-	if t.status.Load() != 0 {
+	if t.state.Load() != 0 {
 		throw("startTimer called with initialized timer")
 	}
 	resettimer(t, t.when)
@@ -267,17 +268,18 @@ func doaddtimer(pp *p, t *timer) {
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was removed before it was run.
 func deltimer(t *timer) bool {
-	status, mp := t.lock()
-	if status == timerWaiting || (status == timerModified && t.nextwhen != 0) {
+	state, mp := t.lock()
+	if state&timerHeaped != 0 && (state&timerNextWhen == 0 || t.nextWhen != 0) {
 		// Timer pending: stop it.
 		t.pp.ptr().deletedTimers.Add(1)
-		t.nextwhen = 0
-		t.unlock(timerModified, mp)
+		t.nextWhen = 0
+		state |= timerNextWhen
+		t.unlock(state, mp)
 		return true
 	}
 
 	// Timer already run or deleted.
-	t.unlock(status, mp)
+	t.unlock(state, mp)
 	return false
 }
 
@@ -319,24 +321,26 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 		throw("timer period must be non-negative")
 	}
 
-	status, mp := t.lock()
+	state, mp := t.lock()
 	t.period = period
 	t.f = f
 	t.arg = arg
 	t.seq = seq
 
-	if status == timerRemoved {
+	if state&timerHeaped == 0 {
 		// Set up t for insertion but unlock first,
 		// to avoid lock inversion with timers lock.
 		// Since t is not in a heap yet, nothing will
 		// find and modify it until after the doaddtimer.
+		state |= timerHeaped
 		t.when = when
+
 		pp := getg().m.p.ptr()
 		t.pp.set(pp)
 		// pass mp=nil to t.unlock to avoid preemption
 		// between t.unlock and lock of timersLock.
 		// releasem done manually below
-		t.unlock(timerWaiting, nil)
+		t.unlock(state, nil)
 
 		lock(&pp.timersLock)
 		doaddtimer(pp, t)
@@ -346,7 +350,7 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 		return false
 	}
 
-	pending := status == timerWaiting || status == timerModified && t.nextwhen != 0
+	pending := state&timerNextWhen == 0 || t.nextWhen != 0 // timerHeaped is set (checked above)
 	if !pending {
 		t.pp.ptr().deletedTimers.Add(-1)
 	}
@@ -356,13 +360,14 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 	// be out of order. So we put the new when value in the
 	// nextwhen field, and let the other P set the when field
 	// when it is prepared to resort the heap.
-	t.nextwhen = when
+	t.nextWhen = when
+	state |= timerNextWhen
 	earlier := when < t.when
 	if earlier {
 		updateTimerModifiedEarliest(t.pp.ptr(), when)
 	}
 
-	t.unlock(timerModified, mp)
+	t.unlock(state, mp)
 
 	// If the new status is earlier, wake up the poller.
 	if earlier {
@@ -381,7 +386,7 @@ func resettimer(t *timer, when int64) bool {
 
 // cleantimers cleans up the head of the timer queue. This speeds up
 // programs that create and delete timers; leaving them in the heap
-// slows down heap operations. Reports whether no timer problems were found.
+// slows down heap operations.
 // The caller must have locked the timers for pp.
 func cleantimers(pp *p) {
 	gp := getg()
@@ -403,31 +408,18 @@ func cleantimers(pp *p) {
 			throw("cleantimers: bad p")
 		}
 
-		status := t.status.Load()
-		if status != timerModified {
+		if t.state.Load()&timerNextWhen == 0 {
 			// Fast path: head of timers does not need adjustment.
 			return
 		}
 
-		status, mp := t.lock()
-		if status != timerModified {
+		state, mp := t.lock()
+		state, updated := t.updateWhen(state, pp)
+		t.unlock(state, mp)
+		if !updated {
 			// Head of timers does not need adjustment.
-			t.unlock(status, mp)
+			t.unlock(state, mp)
 			return
-		}
-		dodeltimer0(pp)
-		if t.nextwhen == 0 {
-			pp.deletedTimers.Add(-1)
-			status = timerRemoved
-			t.unlock(status, mp)
-		} else {
-			// Now we can change the when field.
-			t.when = t.nextwhen
-			t.pp.set(pp)
-			status = timerWaiting
-			t.unlock(status, mp)
-			// Move t to the right position.
-			doaddtimer(pp, t)
 		}
 	}
 }
@@ -459,32 +451,19 @@ func adoptTimers(pp *p) {
 // is expected to have locked the timers for pp.
 func moveTimers(pp *p, timers []*timer) {
 	for _, t := range timers {
-		status, mp := t.lock()
-		switch status {
-		case timerWaiting:
-			t.pp.set(pp)
-			// Unlock before add, to avoid append (allocation)
-			// while holding lock. This would be correct even if the world wasn't
-			// stopped (but it is), and it makes staticlockranking happy.
-			t.unlock(status, mp)
-			doaddtimer(pp, t)
-			continue
-		case timerModified:
-			t.pp = 0
-			if t.nextwhen != 0 {
-				t.when = t.nextwhen
-				status = timerWaiting
+		state, mp := t.lock()
+		t.pp = 0
+		state, _ = t.updateWhen(state, nil)
+		// Unlock before add, to avoid append (allocation)
+		// while holding lock. This would be correct even if the world wasn't
+		// stopped (but it is), and it makes staticlockranking happy.
+		if state&timerHeaped != 0 {
 				t.pp.set(pp)
-				t.unlock(status, mp)
-				doaddtimer(pp, t)
-				continue
-			} else {
-				status = timerRemoved
-			}
-		case timerRemoved:
-			badTimer()
 		}
-		t.unlock(status, mp)
+		t.unlock(state, mp)
+		if state&timerHeaped != 0 {
+			doaddtimer(pp, t)
+		}
 	}
 }
 
@@ -519,29 +498,24 @@ func adjusttimers(pp *p, now int64, force bool) {
 			throw("adjusttimers: bad p")
 		}
 
-		status, mp := t.lock()
-		if status == timerRemoved {
+		state, mp := t.lock()
+		if state&timerHeaped == 0 {
 			badTimer()
 		}
-		if status == timerModified {
-			if t.nextwhen == 0 {
+		state, updated := t.updateWhen(state, nil)
+		if updated {
+			changed = true
+			if state&timerHeaped == 0 {
 				n := len(pp.timers)
 				pp.timers[i] = pp.timers[n-1]
 				pp.timers[n-1] = nil
 				pp.timers = pp.timers[:n-1]
 				t.pp = 0
-				status = timerRemoved
 				pp.deletedTimers.Add(-1)
 				i--
-				changed = true
-			} else {
-				// Now we can change the when field.
-				t.when = t.nextwhen
-				changed = true
-				status = timerWaiting
 			}
 		}
-		t.unlock(status, mp)
+		t.unlock(state, mp)
 	}
 
 	if changed {
@@ -650,41 +624,31 @@ Redo:
 		throw("runtimer: bad p")
 	}
 
-	if t.status.Load() == timerWaiting && t.when > now {
+	if t.state.Load()&timerNextWhen == 0 && t.when > now {
 		// Fast path: not ready to run.
 		// The access of t.when is protected by the caller holding
 		// pp.timersLock, even though t itself is unlocked.
 		return t.when
 	}
 
-	status, mp := t.lock()
-	if status == timerModified {
-		dodeltimer0(pp)
-		if t.nextwhen == 0 {
-			status = timerRemoved
-			pp.deletedTimers.Add(-1)
-			t.unlock(status, mp)
-		} else {
-			t.when = t.nextwhen
-			t.pp.set(pp)
-			status = timerWaiting
-			t.unlock(status, mp)
-			doaddtimer(pp, t)
-		}
+	state, mp := t.lock()
+	state, updated := t.updateWhen(state, pp)
+	if updated {
+		t.unlock(state, mp)
 		goto Redo
 	}
 
-	if status != timerWaiting {
+	if state&timerHeaped == 0 {
 		badTimer()
 	}
 
 	if t.when > now {
 		// Not ready to run.
-		t.unlock(status, mp)
+		t.unlock(state, mp)
 		return t.when
 	}
 
-	unlockAndRunTimer(pp, t, now, status, mp)
+	unlockAndRunTimer(pp, t, now, state, mp)
 	return 0
 }
 
@@ -693,7 +657,7 @@ Redo:
 // This will temporarily unlock the timers while running the timer function.
 //
 //go:systemstack
-func unlockAndRunTimer(pp *p, t *timer, now int64, status uint32, mp *m) {
+func unlockAndRunTimer(pp *p, t *timer, now int64, state uint32, mp *m) {
 	if raceenabled {
 		ppcur := getg().m.p.ptr()
 		if ppcur.timerRaceCtx == 0 {
@@ -709,19 +673,15 @@ func unlockAndRunTimer(pp *p, t *timer, now int64, status uint32, mp *m) {
 	if t.period > 0 {
 		// Leave in heap but adjust next time to fire.
 		delta := t.when - now
-		t.when += t.period * (1 + -delta/t.period)
-		if t.when < 0 { // check for overflow.
-			t.when = maxWhen
+		t.nextWhen = t.when + t.period*(1+-delta/t.period)
+		if t.nextWhen < 0 { // check for overflow.
+			t.nextWhen = maxWhen
 		}
-		siftdownTimer(pp.timers, 0)
-		status = timerWaiting
-		updateTimer0When(pp)
 	} else {
-		// Remove from heap.
-		dodeltimer0(pp)
-		status = timerRemoved
+		t.nextWhen = 0
 	}
-	t.unlock(status, mp)
+	state, _ = t.updateWhen(state|timerNextWhen, pp)
+	t.unlock(state, mp)
 
 	if raceenabled {
 		// Temporarily use the current P's racectx for g0.
