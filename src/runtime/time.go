@@ -73,7 +73,6 @@ type timer struct {
 // deltimer:
 //   timerWaiting         -> timerModifying -> timerDeleted
 //   timerModified        -> timerModifying -> timerDeleted
-//   timerNoStatus        -> do nothing
 //   timerDeleted         -> do nothing
 //   timerRemoved         -> do nothing
 //   timerRunning         -> wait until status changes
@@ -81,7 +80,6 @@ type timer struct {
 // modtimer:
 //   timerWaiting    -> timerModifying -> timerModified
 //   timerModified   -> timerModifying -> timerModified
-//   timerNoStatus   -> timerModifying -> timerWaiting
 //   timerRemoved    -> timerModifying -> timerWaiting
 //   timerDeleted    -> timerModifying -> timerModified
 //   timerRunning    -> wait until status changes
@@ -90,9 +88,9 @@ type timer struct {
 //   timerDeleted    -> timerModifying -> timerRemoved
 //   timerModified   -> timerModifying -> timerWaiting
 // runtimer (looks in P's timer heap):
-//   timerNoStatus   -> panic: uninitialized timer
+//   timerRemoved   -> panic: uninitialized timer
 //   timerWaiting    -> timerWaiting or
-//   timerWaiting    -> timerRunning -> timerNoStatus or
+//   timerWaiting    -> timerRunning -> timerRemoved or
 //   timerWaiting    -> timerRunning -> timerWaiting
 //   timerModifying  -> wait until status changes
 //   timerModified   -> timerModifying -> timerWaiting
@@ -101,8 +99,9 @@ type timer struct {
 
 // Values for the timer status field.
 const (
-	// Timer has no status set yet.
-	timerNoStatus = iota
+	// Timer has no status set yet or is removed from the heap.
+	// Must be zero value; see issue 21874.
+	timerRemoved = iota
 
 	// Waiting for timer to fire.
 	// The timer is in some P's heap.
@@ -115,10 +114,6 @@ const (
 	// The timer is deleted and should be removed.
 	// It should not be run, but it is still in some P's heap.
 	timerDeleted
-
-	// The timer has been stopped.
-	// It is not in any P's heap.
-	timerRemoved
 
 	// The timer is being modified.
 	// The timer will only have this status briefly.
@@ -183,7 +178,7 @@ func startTimer(t *timer) {
 	if raceenabled {
 		racerelease(unsafe.Pointer(t))
 	}
-	if t.status.Load() != timerNoStatus {
+	if t.status.Load() != 0 {
 		throw("startTimer called with initialized timer")
 	}
 	resettimer(t, t.when)
@@ -278,10 +273,6 @@ func deltimer(t *timer) bool {
 			// The timer is being run or modified, by a different P.
 			// Wait for it to complete.
 			osyield()
-		case timerNoStatus:
-			// Removing timer that was never added or
-			// has already been run. Also see issue 21874.
-			return false
 		default:
 			badTimer()
 		}
@@ -326,7 +317,7 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 		throw("timer period must be non-negative")
 	}
 
-	status := uint32(timerNoStatus)
+	status := uint32(timerRemoved)
 	wasRemoved := false
 	var pending bool
 	var mp *m
@@ -342,7 +333,7 @@ loop:
 				break loop
 			}
 			releasem(mp)
-		case timerNoStatus, timerRemoved:
+		case timerRemoved:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
@@ -536,7 +527,7 @@ func moveTimers(pp *p, timers []*timer) {
 			case timerModifying:
 				// Loop until the modification is complete.
 				osyield()
-			case timerNoStatus, timerRemoved:
+			case timerRemoved:
 				// We should not see these status values in a timers heap.
 				badTimer()
 			case timerRunning:
@@ -604,7 +595,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 					badTimer()
 				}
 			}
-		case timerNoStatus, timerRunning, timerRemoved:
+		case timerRunning, timerRemoved:
 			badTimer()
 		case timerWaiting:
 			// OK, nothing to do.
@@ -762,7 +753,7 @@ func runtimer(pp *p, now int64) int64 {
 			// Wait for modification to complete.
 			osyield()
 
-		case timerNoStatus, timerRemoved:
+		case timerRemoved:
 			// Should not see a new or inactive timer on the heap.
 			badTimer()
 		case timerRunning:
@@ -808,7 +799,7 @@ func runOneTimer(pp *p, t *timer, now int64) {
 	} else {
 		// Remove from heap.
 		dodeltimer0(pp)
-		if !t.status.CompareAndSwap(timerRunning, timerNoStatus) {
+		if !t.status.CompareAndSwap(timerRunning, timerRemoved) {
 			badTimer()
 		}
 	}
