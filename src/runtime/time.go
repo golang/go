@@ -315,82 +315,49 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 		throw("timer period must be non-negative")
 	}
 
-	status := uint32(timerRemoved)
-	wasRemoved := false
-	var pending bool
-	var mp *m
-loop:
-	for {
-		switch status = t.status.Load(); status {
-		case timerWaiting, timerModified, timerRemoved:
-			// Prevent preemption while the timer is in timerLocked.
-			// This could lead to a self-deadlock. See #38070.
-			mp = acquirem()
-			if !t.status.CompareAndSwap(status, timerLocked) {
-				releasem(mp)
-				break
-			}
-			switch status {
-			case timerWaiting, timerModified:
-				if status == timerModified && t.nextwhen == 0 {
-					t.pp.ptr().deletedTimers.Add(-1)
-					pending = false // timer already stopped
-					break loop
-				}
-				pending = true // timer not yet run
-				break loop
-			case timerRemoved:
-				wasRemoved = true
-				pending = false // timer already run or stopped
-				break loop
-			}
-		case timerLocked:
-			// The timer is being run or modified, by a different P.
-			// Wait for it to complete.
-			osyield()
-		default:
-			badTimer()
-		}
-	}
-
+	status, mp := t.lock()
 	t.period = period
 	t.f = f
 	t.arg = arg
 	t.seq = seq
 
-	if wasRemoved {
+	if status == timerRemoved {
+		// Set up t for insertion but unlock first,
+		// to avoid lock inversion with timers lock.
+		// Since t is not in a heap yet, nothing will
+		// find and modify it until after the doaddtimer.
 		t.when = when
+		t.unlock(timerWaiting, mp)
+
 		pp := getg().m.p.ptr()
 		lock(&pp.timersLock)
 		doaddtimer(pp, t)
 		unlock(&pp.timersLock)
-		if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-			badTimer()
-		}
-		releasem(mp)
 		wakeNetPoller(when)
-	} else {
-		// The timer is in some other P's heap, so we can't change
-		// the when field. If we did, the other P's heap would
-		// be out of order. So we put the new when value in the
-		// nextwhen field, and let the other P set the when field
-		// when it is prepared to resort the heap.
-		t.nextwhen = when
-		earlier := when < t.when
-		if earlier {
-			updateTimerModifiedEarliest(t.pp.ptr(), when)
-		}
+		return false
+	}
 
-		// Set the new status of the timer.
-		if !t.status.CompareAndSwap(timerLocked, timerModified) {
-			badTimer()
-		}
-		releasem(mp)
+	pending := status == timerWaiting || status == timerModified && t.nextwhen != 0
+	if !pending {
+		t.pp.ptr().deletedTimers.Add(-1)
+	}
 
-		// If the new status is earlier, wake up the poller.
-		if earlier {
-			wakeNetPoller(when)
-		}
+	// The timer is in some other P's heap, so we can't change
+	// the when field. If we did, the other P's heap would
+	// be out of order. So we put the new when value in the
+	// nextwhen field, and let the other P set the when field
+	// when it is prepared to resort the heap.
+	t.nextwhen = when
+	earlier := when < t.when
+	if earlier {
+		updateTimerModifiedEarliest(t.pp.ptr(), when)
+	}
+
+	t.unlock(timerModified, mp)
+
+	// If the new status is earlier, wake up the poller.
+	if earlier {
+		wakeNetPoller(when)
 	}
 
 	return pending
