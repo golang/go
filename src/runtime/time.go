@@ -75,7 +75,6 @@ type timer struct {
 //   timerModified        -> timerModifying -> timerDeleted
 //   timerNoStatus        -> do nothing
 //   timerDeleted         -> do nothing
-//   timerRemoving        -> do nothing
 //   timerRemoved         -> do nothing
 //   timerRunning         -> wait until status changes
 //   timerMoving          -> wait until status changes
@@ -88,10 +87,9 @@ type timer struct {
 //   timerDeleted    -> timerModifying -> timerModified
 //   timerRunning    -> wait until status changes
 //   timerMoving     -> wait until status changes
-//   timerRemoving   -> wait until status changes
 //   timerModifying  -> wait until status changes
 // adjusttimers (looks in P's timer heap):
-//   timerDeleted    -> timerRemoving -> timerRemoved
+//   timerDeleted    -> timerModifying -> timerRemoved
 //   timerModified   -> timerMoving -> timerWaiting
 // runtimer (looks in P's timer heap):
 //   timerNoStatus   -> panic: uninitialized timer
@@ -100,10 +98,8 @@ type timer struct {
 //   timerWaiting    -> timerRunning -> timerWaiting
 //   timerModifying  -> wait until status changes
 //   timerModified   -> timerMoving -> timerWaiting
-//   timerDeleted    -> timerRemoving -> timerRemoved
+//   timerDeleted    -> timerModifying -> timerRemoved
 //   timerRunning    -> panic: concurrent runtimer calls
-//   timerRemoved    -> panic: inconsistent timer heap
-//   timerRemoving   -> panic: inconsistent timer heap
 //   timerMoving     -> panic: inconsistent timer heap
 
 // Values for the timer status field.
@@ -122,10 +118,6 @@ const (
 	// The timer is deleted and should be removed.
 	// It should not be run, but it is still in some P's heap.
 	timerDeleted
-
-	// The timer is being removed.
-	// The timer will only have this status briefly.
-	timerRemoving
 
 	// The timer has been stopped.
 	// It is not in any P's heap.
@@ -286,21 +278,17 @@ func deltimer(t *timer) bool {
 			} else {
 				releasem(mp)
 			}
-		case timerDeleted, timerRemoving, timerRemoved:
+		case timerDeleted, timerRemoved:
 			// Timer was already run.
 			return false
-		case timerRunning, timerMoving:
-			// The timer is being run or moved, by a different P.
+		case timerRunning, timerMoving, timerModifying:
+			// The timer is being run or modified, by a different P.
 			// Wait for it to complete.
 			osyield()
 		case timerNoStatus:
 			// Removing timer that was never added or
 			// has already been run. Also see issue 21874.
 			return false
-		case timerModifying:
-			// Simultaneous calls to deltimer and modtimer.
-			// Wait for the other call to complete.
-			osyield()
 		default:
 			badTimer()
 		}
@@ -383,7 +371,7 @@ loop:
 				break loop
 			}
 			releasem(mp)
-		case timerRunning, timerRemoving, timerMoving:
+		case timerRunning, timerMoving:
 			// The timer is being run or moved, by a different P.
 			// Wait for it to complete.
 			osyield()
@@ -471,11 +459,11 @@ func cleantimers(pp *p) {
 		}
 		switch s := t.status.Load(); s {
 		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerRemoving) {
+			if !t.status.CompareAndSwap(s, timerModifying) {
 				continue
 			}
 			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+			if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
 				badTimer()
 			}
 			pp.deletedTimers.Add(-1)
@@ -562,7 +550,7 @@ func moveTimers(pp *p, timers []*timer) {
 			case timerNoStatus, timerRemoved:
 				// We should not see these status values in a timers heap.
 				badTimer()
-			case timerRunning, timerRemoving, timerMoving:
+			case timerRunning, timerMoving:
 				// Some other P thinks it owns this timer,
 				// which should not happen.
 				badTimer()
@@ -605,13 +593,13 @@ func adjusttimers(pp *p, now int64, force bool) {
 		}
 		switch s := t.status.Load(); s {
 		case timerDeleted:
-			if t.status.CompareAndSwap(s, timerRemoving) {
+			if t.status.CompareAndSwap(s, timerModifying) {
 				n := len(pp.timers)
 				pp.timers[i] = pp.timers[n-1]
 				pp.timers[n-1] = nil
 				pp.timers = pp.timers[:n-1]
 				t.pp = 0
-				if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
 					badTimer()
 				}
 				pp.deletedTimers.Add(-1)
@@ -627,7 +615,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 					badTimer()
 				}
 			}
-		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
+		case timerNoStatus, timerRunning, timerRemoved, timerMoving:
 			badTimer()
 		case timerWaiting:
 			// OK, nothing to do.
@@ -758,11 +746,11 @@ func runtimer(pp *p, now int64) int64 {
 			return 0
 
 		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerRemoving) {
+			if !t.status.CompareAndSwap(s, timerModifying) {
 				continue
 			}
 			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
+			if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
 				badTimer()
 			}
 			pp.deletedTimers.Add(-1)
@@ -788,7 +776,7 @@ func runtimer(pp *p, now int64) int64 {
 		case timerNoStatus, timerRemoved:
 			// Should not see a new or inactive timer on the heap.
 			badTimer()
-		case timerRunning, timerRemoving, timerMoving:
+		case timerRunning, timerMoving:
 			// These should only be set when timers are locked,
 			// and we didn't do it.
 			badTimer()
