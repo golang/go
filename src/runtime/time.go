@@ -71,9 +71,8 @@ type timer struct {
 // Inactive timers live there too temporarily, until they are removed.
 //
 // deltimer:
-//   timerWaiting         -> timerModifying -> timerDeleted
-//   timerModified        -> timerModifying -> timerDeleted
-//   timerDeleted         -> do nothing
+//   timerWaiting         -> timerModifying -> timerModified
+//   timerModified        -> timerModifying -> timerModified
 //   timerRemoved         -> do nothing
 //   timerRunning         -> wait until status changes
 //   timerModifying       -> wait until status changes
@@ -81,20 +80,17 @@ type timer struct {
 //   timerWaiting    -> timerModifying -> timerModified
 //   timerModified   -> timerModifying -> timerModified
 //   timerRemoved    -> timerModifying -> timerWaiting
-//   timerDeleted    -> timerModifying -> timerModified
 //   timerRunning    -> wait until status changes
 //   timerModifying  -> wait until status changes
 // adjusttimers (looks in P's timer heap):
-//   timerDeleted    -> timerModifying -> timerRemoved
-//   timerModified   -> timerModifying -> timerWaiting
+//   timerModified   -> timerModifying -> timerWaiting/timerRemoved
 // runtimer (looks in P's timer heap):
 //   timerRemoved   -> panic: uninitialized timer
 //   timerWaiting    -> timerWaiting or
 //   timerWaiting    -> timerRunning -> timerRemoved or
 //   timerWaiting    -> timerRunning -> timerWaiting
 //   timerModifying  -> wait until status changes
-//   timerModified   -> timerModifying -> timerWaiting
-//   timerDeleted    -> timerModifying -> timerRemoved
+//   timerModified   -> timerModifying -> timerWaiting/timerRemoved
 //   timerRunning    -> panic: concurrent runtimer calls
 
 // Values for the timer status field.
@@ -110,10 +106,6 @@ const (
 	// Running the timer function.
 	// A timer will only have this status briefly.
 	timerRunning
-
-	// The timer is deleted and should be removed.
-	// It should not be run, but it is still in some P's heap.
-	timerDeleted
 
 	// The timer is being modified.
 	// The timer will only have this status briefly.
@@ -251,22 +243,30 @@ func deltimer(t *timer) bool {
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp := acquirem()
-			if t.status.CompareAndSwap(s, timerModifying) {
-				// Must fetch t.pp before changing status,
-				// as cleantimers in another goroutine
-				// can clear t.pp of a timerDeleted timer.
-				tpp := t.pp.ptr()
-				if !t.status.CompareAndSwap(timerModifying, timerDeleted) {
+			if !t.status.CompareAndSwap(s, timerModifying) {
+				releasem(mp)
+				break
+			}
+			if s == timerModified && t.nextwhen == 0 {
+				if !t.status.CompareAndSwap(timerModifying, timerModified) {
 					badTimer()
 				}
 				releasem(mp)
-				tpp.deletedTimers.Add(1)
-				// Timer was not yet run.
-				return true
-			} else {
-				releasem(mp)
+				return false
 			}
-		case timerDeleted, timerRemoved:
+			// Must fetch t.pp before changing status,
+			// as cleantimers in another goroutine
+			// can clear t.pp of a deleted timer.
+			t.pp.ptr().deletedTimers.Add(1)
+			t.nextwhen = 0
+			if !t.status.CompareAndSwap(timerModifying, timerModified) {
+				badTimer()
+			}
+			releasem(mp)
+			// Timer was not yet run.
+			return true
+
+		case timerRemoved:
 			// Timer was already run.
 			return false
 		case timerRunning, timerModifying:
@@ -324,37 +324,28 @@ func modtimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq u
 loop:
 	for {
 		switch status = t.status.Load(); status {
-		case timerWaiting, timerModified:
+		case timerWaiting, timerModified, timerRemoved:
 			// Prevent preemption while the timer is in timerModifying.
 			// This could lead to a self-deadlock. See #38070.
 			mp = acquirem()
-			if t.status.CompareAndSwap(status, timerModifying) {
+			if !t.status.CompareAndSwap(status, timerModifying) {
+				releasem(mp)
+				break
+			}
+			switch status {
+			case timerWaiting, timerModified:
+				if status == timerModified && t.nextwhen == 0 {
+					t.pp.ptr().deletedTimers.Add(-1)
+					pending = false // timer already stopped
+					break loop
+				}
 				pending = true // timer not yet run
 				break loop
-			}
-			releasem(mp)
-		case timerRemoved:
-			// Prevent preemption while the timer is in timerModifying.
-			// This could lead to a self-deadlock. See #38070.
-			mp = acquirem()
-
-			// Timer was already run and t is no longer in a heap.
-			if t.status.CompareAndSwap(status, timerModifying) {
+			case timerRemoved:
 				wasRemoved = true
 				pending = false // timer already run or stopped
 				break loop
 			}
-			releasem(mp)
-		case timerDeleted:
-			// Prevent preemption while the timer is in timerModifying.
-			// This could lead to a self-deadlock. See #38070.
-			mp = acquirem()
-			if t.status.CompareAndSwap(status, timerModifying) {
-				t.pp.ptr().deletedTimers.Add(-1)
-				pending = false // timer already stopped
-				break loop
-			}
-			releasem(mp)
 		case timerRunning, timerModifying:
 			// The timer is being run or modified, by a different P.
 			// Wait for it to complete.
@@ -438,26 +429,25 @@ func cleantimers(pp *p) {
 			throw("cleantimers: bad p")
 		}
 		switch s := t.status.Load(); s {
-		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerModifying) {
-				continue
-			}
-			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
-				badTimer()
-			}
-			pp.deletedTimers.Add(-1)
 		case timerModified:
 			if !t.status.CompareAndSwap(s, timerModifying) {
 				continue
 			}
-			// Now we can change the when field.
-			t.when = t.nextwhen
-			// Move t to the right position.
-			dodeltimer0(pp)
-			doaddtimer(pp, t)
-			if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
-				badTimer()
+			if t.nextwhen == 0 {
+				dodeltimer0(pp)
+				pp.deletedTimers.Add(-1)
+				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+					badTimer()
+				}
+			} else {
+				// Now we can change the when field.
+				t.when = t.nextwhen
+				// Move t to the right position.
+				dodeltimer0(pp)
+				doaddtimer(pp, t)
+				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+					badTimer()
+				}
 			}
 		default:
 			// Head of timers does not need adjustment.
@@ -510,19 +500,18 @@ func moveTimers(pp *p, timers []*timer) {
 				if !t.status.CompareAndSwap(s, timerModifying) {
 					continue
 				}
-				t.when = t.nextwhen
 				t.pp = 0
-				doaddtimer(pp, t)
-				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
-					badTimer()
+				if t.nextwhen != 0 {
+					t.when = t.nextwhen
+					doaddtimer(pp, t)
+					if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+						badTimer()
+					}
+				} else {
+					if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+						continue
+					}
 				}
-				break loop
-			case timerDeleted:
-				if !t.status.CompareAndSwap(s, timerRemoved) {
-					continue
-				}
-				t.pp = 0
-				// We no longer need this timer in the heap.
 				break loop
 			case timerModifying:
 				// Loop until the modification is complete.
@@ -572,8 +561,12 @@ func adjusttimers(pp *p, now int64, force bool) {
 			throw("adjusttimers: bad p")
 		}
 		switch s := t.status.Load(); s {
-		case timerDeleted:
-			if t.status.CompareAndSwap(s, timerModifying) {
+		case timerModified:
+			if !t.status.CompareAndSwap(s, timerModifying) {
+				// TODO(rsc): Try harder to lock.
+				break
+			}
+			if t.nextwhen == 0 {
 				n := len(pp.timers)
 				pp.timers[i] = pp.timers[n-1]
 				pp.timers[n-1] = nil
@@ -585,9 +578,7 @@ func adjusttimers(pp *p, now int64, force bool) {
 				pp.deletedTimers.Add(-1)
 				i--
 				changed = true
-			}
-		case timerModified:
-			if t.status.CompareAndSwap(s, timerModifying) {
+			} else {
 				// Now we can change the when field.
 				t.when = t.nextwhen
 				changed = true
@@ -725,28 +716,26 @@ func runtimer(pp *p, now int64) int64 {
 			runOneTimer(pp, t, now)
 			return 0
 
-		case timerDeleted:
-			if !t.status.CompareAndSwap(s, timerModifying) {
-				continue
-			}
-			dodeltimer0(pp)
-			if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
-				badTimer()
-			}
-			pp.deletedTimers.Add(-1)
-			if len(pp.timers) == 0 {
-				return -1
-			}
-
 		case timerModified:
 			if !t.status.CompareAndSwap(s, timerModifying) {
 				continue
 			}
-			t.when = t.nextwhen
-			dodeltimer0(pp)
-			doaddtimer(pp, t)
-			if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
-				badTimer()
+			if t.nextwhen == 0 {
+				dodeltimer0(pp)
+				if !t.status.CompareAndSwap(timerModifying, timerRemoved) {
+					badTimer()
+				}
+				pp.deletedTimers.Add(-1)
+				if len(pp.timers) == 0 {
+					return -1
+				}
+			} else {
+				t.when = t.nextwhen
+				dodeltimer0(pp)
+				doaddtimer(pp, t)
+				if !t.status.CompareAndSwap(timerModifying, timerWaiting) {
+					badTimer()
+				}
 			}
 
 		case timerModifying:
