@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	type identType = ast.Ident
 	identName := func(n *identType) string { return n.Name }
 	sKey, sValue := s.Key, s.Value
-	var sExtra ast.Expr = nil
+	var sExtra ast.Expr = nil // (used only in types2 fork)
 	isDef := s.Tok == token.DEFINE
 	rangeVar := s.X
 	noNewVarPos := inNode(s, s.TokPos)
