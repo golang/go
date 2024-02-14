@@ -372,40 +372,6 @@ func deltimer(t *timer) bool {
 	}
 }
 
-// dodeltimer removes timer i from the current P's heap.
-// We are locked on the P when this is called.
-// It returns the smallest changed index in pp.timers.
-// The caller must have locked the timers for pp.
-func dodeltimer(pp *p, i int) int {
-	if t := pp.timers[i]; t.pp.ptr() != pp {
-		throw("dodeltimer: wrong P")
-	} else {
-		t.pp = 0
-	}
-	last := len(pp.timers) - 1
-	if i != last {
-		pp.timers[i] = pp.timers[last]
-	}
-	pp.timers[last] = nil
-	pp.timers = pp.timers[:last]
-	smallestChanged := i
-	if i != last {
-		// Moving to i may have moved the last timer to a new parent,
-		// so sift up to preserve the heap guarantee.
-		smallestChanged = siftupTimer(pp.timers, i)
-		siftdownTimer(pp.timers, i)
-	}
-	if i == 0 {
-		updateTimer0When(pp)
-	}
-	n := pp.numTimers.Add(-1)
-	if n == 0 {
-		// If there are no timers, then clearly none are modified.
-		pp.timerModifiedEarliest.Store(0)
-	}
-	return smallestChanged
-}
-
 // dodeltimer0 removes timer 0 from the current P's heap.
 // We are locked on the P when this is called.
 // It reports whether it saw no problems due to races.
@@ -683,7 +649,7 @@ func adjusttimers(pp *p, now int64) {
 	// We are going to clear all timerModifiedEarlier timers.
 	pp.timerModifiedEarliest.Store(0)
 
-	var moved []*timer
+	changed := false
 	for i := 0; i < len(pp.timers); i++ {
 		t := pp.timers[i]
 		if t.pp.ptr() != pp {
@@ -692,28 +658,26 @@ func adjusttimers(pp *p, now int64) {
 		switch s := t.status.Load(); s {
 		case timerDeleted:
 			if t.status.CompareAndSwap(s, timerRemoving) {
-				changed := dodeltimer(pp, i)
+				n := len(pp.timers)
+				pp.timers[i] = pp.timers[n-1]
+				pp.timers[n-1] = nil
+				pp.timers = pp.timers[:n-1]
+				t.pp = 0
 				if !t.status.CompareAndSwap(timerRemoving, timerRemoved) {
 					badTimer()
 				}
 				pp.deletedTimers.Add(-1)
-				// Go back to the earliest changed heap entry.
-				// "- 1" because the loop will add 1.
-				i = changed - 1
+				i--
+				changed = true
 			}
 		case timerModifiedEarlier, timerModifiedLater:
 			if t.status.CompareAndSwap(s, timerMoving) {
 				// Now we can change the when field.
 				t.when = t.nextwhen
-				// Take t off the heap, and hold onto it.
-				// We don't add it back yet because the
-				// heap manipulation could cause our
-				// loop to skip some other timer.
-				changed := dodeltimer(pp, i)
-				moved = append(moved, t)
-				// Go back to the earliest changed heap entry.
-				// "- 1" because the loop will add 1.
-				i = changed - 1
+				changed = true
+				if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
+					badTimer()
+				}
 			}
 		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
 			badTimer()
@@ -728,23 +692,13 @@ func adjusttimers(pp *p, now int64) {
 		}
 	}
 
-	if len(moved) > 0 {
-		addAdjustedTimers(pp, moved)
+	if changed {
+		initTimerHeap(pp.timers)
+		updateTimer0When(pp)
 	}
 
 	if verifyTimers {
 		verifyTimerHeap(pp)
-	}
-}
-
-// addAdjustedTimers adds any timers we adjusted in adjusttimers
-// back to the timer heap.
-func addAdjustedTimers(pp *p, moved []*timer) {
-	for _, t := range moved {
-		doaddtimer(pp, t)
-		if !t.status.CompareAndSwap(timerMoving, timerWaiting) {
-			badTimer()
-		}
 	}
 }
 
@@ -1132,6 +1086,19 @@ func siftdownTimer(t []*timer, i int) {
 	}
 	if tmp != t[i] {
 		t[i] = tmp
+	}
+}
+
+// initTimerHeap reestablishes the heap order in the slice t.
+// It takes O(n) time for n=len(t), not the O(n log n) of n repeated add operations.
+func initTimerHeap(t []*timer) {
+	// Last possible element that needs sifting down is parent of last element;
+	// last element is len(t)-1; parent of last element is (len(t)-1-1)/4.
+	if len(t) <= 1 {
+		return
+	}
+	for i := (len(t) - 1 - 1) / 4; i >= 0; i-- {
+		siftdownTimer(t, i)
 	}
 }
 
