@@ -570,6 +570,27 @@ func cleantimers(pp *p) {
 	}
 }
 
+// adoptTimers adopts any timers from pp into the local P,
+// because pp is being destroyed.
+func adoptTimers(pp *p) {
+	if len(pp.timers) > 0 {
+		plocal := getg().m.p.ptr()
+		// The world is stopped, but we acquire timersLock to
+		// protect against sysmon calling timeSleepUntil.
+		// This is the only case where we hold the timersLock of
+		// more than one P, so there are no deadlock concerns.
+		lock(&plocal.timersLock)
+		lock(&pp.timersLock)
+		moveTimers(plocal, pp.timers)
+		pp.timers = nil
+		pp.numTimers.Store(0)
+		pp.deletedTimers.Store(0)
+		pp.timer0When.Store(0)
+		unlock(&pp.timersLock)
+		unlock(&plocal.timersLock)
+	}
+}
+
 // moveTimers moves a slice of timers to pp. The slice has been taken
 // from a different P.
 // This is currently called when the world is stopped, but the caller
@@ -716,6 +737,69 @@ func nobarrierWakeTime(pp *p) int64 {
 	return next
 }
 
+// checkTimers runs any timers for the P that are ready.
+// If now is not 0 it is the current time.
+// It returns the passed time or the current time if now was passed as 0.
+// and the time when the next timer should run or 0 if there is no next timer,
+// and reports whether it ran any timers.
+// If the time when the next timer should run is not 0,
+// it is always larger than the returned time.
+// We pass now in and out to avoid extra calls of nanotime.
+//
+//go:yeswritebarrierrec
+func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+	// If it's not yet time for the first timer, or the first adjusted
+	// timer, then there is nothing to do.
+	next := pp.timer0When.Load()
+	nextAdj := pp.timerModifiedEarliest.Load()
+	if next == 0 || (nextAdj != 0 && nextAdj < next) {
+		next = nextAdj
+	}
+
+	if next == 0 {
+		// No timers to run or adjust.
+		return now, 0, false
+	}
+
+	if now == 0 {
+		now = nanotime()
+	}
+	if now < next {
+		// Next timer is not ready to run, but keep going
+		// if we would clear deleted timers.
+		// This corresponds to the condition below where
+		// we decide whether to call clearDeletedTimers.
+		if pp != getg().m.p.ptr() || int(pp.deletedTimers.Load()) <= int(pp.numTimers.Load()/4) {
+			return now, next, false
+		}
+	}
+
+	lock(&pp.timersLock)
+
+	if len(pp.timers) > 0 {
+		// If this is the local P, and there are a lot of deleted timers,
+		// clear them out. We only do this for the local P to reduce
+		// lock contention on timersLock.
+		force := pp == getg().m.p.ptr() && int(pp.deletedTimers.Load()) > len(pp.timers)/4
+		adjusttimers(pp, now, force)
+		for len(pp.timers) > 0 {
+			// Note that runtimer may temporarily unlock
+			// pp.timersLock.
+			if tw := runtimer(pp, now); tw != 0 {
+				if tw > 0 {
+					pollUntil = tw
+				}
+				break
+			}
+			ran = true
+		}
+	}
+
+	unlock(&pp.timersLock)
+
+	return now, pollUntil, ran
+}
+
 // runtimer examines the first timer in timers. If it is ready based on now,
 // it runs the timer and removes or updates it.
 // Returns 0 if it ran a timer, -1 if there are no more timers, or the time
@@ -843,6 +927,46 @@ func runOneTimer(pp *p, t *timer, now int64) {
 		gp := getg()
 		gp.racectx = 0
 	}
+}
+
+// updateTimerPMask clears pp's timer mask if it has no timers on its heap.
+//
+// Ideally, the timer mask would be kept immediately consistent on any timer
+// operations. Unfortunately, updating a shared global data structure in the
+// timer hot path adds too much overhead in applications frequently switching
+// between no timers and some timers.
+//
+// As a compromise, the timer mask is updated only on pidleget / pidleput. A
+// running P (returned by pidleget) may add a timer at any time, so its mask
+// must be set. An idle P (passed to pidleput) cannot add new timers while
+// idle, so if it has no timers at that time, its mask may be cleared.
+//
+// Thus, we get the following effects on timer-stealing in findrunnable:
+//
+//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+//     (for work- or timer-stealing; this is the ideal case).
+//   - Running Ps must always be checked.
+//   - Idle Ps whose timers are stolen must continue to be checked until they run
+//     again, even after timer expiration.
+//
+// When the P starts running again, the mask should be set, as a timer may be
+// added at any time.
+//
+// TODO(prattmic): Additional targeted updates may improve the above cases.
+// e.g., updating the mask when stealing a timer.
+func updateTimerPMask(pp *p) {
+	if pp.numTimers.Load() > 0 {
+		return
+	}
+
+	// Looks like there are no timers, however another P may transiently
+	// decrement numTimers when handling a timerModified timer in
+	// checkTimers. We must take timersLock to serialize with these changes.
+	lock(&pp.timersLock)
+	if pp.numTimers.Load() == 0 {
+		timerpMask.clear(pp.id)
+	}
+	unlock(&pp.timersLock)
 }
 
 // verifyTimerHeap verifies that the timer heap is in a valid state.
