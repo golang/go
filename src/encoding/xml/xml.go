@@ -212,6 +212,7 @@ type Decoder struct {
 	line           int
 	linestart      int64
 	offset         int64
+	readNonWS      bool
 	unmarshalDepth int
 }
 
@@ -559,6 +560,8 @@ func (d *Decoder) rawToken() (Token, error) {
 		return EndElement{d.toClose}, nil
 	}
 
+	readNonWS := d.readNonWS
+
 	b, ok := d.getc()
 	if !ok {
 		return nil, d.err
@@ -571,8 +574,12 @@ func (d *Decoder) rawToken() (Token, error) {
 		if data == nil {
 			return nil, d.err
 		}
+		if !d.readNonWS && !isWhitespace(CharData(data)) {
+			d.readNonWS = true
+		}
 		return CharData(data), nil
 	}
+	d.readNonWS = true
 
 	if b, ok = d.mustgetc(); !ok {
 		return nil, d.err
@@ -623,6 +630,11 @@ func (d *Decoder) rawToken() (Token, error) {
 		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
+			if readNonWS {
+				d.err = errors.New("xml: XML declaration after start of document")
+				return nil, d.err
+			}
+
 			content := string(data)
 			ver := procInst("version", content)
 			if ver != "" && ver != "1.0" {

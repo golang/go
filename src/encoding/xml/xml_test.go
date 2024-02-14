@@ -1350,10 +1350,12 @@ func TestParseErrors(t *testing.T) {
 
 		// Header-related errors.
 		{`<?xml version="1.1" encoding="UTF-8"?>`, `unsupported version "1.1"; only version 1.0 is supported`},
+		{`<foo><?xml version="1.0"?>`, `XML declaration after start of document`},
 
 		// Cases below are for "no errors".
 		{withDefaultHeader(`<?ok?>`), ``},
 		{withDefaultHeader(`<?ok version="ok"?>`), ``},
+		{`  <?xml version="1.0"?>`, ``},
 	}
 
 	for _, test := range tests {
