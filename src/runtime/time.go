@@ -521,21 +521,19 @@ func adjusttimers(pp *p, now int64, force bool) {
 		if t.pp.ptr() != pp {
 			throw("adjusttimers: bad p")
 		}
-		switch s := t.status.Load(); s {
-		case timerModified:
-			if !t.status.CompareAndSwap(s, timerLocked) {
-				// TODO(rsc): Try harder to lock.
-				break
-			}
+
+		status, mp := t.lock()
+		if status == timerRemoved {
+			badTimer()
+		}
+		if status == timerModified {
 			if t.nextwhen == 0 {
 				n := len(pp.timers)
 				pp.timers[i] = pp.timers[n-1]
 				pp.timers[n-1] = nil
 				pp.timers = pp.timers[:n-1]
 				t.pp = 0
-				if !t.status.CompareAndSwap(timerLocked, timerRemoved) {
-					badTimer()
-				}
+				status = timerRemoved
 				pp.deletedTimers.Add(-1)
 				i--
 				changed = true
@@ -543,21 +541,10 @@ func adjusttimers(pp *p, now int64, force bool) {
 				// Now we can change the when field.
 				t.when = t.nextwhen
 				changed = true
-				if !t.status.CompareAndSwap(timerLocked, timerWaiting) {
-					badTimer()
-				}
+				status = timerWaiting
 			}
-		case timerRemoved:
-			badTimer()
-		case timerWaiting:
-			// OK, nothing to do.
-		case timerLocked:
-			// Check again after modification is complete.
-			osyield()
-			i--
-		default:
-			badTimer()
 		}
+		t.unlock(status, mp)
 	}
 
 	if changed {
