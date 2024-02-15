@@ -35,11 +35,11 @@ import (
 //	Header
 //	caller_name
 //      callee_name
-//      "call site offset" "caller's start line number" "flat" "cum" "call edge weight"
+//      "call site offset" "call edge weight"
 //      ...
 //	caller_name
 //      callee_name
-//      "call site offset" "caller's start line number" "flat" "cum" "call edge weight"
+//      "call site offset" "call edge weight"
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "MUST have (pprof) input file \n")
@@ -52,13 +52,6 @@ type NodeMapKey struct {
 	CallerName     string
 	CalleeName     string
 	CallSiteOffset int // Line offset from function start line.
-	CallStartLine  int // Start line of the function. Can be 0 which means missing.
-}
-
-type Weights struct {
-	NFlat   int64
-	NCum    int64
-	EWeight int64
 }
 
 func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
@@ -101,33 +94,19 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
 
-	nFlat := make(map[string]int64)
-	nCum := make(map[string]int64)
-
-	// Accummulate weights for the same node.
-	for _, n := range g.Nodes {
-		canonicalName := n.Info.Name
-		nFlat[canonicalName] += n.FlatValue()
-		nCum[canonicalName] += n.CumValue()
-	}
-
-	TotalNodeWeight := int64(0)
 	TotalEdgeWeight := int64(0)
 
-	NodeMap := make(map[NodeMapKey]*Weights)
-	NodeWeightMap := make(map[string]int64)
+	NodeMap := make(map[NodeMapKey]int64)
 
 	for _, n := range g.Nodes {
-		TotalNodeWeight += n.FlatValue()
 		canonicalName := n.Info.Name
 		// Create the key to the nodeMapKey.
 		nodeinfo := NodeMapKey{
 			CallerName:     canonicalName,
 			CallSiteOffset: n.Info.Lineno - n.Info.StartLine,
-			CallStartLine:  n.Info.StartLine,
 		}
 
-		if nodeinfo.CallStartLine == 0 {
+		if n.Info.StartLine == 0 {
 			if verbose {
 				log.Println("[PGO] warning: " + canonicalName + " relative line number is missing from the profile")
 			}
@@ -137,24 +116,11 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 			TotalEdgeWeight += e.WeightValue()
 			nodeinfo.CalleeName = e.Dest.Info.Name
 			if w, ok := NodeMap[nodeinfo]; ok {
-				w.EWeight += e.WeightValue()
+				w += e.WeightValue()
 			} else {
-				weights := new(Weights)
-				weights.NFlat = nFlat[canonicalName]
-				weights.NCum = nCum[canonicalName]
-				weights.EWeight = e.WeightValue()
-				NodeMap[nodeinfo] = weights
+				w = e.WeightValue()
+				NodeMap[nodeinfo] = w
 			}
-		}
-	}
-
-	for _, n := range g.Nodes {
-		lineno := fmt.Sprintf("%v", n.Info.Lineno)
-		canonicalName := n.Info.Name + "-" + lineno
-		if _, ok := (NodeWeightMap)[canonicalName]; ok {
-			(NodeWeightMap)[canonicalName] += n.CumValue()
-		} else {
-			(NodeWeightMap)[canonicalName] = n.CumValue()
 		}
 	}
 
@@ -190,16 +156,13 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 		line = key.CalleeName + "\n"
 		w.WriteString(line)
 		line = strconv.Itoa(key.CallSiteOffset)
-		line = line + separator + strconv.Itoa(key.CallStartLine)
-		line = line + separator + strconv.FormatInt(element.NFlat, 10)
-		line = line + separator + strconv.FormatInt(element.NCum, 10)
-		line = line + separator + strconv.FormatInt(element.EWeight, 10) + "\n"
+		line = line + separator + strconv.FormatInt(element, 10) + "\n"
 		w.WriteString(line)
 		w.Flush()
 		count += 1
 	}
 
-	if TotalNodeWeight == 0 || TotalEdgeWeight == 0 {
+	if TotalEdgeWeight == 0 {
 		return false
 	}
 
