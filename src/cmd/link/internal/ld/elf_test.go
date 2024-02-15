@@ -271,8 +271,6 @@ func TestElfBindNow(t *testing.T) {
 			}
 
 			var (
-				gotDfBindNow, gotDf1Now, gotDf1Pie bool
-
 				dir     = t.TempDir()
 				src     = filepath.Join(dir, fmt.Sprintf("elf_%s.go", test.name))
 				binFile = filepath.Join(dir, test.name)
@@ -311,16 +309,25 @@ func TestElfBindNow(t *testing.T) {
 				t.Fatalf("failed to get DT_FLAGS_1: %v", err)
 			}
 
-			if gotDfBindNow = gotDynFlag(flags, uint64(elf.DF_BIND_NOW)); gotDfBindNow != test.wantDfBindNow {
-				t.Fatalf("DT_FLAGS BIND_NOW flag is %v, want: %v", gotDfBindNow, test.wantDfBindNow)
+			gotDfBindNow := gotDynFlag(flags, uint64(elf.DF_BIND_NOW))
+			gotDf1Now := gotDynFlag(flags1, uint64(elf.DF_1_NOW))
+
+			bindNowFlagsMatch := gotDfBindNow == test.wantDfBindNow && gotDf1Now == test.wantDf1Now
+
+			// some external linkers may set one of the two flags but not both.
+			if !test.mustInternalLink {
+				bindNowFlagsMatch = gotDfBindNow == test.wantDfBindNow || gotDf1Now == test.wantDf1Now
 			}
 
-			if gotDf1Now = gotDynFlag(flags1, uint64(elf.DF_1_NOW)); gotDf1Now != test.wantDf1Now {
-				t.Fatalf("DT_FLAGS_1 DF_1_NOW flag is %v, want: %v", gotDf1Now, test.wantDf1Now)
+			if !bindNowFlagsMatch {
+				t.Fatalf("Dynamic flags mismatch:\n"+
+					"DT_FLAGS BIND_NOW	got: %v,	want: %v\n"+
+					"DT_FLAGS_1 DF_1_NOW	got: %v,	want: %v",
+					gotDfBindNow, test.wantDfBindNow, gotDf1Now, test.wantDf1Now)
 			}
 
-			if gotDf1Pie = gotDynFlag(flags1, uint64(elf.DF_1_PIE)); gotDf1Pie != test.wantDf1Pie {
-				t.Fatalf("DT_FLAGS_1 DF_1_PIE flag is %v, want: %v", gotDf1Pie, test.wantDf1Pie)
+			if gotDf1Pie := gotDynFlag(flags1, uint64(elf.DF_1_PIE)); gotDf1Pie != test.wantDf1Pie {
+				t.Fatalf("DT_FLAGS_1 DF_1_PIE got: %v, want: %v", gotDf1Pie, test.wantDf1Pie)
 			}
 		})
 	}
