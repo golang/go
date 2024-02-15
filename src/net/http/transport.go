@@ -2429,6 +2429,13 @@ func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
 	return b.ReadWriteCloser.Read(p)
 }
 
+func (b *readWriteCloserBody) CloseWrite() error {
+	if cw, ok := b.ReadWriteCloser.(interface{ CloseWrite() error }); ok {
+		return cw.CloseWrite()
+	}
+	return nil
+}
+
 // nothingWrittenError wraps a write errors which ended up writing zero bytes.
 type nothingWrittenError struct {
 	error

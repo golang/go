@@ -778,7 +778,14 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	spc := switchProtocolCopier{user: conn, backend: backConn}
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
-	<-errc
+
+	err := <-errc
+	if err == nil {
+		err = <-errc // Wait until the data transfer is finished.
+	}
+	if err != nil {
+		p.getErrorHandler()(rw, req, fmt.Errorf("can't copy: %v", err))
+	}
 }
 
 // switchProtocolCopier exists so goroutines proxying data back and
@@ -789,11 +796,17 @@ type switchProtocolCopier struct {
 
 func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 	_, err := io.Copy(c.user, c.backend)
+	if wc, ok := c.user.(interface{ CloseWrite() error }); ok {
+		wc.CloseWrite() // TODO: should we just ignore the error?
+	}
 	errc <- err
 }
 
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 	_, err := io.Copy(c.backend, c.user)
+	if wc, ok := c.user.(interface{ CloseWrite() error }); ok {
+		wc.CloseWrite() // TODO: should we just ignore the error?
+	}
 	errc <- err
 }
 

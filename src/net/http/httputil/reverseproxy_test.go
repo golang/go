@@ -1417,6 +1417,81 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	}
 }
 
+// Issue #35892: support TCP half-close when HTTP is upgraded in ReverseProxy
+func TestReverseProxyWebSocketCloseWrite(t *testing.T) {
+	donec := make(chan struct{})
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(donec)
+
+		if g, ws := upgradeType(r.Header), "websocket"; g != ws {
+			t.Errorf("Unexpected upgrade type %q, want %q", g, ws)
+			http.Error(w, "Unexpected request", 400)
+			return
+		}
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+
+		upgradeMsg := "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\n\r\n"
+		if _, err := io.WriteString(conn, upgradeMsg); err != nil {
+			t.Error(err)
+			return
+		}
+
+		if cw, ok := conn.(interface{ CloseWrite() error }); ok {
+			cw.CloseWrite()
+		} else if closer, ok := conn.(io.Closer); ok {
+			closer.Close()
+			return
+		}
+		bs := bufio.NewScanner(conn)
+		if !bs.Scan() {
+			t.Errorf("backend failed to read line from client: %v", bs.Err())
+			return
+		}
+		if got, want := bs.Text(), "Hello"; got != want {
+			t.Errorf("got %#q, want %#q", got, want)
+		}
+	}))
+	defer backendServer.Close()
+
+	backURL, _ := url.Parse(backendServer.URL)
+	rproxy := NewSingleHostReverseProxy(backURL)
+	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+	frontendProxy := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rproxy.ServeHTTP(rw, req)
+	}))
+	defer frontendProxy.Close()
+
+	req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+
+	res, err := frontendProxy.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 101 {
+		t.Fatalf("status = %v; want 101", res.Status)
+	}
+	if upgradeType(res.Header) != "WebSocket" {
+		t.Fatalf("not websocket upgrade, got %#v", res.Header)
+	}
+
+	rwc, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("Response body type mismatch, got %T, want io.ReadWriteCloser", res.Body)
+	}
+	defer rwc.Close()
+	io.ReadAll(rwc)
+	io.WriteString(rwc, "Hello\n")
+
+	<-donec
+}
+
 func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	n := 5
 	triggerCancelCh := make(chan bool, n)
