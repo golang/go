@@ -1,0 +1,1 @@
+pkg runtime, func GOROOT //deprecated #51473
