@@ -36,6 +36,7 @@ type hchan struct {
 	buf      unsafe.Pointer // points to an array of dataqsiz elements
 	elemsize uint16
 	closed   uint32
+	timer    *timer // timer feeding this chan
 	elemtype *_type // element type
 	sendx    uint   // send index
 	recvx    uint   // receive index
@@ -426,11 +427,18 @@ func closechan(c *hchan) {
 }
 
 // empty reports whether a read from c would block (that is, the channel is
-// empty).  It uses a single atomic read of mutable state.
+// empty).  It is atomically correct and sequentially consistent at the moment
+// it returns, but since the channel is unlocked, the channel may become
+// non-empty immediately afterward.
 func empty(c *hchan) bool {
 	// c.dataqsiz is immutable.
 	if c.dataqsiz == 0 {
 		return atomic.Loadp(unsafe.Pointer(&c.sendq.first)) == nil
+	}
+	// c.timer is also immutable (it is set after make(chan) but before any channel operations).
+	// All timer channels have dataqsiz > 0.
+	if c.timer != nil {
+		c.timer.maybeRunChan()
 	}
 	return atomic.Loaduint(&c.qcount) == 0
 }
@@ -468,6 +476,10 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		}
 		gopark(nil, nil, waitReasonChanReceiveNilChan, traceBlockForever, 2)
 		throw("unreachable")
+	}
+
+	if c.timer != nil {
+		c.timer.maybeRunChan()
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -570,11 +582,16 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.elem = ep
 	mysg.waitlink = nil
 	gp.waiting = mysg
+
 	mysg.g = gp
 	mysg.isSelect = false
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
+	if c.timer != nil {
+		blockTimerChan(c)
+	}
+
 	// Signal to anyone trying to shrink our stack that we're about
 	// to park on a channel. The window between when this G's status
 	// changes and when we set gp.activeStackChans is not safe for
@@ -585,6 +602,9 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	// someone woke us up
 	if mysg != gp.waiting {
 		throw("G waiting list is corrupted")
+	}
+	if c.timer != nil {
+		unblockTimerChan(c)
 	}
 	gp.waiting = nil
 	gp.activeStackChans = false
@@ -727,6 +747,9 @@ func reflect_chanrecv(c *hchan, nb bool, elem unsafe.Pointer) (selected bool, re
 func chanlen(c *hchan) int {
 	if c == nil {
 		return 0
+	}
+	if c.timer != nil {
+		c.timer.maybeRunChan()
 	}
 	return int(c.qcount)
 }

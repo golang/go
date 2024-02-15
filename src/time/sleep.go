@@ -4,11 +4,31 @@
 
 package time
 
-import _ "unsafe" // for go:linkname
+import (
+	"internal/godebug"
+	"unsafe"
+)
 
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
+
+var asynctimerchan = godebug.New("asynctimerchan")
+
+// syncTimer returns c as an unsafe.Pointer, for passing to newTimer.
+// If the GODEBUG asynctimerchan has disabled the async timer chan
+// code, then syncTimer always returns nil, to disable the special
+// channel code paths in the runtime.
+func syncTimer(c chan Time) unsafe.Pointer {
+	// If asynctimerchan=1, we don't even tell the runtime
+	// about channel timers, so that we get the pre-Go 1.23 code paths.
+	if asynctimerchan.Value() == "1" {
+		return nil
+	}
+
+	// Otherwise pass to runtime.
+	return *(*unsafe.Pointer)(unsafe.Pointer(&c))
+}
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
 // It returns what the time will be, in nanoseconds, Duration d in the future.
@@ -29,8 +49,12 @@ func when(d Duration) int64 {
 
 // These functions are pushed to package time from package runtime.
 
+// The arg cp is a chan Time, but the declaration in runtime uses a pointer,
+// so we use a pointer here too. This keeps some tools that aggressively
+// compare linknamed symbol definitions happier.
+//
 //go:linkname newTimer
-func newTimer(when, period int64, f func(any, uintptr), arg any) *Timer
+func newTimer(when, period int64, f func(any, uintptr, int64), arg any, cp unsafe.Pointer) *Timer
 
 //go:linkname stopTimer
 func stopTimer(*Timer) bool
@@ -83,9 +107,18 @@ func (t *Timer) Stop() bool {
 
 // NewTimer creates a new Timer that will send
 // the current time on its channel after at least duration d.
+//
+// Before Go 1.23, the garbage collector did not recover
+// timers that had not yet expired or been stopped, so code often
+// immediately deferred t.Stop after calling NewTimer, to make
+// the timer recoverable when it was no longer needed.
+// As of Go 1.23, the garbage collector can recover unreferenced
+// timers, even if they haven't expired or been stopped.
+// The Stop method is no longer necessary to help the garbage collector.
+// (Code may of course still want to call Stop to stop the timer for other reasons.)
 func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
-	t := (*Timer)(newTimer(when(d), 0, sendTime, c))
+	t := (*Timer)(newTimer(when(d), 0, sendTime, c, syncTimer(c)))
 	t.C = c
 	return t
 }
@@ -133,9 +166,14 @@ func (t *Timer) Reset(d Duration) bool {
 }
 
 // sendTime does a non-blocking send of the current time on c.
-func sendTime(c any, seq uintptr) {
+func sendTime(c any, seq uintptr, delta int64) {
+	// delta is how long ago the channel send was supposed to happen.
+	// The current time can be arbitrarily far into the future, because the runtime
+	// can delay a sendTime call until a goroutines tries to receive from
+	// the channel. Subtract delta to go back to the old time that we
+	// used to send.
 	select {
-	case c.(chan Time) <- Now():
+	case c.(chan Time) <- Now().Add(Duration(-delta)):
 	default:
 	}
 }
@@ -143,9 +181,13 @@ func sendTime(c any, seq uintptr) {
 // After waits for the duration to elapse and then sends the current time
 // on the returned channel.
 // It is equivalent to NewTimer(d).C.
-// The underlying Timer is not recovered by the garbage collector
-// until the timer fires. If efficiency is a concern, use NewTimer
-// instead and call Timer.Stop if the timer is no longer needed.
+//
+// Before Go 1.23, this documentation warned that the underlying
+// Timer would not be recovered by the garbage collector until the
+// timer fired, and that if efficiency was a concern, code should use
+// NewTimer instead and call Timer.Stop if the timer is no longer needed.
+// As of Go 1.23, the garbage collector can recover unreferenced,
+// unstopped timers. There is no reason to prefer NewTimer when After will do.
 func After(d Duration) <-chan Time {
 	return NewTimer(d).C
 }
@@ -155,9 +197,9 @@ func After(d Duration) <-chan Time {
 // be used to cancel the call using its Stop method.
 // The returned Timer's C field is not used and will be nil.
 func AfterFunc(d Duration, f func()) *Timer {
-	return (*Timer)(newTimer(when(d), 0, goFunc, f))
+	return (*Timer)(newTimer(when(d), 0, goFunc, f, nil))
 }
 
-func goFunc(arg any, seq uintptr) {
+func goFunc(arg any, seq uintptr, delta int64) {
 	go arg.(func())()
 }

@@ -26,15 +26,32 @@ type timer struct {
 	// mu protects reads and writes to all fields, with exceptions noted below.
 	mu mutex
 
-	astate atomic.Uint8 // atomic copy of state bits at last unlock; can be read without lock
-	state  uint8        // state bits
+	astate  atomic.Uint8 // atomic copy of state bits at last unlock
+	state   uint8        // state bits
+	isChan  bool         // timer has a channel; immutable; can be read without lock
+	blocked uint32       // number of goroutines blocked on timer's channel
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(arg, now) in the timer goroutine, so f must be
+	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
 	// a well-behaved function and not block.
+	//
+	// The arg and seq are client-specified opaque arguments passed back to f.
+	// When used from package time, arg is a channel (for After, NewTicker)
+	// or the function to call (for AfterFunc) and seq is unused (0).
+	// When used from netpoll, arg and seq have meanings defined by netpoll
+	// and are completely opaque to this code; in that context, seq is a sequence
+	// number to recognize and squech stale function invocations.
+	//
+	// The delay argument is nanotime() - t.when, meaning the delay in ns between
+	// when the timer should have gone off and now. Normally that amount is
+	// small enough not to matter, but for channel timers that are fed lazily,
+	// the delay can be arbitrarily long; package time subtracts it out to make
+	// it look like the send happened earlier than it actually did.
+	// (No one looked at the channel since then, or the send would have
+	// not happened so late, so no one can tell the difference.)
 	when   int64
 	period int64
-	f      func(any, uintptr)
+	f      func(arg any, seq uintptr, delay int64)
 	arg    any
 	seq    uintptr
 
@@ -58,7 +75,7 @@ type timer struct {
 // Any code that allocates a timer must call t.init before using it.
 // The arg and f can be set during init, or they can be nil in init
 // and set by a future call to t.modify.
-func (t *timer) init(f func(any, uintptr), arg any) {
+func (t *timer) init(f func(arg any, seq uintptr, delay int64), arg any) {
 	lockInit(&t.mu, lockRankTimer)
 	t.f = f
 	t.arg = arg
@@ -130,6 +147,9 @@ const (
 	// Only set when timerHeaped is also set.
 	// It is possible for timerModified and timerZombie to both
 	// be set, meaning that the timer was modified and then stopped.
+	// A timer sending to a channel may be placed in timerZombie
+	// to take it out of the heap even though the timer is not stopped,
+	// as long as nothing is reading from the channel.
 	timerZombie
 )
 
@@ -146,13 +166,16 @@ func (t *timer) trace1(op string) {
 	if !timerDebug {
 		return
 	}
-	bits := [3]string{"h", "m", "z"}
+	bits := [4]string{"h", "m", "z", "c"}
 	for i := range bits {
 		if t.state&(1<<i) == 0 {
 			bits[i] = "-"
 		}
 	}
-	print("T ", t, " ", bits[0], bits[1], bits[2], " ", op, "\n")
+	if !t.isChan {
+		bits[3] = "-"
+	}
+	print("T ", t, " ", bits[0], bits[1], bits[2], bits[3], " b=", t.blocked, " ", op, "\n")
 }
 
 func (ts *timers) trace(op string) {
@@ -171,6 +194,7 @@ func (t *timer) lock() {
 func (t *timer) unlock() {
 	t.trace("unlock")
 	// Let heap fast paths know whether t.whenHeap is accurate.
+	// Also let maybeRunChan know whether channel is in heap.
 	t.astate.Store(t.state)
 	unlock(&t.mu)
 }
@@ -277,12 +301,19 @@ type timeTimer struct {
 // with the given parameters.
 //
 //go:linkname newTimer time.newTimer
-func newTimer(when, period int64, f func(any, uintptr), arg any) *timeTimer {
+func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg any, c *hchan) *timeTimer {
 	t := new(timeTimer)
 	t.timer.init(nil, nil)
 	t.trace("new")
 	if raceenabled {
 		racerelease(unsafe.Pointer(&t.timer))
+	}
+	if c != nil {
+		t.isChan = true
+		c.timer = &t.timer
+		if c.dataqsiz == 0 {
+			throw("invalid timer channel: no capacity")
+		}
 	}
 	t.modify(when, period, f, arg, 0)
 	t.init = true
@@ -312,7 +343,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
 // Go runtime.
 
 // Ready the goroutine arg.
-func goroutineReady(arg any, seq uintptr) {
+func goroutineReady(arg any, _ uintptr, _ int64) {
 	goready(arg.(*g), 0)
 }
 
@@ -348,6 +379,17 @@ func (ts *timers) addHeap(t *timer) {
 func (t *timer) stop() bool {
 	t.lock()
 	t.trace("stop")
+	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
+		// If timer should have triggered already (but nothing looked at it yet),
+		// trigger now, so that a receive after the stop sees the "old" value
+		// that should be there.
+		if now := nanotime(); t.when <= now {
+			systemstack(func() {
+				t.unlockAndRun(now) // resets t.when
+			})
+			t.lock()
+		}
+	}
 	if t.state&timerHeaped != 0 {
 		t.state |= timerModified
 		if t.state&timerZombie == 0 {
@@ -390,7 +432,7 @@ func (ts *timers) deleteMin() {
 // This is called by the netpoll code or time.Ticker.Reset or time.Timer.Reset.
 // Reports whether the timer was modified before it was run.
 // If f == nil, then t.f, t.arg, and t.seq are not modified.
-func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq uintptr) bool {
+func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay int64), arg any, seq uintptr) bool {
 	if when <= 0 {
 		throw("timer when must be positive")
 	}
@@ -405,6 +447,20 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 		t.f = f
 		t.arg = arg
 		t.seq = seq
+	}
+
+	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
+		// This is a timer for an unblocked channel.
+		// Perhaps it should have expired already.
+		if now := nanotime(); t.when <= now {
+			// The timer should have run already,
+			// but nothing has checked it yet.
+			// Run it now.
+			systemstack(func() {
+				t.unlockAndRun(now) // resets t.when
+			})
+			t.lock()
+		}
 	}
 
 	wake := false
@@ -442,7 +498,7 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 // t must be locked.
 func (t *timer) needsAdd() bool {
 	assertLockHeld(&t.mu)
-	need := t.state&timerHeaped == 0 && t.when > 0
+	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.blocked > 0)
 	if need {
 		t.trace("needsAdd+")
 	} else {
@@ -466,7 +522,7 @@ func (t *timer) needsAdd() bool {
 // too clever and respect the static ordering.
 // (If we don't, we have to change the static lock checking of t and ts.)
 //
-// Concurrent calls to time.Timer.Reset
+// Concurrent calls to time.Timer.Reset or blockTimerChan
 // may result in concurrent calls to t.maybeAdd,
 // so we cannot assume that t is not in a heap on entry to t.maybeAdd.
 func (t *timer) maybeAdd() {
@@ -869,7 +925,7 @@ func (t *timer) unlockAndRun(now int64) {
 	if ts != nil {
 		ts.unlock()
 	}
-	f(arg, seq)
+	f(arg, seq, delay)
 	if ts != nil {
 		ts.lock()
 	}
@@ -1051,4 +1107,89 @@ func (ts *timers) initHeap() {
 // See issue #25686.
 func badTimer() {
 	throw("timer data corruption")
+}
+
+// Timer channels.
+
+// maybeRunChan checks whether the timer needs to run
+// to send a value to its associated channel. If so, it does.
+// The timer must not be locked.
+func (t *timer) maybeRunChan() {
+	if t.astate.Load()&timerHeaped != 0 {
+		// If the timer is in the heap, the ordinary timer code
+		// is in charge of sending when appropriate.
+		return
+	}
+
+	t.lock()
+	now := nanotime()
+	if t.state&timerHeaped != 0 || t.when == 0 || t.when > now {
+		t.trace("maybeRunChan-")
+		// Timer in the heap, or not running at all, or not triggered.
+		t.unlock()
+		return
+	}
+	t.trace("maybeRunChan+")
+	systemstack(func() {
+		t.unlockAndRun(now)
+	})
+}
+
+// blockTimerChan is called when a channel op has decided to block on c.
+// The caller holds the channel lock for c and possibly other channels.
+// blockTimerChan makes sure that c is in a timer heap,
+// adding it if needed.
+func blockTimerChan(c *hchan) {
+	t := c.timer
+	t.lock()
+	t.trace("blockTimerChan")
+	if !t.isChan {
+		badTimer()
+	}
+
+	t.blocked++
+
+	// If this is the first enqueue after a recent dequeue,
+	// the timer may still be in the heap but marked as a zombie.
+	// Unmark it in this case, if the timer is still pending.
+	if t.state&timerHeaped != 0 && t.state&timerZombie != 0 && t.when > 0 {
+		t.state &^= timerZombie
+		t.ts.zombies.Add(-1)
+	}
+
+	// t.maybeAdd must be called with t unlocked,
+	// because it needs to lock t.ts before t.
+	// Then it will do nothing if t.needsAdd(state) is false.
+	// Check that now before the unlock,
+	// avoiding the extra lock-lock-unlock-unlock
+	// inside maybeAdd when t does not need to be added.
+	add := t.needsAdd()
+	t.unlock()
+	if add {
+		t.maybeAdd()
+	}
+}
+
+// unblockTimerChan is called when a channel op that was blocked on c
+// is no longer blocked. Every call to blockTimerChan must be paired with
+// a call to unblockTimerChan.
+// The caller holds the channel lock for c and possibly other channels.
+// unblockTimerChan removes c from the timer heap when nothing is
+// blocked on it anymore.
+func unblockTimerChan(c *hchan) {
+	t := c.timer
+	t.lock()
+	t.trace("unblockTimerChan")
+	if !t.isChan || t.blocked == 0 {
+		badTimer()
+	}
+	t.blocked--
+	if t.blocked == 0 && t.state&timerHeaped != 0 && t.state&timerZombie == 0 {
+		// Last goroutine that was blocked on this timer.
+		// Mark for removal from heap but do not clear t.when,
+		// so that we know what time it is still meant to trigger.
+		t.state |= timerZombie
+		t.ts.zombies.Add(1)
+	}
+	t.unlock()
 }

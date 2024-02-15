@@ -72,15 +72,16 @@ assistQueue,
 < SCHED
 # Below SCHED is the scheduler implementation.
 < allocmR,
-  execR
-< sched;
+  execR;
+allocmR, execR, hchan < sched;
 sched < allg, allp;
-hchan, pollDesc, wakeableSleep < timers;
-timers < timer < netpollInit;
 
 # Channels
 NONE < notifyList;
 hchan, notifyList < sudog;
+
+hchan, pollDesc, wakeableSleep < timers;
+timers < timer < netpollInit;
 
 # Semaphores
 NONE < root;

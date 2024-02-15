@@ -658,15 +658,15 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	netpollAdjustWaiters(delta)
 }
 
-func netpollDeadline(arg any, seq uintptr) {
+func netpollDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, true)
 }
 
-func netpollReadDeadline(arg any, seq uintptr) {
+func netpollReadDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, false)
 }
 
-func netpollWriteDeadline(arg any, seq uintptr) {
+func netpollWriteDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, false, true)
 }
 

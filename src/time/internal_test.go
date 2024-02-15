@@ -36,7 +36,7 @@ func disablePlatformSources() (undo func()) {
 var Interrupt = interrupt
 var DaysIn = daysIn
 
-func empty(arg any, seq uintptr) {}
+func empty(arg any, seq uintptr, delta int64) {}
 
 // Test that a runtimeTimer with a period that would overflow when on
 // expiration does not throw or cause other timers to hang.
@@ -47,7 +47,7 @@ func CheckRuntimeTimerPeriodOverflow() {
 	// We manually create a runtimeTimer with huge period, but that expires
 	// immediately. The public Timer interface would require waiting for
 	// the entire period before the first update.
-	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil))
+	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil, nil))
 	defer t.Stop()
 
 	// If this test fails, we will either throw (when siftdownTimer detects

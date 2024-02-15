@@ -13,6 +13,8 @@ import (
 )
 
 func TestTicker(t *testing.T) {
+	t.Parallel()
+
 	// We want to test that a ticker takes as much time as expected.
 	// Since we don't want the test to run for too long, we don't
 	// want to use lengthy times. This makes the test inherently flaky.
@@ -106,6 +108,8 @@ func TestTickerStopWithDirectInitialization(t *testing.T) {
 
 // Test that a bug tearing down a ticker has been fixed. This routine should not deadlock.
 func TestTeardown(t *testing.T) {
+	t.Parallel()
+
 	Delta := 100 * Millisecond
 	if testing.Short() {
 		Delta = 20 * Millisecond
@@ -255,4 +259,350 @@ func BenchmarkTickerResetNaive(b *testing.B) {
 		}
 		ticker.Stop()
 	})
+}
+
+func TestTimerGC(t *testing.T) {
+	run := func(t *testing.T, what string, f func()) {
+		t.Helper()
+		t.Run(what, func(t *testing.T) {
+			t.Helper()
+			const N = 1e4
+			var stats runtime.MemStats
+			runtime.GC()
+			runtime.GC()
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			before := int64(stats.Mallocs - stats.Frees)
+
+			for j := 0; j < N; j++ {
+				f()
+			}
+
+			runtime.GC()
+			runtime.GC()
+			runtime.GC()
+			runtime.ReadMemStats(&stats)
+			after := int64(stats.Mallocs - stats.Frees)
+
+			// Allow some slack, but inuse >= N means at least 1 allocation per iteration.
+			inuse := after - before
+			if inuse >= N {
+				t.Errorf("%s did not get GC'ed: %d allocations", what, inuse)
+
+				Sleep(1 * Second)
+				runtime.ReadMemStats(&stats)
+				after := int64(stats.Mallocs - stats.Frees)
+				inuse = after - before
+				t.Errorf("after a sleep: %d allocations", inuse)
+			}
+		})
+	}
+
+	run(t, "After", func() { After(Hour) })
+	run(t, "Tick", func() { Tick(Hour) })
+	run(t, "NewTimer", func() { NewTimer(Hour) })
+	run(t, "NewTicker", func() { NewTicker(Hour) })
+	run(t, "NewTimerStop", func() { NewTimer(Hour).Stop() })
+	run(t, "NewTickerStop", func() { NewTicker(Hour).Stop() })
+}
+
+func TestTimerChan(t *testing.T) {
+	t.Parallel()
+	tick := &timer2{NewTimer(10000 * Second)}
+	testTimerChan(t, tick, tick.C)
+}
+
+func TestTickerChan(t *testing.T) {
+	t.Parallel()
+	tick := NewTicker(10000 * Second)
+	testTimerChan(t, tick, tick.C)
+}
+
+// timer2 is a Timer with Reset and Stop methods with no result,
+// to have the same signatures as Ticker.
+type timer2 struct {
+	*Timer
+}
+
+func (t *timer2) Stop() {
+	t.Timer.Stop()
+}
+
+func (t *timer2) Reset(d Duration) {
+	t.Timer.Reset(d)
+}
+
+type ticker interface {
+	Stop()
+	Reset(Duration)
+}
+
+func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
+	// Retry parameters. Enough to deflake even on slow machines.
+	// Windows in particular has very coarse timers so we have to
+	// wait 10ms just to make a timer go off.
+	const (
+		sched = 10 * Millisecond
+		tries = 10
+	)
+
+	drain := func() {
+		select {
+		case <-C:
+		default:
+		}
+	}
+	noTick := func() {
+		t.Helper()
+		select {
+		default:
+		case <-C:
+			t.Fatalf("extra tick")
+		}
+	}
+	assertTick := func() {
+		t.Helper()
+		select {
+		default:
+		case <-C:
+			return
+		}
+		for i := 0; i < tries; i++ {
+			Sleep(sched)
+			select {
+			default:
+			case <-C:
+				return
+			}
+		}
+		t.Fatalf("missing tick")
+	}
+	assertLen := func() {
+		t.Helper()
+		var n int
+		if n = len(C); n == 1 {
+			return
+		}
+		for i := 0; i < tries; i++ {
+			Sleep(sched)
+			if n = len(C); n == 1 {
+				return
+			}
+		}
+		t.Fatalf("len(C)  = %d, want 1", n)
+	}
+
+	// Test simple stop; timer never in heap.
+	tick.Stop()
+	noTick()
+
+	// Test modify of timer not in heap.
+	tick.Reset(10000 * Second)
+	noTick()
+
+	// Test modify of timer in heap.
+	tick.Reset(1)
+	assertTick()
+
+	// Sleep long enough that a second tick must happen if this is a ticker.
+	// Test that Reset does not lose the tick that should have happened.
+	Sleep(sched)
+	tick.Reset(10000 * Second)
+	_, isTicker := tick.(*Ticker)
+	if isTicker {
+		assertTick()
+	}
+	noTick()
+
+	// Test that len sees an immediate tick arrive
+	// for Reset of timer in heap.
+	tick.Reset(1)
+	assertLen()
+	assertTick()
+
+	// Test that len sees an immediate tick arrive
+	// for Reset of timer NOT in heap.
+	tick.Stop()
+	drain()
+	tick.Reset(1)
+	assertLen()
+	assertTick()
+
+	// Sleep long enough that a second tick must happen if this is a ticker.
+	// Test that Reset does not lose the tick that should have happened.
+	Sleep(sched)
+	tick.Reset(10000 * Second)
+	if isTicker {
+		assertLen()
+		assertTick()
+	}
+	noTick()
+
+	notDone := func(done chan bool) {
+		t.Helper()
+		select {
+		default:
+		case <-done:
+			t.Fatalf("early done")
+		}
+	}
+
+	waitDone := func(done chan bool) {
+		t.Helper()
+		for i := 0; i < tries; i++ {
+			Sleep(sched)
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+		t.Fatalf("never got done")
+	}
+
+	// Reset timer in heap (already reset above, but just in case).
+	tick.Reset(10000 * Second)
+	drain()
+
+	// Test stop while timer in heap (because goroutine is blocked on <-C).
+	done := make(chan bool)
+	notDone(done)
+	go func() {
+		<-C
+		close(done)
+	}()
+	Sleep(sched)
+	notDone(done)
+
+	// Test reset far away while timer in heap.
+	tick.Reset(20000 * Second)
+	Sleep(sched)
+	notDone(done)
+
+	// Test imminent reset while in heap.
+	tick.Reset(1)
+	waitDone(done)
+
+	// If this is a ticker, another tick should have come in already
+	// (they are 1ns apart). If a timer, it should have stopped.
+	if isTicker {
+		assertTick()
+	} else {
+		noTick()
+	}
+
+	tick.Stop()
+	if isTicker {
+		drain()
+	}
+	noTick()
+
+	// Again using select and with two goroutines waiting.
+	tick.Reset(10000 * Second)
+	done = make(chan bool, 2)
+	done1 := make(chan bool)
+	done2 := make(chan bool)
+	stop := make(chan bool)
+	go func() {
+		select {
+		case <-C:
+			done <- true
+		case <-stop:
+		}
+		close(done1)
+	}()
+	go func() {
+		select {
+		case <-C:
+			done <- true
+		case <-stop:
+		}
+		close(done2)
+	}()
+	Sleep(sched)
+	notDone(done)
+	tick.Reset(sched / 2)
+	Sleep(sched)
+	waitDone(done)
+	tick.Stop()
+	close(stop)
+	waitDone(done1)
+	waitDone(done2)
+	if isTicker {
+		// extra send might have sent done again
+		// (handled by buffering done above).
+		select {
+		default:
+		case <-done:
+		}
+		// extra send after that might have filled C.
+		select {
+		default:
+		case <-C:
+		}
+	}
+	notDone(done)
+
+	// Test enqueueTimerChan when timer is stopped.
+	stop = make(chan bool)
+	done = make(chan bool, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			select {
+			case <-C:
+				panic("unexpected data")
+			case <-stop:
+			}
+			done <- true
+		}()
+	}
+	Sleep(sched)
+	close(stop)
+	waitDone(done)
+	waitDone(done)
+}
+
+func TestManualTicker(t *testing.T) {
+	// Code should not do this, but some old code dating to Go 1.9 does.
+	// Make sure this doesn't crash.
+	// See go.dev/issue/21874.
+	c := make(chan Time)
+	tick := &Ticker{C: c}
+	tick.Stop()
+}
+
+func TestAfterTimes(t *testing.T) {
+	t.Parallel()
+	// Using After(10ms) but waiting for 500ms to read the channel
+	// should produce a time from start+10ms, not start+500ms.
+	// Make sure it does.
+	// To avoid flakes due to very long scheduling delays,
+	// require 10 failures in a row before deciding something is wrong.
+	for i := 0; i < 10; i++ {
+		start := Now()
+		c := After(10 * Millisecond)
+		Sleep(500 * Millisecond)
+		dt := (<-c).Sub(start)
+		if dt < 400*Millisecond {
+			return
+		}
+		t.Logf("After(10ms) time is +%v, want <400ms", dt)
+	}
+	t.Errorf("not working")
+}
+
+func TestTickTimes(t *testing.T) {
+	t.Parallel()
+	// See comment in TestAfterTimes
+	for i := 0; i < 10; i++ {
+		start := Now()
+		c := Tick(10 * Millisecond)
+		Sleep(500 * Millisecond)
+		dt := (<-c).Sub(start)
+		if dt < 400*Millisecond {
+			return
+		}
+		t.Logf("Tick(10ms) time is +%v, want <400ms", dt)
+	}
+	t.Errorf("not working")
 }

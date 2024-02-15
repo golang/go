@@ -128,6 +128,8 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.23
 
+TODO: `asynctimerchan` setting.
+
 Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
 for reparse points, which can be controlled with the `winsymlink` setting.
 As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
