@@ -44,6 +44,8 @@ import (
 	"cmd/internal/sys"
 
 	cmdgo "cmd/go"
+
+	"golang.org/x/telemetry/counter/countertest"
 )
 
 func init() {
@@ -151,6 +153,15 @@ func TestMain(m *testing.M) {
 					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
 			}
 			web.EnableTestHooks(interceptors)
+		}
+
+		cmdgo.TelemetryStart = func() {
+			// TODO(matloob): we'll ideally want to call telemetry.Start here
+			// but it calls counter.Open, which we don't want to do because
+			// we want to call countertest.Open.
+			if telemetryDir := os.Getenv("TESTGO_TELEMETRY_DIR"); telemetryDir != "" {
+				countertest.Open(telemetryDir)
+			}
 		}
 
 		cmdgo.Main()
