@@ -288,7 +288,7 @@ func (ts *timers) add(t *timer) {
 	if t == ts.heap[0] {
 		ts.minWhen.Store(t.when)
 	}
-	ts.len.Add(1)
+	ts.len.Store(uint32(len(ts.heap)))
 }
 
 // stop deletes the timer t. It may be on some other P, so we can't
@@ -330,8 +330,8 @@ func (ts *timers) deleteMin() {
 		ts.siftDown(0)
 	}
 	ts.updateMinWhen()
-	n := ts.len.Add(-1)
-	if n == 0 {
+	ts.len.Store(uint32(last))
+	if last == 0 {
 		// If there are no timers, then clearly none are modified.
 		ts.minNextWhen.Store(0)
 	}
@@ -764,11 +764,11 @@ func updateTimerPMask(pp *p) {
 		return
 	}
 
-	// Looks like there are no timers, however another P may transiently
-	// decrement numTimers when handling a timerModified timer in
-	// checkTimers. We must take timersLock to serialize with these changes.
+	// Looks like there are no timers, however another P
+	// may be adding one at this very moment.
+	// Take the lock to synchronize.
 	lock(&pp.timers.lock)
-	if pp.timers.len.Load() == 0 {
+	if len(pp.timers.heap) == 0 {
 		timerpMask.clear(pp.id)
 	}
 	unlock(&pp.timers.lock)
