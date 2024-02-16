@@ -18,7 +18,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"regexp"
 
 	"github.com/google/pprof/internal/measurement"
 	"github.com/google/pprof/profile"
@@ -53,9 +52,6 @@ type StackSource struct {
 	// Alternative names to display (with decreasing lengths) to make text fit.
 	// Guaranteed to be non-empty.
 	Display []string
-
-	// Regular expression (anchored) that matches exactly FullName.
-	RE string
 
 	// Places holds the list of stack slots where this source occurs.
 	// In particular, if [a,b] is an element in Places,
@@ -135,7 +131,6 @@ func (s *StackSet) makeInitialStacks(rpt *Report) {
 			unknownIndex++
 		}
 		x.Inlined = inlined
-		x.RE = "^" + regexp.QuoteMeta(x.UniqueName) + "$"
 		x.Display = shortNameList(x.FullName)
 		s.Sources = append(s.Sources, x)
 		srcs[k] = len(s.Sources) - 1
