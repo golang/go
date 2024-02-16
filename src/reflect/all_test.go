@@ -8024,10 +8024,10 @@ func TestValue_Len(t *testing.T) {
 }
 
 func TestValue_Comparable(t *testing.T) {
-	var iNil interface{}
 	var a int
 	var s []int
 	var i interface{} = a
+	var iNil interface{}
 	var iSlice interface{} = s
 	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
 	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
@@ -8037,9 +8037,9 @@ func TestValue_Comparable(t *testing.T) {
 		deref      bool
 	}{
 		{
-			ValueOf(&iNil).Elem(),
+			ValueOf(&iNil),
 			true,
-			false,
+			true,
 		},
 		{
 			ValueOf(32),
