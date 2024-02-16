@@ -8024,6 +8024,7 @@ func TestValue_Len(t *testing.T) {
 }
 
 func TestValue_Comparable(t *testing.T) {
+	var iNil interface{}
 	var a int
 	var s []int
 	var i interface{} = a
@@ -8035,6 +8036,11 @@ func TestValue_Comparable(t *testing.T) {
 		comparable bool
 		deref      bool
 	}{
+		{
+			ValueOf(&iNil).Elem(),
+			true,
+			false,
+		},
 		{
 			ValueOf(32),
 			true,
