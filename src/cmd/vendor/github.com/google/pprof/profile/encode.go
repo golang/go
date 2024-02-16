@@ -530,6 +530,7 @@ func (p *Line) decoder() []decoder {
 func (p *Line) encode(b *buffer) {
 	encodeUint64Opt(b, 1, p.functionIDX)
 	encodeInt64Opt(b, 2, p.Line)
+	encodeInt64Opt(b, 3, p.Column)
 }
 
 var lineDecoder = []decoder{
@@ -538,6 +539,8 @@ var lineDecoder = []decoder{
 	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Line).functionIDX) },
 	// optional int64 line = 2
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Line) },
+	// optional int64 column = 3
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Column) },
 }
 
 func (p *Function) decoder() []decoder {

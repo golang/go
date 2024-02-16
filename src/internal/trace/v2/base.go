@@ -45,6 +45,7 @@ type evTable struct {
 	freq    frequency
 	strings dataTable[stringID, string]
 	stacks  dataTable[stackID, stack]
+	pcs     map[uint64]frame
 
 	// extraStrings are strings that get generated during
 	// parsing but haven't come directly from the trace, so
@@ -241,12 +242,12 @@ func (s cpuSample) asEvent(table *evTable) Event {
 
 // stack represents a goroutine stack sample.
 type stack struct {
-	frames []frame
+	pcs []uint64
 }
 
 func (s stack) String() string {
 	var sb strings.Builder
-	for _, frame := range s.frames {
+	for _, frame := range s.pcs {
 		fmt.Fprintf(&sb, "\t%#v\n", frame)
 	}
 	return sb.String()

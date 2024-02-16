@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !go1.19
+//go:build !go1.19 || openbsd || js || wasip1 || solaris || android || plan9 || 386
 
 package counter
 
 import (
 	"flag"
-	"fmt"
 )
 
 func Add(string, int64)                         {}
@@ -22,13 +21,6 @@ func New(name string) *Counter  { return &Counter{name} }
 func (c *Counter) Add(n int64)  {}
 func (c *Counter) Inc()         {}
 func (c *Counter) Name() string { return c.name }
-
-type File struct {
-	Meta  map[string]string
-	Count map[string]uint64
-}
-
-func Parse(filename string, data []byte) (*File, error) { return nil, fmt.Errorf("unimplemented") }
 
 type StackCounter struct{ name string }
 

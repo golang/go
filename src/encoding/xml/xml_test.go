@@ -830,6 +830,13 @@ var procInstTests = []struct {
 	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
 	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
 	{`encoding="FOO" `, [2]string{"", "FOO"}},
+	{`version=2.0 version="1.0" encoding=utf-7 encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version= encoding=`, [2]string{"", ""}},
+	{`encoding="version=1.0"`, [2]string{"", "version=1.0"}},
+	{``, [2]string{"", ""}},
+	// TODO: what's the right approach to handle these nested cases?
+	{`encoding="version='1.0'"`, [2]string{"1.0", "version='1.0'"}},
+	{`version="encoding='utf-8'"`, [2]string{"encoding='utf-8'", "utf-8"}},
 }
 
 func TestProcInstEncoding(t *testing.T) {

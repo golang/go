@@ -206,7 +206,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 1:
 			check.expr(nil, x, call.Args[0])
 			if x.mode != invalid {
-				if call.Ellipsis.IsValid() {
+				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -471,7 +471,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.Ellipsis.IsValid()
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -995,7 +995,7 @@ func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
 func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	var x operand
 	x.mode = value // anything but invalid
-	switch n := unparen(e).(type) {
+	switch n := ast.Unparen(e).(type) {
 	case nil:
 		// nothing to do
 	case *ast.Ident:

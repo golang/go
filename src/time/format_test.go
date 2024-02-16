@@ -1001,7 +1001,7 @@ func FuzzFormatRFC3339(f *testing.F) {
 
 		gotNanos := AppendFormatRFC3339(ts, nil, true)
 		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
-		if !bytes.Equal(got, want) {
+		if !bytes.Equal(gotNanos, wantNanos) {
 			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
 		}
 	})

@@ -293,7 +293,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
-// printProto writes the incoming proto via thw writer w.
+// printProto writes the incoming proto via the writer w.
 // If the divide_by option has been specified, samples are scaled appropriately.
 func printProto(w io.Writer, rpt *Report) error {
 	p, o := rpt.prof, rpt.options
@@ -339,6 +339,7 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Line: []profile.Line{
 				{
 					Line:     int64(n.Info.Lineno),
+					Column:   int64(n.Info.Columnno),
 					Function: f,
 				},
 			},

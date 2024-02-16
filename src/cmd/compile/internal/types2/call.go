@@ -209,7 +209,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 						break
 					}
 				}
-				if call.HasDots {
+				if hasDots(call) {
 					check.errorf(call.ArgList[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -468,7 +468,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.HasDots
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)

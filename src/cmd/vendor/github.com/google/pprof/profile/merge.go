@@ -326,12 +326,13 @@ func (l *Location) key() locationKey {
 		key.addr -= l.Mapping.Start
 		key.mappingID = l.Mapping.ID
 	}
-	lines := make([]string, len(l.Line)*2)
+	lines := make([]string, len(l.Line)*3)
 	for i, line := range l.Line {
 		if line.Function != nil {
 			lines[i*2] = strconv.FormatUint(line.Function.ID, 16)
 		}
 		lines[i*2+1] = strconv.FormatInt(line.Line, 16)
+		lines[i*2+2] = strconv.FormatInt(line.Column, 16)
 	}
 	key.lines = strings.Join(lines, "|")
 	return key
@@ -418,6 +419,7 @@ func (pm *profileMerger) mapLine(src Line) Line {
 	ln := Line{
 		Function: pm.mapFunction(src.Function),
 		Line:     src.Line,
+		Column:   src.Column,
 	}
 	return ln
 }

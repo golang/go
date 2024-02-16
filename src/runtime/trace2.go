@@ -516,6 +516,9 @@ func traceAdvance(stopTrace bool) {
 	}
 	statusWriter.flush().end()
 
+	// Read everything out of the last gen's CPU profile buffer.
+	traceReadCPU(gen)
+
 	systemstack(func() {
 		// Flush CPU samples, stacks, and strings for the last generation. This is safe,
 		// because we're now certain no M is writing to the last generation.

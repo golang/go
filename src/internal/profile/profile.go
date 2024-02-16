@@ -150,7 +150,6 @@ func Parse(r io.Reader) (*Profile, error) {
 	return p, nil
 }
 
-var errUnrecognized = fmt.Errorf("unrecognized profile format")
 var errMalformed = fmt.Errorf("malformed profile format")
 var ErrNoData = fmt.Errorf("empty input file")
 

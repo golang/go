@@ -903,6 +903,20 @@ func runInstall(pkg string, ch chan struct{}) {
 		// Define GORISCV64_value from goriscv64
 		asmArgs = append(asmArgs, "-D", "GORISCV64_"+goriscv64)
 	}
+	if goarch == "arm" {
+		// Define GOARM_value from goarm, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(goarm, "7"):
+			asmArgs = append(asmArgs, "-D", "GOARM_7")
+			fallthrough
+		case strings.Contains(goarm, "6"):
+			asmArgs = append(asmArgs, "-D", "GOARM_6")
+			fallthrough
+		default:
+			asmArgs = append(asmArgs, "-D", "GOARM_5")
+		}
+	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 
 	// Collect symabis from assembly code.
@@ -1760,8 +1774,8 @@ var cgoEnabled = map[string]bool{
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
 var broken = map[string]bool{
-	"linux/sparc64":   true, // An incomplete port. See CL 132155.
-	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
+	"linux/sparc64":  true, // An incomplete port. See CL 132155.
+	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.

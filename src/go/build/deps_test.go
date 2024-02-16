@@ -76,6 +76,7 @@ var depsRules = `
 	< sync/atomic
 	< internal/race
 	< internal/msan
+	< internal/asan
 	< sync
 	< internal/bisect
 	< internal/godebug

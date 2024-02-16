@@ -73,8 +73,9 @@ func _C_res_ninit(state *_C_struct___res_state) error {
 	return nil
 }
 
-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
-	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) int {
+	x, _ := unix.ResNsearch(state, dname, class, typ, ans, anslen)
+	return x
 }
 
 func _C_res_nclose(state *_C_struct___res_state) {

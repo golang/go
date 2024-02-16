@@ -516,17 +516,19 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 32}, C_U8CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 14}, C_U15CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 15}, C_U16CON},
-		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 + 1<<16}, C_U32CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 + 1<<16}, C_U31CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 31}, C_U32CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 32}, C_S34CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 33}, C_64CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -1}, C_S16CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -0x10001}, C_S32CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 0x10001}, C_U31CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 33)}, C_S34CON},
 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 34)}, C_64CON},
 
 		// Branch like arguments
-		{obj.Addr{Type: obj.TYPE_BRANCH, Sym: &obj.LSym{Type: objabi.SDATA}}, cmplx{C_SBRA, C_LBRAPIC, C_LBRAPIC, C_SBRA}},
-		{obj.Addr{Type: obj.TYPE_BRANCH}, C_SBRA},
+		{obj.Addr{Type: obj.TYPE_BRANCH, Sym: &obj.LSym{Type: objabi.SDATA}}, cmplx{C_BRA, C_BRAPIC, C_BRAPIC, C_BRA}},
+		{obj.Addr{Type: obj.TYPE_BRANCH}, C_BRA},
 	}
 
 	pic_ctxt9 := ctxt9{ctxt: &obj.Link{Flag_shared: true, Arch: &Linkppc64}, autosize: 0}

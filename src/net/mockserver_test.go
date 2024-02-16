@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
@@ -512,6 +513,7 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
 
 func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
 	t.Helper()
+
 	ln := newLocalListener(t, net)
 	defer ln.Close()
 	var cerr, serr error
@@ -538,6 +540,14 @@ func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
 }
 
 func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSize int) (func(t testing.TB), error) {
+	t.Helper()
+
+	if runtime.GOOS == "windows" {
+		// TODO(panjf2000): Windows has not yet implemented FileConn,
+		//		remove this when it's implemented in https://go.dev/issues/9503.
+		t.Fatalf("startTestSocketPeer is not supported on %s", runtime.GOOS)
+	}
+
 	f, err := conn.(interface{ File() (*os.File, error) }).File()
 	if err != nil {
 		return nil, err
