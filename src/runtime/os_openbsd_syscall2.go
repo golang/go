@@ -95,6 +95,8 @@ func nanotime1() int64
 //go:noescape
 func sigaltstack(new, old *stackt)
 
-func closeonexec(fd int32)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
 
 func walltime() (sec int64, nsec int32)
+
+func issetugid() int32

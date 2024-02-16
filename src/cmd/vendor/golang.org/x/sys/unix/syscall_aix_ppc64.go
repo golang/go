@@ -3,12 +3,10 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix && ppc64
-// +build aix,ppc64
 
 package unix
 
 //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = lseek
 
 //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) = mmap64

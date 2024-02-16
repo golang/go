@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/coverage"
+	"internal/coverage/cmerge"
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
@@ -60,6 +61,7 @@ func (m *mstate) Setup() {
 	if *outdirflag == "" {
 		m.Usage("select output directory with '-o' option")
 	}
+	m.mm.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
 }
 
 func (m *mstate) BeginPod(p pods.Pod) {

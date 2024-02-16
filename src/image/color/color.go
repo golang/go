@@ -137,13 +137,13 @@ func (c Gray16) RGBA() (r, g, b, a uint32) {
 	return y, y, y, 0xffff
 }
 
-// Model can convert any Color to one from its own color model. The conversion
+// Model can convert any [Color] to one from its own color model. The conversion
 // may be lossy.
 type Model interface {
 	Convert(c Color) Color
 }
 
-// ModelFunc returns a Model that invokes f to implement the conversion.
+// ModelFunc returns a [Model] that invokes f to implement the conversion.
 func ModelFunc(f func(Color) Color) Model {
 	// Note: using *modelFunc as the implementation
 	// means that callers can still use comparisons

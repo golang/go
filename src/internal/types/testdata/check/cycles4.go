@@ -115,7 +115,7 @@ type Event interface {
 // to follow-on errors due to an incorrectly computed type set.
 
 type T8 interface {
-	m() [unsafe.Sizeof(T8.m /* ERROR undefined */ )]int
+	m() [unsafe.Sizeof(T8.m /* ERROR "undefined" */ )]int
 }
 
 var _ = T8.m // no error expected here

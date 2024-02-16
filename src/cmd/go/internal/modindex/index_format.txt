@@ -3,18 +3,19 @@ The index format is an encoding of a series of RawPackage structs
 
 Field names refer to fields on RawPackage and rawFile.
 The file uses little endian encoding for the uint32s.
-Strings are written into the string table at the end of the file. Each string
-is null-terminated. String offsets are relative to the start of the string table.
+Strings are written into the string table at the end of the file.
+Each string is prefixed with a uvarint-encoded length.
 Bools are written as uint32s: 0 for false and 1 for true.
 
 The following is the format for a full module:
 
-“go index v0\n”
+“go index v2\n”
 str uint32 - offset of string table
 n uint32 - number of packages
-dirnames [n]uint32 - offsets to package names in string table; names sorted by raw string
-packages [n]uint32 - offset where package begins
-for each RawPackage:
+for each rawPackage:
+	dirname - string offset
+	package - offset where package begins
+for each rawPackage:
 	error uint32 - string offset // error is produced by fsys.ReadDir or fmt.Errorf
 	dir uint32 - string offset (directory path relative to module root)
 	len(sourceFiles) uint32
@@ -35,11 +36,16 @@ for each RawPackage:
 		for each rawImport:
 			path - string offset
 			position - file, offset, line, column - uint32
-		len(embeds) numEmbeds uint32
+		len(embeds) uint32
 		for each embed:
 			pattern - string offset
 			position - file, offset, line, column - uint32
+		len(directives) uint32
+		for each directive:
+			text - string offset
+			position - file, offset, line, column - uint32
 [string table]
+0xFF (marker)
 
 The following is the format for a single indexed package:
 

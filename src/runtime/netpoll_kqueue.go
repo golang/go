@@ -9,6 +9,7 @@ package runtime
 // Integrated network poller (kqueue-based implementation).
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -61,7 +62,17 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	ev[0].flags = _EV_ADD | _EV_CLEAR
 	ev[0].fflags = 0
 	ev[0].data = 0
-	ev[0].udata = (*byte)(unsafe.Pointer(pd))
+
+	if goarch.PtrSize == 4 {
+		// We only have a pointer-sized field to store into,
+		// so on a 32-bit system we get no sequence protection.
+		// TODO(iant): If we notice any problems we could at least
+		// steal the low-order 2 bits for a tiny sequence number.
+		ev[0].udata = (*byte)(unsafe.Pointer(pd))
+	} else {
+		tp := taggedPointerPack(unsafe.Pointer(pd), pd.fdseq.Load())
+		ev[0].udata = (*byte)(unsafe.Pointer(uintptr(tp)))
+	}
 	ev[1] = ev[0]
 	ev[1].filter = _EVFILT_WRITE
 	n := kevent(kq, &ev[0], 2, nil, 0, nil)
@@ -107,9 +118,9 @@ func netpollBreak() {
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	if kq == -1 {
-		return gList{}
+		return gList{}, 0
 	}
 	var tp *timespec
 	var ts timespec
@@ -129,18 +140,22 @@ func netpoll(delay int64) gList {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR {
+		// Ignore the ETIMEDOUT error for now, but try to dive deep and
+		// figure out what really happened with n == ETIMEOUT,
+		// see https://go.dev/issue/59679 for details.
+		if n != -_EINTR && n != -_ETIMEDOUT {
 			println("runtime: kevent on fd", kq, "failed with", -n)
 			throw("runtime: netpoll failed")
 		}
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
 		if delay > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
 	var toRun gList
+	delta := int32(0)
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
@@ -181,10 +196,24 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
-			pd.setEventErr(ev.flags == _EV_ERROR)
-			netpollready(&toRun, pd, mode)
+			var pd *pollDesc
+			var tag uintptr
+			if goarch.PtrSize == 4 {
+				// No sequence protection on 32-bit systems.
+				// See netpollopen for details.
+				pd = (*pollDesc)(unsafe.Pointer(ev.udata))
+				tag = 0
+			} else {
+				tp := taggedPointer(uintptr(unsafe.Pointer(ev.udata)))
+				pd = (*pollDesc)(tp.pointer())
+				tag = tp.tag()
+				if pd.fdseq.Load() != tag {
+					continue
+				}
+			}
+			pd.setEventErr(ev.flags == _EV_ERROR, tag)
+			delta += netpollready(&toRun, pd, mode)
 		}
 	}
-	return toRun
+	return toRun, delta
 }

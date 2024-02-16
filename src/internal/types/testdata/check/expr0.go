@@ -24,12 +24,14 @@ var (
 	b11 = &b0
 	b12 = <-b0 /* ERROR "cannot receive" */
 	b13 = & & /* ERROR "cannot take address" */ b0
+	b14 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ b0
 
 	// byte
 	_ = byte(0)
-	_ = byte(- /* ERROR "cannot convert" */ 1)
-	_ = - /* ERROR "-byte\(1\) \(constant -1 of type byte\) overflows byte" */ byte(1) // test for issue 11367
+	_ = byte(- /* ERROR "overflows" */ 1)
+	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ byte(0)
 
 	// int
 	i0 = 1
@@ -51,6 +53,7 @@ var (
 	i16 = &i0
 	i17 = *i16
 	i18 = <-i16 /* ERROR "cannot receive" */
+	i19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ i0
 
 	// uint
 	u0 = uint(1)
@@ -73,6 +76,7 @@ var (
 	u17 = *u16
 	u18 = <-u16 /* ERROR "cannot receive" */
 	u19 = ^uint(0)
+	u20 = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ u0
 
 	// float64
 	f0 = float64(1)
@@ -94,6 +98,7 @@ var (
 	f16 = &f0
 	f17 = *u16
 	f18 = <-u16 /* ERROR "cannot receive" */
+	f19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ f0
 
 	// complex128
 	c0 = complex128(1)
@@ -115,6 +120,7 @@ var (
 	c16 = &c0
 	c17 = *u16
 	c18 = <-u16 /* ERROR "cannot receive" */
+	c19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ c0
 
 	// string
 	s0 = "foo"
@@ -126,6 +132,7 @@ var (
 	s6 = &s4
 	s7 = *s6
 	s8 = <-s7
+	s9 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ s0
 
 	// channel
 	ch chan int
@@ -144,7 +151,9 @@ var (
 	ch10, ok = <-ch
 	// ok is of type bool
 	ch11, myok = <-ch
-	_ mybool = myok /* ERROR "cannot use .* in variable declaration" */
+	_ mybool = myok /* ERRORx `cannot use .* in variable declaration` */
+	ch12 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ ch
+
 )
 
 // address of composite literals
@@ -175,13 +184,13 @@ var (
 func g() (a, b int) { return }
 
 func _() {
-	_ = -g /* ERROR multiple-value g */ ()
-	_ = <-g /* ERROR multiple-value g */ ()
+	_ = -g /* ERROR "multiple-value g" */ ()
+	_ = <-g /* ERROR "multiple-value g" */ ()
 }
 
 // ~ is accepted as unary operator only permitted in interface type elements
 var (
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ 0
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ "foo"
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ i0
 )

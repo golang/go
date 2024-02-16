@@ -54,13 +54,13 @@ type u101 interface {
 	t70|t71|t72|t73|t74|t75|t76|t77|t78|t79|
 	t80|t81|t82|t83|t84|t85|t86|t87|t88|t89|
 	t90|t91|t92|t93|t94|t95|t96|t97|t98|t99|
-        int // ERROR cannot handle more than 100 union terms
+        int // ERROR "cannot handle more than 100 union terms"
 }
 
 type u102 interface {
-        int /* ERROR cannot handle more than 100 union terms */ |string|u100a
+        int /* ERROR "cannot handle more than 100 union terms" */ |string|u100a
 }
 
 type u200 interface {
-        u100a /* ERROR cannot handle more than 100 union terms */ |u100b
+        u100a /* ERROR "cannot handle more than 100 union terms" */ |u100b
 }

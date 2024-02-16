@@ -4,6 +4,7 @@
 # 'go test' exits non-zero and no crasher is recorded.
 
 [short] skip
+env GOCACHE=$WORK/cache
 
 ! go test -fuzz=FuzzReturn
 ! exists testdata

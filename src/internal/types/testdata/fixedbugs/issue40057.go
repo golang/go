@@ -7,7 +7,7 @@ package p
 func _() {
 	var x interface{}
 	switch t := x.(type) {
-	case S /* ERROR cannot use generic type */ :
+	case S /* ERROR "cannot use generic type" */ :
 		t.m()
 	}
 }

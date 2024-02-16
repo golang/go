@@ -216,6 +216,16 @@ func (w *worker) coordinate(ctx context.Context) error {
 					result.crasherMsg = err.Error()
 				}
 			}
+			if shouldPrintDebugInfo() {
+				w.coordinator.debugLogf(
+					"input minimized, id: %s, original id: %s, crasher: %t, originally crasher: %t, minimizing took: %s",
+					result.entry.Path,
+					input.entry.Path,
+					result.crasherMsg != "",
+					input.crasherMsg != "",
+					result.totalDuration,
+				)
+			}
 			w.coordinator.resultC <- result
 		}
 	}
@@ -983,13 +993,13 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	if !ok {
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
+	defer func() { wc.memMu <- mem }()
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, minimizeResponse{}, err
 	}
 	mem.setValue(inp)
-	defer func() { wc.memMu <- mem }()
 	entryOut = entryIn
 	entryOut.Values, err = unmarshalCorpusFile(inp)
 	if err != nil {
@@ -1072,6 +1082,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
+		wc.memMu <- mem
 		return CorpusEntry{}, fuzzResponse{}, true, err
 	}
 	mem.setValue(inp)

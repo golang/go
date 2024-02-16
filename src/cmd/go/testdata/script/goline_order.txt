@@ -1,0 +1,74 @@
+# Check that go lines are always >= go lines of dependencies.
+
+# Using too old a release cannot even complete module load.
+env TESTGO_VERSION=go1.21.1
+env TESTGO_VERSION_SWITCH=switch
+cp go.mod go.mod.orig
+
+# If the offending module is not imported, it's not detected.
+go list
+cmp go.mod go.mod.orig
+
+# Adding the import produces the error.
+# Maybe this should auto-switch, but it requires more plumbing to get this error through,
+# and it's a misconfigured system that should not arise in practice, so not switching is fine.
+! go list -deps -tags usem1
+cmp go.mod go.mod.orig
+stderr '^go: module ./m1 requires go >= 1.21.2 \(running go 1.21.1\)$'
+
+# go get go@1.21.2 fixes the error.
+cp go.mod.orig go.mod
+go get go@1.21.2
+go list -deps -tags usem1
+
+# go get -tags usem1 fixes the error.
+cp go.mod.orig go.mod
+go get -tags usem1
+go list -deps -tags usem1
+
+# go get fixes the error.
+cp go.mod.orig go.mod
+go get
+go list -deps -tags usem1
+
+# Using a new enough release reports the error after module load and suggests 'go mod tidy'
+env TESTGO_VERSION=go1.21.2
+cp go.mod.orig go.mod
+! go list -deps -tags usem1
+stderr 'updates to go.mod needed'
+stderr 'go mod tidy'
+go mod tidy
+go list -deps -tags usem1
+
+# go get also works
+cp go.mod.orig go.mod
+! go list -deps -tags usem1
+stderr 'updates to go.mod needed'
+stderr 'go mod tidy'
+go get go@1.21.2
+go list -deps -tags usem1
+
+
+-- go.mod --
+module m
+go 1.21.1
+
+require m1 v0.0.1
+
+replace m1 => ./m1
+
+-- m1/go.mod --
+go 1.21.2
+
+-- p.go --
+//go:build usem1
+
+package p
+
+import _ "m1"
+
+-- p1.go --
+package p
+
+-- m1/p.go --
+package p

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build riscv64 && linux
-// +build riscv64,linux
 
 package unix
 
@@ -32,13 +31,12 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
 	if timeout != nil {
 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
 	}
-	return Pselect(nfd, r, w, e, ts, nil)
+	return pselect6(nfd, r, w, e, ts, nil)
 }
 
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	setfsgid(gid int) (prev int, err error)
 //sys	setfsuid(uid int) (prev int, err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -177,4 +175,15 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error 
 		cmdlineLen++
 	}
 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
+}
+
+//sys	riscvHWProbe(pairs []RISCVHWProbePairs, cpuCount uintptr, cpus *CPUSet, flags uint) (err error)
+
+func RISCVHWProbe(pairs []RISCVHWProbePairs, set *CPUSet, flags uint) (err error) {
+	var setSize uintptr
+
+	if set != nil {
+		setSize = uintptr(unsafe.Sizeof(*set))
+	}
+	return riscvHWProbe(pairs, setSize, set, flags)
 }

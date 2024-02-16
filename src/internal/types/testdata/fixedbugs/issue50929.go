@@ -16,8 +16,8 @@ func G[A, B any](F[A, B]) {
 
 func _() {
 	// TODO(gri) only report one error below (issue #50932)
-	var x F /* ERROR got 1 arguments but 2 type parameters */ [int]
-	G(x /* ERROR does not match */)
+	var x F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [int]
+	G(x /* ERROR "does not match" */)
 }
 
 // test case from issue
@@ -46,23 +46,23 @@ func NSG[G any](c RSC[G]) {
 	fmt.Println(c)
 }
 
-func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ [Rc, RG] {
+func MMD[Rc RC /* ERROR "not enough type arguments for type RC: have 1, want 2" */ [RG], RG any, G any]() M /* ERROR "not enough type arguments for type" */ [Rc, RG] {
 
-	var nFn NFn /* ERROR got 2 arguments */ [Rc, RG]
+	var nFn NFn /* ERROR "not enough type arguments for type NFn: have 2, want 3" */ [Rc, RG]
 
 	var empty Rc
 	switch any(empty).(type) {
-	case BC /* ERROR undefined: BC */ :
+	case BC /* ERROR "undefined: BC" */ :
 
 	case RSC[G]:
-		nFn = NSG /* ERROR cannot use NSG\[G\] */ [G]
+		nFn = NSG /* ERROR "cannot use NSG[G]" */ [G]
 	}
 
-	return M /* ERROR got 2 arguments */ [Rc, RG]{
+	return M /* ERROR "not enough type arguments for type M: have 2, want 3" */ [Rc, RG]{
 		Fn: func(rc Rc) {
-			NC(nFn /* ERROR does not match */ )
+			NC(nFn /* ERROR "does not match" */)
 		},
 	}
 
-	return M /* ERROR got 2 arguments */ [Rc, RG]{}
+	return M /* ERROR "not enough type arguments for type M: have 2, want 3" */ [Rc, RG]{}
 }

@@ -40,7 +40,7 @@ var (
 
 // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
 // internal error. This distinguishes internal errors from uncontrolled panics
-// and other failiures. Keep in sync with internal/fuzz.workerExitCode.
+// and other failures. Keep in sync with internal/fuzz.workerExitCode.
 const fuzzWorkerExitCode = 70
 
 // InternalFuzzTarget is an internal type but exported because it is
@@ -59,7 +59,7 @@ type InternalFuzzTarget struct {
 // by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
 // any necessary setup and calls to (*F).Add, the fuzz test must then call
 // (*F).Fuzz to provide the fuzz target. See the testing package documentation
-// for an example, and see the F.Fuzz and F.Add method documentation for
+// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
 // *F methods can only be called before (*F).Fuzz. Once the test is
@@ -206,7 +206,7 @@ var supportedTypes = map[reflect.Type]bool{
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
+// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -636,6 +636,7 @@ func fRunner(f *F, fn func(*F)) {
 		// Unfortunately, recovering here adds stack frames, but the location of
 		// the original panic should still be
 		// clear.
+		f.checkRaces()
 		if f.Failed() {
 			numFailed.Add(1)
 		}
@@ -719,6 +720,7 @@ func fRunner(f *F, fn func(*F)) {
 	}()
 
 	f.start = time.Now()
+	f.resetRaces()
 	fn(f)
 
 	// Code beyond this point will not be executed when FailNow or SkipNow

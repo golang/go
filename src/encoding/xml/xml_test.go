@@ -830,6 +830,13 @@ var procInstTests = []struct {
 	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
 	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
 	{`encoding="FOO" `, [2]string{"", "FOO"}},
+	{`version=2.0 version="1.0" encoding=utf-7 encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version= encoding=`, [2]string{"", ""}},
+	{`encoding="version=1.0"`, [2]string{"", "version=1.0"}},
+	{``, [2]string{"", ""}},
+	// TODO: what's the right approach to handle these nested cases?
+	{`encoding="version='1.0'"`, [2]string{"1.0", "version='1.0'"}},
+	{`version="encoding='utf-8'"`, [2]string{"encoding='utf-8'", "utf-8"}},
 }
 
 func TestProcInstEncoding(t *testing.T) {
@@ -913,35 +920,6 @@ func TestIssue5880(t *testing.T) {
 	}
 	if !utf8.Valid(data) {
 		t.Errorf("Marshal generated invalid UTF-8: %x", data)
-	}
-}
-
-func TestIssue8068(t *testing.T) {
-	emptyError := SyntaxError{}
-	noError := emptyError.Error()
-	testCases := []struct {
-		s       string
-		wantErr SyntaxError
-	}{
-		{`<foo xmlns:bar="a"></foo>`, SyntaxError{}},
-		{`<foo xmlns:bar=""></foo>`, SyntaxError{Msg: "empty namespace with prefix", Line: 1}},
-		{`<foo xmlns:="a"></foo>`, SyntaxError{}},
-		{`<foo xmlns:""></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
-		{`<foo xmlns:"a"></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
-	}
-	var dest string
-	for _, tc := range testCases {
-		if got, want := Unmarshal([]byte(tc.s), &dest), tc.wantErr.Error(); got == nil {
-			if want != noError {
-				t.Errorf("%q: got nil, want %s", tc.s, want)
-			}
-		} else {
-			if want == "" {
-				t.Errorf("%q: got %s, want nil", tc.s, got)
-			} else if got.Error() != want {
-				t.Errorf("%q: got %s, want %s", tc.s, got, want)
-			}
-		}
 	}
 }
 
@@ -1085,6 +1063,61 @@ func TestIssue12417(t *testing.T) {
 		if err == nil && !tc.ok {
 			t.Errorf("%q: Encoding charset: expected error, got nil", tc.s)
 		}
+	}
+}
+
+func TestIssue7113(t *testing.T) {
+	type C struct {
+		XMLName Name `xml:""` // Sets empty namespace
+	}
+
+	type D struct {
+		XMLName Name `xml:"d"`
+	}
+
+	type A struct {
+		XMLName Name `xml:""`
+		C       C    `xml:""`
+		D       D
+	}
+
+	var a A
+	structSpace := "b"
+	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><d></d></A>`
+	t.Log(xmlTest)
+	err := Unmarshal([]byte(xmlTest), &a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a.XMLName.Space != structSpace {
+		t.Errorf("overidding with empty namespace: unmarshalling, got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Fatalf("overidding with empty namespace: unmarshalling, got %s, want empty\n", a.C.XMLName.Space)
+	}
+
+	var b []byte
+	b, err = Marshal(&a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
+	}
+	if string(b) != xmlTest {
+		t.Fatalf("overidding with empty namespace: marshalling, got %s, want %s\n", b, xmlTest)
+	}
+	var c A
+	err = Unmarshal(b, &c)
+	if err != nil {
+		t.Fatalf("second Unmarshal failed: %s", err)
+	}
+	if c.XMLName.Space != "b" {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, XML name space: got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(c.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
 	}
 }
 
@@ -1338,8 +1371,9 @@ func TestParseErrors(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil || err == io.EOF {
-			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
+		// Inv: err != nil
+		if err == io.EOF {
+			t.Errorf("parse %s: unexpected EOF", test.src)
 			continue
 		}
 		if !strings.Contains(err.Error(), test.err) {

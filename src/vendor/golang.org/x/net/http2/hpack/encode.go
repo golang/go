@@ -116,6 +116,11 @@ func (e *Encoder) SetMaxDynamicTableSize(v uint32) {
 	e.dynTab.setMaxSize(v)
 }
 
+// MaxDynamicTableSize returns the current dynamic header table size.
+func (e *Encoder) MaxDynamicTableSize() (v uint32) {
+	return e.dynTab.maxSize
+}
+
 // SetMaxDynamicTableSizeLimit changes the maximum value that can be
 // specified in SetMaxDynamicTableSize to v. By default, it is set to
 // 4096, which is the same size of the default dynamic header table

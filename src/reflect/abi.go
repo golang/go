@@ -121,11 +121,11 @@ func (a *abiSeq) stepsForValue(i int) []abiStep {
 //
 // If the value was stack-assigned, returns the single
 // abiStep describing that translation, and nil otherwise.
-func (a *abiSeq) addArg(t *rtype) *abiStep {
+func (a *abiSeq) addArg(t *abi.Type) *abiStep {
 	// We'll always be adding a new value, so do that first.
 	pStart := len(a.steps)
 	a.valueStart = append(a.valueStart, pStart)
-	if t.size == 0 {
+	if t.Size() == 0 {
 		// If the size of the argument type is zero, then
 		// in order to degrade gracefully into ABI0, we need
 		// to stack-assign this type. The reason is that
@@ -140,7 +140,7 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
 		// non-zero-sized struct do not cause it to be
 		// stack-assigned. So we need a special case here
 		// at the top.
-		a.stackBytes = align(a.stackBytes, uintptr(t.align))
+		a.stackBytes = align(a.stackBytes, uintptr(t.Align()))
 		return nil
 	}
 	// Hold a copy of "a" so that we can roll back if
@@ -150,7 +150,7 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
 		// Register assignment failed. Roll back any changes
 		// and stack-assign.
 		*a = aOld
-		a.stackAssign(t.size, uintptr(t.align))
+		a.stackAssign(t.Size(), uintptr(t.Align()))
 		return &a.steps[len(a.steps)-1]
 	}
 	return nil
@@ -162,11 +162,11 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
 // If the receiver was stack-assigned, returns the single
 // abiStep describing that translation, and nil otherwise.
 // Returns true if the receiver is a pointer.
-func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
+func (a *abiSeq) addRcvr(rcvr *abi.Type) (*abiStep, bool) {
 	// The receiver is always one word.
 	a.valueStart = append(a.valueStart, len(a.steps))
 	var ok, ptr bool
-	if ifaceIndir(rcvr) || rcvr.pointers() {
+	if ifaceIndir(rcvr) || rcvr.Pointers() {
 		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b1)
 		ptr = true
 	} else {
@@ -195,12 +195,12 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
 //
 // This method along with the assign* methods represent the
 // complete register-assignment algorithm for the Go ABI.
-func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
-	switch t.Kind() {
+func (a *abiSeq) regAssign(t *abi.Type, offset uintptr) bool {
+	switch Kind(t.Kind()) {
 	case UnsafePointer, Pointer, Chan, Map, Func:
-		return a.assignIntN(offset, t.size, 1, 0b1)
+		return a.assignIntN(offset, t.Size(), 1, 0b1)
 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
-		return a.assignIntN(offset, t.size, 1, 0b0)
+		return a.assignIntN(offset, t.Size(), 1, 0b0)
 	case Int64, Uint64:
 		switch goarch.PtrSize {
 		case 4:
@@ -209,7 +209,7 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 			return a.assignIntN(offset, 8, 1, 0b0)
 		}
 	case Float32, Float64:
-		return a.assignFloatN(offset, t.size, 1)
+		return a.assignFloatN(offset, t.Size(), 1)
 	case Complex64:
 		return a.assignFloatN(offset, 4, 2)
 	case Complex128:
@@ -222,22 +222,22 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 		return a.assignIntN(offset, goarch.PtrSize, 3, 0b001)
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		switch tt.len {
+		switch tt.Len {
 		case 0:
 			// There's nothing to assign, so don't modify
 			// a.steps but succeed so the caller doesn't
 			// try to stack-assign this value.
 			return true
 		case 1:
-			return a.regAssign(tt.elem, offset)
+			return a.regAssign(tt.Elem, offset)
 		default:
 			return false
 		}
 	case Struct:
 		st := (*structType)(unsafe.Pointer(t))
-		for i := range st.fields {
-			f := &st.fields[i]
-			if !a.regAssign(f.typ, offset+f.offset) {
+		for i := range st.Fields {
+			f := &st.Fields[i]
+			if !a.regAssign(f.Typ, offset+f.Offset) {
 				return false
 			}
 		}
@@ -384,7 +384,7 @@ func dumpPtrBitMap(b abi.IntArgRegBitmap) {
 	}
 }
 
-func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+func newAbiDesc(t *funcType, rcvr *abi.Type) abiDesc {
 	// We need to add space for this argument to
 	// the frame so that it can spill args into it.
 	//
@@ -416,13 +416,13 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 			spill += goarch.PtrSize
 		}
 	}
-	for i, arg := range t.in() {
+	for i, arg := range t.InSlice() {
 		stkStep := in.addArg(arg)
 		if stkStep != nil {
 			addTypeBits(stackPtrs, stkStep.stkOff, arg)
 		} else {
-			spill = align(spill, uintptr(arg.align))
-			spill += arg.size
+			spill = align(spill, uintptr(arg.Align()))
+			spill += arg.Size()
 			for _, st := range in.stepsForValue(i) {
 				if st.kind == abiStepPointer {
 					inRegPtrs.Set(st.ireg)
@@ -449,7 +449,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 	// Fake it by artificially extending stackBytes by
 	// the return offset.
 	out.stackBytes = retOffset
-	for i, res := range t.out() {
+	for i, res := range t.OutSlice() {
 		stkStep := out.addArg(res)
 		if stkStep != nil {
 			addTypeBits(stackPtrs, stkStep.stkOff, res)

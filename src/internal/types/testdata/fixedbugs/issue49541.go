@@ -13,7 +13,7 @@ func (S[A, B]) m() {}
 // TODO(gri): with type-type inference enabled we should only report one error
 // below. See issue #50588.
 
-func _[A any](s S /* ERROR got 1 arguments but 2 type parameters */ [A]) {
+func _[A any](s S /* ERROR "not enough type arguments for type S: have 1, want 2" */ [A]) {
 	// we should see no follow-on errors below
 	s.f = 1
 	s.m()
@@ -22,7 +22,7 @@ func _[A any](s S /* ERROR got 1 arguments but 2 type parameters */ [A]) {
 // another test case from the issue
 
 func _() {
-	X(Interface[*F /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
+	X /* ERROR "cannot infer Q" */ (Interface[*F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [string]](Impl{}))
 }
 
 func X[Q Qer](fs Interface[Q]) {

@@ -7,13 +7,16 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/fs"
 	"mime"
 	"mime/multipart"
 	"net"
+	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,9 +27,9 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -88,15 +91,39 @@ func testServeFile(t *testing.T, mode testMode) {
 	if req.URL, err = url.Parse(ts.URL); err != nil {
 		t.Fatal("ParseURL:", err)
 	}
-	req.Method = "GET"
 
-	// straight GET
-	_, body := getBody(t, "straight get", req, c)
-	if !bytes.Equal(body, file) {
-		t.Fatalf("body mismatch: got %q, want %q", body, file)
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req.Method = method
+		_, body := getBody(t, method, req, c)
+		if !bytes.Equal(body, file) {
+			t.Fatalf("body mismatch for %v request: got %q, want %q", method, body, file)
+		}
+	}
+
+	// HEAD request.
+	req.Method = MethodHead
+	resp, body := getBody(t, "HEAD", req, c)
+	if len(body) != 0 {
+		t.Fatalf("body mismatch for HEAD request: got %q, want empty", body)
+	}
+	if got, want := resp.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+		t.Fatalf("Content-Length mismatch for HEAD request: got %v, want %v", got, want)
 	}
 
 	// Range tests
+	req.Method = MethodGet
 Cases:
 	for _, rt := range ServeFileRangeTests {
 		if rt.r != "" {
@@ -420,46 +447,6 @@ func testFileServerImplicitLeadingSlash(t *testing.T, mode testMode) {
 	}
 }
 
-func TestFileServerMethodOptions(t *testing.T) { run(t, testFileServerMethodOptions) }
-func testFileServerMethodOptions(t *testing.T, mode testMode) {
-	const want = "GET, HEAD, OPTIONS"
-	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
-
-	tests := []struct {
-		method     string
-		wantStatus int
-	}{
-		{MethodOptions, StatusOK},
-
-		{MethodDelete, StatusMethodNotAllowed},
-		{MethodPut, StatusMethodNotAllowed},
-		{MethodPost, StatusMethodNotAllowed},
-	}
-
-	for _, test := range tests {
-		req, err := NewRequest(test.method, ts.URL, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err := ts.Client().Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer res.Body.Close()
-
-		if res.StatusCode != test.wantStatus {
-			t.Errorf("%s got status %q, want code %d", test.method, res.Status, test.wantStatus)
-		}
-
-		a := strings.Split(res.Header.Get("Allow"), ", ")
-		sort.Strings(a)
-		got := strings.Join(a, ", ")
-		if got != want {
-			t.Errorf("%s got Allow header %q, want %q", test.method, got, want)
-		}
-	}
-}
-
 func TestDirJoin(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping test on windows")
@@ -745,6 +732,25 @@ func testFileServerZeroByte(t *testing.T, mode testMode) {
 	}
 }
 
+func TestFileServerNamesEscape(t *testing.T) { run(t, testFileServerNamesEscape) }
+func testFileServerNamesEscape(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+	for _, path := range []string{
+		"/../testdata/file",
+		"/NUL", // don't read from device files on Windows
+	} {
+		res, err := ts.Client().Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode < 400 || res.StatusCode > 599 {
+			t.Errorf("Get(%q): got status %v, want 4xx or 5xx", path, res.StatusCode)
+		}
+
+	}
+}
+
 type fakeFileInfo struct {
 	dir      bool
 	basename string
@@ -764,6 +770,10 @@ func (f *fakeFileInfo) Mode() fs.FileMode {
 		return 0755 | fs.ModeDir
 	}
 	return 0644
+}
+
+func (f *fakeFileInfo) String() string {
+	return fs.FormatFileInfo(f)
 }
 
 type fakeFile struct {
@@ -1259,7 +1269,7 @@ func TestLinuxSendfile(t *testing.T) {
 	defer ln.Close()
 
 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
-	if err := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
+	if err := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
 		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
@@ -1272,7 +1282,7 @@ func TestLinuxSendfile(t *testing.T) {
 	defer os.Remove(filepath)
 
 	var buf strings.Builder
-	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=^TestLinuxSendfileChild$")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
@@ -1502,5 +1512,159 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
 				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
 			}
 		})
+	}
+}
+
+func TestFileServerMethods(t *testing.T) {
+	run(t, testFileServerMethods)
+}
+func testFileServerMethods(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+
+	file, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatal("reading file:", err)
+	}
+
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodHead,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req, _ := NewRequest(method, ts.URL+"/file", nil)
+		t.Log(req.URL)
+		res, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantBody := file
+		if method == MethodHead {
+			wantBody = nil
+		}
+		if !bytes.Equal(body, wantBody) {
+			t.Fatalf("%v: got body %q, want %q", method, body, wantBody)
+		}
+		if got, want := res.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+			t.Fatalf("%v: got Content-Length %q, want %q", method, got, want)
+		}
+	}
+}
+
+func TestFileServerFS(t *testing.T) {
+	filename := "index.html"
+	contents := []byte("index.html says hello")
+	fsys := fstest.MapFS{
+		filename: {Data: contents},
+	}
+	ts := newClientServerTest(t, http1Mode, FileServerFS(fsys)).ts
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL + "/" + filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
+}
+
+func TestServeFileFS(t *testing.T) {
+	filename := "index.html"
+	contents := []byte("index.html says hello")
+	fsys := fstest.MapFS{
+		filename: {Data: contents},
+	}
+	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFileFS(w, r, fsys, filename)
+	})).ts
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL + "/" + filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
+}
+
+func TestServeFileZippingResponseWriter(t *testing.T) {
+	// This test exercises a pattern which is incorrect,
+	// but has been observed enough in the world that we don't want to break it.
+	//
+	// The server is setting "Content-Encoding: gzip",
+	// wrapping the ResponseWriter in an implementation which gzips data written to it,
+	// and passing this ResponseWriter to ServeFile.
+	//
+	// This means ServeFile cannot properly set a Content-Length header, because it
+	// doesn't know what content it is going to send--the ResponseWriter is modifying
+	// the bytes sent.
+	//
+	// Range requests are always going to be broken in this scenario,
+	// but verify that we can serve non-range requests correctly.
+	filename := "index.html"
+	contents := []byte("contents will be sent with Content-Encoding: gzip")
+	fsys := fstest.MapFS{
+		filename: {Data: contents},
+	}
+	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gzw := gzip.NewWriter(w)
+		defer gzw.Close()
+		ServeFileFS(gzipResponseWriter{w: gzw, ResponseWriter: w}, r, fsys, filename)
+	})).ts
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL + "/" + filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if s := string(b); s != string(contents) {
+		t.Errorf("for path %q got %q, want %q", filename, s, contents)
+	}
+	res.Body.Close()
+}
+
+type gzipResponseWriter struct {
+	ResponseWriter
+	w *gzip.Writer
+}
+
+func (grw gzipResponseWriter) Write(b []byte) (int, error) {
+	return grw.w.Write(b)
+}
+
+func (grw gzipResponseWriter) Flush() {
+	grw.w.Flush()
+	if fw, ok := grw.ResponseWriter.(http.Flusher); ok {
+		fw.Flush()
 	}
 }

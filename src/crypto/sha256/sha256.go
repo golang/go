@@ -144,8 +144,8 @@ func (d *digest) Reset() {
 }
 
 // New returns a new hash.Hash computing the SHA256 checksum. The Hash
-// also implements encoding.BinaryMarshaler and
-// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
+// also implements [encoding.BinaryMarshaler] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash {
 	if boring.Enabled {
@@ -214,18 +214,20 @@ func (d *digest) Sum(in []byte) []byte {
 func (d *digest) checkSum() [Size]byte {
 	len := d.len
 	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
-	var tmp [64]byte
+	var tmp [64 + 8]byte // padding + length buffer
 	tmp[0] = 0x80
+	var t uint64
 	if len%64 < 56 {
-		d.Write(tmp[0 : 56-len%64])
+		t = 56 - len%64
 	} else {
-		d.Write(tmp[0 : 64+56-len%64])
+		t = 64 + 56 - len%64
 	}
 
 	// Length in bits.
 	len <<= 3
-	binary.BigEndian.PutUint64(tmp[:], len)
-	d.Write(tmp[0:8])
+	padlen := tmp[:t+8]
+	binary.BigEndian.PutUint64(padlen[t+0:], len)
+	d.Write(padlen)
 
 	if d.nx != 0 {
 		panic("d.nx != 0")

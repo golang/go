@@ -20,37 +20,26 @@ package ecdsa
 // [SEC 1, Version 2.0]: https://www.secg.org/sec1-v2.pdf
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/elliptic"
+	"crypto/internal/bigmod"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/nistec"
 	"crypto/internal/randutil"
 	"crypto/sha512"
+	"crypto/subtle"
 	"errors"
 	"io"
 	"math/big"
+	"sync"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
-)
-
-// A invertible implements fast inverse in GF(N).
-type invertible interface {
-	// Inverse returns the inverse of k mod Params().N.
-	Inverse(k *big.Int) *big.Int
-}
-
-// A combinedMult implements fast combined multiplication for verification.
-type combinedMult interface {
-	// CombinedMult returns [s1]G + [s2]P where G is the generator.
-	CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int)
-}
-
-const (
-	aesIV = "IV for ECDSA CTR"
 )
 
 // PublicKey represents an ECDSA public key.
@@ -79,14 +68,14 @@ func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
 // Equal reports whether pub and x have the same value.
 //
 // Two keys are only considered to have the same value if they have the same Curve value.
-// Note that for example elliptic.P256() and elliptic.P256().Params() are different
+// Note that for example [elliptic.P256] and elliptic.P256().Params() are different
 // values, as the latter is a generic not constant time implementation.
 func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	xx, ok := x.(*PublicKey)
 	if !ok {
 		return false
 	}
-	return pub.X.Cmp(xx.X) == 0 && pub.Y.Cmp(xx.Y) == 0 &&
+	return bigIntEqual(pub.X, xx.X) && bigIntEqual(pub.Y, xx.Y) &&
 		// Standard library Curve implementations are singletons, so this check
 		// will work for those. Other Curves might be equivalent even if not
 		// singletons, but there is no definitive way to check for that, and
@@ -102,7 +91,7 @@ type PrivateKey struct {
 
 // ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
-// Curve is not supported by crypto/ecdh.
+// Curve is not supported by [crypto/ecdh].
 func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
 	c := curveToECDH(k.Curve)
 	if c == nil {
@@ -135,13 +124,19 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 
 // Equal reports whether priv and x have the same value.
 //
-// See PublicKey.Equal for details on how Curve is compared.
+// See [PublicKey.Equal] for details on how Curve is compared.
 func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	xx, ok := x.(*PrivateKey)
 	if !ok {
 		return false
 	}
-	return priv.PublicKey.Equal(&xx.PublicKey) && priv.D.Cmp(xx.D) == 0
+	return priv.PublicKey.Equal(&xx.PublicKey) && bigIntEqual(priv.D, xx.D)
+}
+
+// bigIntEqual reports whether a and b are equal leaking only their bit length
+// through timing side-channels.
+func bigIntEqual(a, b *big.Int) bool {
+	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
 }
 
 // Sign signs digest with priv, reading randomness from rand. The opts argument
@@ -150,53 +145,19 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 //
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
-// uses can use the SignASN1 function in this package directly.
+// uses can use the [SignASN1] function in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if boring.Enabled && rand == boring.RandReader {
-		b, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		return boring.SignMarshalECDSA(b, digest)
-	}
-	boring.UnreachableExceptTests()
-
-	r, s, err := Sign(rand, priv, digest)
-	if err != nil {
-		return nil, err
-	}
-
-	var b cryptobyte.Builder
-	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-		b.AddASN1BigInt(r)
-		b.AddASN1BigInt(s)
-	})
-	return b.Bytes()
+	return SignASN1(rand, priv, digest)
 }
 
-var one = new(big.Int).SetInt64(1)
-
-// randFieldElement returns a random element of the order of the given
-// curve using the procedure given in FIPS 186-4, Appendix B.5.1.
-func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
-	params := c.Params()
-	// Note that for P-521 this will actually be 63 bits more than the order, as
-	// division rounds down, but the extra bit is inconsequential.
-	b := make([]byte, params.N.BitLen()/8+8)
-	_, err = io.ReadFull(rand, b)
-	if err != nil {
-		return
-	}
-
-	k = new(big.Int).SetBytes(b)
-	n := new(big.Int).Sub(params.N, one)
-	k.Mod(k, n)
-	k.Add(k, one)
-	return
-}
-
-// GenerateKey generates a public and private key pair.
+// GenerateKey generates a new ECDSA private key for the specified curve.
+//
+// Most applications should use [crypto/rand.Reader] as rand. Note that the
+// returned key does not depend deterministically on the bytes read from rand,
+// and may change between calls and/or between versions.
 func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+	randutil.MaybeReadByte(rand)
+
 	if boring.Enabled && rand == boring.RandReader {
 		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
 		if err != nil {
@@ -206,80 +167,250 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 	}
 	boring.UnreachableExceptTests()
 
-	k, err := randFieldElement(c, rand)
+	switch c.Params() {
+	case elliptic.P224().Params():
+		return generateNISTEC(p224(), rand)
+	case elliptic.P256().Params():
+		return generateNISTEC(p256(), rand)
+	case elliptic.P384().Params():
+		return generateNISTEC(p384(), rand)
+	case elliptic.P521().Params():
+		return generateNISTEC(p521(), rand)
+	default:
+		return generateLegacy(c, rand)
+	}
+}
+
+func generateNISTEC[Point nistPoint[Point]](c *nistCurve[Point], rand io.Reader) (*PrivateKey, error) {
+	k, Q, err := randomPoint(c, rand)
 	if err != nil {
 		return nil, err
 	}
 
 	priv := new(PrivateKey)
-	priv.PublicKey.Curve = c
-	priv.D = k
-	priv.PublicKey.X, priv.PublicKey.Y = c.ScalarBaseMult(k.Bytes())
+	priv.PublicKey.Curve = c.curve
+	priv.D = new(big.Int).SetBytes(k.Bytes(c.N))
+	priv.PublicKey.X, priv.PublicKey.Y, err = c.pointToAffine(Q)
+	if err != nil {
+		return nil, err
+	}
 	return priv, nil
 }
 
-// hashToInt converts a hash value to an integer. Per FIPS 186-4, Section 6.4,
-// we use the left-most bits of the hash to match the bit-length of the order of
-// the curve. This also performs Step 5 of SEC 1, Version 2.0, Section 4.1.3.
-func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
-	orderBits := c.Params().N.BitLen()
-	orderBytes := (orderBits + 7) / 8
-	if len(hash) > orderBytes {
-		hash = hash[:orderBytes]
+// randomPoint returns a random scalar and the corresponding point using the
+// procedure given in FIPS 186-4, Appendix B.5.2 (rejection sampling).
+func randomPoint[Point nistPoint[Point]](c *nistCurve[Point], rand io.Reader) (k *bigmod.Nat, p Point, err error) {
+	k = bigmod.NewNat()
+	for {
+		b := make([]byte, c.N.Size())
+		if _, err = io.ReadFull(rand, b); err != nil {
+			return
+		}
+
+		// Mask off any excess bits to increase the chance of hitting a value in
+		// (0, N). These are the most dangerous lines in the package and maybe in
+		// the library: a single bit of bias in the selection of nonces would likely
+		// lead to key recovery, but no tests would fail. Look but DO NOT TOUCH.
+		if excess := len(b)*8 - c.N.BitLen(); excess > 0 {
+			// Just to be safe, assert that this only happens for the one curve that
+			// doesn't have a round number of bits.
+			if excess != 0 && c.curve.Params().Name != "P-521" {
+				panic("ecdsa: internal error: unexpectedly masking off bits")
+			}
+			b[0] >>= excess
+		}
+
+		// FIPS 186-4 makes us check k <= N - 2 and then add one.
+		// Checking 0 < k <= N - 1 is strictly equivalent.
+		// None of this matters anyway because the chance of selecting
+		// zero is cryptographically negligible.
+		if _, err = k.SetBytes(b, c.N); err == nil && k.IsZero() == 0 {
+			break
+		}
+
+		if testingOnlyRejectionSamplingLooped != nil {
+			testingOnlyRejectionSamplingLooped()
+		}
 	}
 
-	ret := new(big.Int).SetBytes(hash)
-	excess := len(hash)*8 - orderBits
-	if excess > 0 {
-		ret.Rsh(ret, uint(excess))
-	}
-	return ret
+	p, err = c.newPoint().ScalarBaseMult(k.Bytes(c.N))
+	return
 }
 
-// fermatInverse calculates the inverse of k in GF(P) using Fermat's method
-// (exponentiation modulo P - 2, per Euler's theorem). This has better
-// constant-time properties than Euclid's method (implemented in
-// math/big.Int.ModInverse and FIPS 186-4, Appendix C.1) although math/big
-// itself isn't strictly constant-time so it's not perfect.
-func fermatInverse(k, N *big.Int) *big.Int {
-	two := big.NewInt(2)
-	nMinus2 := new(big.Int).Sub(N, two)
-	return new(big.Int).Exp(k, nMinus2, N)
-}
+// testingOnlyRejectionSamplingLooped is called when rejection sampling in
+// randomPoint rejects a candidate for being higher than the modulus.
+var testingOnlyRejectionSamplingLooped func()
 
-var errZeroParam = errors.New("zero parameter")
+// errNoAsm is returned by signAsm and verifyAsm when the assembly
+// implementation is not available.
+var errNoAsm = errors.New("no assembly implementation available")
 
-// Sign signs a hash (which should be the result of hashing a larger message)
+// SignASN1 signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
-// returns the signature as a pair of integers. Most applications should use
-// SignASN1 instead of dealing directly with r, s.
-func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+// returns the ASN.1 encoded signature.
+//
+// The signature is randomized. Most applications should use [crypto/rand.Reader]
+// as rand. Note that the returned signature does not depend deterministically on
+// the bytes read from rand, and may change between calls and/or between versions.
+func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	randutil.MaybeReadByte(rand)
 
 	if boring.Enabled && rand == boring.RandReader {
 		b, err := boringPrivateKey(priv)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		sig, err := boring.SignMarshalECDSA(b, hash)
-		if err != nil {
-			return nil, nil, err
-		}
-		var r, s big.Int
-		var inner cryptobyte.String
-		input := cryptobyte.String(sig)
-		if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
-			!input.Empty() ||
-			!inner.ReadASN1Integer(&r) ||
-			!inner.ReadASN1Integer(&s) ||
-			!inner.Empty() {
-			return nil, nil, errors.New("invalid ASN.1 from boringcrypto")
-		}
-		return &r, &s, nil
+		return boring.SignMarshalECDSA(b, hash)
 	}
 	boring.UnreachableExceptTests()
 
+	csprng, err := mixedCSPRNG(rand, priv, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if sig, err := signAsm(priv, csprng, hash); err != errNoAsm {
+		return sig, err
+	}
+
+	switch priv.Curve.Params() {
+	case elliptic.P224().Params():
+		return signNISTEC(p224(), priv, csprng, hash)
+	case elliptic.P256().Params():
+		return signNISTEC(p256(), priv, csprng, hash)
+	case elliptic.P384().Params():
+		return signNISTEC(p384(), priv, csprng, hash)
+	case elliptic.P521().Params():
+		return signNISTEC(p521(), priv, csprng, hash)
+	default:
+		return signLegacy(priv, csprng, hash)
+	}
+}
+
+func signNISTEC[Point nistPoint[Point]](c *nistCurve[Point], priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+	// SEC 1, Version 2.0, Section 4.1.3
+
+	k, R, err := randomPoint(c, csprng)
+	if err != nil {
+		return nil, err
+	}
+
+	// kInv = k⁻¹
+	kInv := bigmod.NewNat()
+	inverse(c, kInv, k)
+
+	Rx, err := R.BytesX()
+	if err != nil {
+		return nil, err
+	}
+	r, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
+	if err != nil {
+		return nil, err
+	}
+
+	// The spec wants us to retry here, but the chance of hitting this condition
+	// on a large prime-order group like the NIST curves we support is
+	// cryptographically negligible. If we hit it, something is awfully wrong.
+	if r.IsZero() == 1 {
+		return nil, errors.New("ecdsa: internal error: r is zero")
+	}
+
+	e := bigmod.NewNat()
+	hashToNat(c, e, hash)
+
+	s, err := bigmod.NewNat().SetBytes(priv.D.Bytes(), c.N)
+	if err != nil {
+		return nil, err
+	}
+	s.Mul(r, c.N)
+	s.Add(e, c.N)
+	s.Mul(kInv, c.N)
+
+	// Again, the chance of this happening is cryptographically negligible.
+	if s.IsZero() == 1 {
+		return nil, errors.New("ecdsa: internal error: s is zero")
+	}
+
+	return encodeSignature(r.Bytes(c.N), s.Bytes(c.N))
+}
+
+func encodeSignature(r, s []byte) ([]byte, error) {
+	var b cryptobyte.Builder
+	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		addASN1IntBytes(b, r)
+		addASN1IntBytes(b, s)
+	})
+	return b.Bytes()
+}
+
+// addASN1IntBytes encodes in ASN.1 a positive integer represented as
+// a big-endian byte slice with zero or more leading zeroes.
+func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
+	for len(bytes) > 0 && bytes[0] == 0 {
+		bytes = bytes[1:]
+	}
+	if len(bytes) == 0 {
+		b.SetError(errors.New("invalid integer"))
+		return
+	}
+	b.AddASN1(asn1.INTEGER, func(c *cryptobyte.Builder) {
+		if bytes[0]&0x80 != 0 {
+			c.AddUint8(0)
+		}
+		c.AddBytes(bytes)
+	})
+}
+
+// inverse sets kInv to the inverse of k modulo the order of the curve.
+func inverse[Point nistPoint[Point]](c *nistCurve[Point], kInv, k *bigmod.Nat) {
+	if c.curve.Params().Name == "P-256" {
+		kBytes, err := nistec.P256OrdInverse(k.Bytes(c.N))
+		// Some platforms don't implement P256OrdInverse, and always return an error.
+		if err == nil {
+			_, err := kInv.SetBytes(kBytes, c.N)
+			if err != nil {
+				panic("ecdsa: internal error: P256OrdInverse produced an invalid value")
+			}
+			return
+		}
+	}
+
+	// Calculate the inverse of s in GF(N) using Fermat's method
+	// (exponentiation modulo P - 2, per Euler's theorem)
+	kInv.Exp(k, c.nMinus2, c.N)
+}
+
+// hashToNat sets e to the left-most bits of hash, according to
+// SEC 1, Section 4.1.3, point 5 and Section 4.1.4, point 3.
+func hashToNat[Point nistPoint[Point]](c *nistCurve[Point], e *bigmod.Nat, hash []byte) {
+	// ECDSA asks us to take the left-most log2(N) bits of hash, and use them as
+	// an integer modulo N. This is the absolute worst of all worlds: we still
+	// have to reduce, because the result might still overflow N, but to take
+	// the left-most bits for P-521 we have to do a right shift.
+	if size := c.N.Size(); len(hash) >= size {
+		hash = hash[:size]
+		if excess := len(hash)*8 - c.N.BitLen(); excess > 0 {
+			hash = bytes.Clone(hash)
+			for i := len(hash) - 1; i >= 0; i-- {
+				hash[i] >>= excess
+				if i > 0 {
+					hash[i] |= hash[i-1] << (8 - excess)
+				}
+			}
+		}
+	}
+	_, err := e.SetOverflowingBytes(hash, c.N)
+	if err != nil {
+		panic("ecdsa: internal error: truncated hash is too long")
+	}
+}
+
+// mixedCSPRNG returns a CSPRNG that mixes entropy from rand with the message
+// and the private key, to protect the key in case rand fails. This is
+// equivalent in security to RFC 6979 deterministic nonce generation, but still
+// produces randomized signatures.
+func mixedCSPRNG(rand io.Reader, priv *PrivateKey, hash []byte) (io.Reader, error) {
 	// This implementation derives the nonce from an AES-CTR CSPRNG keyed by:
 	//
 	//    SHA2-512(priv.D || entropy || hash)[:32]
@@ -293,9 +424,8 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 	// Get 256 bits of entropy from rand.
 	entropy := make([]byte, 32)
-	_, err = io.ReadFull(rand, entropy)
-	if err != nil {
-		return
+	if _, err := io.ReadFull(rand, entropy); err != nil {
+		return nil, err
 	}
 
 	// Initialize an SHA-512 hash context; digest...
@@ -309,155 +439,21 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	// Create an AES-CTR instance to use as a CSPRNG.
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Create a CSPRNG that xors a stream of zeros with
 	// the output of the AES-CTR instance.
-	csprng := &cipher.StreamReader{
+	const aesIV = "IV for ECDSA CTR"
+	return &cipher.StreamReader{
 		R: zeroReader,
 		S: cipher.NewCTR(block, []byte(aesIV)),
-	}
-
-	c := priv.PublicKey.Curve
-	return sign(priv, csprng, c, hash)
-}
-
-func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
-	// SEC 1, Version 2.0, Section 4.1.3
-	N := c.Params().N
-	if N.Sign() == 0 {
-		return nil, nil, errZeroParam
-	}
-	var k, kInv *big.Int
-	for {
-		for {
-			k, err = randFieldElement(c, *csprng)
-			if err != nil {
-				r = nil
-				return
-			}
-
-			if in, ok := priv.Curve.(invertible); ok {
-				kInv = in.Inverse(k)
-			} else {
-				kInv = fermatInverse(k, N) // N != 0
-			}
-
-			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
-			r.Mod(r, N)
-			if r.Sign() != 0 {
-				break
-			}
-		}
-
-		e := hashToInt(hash, c)
-		s = new(big.Int).Mul(priv.D, r)
-		s.Add(s, e)
-		s.Mul(s, kInv)
-		s.Mod(s, N) // N != 0
-		if s.Sign() != 0 {
-			break
-		}
-	}
-
-	return
-}
-
-// SignASN1 signs a hash (which should be the result of hashing a larger message)
-// using the private key, priv. If the hash is longer than the bit-length of the
-// private key's curve order, the hash will be truncated to that length. It
-// returns the ASN.1 encoded signature.
-func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
-	return priv.Sign(rand, hash, nil)
-}
-
-// Verify verifies the signature in r, s of hash using the public key, pub. Its
-// return value records whether the signature is valid. Most applications should
-// use VerifyASN1 instead of dealing directly with r, s.
-func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
-	if boring.Enabled {
-		key, err := boringPublicKey(pub)
-		if err != nil {
-			return false
-		}
-		var b cryptobyte.Builder
-		b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-			b.AddASN1BigInt(r)
-			b.AddASN1BigInt(s)
-		})
-		sig, err := b.Bytes()
-		if err != nil {
-			return false
-		}
-		return boring.VerifyECDSA(key, hash, sig)
-	}
-	boring.UnreachableExceptTests()
-
-	c := pub.Curve
-	N := c.Params().N
-
-	if r.Sign() <= 0 || s.Sign() <= 0 {
-		return false
-	}
-	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
-		return false
-	}
-	return verify(pub, c, hash, r, s)
-}
-
-func verifyGeneric(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
-	// SEC 1, Version 2.0, Section 4.1.4
-	e := hashToInt(hash, c)
-	var w *big.Int
-	N := c.Params().N
-	if in, ok := c.(invertible); ok {
-		w = in.Inverse(s)
-	} else {
-		w = new(big.Int).ModInverse(s, N)
-	}
-
-	u1 := e.Mul(e, w)
-	u1.Mod(u1, N)
-	u2 := w.Mul(r, w)
-	u2.Mod(u2, N)
-
-	// Check if implements S1*g + S2*p
-	var x, y *big.Int
-	if opt, ok := c.(combinedMult); ok {
-		x, y = opt.CombinedMult(pub.X, pub.Y, u1.Bytes(), u2.Bytes())
-	} else {
-		x1, y1 := c.ScalarBaseMult(u1.Bytes())
-		x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
-		x, y = c.Add(x1, y1, x2, y2)
-	}
-
-	if x.Sign() == 0 && y.Sign() == 0 {
-		return false
-	}
-	x.Mod(x, N)
-	return x.Cmp(r) == 0
-}
-
-// VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the
-// public key, pub. Its return value records whether the signature is valid.
-func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
-	var (
-		r, s  = &big.Int{}, &big.Int{}
-		inner cryptobyte.String
-	)
-	input := cryptobyte.String(sig)
-	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
-		!input.Empty() ||
-		!inner.ReadASN1Integer(r) ||
-		!inner.ReadASN1Integer(s) ||
-		!inner.Empty() {
-		return false
-	}
-	return Verify(pub, hash, r, s)
+	}, nil
 }
 
 type zr struct{}
+
+var zeroReader = zr{}
 
 // Read replaces the contents of dst with zeros. It is safe for concurrent use.
 func (zr) Read(dst []byte) (n int, err error) {
@@ -467,4 +463,210 @@ func (zr) Read(dst []byte) (n int, err error) {
 	return len(dst), nil
 }
 
-var zeroReader = zr{}
+// VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the
+// public key, pub. Its return value records whether the signature is valid.
+func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
+	if boring.Enabled {
+		key, err := boringPublicKey(pub)
+		if err != nil {
+			return false
+		}
+		return boring.VerifyECDSA(key, hash, sig)
+	}
+	boring.UnreachableExceptTests()
+
+	if err := verifyAsm(pub, hash, sig); err != errNoAsm {
+		return err == nil
+	}
+
+	switch pub.Curve.Params() {
+	case elliptic.P224().Params():
+		return verifyNISTEC(p224(), pub, hash, sig)
+	case elliptic.P256().Params():
+		return verifyNISTEC(p256(), pub, hash, sig)
+	case elliptic.P384().Params():
+		return verifyNISTEC(p384(), pub, hash, sig)
+	case elliptic.P521().Params():
+		return verifyNISTEC(p521(), pub, hash, sig)
+	default:
+		return verifyLegacy(pub, hash, sig)
+	}
+}
+
+func verifyNISTEC[Point nistPoint[Point]](c *nistCurve[Point], pub *PublicKey, hash, sig []byte) bool {
+	rBytes, sBytes, err := parseSignature(sig)
+	if err != nil {
+		return false
+	}
+
+	Q, err := c.pointFromAffine(pub.X, pub.Y)
+	if err != nil {
+		return false
+	}
+
+	// SEC 1, Version 2.0, Section 4.1.4
+
+	r, err := bigmod.NewNat().SetBytes(rBytes, c.N)
+	if err != nil || r.IsZero() == 1 {
+		return false
+	}
+	s, err := bigmod.NewNat().SetBytes(sBytes, c.N)
+	if err != nil || s.IsZero() == 1 {
+		return false
+	}
+
+	e := bigmod.NewNat()
+	hashToNat(c, e, hash)
+
+	// w = s⁻¹
+	w := bigmod.NewNat()
+	inverse(c, w, s)
+
+	// p₁ = [e * s⁻¹]G
+	p1, err := c.newPoint().ScalarBaseMult(e.Mul(w, c.N).Bytes(c.N))
+	if err != nil {
+		return false
+	}
+	// p₂ = [r * s⁻¹]Q
+	p2, err := Q.ScalarMult(Q, w.Mul(r, c.N).Bytes(c.N))
+	if err != nil {
+		return false
+	}
+	// BytesX returns an error for the point at infinity.
+	Rx, err := p1.Add(p1, p2).BytesX()
+	if err != nil {
+		return false
+	}
+
+	v, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
+	if err != nil {
+		return false
+	}
+
+	return v.Equal(r) == 1
+}
+
+func parseSignature(sig []byte) (r, s []byte, err error) {
+	var inner cryptobyte.String
+	input := cryptobyte.String(sig)
+	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
+		!input.Empty() ||
+		!inner.ReadASN1Integer(&r) ||
+		!inner.ReadASN1Integer(&s) ||
+		!inner.Empty() {
+		return nil, nil, errors.New("invalid ASN.1")
+	}
+	return r, s, nil
+}
+
+type nistCurve[Point nistPoint[Point]] struct {
+	newPoint func() Point
+	curve    elliptic.Curve
+	N        *bigmod.Modulus
+	nMinus2  []byte
+}
+
+// nistPoint is a generic constraint for the nistec Point types.
+type nistPoint[T any] interface {
+	Bytes() []byte
+	BytesX() ([]byte, error)
+	SetBytes([]byte) (T, error)
+	Add(T, T) T
+	ScalarMult(T, []byte) (T, error)
+	ScalarBaseMult([]byte) (T, error)
+}
+
+// pointFromAffine is used to convert the PublicKey to a nistec Point.
+func (curve *nistCurve[Point]) pointFromAffine(x, y *big.Int) (p Point, err error) {
+	bitSize := curve.curve.Params().BitSize
+	// Reject values that would not get correctly encoded.
+	if x.Sign() < 0 || y.Sign() < 0 {
+		return p, errors.New("negative coordinate")
+	}
+	if x.BitLen() > bitSize || y.BitLen() > bitSize {
+		return p, errors.New("overflowing coordinate")
+	}
+	// Encode the coordinates and let SetBytes reject invalid points.
+	byteLen := (bitSize + 7) / 8
+	buf := make([]byte, 1+2*byteLen)
+	buf[0] = 4 // uncompressed point
+	x.FillBytes(buf[1 : 1+byteLen])
+	y.FillBytes(buf[1+byteLen : 1+2*byteLen])
+	return curve.newPoint().SetBytes(buf)
+}
+
+// pointToAffine is used to convert a nistec Point to a PublicKey.
+func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int, err error) {
+	out := p.Bytes()
+	if len(out) == 1 && out[0] == 0 {
+		// This is the encoding of the point at infinity.
+		return nil, nil, errors.New("ecdsa: public key point is the infinity")
+	}
+	byteLen := (curve.curve.Params().BitSize + 7) / 8
+	x = new(big.Int).SetBytes(out[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(out[1+byteLen:])
+	return x, y, nil
+}
+
+var p224Once sync.Once
+var _p224 *nistCurve[*nistec.P224Point]
+
+func p224() *nistCurve[*nistec.P224Point] {
+	p224Once.Do(func() {
+		_p224 = &nistCurve[*nistec.P224Point]{
+			newPoint: func() *nistec.P224Point { return nistec.NewP224Point() },
+		}
+		precomputeParams(_p224, elliptic.P224())
+	})
+	return _p224
+}
+
+var p256Once sync.Once
+var _p256 *nistCurve[*nistec.P256Point]
+
+func p256() *nistCurve[*nistec.P256Point] {
+	p256Once.Do(func() {
+		_p256 = &nistCurve[*nistec.P256Point]{
+			newPoint: func() *nistec.P256Point { return nistec.NewP256Point() },
+		}
+		precomputeParams(_p256, elliptic.P256())
+	})
+	return _p256
+}
+
+var p384Once sync.Once
+var _p384 *nistCurve[*nistec.P384Point]
+
+func p384() *nistCurve[*nistec.P384Point] {
+	p384Once.Do(func() {
+		_p384 = &nistCurve[*nistec.P384Point]{
+			newPoint: func() *nistec.P384Point { return nistec.NewP384Point() },
+		}
+		precomputeParams(_p384, elliptic.P384())
+	})
+	return _p384
+}
+
+var p521Once sync.Once
+var _p521 *nistCurve[*nistec.P521Point]
+
+func p521() *nistCurve[*nistec.P521Point] {
+	p521Once.Do(func() {
+		_p521 = &nistCurve[*nistec.P521Point]{
+			newPoint: func() *nistec.P521Point { return nistec.NewP521Point() },
+		}
+		precomputeParams(_p521, elliptic.P521())
+	})
+	return _p521
+}
+
+func precomputeParams[Point nistPoint[Point]](c *nistCurve[Point], curve elliptic.Curve) {
+	params := curve.Params()
+	c.curve = curve
+	var err error
+	c.N, err = bigmod.NewModulusFromBig(params.N)
+	if err != nil {
+		panic(err)
+	}
+	c.nMinus2 = new(big.Int).Sub(params.N, big.NewInt(2)).Bytes()
+}

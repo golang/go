@@ -13,11 +13,11 @@ type myFloat float64
 
 func _() {
 	_ = f1[int]
-	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int \| string */]
+	_ = f1[myInt /* ERROR "possibly missing ~ for int in int | string" */]
 	_ = f2[myInt]
-	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint ~int \| string \| float64 */]
+	_ = f2[myFloat /* ERROR "possibly missing ~ for float64 in ~int | string | float64" */]
 	var x myInt
-	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
+	f3 /* ERROR "myInt does not satisfy int (possibly missing ~ for int in int)" */ (x)
 }
 
 // test case from the issue
@@ -33,5 +33,5 @@ func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
 type MySlice []int
 
 func f(s MySlice) {
-	Map[MySlice /* ERROR MySlice does not implement SliceConstraint\[int\] \(possibly missing ~ for \[\]int in constraint SliceConstraint\[int\]\) */, int](s, nil)
+	Map[MySlice /* ERROR "MySlice does not satisfy SliceConstraint[int] (possibly missing ~ for []int in SliceConstraint[int])" */, int](s, nil)
 }

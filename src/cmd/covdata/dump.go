@@ -38,6 +38,14 @@ func makeDumpOp(cmd string) covOperation {
 		cmd: cmd,
 		cm:  &cmerge.Merger{},
 	}
+	// For these modes (percent, pkglist, func, etc), use a relaxed
+	// policy when it comes to counter mode clashes. For a percent
+	// report, for example, we only care whether a given line is
+	// executed at least once, so it's ok to (effectively) merge
+	// together runs derived from different counter modes.
+	if d.cmd == percentMode || d.cmd == funcMode || d.cmd == pkglistMode {
+		d.cm.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
+	}
 	if d.cmd == pkglistMode {
 		d.pkgpaths = make(map[string]struct{})
 	}
@@ -288,6 +296,7 @@ func (d *dstate) VisitFunc(pkgIdx uint32, fnIdx uint32, fd *coverage.FuncDesc) {
 		}
 		fmt.Printf("\nFunc: %s\n", fd.Funcname)
 		fmt.Printf("Srcfile: %s\n", fd.Srcfile)
+		fmt.Printf("Literal: %v\n", fd.Lit)
 	}
 	for i := 0; i < len(fd.Units); i++ {
 		u := fd.Units[i]
@@ -316,7 +325,7 @@ func (d *dstate) Finish() {
 	// d.format maybe nil here if the specified input dir was empty.
 	if d.format != nil {
 		if d.cmd == percentMode {
-			d.format.EmitPercent(os.Stdout, "", false)
+			d.format.EmitPercent(os.Stdout, "", false, false)
 		}
 		if d.cmd == funcMode {
 			d.format.EmitFuncs(os.Stdout)

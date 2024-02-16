@@ -10,7 +10,7 @@ type A[T any] interface {
 }
 
 type B[T any] interface {
-	B /* ERROR invalid recursive type */ [*T]
+	B /* ERROR "invalid recursive type" */ [*T]
 }
 
 type C[T any, U B[U]] interface {
@@ -19,12 +19,12 @@ type C[T any, U B[U]] interface {
 
 // Simplified reproducer:
 type X[T any] interface {
-	X /* ERROR invalid recursive type */ [*T]
+	X /* ERROR "invalid recursive type" */ [*T]
 }
 
 var _ X[int]
 
 // A related example that doesn't go through interfaces.
-type A2[P any] [10]A2 /* ERROR invalid recursive type */ [*P]
+type A2[P any] [10]A2 /* ERROR "invalid recursive type" */ [*P]
 
 var _ A2[int]

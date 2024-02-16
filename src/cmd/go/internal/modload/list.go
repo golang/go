@@ -17,6 +17,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
@@ -56,8 +57,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 				}
 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
 			}
-			if m.Origin == nil || !m.Origin.Checkable() {
-				// Nothing to check to validate reuse.
+			if m.Origin == nil {
 				continue
 			}
 			m.Reuse = true
@@ -109,8 +109,14 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 
 	if err == nil {
 		requirements = rs
-		if !ExplicitWriteGoMod {
-			err = commitRequirements(ctx)
+		// TODO(#61605): The extra ListU clause fixes a problem with Go 1.21rc3
+		// where "go mod tidy" and "go list -m -u all" fight over whether the go.sum
+		// should be considered up-to-date. The fix for now is to always treat the
+		// go.sum as up-to-date during list -m -u. Probably the right fix is more targeted,
+		// but in general list -u is looking up other checksums in the checksum database
+		// that won't be necessary later, so it makes sense not to write the go.sum back out.
+		if !ExplicitWriteGoMod && mode&ListU == 0 {
+			err = commitRequirements(ctx, WriteOpts{})
 		}
 	}
 	return mods, err
@@ -120,6 +126,9 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 	if len(args) == 0 {
 		var ms []*modinfo.ModulePublic
 		for _, m := range MainModules.Versions() {
+			if gover.IsToolchain(m.Path) {
+				continue
+			}
 			ms = append(ms, moduleInfo(ctx, rs, m, mode, reuse))
 		}
 		return rs, ms, nil
@@ -183,7 +192,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 
 			allowed := CheckAllowed
-			if IsRevisionQuery(vers) || mode&ListRetracted != 0 {
+			if IsRevisionQuery(path, vers) || mode&ListRetracted != 0 {
 				// Allow excluded and retracted versions if the user asked for a
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
@@ -219,9 +228,10 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		// Module path or pattern.
 		var match func(string) bool
 		if arg == "all" {
-			match = func(string) bool { return true }
+			match = func(p string) bool { return !gover.IsToolchain(p) }
 		} else if strings.Contains(arg, "...") {
-			match = pkgpattern.MatchPattern(arg)
+			mp := pkgpattern.MatchPattern(arg)
+			match = func(p string) bool { return mp(p) && !gover.IsToolchain(p) }
 		} else {
 			var v string
 			if mg == nil {

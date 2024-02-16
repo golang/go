@@ -86,13 +86,7 @@ func TestLogOpt(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "TestLogOpt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	dir = fixSlash(dir) // Normalize the directory name as much as possible, for Windows testing
+	dir := fixSlash(t.TempDir()) // Normalize the directory name as much as possible, for Windows testing
 	src := filepath.Join(dir, "file.go")
 	if err := os.WriteFile(src, []byte(srcCode), 0644); err != nil {
 		t.Fatal(err)
@@ -211,15 +205,15 @@ func s15a8(x *[15]int64) [15]int64 {
 			`"relatedInformation":[`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~R0 = y:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r0 = y:"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~R0:"},`+
-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~R0 (return)"}]}`)
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r0 = \u0026y.b (assign-pair)"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~r0:"},`+
+			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~r0 (return)"}]}`)
 	})
 }
 

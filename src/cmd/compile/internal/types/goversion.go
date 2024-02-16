@@ -7,8 +7,8 @@ package types
 import (
 	"fmt"
 	"internal/goversion"
+	"internal/lazyregexp"
 	"log"
-	"regexp"
 	"strconv"
 
 	"cmd/compile/internal/base"
@@ -34,7 +34,7 @@ func AllowsGoVersion(major, minor int) bool {
 }
 
 // ParseLangFlag verifies that the -lang flag holds a valid value, and
-// exits if not. It initializes data used by langSupported.
+// exits if not. It initializes data used by AllowsGoVersion.
 func ParseLangFlag() {
 	if base.Flag.Lang == "" {
 		return
@@ -59,6 +59,10 @@ func ParseLangFlag() {
 
 // parseLang parses a -lang option into a langVer.
 func parseLang(s string) (lang, error) {
+	if s == "go1" { // cmd/go's new spelling of "go1.0" (#65528)
+		s = "go1.0"
+	}
+
 	matches := goVersionRE.FindStringSubmatch(s)
 	if matches == nil {
 		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
@@ -81,4 +85,4 @@ func currentLang() string {
 
 // goVersionRE is a regular expression that matches the valid
 // arguments to the -lang flag.
-var goVersionRE = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+var goVersionRE = lazyregexp.New(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)

@@ -6,15 +6,21 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
+	tracev2 "internal/trace/v2"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"testing"
@@ -23,11 +29,34 @@ import (
 
 var toRemove []string
 
+const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
+
 func TestMain(m *testing.M) {
+	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
+	case "crash":
+		crash()
+		panic("unreachable")
+	default:
+		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
+	case "":
+		// fall through to normal behavior
+	}
+
+	_, coreErrBefore := os.Stat("core")
+
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}
+
+	_, coreErrAfter := os.Stat("core")
+	if coreErrBefore != nil && coreErrAfter == nil {
+		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
+		if status == 0 {
+			status = 1
+		}
+	}
+
 	os.Exit(status)
 }
 
@@ -49,6 +78,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	}
 
 	testenv.MustHaveGoBuild(t)
+	t.Helper()
 
 	exe, err := buildTestProg(t, binary)
 	if err != nil {
@@ -135,13 +165,15 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 
 		exe := filepath.Join(dir, name+".exe")
 
-		t.Logf("running go build -o %s %s", exe, strings.Join(flags, " "))
+		start := time.Now()
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
 		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
+			t.Logf("built %v in %v", name, time.Since(start))
 			target.exe = exe
 			target.err = nil
 		}
@@ -181,7 +213,7 @@ func TestCrashHandler(t *testing.T) {
 
 func testDeadlock(t *testing.T, name string) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", name)
 	want := "fatal error: all goroutines are asleep - deadlock!\n"
@@ -208,7 +240,7 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitDeadlock")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -308,7 +340,7 @@ panic: third panic
 
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -369,7 +401,7 @@ func TestBreakpoint(t *testing.T) {
 
 func TestGoexitInPanic(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	// see issue 8774: this code used to trigger an infinite recursion
 	output := runTestProg(t, "testprog", "GoexitInPanic")
@@ -436,7 +468,7 @@ func TestPanicAfterGoexit(t *testing.T) {
 
 func TestRecoveredPanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
@@ -447,7 +479,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
@@ -459,7 +491,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
@@ -531,7 +563,7 @@ func TestMemPprof(t *testing.T) {
 
 	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("testprog failed: %s, output:\n%s", err, got)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
@@ -759,11 +791,21 @@ func init() {
 		// We expect to crash, so exit 0 to indicate failure.
 		os.Exit(0)
 	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_READMEMSTATS") == "1" {
+		runtime.ReadMemStats(nil)
+		os.Exit(0)
+	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_FUNCMETHOD") == "1" {
+		var f *runtime.Func
+		_ = f.Entry()
+		os.Exit(0)
+	}
+
 }
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -774,22 +816,56 @@ func TestRuntimePanic(t *testing.T) {
 	}
 }
 
+func TestTracebackRuntimeFunction(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.ReadMemStats"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeMethod(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.(*Func).Entry"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
 // Test that g0 stack overflows are handled gracefully.
 func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
-		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 62671)
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
 		out, err := cmd.CombinedOutput()
+		t.Logf("output:\n%s", out)
 		// Don't check err since it's expected to crash.
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		if runtime.CrashStackImplemented {
+			// check for a stack trace
+			want := "runtime.stackOverflow"
+			if n := strings.Count(string(out), want); n < 5 {
+				t.Errorf("output does not contain %q at least 5 times:\n%s", want, out)
+			}
+			return // it's not a signal-style traceback
 		}
 		// Check that it's a signal-style traceback.
 		if runtime.GOOS != "windows" {
@@ -801,6 +877,71 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// For TestCrashWhileTracing: test a panic without involving the testing
+// harness, as we rely on stdout only containing trace output.
+func init() {
+	if os.Getenv("TEST_CRASH_WHILE_TRACING") == "1" {
+		trace.Start(os.Stdout)
+		trace.Log(context.Background(), "xyzzy-cat", "xyzzy-msg")
+		panic("yzzyx")
+	}
+}
+
+func TestCrashWhileTracing(t *testing.T) {
+	if !goexperiment.ExecTracer2 {
+		t.Skip("skipping because this test is incompatible with the legacy tracer")
+	}
+
+	testenv.MustHaveExec(t)
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))
+	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
+	stdOut, err := cmd.StdoutPipe()
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("could not start subprocess: %v", err)
+	}
+	r, err := tracev2.NewReader(stdOut)
+	if err != nil {
+		t.Fatalf("could not create trace.NewReader: %v", err)
+	}
+	var seen bool
+	i := 1
+loop:
+	for ; ; i++ {
+		ev, err := r.ReadEvent()
+		if err != nil {
+			if err != io.EOF {
+				t.Errorf("error at event %d: %v", i, err)
+			}
+			break loop
+		}
+		switch ev.Kind() {
+		case tracev2.EventLog:
+			v := ev.Log()
+			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
+				// Should we already stop reading here? More events may come, but
+				// we're not guaranteeing a fully unbroken trace until the last
+				// byte...
+				seen = true
+			}
+		}
+	}
+	if err := cmd.Wait(); err == nil {
+		t.Error("the process should have panicked")
+	}
+	if !seen {
+		t.Errorf("expected one matching log event matching, but none of the %d received trace events match", i)
+	}
+	t.Logf("stderr output:\n%s", errOut.String())
+	needle := "yzzyx\n"
+	if n := strings.Count(errOut.String(), needle); n != 1 {
+		t.Fatalf("did not find expected panic message %q\n(exit status %v)", needle, err)
+	}
 }
 
 // Test that panic message is not clobbered.
@@ -864,5 +1005,14 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
 	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+func TestNetpollWaiters(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprognet", "NetpollWaiters")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output is not %q\n%s", want, output)
 	}
 }

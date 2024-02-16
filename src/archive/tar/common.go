@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
 	"math"
 	"path"
@@ -25,6 +26,8 @@ import (
 // BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
+
+var tarinsecurepath = godebug.New("tarinsecurepath")
 
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")
@@ -56,8 +59,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
@@ -602,6 +607,10 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 	return mode
 }
 
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi fs.FileInfo, h *Header) error
 
@@ -623,7 +632,7 @@ const (
 	c_ISSOCK = 0140000 // Socket
 )
 
-// FileInfoHeader creates a partially-populated Header from fi.
+// FileInfoHeader creates a partially-populated [Header] from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
 //
@@ -717,11 +726,4 @@ func isHeaderOnlyType(flag byte) bool {
 	default:
 		return false
 	}
-}
-
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }

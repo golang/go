@@ -76,11 +76,7 @@ func TestIssue38068(t *testing.T) {
 		{tag: "serial", args: "-c=1"},
 		{tag: "concurrent", args: "-c=2"}}
 
-	tmpdir, err := os.MkdirTemp("", "TestIssue38068")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join("testdata", "reproducible", "issue38068.go")
 	for i := range scenarios {

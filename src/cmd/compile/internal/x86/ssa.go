@@ -18,7 +18,7 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	flive := b.FlagsLiveAtEnd
 	for _, c := range b.ControlValues() {
@@ -28,7 +28,7 @@ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 		v := b.Values[i]
 		if flive && v.Op == ssa.Op386MOVLconst {
 			// The "mark" is any non-nil Aux value.
-			v.Aux = v
+			v.Aux = ssa.AuxMark
 		}
 		if v.Type.IsFlags() {
 			flive = false
@@ -345,7 +345,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		p.SetFrom3Reg(v.Args[0].Reg())
+		p.AddRestSourceReg(v.Args[0].Reg())
 
 	case ssa.Op386SUBLconst,
 		ssa.Op386ADCLconst,
@@ -737,7 +737,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 
 	case ssa.Op386LoweredPanicBoundsA, ssa.Op386LoweredPanicBoundsB, ssa.Op386LoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
@@ -830,6 +831,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			base.WarnfAt(v.Pos, "generated nil check")
 		}
+	case ssa.Op386LoweredCtz32:
+		// BSFL in, out
+		p := s.Prog(x86.ABSFL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+		// JNZ 2(PC)
+		p1 := s.Prog(x86.AJNE)
+		p1.To.Type = obj.TYPE_BRANCH
+
+		// MOVL $32, out
+		p2 := s.Prog(x86.AMOVL)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = 32
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg()
+
+		// NOP (so the JNZ has somewhere to land)
+		nop := s.Prog(obj.ANOP)
+		p1.To.SetTarget(nop)
+
 	case ssa.OpClobber:
 		p := s.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_CONST

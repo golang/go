@@ -1,0 +1,22 @@
+# Test that errors importing packages are reported on the importing package,
+# not the imported package.
+
+env GO111MODULE=off # simplify vendor layout for test
+
+go list -e -deps -f '{{.ImportPath}}: {{.Error}}' ./importvendor
+stdout 'importvendor: importvendor[\\/]p.go:2:8: vendor/p must be imported as p'
+stdout 'vendor/p: <nil>'
+
+go list -e -deps -f '{{.ImportPath}}: {{.Error}}' ./importinternal
+stdout 'importinternal: package importinternal\n\timportinternal[\\/]p.go:2:8: use of internal package other/internal/p not allowed'
+stdout 'other/internal/p: <nil>'
+-- importvendor/p.go --
+package importvendor
+import "vendor/p"
+-- importinternal/p.go --
+package importinternal
+import "other/internal/p"
+-- other/internal/p/p.go --
+package p
+-- vendor/p/p.go --
+package p

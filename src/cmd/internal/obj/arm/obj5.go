@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"internal/abi"
 	"internal/buildcfg"
 	"log"
 )
@@ -65,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if buildcfg.GOARM < 7 {
+			if buildcfg.GOARM.Version < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")
@@ -618,8 +619,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				c.cursym.Func().FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
 					if !ctxt.IsAsm {
@@ -708,7 +709,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	// unnecessarily. See issue #35470.
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
 		p = obj.Appendp(p, c.newprog)
@@ -717,7 +718,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.Reg = REGSP
-	} else if framesize <= objabi.StackBig {
+	} else if framesize <= abi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	MOVW $-(framesize-StackSmall)(SP), R2
 		//	CMP stackguard, R2
@@ -726,7 +727,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = REGSP
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+		p.From.Offset = -(int64(framesize) - abi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
@@ -753,7 +754,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = ASUB
 		p.Scond = C_SBIT
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.From.Offset = int64(framesize) - abi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2

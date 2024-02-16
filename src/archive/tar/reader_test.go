@@ -1617,6 +1617,7 @@ func TestFileReader(t *testing.T) {
 }
 
 func TestInsecurePaths(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=0")
 	for _, path := range []string{
 		"../foo",
 		"/foo",
@@ -1650,5 +1651,24 @@ func TestInsecurePaths(t *testing.T) {
 		if h.Name != securePath {
 			t.Errorf("tr.Next for file %q: got name %q, want %q", securePath, h.Name, securePath)
 		}
+	}
+}
+
+func TestDisableInsecurePathCheck(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=1")
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	const name = "/foo"
+	tw.WriteHeader(&Header{
+		Name: name,
+	})
+	tw.Close()
+	tr := NewReader(&buf)
+	h, err := tr.Next()
+	if err != nil {
+		t.Fatalf("tr.Next with tarinsecurepath=1: got err %v, want nil", err)
+	}
+	if h.Name != name {
+		t.Fatalf("tr.Next with tarinsecurepath=1: got name %q, want %q", h.Name, name)
 	}
 }

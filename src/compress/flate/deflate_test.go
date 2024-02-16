@@ -801,7 +801,7 @@ func checkErrors(got []error, want error, t *testing.T) {
 	t.Helper()
 	for _, err := range got {
 		if err != want {
-			t.Errorf("Errors dosn't match\nWant: %s\nGot: %s", want, got)
+			t.Errorf("Error doesn't match\nWant: %s\nGot: %s", want, got)
 		}
 	}
 }

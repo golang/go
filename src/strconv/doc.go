@@ -14,7 +14,7 @@
 //
 // These assume decimal and the Go int type.
 //
-// ParseBool, ParseFloat, ParseInt, and ParseUint convert strings to values:
+// [ParseBool], [ParseFloat], [ParseInt], and [ParseUint] convert strings to values:
 //
 //	b, err := strconv.ParseBool("true")
 //	f, err := strconv.ParseFloat("3.1415", 64)
@@ -30,27 +30,27 @@
 //	...
 //	i := int32(i64)
 //
-// FormatBool, FormatFloat, FormatInt, and FormatUint convert values to strings:
+// [FormatBool], [FormatFloat], [FormatInt], and [FormatUint] convert values to strings:
 //
 //	s := strconv.FormatBool(true)
 //	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
 //	s := strconv.FormatInt(-42, 16)
 //	s := strconv.FormatUint(42, 16)
 //
-// AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
+// [AppendBool], [AppendFloat], [AppendInt], and [AppendUint] are similar but
 // append the formatted value to a destination slice.
 //
 // # String Conversions
 //
-// Quote and QuoteToASCII convert strings to quoted Go string literals.
+// [Quote] and [QuoteToASCII] convert strings to quoted Go string literals.
 // The latter guarantees that the result is an ASCII string, by escaping
 // any non-ASCII Unicode with \u:
 //
 //	q := strconv.Quote("Hello, 世界")
 //	q := strconv.QuoteToASCII("Hello, 世界")
 //
-// QuoteRune and QuoteRuneToASCII are similar but accept runes and
+// [QuoteRune] and [QuoteRuneToASCII] are similar but accept runes and
 // return quoted Go rune literals.
 //
-// Unquote and UnquoteChar unquote Go string and rune literals.
+// [Unquote] and [UnquoteChar] unquote Go string and rune literals.
 package strconv

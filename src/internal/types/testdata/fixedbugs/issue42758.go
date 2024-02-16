@@ -12,7 +12,7 @@ func _[T any](x interface{}){
 
 	switch x.(type) {
 	case T:
-	case T /* ERROR duplicate case */ :
+	case T /* ERROR "duplicate case" */ :
 	}
 }
 
@@ -27,7 +27,7 @@ func _[T constraint](x interface{}){
 	}
 }
 
-func _(x constraint /* ERROR contains type constraints */ ) {
+func _(x constraint /* ERROR "contains type constraints" */ ) {
 	switch x.(type) { // no need to report another error
 	}
 }

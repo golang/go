@@ -7,10 +7,12 @@
 // See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
-TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
+#ifndef GOEXPERIMENT_regabiargs
 	MOVV	to+0(FP), R4
 	MOVV	from+8(FP), R5
 	MOVV	n+16(FP), R6
+#endif
 	BNE	R6, check
 	RET
 
@@ -42,6 +44,7 @@ words:
 	// do 8 bytes at a time if there is room
 	ADDV	$-7, R9, R6 // R6 is end pointer-7
 
+	PCALIGN	$16
 	SGTU	R6, R4, R8
 	BEQ	R8, out
 	MOVV	(R5), R7
@@ -86,6 +89,7 @@ words1:
 	// do 8 bytes at a time if there is room
 	ADDV	$7, R4, R6 // R6 is start pointer+7
 
+	PCALIGN	$16
 	SGTU	R9, R6, R8
 	BEQ	R8, out1
 	ADDV	$-8, R5

@@ -436,7 +436,7 @@ func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
-		if v.Op == OpPhi || isDivMod(v.Op) || v.Type.IsMemory() ||
+		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) || v.Type.IsMemory() ||
 			v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
 			return false
 		}
@@ -451,6 +451,18 @@ func isDivMod(op Op) bool {
 		OpDiv32F, OpDiv64F,
 		OpMod8, OpMod8u, OpMod16, OpMod16u,
 		OpMod32, OpMod32u, OpMod64, OpMod64u:
+		return true
+	default:
+		return false
+	}
+}
+
+func isPtrArithmetic(op Op) bool {
+	// Pointer arithmetic can't be speculatively executed because the result
+	// may be an invalid pointer (if, for example, the condition is that the
+	// base pointer is not nil). See issue 56990.
+	switch op {
+	case OpOffPtr, OpAddPtr, OpSubPtr:
 		return true
 	default:
 		return false

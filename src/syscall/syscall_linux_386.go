@@ -10,6 +10,7 @@ const (
 	_SYS_setgroups  = SYS_SETGROUPS32
 	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
 )
 
 func setTimespec(sec, nsec int64) Timespec {
@@ -107,9 +108,9 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 	return
 }
 
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+//sysnb setrlimit1(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
 
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
+func setrlimit(resource int, rlim *Rlimit) (err error) {
 	err = prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
@@ -131,7 +132,34 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
 		return EINVAL
 	}
 
-	return setrlimit(resource, &rl)
+	return setrlimit1(resource, &rl)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+	if errno != ENOSYS {
+		return errno
+	}
+
+	rl := rlimit32{}
+	if rlim.Cur == rlimInf64 {
+		rl.Cur = rlimInf32
+	} else if rlim.Cur < uint64(rlimInf32) {
+		rl.Cur = uint32(rlim.Cur)
+	} else {
+		return EINVAL
+	}
+	if rlim.Max == rlimInf64 {
+		rl.Max = rlimInf32
+	} else if rlim.Max < uint64(rlimInf32) {
+		rl.Max = uint32(rlim.Max)
+	} else {
+		return EINVAL
+	}
+
+	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 // Underlying system call writes to newoffset via pointer.

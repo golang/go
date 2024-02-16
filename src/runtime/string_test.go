@@ -223,6 +223,19 @@ func TestLargeStringConcat(t *testing.T) {
 	}
 }
 
+func TestConcatTempString(t *testing.T) {
+	s := "bytes"
+	b := []byte(s)
+	n := testing.AllocsPerRun(1000, func() {
+		if "prefix "+string(b)+" suffix" != "prefix bytes suffix" {
+			t.Fatalf("strings are not equal: '%v' and '%v'", "prefix "+string(b)+" suffix", "prefix bytes suffix")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
 func TestCompareTempString(t *testing.T) {
 	s := strings.Repeat("x", sizeNoStack)
 	b := []byte(s)
@@ -230,7 +243,21 @@ func TestCompareTempString(t *testing.T) {
 		if string(b) != s {
 			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
 		}
+		if string(b) < s {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+		if string(b) > s {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
 		if string(b) == s {
+		} else {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+		if string(b) <= s {
+		} else {
+			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+		if string(b) >= s {
 		} else {
 			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
 		}

@@ -364,11 +364,25 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	R2, ret+48(FP)
 	RET
 
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R4		// arg 1 - fd
-	MOVV	$2, R5			// arg 2 - cmd (F_SETFD)
-	MOVV	$1, R6			// arg 3 - arg (FD_CLOEXEC)
-	MOVV	$92, R2			// sys_fcntl
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
+	MOVW	fd+0(FP), R4	// fd
+	MOVW	cmd+4(FP), R5	// cmd
+	MOVW	arg+8(FP), R6	// arg
+	MOVV	$92, R2		// sys_fcntl
 	SYSCALL
+	MOVV	$0, R4
+	BEQ	R7, noerr
+	MOVV	R2, R4
+	MOVW	$-1, R2
+noerr:
+	MOVW	R2, ret+16(FP)
+	MOVW	R4, errno+20(FP)
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVV	$253, R2	// sys_issetugid
+	SYSCALL
+	MOVW	R2, ret+0(FP)
 	RET

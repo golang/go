@@ -91,7 +91,7 @@ type abiDesc struct {
 }
 
 func (p *abiDesc) assignArg(t *_type) {
-	if t.size > goarch.PtrSize {
+	if t.Size_ > goarch.PtrSize {
 		// We don't support this right now. In
 		// stdcall/cdecl, 64-bit ints and doubles are
 		// passed as two words (little endian); and
@@ -103,7 +103,7 @@ func (p *abiDesc) assignArg(t *_type) {
 		// registers and the stack.
 		panic("compileCallback: argument size is larger than uintptr")
 	}
-	if k := t.kind & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
+	if k := t.Kind_ & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
 		// In fastcall, floating-point arguments in
 		// the first four positions are passed in
 		// floating-point registers, which we don't
@@ -114,9 +114,9 @@ func (p *abiDesc) assignArg(t *_type) {
 		panic("compileCallback: float arguments not supported")
 	}
 
-	if t.size == 0 {
+	if t.Size_ == 0 {
 		// The Go ABI aligns for zero-sized types.
-		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.align))
+		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.Align_))
 		return
 	}
 
@@ -134,15 +134,15 @@ func (p *abiDesc) assignArg(t *_type) {
 		//
 		// TODO(mknyszek): Remove this when we no longer have
 		// caller reserved spill space.
-		p.dstSpill = alignUp(p.dstSpill, uintptr(t.align))
-		p.dstSpill += t.size
+		p.dstSpill = alignUp(p.dstSpill, uintptr(t.Align_))
+		p.dstSpill += t.Size_
 	} else {
 		// Register assignment failed.
 		// Undo the work and stack assign.
 		p.parts = oldParts
 
 		// The Go ABI aligns arguments.
-		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.align))
+		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.Align_))
 
 		// Copy just the size of the argument. Note that this
 		// could be a small by-value struct, but C and Go
@@ -152,14 +152,14 @@ func (p *abiDesc) assignArg(t *_type) {
 			kind:           abiPartStack,
 			srcStackOffset: p.srcStackSize,
 			dstStackOffset: p.dstStackSize,
-			len:            t.size,
+			len:            t.Size_,
 		}
 		// Add this step to the adapter.
 		if len(p.parts) == 0 || !p.parts[len(p.parts)-1].tryMerge(part) {
 			p.parts = append(p.parts, part)
 		}
 		// The Go ABI packs arguments.
-		p.dstStackSize += t.size
+		p.dstStackSize += t.Size_
 	}
 
 	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
@@ -174,25 +174,25 @@ func (p *abiDesc) assignArg(t *_type) {
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
-	switch k := t.kind & kindMask; k {
+	switch k := t.Kind_ & kindMask; k {
 	case kindBool, kindInt, kindInt8, kindInt16, kindInt32, kindUint, kindUint8, kindUint16, kindUint32, kindUintptr, kindPtr, kindUnsafePointer:
 		// Assign a register for all these types.
-		return p.assignReg(t.size, offset)
+		return p.assignReg(t.Size_, offset)
 	case kindInt64, kindUint64:
 		// Only register-assign if the registers are big enough.
 		if goarch.PtrSize == 8 {
-			return p.assignReg(t.size, offset)
+			return p.assignReg(t.Size_, offset)
 		}
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(t))
-		if at.len == 1 {
-			return p.tryRegAssignArg(at.elem, offset)
+		if at.Len == 1 {
+			return p.tryRegAssignArg(at.Elem, offset) // TODO fix when runtime is fully commoned up w/ abi.Type
 		}
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
-		for i := range st.fields {
-			f := &st.fields[i]
-			if !p.tryRegAssignArg(f.typ, offset+f.offset) {
+		for i := range st.Fields {
+			f := &st.Fields[i]
+			if !p.tryRegAssignArg(f.Typ, offset+f.Offset) {
 				return false
 			}
 		}
@@ -200,7 +200,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 	}
 	// Pointer-sized types such as maps and channels are currently
 	// not supported.
-	panic("compileCallabck: type " + t.string() + " is currently not supported for use in system callbacks")
+	panic("compileCallback: type " + toRType(t).string() + " is currently not supported for use in system callbacks")
 }
 
 // assignReg attempts to assign a single register for an
@@ -269,14 +269,14 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		cdecl = false
 	}
 
-	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
+	if fn._type == nil || (fn._type.Kind_&kindMask) != kindFunc {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
 
 	// Check arguments and construct ABI translation.
 	var abiMap abiDesc
-	for _, t := range ft.in() {
+	for _, t := range ft.InSlice() {
 		abiMap.assignArg(t)
 	}
 	// The Go ABI aligns the result to the word size. src is
@@ -284,13 +284,13 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	abiMap.retOffset = abiMap.dstStackSize
 
-	if len(ft.out()) != 1 {
+	if len(ft.OutSlice()) != 1 {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if ft.out()[0].size != goarch.PtrSize {
+	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
+	if k := ft.OutSlice()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.
@@ -413,36 +413,23 @@ func callbackWrap(a *callbackArgs) {
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
-// When available, this function will use LoadLibraryEx with the filename
-// parameter and the important SEARCH_SYSTEM32 argument. But on systems that
-// do not have that option, absoluteFilepath should contain a fallback
-// to the full path inside of system32 for use with vanilla LoadLibrary.
-//
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 //go:nosplit
 //go:cgo_unsafe_args
-func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle, err uintptr) {
+func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 	lockOSThread()
 	c := &getg().m.syscall
-
-	if useLoadLibraryEx {
-		c.fn = getLoadLibraryEx()
-		c.n = 3
-		args := struct {
-			lpFileName *uint16
-			hFile      uintptr // always 0
-			flags      uint32
-		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
-		c.args = uintptr(noescape(unsafe.Pointer(&args)))
-	} else {
-		c.fn = getLoadLibrary()
-		c.n = 1
-		c.args = uintptr(noescape(unsafe.Pointer(&absoluteFilepath)))
-	}
+	c.fn = getLoadLibraryEx()
+	c.n = 3
+	args := struct {
+		lpFileName *uint16
+		hFile      uintptr // always 0
+		flags      uint32
+	}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
+	c.args = uintptr(noescape(unsafe.Pointer(&args)))
 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	KeepAlive(filename)
-	KeepAlive(absoluteFilepath)
 	handle = c.r1
 	if handle == 0 {
 		err = c.err

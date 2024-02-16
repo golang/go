@@ -31,7 +31,7 @@ var (
 //go:cgo_import_dynamic libc__Errno _Errno "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_close close "libc.a/shr_64.o"
-//go:cgo_import_dynamic libc_exit exit "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_exit _exit "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_getpid getpid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_kill kill "libc.a/shr_64.o"
@@ -55,6 +55,10 @@ var (
 //go:cgo_import_dynamic libc_sysconf sysconf "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_usleep usleep "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_write write "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_getuid getuid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_geteuid geteuid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_getgid getgid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_getegid getegid "libc.a/shr_64.o"
 
 //go:cgo_import_dynamic libpthread___pth_init __pth_init "libpthread.a/shr_xpg5_64.o"
 //go:cgo_import_dynamic libpthread_attr_destroy pthread_attr_destroy "libpthread.a/shr_xpg5_64.o"
@@ -95,6 +99,10 @@ var (
 //go:linkname libc_sysconf libc_sysconf
 //go:linkname libc_usleep libc_usleep
 //go:linkname libc_write libc_write
+//go:linkname libc_getuid libc_getuid
+//go:linkname libc_geteuid libc_geteuid
+//go:linkname libc_getgid libc_getgid
+//go:linkname libc_getegid libc_getegid
 
 //go:linkname libpthread___pth_init libpthread___pth_init
 //go:linkname libpthread_attr_destroy libpthread_attr_destroy
@@ -137,6 +145,10 @@ var (
 	libc_sysconf,
 	libc_usleep,
 	libc_write,
+	libc_getuid,
+	libc_geteuid,
+	libc_getgid,
+	libc_getegid,
 	//libpthread
 	libpthread___pth_init,
 	libpthread_attr_destroy,
@@ -416,7 +428,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	}
 	// Note that in this case we can't return a valid errno value.
 	return write2(fd, uintptr(p), n)
-
 }
 
 //go:nosplit
@@ -629,7 +640,6 @@ func sysconf(name int32) uintptr {
 		throw("syscall sysconf")
 	}
 	return r
-
 }
 
 // pthread functions returns its error code in the main return value

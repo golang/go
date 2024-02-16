@@ -8,8 +8,11 @@ package syscall_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
+	"internal/platform"
+	"internal/syscall/unix"
 	"internal/testenv"
 	"io"
 	"os"
@@ -22,105 +25,16 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
-func isDocker() bool {
-	_, err := os.Stat("/.dockerenv")
-	return err == nil
-}
-
-func isLXC() bool {
-	return os.Getenv("container") == "lxc"
-}
-
-func skipInContainer(t *testing.T) {
-	// TODO: the callers of this func are using this func to skip
-	// tests when running as some sort of "fake root" that's uid 0
-	// but lacks certain Linux capabilities. Most of the Go builds
-	// run in privileged containers, though, where root is much
-	// closer (if not identical) to the real root. We should test
-	// for what we need exactly (which capabilities are active?),
-	// instead of just assuming "docker == bad". Then we'd get more test
-	// coverage on a bunch of builders too.
-	if isDocker() {
-		t.Skip("skip this test in Docker container")
-	}
-	if isLXC() {
-		t.Skip("skip this test in LXC container")
-	}
-}
-
-func skipNoUserNamespaces(t *testing.T) {
-	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-		if os.IsPermission(err) {
-			t.Skip("unable to test user namespaces due to permissions")
-		}
-		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
-	}
-}
-
-func skipUnprivilegedUserClone(t *testing.T) {
-	// Skip the test if the sysctl that prevents unprivileged user
-	// from creating user namespaces is enabled.
-	data, errRead := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-	if os.IsNotExist(errRead) {
-		// This file is only available in some Debian/Ubuntu kernels.
-		return
-	}
-	if errRead != nil || len(data) < 1 || data[0] == '0' {
-		t.Skip("kernel prohibits user namespace in unprivileged process")
-	}
-}
-
-// Check if we are in a chroot by checking if the inode of / is
-// different from 2 (there is no better test available to non-root on
-// linux).
-func isChrooted(t *testing.T) bool {
-	root, err := os.Stat("/")
-	if err != nil {
-		t.Fatalf("cannot stat /: %v", err)
-	}
-	return root.Sys().(*syscall.Stat_t).Ino != 2
-}
-
-func checkUserNS(t *testing.T) {
-	skipInContainer(t)
-	skipNoUserNamespaces(t)
-	if isChrooted(t) {
-		// create_user_ns in the kernel (see
-		// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c)
-		// forbids the creation of user namespaces when chrooted.
-		t.Skip("cannot create user namespaces when chrooted")
-	}
-	// On some systems, there is a sysctl setting.
-	if os.Getuid() != 0 {
-		skipUnprivilegedUserClone(t)
-	}
-	// On Centos 7 make sure they set the kernel parameter user_namespace=1
-	// See issue 16283 and 20796.
-	if _, err := os.Stat("/sys/module/user_namespace/parameters/enable"); err == nil {
-		buf, _ := os.ReadFile("/sys/module/user_namespace/parameters/enabled")
-		if !strings.HasPrefix(string(buf), "Y") {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-	}
-
-	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
-	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
-		buf, errRead := os.ReadFile("/proc/sys/user/max_user_namespaces")
-		if errRead == nil && buf[0] == '0' {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-	}
-}
-
-func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
-	checkUserNS(t)
-	cmd := exec.Command("whoami")
+// whoamiNEWUSER returns a command that runs "whoami" with CLONE_NEWUSER,
+// mapping uid and gid 0 to the actual uid and gid of the test.
+func whoamiNEWUSER(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+	t.Helper()
+	testenv.MustHaveExecPath(t, "whoami")
+	cmd := testenv.Command(t, "whoami")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
 		UidMappings: []syscall.SysProcIDMap{
@@ -134,70 +48,60 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 	return cmd
 }
 
-func testNEWUSERRemap(t *testing.T, uid, gid int, setgroups bool) {
-	cmd := whoamiCmd(t, uid, gid, setgroups)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
-	}
-	sout := strings.TrimSpace(string(out))
-	want := "root"
-	if sout != want {
-		t.Fatalf("whoami = %q; want %q", out, want)
-	}
-}
+func TestCloneNEWUSERAndRemap(t *testing.T) {
+	for _, setgroups := range []bool{false, true} {
+		setgroups := setgroups
+		t.Run(fmt.Sprintf("setgroups=%v", setgroups), func(t *testing.T) {
+			uid := os.Getuid()
+			gid := os.Getgid()
 
-func TestCloneNEWUSERAndRemapRootDisableSetgroups(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping root only test")
-	}
-	testNEWUSERRemap(t, 0, 0, false)
-}
+			cmd := whoamiNEWUSER(t, uid, gid, setgroups)
+			out, err := cmd.CombinedOutput()
+			t.Logf("%v: %v", cmd, err)
 
-func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("skipping root only test")
-	}
-	testNEWUSERRemap(t, 0, 0, true)
-}
+			if uid != 0 && setgroups {
+				t.Logf("as non-root, expected permission error due to unprivileged gid_map")
+				if !os.IsPermission(err) {
+					if err == nil {
+						t.Skipf("unexpected success: probably old kernel without security fix?")
+					}
+					if testenv.SyscallIsNotSupported(err) {
+						t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
+					}
+					t.Fatalf("got non-permission error") // Already logged above.
+				}
+				return
+			}
 
-func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("skipping unprivileged user only test")
-	}
-	testNEWUSERRemap(t, os.Getuid(), os.Getgid(), false)
-}
+			if err != nil {
+				if testenv.SyscallIsNotSupported(err) {
+					// May be inside a container that disallows CLONE_NEWUSER.
+					t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
+				}
+				t.Fatalf("unexpected command failure; output:\n%s", out)
+			}
 
-func TestCloneNEWUSERAndRemapNoRootSetgroupsEnableSetgroups(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("skipping unprivileged user only test")
-	}
-	cmd := whoamiCmd(t, os.Getuid(), os.Getgid(), true)
-	err := cmd.Run()
-	if err == nil {
-		t.Skip("probably old kernel without security fix")
-	}
-	if !os.IsPermission(err) {
-		t.Fatalf("Unprivileged gid_map rewriting with GidMappingsEnableSetgroups must fail")
+			sout := strings.TrimSpace(string(out))
+			want := "root"
+			if sout != want {
+				t.Fatalf("whoami = %q; want %q", out, want)
+			}
+		})
 	}
 }
 
 func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
-	cmd := whoamiCmd(t, os.Getuid(), os.Getgid(), false)
+	cmd := whoamiNEWUSER(t, os.Getuid(), os.Getgid(), false)
 	cmd.SysProcAttr.Credential = &syscall.Credential{}
 	if err := cmd.Run(); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: %v: %v", cmd, err)
+		}
 		t.Fatal(err)
 	}
 }
 
 func TestUnshare(t *testing.T) {
-	skipInContainer(t)
-	// Make sure we are running as root so we have permissions to use unshare
-	// and create a network namespace.
-	if os.Getuid() != 0 {
-		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
 	path := "/proc/net/dev"
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -208,51 +112,50 @@ func TestUnshare(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
-	if _, err := os.Stat("/proc/self/ns/net"); err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("kernel doesn't support net namespace")
-		}
-		t.Fatal(err)
-	}
 
-	orig, err := os.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origLines := strings.Split(strings.TrimSpace(string(orig)), "\n")
+	orig := strings.TrimSpace(string(b))
+	if strings.Contains(orig, "lo:") && strings.Count(orig, ":") == 1 {
+		// This test expects there to be at least 1 more network interface
+		// in addition to the local network interface, so that it can tell
+		// that unshare worked.
+		t.Skip("not enough network interfaces to test unshare with")
+	}
 
-	cmd := exec.Command("cat", path)
+	cmd := testenv.Command(t, "cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshareflags: syscall.CLONE_NEWNET,
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if strings.Contains(err.Error(), "operation not permitted") {
-			// Issue 17206: despite all the checks above,
-			// this still reportedly fails for some users.
-			// (older kernels?). Just skip.
-			t.Skip("skipping due to permission error")
+		if testenv.SyscallIsNotSupported(err) {
+			// CLONE_NEWNET does not appear to be supported.
+			t.Skipf("skipping due to permission error: %v", err)
 		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 
-	// Check there is only the local network interface
+	// Check there is only the local network interface.
 	sout := strings.TrimSpace(string(out))
 	if !strings.Contains(sout, "lo:") {
 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
 	}
 
+	origLines := strings.Split(orig, "\n")
 	lines := strings.Split(sout, "\n")
 	if len(lines) >= len(origLines) {
-		t.Fatalf("Got %d lines of output, want <%d", len(lines), len(origLines))
+		t.Logf("%s before unshare:\n%s", path, orig)
+		t.Logf("%s after unshare:\n%s", path, sout)
+		t.Fatalf("Got %d lines of output, want < %d", len(lines), len(origLines))
 	}
 }
 
 func TestGroupCleanup(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("we need root for credential")
-	}
-	cmd := exec.Command("id")
+	testenv.MustHaveExecPath(t, "id")
+	cmd := testenv.Command(t, "id")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
 			Uid: 0,
@@ -261,6 +164,9 @@ func TestGroupCleanup(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: %v: %v", cmd, err)
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
@@ -276,11 +182,8 @@ func TestGroupCleanup(t *testing.T) {
 }
 
 func TestGroupCleanupUserNamespace(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("we need root for credential")
-	}
-	checkUserNS(t)
-	cmd := exec.Command("id")
+	testenv.MustHaveExecPath(t, "id")
+	cmd := testenv.Command(t, "id")
 	uid, gid := os.Getuid(), os.Getgid()
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
@@ -297,6 +200,9 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: %v: %v", cmd, err)
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
@@ -310,135 +216,149 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 	}
 }
 
-// TestUnshareHelperProcess isn't a real test. It's used as a helper process
-// for TestUnshareMountNameSpace.
-func TestUnshareMountNameSpaceHelper(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	defer os.Exit(0)
-	if err := syscall.Mount("none", flag.Args()[0], "proc", 0, ""); err != nil {
-		fmt.Fprintf(os.Stderr, "unshare: mount %v failed: %v", os.Args, err)
-		os.Exit(2)
-	}
-}
-
-// Test for Issue 38471: unshare fails because systemd has forced / to be shared
+// Test for https://go.dev/issue/19661: unshare fails because systemd
+// has forced / to be shared
 func TestUnshareMountNameSpace(t *testing.T) {
-	skipInContainer(t)
-	// Make sure we are running as root so we have permissions to use unshare
-	// and create a network namespace.
-	if os.Getuid() != 0 {
-		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+	const mountNotSupported = "mount is not supported: " // Output prefix indicatating a test skip.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		dir := flag.Args()[0]
+		err := syscall.Mount("none", dir, "proc", 0, "")
+		if testenv.SyscallIsNotSupported(err) {
+			fmt.Print(mountNotSupported, err)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "unshare: mount %s: %v\n", dir, err)
+			os.Exit(2)
+		}
+		os.Exit(0)
 	}
 
-	d, err := os.MkdirTemp("", "unshare")
+	testenv.MustHaveExec(t)
+	exe, err := os.Executable()
 	if err != nil {
-		t.Fatalf("tempdir: %v", err)
+		t.Fatal(err)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareMountNameSpaceHelper", d)
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	d := t.TempDir()
+	t.Cleanup(func() {
+		// If the subprocess fails to unshare the parent directory, force-unmount it
+		// so that the test can clean it up.
+		if _, err := os.Stat(d); err == nil {
+			syscall.Unmount(d, syscall.MNT_FORCE)
+		}
+	})
+	cmd := testenv.Command(t, exe, "-test.run=^TestUnshareMountNameSpace$", d)
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 
-	o, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if strings.Contains(err.Error(), ": permission denied") {
-			t.Skipf("Skipping test (golang.org/issue/19698); unshare failed due to permissions: %s, %v", o, err)
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
 		}
-		t.Fatalf("unshare failed: %s, %v", o, err)
+		t.Fatalf("unshare failed: %v\n%s", err, out)
+	} else if len(out) != 0 {
+		if bytes.HasPrefix(out, []byte(mountNotSupported)) {
+			t.Skipf("skipping: helper process reported %s", out)
+		}
+		t.Fatalf("unexpected output from helper process: %s", out)
 	}
 
 	// How do we tell if the namespace was really unshared? It turns out
 	// to be simple: just try to remove the directory. If it's still mounted
-	// on the rm will fail with EBUSY. Then we have some cleanup to do:
-	// we must unmount it, then try to remove it again.
-
+	// on the rm will fail with EBUSY.
 	if err := os.Remove(d); err != nil {
 		t.Errorf("rmdir failed on %v: %v", d, err)
-		if err := syscall.Unmount(d, syscall.MNT_FORCE); err != nil {
-			t.Errorf("Can't unmount %v: %v", d, err)
-		}
-		if err := os.Remove(d); err != nil {
-			t.Errorf("rmdir after unmount failed on %v: %v", d, err)
-		}
 	}
 }
 
 // Test for Issue 20103: unshare fails when chroot is used
 func TestUnshareMountNameSpaceChroot(t *testing.T) {
-	skipInContainer(t)
-	// Make sure we are running as root so we have permissions to use unshare
-	// and create a network namespace.
-	if os.Getuid() != 0 {
-		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+	const mountNotSupported = "mount is not supported: " // Output prefix indicatating a test skip.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		dir := flag.Args()[0]
+		err := syscall.Mount("none", dir, "proc", 0, "")
+		if testenv.SyscallIsNotSupported(err) {
+			fmt.Print(mountNotSupported, err)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "unshare: mount %s: %v\n", dir, err)
+			os.Exit(2)
+		}
+		os.Exit(0)
 	}
 
-	d, err := os.MkdirTemp("", "unshare")
-	if err != nil {
-		t.Fatalf("tempdir: %v", err)
-	}
+	d := t.TempDir()
 
 	// Since we are doing a chroot, we need the binary there,
 	// and it must be statically linked.
+	testenv.MustHaveGoBuild(t)
+	if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
+		t.Skipf("skipping: can't build static binary because %s/%s requires external linking", runtime.GOOS, runtime.GOARCH)
+	}
 	x := filepath.Join(d, "syscall.test")
-	cmd := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	t.Cleanup(func() {
+		// If the subprocess fails to unshare the parent directory, force-unmount it
+		// so that the test can clean it up.
+		if _, err := os.Stat(d); err == nil {
+			syscall.Unmount(d, syscall.MNT_FORCE)
+		}
+	})
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
+	cmd.Env = append(cmd.Environ(), "CGO_ENABLED=0")
 	if o, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Build of syscall in chroot failed, output %v, err %v", o, err)
+		t.Fatalf("%v: %v\n%s", cmd, err, o)
 	}
 
-	cmd = exec.Command("/syscall.test", "-test.run=TestUnshareMountNameSpaceHelper", "/")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd = testenv.Command(t, "/syscall.test", "-test.run=^TestUnshareMountNameSpaceChroot$", "/")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
 
-	o, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if strings.Contains(err.Error(), ": permission denied") {
-			t.Skipf("Skipping test (golang.org/issue/19698); unshare failed due to permissions: %s, %v", o, err)
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
 		}
-		t.Fatalf("unshare failed: %s, %v", o, err)
+		t.Fatalf("unshare failed: %v\n%s", err, out)
+	} else if len(out) != 0 {
+		if bytes.HasPrefix(out, []byte(mountNotSupported)) {
+			t.Skipf("skipping: helper process reported %s", out)
+		}
+		t.Fatalf("unexpected output from helper process: %s", out)
 	}
 
 	// How do we tell if the namespace was really unshared? It turns out
 	// to be simple: just try to remove the executable. If it's still mounted
-	// on, the rm will fail. Then we have some cleanup to do:
-	// we must force unmount it, then try to remove it again.
-
+	// on, the rm will fail.
 	if err := os.Remove(x); err != nil {
 		t.Errorf("rm failed on %v: %v", x, err)
-		if err := syscall.Unmount(d, syscall.MNT_FORCE); err != nil {
-			t.Fatalf("Can't unmount %v: %v", d, err)
-		}
-		if err := os.Remove(x); err != nil {
-			t.Fatalf("rm failed on %v: %v", x, err)
-		}
 	}
-
 	if err := os.Remove(d); err != nil {
 		t.Errorf("rmdir failed on %v: %v", d, err)
 	}
 }
 
-func TestUnshareUidGidMappingHelper(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	defer os.Exit(0)
-	if err := syscall.Chroot(os.TempDir()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-}
-
 // Test for Issue 29789: unshare fails when uid/gid mapping is specified
 func TestUnshareUidGidMapping(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		defer os.Exit(0)
+		if err := syscall.Chroot(os.TempDir()); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
+
 	if os.Getuid() == 0 {
 		t.Skip("test exercises unprivileged user namespace, fails with privileges")
 	}
-	checkUserNS(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareUidGidMappingHelper")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+
+	testenv.MustHaveExec(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=^TestUnshareUidGidMapping$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
 		GidMappingsEnableSetgroups: false,
@@ -459,6 +379,9 @@ func TestUnshareUidGidMapping(t *testing.T) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: could not start process with CLONE_NEWNS and CLONE_NEWUSER: %v", err)
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 }
@@ -489,23 +412,13 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 		t.Skipf("cgroup v2 not available (/proc/self/cgroup contents: %q)", selfCg)
 	}
 
-	// Need clone3 with CLONE_INTO_CGROUP support.
-	_, err = syscall.ForkExec("non-existent binary", nil, &syscall.ProcAttr{
-		Sys: &syscall.SysProcAttr{
-			UseCgroupFD: true,
-			CgroupFD:    -1,
-		},
-	})
-	// // EPERM can be returned if clone3 is not enabled by seccomp.
-	if err == syscall.ENOSYS || err == syscall.EPERM {
-		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
-	}
-
 	// Need an ability to create a sub-cgroup.
 	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
 	if err != nil {
-		if os.IsPermission(err) {
-			t.Skip(err)
+		// ErrPermission or EROFS (#57262) when running in an unprivileged container.
+		// ErrNotExist when cgroupfs is not mounted in chroot/schroot.
+		if os.IsNotExist(err) || testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: %v", err)
 		}
 		t.Fatal(err)
 	}
@@ -521,16 +434,41 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 }
 
 func TestUseCgroupFD(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Read and print own cgroup path.
+		selfCg, err := os.ReadFile("/proc/self/cgroup")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(selfCg))
+		os.Exit(0)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	fd, suffix := prepareCgroupFD(t)
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestUseCgroupFDHelper")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd := testenv.Command(t, exe, "-test.run=^TestUseCgroupFD$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		UseCgroupFD: true,
 		CgroupFD:    fd,
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) && !errors.Is(err, syscall.EINVAL) {
+			// Can be one of:
+			// - clone3 not supported (old kernel);
+			// - clone3 not allowed (by e.g. seccomp);
+			// - lack of CAP_SYS_ADMIN.
+			t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
+		}
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	// NB: this wouldn't work with cgroupns.
@@ -539,18 +477,129 @@ func TestUseCgroupFD(t *testing.T) {
 	}
 }
 
-func TestUseCgroupFDHelper(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
+func TestCloneTimeNamespace(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		timens, err := os.Readlink("/proc/self/ns/time")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(timens))
+		os.Exit(0)
 	}
-	defer os.Exit(0)
-	// Read and print own cgroup path.
-	selfCg, err := os.ReadFile("/proc/self/cgroup")
+
+	exe, err := os.Executable()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		t.Fatal(err)
 	}
-	fmt.Print(string(selfCg))
+
+	cmd := testenv.Command(t, exe, "-test.run=^TestCloneTimeNamespace$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWTIME,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			// CLONE_NEWTIME does not appear to be supported.
+			t.Skipf("skipping, CLONE_NEWTIME not supported: %v", err)
+		}
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+
+	// Inode number of the time namespaces should be different.
+	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
+	timens, err := os.Readlink("/proc/self/ns/time")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parentTimeNS := timens
+	childTimeNS := string(out)
+	if childTimeNS == parentTimeNS {
+		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
+	}
+}
+
+func testPidFD(t *testing.T, userns bool) error {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Child: wait for a signal.
+		time.Sleep(time.Hour)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var pidfd int
+	cmd := testenv.Command(t, exe, "-test.run=^TestPidFD$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		PidFD: &pidfd,
+	}
+	if userns {
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWUSER
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+	t.Log("got pidfd:", pidfd)
+	// If pidfd is not supported by the kernel, -1 is returned.
+	if pidfd == -1 {
+		t.Skip("pidfd not supported")
+	}
+	defer syscall.Close(pidfd)
+
+	// Use pidfd to send a signal to the child.
+	sig := syscall.SIGINT
+	if err := unix.PidFDSendSignal(uintptr(pidfd), sig); err != nil {
+		if err != syscall.EINVAL && testenv.SyscallIsNotSupported(err) {
+			t.Skip("pidfd_send_signal syscall not supported:", err)
+		}
+		t.Fatal("pidfd_send_signal syscall failed:", err)
+	}
+	// Check if the child received our signal.
+	err = cmd.Wait()
+	if cmd.ProcessState == nil || cmd.ProcessState.Sys().(syscall.WaitStatus).Signal() != sig {
+		t.Fatal("unexpected child error:", err)
+	}
+	return nil
+}
+
+func TestPidFD(t *testing.T) {
+	if err := testPidFD(t, false); err != nil {
+		t.Fatal("can't start a process:", err)
+	}
+}
+
+func TestPidFDWithUserNS(t *testing.T) {
+	if err := testPidFD(t, true); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("userns not supported:", err)
+		}
+		t.Fatal("can't start a process:", err)
+	}
+}
+
+func TestPidFDClone3(t *testing.T) {
+	*syscall.ForceClone3 = true
+	defer func() { *syscall.ForceClone3 = false }()
+
+	if err := testPidFD(t, false); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("clone3 not supported:", err)
+		}
+		t.Fatal("can't start a process:", err)
+	}
 }
 
 type capHeader struct {
@@ -588,68 +637,31 @@ func getCaps() (caps, error) {
 	return c, nil
 }
 
-func mustSupportAmbientCaps(t *testing.T) {
-	var uname syscall.Utsname
-	if err := syscall.Uname(&uname); err != nil {
-		t.Fatalf("Uname: %v", err)
-	}
-	var buf [65]byte
-	for i, b := range uname.Release {
-		buf[i] = byte(b)
-	}
-	ver := string(buf[:])
-	ver, _, _ = strings.Cut(ver, "\x00")
-	if strings.HasPrefix(ver, "2.") ||
-		strings.HasPrefix(ver, "3.") ||
-		strings.HasPrefix(ver, "4.1.") ||
-		strings.HasPrefix(ver, "4.2.") {
-		t.Skipf("kernel version %q predates required 4.3; skipping test", ver)
-	}
-}
-
-// TestAmbientCapsHelper isn't a real test. It's used as a helper process for
-// TestAmbientCaps.
-func TestAmbientCapsHelper(*testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	defer os.Exit(0)
-
-	caps, err := getCaps()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if caps.data[0].effective&(1<<uint(CAP_SYS_TIME)) == 0 {
-		fmt.Fprintln(os.Stderr, "CAP_SYS_TIME unexpectedly not in the effective capability mask")
-		os.Exit(2)
-	}
-	if caps.data[1].effective&(1<<uint(CAP_SYSLOG&31)) == 0 {
-		fmt.Fprintln(os.Stderr, "CAP_SYSLOG unexpectedly not in the effective capability mask")
-		os.Exit(2)
-	}
-}
-
 func TestAmbientCaps(t *testing.T) {
-	// Make sure we are running as root so we have permissions to use unshare
-	// and create a network namespace.
-	if os.Getuid() != 0 {
-		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
 	testAmbientCaps(t, false)
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
-	checkUserNS(t)
 	testAmbientCaps(t, true)
 }
 
 func testAmbientCaps(t *testing.T, userns bool) {
-	skipInContainer(t)
-	mustSupportAmbientCaps(t)
-
-	skipUnprivilegedUserClone(t)
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		caps, err := getCaps()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		if caps.data[0].effective&(1<<uint(CAP_SYS_TIME)) == 0 {
+			fmt.Fprintln(os.Stderr, "CAP_SYS_TIME unexpectedly not in the effective capability mask")
+			os.Exit(2)
+		}
+		if caps.data[1].effective&(1<<uint(CAP_SYSLOG&31)) == 0 {
+			fmt.Fprintln(os.Stderr, "CAP_SYSLOG unexpectedly not in the effective capability mask")
+			os.Exit(2)
+		}
+		os.Exit(0)
+	}
 
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {
@@ -674,9 +686,18 @@ func testAmbientCaps(t *testing.T, userns bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	e, err := os.Open(os.Args[0])
+	t.Cleanup(func() {
+		f.Close()
+		os.Remove(f.Name())
+	})
+
+	testenv.MustHaveExec(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e, err := os.Open(exe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -691,8 +712,8 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(f.Name(), "-test.run=TestAmbientCapsHelper")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd := testenv.Command(t, f.Name(), "-test.run=^"+t.Name()+"$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -709,12 +730,12 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		gid := os.Getgid()
 		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
 			ContainerID: int(nobody),
-			HostID:      int(uid),
+			HostID:      uid,
 			Size:        int(1),
 		}}
 		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
 			ContainerID: int(nobody),
-			HostID:      int(gid),
+			HostID:      gid,
 			Size:        int(1),
 		}}
 
@@ -725,6 +746,9 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		}
 	}
 	if err := cmd.Run(); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: %v: %v", cmd, err)
+		}
 		t.Fatal(err.Error())
 	}
 }

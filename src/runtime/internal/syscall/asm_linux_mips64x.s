@@ -15,6 +15,7 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
 	MOVV	a4+32(FP), R7
 	MOVV	a5+40(FP), R8
 	MOVV	a6+48(FP), R9
+	MOVV	R0, R3	// reset R3 to 0 as 1-ret SYSCALL keeps it
 	SYSCALL
 	BEQ	R7, ok
 	MOVV	$-1, R1

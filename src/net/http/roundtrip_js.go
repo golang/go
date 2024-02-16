@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http/internal/ascii"
 	"strconv"
+	"strings"
 	"syscall/js"
 )
 
@@ -44,7 +46,17 @@ const jsFetchRedirect = "js.fetch:redirect"
 // the browser globals.
 var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
-// RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+// jsFetchDisabled controls whether the use of Fetch API is disabled.
+// It's set to true when we detect we're running in Node.js, so that
+// RoundTrip ends up talking over the same fake network the HTTP servers
+// currently use in various tests and examples. See go.dev/issue/57613.
+//
+// TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
+// code path.
+var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
+	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
+
+// RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// The Transport has a documented contract that states that if the DialContext or
 	// DialTLSContext functions are set, they will be used to set up the connections.
@@ -52,7 +64,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// though they are deprecated. Therefore, if any of these are set, we should obey
 	// the contract and dial using the regular round-trip instead. Otherwise, we'll try
 	// to fall back on the Fetch API, unless it's not available.
-	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing {
+	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing || jsFetchDisabled {
 		return t.roundTrip(req)
 	}
 
@@ -99,6 +111,8 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// See https://github.com/web-platform-tests/wpt/issues/7693 for WHATWG tests issue.
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Streams_API for more details on the Streams API
 		// and browser support.
+		// NOTE(haruyama480): Ensure HTTP/1 fallback exists.
+		// See https://go.dev/issue/61889 for discussion.
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			req.Body.Close() // RoundTrip must always close the body, including on errors.
@@ -171,11 +185,22 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		code := result.Get("status").Int()
+
+		uncompressed := false
+		if ascii.EqualFold(header.Get("Content-Encoding"), "gzip") {
+			// The fetch api will decode the gzip, but Content-Encoding not be deleted.
+			header.Del("Content-Encoding")
+			header.Del("Content-Length")
+			contentLength = -1
+			uncompressed = true
+		}
+
 		respCh <- &Response{
 			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
 			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
+			Uncompressed:  uncompressed,
 			Body:          body,
 			Request:       req,
 		}
@@ -185,7 +210,23 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		errCh <- fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
+
+		err := args[0]
+		// The error is a JS Error type
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+		// We can use the toString() method to get a string representation of the error.
+		errMsg := err.Call("toString").String()
+		// Errors can optionally contain a cause.
+		if cause := err.Get("cause"); !cause.IsUndefined() {
+			// The exact type of the cause is not defined,
+			// but if it's another error, we can call toString() on it too.
+			if !cause.Get("toString").IsUndefined() {
+				errMsg += ": " + cause.Call("toString").String()
+			} else if cause.Type() == js.TypeString {
+				errMsg += ": " + cause.String()
+			}
+		}
+		errCh <- fmt.Errorf("net/http: fetch() failed: %s", errMsg)
 		return nil
 	})
 

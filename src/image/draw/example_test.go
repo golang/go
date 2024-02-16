@@ -37,7 +37,7 @@ func ExampleDrawer_floydSteinberg() {
 		color.Gray{Y: 0},
 	})
 
-	draw.FloydSteinberg.Draw(pi, im.Bounds(), im, image.ZP)
+	draw.FloydSteinberg.Draw(pi, im.Bounds(), im, image.Point{})
 	shade := []string{" ", "░", "▒", "▓", "█"}
 	for i, p := range pi.Pix {
 		fmt.Print(shade[p])

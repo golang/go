@@ -10,6 +10,7 @@ const (
 	_SYS_setgroups  = SYS_SETGROUPS
 	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
 )
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
@@ -36,7 +37,7 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -141,6 +142,12 @@ func utimes(path string, tv *[2]Timeval) (err error) {
 		NsecToTimespec(TimevalToNsec(tv[1])),
 	}
 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 func (r *PtraceRegs) PC() uint64 { return r.Pc }

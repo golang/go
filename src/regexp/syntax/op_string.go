@@ -4,6 +4,32 @@ package syntax
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[OpNoMatch-1]
+	_ = x[OpEmptyMatch-2]
+	_ = x[OpLiteral-3]
+	_ = x[OpCharClass-4]
+	_ = x[OpAnyCharNotNL-5]
+	_ = x[OpAnyChar-6]
+	_ = x[OpBeginLine-7]
+	_ = x[OpEndLine-8]
+	_ = x[OpBeginText-9]
+	_ = x[OpEndText-10]
+	_ = x[OpWordBoundary-11]
+	_ = x[OpNoWordBoundary-12]
+	_ = x[OpCapture-13]
+	_ = x[OpStar-14]
+	_ = x[OpPlus-15]
+	_ = x[OpQuest-16]
+	_ = x[OpRepeat-17]
+	_ = x[OpConcat-18]
+	_ = x[OpAlternate-19]
+	_ = x[opPseudo-128]
+}
+
 const (
 	_Op_name_0 = "NoMatchEmptyMatchLiteralCharClassAnyCharNotNLAnyCharBeginLineEndLineBeginTextEndTextWordBoundaryNoWordBoundaryCaptureStarPlusQuestRepeatConcatAlternate"
 	_Op_name_1 = "opPseudo"

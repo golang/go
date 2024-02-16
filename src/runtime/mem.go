@@ -84,6 +84,19 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
 	sysHugePageOS(v, n)
 }
 
+// sysNoHugePage does not transition memory regions, but instead provides a
+// hint to the OS that it would be less efficient to back this memory region
+// with pages of a larger size transparently.
+func sysNoHugePage(v unsafe.Pointer, n uintptr) {
+	sysNoHugePageOS(v, n)
+}
+
+// sysHugePageCollapse attempts to immediately back the provided memory region
+// with huge pages. It is best-effort and may fail silently.
+func sysHugePageCollapse(v unsafe.Pointer, n uintptr) {
+	sysHugePageCollapseOS(v, n)
+}
+
 // sysFree transitions a memory region from any state to None. Therefore, it
 // returns memory unconditionally. It is used if an out-of-memory error has been
 // detected midway through an allocation or to carve out an aligned section of

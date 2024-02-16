@@ -1,3 +1,0 @@
-pkg context, func Cause(Context) error #51365
-pkg context, func WithCancelCause(Context) (Context, CancelCauseFunc) #51365
-pkg context, type CancelCauseFunc func(error) #51365

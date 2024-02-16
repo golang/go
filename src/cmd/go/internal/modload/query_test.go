@@ -55,6 +55,7 @@ func testMain(m *testing.M) (err error) {
 	os.Setenv("GOPATH", dir)
 	cfg.BuildContext.GOPATH = dir
 	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
+	cfg.SumdbDir = filepath.Join(dir, "pkg/sumdb")
 	m.Run()
 	return nil
 }

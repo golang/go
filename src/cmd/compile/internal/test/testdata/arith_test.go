@@ -223,7 +223,7 @@ func testArithConstShift(t *testing.T) {
 	}
 }
 
-// overflowConstShift_ssa verifes that constant folding for shift
+// overflowConstShift_ssa verifies that constant folding for shift
 // doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
 //
 //go:noinline
@@ -265,6 +265,70 @@ func testOverflowConstShift(t *testing.T) {
 		if want != got {
 			t.Errorf("overflowShift8 failed, wanted %d got %d", want, got)
 		}
+	}
+}
+
+//go:noinline
+func rsh64x64ConstOverflow8(x int8) int64 {
+	return int64(x) >> 9
+}
+
+//go:noinline
+func rsh64x64ConstOverflow16(x int16) int64 {
+	return int64(x) >> 17
+}
+
+//go:noinline
+func rsh64x64ConstOverflow32(x int32) int64 {
+	return int64(x) >> 33
+}
+
+func testArithRightShiftConstOverflow(t *testing.T) {
+	allSet := int64(-1)
+	if got, want := rsh64x64ConstOverflow8(0x7f), int64(0); got != want {
+		t.Errorf("rsh64x64ConstOverflow8 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64x64ConstOverflow16(0x7fff), int64(0); got != want {
+		t.Errorf("rsh64x64ConstOverflow16 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64x64ConstOverflow32(0x7ffffff), int64(0); got != want {
+		t.Errorf("rsh64x64ConstOverflow32 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64x64ConstOverflow8(int8(-1)), allSet; got != want {
+		t.Errorf("rsh64x64ConstOverflow8 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64x64ConstOverflow16(int16(-1)), allSet; got != want {
+		t.Errorf("rsh64x64ConstOverflow16 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64x64ConstOverflow32(int32(-1)), allSet; got != want {
+		t.Errorf("rsh64x64ConstOverflow32 failed: got %v, want %v", got, want)
+	}
+}
+
+//go:noinline
+func rsh64Ux64ConstOverflow8(x uint8) uint64 {
+	return uint64(x) >> 9
+}
+
+//go:noinline
+func rsh64Ux64ConstOverflow16(x uint16) uint64 {
+	return uint64(x) >> 17
+}
+
+//go:noinline
+func rsh64Ux64ConstOverflow32(x uint32) uint64 {
+	return uint64(x) >> 33
+}
+
+func testRightShiftConstOverflow(t *testing.T) {
+	if got, want := rsh64Ux64ConstOverflow8(0xff), uint64(0); got != want {
+		t.Errorf("rsh64Ux64ConstOverflow8 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64Ux64ConstOverflow16(0xffff), uint64(0); got != want {
+		t.Errorf("rsh64Ux64ConstOverflow16 failed: got %v, want %v", got, want)
+	}
+	if got, want := rsh64Ux64ConstOverflow32(0xffffffff), uint64(0); got != want {
+		t.Errorf("rsh64Ux64ConstOverflow32 failed: got %v, want %v", got, want)
 	}
 }
 
@@ -918,6 +982,8 @@ func TestArithmetic(t *testing.T) {
 	testShiftCX(t)
 	testSubConst(t)
 	testOverflowConstShift(t)
+	testArithRightShiftConstOverflow(t)
+	testRightShiftConstOverflow(t)
 	testArithConstShift(t)
 	testArithRshConst(t)
 	testLargeConst(t)

@@ -83,6 +83,50 @@ func TestAfterStress(t *testing.T) {
 	stop.Store(true)
 }
 
+func TestAfterFuncStarvation(t *testing.T) {
+	// Start two goroutines ping-ponging on a channel send.
+	// At any given time, at least one of these goroutines is runnable:
+	// if the channel buffer is full, the receiver is runnable,
+	// and if it is not full, the sender is runnable.
+	//
+	// In addition, the AfterFunc callback should become runnable after
+	// the indicated delay.
+	//
+	// Even if GOMAXPROCS=1, we expect the runtime to eventually schedule
+	// the AfterFunc goroutine instead of the runnable channel goroutine.
+	// However, in https://go.dev/issue/65178 this was observed to live-lock
+	// on wasip1/wasm and js/wasm after <10000 runs.
+
+	if runtime.GOARCH == "wasm" {
+		testenv.SkipFlaky(t, 65178)
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	var (
+		wg   sync.WaitGroup
+		stop atomic.Bool
+		c    = make(chan bool, 1)
+	)
+
+	wg.Add(2)
+	go func() {
+		for !stop.Load() {
+			c <- true
+		}
+		close(c)
+		wg.Done()
+	}()
+	go func() {
+		for range c {
+		}
+		wg.Done()
+	}()
+
+	AfterFunc(1*Microsecond, func() { stop.Store(true) })
+	wg.Wait()
+}
+
 func benchmark(b *testing.B, bench func(n int)) {
 
 	// Create equal number of garbage timers on each P before starting
@@ -418,22 +462,22 @@ func TestReset(t *testing.T) {
 	// We try to run this test with increasingly larger multiples
 	// until one works so slow, loaded hardware isn't as flaky,
 	// but without slowing down fast machines unnecessarily.
-	const unit = 25 * Millisecond
-	tries := []Duration{
-		1 * unit,
-		3 * unit,
-		7 * unit,
-		15 * unit,
-	}
-	var err error
-	for _, d := range tries {
-		err = testReset(d)
+	//
+	// (maxDuration is several orders of magnitude longer than we
+	// expect this test to actually take on a fast, unloaded machine.)
+	d := 1 * Millisecond
+	const maxDuration = 10 * Second
+	for {
+		err := testReset(d)
 		if err == nil {
-			t.Logf("passed using duration %v", d)
-			return
+			break
 		}
+		d *= 2
+		if d > maxDuration {
+			t.Error(err)
+		}
+		t.Logf("%v; trying duration %v", err, d)
 	}
-	t.Error(err)
 }
 
 // Test that sleeping (via Sleep or Timer) for an interval so large it

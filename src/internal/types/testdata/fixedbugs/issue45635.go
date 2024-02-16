@@ -10,7 +10,7 @@ func main() {
 
 type N[T any] struct{}
 
-var _ N [] // ERROR expected type argument list
+var _ N [] // ERROR "expected type argument list"
 
 type I interface {
 	~[]int

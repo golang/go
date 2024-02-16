@@ -16,10 +16,10 @@ const (
 	_NSIG = 65
 )
 
+//go:cgo_import_dynamic runtime._AddVectoredContinueHandler AddVectoredContinueHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateFileA CreateFileA%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
@@ -28,7 +28,9 @@ const (
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetConsoleMode GetConsoleMode%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetCurrentThreadId GetCurrentThreadId%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetErrorMode GetErrorMode%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx%6 "kernel32.dll"
@@ -37,10 +39,14 @@ const (
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._LoadLibraryExW LoadLibraryExW%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
-//go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RtlVirtualUnwind  RtlVirtualUnwind%8 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
@@ -48,7 +54,6 @@ const (
 //go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
-//go:cgo_import_dynamic runtime._Sleep Sleep%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
@@ -57,6 +62,8 @@ const (
 //go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WaitForMultipleObjects WaitForMultipleObjects%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WerGetFlags WerGetFlags%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WerSetFlags WerSetFlags%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
 
@@ -66,10 +73,10 @@ var (
 	// Following syscalls are available on every Windows PC.
 	// All these variables are set by the Windows executable
 	// loader before the Go program starts.
+	_AddVectoredContinueHandler,
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
-	_CreateFileA,
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
@@ -78,22 +85,25 @@ var (
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
 	_GetConsoleMode,
+	_GetCurrentThreadId,
 	_GetEnvironmentStringsW,
+	_GetErrorMode,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
 	_GetQueuedCompletionStatusEx,
 	_GetStdHandle,
 	_GetSystemDirectoryA,
 	_GetSystemInfo,
-	_GetSystemTimeAsFileTime,
 	_GetThreadContext,
 	_SetThreadContext,
+	_LoadLibraryExW,
 	_LoadLibraryW,
-	_LoadLibraryA,
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
-	_QueryPerformanceFrequency,
+	_RaiseFailFastException,
 	_ResumeThread,
+	_RtlLookupFunctionEntry,
+	_RtlVirtualUnwind,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
 	_SetEvent,
@@ -101,7 +111,6 @@ var (
 	_SetThreadPriority,
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
-	_Sleep,
 	_SuspendThread,
 	_SwitchToThread,
 	_TlsAlloc,
@@ -110,40 +119,32 @@ var (
 	_VirtualQuery,
 	_WaitForSingleObject,
 	_WaitForMultipleObjects,
+	_WerGetFlags,
+	_WerSetFlags,
 	_WriteConsoleW,
 	_WriteFile,
 	_ stdFunction
 
-	// Following syscalls are only available on some Windows PCs.
-	// We will load syscalls, if available, before using them.
-	_AddDllDirectory,
-	_AddVectoredContinueHandler,
-	_LoadLibraryExA,
-	_LoadLibraryExW,
-	_ stdFunction
-
-	// Use RtlGenRandom to generate cryptographically random data.
-	// This approach has been recommended by Microsoft (see issue
-	// 15589 for details).
-	// The RtlGenRandom is not listed in advapi32.dll, instead
-	// RtlGenRandom function can be found by searching for SystemFunction036.
-	// Also some versions of Mingw cannot link to SystemFunction036
-	// when building executable as Cgo. So load SystemFunction036
-	// manually during runtime startup.
-	_RtlGenRandom stdFunction
+	// Use ProcessPrng to generate cryptographically random data.
+	_ProcessPrng stdFunction
 
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
-	_NtWaitForSingleObject  stdFunction
 	_RtlGetCurrentPeb       stdFunction
 	_RtlGetNtVersionNumbers stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
 	_timeEndPeriod,
-	_WSAGetOverlappedResult,
 	_ stdFunction
+)
+
+var (
+	bcryptprimitivesdll = [...]uint16{'b', 'c', 'r', 'y', 'p', 't', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's', '.', 'd', 'l', 'l', 0}
+	ntdlldll            = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
+	powrprofdll         = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
+	winmmdll            = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
 )
 
 // Function to be called by windows CreateThread
@@ -186,11 +187,6 @@ type mOS struct {
 	preemptExtLock uint32
 }
 
-//go:linkname os_sigpipe os.sigpipe
-func os_sigpipe() {
-	throw("too many writes on closed pipe")
-}
-
 // Stubs so tests can link correctly. These should never be called.
 func open(name *byte, mode, perm int32) int32 {
 	throw("unimplemented")
@@ -225,85 +221,37 @@ const _MAX_PATH = 260 // https://docs.microsoft.com/en-us/windows/win32/fileio/m
 var sysDirectory [_MAX_PATH + 1]byte
 var sysDirectoryLen uintptr
 
-func windowsLoadSystemLib(name []byte) uintptr {
-	if sysDirectoryLen == 0 {
-		l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
-		if l == 0 || l > uintptr(len(sysDirectory)-1) {
-			throw("Unable to determine system directory")
-		}
-		sysDirectory[l] = '\\'
-		sysDirectoryLen = l + 1
+func initSysDirectory() {
+	l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+	if l == 0 || l > uintptr(len(sysDirectory)-1) {
+		throw("Unable to determine system directory")
 	}
-	if useLoadLibraryEx {
-		return stdcall3(_LoadLibraryExA, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
-	} else {
-		absName := append(sysDirectory[:sysDirectoryLen], name...)
-		return stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&absName[0])))
-	}
+	sysDirectory[l] = '\\'
+	sysDirectoryLen = l + 1
 }
 
-const haveCputicksAsm = GOARCH == "386" || GOARCH == "amd64"
+//go:linkname windows_GetSystemDirectory internal/syscall/windows.GetSystemDirectory
+func windows_GetSystemDirectory() string {
+	return unsafe.String(&sysDirectory[0], sysDirectoryLen)
+}
+
+func windowsLoadSystemLib(name []uint16) uintptr {
+	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+}
 
 func loadOptionalSyscalls() {
-	var kernel32dll = []byte("kernel32.dll\000")
-	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
-	if k32 == 0 {
-		throw("kernel32.dll not found")
+	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll[:])
+	if bcryptPrimitives == 0 {
+		throw("bcryptprimitives.dll not found")
 	}
-	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
-	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
-	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
-	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
+	_ProcessPrng = windowsFindfunc(bcryptPrimitives, []byte("ProcessPrng\000"))
 
-	var advapi32dll = []byte("advapi32.dll\000")
-	a32 := windowsLoadSystemLib(advapi32dll)
-	if a32 == 0 {
-		throw("advapi32.dll not found")
-	}
-	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
-
-	var ntdll = []byte("ntdll.dll\000")
-	n32 := windowsLoadSystemLib(ntdll)
+	n32 := windowsLoadSystemLib(ntdlldll[:])
 	if n32 == 0 {
 		throw("ntdll.dll not found")
 	}
-	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
-
-	if !haveCputicksAsm {
-		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
-		if _QueryPerformanceCounter == nil {
-			throw("could not find QPC syscalls")
-		}
-	}
-
-	var winmmdll = []byte("winmm.dll\000")
-	m32 := windowsLoadSystemLib(winmmdll)
-	if m32 == 0 {
-		throw("winmm.dll not found")
-	}
-	_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
-	_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
-	if _timeBeginPeriod == nil || _timeEndPeriod == nil {
-		throw("timeBegin/EndPeriod not found")
-	}
-
-	var ws232dll = []byte("ws2_32.dll\000")
-	ws232 := windowsLoadSystemLib(ws232dll)
-	if ws232 == 0 {
-		throw("ws2_32.dll not found")
-	}
-	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
-	if _WSAGetOverlappedResult == nil {
-		throw("WSAGetOverlappedResult not found")
-	}
-
-	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
-		// running on Wine
-		initWine(k32)
-	}
 }
 
 func monitorSuspendResume() {
@@ -315,7 +263,7 @@ func monitorSuspendResume() {
 		context  uintptr
 	}
 
-	powrprof := windowsLoadSystemLib([]byte("powrprof.dll\000"))
+	powrprof := windowsLoadSystemLib(powrprofdll[:])
 	if powrprof == 0 {
 		return // Running on Windows 7, where we don't need it anyway.
 	}
@@ -389,22 +337,6 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s:
 func getlasterror() uint32
 
-// When loading DLLs, we prefer to use LoadLibraryEx with
-// LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
-// available on old Windows, though, and the LOAD_LIBRARY_SEARCH_*
-// flags are not available on some versions of Windows without a
-// security patch.
-//
-// https://msdn.microsoft.com/en-us/library/ms684179(v=vs.85).aspx says:
-// "Windows 7, Windows Server 2008 R2, Windows Vista, and Windows
-// Server 2008: The LOAD_LIBRARY_SEARCH_* flags are available on
-// systems that have KB2533623 installed. To determine whether the
-// flags are available, use GetProcAddress to get the address of the
-// AddDllDirectory, RemoveDllDirectory, or SetDefaultDllDirectories
-// function. If GetProcAddress succeeds, the LOAD_LIBRARY_SEARCH_*
-// flags can be used with LoadLibraryEx."
-var useLoadLibraryEx bool
-
 var timeBeginPeriodRetValue uint32
 
 // osRelaxMinNS indicates that sysmon shouldn't osRelax if the next
@@ -461,43 +393,37 @@ func createHighResTimer() uintptr {
 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
 }
 
-const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
-
 func initHighResTimer() {
-	if !highResTimerSupported {
-		// TODO: Not yet implemented.
-		return
-	}
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
 		stdcall1(_CloseHandle, h)
+	} else {
+		// Only load winmm.dll if we need it.
+		// This avoids a dependency on winmm.dll for Go programs
+		// that run on new Windows versions.
+		m32 := windowsLoadSystemLib(winmmdll[:])
+		if m32 == 0 {
+			print("runtime: LoadLibraryExW failed; errno=", getlasterror(), "\n")
+			throw("winmm.dll not found")
+		}
+		_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
+		_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
+		if _timeBeginPeriod == nil || _timeEndPeriod == nil {
+			print("runtime: GetProcAddress failed; errno=", getlasterror(), "\n")
+			throw("timeBegin/EndPeriod not found")
+		}
 	}
 }
 
-//go:linkname canUseLongPaths os.canUseLongPaths
+//go:linkname canUseLongPaths internal/syscall/windows.CanUseLongPaths
 var canUseLongPaths bool
 
-// We want this to be large enough to hold the contents of sysDirectory, *plus*
-// a slash and another component that itself is greater than MAX_PATH.
-var longFileName [(_MAX_PATH+1)*2 + 1]byte
-
-// initLongPathSupport initializes the canUseLongPaths variable, which is
-// linked into os.canUseLongPaths for determining whether or not long paths
-// need to be fixed up. In the best case, this function is running on newer
-// Windows 10 builds, which have a bit field member of the PEB called
-// "IsLongPathAwareProcess." When this is set, we don't need to go through the
-// error-prone fixup function in order to access long paths. So this init
-// function first checks the Windows build number, sets the flag, and then
-// tests to see if it's actually working. If everything checks out, then
-// canUseLongPaths is set to true, and later when called, os.fixLongPath
-// returns early without doing work.
+// initLongPathSupport enables long path support.
 func initLongPathSupport() {
 	const (
 		IsLongPathAwareProcess = 0x80
 		PebBitFieldOffset      = 3
-		OPEN_EXISTING          = 3
-		ERROR_PATH_NOT_FOUND   = 3
 	)
 
 	// Check that we're ≥ 10.0.15063.
@@ -508,37 +434,10 @@ func initLongPathSupport() {
 	}
 
 	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
+	// This flag is not documented, but it's known to be used
+	// by Windows to enable long path support.
 	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
-	originalBitField := *bitField
 	*bitField |= IsLongPathAwareProcess
-
-	// Check that this actually has an effect, by constructing a large file
-	// path and seeing whether we get ERROR_PATH_NOT_FOUND, rather than
-	// some other error, which would indicate the path is too long, and
-	// hence long path support is not successful. This whole section is NOT
-	// strictly necessary, but is a nice validity check for the near to
-	// medium term, when this functionality is still relatively new in
-	// Windows.
-	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
-	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
-	const dig = "0123456789abcdef"
-	for i := 0; i < 32; i++ {
-		longFileName[start+i*2] = dig[longFileName[len(longFileName)-33+i]>>4]
-		longFileName[start+i*2+1] = dig[longFileName[len(longFileName)-33+i]&0xf]
-	}
-	start += 64
-	for i := start; i < len(longFileName)-1; i++ {
-		longFileName[i] = 'A'
-	}
-	stdcall7(_CreateFileA, uintptr(unsafe.Pointer(&longFileName[0])), 0, 0, 0, OPEN_EXISTING, 0, 0)
-	// The ERROR_PATH_NOT_FOUND error value is distinct from
-	// ERROR_FILE_NOT_FOUND or ERROR_INVALID_NAME, the latter of which we
-	// expect here due to the final component being too long.
-	if getlasterror() == ERROR_PATH_NOT_FOUND {
-		*bitField = originalBitField
-		println("runtime: warning: IsLongPathAwareProcess failed to enable long paths; proceeding in fixup mode")
-		return
-	}
 
 	canUseLongPaths = true
 }
@@ -546,17 +445,16 @@ func initLongPathSupport() {
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
 
-	setBadSignalMsg()
-
 	loadOptionalSyscalls()
 
-	disableWER()
+	preventErrorDialogs()
 
 	initExceptionHandler()
 
 	initHighResTimer()
 	timeBeginPeriodRetValue = osRelax(false)
 
+	initSysDirectory()
 	initLongPathSupport()
 
 	ncpu = getproccount()
@@ -570,84 +468,13 @@ func osinit() {
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
 }
 
-// useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
-// This is only set to 1 when running under Wine.
-var useQPCTime uint8
-
-var qpcStartCounter int64
-var qpcMultiplier int64
-
 //go:nosplit
-func nanotimeQPC() int64 {
-	var counter int64 = 0
-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
-
-	// returns number of nanoseconds
-	return (counter - qpcStartCounter) * qpcMultiplier
-}
-
-//go:nosplit
-func nowQPC() (sec int64, nsec int32, mono int64) {
-	var ft int64
-	stdcall1(_GetSystemTimeAsFileTime, uintptr(unsafe.Pointer(&ft)))
-
-	t := (ft - 116444736000000000) * 100
-
-	sec = t / 1000000000
-	nsec = int32(t - sec*1000000000)
-
-	mono = nanotimeQPC()
-	return
-}
-
-func initWine(k32 uintptr) {
-	_GetSystemTimeAsFileTime = windowsFindfunc(k32, []byte("GetSystemTimeAsFileTime\000"))
-	if _GetSystemTimeAsFileTime == nil {
-		throw("could not find GetSystemTimeAsFileTime() syscall")
-	}
-
-	_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
-	_QueryPerformanceFrequency = windowsFindfunc(k32, []byte("QueryPerformanceFrequency\000"))
-	if _QueryPerformanceCounter == nil || _QueryPerformanceFrequency == nil {
-		throw("could not find QPC syscalls")
-	}
-
-	// We can not simply fallback to GetSystemTimeAsFileTime() syscall, since its time is not monotonic,
-	// instead we use QueryPerformanceCounter family of syscalls to implement monotonic timer
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
-
-	var tmp int64
-	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&tmp)))
-	if tmp == 0 {
-		throw("QueryPerformanceFrequency syscall returned zero, running on unsupported hardware")
-	}
-
-	// This should not overflow, it is a number of ticks of the performance counter per second,
-	// its resolution is at most 10 per usecond (on Wine, even smaller on real hardware), so it will be at most 10 millions here,
-	// panic if overflows.
-	if tmp > (1<<31 - 1) {
-		throw("QueryPerformanceFrequency overflow 32 bit divider, check nosplit discussion to proceed")
-	}
-	qpcFrequency := int32(tmp)
-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&qpcStartCounter)))
-
-	// Since we are supposed to run this time calls only on Wine, it does not lose precision,
-	// since Wine's timer is kind of emulated at 10 Mhz, so it will be a nice round multiplier of 100
-	// but for general purpose system (like 3.3 Mhz timer on i7) it will not be very precise.
-	// We have to do it this way (or similar), since multiplying QPC counter by 100 millions overflows
-	// int64 and resulted time will always be invalid.
-	qpcMultiplier = int64(timediv(1000000000, qpcFrequency, nil))
-
-	useQPCTime = 1
-}
-
-//go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	n := 0
-	if stdcall2(_RtlGenRandom, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
 		n = len(r)
 	}
-	extendRandom(r, n)
+	return n
 }
 
 func goenvs() {
@@ -981,6 +808,7 @@ func minit() {
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
+	mp.procid = uint64(stdcall0(_GetCurrentThreadId))
 
 	// Configure usleep timer, if possible.
 	if mp.highResTimer == 0 && haveHighResTimer {
@@ -1014,7 +842,7 @@ func minit() {
 		throw("bad g0 stack")
 	}
 	g0.stack.lo = base
-	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard0 = g0.stack.lo + stackGuard
 	g0.stackguard1 = g0.stackguard0
 	// Sanity check the SP.
 	stackcheck()
@@ -1031,6 +859,8 @@ func unminit() {
 		mp.thread = 0
 	}
 	unlock(&mp.threadLock)
+
+	mp.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -1050,6 +880,22 @@ func mdestroy(mp *m) {
 		stdcall1(_CloseHandle, mp.resumesema)
 		mp.resumesema = 0
 	}
+}
+
+// asmstdcall_trampoline calls asmstdcall converting from Go to C calling convention.
+func asmstdcall_trampoline(args unsafe.Pointer)
+
+// stdcall_no_g calls asmstdcall on os stack without using g.
+//
+//go:nosplit
+func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
+	libcall := libcall{
+		fn:   uintptr(unsafe.Pointer(fn)),
+		n:    uintptr(n),
+		args: args,
+	}
+	asmstdcall_trampoline(noescape(unsafe.Pointer(&libcall)))
+	return libcall.r1
 }
 
 // Calling stdcall on os stack.
@@ -1082,7 +928,7 @@ func stdcall(fn stdFunction) uintptr {
 func stdcall0(fn stdFunction) uintptr {
 	mp := getg().m
 	mp.libcall.n = 0
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&fn))) // it's unused but must be non-nil, otherwise crashes
+	mp.libcall.args = 0
 	return stdcall(fn)
 }
 
@@ -1149,38 +995,52 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	return stdcall(fn)
 }
 
+//go:nosplit
+//go:cgo_unsafe_args
+func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
+	mp := getg().m
+	mp.libcall.n = 8
+	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	return stdcall(fn)
+}
+
 // These must run on the system stack only.
-func usleep2(dt int32)
-func usleep2HighRes(dt int32)
-func switchtothread()
 
 //go:nosplit
 func osyield_no_g() {
-	switchtothread()
+	stdcall_no_g(_SwitchToThread, 0, 0)
 }
 
 //go:nosplit
 func osyield() {
-	systemstack(switchtothread)
+	systemstack(func() {
+		stdcall0(_SwitchToThread)
+	})
 }
 
 //go:nosplit
 func usleep_no_g(us uint32) {
-	dt := -10 * int32(us) // relative sleep (negative), 100ns units
-	usleep2(dt)
+	timeout := uintptr(us) / 1000 // ms units
+	args := [...]uintptr{_INVALID_HANDLE_VALUE, timeout}
+	stdcall_no_g(_WaitForSingleObject, len(args), uintptr(noescape(unsafe.Pointer(&args[0]))))
 }
 
 //go:nosplit
 func usleep(us uint32) {
 	systemstack(func() {
-		dt := -10 * int32(us) // relative sleep (negative), 100ns units
+		var h, timeout uintptr
 		// If the high-res timer is available and its handle has been allocated for this m, use it.
 		// Otherwise fall back to the low-res one, which doesn't need a handle.
 		if haveHighResTimer && getg().m.highResTimer != 0 {
-			usleep2HighRes(dt)
+			h = getg().m.highResTimer
+			dt := -10 * int64(us) // relative sleep (negative), 100ns units
+			stdcall6(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
+			timeout = _INFINITE
 		} else {
-			usleep2(dt)
+			h = _INVALID_HANDLE_VALUE
+			timeout = uintptr(us) / 1000 // ms units
 		}
+		stdcall2(_WaitForSingleObject, h, timeout)
 	})
 }
 
@@ -1291,7 +1151,12 @@ func profileLoop() {
 
 func setProcessCPUProfiler(hz int32) {
 	if profiletimer == 0 {
-		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+		var timer uintptr
+		if haveHighResTimer {
+			timer = createHighResTimer()
+		} else {
+			timer = stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+		}
 		atomic.Storeuintptr(&profiletimer, timer)
 		newm(profileLoop, nil, -1)
 	}

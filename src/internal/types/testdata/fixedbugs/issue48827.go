@@ -8,12 +8,12 @@ type G[P any] int
 
 type (
 	_ G[int]
-	_ G[G /* ERROR "cannot use.*without instantiation" */]
-	_ bool /* ERROR "invalid operation: bool\[int\] \(bool is not a generic type\)" */ [int]
-	_ bool /* ERROR "invalid operation: bool\[G\] \(bool is not a generic type\)" */[G]
+	_ G[G /* ERRORx `cannot use.*without instantiation` */]
+	_ bool /* ERROR "invalid operation: bool[int] (bool is not a generic type)" */ [int]
+	_ bool /* ERROR "invalid operation: bool[G] (bool is not a generic type)" */[G]
 )
 
 // The example from the issue.
 func _() {
-	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR "expected type" */ ]{})
+	_ = &([10]bool /* ERRORx `invalid operation.*bool is not a generic type` */ [1 /* ERROR "expected type" */ ]{})
 }

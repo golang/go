@@ -16,6 +16,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modindex"
@@ -23,7 +24,6 @@ import (
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 var (
@@ -105,7 +105,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 	if !ok {
 		mg, err := rs.Graph(ctx)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 		v = mg.Selected(path)
 	}
@@ -152,7 +152,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if semver.Compare(info.Version, m.Version) > 0 {
+	if gover.ModCompare(m.Path, info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -161,53 +161,63 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 }
 
-// mergeOrigin merges two origins,
-// returning and possibly modifying one of its arguments.
-// If the two origins conflict, mergeOrigin returns a non-specific one
-// that will not pass CheckReuse.
-// If m1 or m2 is nil, the other is returned unmodified.
-// But if m1 or m2 is non-nil and uncheckable, the result is also uncheckable,
-// to preserve uncheckability.
+// mergeOrigin returns the union of data from two origins,
+// returning either a new origin or one of its unmodified arguments.
+// If the two origins conflict including if either is nil,
+// mergeOrigin returns nil.
 func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
-	if m1 == nil {
-		return m2
-	}
-	if m2 == nil {
-		return m1
-	}
-	if !m1.Checkable() {
-		return m1
-	}
-	if !m2.Checkable() {
-		return m2
+	if m1 == nil || m2 == nil {
+		return nil
 	}
 
-	merged := new(codehost.Origin)
-	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+	if m2.VCS != m1.VCS ||
+		m2.URL != m1.URL ||
+		m2.Subdir != m1.Subdir {
+		return nil
+	}
 
+	merged := *m1
+	if m2.Hash != "" {
+		if m1.Hash != "" && m1.Hash != m2.Hash {
+			return nil
+		}
+		merged.Hash = m2.Hash
+	}
 	if m2.TagSum != "" {
 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
-			merged.ClearCheckable()
-			return merged
+			return nil
 		}
 		merged.TagSum = m2.TagSum
 		merged.TagPrefix = m2.TagPrefix
 	}
-	if m2.Hash != "" {
-		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
-			merged.ClearCheckable()
-			return merged
+	if m2.Ref != "" {
+		if m1.Ref != "" && m1.Ref != m2.Ref {
+			return nil
 		}
-		merged.Hash = m2.Hash
 		merged.Ref = m2.Ref
 	}
-	return merged
+
+	switch {
+	case merged == *m1:
+		return m1
+	case merged == *m2:
+		return m2
+	default:
+		// Clone the result to avoid an alloc for merged
+		// if the result is equal to one of the arguments.
+		clone := merged
+		return &clone
+	}
 }
 
 // addVersions fills in m.Versions with the list of known versions.
 // Excluded versions will be omitted. If listRetracted is false, retracted
 // versions will also be omitted.
 func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+	// TODO(bcmills): Would it make sense to check for reuse here too?
+	// Perhaps that doesn't buy us much, though: we would always have to fetch
+	// all of the version tags to list the available versions anyway.
+
 	allowed := CheckAllowed
 	if listRetracted {
 		allowed = CheckExclusions
@@ -309,13 +319,8 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
-		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
-			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
-				*m = *old
-				m.Query = ""
-				m.Dir = ""
-				return
-			}
+		if gover.IsToolchain(m.Path) {
+			return
 		}
 
 		checksumOk := func(suffix string) bool {
@@ -323,7 +328,18 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
+		mod := module.Version{Path: m.Path, Version: m.Version}
+
 		if m.Version != "" {
+			if old := reuse[mod]; old != nil {
+				if err := checkReuse(ctx, mod, old.Origin); err == nil {
+					*m = *old
+					m.Query = ""
+					m.Dir = ""
+					return
+				}
+			}
+
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
@@ -331,7 +347,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				m.Time = &q.Time
 			}
 		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
 
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't
@@ -343,17 +358,23 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 		if m.Version != "" {
 			if checksumOk("/go.mod") {
-				gomod, err := modfetch.CachePath(mod, "mod")
+				gomod, err := modfetch.CachePath(ctx, mod, "mod")
 				if err == nil {
 					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
 						m.GoMod = gomod
 					}
 				}
+				if gomodsum, ok := modfetch.RecordedSum(modkey(mod)); ok {
+					m.GoModSum = gomodsum
+				}
 			}
 			if checksumOk("") {
-				dir, err := modfetch.DownloadDir(mod)
+				dir, err := modfetch.DownloadDir(ctx, mod)
 				if err == nil {
 					m.Dir = dir
+				}
+				if sum, ok := modfetch.RecordedSum(mod); ok {
+					m.Sum = sum
 				}
 			}
 
@@ -417,7 +438,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 // If the package was loaded, its containing module and true are returned.
 // Otherwise, module.Version{} and false are returned.
 func findModule(ld *loader, path string) (module.Version, bool) {
-	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
+	if pkg, ok := ld.pkgCache.Get(path); ok {
 		return pkg.mod, pkg.mod != module.Version{}
 	}
 	return module.Version{}, false

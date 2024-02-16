@@ -389,13 +389,6 @@ func addAt(z, x nat, i int) {
 	}
 }
 
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
-
 // karatsubaLen computes an approximation to the maximum k <= n such that
 // k = p<<i for a number p <= threshold and an i >= 0. Thus, the
 // result is the largest number that can be divided repeatedly by 2 before
@@ -631,7 +624,7 @@ func (z nat) mulRange(a, b uint64) nat {
 	case a+1 == b:
 		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
 	}
-	m := (a + b) / 2
+	m := a + (b-a)/2 // avoid overflow
 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
 }
 
@@ -661,8 +654,21 @@ var natPool sync.Pool
 // bitLen returns the length of x in bits.
 // Unlike most methods, it works even if x is not normalized.
 func (x nat) bitLen() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	if i := len(x) - 1; i >= 0 {
-		return i*_W + bits.Len(uint(x[i]))
+		// bits.Len uses a lookup table for the low-order bits on some
+		// architectures. Neutralize any input-dependent behavior by setting all
+		// bits after the first one bit.
+		top := uint(x[i])
+		top |= top >> 1
+		top |= top >> 2
+		top |= top >> 4
+		top |= top >> 8
+		top |= top >> 16
+		top |= top >> 16 >> 16 // ">> 32" doesn't compile on 32-bit architectures
+		return i*_W + bits.Len(top)
 	}
 	return 0
 }
@@ -1292,6 +1298,9 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 // cannot be represented in buf, bytes panics. The number i of unused
 // bytes at the beginning of buf is returned as result.
 func (z nat) bytes(buf []byte) (i int) {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	i = len(buf)
 	for _, d := range z {
 		for j := 0; j < _S; j++ {

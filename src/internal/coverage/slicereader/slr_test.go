@@ -6,6 +6,7 @@ package slicereader
 
 import (
 	"encoding/binary"
+	"io"
 	"testing"
 )
 
@@ -64,10 +65,12 @@ func TestSliceReader(t *testing.T) {
 		if gs2 != s2 {
 			t.Fatalf("readStr got %s want %s", gs2, s2)
 		}
-		slr.SeekTo(4)
+		if _, err := slr.Seek(4, io.SeekStart); err != nil {
+			t.Fatal(err)
+		}
 		off := slr.Offset()
 		if off != 4 {
-			t.Fatalf("Offset(0 returned %d wanted 4", off)
+			t.Fatalf("Offset() returned %d wanted 4", off)
 		}
 		g64 = slr.ReadUint64()
 		if g64 != e64 {

@@ -5,6 +5,7 @@
 package types_test
 
 import (
+	"strings"
 	"testing"
 
 	"go/ast"
@@ -65,7 +66,7 @@ func TestNewMethodSet(t *testing.T) {
 		"var a struct{ E1; *E2 }; type ( E1 interface{ f() }; E2 struct{ f int })":            {},
 		"var a struct{ E1; *E2 }; type ( E1 struct{ f int }; E2 struct{} ); func (E2) f() {}": {},
 
-		// recursive generic types; see golang/go#52715
+		// recursive generic types; see go.dev/issue/52715
 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) m() {}": {{"m", []int{0, 0}, true}},
 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) m() {}": {{"m", []int{0}, false}},
 	}
@@ -75,16 +76,16 @@ func TestNewMethodSet(t *testing.T) {
 		"type C interface{ f() }; func g[T C](a T){}":               {{"f", []int{0}, true}},
 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }": {{"f", []int{0}, true}},
 
-		// Issue #43621: We don't allow this anymore. Keep this code in case we
+		// go.dev/issue/43621: We don't allow this anymore. Keep this code in case we
 		// decide to revisit this decision.
 		// "type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
 
-		// Issue #45639: We also don't allow this anymore.
+		// go.dev/issue/45639: We also don't allow this anymore.
 		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
 	}
 
 	check := func(src string, methods []method, generic bool) {
-		pkg := mustTypecheck("test", "package p;"+src, nil)
+		pkg := mustTypecheck("package p;"+src, nil, nil)
 
 		scope := pkg.Scope()
 		if generic {
@@ -125,7 +126,7 @@ func TestNewMethodSet(t *testing.T) {
 	}
 }
 
-// Test for golang/go#52715
+// Test for go.dev/issue/52715
 func TestNewMethodSet_RecursiveGeneric(t *testing.T) {
 	const src = `
 package pkg
@@ -153,4 +154,44 @@ type Instance = *Tree[int]
 
 	T := pkg.Scope().Lookup("Instance").Type()
 	_ = NewMethodSet(T) // verify that NewMethodSet terminates
+}
+
+func TestIssue60634(t *testing.T) {
+	const src = `
+package p
+type T *int
+func (T) m() {} // expected error: invalid receiver type
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var conf Config
+	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
+	if err == nil || !strings.Contains(err.Error(), "invalid receiver type") {
+		t.Fatalf("missing or unexpected error: %v", err)
+	}
+
+	// look up T.m and (*T).m
+	T := pkg.Scope().Lookup("T").Type()
+	name := "m"
+	for _, recv := range []Type{T, NewPointer(T)} {
+		// LookupFieldOrMethod and NewMethodSet must match:
+		// either both find m or neither finds it.
+		obj1, _, _ := LookupFieldOrMethod(recv, false, pkg, name)
+		mset := NewMethodSet(recv)
+		if (obj1 != nil) != (mset.Len() == 1) {
+			t.Fatalf("lookup(%v.%s): got obj = %v, mset = %v", recv, name, obj1, mset)
+		}
+		// If the method exists, both must return the same object.
+		if obj1 != nil {
+			obj2 := mset.At(0).Obj()
+			if obj1 != obj2 {
+				t.Fatalf("%v != %v", obj1, obj2)
+			}
+		}
+	}
 }

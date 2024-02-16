@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -54,7 +55,7 @@ type query struct {
 	// path.
 	matchWildcard func(path string) bool
 
-	// canMatchWildcard, if non-nil, reports whether the module with the given
+	// canMatchWildcardInModule, if non-nil, reports whether the module with the given
 	// path could lexically contain a package matching pattern, which must be a
 	// wildcard.
 	canMatchWildcardInModule func(mPath string) bool
@@ -97,7 +98,7 @@ type query struct {
 	resolved []module.Version
 
 	// matchesPackages is true if the resolved modules provide at least one
-	// package mathcing q.pattern.
+	// package matching q.pattern.
 	matchesPackages bool
 }
 
@@ -229,7 +230,7 @@ func (q *query) isWildcard() bool {
 
 // matchesPath reports whether the given path matches q.pattern.
 func (q *query) matchesPath(path string) bool {
-	if q.matchWildcard != nil {
+	if q.matchWildcard != nil && !gover.IsToolchain(path) {
 		return q.matchWildcard(path)
 	}
 	return path == q.pattern
@@ -238,6 +239,9 @@ func (q *query) matchesPath(path string) bool {
 // canMatchInModule reports whether the given module path can potentially
 // contain q.pattern.
 func (q *query) canMatchInModule(mPath string) bool {
+	if gover.IsToolchain(mPath) {
+		return false
+	}
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}

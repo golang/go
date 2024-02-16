@@ -59,12 +59,12 @@ var (
 )
 
 // alias receiver types
-func (Ai /* ERROR "cannot define new methods on non-local type int" */) m1() {}
+func (Ai /* ERRORx "cannot define new methods on non-local type (int|Ai)" */) m1() {}
 func (T0) m1() {}
-func (A0) m1 /* ERROR already declared */ () {}
+func (A0) m1 /* ERROR "already declared" */ () {}
 func (A0) m2 () {}
-func (A3 /* ERROR invalid receiver */ ) m1 () {}
-func (A10 /* ERROR invalid receiver */ ) m1() {}
+func (A3 /* ERROR "invalid receiver" */ ) m1 () {}
+func (A10 /* ERROR "invalid receiver" */ ) m1() {}
 
 // x0 has methods m1, m2 declared via receiver type names T0 and A0
 var _ interface{ m1(); m2() } = x0
@@ -95,12 +95,12 @@ type (
 	V3 = T
 )
 
-func (V0) m /* ERROR already declared */ () {}
+func (V0) m /* ERROR "already declared" */ () {}
 func (V1) n() {}
 
 // alias receiver types (invalid due to cycles)
 type (
-	W0 /* ERROR invalid recursive type */ = W1
+	W0 /* ERROR "invalid recursive type" */ = W1
 	W1 = (W2)
 	W2 = ((W0))
 )
@@ -115,19 +115,19 @@ type (
 	B2 = int
 )
 
-func (B0 /* ERROR cannot define new methods on non-local type int */ ) m() {}
-func (B1 /* ERROR cannot define new methods on non-local type int */ ) n() {}
+func (B0 /* ERRORx "cannot define new methods on non-local type (int|B)" */ ) m() {}
+func (B1 /* ERRORx "cannot define new methods on non-local type (int|B)" */ ) n() {}
 
 // cycles
 type (
-	C2 /* ERROR invalid recursive type */ = C2
-	C3 /* ERROR invalid recursive type */ = C4
+	C2 /* ERROR "invalid recursive type" */ = C2
+	C3 /* ERROR "invalid recursive type" */ = C4
 	C4 = C3
 	C5 struct {
 		f *C6
 	}
 	C6 = C5
-	C7 /* ERROR invalid recursive type */  struct {
+	C7 /* ERROR "invalid recursive type" */  struct {
 		f C8
 	}
 	C8 = C7
@@ -136,7 +136,7 @@ type (
 // embedded fields
 var (
 	s0 struct { T0 }
-	s1 struct { A0 } = s0 /* ERROR cannot use */ // embedded field names are different
+	s1 struct { A0 } = s0 /* ERROR "cannot use" */ // embedded field names are different
 )
 
 // embedding and lookup of fields and methods
@@ -190,10 +190,10 @@ type eD struct {
 }
 
 var (
-	_ = eD{}.xf /* ERROR ambiguous selector eD{}.xf */
-	_ = eD{}.xm /* ERROR ambiguous selector eD{}.xm */
+	_ = eD{}.xf /* ERROR "ambiguous selector eD{}.xf" */
+	_ = eD{}.xm /* ERROR "ambiguous selector eD{}.xm" */
 )
 
 var (
-	_ interface{ xm() } = eD /* ERROR missing method xm */ {}
+	_ interface{ xm() } = eD /* ERROR "ambiguous selector eD.xm" */ {}
 )

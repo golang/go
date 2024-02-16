@@ -399,6 +399,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_I386_DIR32
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_I386_DIR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_I386_REL32
@@ -418,7 +421,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushl got+4
 		plt.AddUint8(0xff)

@@ -169,7 +169,9 @@ func (subst *subster) typ(typ Type) Type {
 		if mcopied || ecopied {
 			iface := subst.check.newInterface()
 			iface.embeddeds = embeddeds
+			iface.embedPos = t.embedPos
 			iface.implicit = t.implicit
+			assert(t.complete) // otherwise we are copying incomplete data
 			iface.complete = t.complete
 			// If we've changed the interface type, we may need to replace its
 			// receiver if the receiver type is the original interface. Receivers of
@@ -185,6 +187,11 @@ func (subst *subster) typ(typ Type) Type {
 			// need to create new interface methods to hold the instantiated
 			// receiver. This is handled by Named.expandUnderlying.
 			iface.methods, _ = replaceRecvType(methods, t, iface)
+
+			// If check != nil, check.newInterface will have saved the interface for later completion.
+			if subst.check == nil { // golang/go#61561: all newly created interfaces must be completed
+				iface.typeSet()
+			}
 			return iface
 		}
 

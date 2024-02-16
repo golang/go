@@ -7,7 +7,6 @@ package loong64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
-	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"sort"
@@ -29,327 +28,364 @@ type ctxt0 struct {
 
 const (
 	FuncAlign = 4
+	loopAlign = 16
 )
 
 type Optab struct {
-	as     obj.As
-	a1     uint8
-	a2     uint8
-	a3     uint8
-	type_  int8
-	size   int8
-	param  int16
-	family sys.ArchFamily
-	flag   uint8
+	as    obj.As
+	from1 uint8
+	reg   uint8
+	from3 uint8
+	to1   uint8
+	to2   uint8
+	type_ int8
+	size  int8
+	param int16
+	flag  uint8
 }
 
 const (
 	NOTUSETMP = 1 << iota // p expands to multiple instructions, but does NOT use REGTMP
+
+	// branchLoopHead marks loop entry.
+	// Used to insert padding for under-aligned loops.
+	branchLoopHead
 )
 
 var optab = []Optab{
-	{obj.ATEXT, C_ADDR, C_NONE, C_TEXTSIZE, 0, 0, 0, 0, 0},
+	{obj.ATEXT, C_ADDR, C_NONE, C_NONE, C_TEXTSIZE, C_NONE, 0, 0, 0, 0},
 
-	{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_REG, 1, 4, 0, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_REG, 12, 8, 0, 0, NOTUSETMP},
-	{AMOVBU, C_REG, C_NONE, C_REG, 13, 4, 0, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_REG, 14, 8, 0, sys.Loong64, NOTUSETMP},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 8, 0, NOTUSETMP},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 13, 4, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 14, 8, 0, NOTUSETMP},
 
-	{ASUB, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
-	{ASUBV, C_REG, C_REG, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AADD, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
-	{AADDV, C_REG, C_REG, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AAND, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
-	{ASUB, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{ASUBV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AADD, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{AADDV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AMASKEQZ, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
+	{ASUB, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASUBV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AADD, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AADDV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AAND, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASUB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ASUBV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AADD, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AADDV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AAND, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ANEGW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{ANEGV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMASKEQZ, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 
-	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
-	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
-	{ASLLV, C_REG, C_NONE, C_REG, 9, 4, 0, sys.Loong64, 0},
-	{ASLLV, C_REG, C_REG, C_REG, 9, 4, 0, sys.Loong64, 0},
-	{ACLO, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
+	{ASLL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+	{ASLL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+	{ASLLV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+	{ASLLV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 
-	{AADDF, C_FREG, C_NONE, C_FREG, 32, 4, 0, 0, 0},
-	{AADDF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0, 0},
-	{ACMPEQF, C_FREG, C_REG, C_NONE, 32, 4, 0, 0, 0},
-	{AABSF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
-	{AMOVVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
+	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
+	{AADDF, C_FREG, C_REG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
+	{ACMPEQF, C_FREG, C_REG, C_NONE, C_NONE, C_NONE, 32, 4, 0, 0},
+	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
 
-	{AMOVW, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVWU, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVBU, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVWL, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVVL, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVWL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVVL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.Loong64, 0},
-	{AMOVW, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVWL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVVL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.Loong64, 0},
-	{ASC, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{ASCV, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.Loong64, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVWL, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVVL, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVWL, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVVL, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVWL, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{AMOVVL, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{ASC, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{ASCV, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
 
-	{AMOVW, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVWU, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVV, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVB, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVBU, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVWL, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVVL, C_SEXT, C_NONE, C_REG, 8, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVWU, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.Loong64, 0},
-	{AMOVV, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.Loong64, 0},
-	{AMOVB, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVBU, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVWL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVVL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.Loong64, 0},
-	{AMOVW, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVWU, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.Loong64, 0},
-	{AMOVV, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.Loong64, 0},
-	{AMOVB, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVBU, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVWL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVVL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.Loong64, 0},
-	{ALL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{ALLV, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.Loong64, 0},
+	{AMOVW, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVWU, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVV, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVB, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVBU, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVWL, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVVL, C_SEXT, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, 0, 0},
+	{AMOVW, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVWU, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVV, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVB, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVBU, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVWL, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVVL, C_SAUTO, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGSP, 0},
+	{AMOVW, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVWU, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVV, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVB, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVBU, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVWL, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{AMOVVL, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{ALL, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+	{ALLV, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
 
-	{AMOVW, C_REG, C_NONE, C_LEXT, 35, 12, 0, sys.Loong64, 0},
-	{AMOVWU, C_REG, C_NONE, C_LEXT, 35, 12, 0, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_LEXT, 35, 12, 0, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_LEXT, 35, 12, 0, sys.Loong64, 0},
-	{AMOVBU, C_REG, C_NONE, C_LEXT, 35, 12, 0, sys.Loong64, 0},
-	{AMOVW, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, 0, 0},
-	{ASC, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_ADDR, 50, 8, 0, 0, 0},
-	{AMOVW, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVWU, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 8, 0, 0, 0},
-	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 8, 0, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVW, C_REG, C_NONE, C_TLS, 53, 16, 0, 0, 0},
-	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 16, 0, sys.Loong64, 0},
-	{AMOVV, C_REG, C_NONE, C_TLS, 53, 16, 0, sys.Loong64, 0},
-	{AMOVB, C_REG, C_NONE, C_TLS, 53, 16, 0, 0, 0},
-	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 16, 0, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_LEXT, C_NONE, 35, 12, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_LEXT, C_NONE, 35, 12, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_LEXT, C_NONE, 35, 12, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_LEXT, C_NONE, 35, 12, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_LEXT, C_NONE, 35, 12, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_LAUTO, C_NONE, 35, 12, REGSP, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{ASC, C_REG, C_NONE, C_NONE, C_LOREG, C_NONE, 35, 12, REGZERO, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_TLS_LE, C_NONE, 53, 16, 0, 0},
 
-	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, 0, sys.Loong64, 0},
-	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, 0, sys.Loong64, 0},
-	{AMOVV, C_LEXT, C_NONE, C_REG, 36, 12, 0, sys.Loong64, 0},
-	{AMOVB, C_LEXT, C_NONE, C_REG, 36, 12, 0, sys.Loong64, 0},
-	{AMOVBU, C_LEXT, C_NONE, C_REG, 36, 12, 0, sys.Loong64, 0},
-	{AMOVW, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP, 0, 0},
-	{AMOVWU, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP, sys.Loong64, 0},
-	{AMOVV, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP, sys.Loong64, 0},
-	{AMOVB, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP, 0, 0},
-	{AMOVBU, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP, 0, 0},
-	{AMOVW, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO, 0, 0},
-	{AMOVWU, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO, sys.Loong64, 0},
-	{AMOVV, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO, sys.Loong64, 0},
-	{AMOVB, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO, 0, 0},
-	{AMOVBU, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO, 0, 0},
-	{AMOVW, C_ADDR, C_NONE, C_REG, 51, 8, 0, 0, 0},
-	{AMOVW, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVWU, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVV, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 8, 0, 0, 0},
-	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 8, 0, 0, 0},
-	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVW, C_TLS, C_NONE, C_REG, 54, 16, 0, 0, 0},
-	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 16, 0, sys.Loong64, 0},
-	{AMOVV, C_TLS, C_NONE, C_REG, 54, 16, 0, sys.Loong64, 0},
-	{AMOVB, C_TLS, C_NONE, C_REG, 54, 16, 0, 0, 0},
-	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 16, 0, 0, 0},
+	{AMOVW, C_LEXT, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, 0, 0},
+	{AMOVWU, C_LEXT, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, 0, 0},
+	{AMOVV, C_LEXT, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, 0, 0},
+	{AMOVB, C_LEXT, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, 0, 0},
+	{AMOVBU, C_LEXT, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, 0, 0},
+	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
+	{AMOVWU, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
+	{AMOVV, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
+	{AMOVB, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
+	{AMOVBU, C_LAUTO, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGSP, 0},
+	{AMOVW, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
+	{AMOVWU, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
+	{AMOVV, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
+	{AMOVB, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
+	{AMOVBU, C_LOREG, C_NONE, C_NONE, C_REG, C_NONE, 36, 12, REGZERO, 0},
+	{AMOVW, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVW, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVWU, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVV, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVB, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVB, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVBU, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVBU, C_ADDR, C_NONE, C_NONE, C_REG, C_NONE, 51, 8, 0, 0},
+	{AMOVW, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
+	{AMOVWU, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
+	{AMOVV, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
+	{AMOVB, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
+	{AMOVBU, C_TLS_LE, C_NONE, C_NONE, C_REG, C_NONE, 54, 16, 0, 0},
 
-	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, 0, sys.Loong64, 0},
-	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_SACON, C_NONE, C_REG, 3, 4, REGSP, 0, 0},
-	{AMOVV, C_SACON, C_NONE, C_REG, 3, 4, REGSP, sys.Loong64, 0},
-	{AMOVW, C_LECON, C_NONE, C_REG, 52, 8, 0, 0, NOTUSETMP},
-	{AMOVW, C_LECON, C_NONE, C_REG, 52, 8, 0, sys.Loong64, NOTUSETMP},
-	{AMOVV, C_LECON, C_NONE, C_REG, 52, 8, 0, sys.Loong64, NOTUSETMP},
+	{AMOVW, C_SECON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, 0, 0},
+	{AMOVV, C_SECON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, 0, 0},
+	{AMOVW, C_SACON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGSP, 0},
+	{AMOVV, C_SACON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGSP, 0},
+	{AMOVW, C_LECON, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
+	{AMOVW, C_LECON, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
+	{AMOVV, C_LECON, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
 
-	{AMOVW, C_LACON, C_NONE, C_REG, 26, 12, REGSP, 0, 0},
-	{AMOVV, C_LACON, C_NONE, C_REG, 26, 12, REGSP, sys.Loong64, 0},
-	{AMOVW, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO, 0, 0},
-	{AMOVV, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO, sys.Loong64, 0},
-	{AMOVW, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO, 0, 0},
-	{AMOVV, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO, sys.Loong64, 0},
-	{AMOVW, C_STCON, C_NONE, C_REG, 55, 12, 0, 0, 0},
-	{AMOVV, C_STCON, C_NONE, C_REG, 55, 12, 0, sys.Loong64, 0},
+	{AMOVW, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
+	{AMOVV, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
+	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVV, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVV, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVW, C_STCON, C_NONE, C_NONE, C_REG, C_NONE, 55, 12, 0, 0},
+	{AMOVV, C_STCON, C_NONE, C_NONE, C_REG, C_NONE, 55, 12, 0, 0},
 
-	{AMOVW, C_UCON, C_NONE, C_REG, 24, 4, 0, 0, 0},
-	{AMOVV, C_UCON, C_NONE, C_REG, 24, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_LCON, C_NONE, C_REG, 19, 8, 0, 0, NOTUSETMP},
-	{AMOVV, C_LCON, C_NONE, C_REG, 19, 8, 0, sys.Loong64, NOTUSETMP},
-	{AMOVV, C_DCON, C_NONE, C_REG, 59, 16, 0, sys.Loong64, NOTUSETMP},
+	{AMOVW, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+	{AMOVV, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+	{AMOVW, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
+	{AMOVV, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
+	{AMOVV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 59, 16, 0, NOTUSETMP},
 
-	{AMUL, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{AMUL, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
-	{AMULV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.Loong64, 0},
-	{AMULV, C_REG, C_REG, C_REG, 2, 4, 0, sys.Loong64, 0},
+	{AMUL, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMUL, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMULV, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
+	{AMULV, C_REG, C_REG, C_NONE, C_REG, C_NONE, 2, 4, 0, 0},
 
-	{AADD, C_ADD0CON, C_REG, C_REG, 4, 4, 0, 0, 0},
-	{AADD, C_ADD0CON, C_NONE, C_REG, 4, 4, 0, 0, 0},
-	{AADD, C_ANDCON, C_REG, C_REG, 10, 8, 0, 0, 0},
-	{AADD, C_ANDCON, C_NONE, C_REG, 10, 8, 0, 0, 0},
+	{AADD, C_ADD0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADD, C_ADD0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADD, C_ANDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADD, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AADDV, C_ADD0CON, C_REG, C_REG, 4, 4, 0, sys.Loong64, 0},
-	{AADDV, C_ADD0CON, C_NONE, C_REG, 4, 4, 0, sys.Loong64, 0},
-	{AADDV, C_ANDCON, C_REG, C_REG, 10, 8, 0, sys.Loong64, 0},
-	{AADDV, C_ANDCON, C_NONE, C_REG, 10, 8, 0, sys.Loong64, 0},
+	{AADDV, C_ADD0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV, C_ADD0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV, C_ANDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADDV, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AAND, C_AND0CON, C_REG, C_REG, 4, 4, 0, 0, 0},
-	{AAND, C_AND0CON, C_NONE, C_REG, 4, 4, 0, 0, 0},
-	{AAND, C_ADDCON, C_REG, C_REG, 10, 8, 0, 0, 0},
-	{AAND, C_ADDCON, C_NONE, C_REG, 10, 8, 0, 0, 0},
+	{AAND, C_AND0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AAND, C_AND0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AAND, C_ADDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AAND, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AADD, C_UCON, C_REG, C_REG, 25, 8, 0, 0, 0},
-	{AADD, C_UCON, C_NONE, C_REG, 25, 8, 0, 0, 0},
-	{AADDV, C_UCON, C_REG, C_REG, 25, 8, 0, sys.Loong64, 0},
-	{AADDV, C_UCON, C_NONE, C_REG, 25, 8, 0, sys.Loong64, 0},
-	{AAND, C_UCON, C_REG, C_REG, 25, 8, 0, 0, 0},
-	{AAND, C_UCON, C_NONE, C_REG, 25, 8, 0, 0, 0},
+	{AADD, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADD, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADDV, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADDV, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AAND, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AAND, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
 
-	{AADD, C_LCON, C_NONE, C_REG, 23, 12, 0, 0, 0},
-	{AADDV, C_LCON, C_NONE, C_REG, 23, 12, 0, sys.Loong64, 0},
-	{AAND, C_LCON, C_NONE, C_REG, 23, 12, 0, 0, 0},
-	{AADD, C_LCON, C_REG, C_REG, 23, 12, 0, 0, 0},
-	{AADDV, C_LCON, C_REG, C_REG, 23, 12, 0, sys.Loong64, 0},
-	{AAND, C_LCON, C_REG, C_REG, 23, 12, 0, 0, 0},
+	{AADD, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADDV, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AAND, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADD, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADDV, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AAND, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
 
-	{AADDV, C_DCON, C_NONE, C_REG, 60, 20, 0, sys.Loong64, 0},
-	{AADDV, C_DCON, C_REG, C_REG, 60, 20, 0, sys.Loong64, 0},
+	{AADDV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
+	{AADDV, C_DCON, C_REG, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
 
-	{ASLL, C_SCON, C_REG, C_REG, 16, 4, 0, 0, 0},
-	{ASLL, C_SCON, C_NONE, C_REG, 16, 4, 0, 0, 0},
+	{ASLL, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLL, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
-	{ASLLV, C_SCON, C_REG, C_REG, 16, 4, 0, sys.Loong64, 0},
-	{ASLLV, C_SCON, C_NONE, C_REG, 16, 4, 0, sys.Loong64, 0},
+	{ASLLV, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
-	{ASYSCALL, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0, 0},
+	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
-	{ABEQ, C_REG, C_REG, C_SBRA, 6, 4, 0, 0, 0},
-	{ABEQ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
-	{ABLEZ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
-	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 4, 0, 0, NOTUSETMP},
+	{ABEQ, C_REG, C_REG, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+	{ABEQ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+	{ABLEZ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+	{ABFPT, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, NOTUSETMP},
 
-	{AJMP, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // b
-	{AJAL, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // bl
+	{AJMP, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // b
+	{AJAL, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // bl
 
-	{AJMP, C_NONE, C_NONE, C_ZOREG, 18, 4, REGZERO, 0, 0}, // jirl r0, rj, 0
-	{AJAL, C_NONE, C_NONE, C_ZOREG, 18, 4, REGLINK, 0, 0}, // jirl r1, rj, 0
+	{AJMP, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
+	{AJAL, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
 
-	{AMOVW, C_SEXT, C_NONE, C_FREG, 27, 4, 0, sys.Loong64, 0},
-	{AMOVF, C_SEXT, C_NONE, C_FREG, 27, 4, 0, sys.Loong64, 0},
-	{AMOVD, C_SEXT, C_NONE, C_FREG, 27, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_SAUTO, C_NONE, C_FREG, 27, 4, REGSP, sys.Loong64, 0},
-	{AMOVF, C_SAUTO, C_NONE, C_FREG, 27, 4, REGSP, 0, 0},
-	{AMOVD, C_SAUTO, C_NONE, C_FREG, 27, 4, REGSP, 0, 0},
-	{AMOVW, C_SOREG, C_NONE, C_FREG, 27, 4, REGZERO, sys.Loong64, 0},
-	{AMOVF, C_SOREG, C_NONE, C_FREG, 27, 4, REGZERO, 0, 0},
-	{AMOVD, C_SOREG, C_NONE, C_FREG, 27, 4, REGZERO, 0, 0},
+	{AMOVW, C_SEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, 0, 0},
+	{AMOVF, C_SEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, 0, 0},
+	{AMOVD, C_SEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, 0, 0},
+	{AMOVW, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGSP, 0},
+	{AMOVF, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGSP, 0},
+	{AMOVD, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGSP, 0},
+	{AMOVW, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGZERO, 0},
+	{AMOVF, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGZERO, 0},
+	{AMOVD, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGZERO, 0},
 
-	{AMOVW, C_LEXT, C_NONE, C_FREG, 27, 12, 0, sys.Loong64, 0},
-	{AMOVF, C_LEXT, C_NONE, C_FREG, 27, 12, 0, sys.Loong64, 0},
-	{AMOVD, C_LEXT, C_NONE, C_FREG, 27, 12, 0, sys.Loong64, 0},
-	{AMOVW, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP, sys.Loong64, 0},
-	{AMOVF, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP, 0, 0},
-	{AMOVD, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP, 0, 0},
-	{AMOVW, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO, sys.Loong64, 0},
-	{AMOVF, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO, 0, 0},
-	{AMOVD, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO, 0, 0},
-	{AMOVF, C_ADDR, C_NONE, C_FREG, 51, 8, 0, 0, 0},
-	{AMOVF, C_ADDR, C_NONE, C_FREG, 51, 8, 0, sys.Loong64, 0},
-	{AMOVD, C_ADDR, C_NONE, C_FREG, 51, 8, 0, 0, 0},
-	{AMOVD, C_ADDR, C_NONE, C_FREG, 51, 8, 0, sys.Loong64, 0},
+	{AMOVW, C_LEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, 0, 0},
+	{AMOVF, C_LEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, 0, 0},
+	{AMOVD, C_LEXT, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, 0, 0},
+	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGSP, 0},
+	{AMOVF, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGSP, 0},
+	{AMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGSP, 0},
+	{AMOVW, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGZERO, 0},
+	{AMOVF, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGZERO, 0},
+	{AMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGZERO, 0},
+	{AMOVF, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
+	{AMOVF, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
+	{AMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
+	{AMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
 
-	{AMOVW, C_FREG, C_NONE, C_SEXT, 28, 4, 0, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_SEXT, 28, 4, 0, sys.Loong64, 0},
-	{AMOVD, C_FREG, C_NONE, C_SEXT, 28, 4, 0, sys.Loong64, 0},
-	{AMOVW, C_FREG, C_NONE, C_SAUTO, 28, 4, REGSP, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_SAUTO, 28, 4, REGSP, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_SAUTO, 28, 4, REGSP, 0, 0},
-	{AMOVW, C_FREG, C_NONE, C_SOREG, 28, 4, REGZERO, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_SOREG, 28, 4, REGZERO, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_SOREG, 28, 4, REGZERO, 0, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_SEXT, C_NONE, 28, 4, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_SEXT, C_NONE, 28, 4, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_SEXT, C_NONE, 28, 4, 0, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 28, 4, REGSP, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 28, 4, REGSP, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 28, 4, REGSP, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 28, 4, REGZERO, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 28, 4, REGZERO, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 28, 4, REGZERO, 0},
 
-	{AMOVW, C_FREG, C_NONE, C_LEXT, 28, 12, 0, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_LEXT, 28, 12, 0, sys.Loong64, 0},
-	{AMOVD, C_FREG, C_NONE, C_LEXT, 28, 12, 0, sys.Loong64, 0},
-	{AMOVW, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP, 0, 0},
-	{AMOVW, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO, sys.Loong64, 0},
-	{AMOVF, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO, 0, 0},
-	{AMOVF, C_FREG, C_NONE, C_ADDR, 50, 8, 0, 0, 0},
-	{AMOVF, C_FREG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
-	{AMOVD, C_FREG, C_NONE, C_ADDR, 50, 8, 0, 0, 0},
-	{AMOVD, C_FREG, C_NONE, C_ADDR, 50, 8, 0, sys.Loong64, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_LEXT, C_NONE, 28, 12, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_LEXT, C_NONE, 28, 12, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_LEXT, C_NONE, 28, 12, 0, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 28, 12, REGSP, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 28, 12, REGSP, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 28, 12, REGSP, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 28, 12, REGZERO, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 28, 12, REGZERO, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 28, 12, REGZERO, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
 
-	{AMOVW, C_REG, C_NONE, C_FREG, 30, 4, 0, 0, 0},
-	{AMOVW, C_FREG, C_NONE, C_REG, 31, 4, 0, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_FREG, 47, 4, 0, sys.Loong64, 0},
-	{AMOVV, C_FREG, C_NONE, C_REG, 48, 4, 0, sys.Loong64, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_FREG, C_NONE, 30, 4, 0, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 31, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_FREG, C_NONE, 47, 4, 0, 0},
+	{AMOVV, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 48, 4, 0, 0},
 
-	{AMOVW, C_ADDCON, C_NONE, C_FREG, 34, 8, 0, sys.Loong64, 0},
-	{AMOVW, C_ANDCON, C_NONE, C_FREG, 34, 8, 0, sys.Loong64, 0},
+	{AMOVV, C_FCCREG, C_NONE, C_NONE, C_REG, C_NONE, 63, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_FCCREG, C_NONE, 64, 4, 0, 0},
 
-	{AWORD, C_LCON, C_NONE, C_NONE, 40, 4, 0, 0, 0},
-	{AWORD, C_DCON, C_NONE, C_NONE, 61, 4, 0, 0, 0},
+	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
+	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
 
-	{ATEQ, C_SCON, C_REG, C_REG, 15, 8, 0, 0, 0},
-	{ATEQ, C_SCON, C_NONE, C_REG, 15, 8, 0, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
+	{AMOVWU, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
 
-	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, 0, sys.Loong64, 0}, // really CACHE instruction
-	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.Loong64, 0},
-	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.Loong64, 0},
-	{ABREAK, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0, 0},
+	{AMOVB, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+	{AMOVW, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+	{AMOVV, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+	{AMOVBU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+	{AMOVWU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 
-	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0, 0},
-	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
-	{obj.APCDATA, C_DCON, C_NONE, C_DCON, 0, 0, 0, 0, 0},
-	{obj.AFUNCDATA, C_SCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
-	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ANOP, C_LCON, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
-	{obj.ANOP, C_DCON, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
-	{obj.ANOP, C_REG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ANOP, C_FREG, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0}, // same as AJMP
+	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 40, 4, 0, 0},
+	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
-	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
+	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
+
+	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
+	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
+
+	{ABREAK, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0}, // really CACHE instruction
+	{ABREAK, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+	{ABREAK, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+	{ABREAK, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+
+	{ARDTIMELW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
+	{ARDTIMEHW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
+	{ARDTIMED, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
+
+	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
+	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
+	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
+	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, C_NONE, 0, 0, 0, 0},
+	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
+	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
+
+	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
+}
+
+// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
+// reporting an error if alignedValue is not a power of two or is out of range.
+func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
+	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
+	}
+	return int(-pc & (alignedValue - 1))
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -383,10 +419,20 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+			switch p.As {
+			case obj.APCALIGN:
+				alignedValue := p.From.Offset
+				m = pcAlignPadLength(ctxt, pc, alignedValue)
+				// Update the current text symbol alignment value.
+				if int32(alignedValue) > cursym.Func().Align {
+					cursym.Func().Align = int32(alignedValue)
+				}
+				break
+			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+				continue
+			default:
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
-			continue
 		}
 
 		pc += int64(m)
@@ -394,24 +440,58 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c.cursym.Size = pc
 
-	/*
-	 * if any procedure is large enough to
-	 * generate a large SBRA branch, then
-	 * generate extra passes putting branches
-	 * around jmps to fix. this is rare.
-	 */
-	bflag := 1
+	// mark loop entry instructions for padding
+	// loop entrances are defined as targets of backward branches
+	for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+		if q := p.To.Target(); q != nil && q.Pc < p.Pc {
+			q.Mark |= branchLoopHead
+		}
+	}
 
+	// Run these passes until convergence.
+	bflag := 1
 	var otxt int64
 	var q *obj.Prog
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+		prev := c.cursym.Func().Text
+		for p = prev.Link; p != nil; prev, p = p, p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
+			// Prepend a PCALIGN $loopAlign to each of the loop heads
+			// that need padding, if not already done so (because this
+			// pass may execute more than once).
+			//
+			// This needs to come before any pass that look at pc,
+			// because pc will be adjusted if padding happens.
+			if p.Mark&branchLoopHead != 0 && pc&(loopAlign-1) != 0 &&
+				!(prev.As == obj.APCALIGN && prev.From.Offset >= loopAlign) {
+				q = c.newprog()
+				prev.Link = q
+				q.Link = p
+				q.Pc = pc
+				q.As = obj.APCALIGN
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = loopAlign
+				// Don't associate the synthesized PCALIGN with
+				// the original source position, for deterministic
+				// mapping between source and corresponding asm.
+				// q.Pos = p.Pos
+
+				// Manually make the PCALIGN come into effect,
+				// since this loop iteration is for p.
+				pc += int64(pcAlignPadLength(ctxt, pc, loopAlign))
+				p.Pc = pc
+			}
+
 			// very large conditional branches
+			//
+			// if any procedure is large enough to
+			// generate a large SBRA branch, then
+			// generate extra passes putting branches
+			// around jmps to fix. this is rare.
 			if o.type_ == 6 && p.To.Target() != nil {
 				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
@@ -430,19 +510,22 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
 					q.To.SetTarget(q.Link.Link)
-
-					c.addnop(p.Link)
-					c.addnop(p)
 					bflag = 1
 				}
 			}
 
 			m = int(o.size)
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+				switch p.As {
+				case obj.APCALIGN:
+					alignedValue := p.From.Offset
+					m = pcAlignPadLength(ctxt, pc, alignedValue)
+					break
+				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+					continue
+				default:
 					c.ctxt.Diag("zero-width instruction\n%v", p)
 				}
-				continue
 			}
 
 			pc += int64(m)
@@ -465,6 +548,16 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
+		}
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
+			for i = 0; i < int32(v/4); i++ {
+				// emit ANOOP instruction by the padding size
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, c.oprrr(ANOOP))
+				bp = bp[4:]
+			}
+			continue
 		}
 		c.asmout(p, o, out[:])
 		for i = 0; i < int32(o.size/4); i++ {
@@ -542,7 +635,11 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == objabi.STLSBSS {
-					return C_TLS
+					if c.ctxt.Flag_shared {
+						return C_TLS_IE
+					} else {
+						return C_TLS_LE
+					}
 				}
 				return C_ADDR
 			}
@@ -581,6 +678,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SOREG
 			}
 			return C_LOREG
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 		}
 
 		return C_GOK
@@ -658,7 +758,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xfff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && (instoffset & (1<<31)) == 0)
+			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && ((instoffset & (1<<31)) == 0)
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -698,40 +798,61 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 	if a1 != 0 {
 		return &optab[a1-1]
 	}
+
+	// first source operand
 	a1 = int(p.From.Class)
 	if a1 == 0 {
 		a1 = c.aclass(&p.From) + 1
 		p.From.Class = int8(a1)
 	}
-
 	a1--
-	a3 := int(p.To.Class)
-	if a3 == 0 {
-		a3 = c.aclass(&p.To) + 1
-		p.To.Class = int8(a3)
-	}
 
-	a3--
+	// first destination operand
+	a4 := int(p.To.Class)
+	if a4 == 0 {
+		a4 = c.aclass(&p.To) + 1
+		p.To.Class = int8(a4)
+	}
+	a4--
+
+	// 2nd source operand
 	a2 := C_NONE
 	if p.Reg != 0 {
 		a2 = C_REG
 	}
 
+	// 2nd destination operand
+	a5 := C_NONE
+	if p.RegTo2 != 0 {
+		a5 = C_REG
+	}
+
+	// 3rd source operand
+	a3 := C_NONE
+	if len(p.RestArgs) > 0 {
+		a3 = int(p.RestArgs[0].Class)
+		if a3 == 0 {
+			a3 = c.aclass(&p.RestArgs[0].Addr) + 1
+			p.RestArgs[0].Class = int8(a3)
+		}
+		a3--
+	}
+
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
-	c3 := &xcmp[a3]
+	c4 := &xcmp[a4]
 	for i := range ops {
 		op := &ops[i]
-		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (op.family == 0 || c.ctxt.Arch.Family == op.family) {
+		if (int(op.reg) == a2) && int(op.from3) == a3 && c1[op.from1] && c4[op.to1] && (int(op.to2) == a5) {
 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
 			return op
 		}
 	}
 
-	c.ctxt.Diag("illegal combination %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
+	c.ctxt.Diag("illegal combination %v %v %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4), DRconv(a5))
 	prasm(p)
 	// Turn illegal instruction into an UNDEF, avoid crashing in asmout.
-	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0, 0}
+	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0}
 }
 
 func cmp(a int, b int) bool {
@@ -837,15 +958,15 @@ func (x ocmp) Less(i, j int) bool {
 	if n != 0 {
 		return n < 0
 	}
-	n = int(p1.a1) - int(p2.a1)
+	n = int(p1.from1) - int(p2.from1)
 	if n != 0 {
 		return n < 0
 	}
-	n = int(p1.a2) - int(p2.a2)
+	n = int(p1.reg) - int(p2.reg)
 	if n != 0 {
 		return n < 0
 	}
-	n = int(p1.a3) - int(p2.a3)
+	n = int(p1.to1) - int(p2.to1)
 	if n != 0 {
 		return n < 0
 	}
@@ -1030,10 +1151,14 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
+			ARDTIMELW,
+			ARDTIMEHW,
+			ARDTIMED,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
+			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
@@ -1077,7 +1202,7 @@ func OP_RR(op uint32, r2 uint32, r3 uint32) uint32 {
 }
 
 func OP_16IR_5I(op uint32, i uint32, r2 uint32) uint32 {
-	return op | (i&0xFFFF)<<10 | (r2&0x7)<<5 | ((i >> 16) & 0x1F)
+	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | ((i >> 16) & 0x1F)
 }
 
 func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
@@ -1140,7 +1265,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		a := add
-		if o.a1 == C_ANDCON {
+		if o.from1 == C_ANDCON {
 			a = AOR
 		}
 
@@ -1161,26 +1286,41 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 6: // beq r1,[r2],sbra
 		v := int32(0)
-		vcmp := int32(0)
 		if p.To.Target() != nil {
 			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
-		if v < 0 {
-			vcmp = -v
+		as, rd, rj, width := p.As, p.Reg, p.From.Reg, 16
+		switch as {
+		case ABGTZ, ABLEZ:
+			rd, rj = rj, rd
+		case ABFPT, ABFPF:
+			width = 21
+			// FCC0 is the implicit source operand, now that we
+			// don't register-allocate from the FCC bank.
+			rd = REG_FCC0
+		case ABEQ, ABNE:
+			if rd == 0 || rd == REGZERO || rj == REGZERO {
+				// BEQZ/BNEZ can be encoded with 21-bit offsets.
+				width = 21
+				as = -as
+				if rj == 0 || rj == REGZERO {
+					rj = rd
+				}
+			}
 		}
-		if (p.As == ABFPT || p.As == ABFPF) && ((uint32(vcmp))>>21)&0x7FF != 0 {
-			c.ctxt.Diag("21 bit-width, short branch too far\n%v", p)
-		} else if p.As != ABFPT && p.As != ABFPF && (v<<16)>>16 != v {
-			c.ctxt.Diag("16 bit-width, short branch too far\n%v", p)
-		}
-		if p.As == ABGTZ || p.As == ABLEZ {
-			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(p.Reg), uint32(p.From.Reg))
-		} else if p.As == ABFPT || p.As == ABFPF {
-			// BCNEZ cj offset21 ,cj = fcc0
-			// BCEQZ cj offset21 ,cj = fcc0
-			o1 = OP_16IR_5I(c.opirr(p.As), uint32(v), uint32(REG_FCC0))
-		} else {
-			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(p.From.Reg), uint32(p.Reg))
+		switch width {
+		case 21:
+			if (v<<11)>>11 != v {
+				c.ctxt.Diag("21 bit-width, short branch too far\n%v", p)
+			}
+			o1 = OP_16IR_5I(c.opirr(as), uint32(v), uint32(rj))
+		case 16:
+			if (v<<16)>>16 != v {
+				c.ctxt.Diag("16 bit-width, short branch too far\n%v", p)
+			}
+			o1 = OP_16IRR(c.opirr(as), uint32(v), uint32(rj), uint32(rd))
+		default:
+			c.ctxt.Diag("unexpected branch encoding\n%v", p)
 		}
 
 	case 7: // mov r, soreg
@@ -1225,24 +1365,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 11: // jmp lbra
 		v := int32(0)
-		if c.aclass(&p.To) == C_SBRA && p.To.Sym == nil && p.As == AJMP {
-			// use PC-relative branch for short branches
-			// BEQ	R0, R0, sbra
-			if p.To.Target() != nil {
-				v = int32(p.To.Target().Pc-p.Pc) >> 2
-			}
-			if (v<<16)>>16 == v {
-				o1 = OP_16IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
-				break
-			}
-		}
-		if p.To.Target() == nil {
-			v = int32(p.Pc) >> 2
-		} else {
-			v = int32(p.To.Target().Pc) >> 2
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
 		if p.To.Sym == nil {
+			if p.As == AJMP {
+				break
+			}
 			p.To.Sym = c.cursym.Func().Text.From.Sym
 			p.To.Offset = p.To.Target().Pc
 		}
@@ -1429,7 +1559,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
 		a := AADDU
-		if o.a1 == C_ANDCON {
+		if o.from1 == C_ANDCON {
 			a = AOR
 		}
 		o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(0), uint32(REGTMP))
@@ -1470,8 +1600,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(ABREAK)
 
 	// relocation operations
-	case 50: // mov r,addr ==> pcaddu12i + sw
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(REGTMP))
+	case 50: // mov r,addr ==> pcalau12i + sw
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
@@ -1487,8 +1617,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Add = p.To.Offset
 		rel2.Type = objabi.R_ADDRLOONG64
 
-	case 51: // mov addr,r ==> pcaddu12i + lw
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(REGTMP))
+	case 51: // mov addr,r ==> pcalau12i + lw
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
@@ -1506,7 +1636,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 52: // mov $lext, r
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(p.To.Reg))
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
@@ -1580,6 +1710,42 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Type = objabi.R_ADDRLOONG64TLS
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(p.To.Reg))
 
+	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.To.Sym
+		rel.Add = 0x0
+		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.To.Sym
+		rel2.Add = 0x0
+		rel2.Type = objabi.R_LOONG64_TLS_IE_LO
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+
+	case 57: // mov tlsvar, r IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + ld.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Add = 0x0
+		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Add = 0x0
+		rel2.Type = objabi.R_LOONG64_TLS_IE_LO
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+
 	case 59: // mov $dcon,r
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
@@ -1604,6 +1770,33 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 61: // word C_DCON
 		o1 = uint32(c.vregoff(&p.From))
 		o2 = uint32(c.vregoff(&p.From) >> 32)
+
+	case 62: // rdtimex rd, rj
+		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
+
+	case 63: // movv c_fcc0, c_reg ==> movcf2gr rd, cj
+		a := OP_TEN(8, 1335)
+		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
+		a := OP_TEN(8, 1334)
+		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_LOONG64_GOT_HI
+		rel.Add = 0x0
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Type = objabi.R_LOONG64_GOT_LO
+		rel2.Add = 0x0
 	}
 
 	out[0] = o1
@@ -1811,6 +2004,12 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x4 << 10
 	case ACLZ:
 		return 0x5 << 10
+	case ARDTIMELW:
+		return 0x18 << 10
+	case ARDTIMEHW:
+		return 0x19 << 10
+	case ARDTIMED:
+		return 0x1a << 10
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
@@ -1823,6 +2022,8 @@ func (c *ctxt0) opir(a obj.As) uint32 {
 		return 0x0a << 25
 	case ALU32ID:
 		return 0x0b << 25
+	case APCALAU12I:
+		return 0x0d << 25
 	case APCADDU12I:
 		return 0x0e << 25
 	}
@@ -1875,6 +2076,10 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1b << 26
 	case ABGE, ABGEZ, ABLEZ:
 		return 0x19 << 26
+	case -ABEQ: // beqz
+		return 0x10 << 26
+	case -ABNE: // bnez
+		return 0x11 << 26
 	case ABEQ:
 		return 0x16 << 26
 	case ABNE:

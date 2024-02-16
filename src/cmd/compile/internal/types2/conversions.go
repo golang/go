@@ -12,7 +12,7 @@ import (
 	"unicode"
 )
 
-// Conversion type-checks the conversion T(x).
+// conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
@@ -42,6 +42,14 @@ func (check *Checker) conversion(x *operand, T Type) {
 	case constArg && isConstType(T):
 		// constant conversion
 		ok = constConvertibleTo(T, &x.val)
+		// A conversion from an integer constant to an integer type
+		// can only fail if there's overflow. Give a concise error.
+		// (go.dev/issue/63563)
+		if !ok && isInteger(x.typ) && isInteger(T) {
+			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
+			x.mode = invalid
+			return
+		}
 	case constArg && isTypeParam(T):
 		// x is convertible to T if it is convertible
 		// to each specific type in the type set of T.
@@ -58,7 +66,12 @@ func (check *Checker) conversion(x *operand, T Type) {
 				return true
 			}
 			if !constConvertibleTo(u, nil) {
-				cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
+				if isInteger(x.typ) && isInteger(u) {
+					// see comment above on constant conversion
+					cause = check.sprintf("constant %s overflows %s (in %s)", x.val, u, T)
+				} else {
+					cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
+				}
 				return false
 			}
 			return true
@@ -113,7 +126,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // the spec) is that we cannot shift a floating-point value: 1 in 1<<s should
 // be converted to UntypedFloat because of the addition of 1.0. Fixing this
 // is tricky because we'd have to run updateExprType on the argument first.
-// (Issue #21982.)
+// (go.dev/issue/21982.)
 
 // convertibleTo reports whether T(x) is valid. In the failure case, *cause
 // may be set to the cause for the failure.
@@ -183,7 +196,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		switch a := Tu.(type) {
 		case *Array:
 			if Identical(s.Elem(), a.Elem()) {
-				if check == nil || check.allowVersion(check.pkg, 1, 20) {
+				if check == nil || check.allowVersion(check.pkg, x, go1_20) {
 					return true
 				}
 				// check != nil
@@ -196,7 +209,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		case *Pointer:
 			if a, _ := under(a.Elem()).(*Array); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
-					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+					if check == nil || check.allowVersion(check.pkg, x, go1_17) {
 						return true
 					}
 					// check != nil

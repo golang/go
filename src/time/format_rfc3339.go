@@ -155,7 +155,8 @@ func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) 
 func parseStrictRFC3339(b []byte) (Time, error) {
 	t, ok := parseRFC3339(b, Local)
 	if !ok {
-		if _, err := Parse(RFC3339, string(b)); err != nil {
+		t, err := Parse(RFC3339, string(b))
+		if err != nil {
 			return Time{}, err
 		}
 
@@ -164,6 +165,10 @@ func parseStrictRFC3339(b []byte) (Time, error) {
 		// See https://go.dev/issue/54580.
 		num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
 		switch {
+		// TODO(https://go.dev/issue/54580): Strict parsing is disabled for now.
+		// Enable this again with a GODEBUG opt-out.
+		case true:
+			return t, nil
 		case b[len("2006-01-02T")+1] == ':': // hour must be two digits
 			return Time{}, &ParseError{RFC3339, string(b), "15", string(b[len("2006-01-02T"):][:1]), ""}
 		case b[len("2006-01-02T15:04:05")] == ',': // sub-second separator must be a period

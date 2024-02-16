@@ -32,7 +32,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
 
 cp go.mod go.mod.orig
 ! go mod tidy
-stderr '^example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
+stderr '^go: example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
 stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
 
 cmp go.mod go.mod.orig
@@ -45,14 +45,13 @@ go mod tidy -compat=1.17
 ! stderr .
 cmp go.mod go.mod.orig
 
-go list -deps -test -f $MODFMT all
-stdout '^example\.com/retract/incompatible v1\.0\.0$'
+go list -deps -test -f $MODFMT ./...
+stdout '^example.net/lazy v0.1.0$'
 
 go mod edit -go=1.16
-! go list -deps -test -f $MODFMT all
+! go list -deps -test -f $MODFMT ./...
 
-	# TODO(#46160): -count=1 instead of -count=2.
-stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.com/retract/incompatible$'
+stderr -count=1 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.com/retract/incompatible$'
 
 
 # If we combine a Go 1.16 go.sum file...
@@ -63,7 +62,7 @@ cp go.mod.orig go.mod
 
 # ...then Go 1.17 no longer works. 😞
 ! go list -deps -test -f $MODFMT all
-stderr -count=1 '^can''t load test package: lazy[/\\]lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
+stderr -count=1 '^go: can''t load test package: lazy[/\\]lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
 
 
 # However, if we take the union of the go.sum files...

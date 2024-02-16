@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -89,6 +90,11 @@ Go generate sets several variables when it runs the generator:
 		generator, containing the Go toolchain and standard library.
 	$DOLLAR
 		A dollar sign.
+	$PATH
+		The $PATH of the parent process, with $GOROOT/bin
+		placed at the beginning. This causes generators
+		that execute 'go' commands to use the same 'go'
+		as the parent 'go generate' command.
 
 Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
@@ -175,6 +181,8 @@ func init() {
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
@@ -204,6 +212,13 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 			continue
 		}
 
+		if pkg.Error != nil && len(pkg.InternalAllGoFiles()) == 0 {
+			// A directory only contains a Go package if it has at least
+			// one .go source file, so the fact that there are no files
+			// implies that the package couldn't be found.
+			base.Errorf("%v", pkg.Error)
+		}
+
 		for _, file := range pkg.InternalGoFiles() {
 			if !generate(file) {
 				break
@@ -216,6 +231,7 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 	}
+	base.ExitIfErrors()
 }
 
 // generate runs the generation directives for a single file.
@@ -461,7 +477,7 @@ func (g *Generator) setShorthand(words []string) {
 	if g.commands[command] != nil {
 		g.errorf("command %q multiply defined", command)
 	}
-	g.commands[command] = words[2:len(words):len(words)] // force later append to make copy
+	g.commands[command] = slices.Clip(words[2:])
 }
 
 // exec runs the command specified by the argument. The first word is
@@ -473,7 +489,7 @@ func (g *Generator) exec(words []string) {
 		// intends to use the same 'go' as 'go generate' itself.
 		// Prefer to resolve the binary from GOROOT/bin, and for consistency
 		// prefer to resolve any other commands there too.
-		gorootBinPath, err := exec.LookPath(filepath.Join(cfg.GOROOTbin, path))
+		gorootBinPath, err := cfg.LookPath(filepath.Join(cfg.GOROOTbin, path))
 		if err == nil {
 			path = gorootBinPath
 		}

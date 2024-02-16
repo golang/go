@@ -7,7 +7,6 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
-	"internal/testenv"
 	"testing"
 )
 
@@ -73,7 +72,7 @@ func TestCompareBytes(t *testing.T) {
 	}
 	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
 
-	if !testing.Short() || testenv.Builder() != "" {
+	if !testing.Short() {
 		lengths = append(lengths, 65535, 65536, 65537, 99999)
 	}
 
@@ -234,6 +233,32 @@ func BenchmarkCompareBytesBigUnaligned(b *testing.B) {
 	for i := 1; i < 8; i++ {
 		b.Run(fmt.Sprintf("offset=%d", i), func(b *testing.B) {
 			benchmarkCompareBytesBigUnaligned(b, i)
+		})
+	}
+}
+
+func benchmarkCompareBytesBigBothUnaligned(b *testing.B, offset int) {
+	b.StopTimer()
+	pattern := []byte("Hello Gophers!")
+	b1 := make([]byte, 0, 1<<20+len(pattern))
+	for len(b1) < 1<<20 {
+		b1 = append(b1, pattern...)
+	}
+	b2 := make([]byte, len(b1))
+	copy(b2, b1)
+	b.StartTimer()
+	for j := 0; j < b.N; j++ {
+		if Compare(b1[offset:], b2[offset:]) != 0 {
+			b.Fatal("b1 != b2")
+		}
+	}
+	b.SetBytes(int64(len(b1[offset:])))
+}
+
+func BenchmarkCompareBytesBigBothUnaligned(b *testing.B) {
+	for i := 0; i < 8; i++ {
+		b.Run(fmt.Sprintf("offset=%d", i), func(b *testing.B) {
+			benchmarkCompareBytesBigBothUnaligned(b, i)
 		})
 	}
 }

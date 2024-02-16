@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"path/filepath"
 	"regexp"
@@ -73,9 +72,23 @@ type ValueType struct {
 type Sample struct {
 	Location []*Location
 	Value    []int64
-	Label    map[string][]string
+	// Label is a per-label-key map to values for string labels.
+	//
+	// In general, having multiple values for the given label key is strongly
+	// discouraged - see docs for the sample label field in profile.proto.  The
+	// main reason this unlikely state is tracked here is to make the
+	// decoding->encoding roundtrip not lossy. But we expect that the value
+	// slices present in this map are always of length 1.
+	Label map[string][]string
+	// NumLabel is a per-label-key map to values for numeric labels. See a note
+	// above on handling multiple values for a label.
 	NumLabel map[string][]int64
-	NumUnit  map[string][]string
+	// NumUnit is a per-label-key map to the unit names of corresponding numeric
+	// label values. The unit info may be missing even if the label is in
+	// NumLabel, see the docs in profile.proto for details. When the value is
+	// slice is present and not nil, its length must be equal to the length of
+	// the corresponding value slice in NumLabel.
+	NumUnit map[string][]string
 
 	locationIDX []uint64
 	labelX      []label
@@ -132,6 +145,7 @@ type Location struct {
 type Line struct {
 	Function *Function
 	Line     int64
+	Column   int64
 
 	functionIDX uint64
 }
@@ -153,7 +167,7 @@ type Function struct {
 // may be a gzip-compressed encoded protobuf or one of many legacy
 // profile formats which may be unsupported in the future.
 func Parse(r io.Reader) (*Profile, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +182,7 @@ func ParseData(data []byte) (*Profile, error) {
 	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
 		gz, err := gzip.NewReader(bytes.NewBuffer(data))
 		if err == nil {
-			data, err = ioutil.ReadAll(gz)
+			data, err = io.ReadAll(gz)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("decompressing profile: %v", err)
@@ -423,7 +437,7 @@ func (p *Profile) CheckValid() error {
 // Aggregate merges the locations in the profile into equivalence
 // classes preserving the request attributes. It also updates the
 // samples to point to the merged locations.
-func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address bool) error {
+func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, columnnumber, address bool) error {
 	for _, m := range p.Mapping {
 		m.HasInlineFrames = m.HasInlineFrames && inlineFrame
 		m.HasFunctions = m.HasFunctions && function
@@ -445,7 +459,7 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
 	}
 
 	// Aggregate locations
-	if !inlineFrame || !address || !linenumber {
+	if !inlineFrame || !address || !linenumber || !columnnumber {
 		for _, l := range p.Location {
 			if !inlineFrame && len(l.Line) > 1 {
 				l.Line = l.Line[len(l.Line)-1:]
@@ -453,6 +467,12 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
 			if !linenumber {
 				for i := range l.Line {
 					l.Line[i].Line = 0
+					l.Line[i].Column = 0
+				}
+			}
+			if !columnnumber {
+				for i := range l.Line {
+					l.Line[i].Column = 0
 				}
 			}
 			if !address {
@@ -614,10 +634,11 @@ func (l *Location) string() string {
 	for li := range l.Line {
 		lnStr := "??"
 		if fn := l.Line[li].Function; fn != nil {
-			lnStr = fmt.Sprintf("%s %s:%d s=%d",
+			lnStr = fmt.Sprintf("%s %s:%d:%d s=%d",
 				fn.Name,
 				fn.Filename,
 				l.Line[li].Line,
+				l.Line[li].Column,
 				fn.StartLine)
 			if fn.Name != fn.SystemName {
 				lnStr = lnStr + "(" + fn.SystemName + ")"
@@ -714,6 +735,35 @@ func (s *Sample) HasLabel(key, value string) bool {
 		}
 	}
 	return false
+}
+
+// SetNumLabel sets the specified key to the specified value for all samples in the
+// profile. "unit" is a slice that describes the units that each corresponding member
+// of "values" is measured in (e.g. bytes or seconds).  If there is no relevant
+// unit for a given value, that member of "unit" should be the empty string.
+// "unit" must either have the same length as "value", or be nil.
+func (p *Profile) SetNumLabel(key string, value []int64, unit []string) {
+	for _, sample := range p.Sample {
+		if sample.NumLabel == nil {
+			sample.NumLabel = map[string][]int64{key: value}
+		} else {
+			sample.NumLabel[key] = value
+		}
+		if sample.NumUnit == nil {
+			sample.NumUnit = map[string][]string{key: unit}
+		} else {
+			sample.NumUnit[key] = unit
+		}
+	}
+}
+
+// RemoveNumLabel removes all numerical labels associated with the specified key for all
+// samples in the profile.
+func (p *Profile) RemoveNumLabel(key string) {
+	for _, sample := range p.Sample {
+		delete(sample.NumLabel, key)
+		delete(sample.NumUnit, key)
+	}
 }
 
 // DiffBaseSample returns true if a sample belongs to the diff base and false

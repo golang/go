@@ -347,7 +347,11 @@ func TestToNorm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := filepath.ToNorm(test.arg, stubBase)
+		var path string
+		if test.arg != "" {
+			path = filepath.Clean(test.arg)
+		}
+		got, err := filepath.ToNorm(path, stubBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
 		} else if got != test.want {
@@ -439,7 +443,9 @@ func TestToNorm(t *testing.T) {
 				continue
 			}
 		}
-
+		if arg != "" {
+			arg = filepath.Clean(arg)
+		}
 		got, err := filepath.ToNorm(arg, filepath.NormBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
@@ -542,7 +548,7 @@ func TestIssue52476(t *testing.T) {
 	}{
 		{`..\.`, `C:`, `..\C:`},
 		{`..`, `C:`, `..\C:`},
-		{`.`, `:`, `:`},
+		{`.`, `:`, `.\:`},
 		{`.`, `C:`, `.\C:`},
 		{`.`, `C:/a/b/../c`, `.\C:\a\c`},
 		{`.`, `\C:`, `.\C:`},

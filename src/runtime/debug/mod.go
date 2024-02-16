@@ -39,14 +39,26 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
 
 // BuildInfo represents the build information read from a Go binary.
 type BuildInfo struct {
-	GoVersion string         // Version of Go that produced this binary.
-	Path      string         // The main package path
-	Main      Module         // The module containing the main package
-	Deps      []*Module      // Module dependencies
-	Settings  []BuildSetting // Other information about the build.
+	// GoVersion is the version of the Go toolchain that built the binary
+	// (for example, "go1.19.2").
+	GoVersion string
+
+	// Path is the package path of the main package for the binary
+	// (for example, "golang.org/x/tools/cmd/stringer").
+	Path string
+
+	// Main describes the module that contains the main package for the binary.
+	Main Module
+
+	// Deps describes all the dependency modules, both direct and indirect,
+	// that contributed packages to the build of this binary.
+	Deps []*Module
+
+	// Settings describes the build settings used to build the binary.
+	Settings []BuildSetting
 }
 
-// Module represents a module.
+// A Module describes a single module included in a build.
 type Module struct {
 	Path    string  // module path
 	Version string  // module version
@@ -54,8 +66,24 @@ type Module struct {
 	Replace *Module // replaced by this module
 }
 
-// BuildSetting describes a setting that may be used to understand how the
-// binary was built. For example, VCS commit and dirty status is stored here.
+// A BuildSetting is a key-value pair describing one setting that influenced a build.
+//
+// Defined keys include:
+//
+//   - -buildmode: the buildmode flag used (typically "exe")
+//   - -compiler: the compiler toolchain flag used (typically "gc")
+//   - CGO_ENABLED: the effective CGO_ENABLED environment variable
+//   - CGO_CFLAGS: the effective CGO_CFLAGS environment variable
+//   - CGO_CPPFLAGS: the effective CGO_CPPFLAGS environment variable
+//   - CGO_CXXFLAGS:  the effective CGO_CXXFLAGS environment variable
+//   - CGO_LDFLAGS: the effective CGO_LDFLAGS environment variable
+//   - GOARCH: the architecture target
+//   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
+//   - GOOS: the operating system target
+//   - vcs: the version control system for the source tree where the build ran
+//   - vcs.revision: the revision identifier for the current commit or checkout
+//   - vcs.time: the modification time associated with vcs.revision, in RFC3339 format
+//   - vcs.modified: true or false indicating whether the source tree had local modifications
 type BuildSetting struct {
 	// Key and Value describe the build setting.
 	// Key must not contain an equals sign, space, tab, or newline.

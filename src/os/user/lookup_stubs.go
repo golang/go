@@ -13,6 +13,13 @@ import (
 	"strconv"
 )
 
+var (
+	// unused variables (in this implementation)
+	// modified during test to exercise code paths in the cgo implementation.
+	userBuffer  = 0
+	groupBuffer = 0
+)
+
 func current() (*User, error) {
 	uid := currentUID()
 	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.

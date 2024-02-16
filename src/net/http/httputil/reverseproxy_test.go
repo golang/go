@@ -52,12 +52,6 @@ func TestReverseProxy(t *testing.T) {
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}
-		if r.Header.Get("X-Forwarded-Host") == "" {
-			t.Errorf("didn't get X-Forwarded-Host header")
-		}
-		if r.Header.Get("X-Forwarded-Proto") == "" {
-			t.Errorf("didn't get X-Forwarded-Proto header")
-		}
 		if c := r.Header.Get("Connection"); c != "" {
 			t.Errorf("handler got Connection header value %q", c)
 		}
@@ -307,19 +301,12 @@ func TestXForwardedFor(t *testing.T) {
 	const prevForwardedFor = "client ip"
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
-	const host = "some-name"
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}
 		if !strings.Contains(r.Header.Get("X-Forwarded-For"), prevForwardedFor) {
 			t.Errorf("X-Forwarded-For didn't contain prior data")
-		}
-		if got, want := r.Header.Get("X-Forwarded-Host"), host; got != want {
-			t.Errorf("X-Forwarded-Host = %q, want %q", got, want)
-		}
-		if got, want := r.Header.Get("X-Forwarded-Proto"), "http"; got != want {
-			t.Errorf("X-Forwarded-Proto = %q, want %q", got, want)
 		}
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
@@ -334,7 +321,6 @@ func TestXForwardedFor(t *testing.T) {
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
-	getReq.Host = host
 	getReq.Header.Set("Connection", "close")
 	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
 	getReq.Close = true
@@ -351,36 +337,11 @@ func TestXForwardedFor(t *testing.T) {
 	}
 }
 
-func TestXForwardedProtoTLS(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got, want := r.Header.Get("X-Forwarded-Proto"), "https"; got != want {
-			t.Errorf("X-Forwarded-Proto = %q, want %q", got, want)
-		}
-	}))
-	defer backend.Close()
-	backendURL, err := url.Parse(backend.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	frontend := httptest.NewTLSServer(proxyHandler)
-	defer frontend.Close()
-
-	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
-	getReq.Host = "some-host"
-	_, err = frontend.Client().Do(getReq)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-}
-
 // Issue 38079: don't append to X-Forwarded-For if it's present but nil
 func TestXForwardedFor_Omit(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, h := range []string{"X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
-			if v := r.Header.Get(h); v != "" {
-				t.Errorf("got %v header: %q", h, v)
-			}
+		if v := r.Header.Get("X-Forwarded-For"); v != "" {
+			t.Errorf("got X-Forwarded-For header: %q", v)
 		}
 		w.Write([]byte("hi"))
 	}))
@@ -396,8 +357,6 @@ func TestXForwardedFor_Omit(t *testing.T) {
 	oldDirector := proxyHandler.Director
 	proxyHandler.Director = func(r *http.Request) {
 		r.Header["X-Forwarded-For"] = nil
-		r.Header["X-Forwarded-Host"] = nil
-		r.Header["X-Forwarded-Proto"] = nil
 		oldDirector(r)
 	}
 
@@ -516,6 +475,62 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	defer res.Body.Close()
 	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
+	}
+}
+
+type mockFlusher struct {
+	http.ResponseWriter
+	flushed bool
+}
+
+func (m *mockFlusher) Flush() {
+	m.flushed = true
+}
+
+type wrappedRW struct {
+	http.ResponseWriter
+}
+
+func (w *wrappedRW) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+func TestReverseProxyResponseControllerFlushInterval(t *testing.T) {
+	const expected = "hi"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(expected))
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mf := &mockFlusher{}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.FlushInterval = -1 // flush immediately
+	proxyWithMiddleware := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mf.ResponseWriter = w
+		w = &wrappedRW{mf}
+		proxyHandler.ServeHTTP(w, r)
+	})
+
+	frontend := httptest.NewServer(proxyWithMiddleware)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+	res, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
+		t.Errorf("got body %q; expected %q", bodyBytes, expected)
+	}
+	if !mf.flushed {
+		t.Errorf("response writer was not flushed")
 	}
 }
 
@@ -1106,8 +1121,6 @@ func TestClonesRequestHeaders(t *testing.T) {
 	for _, h := range []string{
 		"From-Director",
 		"X-Forwarded-For",
-		"X-Forwarded-Host",
-		"X-Forwarded-Proto",
 	} {
 		if req.Header.Get(h) != "" {
 			t.Errorf("%v header mutation modified caller's request", h)
@@ -1831,7 +1844,7 @@ func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, 
 		cleanQuery: "a=1",
 	}, {
 		rawQuery:   "a=1&a=%zz&b=3",
-		cleanQuery: "a=1&a=%zz&b=3",
+		cleanQuery: "a=1&b=3",
 	}} {
 		res, err := frontend.Client().Get(frontend.URL + "?" + test.rawQuery)
 		if err != nil {

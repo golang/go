@@ -8,4 +8,4 @@
 
 package p
 
-type _ comparable // ERROR predeclared comparable
+type _ comparable // ERROR "predeclared comparable"

@@ -9,6 +9,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
+#include "cgo/abi_ppc64x.h"
 
 // The following functions allow calling the clang-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -362,7 +363,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
 	// Trigger SIGSEGV early if address passed to atomic function is bad.
 	MOVD	(R6), R7	// 1st arg is addr
-	MOVD	(R7), R9	// segv here if addr is bad
+	MOVB	(R7), R9	// segv here if addr is bad
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOVD	runtime·racearenastart(SB), R9
 	CMP	R7, R9
@@ -461,141 +462,44 @@ call:
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
 // RARG0 contains command code. RARG1 contains command-specific context.
 // See racecallback for command codes.
-TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// Handle command raceGetProcCmd (0) here.
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will
 	// benefit from this fast path.
-	XOR	R0, R0		// clear R0 since we came from C code
+	MOVD	$0, R0		// clear R0 since we came from C code
 	CMP	R3, $0
 	BNE	rest
-	// g0 TODO: Don't modify g here since R30 is nonvolatile
-	MOVD	g, R9
-	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R10), g
-	MOVD	g_m(g), R3
+	// Inline raceGetProdCmd without clobbering callee-save registers.
+	MOVD	runtime·tls_g(SB), R10
+	MOVD	0(R10), R11
+	MOVD	g_m(R11), R3
 	MOVD	m_p(R3), R3
 	MOVD	p_raceprocctx(R3), R3
 	MOVD	R3, (R4)
-	MOVD	R9, g		// restore R30 ??
 	RET
 
-	// This is all similar to what cgo does
-	// Save registers according to the ppc64 ABI
 rest:
-	MOVD	LR, R10	// save link register
-	MOVD	R10, 16(R1)
-	MOVW	CR, R10
-	MOVW	R10, 8(R1)
-	MOVDU   R1, -336(R1) // Allocate frame needed for outargs and register save area
+	// Save registers according to the host PPC64 ABI
+	// and reserve 16B for argument storage.
+	STACK_AND_SAVE_HOST_TO_GO_ABI(16)
 
-	MOVD    R14, 328(R1)
-	MOVD    R15, 48(R1)
-	MOVD    R16, 56(R1)
-	MOVD    R17, 64(R1)
-	MOVD    R18, 72(R1)
-	MOVD    R19, 80(R1)
-	MOVD    R20, 88(R1)
-	MOVD    R21, 96(R1)
-	MOVD    R22, 104(R1)
-	MOVD    R23, 112(R1)
-	MOVD    R24, 120(R1)
-	MOVD    R25, 128(R1)
-	MOVD    R26, 136(R1)
-	MOVD    R27, 144(R1)
-	MOVD    R28, 152(R1)
-	MOVD    R29, 160(R1)
-	MOVD    g, 168(R1) // R30
-	MOVD    R31, 176(R1)
-	FMOVD   F14, 184(R1)
-	FMOVD   F15, 192(R1)
-	FMOVD   F16, 200(R1)
-	FMOVD   F17, 208(R1)
-	FMOVD   F18, 216(R1)
-	FMOVD   F19, 224(R1)
-	FMOVD   F20, 232(R1)
-	FMOVD   F21, 240(R1)
-	FMOVD   F22, 248(R1)
-	FMOVD   F23, 256(R1)
-	FMOVD   F24, 264(R1)
-	FMOVD   F25, 272(R1)
-	FMOVD   F26, 280(R1)
-	FMOVD   F27, 288(R1)
-	FMOVD   F28, 296(R1)
-	FMOVD   F29, 304(R1)
-	FMOVD   F30, 312(R1)
-	FMOVD   F31, 320(R1)
-
-	MOVD	R3, FIXED_FRAME+0(R1)
-	MOVD	R4, FIXED_FRAME+8(R1)
-
-	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R10), g
+	// Load g, and switch to g0 if not already on it.
+	MOVD	runtime·tls_g(SB), R10
+	MOVD	0(R10), g
 
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
 	CMP	g, R8
 	BEQ	noswitch
 
-	MOVD	R8, g // set g = m-> g0
-
-	BL	runtime·racecallback(SB)
-
-	// All registers are clobbered after Go code, reload.
-	MOVD    runtime·tls_g(SB), R10
-	MOVD    0(R10), g
-
-	MOVD	g_m(g), R7
-	MOVD	m_curg(R7), g // restore g = m->curg
-
-ret:
-	MOVD    328(R1), R14
-	MOVD    48(R1), R15
-	MOVD    56(R1), R16
-	MOVD    64(R1), R17
-	MOVD    72(R1), R18
-	MOVD    80(R1), R19
-	MOVD    88(R1), R20
-	MOVD    96(R1), R21
-	MOVD    104(R1), R22
-	MOVD    112(R1), R23
-	MOVD    120(R1), R24
-	MOVD    128(R1), R25
-	MOVD    136(R1), R26
-	MOVD    144(R1), R27
-	MOVD    152(R1), R28
-	MOVD    160(R1), R29
-	MOVD    168(R1), g // R30
-	MOVD    176(R1), R31
-	FMOVD   184(R1), F14
-	FMOVD   192(R1), F15
-	FMOVD   200(R1), F16
-	FMOVD   208(R1), F17
-	FMOVD   216(R1), F18
-	FMOVD   224(R1), F19
-	FMOVD   232(R1), F20
-	FMOVD   240(R1), F21
-	FMOVD   248(R1), F22
-	FMOVD   256(R1), F23
-	FMOVD   264(R1), F24
-	FMOVD   272(R1), F25
-	FMOVD   280(R1), F26
-	FMOVD   288(R1), F27
-	FMOVD   296(R1), F28
-	FMOVD   304(R1), F29
-	FMOVD   312(R1), F30
-	FMOVD   320(R1), F31
-
-	ADD     $336, R1
-	MOVD    8(R1), R10
-	MOVFL   R10, $0xff // Restore of CR
-	MOVD    16(R1), R10	// needed?
-	MOVD    R10, LR
-	RET
+	MOVD	R8, g // set g = m->g0
 
 noswitch:
-	BL      runtime·racecallback(SB)
-	JMP     ret
+	BL	runtime·racecallback<ABIInternal>(SB)
+
+	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(16)
+	RET
 
 // tls_g, g value for each thread in TLS
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build riscv64 && openbsd
-// +build riscv64,openbsd
 
 package unix
 

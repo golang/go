@@ -331,7 +331,8 @@ func TestRaceRange(t *testing.T) {
 	var x, y int
 	_ = x + y
 	done := make(chan bool, N)
-	for i, v := range a {
+	var i, v int // declare here (not in for stmt) so that i and v are shared w/ or w/o loop variable sharing change
+	for i, v = range a {
 		go func(i int) {
 			// we don't want a write-vs-write race
 			// so there is no array b here
@@ -2091,4 +2092,41 @@ func TestNoRaceTinyAlloc(t *testing.T) {
 	for p := 0; p < P; p++ {
 		<-done
 	}
+}
+
+func TestNoRaceIssue60934(t *testing.T) {
+	// Test that runtime.RaceDisable state doesn't accidentally get applied to
+	// new goroutines.
+
+	// Create several goroutines that end after calling runtime.RaceDisable.
+	var wg sync.WaitGroup
+	ready := make(chan struct{})
+	wg.Add(32)
+	for i := 0; i < 32; i++ {
+		go func() {
+			<-ready // ensure we have multiple goroutines running at the same time
+			runtime.RaceDisable()
+			wg.Done()
+		}()
+	}
+	close(ready)
+	wg.Wait()
+
+	// Make sure race detector still works. If the runtime.RaceDisable state
+	// leaks, the happens-before edges here will be ignored and a race on x will
+	// be reported.
+	var x int
+	ch := make(chan struct{}, 0)
+	wg.Add(2)
+	go func() {
+		x = 1
+		ch <- struct{}{}
+		wg.Done()
+	}()
+	go func() {
+		<-ch
+		_ = x
+		wg.Done()
+	}()
+	wg.Wait()
 }

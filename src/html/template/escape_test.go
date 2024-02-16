@@ -30,14 +30,14 @@ func (x *goodMarshaler) MarshalJSON() ([]byte, error) {
 
 func TestEscape(t *testing.T) {
 	data := struct {
-		F, T    bool
-		C, G, H string
-		A, E    []string
-		B, M    json.Marshaler
-		N       int
-		U       any  // untyped nil
-		Z       *int // typed nil
-		W       HTML
+		F, T       bool
+		C, G, H, I string
+		A, E       []string
+		B, M       json.Marshaler
+		N          int
+		U          any  // untyped nil
+		Z          *int // typed nil
+		W          HTML
 	}{
 		F: false,
 		T: true,
@@ -52,6 +52,7 @@ func TestEscape(t *testing.T) {
 		U: nil,
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+		I: "${ asd `` }",
 	}
 	pdata := &data
 
@@ -504,6 +505,31 @@ func TestEscape(t *testing.T) {
 			"<script>var a \nd</script>",
 		},
 		{
+			"JS HTML-like comments",
+			"<script>before <!-- beep\nbetween\nbefore-->boop\n</script>",
+			"<script>before \nbetween\nbefore\n</script>",
+		},
+		{
+			"JS hashbang comment",
+			"<script>#! beep\n</script>",
+			"<script>\n</script>",
+		},
+		{
+			"Special tags in <script> string literals",
+			`<script>var a = "asd < 123 <!-- 456 < fgh <script jkl < 789 </script"</script>`,
+			`<script>var a = "asd < 123 \x3C!-- 456 < fgh \x3Cscript jkl < 789 \x3C/script"</script>`,
+		},
+		{
+			"Special tags in <script> string literals (mixed case)",
+			`<script>var a = "<!-- <ScripT </ScripT"</script>`,
+			`<script>var a = "\x3C!-- \x3CScripT \x3C/ScripT"</script>`,
+		},
+		{
+			"Special tags in <script> regex literals (mixed case)",
+			`<script>var a = /<!-- <ScripT </ScripT/</script>`,
+			`<script>var a = /\x3C!-- \x3CScripT \x3C/ScripT/</script>`,
+		},
+		{
 			"CSS comments",
 			"<style>p// paragraph\n" +
 				`{border: 1px/* color */{{"#00f"}}}</style>`,
@@ -678,38 +704,64 @@ func TestEscape(t *testing.T) {
 			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
 			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
 		},
+		{
+			"unquoted empty attribute value (plaintext)",
+			"<p name={{.U}}>",
+			"<p name=ZgotmplZ>",
+		},
+		{
+			"unquoted empty attribute value (url)",
+			"<p href={{.U}}>",
+			"<p href=ZgotmplZ>",
+		},
+		{
+			"quoted empty attribute value",
+			"<p name=\"{{.U}}\">",
+			"<p name=\"\">",
+		},
+		{
+			"JS template lit special characters",
+			"<script>var a = `{{.I}}`</script>",
+			"<script>var a = `\\u0024\\u007b asd \\u0060\\u0060 \\u007d`</script>",
+		},
+		{
+			"JS template lit special characters, nested lit",
+			"<script>var a = `${ `{{.I}}` }`</script>",
+			"<script>var a = `${ `\\u0024\\u007b asd \\u0060\\u0060 \\u007d` }`</script>",
+		},
+		{
+			"JS template lit, nested JS",
+			"<script>var a = `${ var a = \"{{\"a \\\" d\"}}\" }`</script>",
+			"<script>var a = `${ var a = \"a \\u0022 d\" }`</script>",
+		},
 	}
 
 	for _, test := range tests {
-		tmpl := New(test.name)
-		tmpl = Must(tmpl.Parse(test.input))
-		// Check for bug 6459: Tree field was not set in Parse.
-		if tmpl.Tree != tmpl.text.Tree {
-			t.Errorf("%s: tree not set properly", test.name)
-			continue
-		}
-		b := new(strings.Builder)
-		if err := tmpl.Execute(b, data); err != nil {
-			t.Errorf("%s: template execution failed: %s", test.name, err)
-			continue
-		}
-		if w, g := test.output, b.String(); w != g {
-			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
-			continue
-		}
-		b.Reset()
-		if err := tmpl.Execute(b, pdata); err != nil {
-			t.Errorf("%s: template execution failed for pointer: %s", test.name, err)
-			continue
-		}
-		if w, g := test.output, b.String(); w != g {
-			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
-			continue
-		}
-		if tmpl.Tree != tmpl.text.Tree {
-			t.Errorf("%s: tree mismatch", test.name)
-			continue
-		}
+		t.Run(test.name, func(t *testing.T) {
+			tmpl := New(test.name)
+			tmpl = Must(tmpl.Parse(test.input))
+			// Check for bug 6459: Tree field was not set in Parse.
+			if tmpl.Tree != tmpl.text.Tree {
+				t.Fatalf("%s: tree not set properly", test.name)
+			}
+			b := new(strings.Builder)
+			if err := tmpl.Execute(b, data); err != nil {
+				t.Fatalf("%s: template execution failed: %s", test.name, err)
+			}
+			if w, g := test.output, b.String(); w != g {
+				t.Fatalf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			}
+			b.Reset()
+			if err := tmpl.Execute(b, pdata); err != nil {
+				t.Fatalf("%s: template execution failed for pointer: %s", test.name, err)
+			}
+			if w, g := test.output, b.String(); w != g {
+				t.Fatalf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			}
+			if tmpl.Tree != tmpl.text.Tree {
+				t.Fatalf("%s: tree mismatch", test.name)
+			}
+		})
 	}
 }
 
@@ -936,6 +988,35 @@ func TestErrors(t *testing.T) {
 			"{{range .Items}}<a{{if .X}}{{end}}>{{if .X}}{{break}}{{end}}{{end}}",
 			"",
 		},
+		{
+			"<script>var a = `${a+b}`</script>`",
+			"",
+		},
+		{
+			"<script>var tmpl = `asd`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${1}`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${return ``}`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${return {{.}} }`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `${ let a = {1:1} {{.}} }`;</script>",
+			``,
+		},
+		{
+			"<script>var tmpl = `asd ${return \"{\"}`;</script>",
+			``,
+		},
+
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
@@ -1304,6 +1385,10 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJSSqStr, delim: delimDoubleQuote, attr: attrScript},
 		},
 		{
+			"<a onclick=\"`foo",
+			context{state: stateJSTmplLit, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
 			`<A ONCLICK="'`,
 			context{state: stateJSSqStr, delim: delimDoubleQuote, attr: attrScript},
 		},
@@ -1500,8 +1585,38 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJS, element: elementScript},
 		},
 		{
+			// <script and </script tags are escaped, so </script> should not
+			// cause us to exit the JS state.
 			`<script>document.write("<script>alert(1)</script>");`,
-			context{state: stateText},
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)</script>`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)<!--`,
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)</Script>");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<!--");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>let a = /</script`,
+			context{state: stateJSRegexp, element: elementScript},
+		},
+		{
+			`<script>let a = /</script/`,
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
 		},
 		{
 			`<script type="text/template">`,
@@ -1612,6 +1727,94 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<svg:a svg:onclick="x()">`,
 			context{},
+		},
+		{
+			"<script>var a = `",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var a = `${}",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${`",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"`",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${var a = \"}",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${``",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var a = `${`}",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>`${ {} } asd`</script><script>`${ {} }",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ (_ => { return \"x\" })() + \"${",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>var a = `${ {</script><script>var b = `${ x }",
+			context{state: stateJSTmplLit, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>var foo = `x` + \"${",
+			context{state: stateJSDqStr, element: elementScript},
+		},
+		{
+			"<script>function f() { var a = `${}`; }",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>{`${}`}",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ function f() { return `${1}` }() }`",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>function f() {`${ function f() { `${1}` } }`}",
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+		},
+		{
+			"<script>`${ { `` }",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ { }`",
+			context{state: stateJSTmplLit, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>var foo = `${ foo({ a: { c: `${ {{.}} }` }, b: ",
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			"<script>`${ `}",
+			context{state: stateJSTmplLit, element: elementScript},
 		},
 	}
 

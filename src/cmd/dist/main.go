@@ -16,14 +16,14 @@ func usage() {
 	xprintf(`usage: go tool dist [command]
 Commands are:
 
-banner         print installation banner
-bootstrap      rebuild everything
-clean          deletes all built files
-env [-p]       print environment (-p: include $PATH)
-install [dir]  install individual directory
-list [-json]   list all supported platforms
-test [-h]      run Go test(s)
-version        print Go version
+banner                  print installation banner
+bootstrap               rebuild everything
+clean                   deletes all built files
+env [-p]                print environment (-p: include $PATH)
+install [dir]           install individual directory
+list [-json] [-broken]  list all supported platforms
+test [-h]               run Go test(s)
+version                 print Go version
 
 All commands take -v flags to emit extra information.
 `)
@@ -59,15 +59,6 @@ func main() {
 	case "aix":
 		// uname -m doesn't work under AIX
 		gohostarch = "ppc64"
-	case "darwin":
-		// macOS 10.9 and later require clang
-		defaultclang = true
-	case "freebsd":
-		// Since FreeBSD 10 gcc is no longer part of the base system.
-		defaultclang = true
-	case "openbsd":
-		// OpenBSD ships with GCC 4.2, which is now quite old.
-		defaultclang = true
 	case "plan9":
 		gohostarch = os.Getenv("objtype")
 		if gohostarch == "" {
@@ -147,6 +138,8 @@ func main() {
 			if strings.Contains(run("", CheckExit, "uname", "-p"), "riscv64") {
 				gohostarch = "riscv64"
 			}
+		case gohostos == "openbsd" && strings.Contains(out, "powerpc64"):
+			gohostarch = "ppc64"
 		case gohostos == "openbsd":
 			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
 				gohostarch = "mips64"
@@ -158,6 +151,12 @@ func main() {
 
 	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
 		maxbg = min(maxbg, runtime.NumCPU())
+	}
+	// For deterministic make.bash debugging and for smallest-possible footprint,
+	// pay attention to GOMAXPROCS=1.  This was a bad idea for 1.4 bootstrap, but
+	// the bootstrap version is now 1.17+ and thus this is fine.
+	if runtime.GOMAXPROCS(0) == 1 {
+		maxbg = 1
 	}
 	bginit()
 

@@ -1,24 +1,8 @@
-# TODO(matloob): Split this test into two? It's one of the slowest tests we have.
-
-[!net] skip
+[!net:insecure.go-get-issue-15410.appspot.com] skip
 [!git] skip
 
 env PATH=$WORK/tmp/bin${:}$PATH
 go build -o $WORK/tmp/bin/ssh ssh.go
-
-# GOPATH: Set up
-env GO111MODULE=off
-
-# GOPATH: Try go get -d of HTTP-only repo (should fail).
-! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
-
-# GOPATH: Try again with GOINSECURE (should succeed).
-env GOINSECURE=insecure.go-get-issue-15410.appspot.com
-go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
-
-# GOPATH: Try updating without GOINSECURE (should fail).
-env GOINSECURE=''
-! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
 
 # Modules: Set up
 env GOPATH=$WORK/m/gp

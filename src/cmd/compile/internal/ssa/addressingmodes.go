@@ -195,6 +195,17 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ1}: OpAMD64MOVQstoreconstidx1,
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
 
+	[2]Op{OpAMD64SETEQstore, OpAMD64LEAQ1}: OpAMD64SETEQstoreidx1,
+	[2]Op{OpAMD64SETNEstore, OpAMD64LEAQ1}: OpAMD64SETNEstoreidx1,
+	[2]Op{OpAMD64SETLstore, OpAMD64LEAQ1}:  OpAMD64SETLstoreidx1,
+	[2]Op{OpAMD64SETLEstore, OpAMD64LEAQ1}: OpAMD64SETLEstoreidx1,
+	[2]Op{OpAMD64SETGstore, OpAMD64LEAQ1}:  OpAMD64SETGstoreidx1,
+	[2]Op{OpAMD64SETGEstore, OpAMD64LEAQ1}: OpAMD64SETGEstoreidx1,
+	[2]Op{OpAMD64SETBstore, OpAMD64LEAQ1}:  OpAMD64SETBstoreidx1,
+	[2]Op{OpAMD64SETBEstore, OpAMD64LEAQ1}: OpAMD64SETBEstoreidx1,
+	[2]Op{OpAMD64SETAstore, OpAMD64LEAQ1}:  OpAMD64SETAstoreidx1,
+	[2]Op{OpAMD64SETAEstore, OpAMD64LEAQ1}: OpAMD64SETAEstoreidx1,
+
 	// These instructions are re-split differently for performance, see needSplit above.
 	// TODO if 386 versions are created, also update needSplit and _gen/386splitload.rules
 	[2]Op{OpAMD64CMPBload, OpAMD64ADDQ}: OpAMD64CMPBloadidx1,

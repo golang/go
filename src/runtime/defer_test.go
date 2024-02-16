@@ -5,7 +5,6 @@
 package runtime_test
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -85,7 +84,7 @@ func TestConditionalDefers(t *testing.T) {
 		}
 		want := []int{4, 2, 1}
 		if !reflect.DeepEqual(want, list) {
-			t.Fatal(fmt.Sprintf("wanted %v, got %v", want, list))
+			t.Fatalf("wanted %v, got %v", want, list)
 		}
 
 	}()
@@ -133,13 +132,13 @@ func TestAbortedPanic(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
+			t.Fatalf("wanted nil recover, got %v", r)
 		}
 	}()
 	defer func() {
 		r := recover()
 		if r != "panic2" {
-			t.Fatal(fmt.Sprintf("wanted %v, got %v", "panic2", r))
+			t.Fatalf("wanted %v, got %v", "panic2", r)
 		}
 	}()
 	defer func() {
@@ -156,7 +155,7 @@ func TestRecoverMatching(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != "panic1" {
-			t.Fatal(fmt.Sprintf("wanted %v, got %v", "panic1", r))
+			t.Fatalf("wanted %v, got %v", "panic1", r)
 		}
 	}()
 	defer func() {
@@ -166,7 +165,7 @@ func TestRecoverMatching(t *testing.T) {
 			// not directly called by the panic.
 			r := recover()
 			if r != nil {
-				t.Fatal(fmt.Sprintf("wanted nil recover, got %v", r))
+				t.Fatalf("wanted nil recover, got %v", r)
 			}
 		}()
 	}()
@@ -213,25 +212,25 @@ func TestNonSSAableArgs(t *testing.T) {
 
 	defer func() {
 		if globint1 != 1 {
-			t.Fatal(fmt.Sprintf("globint1:  wanted: 1, got %v", globint1))
+			t.Fatalf("globint1:  wanted: 1, got %v", globint1)
 		}
 		if save1 != 5 {
-			t.Fatal(fmt.Sprintf("save1:  wanted: 5, got %v", save1))
+			t.Fatalf("save1:  wanted: 5, got %v", save1)
 		}
 		if globint2 != 1 {
-			t.Fatal(fmt.Sprintf("globint2:  wanted: 1, got %v", globint2))
+			t.Fatalf("globint2:  wanted: 1, got %v", globint2)
 		}
 		if save2 != 2 {
-			t.Fatal(fmt.Sprintf("save2:  wanted: 2, got %v", save2))
+			t.Fatalf("save2:  wanted: 2, got %v", save2)
 		}
 		if save3 != 4 {
-			t.Fatal(fmt.Sprintf("save3:  wanted: 4, got %v", save3))
+			t.Fatalf("save3:  wanted: 4, got %v", save3)
 		}
 		if globint3 != 1 {
-			t.Fatal(fmt.Sprintf("globint3:  wanted: 1, got %v", globint3))
+			t.Fatalf("globint3:  wanted: 1, got %v", globint3)
 		}
 		if save4 != 4 {
-			t.Fatal(fmt.Sprintf("save1:  wanted: 4, got %v", save4))
+			t.Fatalf("save1:  wanted: 4, got %v", save4)
 		}
 	}()
 
@@ -264,7 +263,7 @@ func TestDeferForFuncWithNoExit(t *testing.T) {
 	cond := 1
 	defer func() {
 		if cond != 2 {
-			t.Fatal(fmt.Sprintf("cond: wanted 2, got %v", cond))
+			t.Fatalf("cond: wanted 2, got %v", cond)
 		}
 		if recover() != "Test panic" {
 			t.Fatal("Didn't find expected panic")

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+.file "gcc_amd64.S"
+
 /*
  * Apple still insists on underscore prefixes for C function names.
  */
@@ -12,16 +14,16 @@
 #endif
 
 /*
- * void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g)
+ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
  *
- * Calling into the 6c tool chain, where all registers are caller save.
+ * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
  * are callee-save so they must be saved explicitly.
  * The standard x86-64 ABI passes the three arguments m, g, fn
  * in %rdi, %rsi, %rdx.
  */
-.globl EXT(crosscall_amd64)
-EXT(crosscall_amd64):
+.globl EXT(crosscall1)
+EXT(crosscall1):
 	pushq %rbx
 	pushq %rbp
 	pushq %r12

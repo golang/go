@@ -40,17 +40,17 @@ func f_double /* ERROR "redeclared" */ () {}
 // Verify by checking that errors are reported.
 func (T /* ERROR "undefined" */ ) _() {}
 func (T1) _(undefined /* ERROR "undefined" */ ) {}
-func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+func (T1) _() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
 
 // Methods with undefined receiver type can still be checked.
 // Verify by checking that errors are reported.
 func (Foo /* ERROR "undefined" */ ) m() {}
 func (Foo /* ERROR "undefined" */ ) m(undefined /* ERROR "undefined" */ ) {}
-func (Foo /* ERROR "undefined" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+func (Foo /* ERRORx `undefined` */ ) m() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
 
 func (Foo /* ERROR "undefined" */ ) _() {}
 func (Foo /* ERROR "undefined" */ ) _(undefined /* ERROR "undefined" */ ) {}
-func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
 
 // Receiver declarations are regular parameter lists;
 // receiver types may use parentheses, and the list

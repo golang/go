@@ -849,7 +849,7 @@ func TestReadResponseErrors(t *testing.T) {
 	type testCase struct {
 		name    string // optional, defaults to in
 		in      string
-		wantErr any // nil, err value, or string substring
+		wantErr any // nil, err value, bool value, or string substring
 	}
 
 	status := func(s string, wantErr any) testCase {
@@ -883,6 +883,7 @@ func TestReadResponseErrors(t *testing.T) {
 	}
 
 	errMultiCL := "message cannot contain multiple Content-Length headers"
+	errEmptyCL := "invalid empty Content-Length"
 
 	tests := []testCase{
 		{"", "", io.ErrUnexpectedEOF},
@@ -918,7 +919,7 @@ func TestReadResponseErrors(t *testing.T) {
 		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil),
 		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL),
 		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil),
-		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil),
+		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", errEmptyCL),
 		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL),
 
 		// multiple content-length headers for 204 and 304 should still be checked

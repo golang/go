@@ -1,3 +1,5 @@
+env GOOS=linux
+
 env GOARCH=amd64
 env GOAMD64=v3
 go list -f '{{context.ToolTags}}'
@@ -37,6 +39,26 @@ env GOARCH=ppc64le
 env GOPPC64=power10
 go list -f '{{context.ToolTags}}'
 stdout 'ppc64le.power8 ppc64le.power9 ppc64le.power10'
+
+env GOARCH=riscv64
+env GORISCV64=rva20u64
+go list -f '{{context.ToolTags}}'
+stdout 'riscv64.rva20u64'
+
+env GOARCH=riscv64
+env GORISCV64=rva22u64
+go list -f '{{context.ToolTags}}'
+stdout 'riscv64.rva20u64 riscv64.rva22u64'
+
+env GOARCH=riscv64
+env GORISCV64=rva22
+! go list -f '{{context.ToolTags}}'
+stderr 'go: invalid GORISCV64: must be rva20u64, rva22u64'
+
+env GOARCH=riscv64
+env GORISCV64=
+go list -f '{{context.ToolTags}}'
+stdout 'riscv64.rva20u64'
 
 env GOARCH=386
 env GO386=sse2

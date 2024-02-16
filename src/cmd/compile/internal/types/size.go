@@ -5,10 +5,12 @@
 package types
 
 import (
+	"math"
 	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
+	"internal/types/errors"
 )
 
 var PtrSize int
@@ -84,13 +86,13 @@ func expandiface(t *Type) {
 		case !explicit && Identical(m.Type, prev.Type):
 			return
 		default:
-			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
+			base.ErrorfAt(m.Pos, errors.DuplicateDecl, "duplicate method %s", m.Sym.Name)
 		}
 		methods = append(methods, m)
 	}
 
 	{
-		methods := t.Methods().Slice()
+		methods := t.Methods()
 		sort.SliceStable(methods, func(i, j int) bool {
 			mi, mj := methods[i], methods[j]
 
@@ -109,7 +111,7 @@ func expandiface(t *Type) {
 		})
 	}
 
-	for _, m := range t.Methods().Slice() {
+	for _, m := range t.Methods() {
 		if m.Sym == nil {
 			continue
 		}
@@ -118,12 +120,8 @@ func expandiface(t *Type) {
 		addMethod(m, true)
 	}
 
-	for _, m := range t.Methods().Slice() {
+	for _, m := range t.Methods() {
 		if m.Sym != nil || m.Type == nil {
-			continue
-		}
-
-		if m.Type.IsUnion() {
 			continue
 		}
 
@@ -136,7 +134,7 @@ func expandiface(t *Type) {
 
 		// Embedded interface: duplicate all methods
 		// and add to t's method set.
-		for _, t1 := range m.Type.AllMethods().Slice() {
+		for _, t1 := range m.Type.AllMethods() {
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
 
@@ -151,7 +149,7 @@ func expandiface(t *Type) {
 	sort.Sort(MethodsByName(methods))
 
 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
-		base.ErrorfAt(typePos(t), "interface too large")
+		base.ErrorfAt(typePos(t), 0, "interface too large")
 	}
 	for i, m := range methods {
 		m.Offset = int64(i) * int64(PtrSize)
@@ -160,90 +158,48 @@ func expandiface(t *Type) {
 	t.SetAllMethods(methods)
 }
 
-func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
-	// flag is 0 (receiver), 1 (actual struct), or RegSize (in/out parameters)
-	isStruct := flag == 1
-	starto := o
-	maxalign := int32(flag)
-	if maxalign < 1 {
-		maxalign = 1
-	}
-	// Special case: sync/atomic.align64 is an empty struct we recognize
-	// as a signal that the struct it contains must be 64-bit-aligned.
-	//
-	// This logic is duplicated in go/types and cmd/compile/internal/types2.
-	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isAtomicStdPkg(t.Sym().Pkg) {
-		maxalign = 8
-	}
-	lastzero := int64(0)
-	for _, f := range t.Fields().Slice() {
-		if f.Type == nil {
-			// broken field, just skip it so that other valid fields
-			// get a width.
-			continue
-		}
-
+// calcStructOffset computes the offsets of a sequence of fields,
+// starting at the given offset. It returns the resulting offset and
+// maximum field alignment.
+func calcStructOffset(t *Type, fields []*Field, offset int64) int64 {
+	for _, f := range fields {
 		CalcSize(f.Type)
-		// If type T contains a field F marked as not-in-heap,
-		// then T must also be a not-in-heap type. Otherwise,
-		// you could heap allocate T and then get a pointer F,
-		// which would be a heap pointer to a not-in-heap type.
-		if f.Type.NotInHeap() {
-			t.SetNotInHeap(true)
-		}
-		if int32(f.Type.align) > maxalign {
-			maxalign = int32(f.Type.align)
-		}
-		if f.Type.align > 0 {
-			o = RoundUp(o, int64(f.Type.align))
-		}
-		if isStruct { // For receiver/args/results, do not set, it depends on ABI
-			f.Offset = o
+		offset = RoundUp(offset, int64(f.Type.align))
+
+		if t.IsStruct() { // param offsets depend on ABI
+			f.Offset = offset
+
+			// If type T contains a field F marked as not-in-heap,
+			// then T must also be a not-in-heap type. Otherwise,
+			// you could heap allocate T and then get a pointer F,
+			// which would be a heap pointer to a not-in-heap type.
+			if f.Type.NotInHeap() {
+				t.SetNotInHeap(true)
+			}
 		}
 
-		w := f.Type.width
-		if w < 0 {
-			base.Fatalf("invalid width %d", f.Type.width)
-		}
-		if w == 0 {
-			lastzero = o
-		}
-		o += w
+		offset += f.Type.width
+
 		maxwidth := MaxWidth
 		// On 32-bit systems, reflect tables impose an additional constraint
 		// that each field start offset must fit in 31 bits.
 		if maxwidth < 1<<32 {
 			maxwidth = 1<<31 - 1
 		}
-		if o >= maxwidth {
-			base.ErrorfAt(typePos(errtype), "type %L too large", errtype)
-			o = 8 // small but nonzero
+		if offset >= maxwidth {
+			base.ErrorfAt(typePos(t), 0, "type %L too large", t)
+			offset = 8 // small but nonzero
 		}
 	}
 
-	// For nonzero-sized structs which end in a zero-sized thing, we add
-	// an extra byte of padding to the type. This padding ensures that
-	// taking the address of the zero-sized thing can't manufacture a
-	// pointer to the next object in the heap. See issue 9401.
-	if flag == 1 && o > starto && o == lastzero {
-		o++
-	}
-
-	// final width is rounded
-	if flag != 0 {
-		o = RoundUp(o, int64(maxalign))
-	}
-	t.align = uint8(maxalign)
-
-	// type width only includes back to first field's offset
-	t.width = o - starto
-
-	return o
+	return offset
 }
 
 func isAtomicStdPkg(p *Pkg) bool {
-	return (p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic") ||
-		(p.Prefix == "runtime/internal/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "runtime/internal/atomic")
+	if p.Prefix == `""` {
+		panic("bad package prefix")
+	}
+	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
 }
 
 // CalcSize calculates and stores the size and alignment for t.
@@ -312,45 +268,58 @@ func CalcSize(t *Type) {
 	case TINT8, TUINT8, TBOOL:
 		// bool is int8
 		w = 1
+		t.intRegs = 1
 
 	case TINT16, TUINT16:
 		w = 2
+		t.intRegs = 1
 
-	case TINT32, TUINT32, TFLOAT32:
+	case TINT32, TUINT32:
 		w = 4
+		t.intRegs = 1
 
-	case TINT64, TUINT64, TFLOAT64:
+	case TINT64, TUINT64:
 		w = 8
 		t.align = uint8(RegSize)
+		t.intRegs = uint8(8 / RegSize)
+
+	case TFLOAT32:
+		w = 4
+		t.floatRegs = 1
+
+	case TFLOAT64:
+		w = 8
+		t.align = uint8(RegSize)
+		t.floatRegs = 1
 
 	case TCOMPLEX64:
 		w = 8
 		t.align = 4
+		t.floatRegs = 2
 
 	case TCOMPLEX128:
 		w = 16
 		t.align = uint8(RegSize)
+		t.floatRegs = 2
 
 	case TPTR:
 		w = int64(PtrSize)
+		t.intRegs = 1
 		CheckSize(t.Elem())
 
 	case TUNSAFEPTR:
 		w = int64(PtrSize)
+		t.intRegs = 1
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(PtrSize)
 		t.align = uint8(PtrSize)
+		t.intRegs = 2
 		expandiface(t)
-
-	case TUNION:
-		// Always part of an interface for now, so size/align don't matter.
-		// Pretend a union is represented like an interface.
-		w = 2 * int64(PtrSize)
-		t.align = uint8(PtrSize)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
+		t.intRegs = 1
 
 		CheckSize(t.Elem())
 
@@ -374,15 +343,14 @@ func CalcSize(t *Type) {
 
 	case TMAP: // implemented as pointer
 		w = int64(PtrSize)
+		t.intRegs = 1
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
 
 	case TFORW: // should have been filled in
 		base.Fatalf("invalid recursive type %v", t)
-		w = 1 // anything will do
 
-	case TANY:
-		// not a real type; should be replaced before use.
+	case TANY: // not a real type; should be replaced before use.
 		base.Fatalf("CalcSize any")
 
 	case TSTRING:
@@ -391,6 +359,7 @@ func CalcSize(t *Type) {
 		}
 		w = StringSize
 		t.align = uint8(PtrSize)
+		t.intRegs = 2
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -408,6 +377,20 @@ func CalcSize(t *Type) {
 		w = t.NumElem() * t.Elem().width
 		t.align = t.Elem().align
 
+		// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
+		// to be passed by register.
+		switch t.NumElem() {
+		case 0:
+			t.intRegs = 0
+			t.floatRegs = 0
+		case 1:
+			t.intRegs = t.Elem().intRegs
+			t.floatRegs = t.Elem().floatRegs
+		default:
+			t.intRegs = math.MaxUint8
+			t.floatRegs = math.MaxUint8
+		}
+
 	case TSLICE:
 		if t.Elem() == nil {
 			break
@@ -415,16 +398,14 @@ func CalcSize(t *Type) {
 		w = SliceSize
 		CheckSize(t.Elem())
 		t.align = uint8(PtrSize)
+		t.intRegs = 3
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
 			base.Fatalf("CalcSize fn struct %v", t)
 		}
-		// Recognize and mark runtime/internal/sys.nih as not-in-heap.
-		if sym := t.Sym(); sym != nil && sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
-			t.SetNotInHeap(true)
-		}
-		w = calcStructOffset(t, t, 0, 1)
+		CalcStructSize(t)
+		w = t.width
 
 	// make fake type to check later to
 	// trigger function argument computation.
@@ -432,24 +413,20 @@ func CalcSize(t *Type) {
 		t1 := NewFuncArgs(t)
 		CheckSize(t1)
 		w = int64(PtrSize) // width of func type is pointer
+		t.intRegs = 1
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
 	case TFUNCARGS:
 		t1 := t.FuncArgs()
-		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
-		w = calcStructOffset(t1, t1.Params(), w, RegSize)
-		w = calcStructOffset(t1, t1.Results(), w, RegSize)
+		// TODO(mdempsky): Should package abi be responsible for computing argwid?
+		w = calcStructOffset(t1, t1.Recvs(), 0)
+		w = calcStructOffset(t1, t1.Params(), w)
+		w = RoundUp(w, int64(RegSize))
+		w = calcStructOffset(t1, t1.Results(), w)
+		w = RoundUp(w, int64(RegSize))
 		t1.extra.(*Func).Argwid = w
-		if w%int64(RegSize) != 0 {
-			base.Warn("bad type %v %d\n", t1, w)
-		}
 		t.align = 1
-
-	case TTYPEPARAM:
-		// TODO(danscales) - remove when we eliminate the need
-		// to do CalcSize in noder2 (which shouldn't be needed in the noder)
-		w = int64(PtrSize)
 	}
 
 	if PtrSize == 4 && w != int64(int32(w)) {
@@ -469,19 +446,62 @@ func CalcSize(t *Type) {
 	ResumeCheckSize()
 }
 
-// CalcStructSize calculates the size of s,
-// filling in s.Width and s.Align,
+// CalcStructSize calculates the size of t,
+// filling in t.width, t.align, t.intRegs, and t.floatRegs,
 // even if size calculation is otherwise disabled.
-func CalcStructSize(s *Type) {
-	s.width = calcStructOffset(s, s, 0, 1) // sets align
-}
+func CalcStructSize(t *Type) {
+	var maxAlign uint8 = 1
 
-// RecalcSize is like CalcSize, but recalculates t's size even if it
-// has already been calculated before. It does not recalculate other
-// types.
-func RecalcSize(t *Type) {
-	t.align = 0
-	CalcSize(t)
+	// Recognize special types. This logic is duplicated in go/types and
+	// cmd/compile/internal/types2.
+	if sym := t.Sym(); sym != nil {
+		switch {
+		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
+			maxAlign = 8
+		case sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih":
+			t.SetNotInHeap(true)
+		}
+	}
+
+	fields := t.Fields()
+	size := calcStructOffset(t, fields, 0)
+
+	// For non-zero-sized structs which end in a zero-sized field, we
+	// add an extra byte of padding to the type. This padding ensures
+	// that taking the address of a zero-sized field can't manufacture a
+	// pointer to the next object in the heap. See issue 9401.
+	if size > 0 && fields[len(fields)-1].Type.width == 0 {
+		size++
+	}
+
+	var intRegs, floatRegs uint64
+	for _, field := range fields {
+		typ := field.Type
+
+		// The alignment of a struct type is the maximum alignment of its
+		// field types.
+		if align := typ.align; align > maxAlign {
+			maxAlign = align
+		}
+
+		// Each field needs its own registers.
+		// We sum in uint64 to avoid possible overflows.
+		intRegs += uint64(typ.intRegs)
+		floatRegs += uint64(typ.floatRegs)
+	}
+
+	// Final size includes trailing padding.
+	size = RoundUp(size, int64(maxAlign))
+
+	if intRegs > math.MaxUint8 || floatRegs > math.MaxUint8 {
+		intRegs = math.MaxUint8
+		floatRegs = math.MaxUint8
+	}
+
+	t.width = size
+	t.align = maxAlign
+	t.intRegs = uint8(intRegs)
+	t.floatRegs = uint8(floatRegs)
 }
 
 func (t *Type) widthCalculated() bool {
@@ -597,7 +617,7 @@ func PtrDataSize(t *Type) int64 {
 
 	case TSTRUCT:
 		// Find the last field that has pointers, if any.
-		fs := t.Fields().Slice()
+		fs := t.Fields()
 		for i := len(fs) - 1; i >= 0; i-- {
 			if size := PtrDataSize(fs[i].Type); size > 0 {
 				return fs[i].Offset + size

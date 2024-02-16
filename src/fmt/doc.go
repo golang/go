@@ -16,6 +16,7 @@ General:
 	%v	the value in a default format
 		when printing structs, the plus flag (%+v) adds field names
 	%#v	a Go-syntax representation of the value
+		(floating-point infinities and NaNs print as ±Inf and NaN)
 	%T	a Go-syntax representation of the type of the value
 	%%	a literal percent sign; consumes no value
 
@@ -140,12 +141,11 @@ Other flags:
 		returns true;
 		always print a decimal point for %e, %E, %f, %F, %g and %G;
 		do not remove trailing zeros for %g and %G;
-		write e.g. U+0078 'x' if the character is printable for %U (%#U).
+		write e.g. U+0078 'x' if the character is printable for %U (%#U)
 	' '	(space) leave a space for elided sign in numbers (% d);
 		put spaces between bytes printing strings or slices in hex (% x, % X)
 	'0'	pad with leading zeros rather than spaces;
-		for numbers, this moves the padding after the sign;
-		ignored for strings, byte slices and byte arrays
+		for numbers, this moves the padding after the sign
 
 Flags are ignored by verbs that do not expect them.
 For example there is no alternate decimal format, so %#d and %d
@@ -180,7 +180,8 @@ controlled by that implementation.
 implements the GoStringer interface, that will be invoked.
 
 If the format (which is implicitly %v for Println etc.) is valid
-for a string (%s %q %v %x %X), the following two rules apply:
+for a string (%s %q %x %X), or is %v but not %#v,
+the following two rules apply:
 
 4. If an operand implements the error interface, the Error method
 will be invoked to convert the object to a string, which will then

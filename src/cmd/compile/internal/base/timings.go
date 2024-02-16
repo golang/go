@@ -14,7 +14,7 @@ import (
 var Timer Timings
 
 // Timings collects the execution times of labeled phases
-// which are added trough a sequence of Start/Stop calls.
+// which are added through a sequence of Start/Stop calls.
 // Events may be associated with each phase via AddEvent.
 type Timings struct {
 	list   []timestamp

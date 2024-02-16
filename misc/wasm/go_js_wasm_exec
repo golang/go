@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2018 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -11,4 +11,7 @@ while [ -h "$SOURCE" ]; do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-exec node "$DIR/wasm_exec_node.js" "$@"
+# Increase the V8 stack size from the default of 984K
+# to 8192K to ensure all tests can pass without hitting
+# stack size limits.
+exec node --stack-size=8192 "$DIR/wasm_exec_node.js" "$@"

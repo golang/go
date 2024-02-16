@@ -52,21 +52,21 @@ func panicunsafestringnilptr() {
 // Keep this code in sync with cmd/compile/internal/walk/builtin.go:walkUnsafeSlice
 func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 	if len < 0 {
-		panicunsafeslicelen()
+		panicunsafeslicelen1(getcallerpc())
 	}
 
-	if et.size == 0 {
+	if et.Size_ == 0 {
 		if ptr == nil && len > 0 {
-			panicunsafeslicenilptr()
+			panicunsafeslicenilptr1(getcallerpc())
 		}
 	}
 
-	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+	mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
 	if overflow || mem > -uintptr(ptr) {
 		if ptr == nil {
-			panicunsafeslicenilptr()
+			panicunsafeslicenilptr1(getcallerpc())
 		}
-		panicunsafeslicelen()
+		panicunsafeslicelen1(getcallerpc())
 	}
 }
 
@@ -74,7 +74,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
 	len := int(len64)
 	if int64(len) != len64 {
-		panicunsafeslicelen()
+		panicunsafeslicelen1(getcallerpc())
 	}
 	unsafeslice(et, ptr, len)
 }
@@ -84,15 +84,31 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
 
 	// Check that underlying array doesn't straddle multiple heap objects.
 	// unsafeslice64 has already checked for overflow.
-	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
+	if checkptrStraddles(ptr, uintptr(len64)*et.Size_) {
 		throw("checkptr: unsafe.Slice result straddles multiple allocations")
 	}
 }
 
 func panicunsafeslicelen() {
+	// This is called only from compiler-generated code, so we can get the
+	// source of the panic.
+	panicunsafeslicelen1(getcallerpc())
+}
+
+//go:yeswritebarrierrec
+func panicunsafeslicelen1(pc uintptr) {
+	panicCheck1(pc, "unsafe.Slice: len out of range")
 	panic(errorString("unsafe.Slice: len out of range"))
 }
 
 func panicunsafeslicenilptr() {
+	// This is called only from compiler-generated code, so we can get the
+	// source of the panic.
+	panicunsafeslicenilptr1(getcallerpc())
+}
+
+//go:yeswritebarrierrec
+func panicunsafeslicenilptr1(pc uintptr) {
+	panicCheck1(pc, "unsafe.Slice: ptr is nil and len is not zero")
 	panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
 }

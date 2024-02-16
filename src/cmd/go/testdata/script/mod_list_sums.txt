@@ -29,4 +29,4 @@ stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
 #
 # TODO(#41297): This should not be an error either.
 ! go list -m -mod=readonly -versions rsc.io/sampler
-stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
+stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry for go.mod file; to add it:\n\tgo mod download rsc\.io/quote$'

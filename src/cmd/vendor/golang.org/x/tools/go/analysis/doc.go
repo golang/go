@@ -191,7 +191,7 @@ and buildtag, inspect the raw text of Go source files or even non-Go
 files such as assembly. To report a diagnostic against a line of a
 raw text file, use the following sequence:
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil { ... }
 	tf := fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
@@ -244,6 +244,9 @@ if the default encoding is unsuitable. Facts should be stateless.
 Because serialized facts may appear within build outputs, the gob encoding
 of a fact must be deterministic, to avoid spurious cache misses in
 build systems that use content-addressable caches.
+The driver makes a single call to the gob encoder for all facts
+exported by a given analysis pass, so that the topology of
+shared data structures referenced by multiple facts is preserved.
 
 The Pass type has functions to import and export facts,
 associated either with an object or with a package:
@@ -297,7 +300,7 @@ singlechecker and multichecker subpackages.
 
 The singlechecker package provides the main function for a command that
 runs one analyzer. By convention, each analyzer such as
-go/passes/findcall should be accompanied by a singlechecker-based
+go/analysis/passes/findcall should be accompanied by a singlechecker-based
 command such as go/analysis/passes/findcall/cmd/findcall, defined in its
 entirety as:
 

@@ -85,7 +85,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 
 		mods, err := modload.ListModules(ctx, args, 0, "")
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			base.Fatal(err)
 		}
 
 		byModule := make(map[string][]string)

@@ -397,7 +397,7 @@ func preemptM(mp *m) {
 //go:nosplit
 func sigFetchG(c *sigctxt) *g {
 	switch GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le", "riscv64", "s390x":
+	case "arm", "arm64", "loong64", "ppc64", "ppc64le", "riscv64", "s390x":
 		if !iscgo && inVDSOPage(c.sigpc()) {
 			// When using cgo, we save the g on TLS and load it from there
 			// in sigtramp. Just use that.
@@ -435,7 +435,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	c := &sigctxt{info, ctx}
 	gp := sigFetchG(c)
 	setg(gp)
-	if gp == nil {
+	if gp == nil || (gp.m != nil && gp.m.isExtraInC) {
 		if sig == _SIGPROF {
 			// Some platforms (Linux) have per-thread timers, which we use in
 			// combination with the process-wide timer. Avoid double-counting.
@@ -458,7 +458,18 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			return
 		}
 		c.fixsigcode(sig)
+		// Set g to nil here and badsignal will use g0 by needm.
+		// TODO: reuse the current m here by using the gsignal and adjustSignalStack,
+		// since the current g maybe a normal goroutine and actually running on the signal stack,
+		// it may hit stack split that is not expected here.
+		if gp != nil {
+			setg(nil)
+		}
 		badsignal(uintptr(sig), c)
+		// Restore g
+		if gp != nil {
+			setg(gp)
+		}
 		return
 	}
 
@@ -574,11 +585,11 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 
 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
 	setg(nil)
-	needm()
+	needm(true)
 	if st.ss_flags&_SS_DISABLE != 0 {
 		noSignalStack(sig)
 	} else {
-		sigNotOnStack(sig)
+		sigNotOnStack(sig, sp, mp)
 	}
 	dropm()
 	return false
@@ -586,7 +597,7 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 
 // crashing is the number of m's we have waited for when implementing
 // GOTRACEBACK=crash when a signal is received.
-var crashing int32
+var crashing atomic.Int32
 
 // testSigtrap and testSigusr1 are used by the runtime tests. If
 // non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
@@ -662,9 +673,13 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
 	}
-	if !c.sigFromUser() && flags&_SigPanic != 0 && gp.throwsplit {
+	if !c.sigFromUser() && flags&_SigPanic != 0 && (gp.throwsplit || gp != mp.curg) {
 		// We can't safely sigpanic because it may grow the
 		// stack. Abort in the signal handler instead.
+		//
+		// Also don't inject a sigpanic if we are not on a
+		// user G stack. Either we're in the runtime, or we're
+		// running C code. Either way we cannot recover.
 		flags = _SigThrow
 	}
 	if isAbortPC(c.sigpc()) {
@@ -683,7 +698,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// the unwinding code.
 		gp.sig = sig
 		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
+		gp.sigcode1 = c.fault()
 		gp.sigpc = c.sigpc()
 
 		c.preparePanic(sig, gp)
@@ -715,17 +730,84 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	mp.throwing = throwTypeRuntime
 	mp.caughtsig.set(gp)
 
-	if crashing == 0 {
+	if crashing.Load() == 0 {
 		startpanic_m()
 	}
 
+	gp = fatalsignal(sig, c, gp, mp)
+
+	level, _, docrash := gotraceback()
+	if level > 0 {
+		goroutineheader(gp)
+		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
+		if crashing.Load() > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
+			// tracebackothers on original m skipped this one; trace it now.
+			goroutineheader(mp.curg)
+			traceback(^uintptr(0), ^uintptr(0), 0, mp.curg)
+		} else if crashing.Load() == 0 {
+			tracebackothers(gp)
+			print("\n")
+		}
+		dumpregs(c)
+	}
+
+	if docrash {
+		isCrashThread := false
+		if crashing.CompareAndSwap(0, 1) {
+			isCrashThread = true
+		} else {
+			crashing.Add(1)
+		}
+		if crashing.Load() < mcount()-int32(extraMLength.Load()) {
+			// There are other m's that need to dump their stacks.
+			// Relay SIGQUIT to the next m by sending it to the current process.
+			// All m's that have already received SIGQUIT have signal masks blocking
+			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+			// The first m will wait until all ms received the SIGQUIT, then crash/exit.
+			// Just in case the relaying gets botched, each m involved in
+			// the relay sleeps for 5 seconds and then does the crash/exit itself.
+			// The faulting m is crashing first so it is the faulting thread in the core dump (see issue #63277):
+			// in expected operation, the first m will wait until the last m has received the SIGQUIT,
+			// and then run crash/exit and the process is gone.
+			// However, if it spends more than 5 seconds to send SIGQUIT to all ms,
+			// any of ms may crash/exit the process after waiting for 5 seconds.
+			print("\n-----\n\n")
+			raiseproc(_SIGQUIT)
+		}
+		if isCrashThread {
+			i := 0
+			for (crashing.Load() < mcount()-int32(extraMLength.Load())) && i < 10 {
+				i++
+				usleep(500 * 1000)
+			}
+		} else {
+			usleep(5 * 1000 * 1000)
+		}
+		printDebugLog()
+		crash()
+	}
+
+	printDebugLog()
+
+	exit(2)
+}
+
+func fatalsignal(sig uint32, c *sigctxt, gp *g, mp *m) *g {
 	if sig < uint32(len(sigtable)) {
 		print(sigtable[sig].name, "\n")
 	} else {
 		print("Signal ", sig, "\n")
 	}
 
-	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
+	if isSecureMode() {
+		exit(2)
+	}
+
+	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode())
+	if sig == _SIGSEGV || sig == _SIGBUS {
+		print(" addr=", hex(c.fault()))
+	}
+	print("\n")
 	if mp.incgo && gp == mp.g0 && mp.curg != nil {
 		print("signal arrived during cgo execution\n")
 		// Switch to curg so that we get a traceback of the Go code
@@ -757,45 +839,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		println()
 	}
 	print("\n")
-
-	level, _, docrash := gotraceback()
-	if level > 0 {
-		goroutineheader(gp)
-		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
-		if crashing > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
-			// tracebackothers on original m skipped this one; trace it now.
-			goroutineheader(mp.curg)
-			traceback(^uintptr(0), ^uintptr(0), 0, mp.curg)
-		} else if crashing == 0 {
-			tracebackothers(gp)
-			print("\n")
-		}
-		dumpregs(c)
-	}
-
-	if docrash {
-		crashing++
-		if crashing < mcount()-int32(extraMCount) {
-			// There are other m's that need to dump their stacks.
-			// Relay SIGQUIT to the next m by sending it to the current process.
-			// All m's that have already received SIGQUIT have signal masks blocking
-			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
-			// When the last m receives the SIGQUIT, it will fall through to the call to
-			// crash below. Just in case the relaying gets botched, each m involved in
-			// the relay sleeps for 5 seconds and then does the crash/exit itself.
-			// In expected operation, the last m has received the SIGQUIT and run
-			// crash/exit and the process is gone, all long before any of the
-			// 5-second sleeps have finished.
-			print("\n-----\n\n")
-			raiseproc(_SIGQUIT)
-			usleep(5 * 1000 * 1000)
-		}
-		crash()
-	}
-
-	printDebugLog()
-
-	exit(2)
+	return gp
 }
 
 // sigpanic turns a synchronous signal into a run-time panic.
@@ -958,16 +1002,6 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 
 //go:nosplit
 func crash() {
-	// OS X core dumps are linear dumps of the mapped memory,
-	// from the first virtual byte to the last, with zeros in the gaps.
-	// Because of the way we arrange the address space on 64-bit systems,
-	// this means the OS X core file will be >128 GB and even on a zippy
-	// workstation can take OS X well over an hour to write (uninterruptible).
-	// Save users from making that mistake.
-	if GOOS == "darwin" && GOARCH == "amd64" {
-		return
-	}
-
 	dieFromSignal(_SIGABRT)
 }
 
@@ -1024,8 +1058,10 @@ func noSignalStack(sig uint32) {
 // This is called if we receive a signal when there is a signal stack
 // but we are not on it. This can only happen if non-Go code called
 // sigaction without setting the SS_ONSTACK flag.
-func sigNotOnStack(sig uint32) {
+func sigNotOnStack(sig uint32, sp uintptr, mp *m) {
 	println("signal", sig, "received but handler not on signal stack")
+	print("mp.gsignal stack [", hex(mp.gsignal.stack.lo), " ", hex(mp.gsignal.stack.hi), "], ")
+	print("mp.g0 stack [", hex(mp.g0.stack.lo), " ", hex(mp.g0.stack.hi), "], sp=", hex(sp), "\n")
 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
 }
 
@@ -1053,7 +1089,7 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm()
+	needm(true)
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
@@ -1121,8 +1157,9 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	//   (1) we weren't in VDSO page,
 	//   (2) we were in a goroutine (i.e., m.curg != nil), and
 	//   (3) we weren't in CGO.
+	//   (4) we weren't in dropped extra m.
 	gp := sigFetchG(c)
-	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.incgo {
+	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.isExtraInC && !gp.m.incgo {
 		return false
 	}
 
@@ -1159,10 +1196,34 @@ func msigrestore(sigmask sigset) {
 }
 
 // sigsetAllExiting is used by sigblock(true) when a thread is
-// exiting. sigset_all is defined in OS specific code, and per GOOS
-// behavior may override this default for sigsetAllExiting: see
-// osinit().
-var sigsetAllExiting = sigset_all
+// exiting.
+var sigsetAllExiting = func() sigset {
+	res := sigset_all
+
+	// Apply GOOS-specific overrides here, rather than in osinit,
+	// because osinit may be called before sigsetAllExiting is
+	// initialized (#51913).
+	if GOOS == "linux" && iscgo {
+		// #42494 glibc and musl reserve some signals for
+		// internal use and require they not be blocked by
+		// the rest of a normal C runtime. When the go runtime
+		// blocks...unblocks signals, temporarily, the blocked
+		// interval of time is generally very short. As such,
+		// these expectations of *libc code are mostly met by
+		// the combined go+cgo system of threads. However,
+		// when go causes a thread to exit, via a return from
+		// mstart(), the combined runtime can deadlock if
+		// these signals are blocked. Thus, don't block these
+		// signals when exiting threads.
+		// - glibc: SIGCANCEL (32), SIGSETXID (33)
+		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
+		sigdelset(&res, 32)
+		sigdelset(&res, 33)
+		sigdelset(&res, 34)
+	}
+
+	return res
+}()
 
 // sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g
@@ -1313,8 +1374,8 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
 	gp.m.gsignal.stack.lo = stsp
 	gp.m.gsignal.stack.hi = stsp + st.ss_size
-	gp.m.gsignal.stackguard0 = stsp + _StackGuard
-	gp.m.gsignal.stackguard1 = stsp + _StackGuard
+	gp.m.gsignal.stackguard0 = stsp + stackGuard
+	gp.m.gsignal.stackguard1 = stsp + stackGuard
 }
 
 // restoreGsignalStack restores the gsignal stack to the value it had

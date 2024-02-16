@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386 && openbsd
-// +build 386,openbsd
 
 package unix
 

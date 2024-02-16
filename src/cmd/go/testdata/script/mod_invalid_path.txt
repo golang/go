@@ -3,7 +3,7 @@
 # Test that go list fails on a go.mod with no module declaration.
 cd $WORK/gopath/src/mod
 ! go list .
-stderr '^go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod$'
+stderr '^go: error reading go.mod: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod$'
 
 # Test that go mod init in GOPATH doesn't add a module declaration
 # with a path that can't possibly be a module path, because

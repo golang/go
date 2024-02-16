@@ -14,7 +14,7 @@ func (_ List[P]) m() (_ List[List[P]]) { return }
 // Other types of recursion through methods.
 type R[P any] int
 
-func (*R[R /* ERROR must be an identifier */ [int]]) m0() {}
+func (*R[R /* ERROR "must be an identifier" */ [int]]) m0() {}
 func (R[P]) m1(R[R[P]])                                   {}
 func (R[P]) m2(R[*P])                                     {}
 func (R[P]) m3([unsafe.Sizeof(new(R[P]))]int)             {}

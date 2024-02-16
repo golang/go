@@ -35,7 +35,7 @@ import (
 // opad = 0x5c byte repeated for key length
 // hmac = H([key ^ opad] H([key ^ ipad] text))
 
-// Marshalable is the combination of encoding.BinaryMarshaler and
+// marshalable is the combination of encoding.BinaryMarshaler and
 // encoding.BinaryUnmarshaler. Their method definitions are repeated here to
 // avoid a dependency on the encoding package.
 type marshalable interface {
@@ -120,12 +120,12 @@ func (h *hmac) Reset() {
 	h.marshaled = true
 }
 
-// New returns a new HMAC hash using the given hash.Hash type and key.
-// New functions like sha256.New from crypto/sha256 can be used as h.
+// New returns a new HMAC hash using the given [hash.Hash] type and key.
+// New functions like sha256.New from [crypto/sha256] can be used as h.
 // h must return a new Hash every time it is called.
 // Note that unlike other hash implementations in the standard library,
-// the returned Hash does not implement encoding.BinaryMarshaler
-// or encoding.BinaryUnmarshaler.
+// the returned Hash does not implement [encoding.BinaryMarshaler]
+// or [encoding.BinaryUnmarshaler].
 func New(h func() hash.Hash, key []byte) hash.Hash {
 	if boring.Enabled {
 		hm := boring.NewHMAC(h, key)

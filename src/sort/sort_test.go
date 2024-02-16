@@ -5,10 +5,12 @@
 package sort_test
 
 import (
+	"cmp"
 	"fmt"
 	"internal/testenv"
 	"math"
-	"math/rand"
+	"math/rand/v2"
+	"slices"
 	. "sort"
 	"strconv"
 	stringspkg "strings"
@@ -36,6 +38,20 @@ func TestSortFloat64Slice(t *testing.T) {
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", float64s)
 		t.Errorf("   got %v", data)
+	}
+}
+
+// Compare Sort with slices.Sort sorting a float64 slice containing NaNs.
+func TestSortFloat64sCompareSlicesSort(t *testing.T) {
+	slice1 := slices.Clone(float64s[:])
+	slice2 := slices.Clone(float64s[:])
+
+	Sort(Float64Slice(slice1))
+	slices.Sort(slice2)
+
+	// Compare for equality using cmp.Compare, which considers NaNs equal.
+	if !slices.EqualFunc(slice1, slice1, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+		t.Errorf("mismatch between Sort and slices.Sort: got %v, want %v", slice1, slice2)
 	}
 }
 
@@ -94,7 +110,7 @@ func TestSortLarge_Random(t *testing.T) {
 	}
 	data := make([]int, n)
 	for i := 0; i < len(data); i++ {
-		data[i] = rand.Intn(100)
+		data[i] = rand.IntN(100)
 	}
 	if IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -182,7 +198,7 @@ func TestNonDeterministicComparison(t *testing.T) {
 	}()
 
 	td := &nonDeterministicTestingData{
-		r: rand.New(rand.NewSource(0)),
+		r: rand.New(rand.NewPCG(0, 0)),
 	}
 
 	for i := 0; i < 10; i++ {
@@ -399,13 +415,6 @@ func (d *testingData) Swap(i, j int) {
 	d.data[i], d.data[j] = d.data[j], d.data[i]
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func lg(n int) int {
 	i := 0
 	for 1<<uint(i) < n {
@@ -433,13 +442,13 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) in
 					case _Sawtooth:
 						data[i] = i % m
 					case _Rand:
-						data[i] = rand.Intn(m)
+						data[i] = rand.IntN(m)
 					case _Stagger:
 						data[i] = (i*m + i) % n
 					case _Plateau:
 						data[i] = min(i, m)
 					case _Shuffle:
-						if rand.Intn(m) != 0 {
+						if rand.IntN(m) != 0 {
 							j += 2
 							data[i] = j
 						} else {
@@ -639,7 +648,7 @@ func TestStability(t *testing.T) {
 
 	// random distribution
 	for i := 0; i < len(data); i++ {
-		data[i].a = rand.Intn(m)
+		data[i].a = rand.IntN(m)
 	}
 	if IsSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -695,7 +704,7 @@ func countOps(t *testing.T, algo func(Interface), name string) {
 			maxswap: 1<<31 - 1,
 		}
 		for i := 0; i < n; i++ {
-			td.data[i] = rand.Intn(n / 5)
+			td.data[i] = rand.IntN(n / 5)
 		}
 		algo(&td)
 		t.Logf("%s %8d elements: %11d Swap, %10d Less", name, n, td.nswap, td.ncmp)

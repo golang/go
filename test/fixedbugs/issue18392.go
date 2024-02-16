@@ -10,5 +10,5 @@ type A interface {
 	// TODO(mdempsky): This should be an error, but this error is
 	// nonsense. The error should actually mention that there's a
 	// type loop.
-	Fn(A.Fn) // ERROR "type A has no method Fn|A.Fn undefined"
+	Fn(A.Fn) // ERROR "type A has no method Fn|A.Fn undefined|A.Fn is not a type"
 }

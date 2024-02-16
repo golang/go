@@ -75,10 +75,11 @@ type printer struct {
 	// white space). If there's a difference and SourcePos is set in
 	// ConfigMode, //line directives are used in the output to restore
 	// original source positions for a reader.
-	pos     token.Position // current position in AST (source) space
-	out     token.Position // current position in output space
-	last    token.Position // value of pos after calling writeString
-	linePtr *int           // if set, record out.Line for the next token in *linePtr
+	pos          token.Position // current position in AST (source) space
+	out          token.Position // current position in output space
+	last         token.Position // value of pos after calling writeString
+	linePtr      *int           // if set, record out.Line for the next token in *linePtr
+	sourcePosErr error          // if non-nil, the first error emitting a //line directive
 
 	// The list of all source comments, in order of appearance.
 	comments        []*ast.CommentGroup // may be nil
@@ -196,6 +197,13 @@ func (p *printer) lineFor(pos token.Pos) int {
 // writeLineDirective writes a //line directive if necessary.
 func (p *printer) writeLineDirective(pos token.Position) {
 	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+		if strings.ContainsAny(pos.Filename, "\r\n") {
+			if p.sourcePosErr == nil {
+				p.sourcePosErr = fmt.Errorf("go/printer: source filename contains unexpected newline character: %q", pos.Filename)
+			}
+			return
+		}
+
 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
 		p.output = append(p.output, tabwriter.Escape)
@@ -805,7 +813,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	return
 }
 
-// whiteWhitespace writes the first n whitespace entries.
+// writeWhitespace writes the first n whitespace entries.
 func (p *printer) writeWhitespace(n int) {
 	// write entries
 	for i := 0; i < n; i++ {
@@ -853,10 +861,7 @@ func (p *printer) writeWhitespace(n int) {
 
 // nlimit limits n to maxNewlines.
 func nlimit(n int) int {
-	if n > maxNewlines {
-		n = maxNewlines
-	}
-	return n
+	return min(n, maxNewlines)
 }
 
 func mayCombine(prev token.Token, next byte) (b bool) {
@@ -1169,7 +1174,7 @@ func (p *printer) printNode(node any) error {
 		goto unsupported
 	}
 
-	return nil
+	return p.sourcePosErr
 
 unsupported:
 	return fmt.Errorf("go/printer: unsupported node type %T", node)
@@ -1405,7 +1410,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeS
 }
 
 // A CommentedNode bundles an AST node and corresponding comments.
-// It may be provided as argument to any of the Fprint functions.
+// It may be provided as argument to any of the [Fprint] functions.
 type CommentedNode struct {
 	Node     any // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
 	Comments []*ast.CommentGroup
@@ -1413,14 +1418,14 @@ type CommentedNode struct {
 
 // Fprint "pretty-prints" an AST node to output for a given configuration cfg.
 // Position information is interpreted relative to the file set fset.
-// The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
-// or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
+// The node type must be *[ast.File], *[CommentedNode], [][ast.Decl], [][ast.Stmt],
+// or assignment-compatible to [ast.Expr], [ast.Decl], [ast.Spec], or [ast.Stmt].
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node any) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
 // Fprint "pretty-prints" an AST node to output.
-// It calls Config.Fprint with default settings.
+// It calls [Config.Fprint] with default settings.
 // Note that gofmt uses tabs for indentation but spaces for alignment;
 // use format.Node (package go/format) for output that matches gofmt.
 func Fprint(output io.Writer, fset *token.FileSet, node any) error {

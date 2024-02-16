@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
+// Map is like a Go map[any]any but is safe for concurrent use
 // by multiple goroutines without additional locking or coordination.
 // Loads, stores, and deletes run in amortized constant time.
 //
@@ -27,9 +27,11 @@ import (
 // In the terminology of the Go memory model, Map arranges that a write operation
 // “synchronizes before” any read operation that observes the effect of the write, where
 // read and write operations are defined as follows.
-// Load, LoadAndDelete, LoadOrStore are read operations;
-// Delete, LoadAndDelete, and Store are write operations;
-// and LoadOrStore is a write operation when it returns loaded set to false.
+// Load, LoadAndDelete, LoadOrStore, Swap, CompareAndSwap, and CompareAndDelete
+// are read operations; Delete, LoadAndDelete, Store, and Swap are write operations;
+// LoadOrStore is a write operation when it returns loaded set to false;
+// CompareAndSwap is a write operation when it returns swapped set to true;
+// and CompareAndDelete is a write operation when it returns deleted set to true.
 type Map struct {
 	mu Mutex
 
@@ -151,6 +153,27 @@ func (e *entry) load() (value any, ok bool) {
 // Store sets the value for a key.
 func (m *Map) Store(key, value any) {
 	_, _ = m.Swap(key, value)
+}
+
+// Clear deletes all the entries, resulting in an empty Map.
+func (m *Map) Clear() {
+	read := m.loadReadOnly()
+	if len(read.m) == 0 && !read.amended {
+		// Avoid allocating a new readOnly when the map is already clear.
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	read = m.loadReadOnly()
+	if len(read.m) > 0 || read.amended {
+		m.read.Store(&readOnly{})
+	}
+
+	clear(m.dirty)
+	// Don't immediately promote the newly-cleared dirty map on the next operation.
+	m.misses = 0
 }
 
 // tryCompareAndSwap compare the entry with the given old value and swaps
@@ -459,7 +482,8 @@ func (m *Map) Range(f func(key, value any) bool) {
 		read = m.loadReadOnly()
 		if read.amended {
 			read = readOnly{m: m.dirty}
-			m.read.Store(&read)
+			copyRead := read
+			m.read.Store(&copyRead)
 			m.dirty = nil
 			m.misses = 0
 		}

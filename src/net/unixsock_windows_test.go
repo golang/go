@@ -33,7 +33,9 @@ func isBuild17063() bool {
 	return ver >= 17063
 }
 
-func TestUnixConnLocalWindows(t *testing.T) {
+func skipIfUnixSocketNotSupported(t *testing.T) {
+	// TODO: the isBuild17063 check should be enough, investigate why 386 and arm
+	// can't run these tests on newer Windows.
 	switch runtime.GOARCH {
 	case "386":
 		t.Skip("not supported on windows/386, see golang.org/issue/27943")
@@ -43,7 +45,10 @@ func TestUnixConnLocalWindows(t *testing.T) {
 	if !isBuild17063() {
 		t.Skip("unix test")
 	}
+}
 
+func TestUnixConnLocalWindows(t *testing.T) {
+	skipIfUnixSocketNotSupported(t)
 	handler := func(ls *localServer, ln Listener) {}
 	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
@@ -93,5 +98,26 @@ func TestUnixConnLocalWindows(t *testing.T) {
 				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
 			}
 		}
+	}
+}
+
+func TestModeSocket(t *testing.T) {
+	skipIfUnixSocketNotSupported(t)
+	addr := testUnixAddr(t)
+
+	l, err := Listen("unix", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	stat, err := os.Stat(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mode := stat.Mode()
+	if mode&os.ModeSocket == 0 {
+		t.Fatalf("%v should have ModeSocket", mode)
 	}
 }

@@ -52,12 +52,17 @@
 (OffPtr [off] ptr) => (ADDLconst [int32(off)] ptr)
 
 (Bswap32 ...) => (BSWAPL ...)
+(Bswap16 x) => (ROLWconst [8] x)
 
 (Sqrt ...) => (SQRTSD ...)
 (Sqrt32 ...) => (SQRTSS ...)
 
+(Ctz8 x) => (BSFL (ORLconst <typ.UInt32> [0x100] x))
+(Ctz8NonZero ...) => (BSFL ...)
 (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
 (Ctz16NonZero ...) => (BSFL ...)
+(Ctz32 ...) => (LoweredCtz32 ...)
+(Ctz32NonZero ...) => (BSFL ...)
 
 // Lowering extension
 (SignExt8to16  ...) => (MOVBLSX ...)
@@ -202,11 +207,9 @@
 (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
 
 // Lowering stores
-// These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVSSstore ptr val mem)
-
-(Store {t} ptr val mem) && t.Size() == 4 => (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 
@@ -333,7 +336,8 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (Addr {sym} base) => (LEAL {sym} base)
-(LocalAddr {sym} base _) => (LEAL {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LEAL {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LEAL {sym} base)
 
 // block rewrites
 (If (SETL  cmp) yes no) => (LT  cmp yes no)
@@ -393,7 +397,7 @@
 (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no) => (NEF  cmp yes no)
 
 // fold constants into instructions
-(ADDL x (MOVLconst [c])) => (ADDLconst [c] x)
+(ADDL x (MOVLconst <t> [c])) && !t.IsPtr() => (ADDLconst [c] x)
 (ADDLcarry x (MOVLconst [c])) => (ADDLconstcarry [c] x)
 (ADCL x (MOVLconst [c]) f) => (ADCLconst [c] x f)
 
@@ -914,160 +918,6 @@
 
 // Convert LEAL1 back to ADDL if we can
 (LEAL1 [0] {nil} x y) => (ADDL x y)
-
-// Combining byte loads into larger (unaligned) loads.
-// There are many ways these combinations could occur.  This is
-// designed to match the way encoding/binary.LittleEndian does it.
-(ORL                  x0:(MOVBload [i0] {s} p mem)
-    s0:(SHLLconst [8] x1:(MOVBload [i1] {s} p mem)))
-  && i1 == i0+1
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, s0)
-  => @mergePoint(b,x0,x1) (MOVWload [i0] {s} p mem)
-
-(ORL                  x0:(MOVBload [i] {s} p0 mem)
-    s0:(SHLLconst [8] x1:(MOVBload [i] {s} p1 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && s0.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && mergePoint(b,x0,x1) != nil
-  && clobber(x0, x1, s0)
-  => @mergePoint(b,x0,x1) (MOVWload [i] {s} p0 mem)
-
-(ORL o0:(ORL
-                       x0:(MOVWload [i0] {s} p mem)
-    s0:(SHLLconst [16] x1:(MOVBload [i2] {s} p mem)))
-    s1:(SHLLconst [24] x2:(MOVBload [i3] {s} p mem)))
-  && i2 == i0+2
-  && i3 == i0+3
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && o0.Uses == 1
-  && mergePoint(b,x0,x1,x2) != nil
-  && clobber(x0, x1, x2, s0, s1, o0)
-  => @mergePoint(b,x0,x1,x2) (MOVLload [i0] {s} p mem)
-
-(ORL o0:(ORL
-                       x0:(MOVWload [i] {s} p0 mem)
-    s0:(SHLLconst [16] x1:(MOVBload [i] {s} p1 mem)))
-    s1:(SHLLconst [24] x2:(MOVBload [i] {s} p2 mem)))
-  && x0.Uses == 1
-  && x1.Uses == 1
-  && x2.Uses == 1
-  && s0.Uses == 1
-  && s1.Uses == 1
-  && o0.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && sequentialAddresses(p1, p2, 1)
-  && mergePoint(b,x0,x1,x2) != nil
-  && clobber(x0, x1, x2, s0, s1, o0)
-  => @mergePoint(b,x0,x1,x2) (MOVLload [i] {s} p0 mem)
-
-// Combine constant stores into larger (unaligned) stores.
-(MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
-  && x.Uses == 1
-  && a.Off() + 1 == c.Off()
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
-(MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
-  && x.Uses == 1
-  && a.Off() + 1 == c.Off()
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p mem)
-
-(MOVBstoreconst [c] {s} p1 x:(MOVBstoreconst [a] {s} p0 mem))
-  && x.Uses == 1
-  && a.Off() == c.Off()
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
-(MOVBstoreconst [a] {s} p0 x:(MOVBstoreconst [c] {s} p1 mem))
-  && x.Uses == 1
-  && a.Off() == c.Off()
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstoreconst [makeValAndOff(a.Val()&0xff | c.Val()<<8, a.Off())] {s} p0 mem)
-
-(MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
-  && x.Uses == 1
-  && a.Off() + 2 == c.Off()
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
-(MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
-  && x.Uses == 1
-  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p mem)
-
-(MOVWstoreconst [c] {s} p1 x:(MOVWstoreconst [a] {s} p0 mem))
-  && x.Uses == 1
-  && a.Off() == c.Off()
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
-(MOVWstoreconst [a] {s} p0 x:(MOVWstoreconst [c] {s} p1 mem))
-  && x.Uses == 1
-  && a.Off() == c.Off()
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstoreconst [makeValAndOff(a.Val()&0xffff | c.Val()<<16, a.Off())] {s} p0 mem)
-
-// Combine stores into larger (unaligned) stores.
-(MOVBstore [i] {s} p (SHR(W|L)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i-1] {s} p w mem)
-(MOVBstore [i] {s} p w x:(MOVBstore {s} [i+1] p (SHR(W|L)const [8] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i] {s} p w mem)
-(MOVBstore [i] {s} p (SHRLconst [j] w) x:(MOVBstore [i-1] {s} p w0:(SHRLconst [j-8] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVWstore [i-1] {s} p w0 mem)
-
-(MOVBstore [i] {s} p1 (SHR(W|L)const [8] w) x:(MOVBstore [i] {s} p0 w mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w mem)
-(MOVBstore [i] {s} p0 w x:(MOVBstore {s} [i] p1 (SHR(W|L)const [8] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w mem)
-(MOVBstore [i] {s} p1 (SHRLconst [j] w) x:(MOVBstore [i] {s} p0 w0:(SHRLconst [j-8] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 1)
-  && clobber(x)
-  => (MOVWstore [i] {s} p0 w0 mem)
-
-(MOVWstore [i] {s} p (SHRLconst [16] w) x:(MOVWstore [i-2] {s} p w mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVLstore [i-2] {s} p w mem)
-(MOVWstore [i] {s} p (SHRLconst [j] w) x:(MOVWstore [i-2] {s} p w0:(SHRLconst [j-16] w) mem))
-  && x.Uses == 1
-  && clobber(x)
-  => (MOVLstore [i-2] {s} p w0 mem)
-
-(MOVWstore [i] {s} p1 (SHRLconst [16] w) x:(MOVWstore [i] {s} p0 w mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstore [i] {s} p0 w mem)
-(MOVWstore [i] {s} p1 (SHRLconst [j] w) x:(MOVWstore [i] {s} p0 w0:(SHRLconst [j-16] w) mem))
-  && x.Uses == 1
-  && sequentialAddresses(p0, p1, 2)
-  && clobber(x)
-  => (MOVLstore [i] {s} p0 w0 mem)
 
 // For PIC, break floating-point constant loading into two instructions so we have
 // a register to use for holding the address of the constant pool entry.

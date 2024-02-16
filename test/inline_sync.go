@@ -37,17 +37,17 @@ var once *sync.Once
 
 func small7() { // ERROR "can inline small7"
 	// the Do fast path should be inlined
-	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do"
+	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Uint32\)\.Load"
 }
 
 var rwmutex *sync.RWMutex
 
-func small8() {
+func small8() { // ERROR "can inline small8"
 	// the RUnlock fast path should be inlined
 	rwmutex.RUnlock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RUnlock" "inlining call to atomic\.\(\*Int32\)\.Add"
 }
 
-func small9() {
+func small9() { // ERROR "can inline small9"
 	// the RLock fast path should be inlined
 	rwmutex.RLock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RLock" "inlining call to atomic\.\(\*Int32\)\.Add"
 }

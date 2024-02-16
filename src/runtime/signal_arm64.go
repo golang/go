@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -68,6 +69,12 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	sp := c.sp() - sys.StackAlign // needs only sizeof uint64, but must align the stack
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Make sure a valid frame pointer is saved on the stack so that the
+	// frame pointer checks in adjustframe are happy, if they're enabled.
+	// Frame pointer unwinding won't visit the sigpanic frame, since
+	// sigpanic will save the same frame pointer before calling into a panic
+	// function.
+	*(*uint64)(unsafe.Pointer(uintptr(sp - goarch.PtrSize))) = c.r29()
 
 	pc := gp.sigpc
 
@@ -89,6 +96,10 @@ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	sp := c.sp() - 16 // SP needs 16-byte alignment
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Make sure a valid frame pointer is saved on the stack so that the
+	// frame pointer checks in adjustframe are happy, if they're enabled.
+	// This is not actually used for unwinding.
+	*(*uint64)(unsafe.Pointer(uintptr(sp - goarch.PtrSize))) = c.r29()
 	// Set up PC and LR to pretend the function being signaled
 	// calls targetPC at resumePC.
 	c.set_lr(uint64(resumePC))

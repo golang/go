@@ -5,6 +5,7 @@
 package build
 
 import (
+	"fmt"
 	"internal/testenv"
 	"io"
 	"os"
@@ -524,10 +525,10 @@ func TestImportDirNotExist(t *testing.T) {
 				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
 				wantErr := `"cannot find package" error`
 				if test.srcDir == "" {
-					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
+					if err != nil && strings.Contains(err.Error(), "is not in std") {
 						errOk = true
 					}
-					wantErr = `"cannot find package" or "is not in GOROOT" error`
+					wantErr = `"cannot find package" or "is not in std" error`
 				}
 				if !errOk {
 					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)
@@ -671,24 +672,6 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	}
 }
 
-func TestImportDirTarget(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
-	ctxt := Default
-	ctxt.GOPATH = ""
-	// In GOROOT only a handful of packages have install targets. Most stdlib packages will
-	// only be built and placed in the build cache.
-	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/runtime/cgo"), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.PkgTargetRoot == "" {
-		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
-	}
-	if testenv.HasCGO() && p.PkgObj == "" {
-		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
-	}
-}
-
 // TestIssue23594 prevents go/build from regressing and populating Package.Doc
 // from comments in test files.
 func TestIssue23594(t *testing.T) {
@@ -818,4 +801,28 @@ func TestAllTagsNonSourceFile(t *testing.T) {
 	if len(p.AllTags) > 0 {
 		t.Errorf("AllTags = %v, want empty", p.AllTags)
 	}
+}
+
+func TestDirectives(t *testing.T) {
+	p, err := ImportDir("testdata/directives", 0)
+	if err != nil {
+		t.Fatalf("could not import testdata: %v", err)
+	}
+
+	check := func(name string, list []Directive, want string) {
+		if runtime.GOOS == "windows" {
+			want = strings.ReplaceAll(want, "testdata/directives/", `testdata\\directives\\`)
+		}
+		t.Helper()
+		s := fmt.Sprintf("%q", list)
+		if s != want {
+			t.Errorf("%s = %s, want %s", name, s, want)
+		}
+	}
+	check("Directives", p.Directives,
+		`[{"//go:main1" "testdata/directives/a.go:1:1"} {"//go:plant" "testdata/directives/eve.go:1:1"}]`)
+	check("TestDirectives", p.TestDirectives,
+		`[{"//go:test1" "testdata/directives/a_test.go:1:1"} {"//go:test2" "testdata/directives/b_test.go:1:1"}]`)
+	check("XTestDirectives", p.XTestDirectives,
+		`[{"//go:xtest1" "testdata/directives/c_test.go:1:1"} {"//go:xtest2" "testdata/directives/d_test.go:1:1"} {"//go:xtest3" "testdata/directives/d_test.go:2:1"}]`)
 }

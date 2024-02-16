@@ -157,7 +157,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, reason, traceEvGoBlockSync, 4+skipframes)
+		goparkunlock(&root.lock, reason, traceBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
@@ -191,7 +191,7 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 		unlock(&root.lock)
 		return
 	}
-	s, t0 := root.dequeue(addr)
+	s, t0, tailtime := root.dequeue(addr)
 	if s != nil {
 		root.nwait.Add(-1)
 	}
@@ -199,7 +199,28 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	if s != nil { // May be slow or even yield, so unlock first
 		acquiretime := s.acquiretime
 		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3+skipframes)
+			// Charge contention that this (delayed) unlock caused.
+			// If there are N more goroutines waiting beyond the
+			// one that's waking up, charge their delay as well, so that
+			// contention holding up many goroutines shows up as
+			// more costly than contention holding up a single goroutine.
+			// It would take O(N) time to calculate how long each goroutine
+			// has been waiting, so instead we charge avg(head-wait, tail-wait)*N.
+			// head-wait is the longest wait and tail-wait is the shortest.
+			// (When we do a lifo insertion, we preserve this property by
+			// copying the old head's acquiretime into the inserted new head.
+			// In that case the overall average may be slightly high, but that's fine:
+			// the average of the ends is only an approximation to the actual
+			// average anyway.)
+			// The root.dequeue above changed the head and tail acquiretime
+			// to the current time, so the next unlock will not re-count this contention.
+			dt0 := t0 - acquiretime
+			dt := dt0
+			if s.waiters != 0 {
+				dtail := t0 - tailtime
+				dt += (dtail + dt0) / 2 * int64(s.waiters)
+			}
+			mutexevent(dt, 3+skipframes)
 		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
@@ -248,6 +269,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	s.elem = unsafe.Pointer(addr)
 	s.next = nil
 	s.prev = nil
+	s.waiters = 0
 
 	var last *sudog
 	pt := &root.treap
@@ -258,7 +280,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 				// Substitute s in t's place in treap.
 				*pt = s
 				s.ticket = t.ticket
-				s.acquiretime = t.acquiretime
+				s.acquiretime = t.acquiretime // preserve head acquiretime as oldest time
 				s.parent = t.parent
 				s.prev = t.prev
 				s.next = t.next
@@ -274,6 +296,10 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 				if s.waittail == nil {
 					s.waittail = t
 				}
+				s.waiters = t.waiters
+				if s.waiters+1 != 0 {
+					s.waiters++
+				}
 				t.parent = nil
 				t.prev = nil
 				t.next = nil
@@ -287,6 +313,9 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 				}
 				t.waittail = s
 				s.waitlink = nil
+				if t.waiters+1 != 0 {
+					t.waiters++
+				}
 			}
 			return
 		}
@@ -309,7 +338,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	//
 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
 	// It will not affect treap's quality noticeably.
-	s.ticket = fastrand() | 1
+	s.ticket = cheaprand() | 1
 	s.parent = last
 	*pt = s
 
@@ -330,7 +359,10 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 // in semaRoot blocked on addr.
 // If the sudog was being profiled, dequeue returns the time
 // at which it was woken up as now. Otherwise now is 0.
-func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now int64) {
+// If there are additional entries in the wait list, dequeue
+// returns tailtime set to the last entry's acquiretime.
+// Otherwise tailtime is found.acquiretime.
+func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) {
 	ps := &root.treap
 	s := *ps
 	for ; s != nil; s = *ps {
@@ -343,7 +375,7 @@ func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now int64) {
 			ps = &s.next
 		}
 	}
-	return nil, 0
+	return nil, 0, 0
 
 Found:
 	now = int64(0)
@@ -368,7 +400,16 @@ Found:
 		} else {
 			t.waittail = nil
 		}
+		t.waiters = s.waiters
+		if t.waiters > 1 {
+			t.waiters--
+		}
+		// Set head and tail acquire time to 'now',
+		// because the caller will take care of charging
+		// the delays before now for all entries in the list.
 		t.acquiretime = now
+		tailtime = s.waittail.acquiretime
+		s.waittail.acquiretime = now
 		s.waitlink = nil
 		s.waittail = nil
 	} else {
@@ -390,13 +431,14 @@ Found:
 		} else {
 			root.treap = nil
 		}
+		tailtime = s.acquiretime
 	}
 	s.parent = nil
 	s.elem = nil
 	s.next = nil
 	s.prev = nil
 	s.ticket = 0
-	return s, now
+	return s, now, tailtime
 }
 
 // rotateLeft rotates the tree rooted at node x.
@@ -524,7 +566,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		l.tail.next = s
 	}
 	l.tail = s
-	goparkunlock(&l.lock, waitReasonSyncCondWait, traceEvGoBlockCond, 3)
+	goparkunlock(&l.lock, waitReasonSyncCondWait, traceBlockCondWait, 3)
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}

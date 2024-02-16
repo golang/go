@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"net/netip"
@@ -49,21 +48,21 @@ var lookupGoogleSRVTests = []struct {
 	cname, target        string
 }{
 	{
-		"xmpp-server", "tcp", "google.com",
+		"ldap", "tcp", "google.com",
 		"google.com.", "google.com.",
 	},
 	{
-		"xmpp-server", "tcp", "google.com.",
+		"ldap", "tcp", "google.com.",
 		"google.com.", "google.com.",
 	},
 
 	// non-standard back door
 	{
-		"", "", "_xmpp-server._tcp.google.com",
+		"", "", "_ldap._tcp.google.com",
 		"google.com.", "google.com.",
 	},
 	{
-		"", "", "_xmpp-server._tcp.google.com.",
+		"", "", "_ldap._tcp.google.com.",
 		"google.com.", "google.com.",
 	},
 }
@@ -71,14 +70,10 @@ var lookupGoogleSRVTests = []struct {
 var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 
 func TestLookupGoogleSRV(t *testing.T) {
-	// TODO(mknyszek): Figure out next steps for this test. This is just
-	// a quick fix.
-	t.Skip("fails consistently due to an upstream DNS change; see #56707.")
-
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -127,7 +122,7 @@ func TestLookupGmailMX(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -173,7 +168,7 @@ func TestLookupGmailNS(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -222,7 +217,7 @@ func TestLookupGmailTXT(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -637,10 +632,6 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	// TODO(mknyszek): Figure out next steps for this test. This is just
-	// a quick fix.
-	t.Skip("fails consistently due to an upstream DNS change; see #56707.")
-
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 27992)
 	}
@@ -651,7 +642,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -711,16 +702,16 @@ func testDots(t *testing.T, mode string) {
 		}
 	}
 
-	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+	cname, srvs, err := LookupSRV("ldap", "tcp", "google.com")
 	if err != nil {
-		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
+		t.Errorf("LookupSRV(ldap, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
 		if !hasSuffixFold(cname, ".google.com.") {
-			t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
+			t.Errorf("LookupSRV(ldap, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
 		}
 		for _, srv := range srvs {
 			if !hasSuffixFold(srv.Target, ".google.com.") {
-				t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
+				t.Errorf("LookupSRV(ldap, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
 				break
 			}
 		}
@@ -799,7 +790,7 @@ func TestLookupPort(t *testing.T) {
 
 	switch runtime.GOOS {
 	case "android":
-		if netGo {
+		if netGoBuildTag {
 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
 		}
 	default:
@@ -1036,10 +1027,10 @@ func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, addre
 // TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
 // PreferGo option used concurrently are all dialed properly.
 func TestConcurrentPreferGoResolversDial(t *testing.T) {
-	// The windows and plan9 implementation of the resolver does not use
-	// the Dial function.
 	switch runtime.GOOS {
-	case "windows", "plan9":
+	case "plan9":
+		// TODO: plan9 implementation of the resolver uses the Dial function since
+		// https://go.dev/cl/409234, this test could probably be reenabled.
 		t.Skipf("skip on %v", runtime.GOOS)
 	}
 
@@ -1405,4 +1396,253 @@ func TestDNSTimeout(t *testing.T) {
 	checkErr(err1)
 	checkErr(err2)
 	cancel()
+}
+
+func TestLookupNoData(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("not supported on plan9")
+	}
+
+	mustHaveExternalNetwork(t)
+
+	testLookupNoData(t, "default resolver")
+
+	func() {
+		defer forceGoDNS()()
+		testLookupNoData(t, "forced go resolver")
+	}()
+
+	func() {
+		defer forceCgoDNS()()
+		testLookupNoData(t, "forced cgo resolver")
+	}()
+}
+
+func testLookupNoData(t *testing.T, prefix string) {
+	attempts := 0
+	for {
+		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+		// so that it returns an empty response without any error codes (NXDOMAIN).
+		_, err := LookupHost("golang.rsc.io.")
+		if err == nil {
+			t.Errorf("%v: unexpected success", prefix)
+			return
+		}
+
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) {
+			succeeded := true
+			if !dnsErr.IsNotFound {
+				succeeded = false
+				t.Logf("%v: IsNotFound is set to false", prefix)
+			}
+
+			if dnsErr.Err != errNoSuchHost.Error() {
+				succeeded = false
+				t.Logf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
+			}
+
+			if succeeded {
+				return
+			}
+		}
+
+		testenv.SkipFlakyNet(t)
+		if attempts < len(backoffDuration) {
+			dur := backoffDuration[attempts]
+			t.Logf("%v: backoff %v after failure %v\n", prefix, dur, err)
+			time.Sleep(dur)
+			attempts++
+			continue
+		}
+
+		t.Errorf("%v: unexpected error: %v", prefix, err)
+		return
+	}
+}
+
+func TestLookupPortNotFound(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", "_-unknown-service-")
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// submissions service is only available through a tcp network, see:
+// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=submissions
+var tcpOnlyService = func() string {
+	// plan9 does not have submissions service defined in the service database.
+	if runtime.GOOS == "plan9" {
+		return "https"
+	}
+	return "submissions"
+}()
+
+func TestLookupPortDifferentNetwork(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", tcpOnlyService)
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortEmptyNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortIPNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("ip", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func allResolvers(t *testing.T, f func(t *testing.T)) {
+	t.Run("default resolver", f)
+	t.Run("forced go resolver", func(t *testing.T) {
+		if fixup := forceGoDNS(); fixup != nil {
+			defer fixup()
+			f(t)
+		}
+	})
+	t.Run("forced cgo resolver", func(t *testing.T) {
+		if fixup := forceCgoDNS(); fixup != nil {
+			defer fixup()
+			f(t)
+		}
+	})
+}
+
+func TestLookupNoSuchHost(t *testing.T) {
+	mustHaveExternalNetwork(t)
+
+	const testNXDOMAIN = "invalid.invalid."
+	const testNODATA = "_ldap._tcp.google.com."
+
+	tests := []struct {
+		name  string
+		query func() error
+	}{
+		{
+			name: "LookupCNAME NXDOMAIN",
+			query: func() error {
+				_, err := LookupCNAME(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NXDOMAIN",
+			query: func() error {
+				_, err := LookupHost(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NODATA",
+			query: func() error {
+				_, err := LookupHost(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NXDOMAIN",
+			query: func() error {
+				_, err := LookupMX(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NODATA",
+			query: func() error {
+				_, err := LookupMX(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NXDOMAIN",
+			query: func() error {
+				_, err := LookupNS(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NODATA",
+			query: func() error {
+				_, err := LookupNS(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupSRV NXDOMAIN",
+			query: func() error {
+				_, _, err := LookupSRV("unknown", "tcp", testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NXDOMAIN",
+			query: func() error {
+				_, err := LookupTXT(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NODATA",
+			query: func() error {
+				_, err := LookupTXT(testNODATA)
+				return err
+			},
+		},
+	}
+
+	for _, v := range tests {
+		t.Run(v.name, func(t *testing.T) {
+			allResolvers(t, func(t *testing.T) {
+				attempts := 0
+				for {
+					err := v.query()
+					if err == nil {
+						t.Errorf("unexpected success")
+						return
+					}
+					if dnsErr, ok := err.(*DNSError); ok {
+						succeeded := true
+						if !dnsErr.IsNotFound {
+							succeeded = false
+							t.Log("IsNotFound is set to false")
+						}
+						if dnsErr.Err != errNoSuchHost.Error() {
+							succeeded = false
+							t.Logf("error message is not equal to: %v", errNoSuchHost.Error())
+						}
+						if succeeded {
+							return
+						}
+					}
+					testenv.SkipFlakyNet(t)
+					if attempts < len(backoffDuration) {
+						dur := backoffDuration[attempts]
+						t.Logf("backoff %v after failure %v\n", dur, err)
+						time.Sleep(dur)
+						attempts++
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					return
+				}
+			})
+		})
+	}
 }

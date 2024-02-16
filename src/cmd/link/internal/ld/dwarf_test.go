@@ -8,6 +8,7 @@ import (
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"io"
 	"os"
@@ -24,6 +25,13 @@ import (
 	"cmd/link/internal/dwtest"
 )
 
+func mustHaveDWARF(t testing.TB) {
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Helper()
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
 const (
 	DefaultOpt = "-gcflags="
 	NoOpt      = "-gcflags=-l -N"
@@ -35,9 +43,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	dir := t.TempDir()
 
@@ -50,17 +56,16 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	}
 
 	want := map[string]bool{
-		"runtime._type":         true,
-		"runtime.arraytype":     true,
-		"runtime.chantype":      true,
-		"runtime.functype":      true,
-		"runtime.maptype":       true,
-		"runtime.ptrtype":       true,
-		"runtime.slicetype":     true,
-		"runtime.structtype":    true,
-		"runtime.interfacetype": true,
-		"runtime.itab":          true,
-		"runtime.imethod":       true,
+		"internal/abi.Type":          true,
+		"internal/abi.ArrayType":     true,
+		"internal/abi.ChanType":      true,
+		"internal/abi.FuncType":      true,
+		"internal/abi.MapType":       true,
+		"internal/abi.PtrType":       true,
+		"internal/abi.SliceType":     true,
+		"internal/abi.StructType":    true,
+		"internal/abi.InterfaceType": true,
+		"internal/abi.ITab":          true,
 	}
 
 	found := findTypes(t, dwarf, want)
@@ -135,13 +140,50 @@ func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *
 	return &builtFile{f, dst}
 }
 
+// Helper to build a snippet of source for examination with dwtest.Examiner.
+func gobuildAndExamine(t *testing.T, source string, gcflags string) (*dwarf.Data, *dwtest.Examiner) {
+	dir := t.TempDir()
+
+	f := gobuild(t, dir, source, gcflags)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF in program %q: %v", source, err)
+	}
+
+	rdr := d.Reader()
+	ex := &dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
+		t.Fatalf("error populating DWARF examiner for program %q: %v", source, err)
+	}
+
+	return d, ex
+}
+
+func findSubprogramDIE(t *testing.T, ex *dwtest.Examiner, sym string) *dwarf.Entry {
+	dies := ex.Named(sym)
+	if len(dies) == 0 {
+		t.Fatalf("unable to locate DIE for %s", sym)
+	}
+	if len(dies) != 1 {
+		t.Fatalf("more than one %s DIE: %+v", sym, dies)
+	}
+	die := dies[0]
+
+	// Vet the DIE.
+	if die.Tag != dwarf.TagSubprogram {
+		t.Fatalf("unexpected tag %v on %s DIE", die.Tag, sym)
+	}
+
+	return die
+}
+
 func TestEmbeddedStructMarker(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	const prog = `
 package main
@@ -188,7 +230,10 @@ func main() {
 		}
 		switch entry.Tag {
 		case dwarf.TagStructType:
-			name := entry.Val(dwarf.AttrName).(string)
+			name, ok := entry.Val(dwarf.AttrName).(string)
+			if !ok {
+				continue
+			}
 			wantMembers := want[name]
 			if wantMembers == nil {
 				continue
@@ -230,12 +275,10 @@ func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
 }
 
 func TestSizes(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	// External linking may bring in C symbols with unknown size. Skip.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 
@@ -279,9 +322,7 @@ func main() {
 }
 
 func TestFieldOverlap(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test grew out of issue 21094, where specific sudog<T> DWARF types
@@ -334,103 +375,272 @@ func main() {
 	}
 }
 
-func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
+func TestSubprogramDeclFileLine(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
+	mustHaveDWARF(t)
 
-	dir := t.TempDir()
+	const prog = `package main
+%s
+func main() {}
+`
+	tests := []struct {
+		name string
+		prog string
+		file string
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			file: "test.go",
+			line: 3,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			file: "foobar.go",
+			line: 200,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	f := gobuild(t, dir, prog, NoOpt)
-	defer f.Close()
+			d, ex := gobuildAndExamine(t, tc.prog, NoOpt)
 
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+			maindie := findSubprogramDIE(t, ex, "main.main")
 
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
 
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
+			fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
+			if !fileIdxOK {
+				t.Errorf("missing or invalid DW_AT_decl_file for main")
+			}
+			file, err := ex.FileRef(d, mainIdx, fileIdx)
+			if err != nil {
+				t.Fatalf("FileRef: %v", err)
+			}
+			base := filepath.Base(file)
+			if base != tc.file {
+				t.Errorf("DW_AT_decl_file for main is %v, want %v", base, tc.file)
+			}
 
-	// Vet the main.main DIE
-	if maindie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
-	}
-
-	// Walk main's children and select variable "i".
-	mainIdx := ex.IdxFromOffset(maindie.Offset)
-	childDies := ex.Children(mainIdx)
-	var iEntry *dwarf.Entry
-	for _, child := range childDies {
-		if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
-			iEntry = child
-			break
-		}
-	}
-	if iEntry == nil {
-		t.Fatalf("didn't find DW_TAG_variable for i in main.main")
-	}
-
-	// Verify line/file attributes.
-	line := iEntry.Val(dwarf.AttrDeclLine)
-	if line == nil || line.(int64) != int64(expectLine) {
-		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
-	}
-
-	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
-	if !fileIdxOK {
-		t.Errorf("missing or invalid DW_AT_decl_file for main")
-	}
-	file, err := ex.FileRef(d, mainIdx, fileIdx)
-	if err != nil {
-		t.Fatalf("FileRef: %v", err)
-	}
-	base := filepath.Base(file)
-	if base != expectFile {
-		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
+			line, lineOK := maindie.Val(dwarf.AttrDeclLine).(int64)
+			if !lineOK {
+				t.Errorf("missing or invalid DW_AT_decl_line for main")
+			}
+			if line != tc.line {
+				t.Errorf("DW_AT_decl_line for main is %v, want %d", line, tc.line)
+			}
+		})
 	}
 }
 
-func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+func TestVarDeclLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	mustHaveDWARF(t)
+
+	const prog = `package main
+%s
+func main() {
+
+	var i int
+	i = i
+}
+`
+	tests := []struct {
+		name string
+		prog string
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			line: 5,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			line: 202,
+		},
 	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", "test.go", 5, "")
+			_, ex := gobuildAndExamine(t, tc.prog, NoOpt)
+
+			maindie := findSubprogramDIE(t, ex, "main.main")
+
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
+			childDies := ex.Children(mainIdx)
+			var iEntry *dwarf.Entry
+			for _, child := range childDies {
+				if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
+					iEntry = child
+					break
+				}
+			}
+			if iEntry == nil {
+				t.Fatalf("didn't find DW_TAG_variable for i in main.main")
+			}
+
+			// Verify line/file attributes.
+			line, lineOK := iEntry.Val(dwarf.AttrDeclLine).(int64)
+			if !lineOK {
+				t.Errorf("missing or invalid DW_AT_decl_line for i")
+			}
+			if line != tc.line {
+				t.Errorf("DW_AT_decl_line for i is %v, want %d", line, tc.line)
+			}
+		})
+	}
 }
 
-func TestVarDeclCoordsWithLineDirective(t *testing.T) {
+// TestInlinedRoutineCallFileLine tests the call file and line records for an
+// inlined subroutine.
+func TestInlinedRoutineCallFileLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
-		"foobar.go", 202, "//line /foobar.go:200")
+	t.Parallel()
+
+	const prog = `
+package main
+
+var G int
+
+//go:noinline
+func notinlined() int {
+	return 42
 }
 
-func TestInlinedRoutineRecords(t *testing.T) {
+func inlined() int {
+	return notinlined()
+}
+
+%s
+func main() {
+	x := inlined()
+	G = x
+}
+`
+	tests := []struct {
+		name string
+		prog string
+		file string // basename
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			file: "test.go",
+			line: 17,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			file: "foobar.go",
+			line: 201,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Note: this is a build with "-l=4", as opposed to "-l -N". The
+			// test is intended to verify DWARF that is only generated when
+			// the inliner is active. We're only going to look at the DWARF for
+			// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+			// to "-gcflags=all=-l=4".
+			d, ex := gobuildAndExamine(t, tc.prog, OptInl4)
+
+			maindie := findSubprogramDIE(t, ex, "main.main")
+
+			// Walk main's children and pick out the inlined subroutines
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
+			childDies := ex.Children(mainIdx)
+			found := false
+			for _, child := range childDies {
+				if child.Tag != dwarf.TagInlinedSubroutine {
+					continue
+				}
+
+				// Found an inlined subroutine.
+				if found {
+					t.Fatalf("Found multiple inlined subroutines, expect only one")
+				}
+				found = true
+
+				// Locate abstract origin.
+				ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+				if !originOK {
+					t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+				}
+				originDIE := ex.EntryFromOffset(ooff)
+				if originDIE == nil {
+					t.Fatalf("can't locate origin DIE at off %v", ooff)
+				}
+
+				// Name should check out.
+				name, ok := originDIE.Val(dwarf.AttrName).(string)
+				if !ok {
+					t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
+				}
+				if name != "main.inlined" {
+					t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
+				}
+
+				// Verify that the call_file attribute for the inlined
+				// instance is ok. In this case it should match the file
+				// for the main routine. To do this we need to locate the
+				// compilation unit DIE that encloses what we're looking
+				// at; this can be done with the examiner.
+				cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
+				if !cfOK {
+					t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
+				}
+				file, err := ex.FileRef(d, mainIdx, cf)
+				if err != nil {
+					t.Errorf("FileRef: %v", err)
+					continue
+				}
+				base := filepath.Base(file)
+				if base != tc.file {
+					t.Errorf("bad call_file attribute, found '%s', want '%s'",
+						file, tc.file)
+				}
+
+				// Verify that the call_line attribute for the inlined
+				// instance is ok.
+				cl, clOK := child.Val(dwarf.AttrCallLine).(int64)
+				if !clOK {
+					t.Fatalf("no call_line attr for inlined subroutine at offset %v", child.Offset)
+				}
+				if cl != tc.line {
+					t.Errorf("bad call_line attribute, found %d, want %d", cl, tc.line)
+				}
+			}
+			if !found {
+				t.Fatalf("not enough inlined subroutines found in main.main")
+			}
+		})
+	}
+}
+
+// TestInlinedRoutineArgsVars tests the argument and variable records for an inlined subroutine.
+func TestInlinedRoutineArgsVars(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -449,139 +659,93 @@ func cand(x, y int) int {
 }
 
 func main() {
-    x := cand(G*G,G|7%G)
-    G = x
+	x := cand(G*G,G|7%G)
+	G = x
 }
 `
-	dir := t.TempDir()
-
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
 	// test is intended to verify DWARF that is only generated when
 	// the inliner is active. We're only going to look at the DWARF for
 	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
 	// to "-gcflags=all=-l=4".
-	f := gobuild(t, dir, prog, OptInl4)
-	defer f.Close()
+	_, ex := gobuildAndExamine(t, prog, OptInl4)
 
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	// The inlined subroutines we expect to visit
-	expectedInl := []string{"main.cand"}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
-
-	// Vet the main.main DIE
-	if maindie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
-	}
+	maindie := findSubprogramDIE(t, ex, "main.main")
 
 	// Walk main's children and pick out the inlined subroutines
 	mainIdx := ex.IdxFromOffset(maindie.Offset)
 	childDies := ex.Children(mainIdx)
-	exCount := 0
+	found := false
 	for _, child := range childDies {
-		if child.Tag == dwarf.TagInlinedSubroutine {
-			// Found an inlined subroutine, locate abstract origin.
-			ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
-			if !originOK {
-				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
-			}
-			originDIE := ex.EntryFromOffset(ooff)
-			if originDIE == nil {
-				t.Fatalf("can't locate origin DIE at off %v", ooff)
-			}
+		if child.Tag != dwarf.TagInlinedSubroutine {
+			continue
+		}
 
-			// Walk the children of the abstract subroutine. We expect
-			// to see child variables there, even if (perhaps due to
-			// optimization) there are no references to them from the
-			// inlined subroutine DIE.
-			absFcnIdx := ex.IdxFromOffset(ooff)
-			absFcnChildDies := ex.Children(absFcnIdx)
-			if len(absFcnChildDies) != 2 {
-				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
-			}
-			formalCount := 0
-			for _, absChild := range absFcnChildDies {
-				if absChild.Tag == dwarf.TagFormalParameter {
-					formalCount += 1
-					continue
-				}
-				t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
-			}
-			if formalCount != 2 {
-				t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
-			}
+		// Found an inlined subroutine.
+		if found {
+			t.Fatalf("Found multiple inlined subroutines, expect only one")
+		}
+		found = true
 
-			if exCount >= len(expectedInl) {
-				t.Fatalf("too many inlined subroutines found in main.main")
-			}
+		// Locate abstract origin.
+		ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+		if !originOK {
+			t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+		}
+		originDIE := ex.EntryFromOffset(ooff)
+		if originDIE == nil {
+			t.Fatalf("can't locate origin DIE at off %v", ooff)
+		}
 
-			// Name should check out.
-			expected := expectedInl[exCount]
-			if name, ok := originDIE.Val(dwarf.AttrName).(string); ok {
-				if name != expected {
-					t.Fatalf("expected inlined routine %s got %s", name, expected)
-				}
-			}
-			exCount++
+		// Name should check out.
+		name, ok := originDIE.Val(dwarf.AttrName).(string)
+		if !ok {
+			t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
+		}
+		if name != "main.cand" {
+			t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
+		}
 
-			// Verify that the call_file attribute for the inlined
-			// instance is ok. In this case it should match the file
-			// for the main routine. To do this we need to locate the
-			// compilation unit DIE that encloses what we're looking
-			// at; this can be done with the examiner.
-			cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
-			if !cfOK {
-				t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
-			}
-			file, err := ex.FileRef(d, mainIdx, cf)
-			if err != nil {
-				t.Errorf("FileRef: %v", err)
+		// Walk the children of the abstract subroutine. We expect
+		// to see child variables there, even if (perhaps due to
+		// optimization) there are no references to them from the
+		// inlined subroutine DIE.
+		absFcnIdx := ex.IdxFromOffset(ooff)
+		absFcnChildDies := ex.Children(absFcnIdx)
+		if len(absFcnChildDies) != 2 {
+			t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
+		}
+		formalCount := 0
+		for _, absChild := range absFcnChildDies {
+			if absChild.Tag == dwarf.TagFormalParameter {
+				formalCount += 1
 				continue
 			}
-			base := filepath.Base(file)
-			if base != "test.go" {
-				t.Errorf("bad call_file attribute, found '%s', want '%s'",
-					file, "test.go")
-			}
+			t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
+		}
+		if formalCount != 2 {
+			t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
+		}
 
-			omap := make(map[dwarf.Offset]bool)
+		omap := make(map[dwarf.Offset]bool)
 
-			// Walk the child variables of the inlined routine. Each
-			// of them should have a distinct abstract origin-- if two
-			// vars point to the same origin things are definitely broken.
-			inlIdx := ex.IdxFromOffset(child.Offset)
-			inlChildDies := ex.Children(inlIdx)
-			for _, k := range inlChildDies {
-				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
-				if !originOK {
-					t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
-				}
-				if _, found := omap[ooff]; found {
-					t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
-				}
-				omap[ooff] = true
+		// Walk the child variables of the inlined routine. Each
+		// of them should have a distinct abstract origin-- if two
+		// vars point to the same origin things are definitely broken.
+		inlIdx := ex.IdxFromOffset(child.Offset)
+		inlChildDies := ex.Children(inlIdx)
+		for _, k := range inlChildDies {
+			ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+			if !originOK {
+				t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
 			}
+			if _, found := omap[ooff]; found {
+				t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
+			}
+			omap[ooff] = true
 		}
 	}
-	if exCount != len(expectedInl) {
+	if !found {
 		t.Fatalf("not enough inlined subroutines found in main.main")
 	}
 }
@@ -666,9 +830,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "httptest")
@@ -681,9 +843,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
 		t.Skip("skipping on not-amd64 not-386; location lists not supported")
 	}
@@ -699,9 +859,7 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
 		abstractOriginSanity(t, gopathdir, DefaultOpt)
@@ -712,15 +870,9 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
-	}
+	mustHaveDWARF(t)
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
 }
@@ -730,17 +882,11 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	// Explicitly test external linking, for dsymutil compatibility on Darwin.
 	if runtime.GOARCH == "ppc64" {
 		t.Skip("-linkmode=external not supported on ppc64")
-	}
-
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
 	}
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
@@ -810,8 +956,8 @@ func main() {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
 
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-		return // everything is PIE on ARM64, addresses are relocated
+	if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH, false) {
+		return // everything is PIE, addresses are relocated
 	}
 	if rtAttr.(uint64)+types.Addr != addr {
 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
@@ -824,9 +970,7 @@ func TestIssue27614(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -938,9 +1082,7 @@ func TestStaticTmp(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -995,7 +1137,7 @@ func main() {
 	// TODO: maybe there is some way to tell the external linker not to put
 	// those symbols in the executable's symbol table? Prefix the symbol name
 	// with "." or "L" to pretend it is a label?
-	if !testenv.CanInternalLink() {
+	if !testenv.CanInternalLink(false) {
 		return
 	}
 
@@ -1016,9 +1158,7 @@ func TestPackageNameAttr(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1158,9 +1298,7 @@ func main() {
 func TestIssue38192(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1268,9 +1406,7 @@ func TestIssue38192(t *testing.T) {
 func TestIssue39757(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1321,20 +1457,12 @@ func TestIssue39757(t *testing.T) {
 		t.Fatalf("error parsing DWARF: %v", err)
 	}
 	rdr := dw.Reader()
-	ex := dwtest.Examiner{}
+	ex := &dwtest.Examiner{}
 	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
+	maindie := findSubprogramDIE(t, ex, "main.main")
 
 	// Collect the start/end PC for main.main
 	lowpc := maindie.Val(dwarf.AttrLowpc).(uint64)
@@ -1386,10 +1514,9 @@ func TestIssue39757(t *testing.T) {
 
 func TestIssue42484(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t, false) // Avoid spurious failures from external linkers.
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1517,9 +1644,7 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 func TestOutputParamAbbrevAndAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test verifies that the compiler is selecting the correct
@@ -1543,38 +1668,12 @@ func main() {
 	println(v1, v2, v3[0], v4, v5, v6)
 }
 `
-	dir := t.TempDir()
-	f := gobuild(t, dir, prog, NoOpt)
-	defer f.Close()
+	_, ex := gobuildAndExamine(t, prog, NoOpt)
 
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	// Locate the main.ABC DIE
-	abcs := ex.Named("main.ABC")
-	if len(abcs) == 0 {
-		t.Fatalf("unable to locate DIE for main.ABC")
-	}
-	if len(abcs) != 1 {
-		t.Fatalf("more than one main.ABC DIE")
-	}
-	abcdie := abcs[0]
-
-	// Vet the DIE
-	if abcdie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.ABC DIE", abcdie.Tag)
-	}
+	abcdie := findSubprogramDIE(t, ex, "main.ABC")
 
 	// Call a helper to collect param info.
-	found := processParams(abcdie, &ex)
+	found := processParams(abcdie, ex)
 
 	// Make sure we see all of the expected params in the proper
 	// order, that they have the varparam attr, and the varparam is
@@ -1592,9 +1691,7 @@ func TestDictIndex(t *testing.T) {
 	// have DIEs.
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	const prog = `
@@ -1688,9 +1785,7 @@ func main() {
 func TestOptimizedOutParamHandling(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test is intended to verify that the compiler emits DWARF
@@ -1775,20 +1870,7 @@ func main() {
 
 }
 `
-	dir := t.TempDir()
-	f := gobuild(t, dir, prog, DefaultOpt)
-	defer f.Close()
-
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+	_, ex := gobuildAndExamine(t, prog, DefaultOpt)
 
 	testcases := []struct {
 		tag      string
@@ -1815,22 +1897,10 @@ func main() {
 	for _, tc := range testcases {
 		// Locate the proper DIE
 		which := fmt.Sprintf("main.%s", tc.tag)
-		tcs := ex.Named(which)
-		if len(tcs) == 0 {
-			t.Fatalf("unable to locate DIE for " + which)
-		}
-		if len(tcs) != 1 {
-			t.Fatalf("more than one " + which + " DIE")
-		}
-		die := tcs[0]
-
-		// Vet the DIE
-		if die.Tag != dwarf.TagSubprogram {
-			t.Fatalf("unexpected tag %v on "+which+" DIE", die.Tag)
-		}
+		die := findSubprogramDIE(t, ex, which)
 
 		// Examine params for this subprogram.
-		foundParams := processParams(die, &ex)
+		foundParams := processParams(die, ex)
 		if foundParams != tc.expected {
 			t.Errorf("check failed for testcase %s -- wanted:\n%s\ngot:%s\n",
 				tc.tag, tc.expected, foundParams)
@@ -1842,9 +1912,7 @@ func TestIssue54320(t *testing.T) {
 	// emitted in the final binary
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1917,19 +1985,7 @@ func main() {
 	}
 }
 
-func TestZeroSizedVariable(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-	t.Parallel()
-
-	// This test verifies that the compiler emits DIEs for zero sized variables
-	// (for example variables of type 'struct {}').
-	// See go.dev/issues/54615.
-
-	const prog = `
+const zeroSizedVarProg = `
 package main
 
 import (
@@ -1942,30 +1998,80 @@ func main() {
 }
 `
 
+func TestZeroSizedVariable(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	// This test verifies that the compiler emits DIEs for zero sized variables
+	// (for example variables of type 'struct {}').
+	// See go.dev/issues/54615.
+
 	for _, opt := range []string{NoOpt, DefaultOpt} {
-		dir := t.TempDir()
-		f := gobuild(t, dir, prog, opt)
-		defer f.Close()
-		defer os.RemoveAll(dir)
+		opt := opt
+		t.Run(opt, func(t *testing.T) {
+			_, ex := gobuildAndExamine(t, zeroSizedVarProg, opt)
 
-		d, err := f.DWARF()
-		if err != nil {
-			t.Fatalf("error reading DWARF: %v", err)
-		}
+			// Locate the main.zeroSizedVariable DIE
+			abcs := ex.Named("zeroSizedVariable")
+			if len(abcs) == 0 {
+				t.Fatalf("unable to locate DIE for zeroSizedVariable")
+			}
+			if len(abcs) != 1 {
+				t.Fatalf("more than one zeroSizedVariable DIE")
+			}
+		})
+	}
+}
 
-		rdr := d.Reader()
-		ex := dwtest.Examiner{}
-		if err := ex.Populate(rdr); err != nil {
-			t.Fatalf("error reading DWARF: %v", err)
-		}
+func TestConsistentGoKindAndRuntimeType(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 
-		// Locate the main.zeroSizedVariable DIE
-		abcs := ex.Named("zeroSizedVariable")
-		if len(abcs) == 0 {
-			t.Fatalf("unable to locate DIE for zeroSizedVariable")
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	// Ensure that if we emit a "go runtime type" attr on a type DIE,
+	// we also include the "go kind" attribute. See issue #64231.
+	_, ex := gobuildAndExamine(t, zeroSizedVarProg, DefaultOpt)
+
+	// Walk all dies.
+	typesChecked := 0
+	failures := 0
+	for _, die := range ex.DIEs() {
+		// For any type DIE with DW_AT_go_runtime_type set...
+		rtt, hasRT := die.Val(intdwarf.DW_AT_go_runtime_type).(uint64)
+		if !hasRT || rtt == 0 {
+			continue
 		}
-		if len(abcs) != 1 {
-			t.Fatalf("more than one zeroSizedVariable DIE")
+		// ... except unsafe.Pointer...
+		if name, _ := die.Val(intdwarf.DW_AT_name).(string); name == "unsafe.Pointer" {
+			continue
 		}
+		typesChecked++
+		// ... we want to see a meaningful DW_AT_go_kind value.
+		if val, ok := die.Val(intdwarf.DW_AT_go_kind).(int64); !ok || val == 0 {
+			failures++
+			// dump DIEs for first 10 failures.
+			if failures <= 10 {
+				idx := ex.IdxFromOffset(die.Offset)
+				t.Logf("type DIE has DW_AT_go_runtime_type but invalid DW_AT_go_kind:\n")
+				ex.DumpEntry(idx, false, 0)
+			}
+			t.Errorf("bad type DIE at offset %d\n", die.Offset)
+		}
+	}
+	if typesChecked == 0 {
+		t.Fatalf("something went wrong, 0 types checked")
+	} else {
+		t.Logf("%d types checked\n", typesChecked)
 	}
 }

@@ -63,7 +63,9 @@ func kqueue() int32
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
 
 func pipe2(flags int32) (r, w int32, errno int32)
-func closeonexec(fd int32)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+
+func issetugid() int32
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -179,11 +181,11 @@ func osinit() {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -209,6 +211,7 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -296,8 +299,9 @@ func sysargs(argc int32, argv **byte) {
 	// skip NULL separator
 	n++
 
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	sysauxv(auxv[:])
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	pairs := sysauxv(auxvp[:])
+	auxv = auxvp[: pairs*2 : pairs*2]
 }
 
 const (
@@ -305,14 +309,16 @@ const (
 	_AT_PAGESZ = 6
 )
 
-func sysauxv(auxv []uintptr) {
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+func sysauxv(auxv []uintptr) (pairs int) {
+	var i int
+	for i = 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_PAGESZ:
 			physPageSize = val
 		}
 	}
+	return i / 2
 }
 
 // raise sends a signal to the calling thread.

@@ -123,18 +123,17 @@ func init() {
 
 	// Common individual register masks
 	var (
-		gp         = buildReg("R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31") // R1 is LR, R2 is thread pointer, R3 is stack pointer, R21-unused, R22 is g, R30 is REGTMP
-		gps        = buildReg("R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31") | buildReg("g")
+		gp         = buildReg("R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31") // R1 is LR, R2 is thread pointer, R3 is stack pointer, R22 is g, R30 is REGTMP
 		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
-		r1         = buildReg("R19")
-		r2         = buildReg("R18")
-		r3         = buildReg("R17")
-		r4         = buildReg("R4")
+		r1         = buildReg("R20")
+		r2         = buildReg("R21")
+		r3         = buildReg("R23")
+		r4         = buildReg("R24")
 	)
 	// Common regInfo
 	var (
@@ -142,7 +141,6 @@ func init() {
 		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp22      = regInfo{inputs: []regMask{gps, gps}, outputs: []regMask{gp, gp}}
 		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
 		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
@@ -163,10 +161,13 @@ func init() {
 		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                      // arg0 - arg1
 		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},   // arg0 - auxInt
 
-		{name: "MULV", argLength: 2, reg: gp22, resultNotInArgs: true, commutative: true, typ: "(Int64,Int64)"},    // arg0 * arg1, signed
-		{name: "MULVU", argLength: 2, reg: gp22, resultNotInArgs: true, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 * arg1, unsigned
-		{name: "DIVV", argLength: 2, reg: gp22, resultNotInArgs: true, typ: "(Int64,Int64)"},                       // arg0 / arg1, signed
-		{name: "DIVVU", argLength: 2, reg: gp22, resultNotInArgs: true, typ: "(UInt64,UInt64)"},                    // arg0 / arg1, unsigned
+		{name: "MULV", argLength: 2, reg: gp21, asm: "MULV", commutative: true, typ: "Int64"},      // arg0 * arg1
+		{name: "MULHV", argLength: 2, reg: gp21, asm: "MULHV", commutative: true, typ: "Int64"},    // (arg0 * arg1) >> 64, signed
+		{name: "MULHVU", argLength: 2, reg: gp21, asm: "MULHVU", commutative: true, typ: "UInt64"}, // (arg0 * arg1) >> 64, unsigned
+		{name: "DIVV", argLength: 2, reg: gp21, asm: "DIVV", typ: "Int64"},                         // arg0 / arg1, signed
+		{name: "DIVVU", argLength: 2, reg: gp21, asm: "DIVVU", typ: "UInt64"},                      // arg0 / arg1, unsigned
+		{name: "REMV", argLength: 2, reg: gp21, asm: "REMV", typ: "Int64"},                         // arg0 / arg1, signed
+		{name: "REMVU", argLength: 2, reg: gp21, asm: "REMVU", typ: "UInt64"},                      // arg0 / arg1, unsigned
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
@@ -272,31 +273,32 @@ func init() {
 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
 
 		// function calls
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R29"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R29"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// duffzero
 		// arg0 = address of memory to zero
 		// arg1 = mem
 		// auxint = offset into duffzero code to start executing
 		// returns mem
-		// R19 aka loong64.REGRT1 changed as side effect
+		// R20 aka loong64.REGRT1 changed as side effect
 		{
 			name:      "DUFFZERO",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{gp},
-				clobbers: buildReg("R19 R1"),
+				inputs:   []regMask{buildReg("R20")},
+				clobbers: buildReg("R20 R1"),
 			},
+			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// duffcopy
-		// arg0 = address of dst memory (in R20, changed as side effect) REGRT2
-		// arg1 = address of src memory (in R19, changed as side effect) REGRT1
+		// arg0 = address of dst memory (in R21, changed as side effect)
+		// arg1 = address of src memory (in R20, changed as side effect)
 		// arg2 = mem
 		// auxint = offset into duffcopy code to start executing
 		// returns mem
@@ -305,57 +307,56 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20"), buildReg("R19")},
-				clobbers: buildReg("R19 R20 R1"),
+				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
+				clobbers: buildReg("R20 R21 R1"),
 			},
+			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},
 
 		// large or unaligned zeroing
-		// arg0 = address of memory to zero (in R19, changed as side effect)
+		// arg0 = address of memory to zero (in R20, changed as side effect)
 		// arg1 = address of the last element to zero
 		// arg2 = mem
 		// auxint = alignment
 		// returns mem
-		//	SUBV	$8, R19
-		//	MOVV	R0, 8(R19)
-		//	ADDV	$8, R19
-		//	BNE	Rarg1, R19, -2(PC)
+		//	MOVx	R0, (R20)
+		//	ADDV	$sz, R20
+		//	BGEU	Rarg1, R20, -2(PC)
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R19"), gp},
-				clobbers: buildReg("R19"),
+				inputs:   []regMask{buildReg("R20"), gp},
+				clobbers: buildReg("R20"),
 			},
-			clobberFlags:   true,
+			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// large or unaligned move
-		// arg0 = address of dst memory (in R4, changed as side effect)
-		// arg1 = address of src memory (in R19, changed as side effect)
+		// arg0 = address of dst memory (in R21, changed as side effect)
+		// arg1 = address of src memory (in R20, changed as side effect)
 		// arg2 = address of the last element of src
 		// arg3 = mem
 		// auxint = alignment
 		// returns mem
-		//	SUBV	$8, R19
-		//	MOVV	8(R19), Rtmp
-		//	MOVV	Rtmp, (R4)
-		//	ADDV	$8, R19
-		//	ADDV	$8, R4
-		//	BNE	Rarg2, R19, -4(PC)
+		//	MOVx	(R20), Rtmp
+		//	MOVx	Rtmp, (R21)
+		//	ADDV	$sz, R20
+		//	ADDV	$sz, R21
+		//	BGEU	Rarg2, R20, -4(PC)
 		{
 			name:      "LoweredMove",
 			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R4"), buildReg("R19"), gp},
-				clobbers: buildReg("R19 R4"),
+				inputs:   []regMask{buildReg("R21"), buildReg("R20"), gp},
+				clobbers: buildReg("R20 R21"),
 			},
-			clobberFlags:   true,
+			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},
@@ -432,8 +433,8 @@ func init() {
 		// use of R22 (loong64.REGCTXT, the closure pointer)
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R29")}}, zeroWidth: true},
 
-		// LoweredGetCallerSP returns the SP of the caller of the current function.
-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
+		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
 
 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
 		// I.e., if f calls g "calls" getcallerpc,
@@ -441,11 +442,12 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
 		// It saves all GP registers if necessary,
 		// but clobbers R1 (LR) because it's a call
 		// and R30 (REGTMP).
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R27"), buildReg("R28")}, clobbers: (callerSave &^ gpg) | buildReg("R1")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in R29.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R1"), outputs: []regMask{buildReg("R29")}}, clobberFlags: true, aux: "Int64"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
@@ -474,8 +476,8 @@ func init() {
 		blocks:   blocks,
 		regnames: regNamesLOONG64,
 		// TODO: support register ABI on loong64
-		ParamIntRegNames:   "R4 R5 R6 R7 R8 R9 R10 R11",
-		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7",
+		ParamIntRegNames:   "R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19",
+		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
 		gpregmask:          gp,
 		fpregmask:          fp,
 		framepointerreg:    -1, // not used

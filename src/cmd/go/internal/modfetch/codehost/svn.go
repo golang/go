@@ -6,13 +6,17 @@ package codehost
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
+
+	"cmd/go/internal/base"
 )
 
 func svnParseStat(rev, out string) (*RevInfo, error) {
@@ -32,7 +36,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
-		Name:    fmt.Sprintf("%d", log.Logentry.Revision),
+		Name:    strconv.FormatInt(log.Logentry.Revision, 10),
 		Short:   fmt.Sprintf("%012d", log.Logentry.Revision),
 		Time:    t.UTC(),
 		Version: rev,
@@ -40,7 +44,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
 	return info, nil
 }
 
-func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) {
+func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) (err error) {
 	// The subversion CLI doesn't provide a command to write the repository
 	// directly to an archive, so we need to export it to the local filesystem
 	// instead. Unfortunately, the local filesystem might apply arbitrary
@@ -64,7 +68,11 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 		remotePath += "/" + subdir
 	}
 
-	out, err := Run(workDir, []string{
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	out, err := Run(ctx, workDir, []string{
 		"svn", "list",
 		"--non-interactive",
 		"--xml",
@@ -73,6 +81,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 		"--revision", rev,
 		"--", remotePath,
 	})
+	release()
 	if err != nil {
 		return err
 	}
@@ -96,7 +105,11 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 	}
 	defer os.RemoveAll(exportDir) // best-effort
 
-	_, err = Run(workDir, []string{
+	release, err = base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	_, err = Run(ctx, workDir, []string{
 		"svn", "export",
 		"--non-interactive",
 		"--quiet",
@@ -110,6 +123,7 @@ func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) 
 		"--", remotePath,
 		exportDir,
 	})
+	release()
 	if err != nil {
 		return err
 	}

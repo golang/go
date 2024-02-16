@@ -116,9 +116,9 @@ func (p Pos) RelCol() uint {
 // AbsFilename() returns the absolute filename recorded with the position's base.
 func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
 
-// SymFilename() returns the absolute filename recorded with the position's base,
-// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
-func (p Pos) SymFilename() string { return p.base.SymFilename() }
+// FileIndex returns the file index of the position's base's absolute
+// filename within the PosTable that it was registered.
+func (p Pos) FileIndex() int { return p.base.FileIndex() }
 
 func (p Pos) String() string {
 	return p.Format(true, true)
@@ -193,9 +193,9 @@ type PosBase struct {
 	pos         Pos    // position at which the relative position is (line, col)
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
-	symFilename string // cached symbol file name, to avoid repeated string concatenation
 	line, col   uint   // relative line, column number at pos
 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
+	fileIndex   int    // index of absFilename within PosTable.FileTable
 }
 
 // NewFileBase returns a new *PosBase for a file with the given (relative and
@@ -204,10 +204,10 @@ func NewFileBase(filename, absFilename string) *PosBase {
 	base := &PosBase{
 		filename:    filename,
 		absFilename: absFilename,
-		symFilename: FileSymPrefix + absFilename,
 		line:        1,
 		col:         1,
 		inl:         -1,
+		fileIndex:   -1,
 	}
 	base.pos = MakePos(base, 1, 1)
 	return base
@@ -220,24 +220,22 @@ func NewFileBase(filename, absFilename string) *PosBase {
 //
 // at position pos.
 func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
-	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
+	return &PosBase{pos, filename, absFilename, line, col, -1, -1}
 }
 
-// NewInliningBase returns a copy of the old PosBase with the given inlining
-// index. If old == nil, the resulting PosBase has no filename.
-func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
-	if old == nil {
-		base := &PosBase{line: 1, col: 1, inl: inlTreeIndex}
-		base.pos = MakePos(base, 1, 1)
-		return base
+// NewInliningBase returns a copy of the orig PosBase with the given inlining
+// index. If orig == nil, NewInliningBase panics.
+func NewInliningBase(orig *PosBase, inlTreeIndex int) *PosBase {
+	if orig == nil {
+		panic("no old PosBase")
 	}
-	copy := *old
-	base := &copy
+	base := *orig
 	base.inl = inlTreeIndex
-	if old == old.pos.base {
-		base.pos.base = base
+	base.fileIndex = -1
+	if orig == orig.pos.base {
+		base.pos.base = &base
 	}
-	return base
+	return &base
 }
 
 var noPos Pos
@@ -269,16 +267,21 @@ func (b *PosBase) AbsFilename() string {
 	return ""
 }
 
+// FileSymPrefix is the linker symbol prefix that used to be used for
+// linker pseudo-symbols representing file names.
 const FileSymPrefix = "gofile.."
 
-// SymFilename returns the absolute filename recorded with the base,
-// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
-// If b is nil, SymFilename returns FileSymPrefix + "??".
-func (b *PosBase) SymFilename() string {
+// FileIndex returns the index of the base's absolute filename within
+// its PosTable's FileTable. It panics if it hasn't been registered
+// with a PosTable. If b == nil, the result is -1.
+func (b *PosBase) FileIndex() int {
 	if b != nil {
-		return b.symFilename
+		if b.fileIndex < 0 {
+			panic("PosBase has no file index")
+		}
+		return b.fileIndex
 	}
-	return FileSymPrefix + "??"
+	return -1
 }
 
 // Line returns the line number recorded with the base.
@@ -434,7 +437,7 @@ func (x lico) withIsStmt() lico {
 	return x.withStmt(PosIsStmt)
 }
 
-// withLogue attaches a prologue/epilogue attribute to a lico
+// withXlogue attaches a prologue/epilogue attribute to a lico
 func (x lico) withXlogue(xlogue PosXlogue) lico {
 	if x == 0 {
 		if xlogue == 0 {

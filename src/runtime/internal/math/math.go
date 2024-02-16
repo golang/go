@@ -38,3 +38,18 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	lo = x * y
 	return
 }
+
+// Add64 returns the sum with carry of x, y and carry: sum = x + y + carry.
+// The carry input must be 0 or 1; otherwise the behavior is undefined.
+// The carryOut output is guaranteed to be 0 or 1.
+//
+// This function's execution time does not depend on the inputs.
+// On supported platforms this is an intrinsic lowered by the compiler.
+func Add64(x, y, carry uint64) (sum, carryOut uint64) {
+	sum = x + y + carry
+	// The sum will overflow if both top bits are set (x & y) or if one of them
+	// is (x | y), and a carry from the lower place happened. If such a carry
+	// happens, the top bit will be 1 + 0 + 1 = 0 (&^ sum).
+	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
+	return
+}

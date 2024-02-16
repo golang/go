@@ -48,7 +48,7 @@
 
 // For P9 instruction emulation
 #define ESPERM  V21  // Endian swapping permute into BE
-#define TMP2    V22  // Temporary for P8_STXVB16X/P8_STXV
+#define TMP2    V22  // Temporary for P8_STXVB16X/P8_STXVB16X
 
 // For {en,de}cryptBlockAsm
 #define BLK_INP    R3
@@ -69,8 +69,15 @@ DATA ·rcon+0x40(SB)/8, $0x0000000000000000
 DATA ·rcon+0x48(SB)/8, $0x0000000000000000
 GLOBL ·rcon(SB), RODATA, $80
 
-// Emulate unaligned BE vector load/stores on LE targets
 #ifdef GOARCH_ppc64le
+#  ifdef GOPPC64_power9
+#define P8_LXVB16X(RA,RB,VT)  LXVB16X	(RA+RB), VT
+#define P8_STXVB16X(VS,RA,RB) STXVB16X	VS, (RA+RB)
+#define XXBRD_ON_LE(VA,VT)    XXBRD	VA, VT
+#  else
+// On POWER8/ppc64le, emulate the POWER9 instructions by loading unaligned
+// doublewords and byte-swapping each doubleword to emulate BE load/stores.
+#define NEEDS_ESPERM
 #define P8_LXVB16X(RA,RB,VT) \
 	LXVD2X	(RA+RB), VT \
 	VPERM	VT, VT, ESPERM, VT
@@ -79,19 +86,15 @@ GLOBL ·rcon(SB), RODATA, $80
 	VPERM	VS, VS, ESPERM, TMP2 \
 	STXVD2X	TMP2, (RA+RB)
 
-#define LXSDX_BE(RA,RB,VT) \
-	LXSDX	(RA+RB), VT \
-	VPERM	VT, VT, ESPERM, VT
+#define XXBRD_ON_LE(VA,VT) \
+	VPERM	VA, VA, ESPERM, VT
+
+#  endif // defined(GOPPC64_power9)
 #else
-#define P8_LXVB16X(RA,RB,VT) \
-	LXVD2X	(RA+RB), VT
-
-#define P8_STXVB16X(VS,RA,RB) \
-	STXVD2X	VS, (RA+RB)
-
-#define LXSDX_BE(RA,RB,VT) \
-	LXSDX	(RA+RB), VT
-#endif
+#define P8_LXVB16X(RA,RB,VT)  LXVD2X	(RA+RB), VT
+#define P8_STXVB16X(VS,RA,RB) STXVD2X	VS, (RA+RB)
+#define XXBRD_ON_LE(VA, VT)
+#endif // defined(GOARCH_ppc64le)
 
 // func setEncryptKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
@@ -101,7 +104,7 @@ TEXT ·expandKeyAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	enc+16(FP), OUTENC
 	MOVD	dec+24(FP), OUTDEC
 
-#ifdef GOARCH_ppc64le
+#ifdef NEEDS_ESPERM
 	MOVD	$·rcon(SB), PTR // PTR points to rcon addr
 	LVX	(PTR), ESPERM
 	ADD	$0x10, PTR
@@ -191,7 +194,8 @@ loop128:
 	RET
 
 l192:
-	LXSDX_BE(INP, R0, IN1)                   // Load next 8 bytes into upper half of VSR in BE order.
+	LXSDX	(INP+R0), IN1                    // Load next 8 bytes into upper half of VSR.
+	XXBRD_ON_LE(IN1, IN1)                    // and convert to BE ordering on LE hosts.
 	MOVD	$4, CNT                          // li 7,4
 	STXVD2X	IN0, (R0+OUTENC)
 	STXVD2X	IN0, (R0+OUTDEC)
@@ -309,7 +313,7 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
-#ifdef GOARCH_ppc64le
+#ifdef NEEDS_ESPERM
 	MOVD	$·rcon(SB), R7
 	LVX	(R7), ESPERM   // Permute value for P8_ macros.
 #endif
@@ -404,7 +408,7 @@ TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
-#ifdef GOARCH_ppc64le
+#ifdef NEEDS_ESPERM
 	MOVD	$·rcon(SB), R7
 	LVX	(R7), ESPERM   // Permute value for P8_ macros.
 #endif
@@ -622,7 +626,7 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 	MOVD	enc+40(FP), ENC
 	MOVD	nr+48(FP), ROUNDS
 
-#ifdef GOARCH_ppc64le
+#ifdef NEEDS_ESPERM
 	MOVD	$·rcon(SB), R11
 	LVX	(R11), ESPERM   // Permute value for P8_ macros.
 #endif
@@ -640,7 +644,7 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 
 	BEQ	Lcbc_dec
 
-	PCALIGN $32
+	PCALIGN $16
 Lcbc_enc:
 	P8_LXVB16X(INP, R0, INOUT)
 	ADD	$16, INP
@@ -655,7 +659,7 @@ Lcbc_enc:
 	CLEAR_KEYS()
 	RET
 
-	PCALIGN $32
+	PCALIGN $16
 Lcbc_dec:
 	P8_LXVB16X(INP, R0, TMP)
 	ADD	$16, INP

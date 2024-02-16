@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -64,7 +65,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
 
-	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64") {
+	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64") {
 		// This may be ncpu < 2 related...
 		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
 	}
@@ -75,13 +76,22 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	if strings.Contains(os.Getenv("GOFLAGS"), "mayMoreStackPreempt") {
+		// This test occasionally times out in this debug mode. This is probably
+		// revealing a real bug in the scheduler, but since it seems to only
+		// affect this test and this is itself a test of a debug mode, it's not
+		// a high priority.
+		testenv.SkipFlaky(t, 55160)
+	}
+
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(exe, "CrashDumpsAllThreads")
+	cmd := testenv.Command(t, exe, "CrashDumpsAllThreads")
 	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Dir = t.TempDir() // put any core file in tempdir
 	cmd.Env = append(cmd.Env,
 		"GOTRACEBACK=crash",
 		// Set GOGC=off. Because of golang.org/issue/10958, the tight
@@ -155,6 +165,7 @@ func TestPanicSystemstack(t *testing.T) {
 	t.Parallel()
 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
 	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Dir = t.TempDir() // put any core file in tempdir
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -198,10 +209,18 @@ func TestPanicSystemstack(t *testing.T) {
 
 	// Traceback should have two testPanicSystemstackInternal's
 	// and two blockOnSystemStackInternal's.
-	if bytes.Count(tb, []byte("testPanicSystemstackInternal")) != 2 {
-		t.Fatal("traceback missing user stack:\n", string(tb))
-	} else if bytes.Count(tb, []byte("blockOnSystemStackInternal")) != 2 {
-		t.Fatal("traceback missing system stack:\n", string(tb))
+	userFunc := "testPanicSystemstackInternal"
+	sysFunc := "blockOnSystemStackInternal"
+	nUser := bytes.Count(tb, []byte(userFunc))
+	nSys := bytes.Count(tb, []byte(sysFunc))
+	if nUser != 2 || nSys != 2 {
+		t.Fatalf("want %d user stack frames in %s and %d system stack frames in %s, got %d and %d:\n%s", 2, userFunc, 2, sysFunc, nUser, nSys, string(tb))
+	}
+
+	// Traceback should not contain "unexpected SPWRITE" when
+	// unwinding the system stacks.
+	if bytes.Contains(tb, []byte("unexpected SPWRITE")) {
+		t.Errorf("unexpected \"unexpected SPWRITE\" in traceback:\n%s", tb)
 	}
 }
 

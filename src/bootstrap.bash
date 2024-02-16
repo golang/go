@@ -21,8 +21,14 @@
 set -e
 
 if [ "$GOOS" = "" -o "$GOARCH" = "" ]; then
-	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash" >&2
+	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash [-force]" >&2
 	exit 2
+fi
+
+forceflag=""
+if [ "$1" = "-force" ]; then
+	forceflag=-force
+	shift
 fi
 
 targ="../../go-${GOOS}-${GOARCH}-bootstrap"
@@ -47,7 +53,7 @@ echo
 echo "#### Building $targ"
 echo
 cd src
-./make.bash --no-banner
+./make.bash --no-banner $forceflag
 gohostos="$(../bin/go env GOHOSTOS)"
 gohostarch="$(../bin/go env GOHOSTARCH)"
 goos="$(../bin/go env GOOS)"

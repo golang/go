@@ -13,6 +13,13 @@ import (
 	"math"
 )
 
+type ModeMergePolicy uint8
+
+const (
+	ModeMergeStrict ModeMergePolicy = iota
+	ModeMergeRelaxed
+)
+
 // Merger provides state and methods to help manage the process of
 // merging together coverage counter data for a given function, for
 // tools that need to implicitly merge counter as they read multiple
@@ -20,7 +27,12 @@ import (
 type Merger struct {
 	cmode    coverage.CounterMode
 	cgran    coverage.CounterGranularity
+	policy   ModeMergePolicy
 	overflow bool
+}
+
+func (cm *Merger) SetModeMergePolicy(policy ModeMergePolicy) {
+	cm.policy = policy
 }
 
 // MergeCounters takes the counter values in 'src' and merges them
@@ -56,7 +68,7 @@ func (m *Merger) SaturatingAdd(dst, src uint32) uint32 {
 	return result
 }
 
-// Saturating add does a saturing addition of 'dst' and 'src',
+// Saturating add does a saturating addition of 'dst' and 'src',
 // returning added value or math.MaxUint32 plus an overflow flag.
 func SaturatingAdd(dst, src uint32) (uint32, bool) {
 	d, s := uint64(dst), uint64(src)
@@ -72,20 +84,31 @@ func SaturatingAdd(dst, src uint32) (uint32, bool) {
 // SetModeAndGranularity records the counter mode and granularity for
 // the current merge. In the specific case of merging across coverage
 // data files from different binaries, where we're combining data from
-// more than one meta-data file, we need to check for mode/granularity
-// clashes.
+// more than one meta-data file, we need to check for and resolve
+// mode/granularity clashes.
 func (cm *Merger) SetModeAndGranularity(mdf string, cmode coverage.CounterMode, cgran coverage.CounterGranularity) error {
-	// Collect counter mode and granularity so as to detect clashes.
-	if cm.cmode != coverage.CtrModeInvalid {
-		if cm.cmode != cmode {
-			return fmt.Errorf("counter mode clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cmode.String(), cmode.String())
-		}
+	if cm.cmode == coverage.CtrModeInvalid {
+		// Set merger mode based on what we're seeing here.
+		cm.cmode = cmode
+		cm.cgran = cgran
+	} else {
+		// Granularity clashes are always errors.
 		if cm.cgran != cgran {
 			return fmt.Errorf("counter granularity clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cgran.String(), cgran.String())
 		}
+		// Mode clashes are treated as errors if we're using the
+		// default strict policy.
+		if cm.cmode != cmode {
+			if cm.policy == ModeMergeStrict {
+				return fmt.Errorf("counter mode clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cmode.String(), cmode.String())
+			}
+			// In the case of a relaxed mode merge policy, upgrade
+			// mode if needed.
+			if cm.cmode < cmode {
+				cm.cmode = cmode
+			}
+		}
 	}
-	cm.cmode = cmode
-	cm.cgran = cgran
 	return nil
 }
 

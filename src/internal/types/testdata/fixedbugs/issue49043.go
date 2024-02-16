@@ -6,13 +6,13 @@ package p
 
 // The example from the issue.
 type (
-	N[P any] M /* ERROR invalid recursive type */ [P]
+	N[P any] M /* ERROR "invalid recursive type" */ [P]
 	M[P any] N[P]
 )
 
 // A slightly more complicated case.
 type (
-	A[P any] B /* ERROR invalid recursive type */ [P]
+	A[P any] B /* ERROR "invalid recursive type" */ [P]
 	B[P any] C[P]
 	C[P any] A[P]
 )

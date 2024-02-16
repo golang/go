@@ -10,6 +10,7 @@ const (
 	_SYS_setgroups  = SYS_SETGROUPS
 	_SYS_clone3     = 435
 	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
 )
 
 //sys	Dup2(oldfd int, newfd int) (err error)
@@ -36,7 +37,7 @@ const (
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
@@ -241,6 +242,12 @@ func Shutdown(s, how int) (err error) {
 		err = e
 	}
 	return
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 func (r *PtraceRegs) PC() uint64 { return r.Psw.Addr }

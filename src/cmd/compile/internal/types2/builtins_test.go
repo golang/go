@@ -7,7 +7,6 @@ package types2_test
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
-	"strings"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -43,8 +42,6 @@ var builtinCalls = []struct {
 
 	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
 	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
-	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
-	{"clear", `var s P; clear(s)`, `func(P)`},
 
 	{"close", `var c chan int; close(c)`, `func(chan int)`},
 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
@@ -79,7 +76,7 @@ var builtinCalls = []struct {
 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
 
-	// issue #37349
+	// go.dev/issue/37349
 	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
 	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
 	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
@@ -87,7 +84,7 @@ var builtinCalls = []struct {
 	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
 	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
 
-	// issue #37393
+	// go.dev/issue/37393
 	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
 	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
 	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
@@ -95,8 +92,20 @@ var builtinCalls = []struct {
 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
 
-	// issue #45667
+	// go.dev/issue/45667
 	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+
+	{"max", `               _ = max(0        )`, `invalid type`}, // constant
+	{"max", `var x int    ; _ = max(x        )`, `func(int) int`},
+	{"max", `var x int    ; _ = max(0, x     )`, `func(int, int) int`},
+	{"max", `var x string ; _ = max("a", x   )`, `func(string, string) string`},
+	{"max", `var x float32; _ = max(0, 1.0, x)`, `func(float32, float32, float32) float32`},
+
+	{"min", `               _ = min(0        )`, `invalid type`}, // constant
+	{"min", `var x int    ; _ = min(x        )`, `func(int) int`},
+	{"min", `var x int    ; _ = min(0, x     )`, `func(int, int) int`},
+	{"min", `var x string ; _ = min("a", x   )`, `func(string, string) string`},
+	{"min", `var x float32; _ = min(0, 1.0, x)`, `func(float32, float32, float32) float32`},
 
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
@@ -172,27 +181,12 @@ func TestBuiltinSignatures(t *testing.T) {
 	}
 }
 
-func parseGenericSrc(path, src string) (*syntax.File, error) {
-	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
-}
-
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parseGenericSrc("", src)
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
 
-	conf := Config{Importer: defaultImporter()}
 	uses := make(map[*syntax.Name]Object)
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Uses: uses, Types: types})
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
+	mustTypecheck(src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

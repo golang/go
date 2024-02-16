@@ -301,7 +301,7 @@ const (
 	Py   = 0x80 // defaults to 64-bit mode
 	Py1  = 0x81 // symbolic; exact value doesn't matter
 	Py3  = 0x83 // symbolic; exact value doesn't matter
-	Pavx = 0x84 // symbolic: exact value doesn't matter
+	Pavx = 0x84 // symbolic; exact value doesn't matter
 
 	RxrEvex = 1 << 4 // AVX512 extension to REX.R/VEX.R
 	Rxw     = 1 << 3 // =1, 64-bit operand size
@@ -775,7 +775,7 @@ var ymshufb = []ytab{
 }
 
 // It should never have more than 1 entry,
-// because some optab entries you opcode secuences that
+// because some optab entries have opcode sequences that
 // are longer than 2 bytes (zoffset=2 here),
 // ROUNDPD and ROUNDPS and recently added BLENDPD,
 // to name a few.
@@ -1774,6 +1774,7 @@ var optab =
 	{ALSSW, ym_rl, Pe, opBytes{0x0f, 0xb2}},
 	{ALSSL, ym_rl, Px, opBytes{0x0f, 0xb2}},
 	{ALSSQ, ym_rl, Pw, opBytes{0x0f, 0xb2}},
+	{ARDPID, yrdrand, Pf3, opBytes{0xc7, 07}},
 
 	{ABLENDPD, yxshuf, Pq, opBytes{0x3a, 0x0d, 0}},
 	{ABLENDPS, yxshuf, Pq, opBytes{0x3a, 0x0c, 0}},
@@ -1977,7 +1978,7 @@ func fusedJump(p *obj.Prog) (bool, uint8) {
 type padJumpsCtx int32
 
 func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
-	// Disable jump padding on 32 bit builds by settting
+	// Disable jump padding on 32 bit builds by setting
 	// padJumps to 0.
 	if ctxt.Arch.Family == sys.I386 {
 		return padJumpsCtx(0)
@@ -2033,6 +2034,31 @@ func (pjc padJumpsCtx) reAssemble(p *obj.Prog) bool {
 type nopPad struct {
 	p *obj.Prog // Instruction before the pad
 	n int32     // Size of the pad
+}
+
+// Padding bytes to add to align code as requested.
+// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+//
+// pc: current offset in function, in bytes
+// a: requested alignment, in bytes
+// cursym: current function being assembled
+// returns number of bytes of padding needed
+func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
+		return 0
+	}
+
+	// By default function alignment is 32 bytes for amd64
+	if cursym.Func().Align < int32(a) {
+		cursym.Func().Align = int32(a)
+	}
+
+	if pc&(a-1) != 0 {
+		return int(a - (pc & (a - 1)))
+	}
+
+	return 0
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -2117,6 +2143,19 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		for p := s.Func().Text; p != nil; p = p.Link {
 			c0 := c
 			c = pjc.padJump(ctxt, s, p, c)
+
+			if p.As == obj.APCALIGN {
+				aln := p.From.Offset
+				v := addpad(int64(c), aln, ctxt, s)
+				if v > 0 {
+					s.Grow(int64(c) + int64(v))
+					fillnop(s.P[c:], int(v))
+				}
+
+				c += int32(v)
+				pPrev = p
+				continue
+			}
 
 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
 				// pad with NOPs
@@ -2551,22 +2590,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		}
 	}
 
-	if ctxt.Arch.Family == sys.I386 {
-		if a.Index == REG_TLS && ctxt.Flag_shared {
-			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL off(CX)(TLS*1), AX
-			// becomes
-			//     mov %gs:off(%ecx), %eax
-			// which assumes that the correct TLS offset has been loaded into %ecx (today
-			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), %eax
-			// and a R_TLS_LE relocation, and so does not require a prefix.
-			return 0x65 // GS
-		}
-		return 0
-	}
-
 	switch a.Index {
 	case REG_CS:
 		return 0x2e
@@ -2582,11 +2605,18 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:off(%rcx), %rax
-			// which assumes that the correct TLS offset has been loaded into %rcx (today
+			//     mov %gs:off(%ecx), %eax // on i386
+			//     mov %fs:off(%rcx), %rax // on amd64
+			// which assumes that the correct TLS offset has been loaded into CX (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction does not require a prefix.
-			return 0x64
+			// a shared library the instruction it becomes
+			//     mov 0x0(%ecx), %eax // on i386
+			//     mov 0x0(%rcx), %rax // on amd64
+			// and a R_TLS_LE relocation, and so does not require a prefix.
+			if ctxt.Arch.Family == sys.I386 {
+				return 0x65 // GS
+			}
+			return 0x64 // FS
 		}
 
 	case REG_FS:
@@ -3725,7 +3755,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
-			!(ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64) {
+			ctxt.Headtype != objabi.Hwindows {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -4079,6 +4109,16 @@ func (ab *AsmBuf) asmevex(ctxt *obj.Link, p *obj.Prog, rm, v, r, k *obj.Addr) {
 		if !evex.ZeroingEnabled() {
 			ctxt.Diag("unsupported zeroing: %v", p)
 		}
+		if k == nil {
+			// When you request zeroing you must specify a mask register.
+			// See issue 57952.
+			ctxt.Diag("mask register must be specified for .Z instructions: %v", p)
+		} else if k.Reg == REG_K0 {
+			// The mask register must not be K0. That restriction is already
+			// handled by the Yknot0 restriction in the opcode tables, so we
+			// won't ever reach here. But put something sensible here just in case.
+			ctxt.Diag("mask register must not be K0 for .Z instructions: %v", p)
+		}
 		evexZ = 1
 	}
 	switch {
@@ -4241,6 +4281,11 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		AVPGATHERQD,
 		AVPGATHERDQ,
 		AVPGATHERQQ:
+		if p.GetFrom3() == nil {
+			// gathers need a 3rd arg. See issue 58822.
+			ctxt.Diag("need a third arg for gather instruction: %v", p)
+			return
+		}
 		// AVX512 gather requires explicit K mask.
 		if p.GetFrom3().Reg >= REG_K0 && p.GetFrom3().Reg <= REG_K7 {
 			if !avx512gatherValid(ctxt, p) {
@@ -5136,19 +5181,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							pp.From.Offset = 0
 							pp.From.Index = REG_NONE
 							ab.Put1(0x8B)
-							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-						case objabi.Hwindows:
-							// Windows TLS base is always 0x14(FS).
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Reg = REG_FS
-							pp.From.Offset = 0x14
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ab.Put2(0x64, // FS
-								0x8B)
 							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 						}
 						break

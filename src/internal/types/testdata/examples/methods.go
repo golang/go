@@ -28,7 +28,7 @@ var _ int = x.m1()
 // It cannot possibly be some other type because the receiver type is not
 // instantiated with concrete types, it is standing for the parameterized
 // receiver type.
-func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+func (t T1[[ /* ERROR "must be an identifier" */ ]int]) m2() {}
 
 // Note that using what looks like a predeclared identifier, say int,
 // as type parameter in this situation is deceptive and considered bad
@@ -39,7 +39,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
 // and usually should be avoided. There are some notable exceptions; e.g.,
 // sometimes it makes sense to use the identifier "copy" which happens to
 // also be the name of a predeclared built-in function.
-func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot use 42 .* as int */ }
+func (t T1[int]) m3() { var _ int = 42 /* ERRORx `cannot use 42 .* as int` */ }
 
 // The names of the type parameters used in a parameterized receiver
 // type don't have to match the type parameter names in the declaration
@@ -58,7 +58,7 @@ func (t T1[X]) m4() X { return t.a }
 // simply that such receiver type expressions perform two tasks simultaneously:
 // they declare the (local) type parameters and then use them to instantiate
 // the receiver type. Forgetting to provide a type parameter leads to an error.
-func (t T1 /* ERROR generic type .* without instantiation */ ) m5() {}
+func (t T1 /* ERRORx `generic type .* without instantiation` */ ) m5() {}
 
 // However, sometimes we don't need the type parameter, and thus it is
 // inconvenient to have to choose a name. Since the receiver type expression
@@ -105,8 +105,8 @@ func (T1[A]) _() {}
 // 
 // type T3b[P interface{ ~unsafe.Pointer }] P
 // 
-// func (T3b /* ERROR invalid receiver */ [_]) m() {}
+// func (T3b /* ERROR "invalid receiver" */ [_]) m() {}
 // 
 // type T3c[P interface{ *int | *string }] P
 // 
-// func (T3c /* ERROR invalid receiver */ [_]) m() {}
+// func (T3c /* ERROR "invalid receiver" */ [_]) m() {}

@@ -16,6 +16,6 @@ func f[V interface{}, A, B Box[V]]() {}
 
 func _() {
 	f[int, Optional[int], Optional[int]]()
-	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
-	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not implement Box.* */ [string]]
+	_ = f[int, Optional[int], Optional /* ERROR "does not satisfy Box" */ [string]]
+	_ = f[int, Optional[int], Optional /* ERRORx "Optional.* does not satisfy Box.*" */ [string]]
 }

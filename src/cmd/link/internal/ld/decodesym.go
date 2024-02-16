@@ -11,25 +11,13 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"encoding/binary"
+	"internal/abi"
 	"log"
 )
 
 // Decoding the type.* symbols.	 This has to be in sync with
 // ../../runtime/type.go, or more specifically, with what
 // cmd/compile/internal/reflectdata/reflect.go stuffs in these.
-
-// tflag is documented in reflect/type.go.
-//
-// tflag values must be kept in sync with copies in:
-//
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	reflect/type.go
-//	runtime/type.go
-const (
-	tflagUncommon  = 1 << 0
-	tflagExtraStar = 1 << 1
-)
 
 func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
 	switch sz {
@@ -45,9 +33,9 @@ func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
 	}
 }
 
-func commonsize(arch *sys.Arch) int      { return 4*arch.PtrSize + 8 + 8 } // runtime._type
-func structfieldSize(arch *sys.Arch) int { return 3 * arch.PtrSize }       // runtime.structfield
-func uncommonSize() int                  { return 4 + 2 + 2 + 4 + 4 }      // runtime.uncommontype
+func commonsize(arch *sys.Arch) int      { return abi.CommonSize(arch.PtrSize) }      // runtime._type
+func structfieldSize(arch *sys.Arch) int { return abi.StructFieldSize(arch.PtrSize) } // runtime.structfield
+func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }           // runtime.uncommontype
 
 // Type.commonType.kind
 func decodetypeKind(arch *sys.Arch, p []byte) uint8 {
@@ -71,7 +59,7 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
 
 // Type.commonType.tflag
 func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
-	return p[2*arch.PtrSize+4]&tflagUncommon != 0
+	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
 }
 
 // Type.FuncType.dotdotdot
@@ -127,9 +115,13 @@ func decodetypeName(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs
 		return ""
 	}
 
-	data := ldr.Data(r)
-	nameLen, nameLenLen := binary.Uvarint(data[1:])
-	return string(data[1+nameLenLen : 1+nameLenLen+int(nameLen)])
+	data := ldr.DataString(r)
+	n := 1 + binary.MaxVarintLen64
+	if len(data) < n {
+		n = len(data)
+	}
+	nameLen, nameLenLen := binary.Uvarint([]byte(data[1:n]))
+	return data[1+nameLenLen : 1+nameLenLen+int(nameLen)]
 }
 
 func decodetypeNameEmbedded(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int) bool {
@@ -147,7 +139,7 @@ func decodetypeFuncInType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym,
 		uadd += 4
 	}
 	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
-		uadd += uncommonSize()
+		uadd += uncommonSize(arch)
 	}
 	return decodeRelocSym(ldr, symIdx, relocs, int32(uadd+i*arch.PtrSize))
 }
@@ -195,7 +187,7 @@ func decodetypeStructFieldArrayOff(ldr *loader.Loader, arch *sys.Arch, symIdx lo
 	data := ldr.Data(symIdx)
 	off := commonsize(arch) + 4*arch.PtrSize
 	if decodetypeHasUncommon(arch, data) {
-		off += uncommonSize()
+		off += uncommonSize(arch)
 	}
 	off += i * structfieldSize(arch)
 	return off
@@ -230,7 +222,7 @@ func decodetypeStr(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string
 	relocs := ldr.Relocs(symIdx)
 	str := decodetypeName(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
 	data := ldr.Data(symIdx)
-	if data[2*arch.PtrSize+4]&tflagExtraStar != 0 {
+	if data[abi.TFlagOff(arch.PtrSize)]&byte(abi.TFlagExtraStar) != 0 {
 		return str[1:]
 	}
 	return str
@@ -307,4 +299,10 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 
 func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+}
+
+// decodeItabType returns the itab.Type field from an itab.
+func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+	relocs := ldr.Relocs(symIdx)
+	return decodeRelocSym(ldr, symIdx, &relocs, int32(abi.ITabTypeOff(arch.PtrSize)))
 }

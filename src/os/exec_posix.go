@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || windows
+//go:build unix || (js && wasm) || wasip1 || windows
 
 package os
 
@@ -105,7 +105,7 @@ func (p *ProcessState) String() string {
 	case status.Exited():
 		code := status.ExitStatus()
 		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
-			res = "exit status " + uitox(uint(code))
+			res = "exit status " + itoa.Uitox(uint(code))
 		} else { // unix systems use small decimal integers
 			res = "exit status " + itoa.Itoa(code) // unix
 		}

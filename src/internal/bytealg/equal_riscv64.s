@@ -37,9 +37,11 @@ TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
 	BEQZ	X9, loop32_check
 
 	// Check one byte at a time until we reach 8 byte alignment.
+	SUB	X9, X0, X9
+	ADD	$8, X9, X9
 	SUB	X9, X12, X12
 align:
-	ADD	$-1, X9
+	SUB	$1, X9
 	MOVBU	0(X10), X19
 	MOVBU	0(X11), X20
 	BNE	X19, X20, not_eq
@@ -65,7 +67,7 @@ loop32:
 	BNE	X16, X17, not_eq
 	ADD	$32, X10
 	ADD	$32, X11
-	ADD	$-32, X12
+	SUB	$32, X12
 	BGE	X12, X9, loop32
 	BEQZ	X12, eq
 
@@ -81,7 +83,7 @@ loop16:
 	BNE	X21, X22, not_eq
 	ADD	$16, X10
 	ADD	$16, X11
-	ADD	$-16, X12
+	SUB	$16, X12
 	BGE	X12, X23, loop16
 	BEQZ	X12, eq
 
@@ -103,7 +105,7 @@ loop4:
 	BNE	X16, X17, not_eq
 	ADD	$4, X10
 	ADD	$4, X11
-	ADD	$-4, X12
+	SUB	$4, X12
 	BGE	X12, X23, loop4
 
 loop1:
@@ -113,7 +115,7 @@ loop1:
 	BNE	X19, X20, not_eq
 	ADD	$1, X10
 	ADD	$1, X11
-	ADD	$-1, X12
+	SUB	$1, X12
 	JMP	loop1
 
 not_eq:

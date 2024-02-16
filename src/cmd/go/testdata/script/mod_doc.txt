@@ -50,6 +50,7 @@ stderr '^doc: cannot find module providing package example.com/hello: module loo
 
 cd $GOROOT/src
 env GOFLAGS=
+env GOWORK=off
 go doc cryptobyte
 stdout '// import "golang.org/x/crypto/cryptobyte"'
 

@@ -34,12 +34,12 @@ type Counter struct {
 	n  int
 }
 
-// This makes Counter satisfy the expvar.Var interface, so we can export
+// This makes Counter satisfy the [expvar.Var] interface, so we can export
 // it directly.
 func (ctr *Counter) String() string {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
-	return fmt.Sprintf("%d", ctr.n)
+	return strconv.Itoa(ctr.n)
 }
 
 func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {

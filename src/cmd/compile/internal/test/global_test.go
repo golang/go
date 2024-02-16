@@ -20,11 +20,7 @@ func TestScanfRemoval(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := os.MkdirTemp("", "issue6853a-")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create source.
 	src := filepath.Join(dir, "test.go")
@@ -68,11 +64,7 @@ func TestDashS(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := os.MkdirTemp("", "issue14515-")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create source.
 	src := filepath.Join(dir, "test.go")

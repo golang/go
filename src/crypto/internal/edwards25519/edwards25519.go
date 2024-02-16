@@ -26,13 +26,13 @@ type projP2 struct {
 //
 // The zero value is NOT valid, and it may be used only as a receiver.
 type Point struct {
-	// The point is internally represented in extended coordinates (X, Y, Z, T)
-	// where x = X/Z, y = Y/Z, and xy = T/Z per https://eprint.iacr.org/2008/522.
-	x, y, z, t field.Element
-
 	// Make the type not comparable (i.e. used with == or as a map key), as
 	// equivalent points can be represented by different Go values.
 	_ incomparable
+
+	// The point is internally represented in extended coordinates (X, Y, Z, T)
+	// where x = X/Z, y = Y/Z, and xy = T/Z per https://eprint.iacr.org/2008/522.
+	x, y, z, t field.Element
 }
 
 type incomparable [0]func()

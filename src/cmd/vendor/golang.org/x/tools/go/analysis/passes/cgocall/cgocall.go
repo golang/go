@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 const debug = false
@@ -35,6 +36,7 @@ or slice to C, either directly, or via a pointer, array, or struct.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "cgocall",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/cgocall",
 	RunDespiteErrors: true,
 	Run:              run,
 }
@@ -63,7 +65,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 
 		// Is this a C.f() call?
 		var name string
-		if sel, ok := analysisutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		if sel, ok := astutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
 			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
 				name = sel.Sel.Name
 			}
@@ -179,7 +181,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 		// If f is a cgo-generated file, Position reports
 		// the original file, honoring //line directives.
 		filename := fset.Position(raw.Pos()).Filename
-		f, err := parser.ParseFile(fset, filename, nil, parser.Mode(0))
+		f, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
 		}
@@ -270,6 +272,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 		Sizes: sizes,
 		Error: func(error) {}, // ignore errors (e.g. unused import)
 	}
+	setGoVersion(tc, pkg)
 
 	// It's tempting to record the new types in the
 	// existing pass.TypesInfo, but we don't own it.

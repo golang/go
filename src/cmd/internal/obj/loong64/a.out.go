@@ -157,14 +157,14 @@ const (
 	REGZERO = REG_R0 // set to zero
 	REGLINK = REG_R1
 	REGSP   = REG_R3
-	REGRET  = REG_R19
+	REGRET  = REG_R20 // not use
 	REGARG  = -1      // -1 disables passing the first argument in register
-	REGRT1  = REG_R19 // reserved for runtime, duffzero and duffcopy
-	REGRT2  = REG_R20 // reserved for runtime, duffcopy
+	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
+	REGRT2  = REG_R21 // reserved for runtime, duffcopy
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler
-	FREGRET = REG_F0
+	FREGRET = REG_F0  // not use
 )
 
 var LOONG64DWARFRegisters = map[int16]int16{}
@@ -225,7 +225,9 @@ const (
 	C_LOREG
 	C_GOK
 	C_ADDR
-	C_TLS
+	C_TLS_LE
+	C_TLS_IE
+	C_GOTADDR
 	C_TEXTSIZE
 
 	C_NCLASS // must be the last
@@ -265,6 +267,7 @@ const (
 	ALU12IW
 	ALU32ID
 	ALU52ID
+	APCALAU12I
 	APCADDU12I
 	AJIRL
 	ABGE
@@ -390,6 +393,11 @@ const (
 	AMOVDV
 	AMOVVF
 	AMOVVD
+
+	// 2.2.10. Other Miscellaneous Instructions
+	ARDTIMELW
+	ARDTIMEHW
+	ARDTIMED
 
 	ALAST
 

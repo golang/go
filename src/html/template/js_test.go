@@ -80,14 +80,17 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxDivOp, "0"},
 		// Dots that are part of a number are div preceders.
 		{jsCtxDivOp, "0."},
+		// Some JS interpreters treat NBSP as a normal space, so
+		// we must too in order to properly escape things.
+		{jsCtxRegexp, "=\u00A0"},
 	}
 
 	for _, test := range tests {
-		if nextJSCtx([]byte(test.s), jsCtxRegexp) != test.jsCtx {
-			t.Errorf("want %s got %q", test.jsCtx, test.s)
+		if ctx := nextJSCtx([]byte(test.s), jsCtxRegexp); ctx != test.jsCtx {
+			t.Errorf("%q: want %s got %s", test.s, test.jsCtx, ctx)
 		}
-		if nextJSCtx([]byte(test.s), jsCtxDivOp) != test.jsCtx {
-			t.Errorf("want %s got %q", test.jsCtx, test.s)
+		if ctx := nextJSCtx([]byte(test.s), jsCtxDivOp); ctx != test.jsCtx {
+			t.Errorf("%q: want %s got %s", test.s, test.jsCtx, ctx)
 		}
 	}
 
@@ -291,7 +294,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 				`0123456789:;\u003c=\u003e?` +
 				`@ABCDEFGHIJKLMNO` +
 				`PQRSTUVWXYZ[\\]^_` +
-				"`abcdefghijklmno" +
+				"\\u0060abcdefghijklmno" +
 				"pqrstuvwxyz{|}~\u007f" +
 				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
 		},

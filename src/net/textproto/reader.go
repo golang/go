@@ -7,8 +7,10 @@ package textproto
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,10 +24,10 @@ type Reader struct {
 	buf []byte // a re-usable buffer for readContinuedLineSlice
 }
 
-// NewReader returns a new Reader reading from r.
+// NewReader returns a new [Reader] reading from r.
 //
-// To avoid denial of service attacks, the provided bufio.Reader
-// should be reading from an io.LimitReader or similar Reader to bound
+// To avoid denial of service attacks, the provided [bufio.Reader]
+// should be reading from an [io.LimitReader] or similar Reader to bound
 // the size of responses.
 func NewReader(r *bufio.Reader) *Reader {
 	return &Reader{R: r}
@@ -38,7 +40,7 @@ func (r *Reader) ReadLine() (string, error) {
 	return string(line), err
 }
 
-// ReadLineBytes is like ReadLine but returns a []byte instead of a string.
+// ReadLineBytes is like [Reader.ReadLine] but returns a []byte instead of a string.
 func (r *Reader) ReadLineBytes() ([]byte, error) {
 	line, err := r.readLineSlice()
 	if line != nil {
@@ -104,7 +106,7 @@ func trim(s []byte) []byte {
 	return s[i:n]
 }
 
-// ReadContinuedLineBytes is like ReadContinuedLine but
+// ReadContinuedLineBytes is like [Reader.ReadContinuedLine] but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 	line, err := r.readContinuedLineSlice(noValidation)
@@ -287,7 +289,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 	return
 }
 
-// DotReader returns a new Reader that satisfies Reads using the
+// DotReader returns a new [Reader] that satisfies Reads using the
 // decoded text of a dot-encoded block read from r.
 // The returned Reader is only valid until the next call
 // to a method on r.
@@ -301,7 +303,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 //
 // The decoded form returned by the Reader's Read method
 // rewrites the "\r\n" line endings into the simpler "\n",
-// removes leading dot escapes if present, and stops with error io.EOF
+// removes leading dot escapes if present, and stops with error [io.EOF]
 // after consuming (and discarding) the end-of-sequence line.
 func (r *Reader) DotReader() io.Reader {
 	r.closeDot()
@@ -418,7 +420,7 @@ func (r *Reader) closeDot() {
 
 // ReadDotBytes reads a dot-encoding and returns the decoded data.
 //
-// See the documentation for the DotReader method for details about dot-encoding.
+// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
 func (r *Reader) ReadDotBytes() ([]byte, error) {
 	return io.ReadAll(r.DotReader())
 }
@@ -426,7 +428,7 @@ func (r *Reader) ReadDotBytes() ([]byte, error) {
 // ReadDotLines reads a dot-encoding and returns a slice
 // containing the decoded lines, with the final \r\n or \n elided from each.
 //
-// See the documentation for the DotReader method for details about dot-encoding.
+// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
 func (r *Reader) ReadDotLines() ([]string, error) {
 	// We could use ReadDotBytes and then Split it,
 	// but reading a line at a time avoids needing a
@@ -460,7 +462,7 @@ var colon = []byte(":")
 // ReadMIMEHeader reads a MIME-style header from r.
 // The header is a sequence of possibly continued Key: Value lines
 // ending in a blank line.
-// The returned map m maps CanonicalMIMEHeaderKey(key) to a
+// The returned map m maps [CanonicalMIMEHeaderKey](key) to a
 // sequence of values in the same order encountered in the input.
 //
 // For example, consider this input:
@@ -477,16 +479,31 @@ var colon = []byte(":")
 //		"Long-Key": {"Even Longer Value"},
 //	}
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
+}
+
+// readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
+// It is called by the mime/multipart package.
+func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller
 	// slices. If this isn't big enough later, we allocate small ones.
 	var strs []string
-	hint := r.upcomingHeaderNewlines()
+	hint := r.upcomingHeaderKeys()
 	if hint > 0 {
+		if hint > 1000 {
+			hint = 1000 // set a cap to avoid overallocation
+		}
 		strs = make([]string, hint)
 	}
 
 	m := make(MIMEHeader, hint)
+
+	// Account for 400 bytes of overhead for the MIMEHeader, plus 200 bytes per entry.
+	// Benchmarking map creation as of go1.20, a one-entry MIMEHeader is 416 bytes and large
+	// MIMEHeaders average about 200 bytes per entry.
+	maxMemory -= 400
+	const mapEntryOverhead = 200
 
 	// The first line cannot start with a leading space.
 	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
@@ -518,17 +535,25 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			}
 		}
 
-		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
-		// We could return a ProtocolError here, but better to be liberal in what we
-		// accept, so if we get an empty key, skip it.
-		if key == "" {
-			continue
+		maxHeaders--
+		if maxHeaders < 0 {
+			return nil, errors.New("message too large")
 		}
 
 		// Skip initial spaces in value.
-		value := strings.TrimLeft(string(v), " \t")
+		value := string(bytes.TrimLeft(v, " \t"))
 
 		vv := m[key]
+		if vv == nil {
+			maxMemory -= int64(len(key))
+			maxMemory -= mapEntryOverhead
+		}
+		maxMemory -= int64(len(value))
+		if maxMemory < 0 {
+			// TODO: This should be a distinguishable error (ErrMessageTooLarge)
+			// to allow mime/multipart to detect it.
+			return m, errors.New("message too large")
+		}
 		if vv == nil && len(strs) > 0 {
 			// More than likely this will be a single-element key.
 			// Most headers aren't multi-valued.
@@ -563,9 +588,9 @@ func mustHaveFieldNameColon(line []byte) error {
 
 var nl = []byte("\n")
 
-// upcomingHeaderNewlines returns an approximation of the number of newlines
+// upcomingHeaderKeys returns an approximation of the number of keys
 // that will be in this header. If it gets confused, it returns 0.
-func (r *Reader) upcomingHeaderNewlines() (n int) {
+func (r *Reader) upcomingHeaderKeys() (n int) {
 	// Try to determine the 'hint' size.
 	r.R.Peek(1) // force a buffer load if empty
 	s := r.R.Buffered()
@@ -573,7 +598,20 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 		return
 	}
 	peek, _ := r.R.Peek(s)
-	return bytes.Count(peek, nl)
+	for len(peek) > 0 && n < 1000 {
+		var line []byte
+		line, peek, _ = bytes.Cut(peek, nl)
+		if len(line) == 0 || (len(line) == 1 && line[0] == '\r') {
+			// Blank line separating headers from the body.
+			break
+		}
+		if line[0] == ' ' || line[0] == '\t' {
+			// Folded continuation of the previous line.
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the
@@ -680,6 +718,10 @@ func validHeaderValueByte(c byte) bool {
 // ReadMIMEHeader accepts header keys containing spaces, but does not
 // canonicalize them.
 func canonicalMIMEHeaderKey(a []byte) (_ string, ok bool) {
+	if len(a) == 0 {
+		return "", false
+	}
+
 	// See if a looks like a header key. If not, return it unchanged.
 	noCanon := false
 	for _, c := range a {

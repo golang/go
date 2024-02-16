@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package socktest
 
 import "syscall"
 
-// Socket wraps syscall.Socket.
+// Socket wraps [syscall.Socket].
 func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
 	sw.once.Do(sw.init)
 

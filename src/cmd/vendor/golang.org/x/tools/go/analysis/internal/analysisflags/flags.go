@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -206,7 +205,7 @@ func (versionFlag) Get() interface{} { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	if s != "full" {
-		log.Fatalf("unsupported flag value: -V=%s", s)
+		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
 	}
 
 	// This replicates the minimal subset of
@@ -218,7 +217,10 @@ func (versionFlag) Set(s string) error {
 	// Formats:
 	//   $progname version devel ... buildID=...
 	//   $progname version go1.9.1
-	progname := os.Args[0]
+	progname, err := os.Executable()
+	if err != nil {
+		return err
+	}
 	f, err := os.Open(progname)
 	if err != nil {
 		log.Fatal(err)
@@ -328,7 +330,7 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 		if !end.IsValid() {
 			end = posn
 		}
-		data, _ := ioutil.ReadFile(posn.Filename)
+		data, _ := os.ReadFile(posn.Filename)
 		lines := strings.Split(string(data), "\n")
 		for i := posn.Line - Context; i <= end.Line+Context; i++ {
 			if 1 <= i && i <= len(lines) {
@@ -360,15 +362,24 @@ type JSONSuggestedFix struct {
 	Edits   []JSONTextEdit `json:"edits"`
 }
 
-// A JSONDiagnostic can be used to encode and decode analysis.Diagnostics to and
-// from JSON.
-// TODO(matloob): Should the JSON diagnostics contain ranges?
-// If so, how should they be formatted?
+// A JSONDiagnostic describes the JSON schema of an analysis.Diagnostic.
+//
+// TODO(matloob): include End position if present.
 type JSONDiagnostic struct {
-	Category       string             `json:"category,omitempty"`
-	Posn           string             `json:"posn"`
-	Message        string             `json:"message"`
-	SuggestedFixes []JSONSuggestedFix `json:"suggested_fixes,omitempty"`
+	Category       string                   `json:"category,omitempty"`
+	Posn           string                   `json:"posn"` // e.g. "file.go:line:column"
+	Message        string                   `json:"message"`
+	SuggestedFixes []JSONSuggestedFix       `json:"suggested_fixes,omitempty"`
+	Related        []JSONRelatedInformation `json:"related,omitempty"`
+}
+
+// A JSONRelated describes a secondary position and message related to
+// a primary diagnostic.
+//
+// TODO(adonovan): include End position if present.
+type JSONRelatedInformation struct {
+	Posn    string `json:"posn"` // e.g. "file.go:line:column"
+	Message string `json:"message"`
 }
 
 // Add adds the result of analysis 'name' on package 'id'.
@@ -399,11 +410,19 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 					Edits:   edits,
 				})
 			}
+			var related []JSONRelatedInformation
+			for _, r := range f.Related {
+				related = append(related, JSONRelatedInformation{
+					Posn:    fset.Position(r.Pos).String(),
+					Message: r.Message,
+				})
+			}
 			jdiag := JSONDiagnostic{
 				Category:       f.Category,
 				Posn:           fset.Position(f.Pos).String(),
 				Message:        f.Message,
 				SuggestedFixes: fixes,
+				Related:        related,
 			}
 			diagnostics = append(diagnostics, jdiag)
 		}

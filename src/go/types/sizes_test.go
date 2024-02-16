@@ -9,7 +9,6 @@ package types_test
 import (
 	"go/ast"
 	"go/importer"
-	"go/token"
 	"go/types"
 	"internal/testenv"
 	"testing"
@@ -22,7 +21,7 @@ func findStructType(t *testing.T, src string) *types.Struct {
 
 func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
 	types_ := make(map[ast.Expr]types.TypeAndValue)
-	mustTypecheck("x", src, &types.Info{Types: types_})
+	mustTypecheck(src, nil, &types.Info{Types: types_})
 	for _, tv := range types_ {
 		if ts, ok := tv.Type.(*types.Struct); ok {
 			return ts
@@ -32,7 +31,7 @@ func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.S
 	return nil
 }
 
-// Issue 16316
+// go.dev/issue/16316
 func TestMultipleSizeUse(t *testing.T) {
 	const src = `
 package main
@@ -55,7 +54,7 @@ type S struct {
 	}
 }
 
-// Issue 16464
+// go.dev/issue/16464
 func TestAlignofNaclSlice(t *testing.T) {
 	const src = `
 package main
@@ -86,24 +85,19 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	fset := token.NewFileSet()
-	f := mustParse(fset, "x.go", src)
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 	conf := types.Config{
 		Importer: importer.Default(),
 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err := conf.Check("x", fset, []*ast.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck(src, &conf, &info)
 	for _, tv := range info.Types {
 		_ = conf.Sizes.Sizeof(tv.Type)
 		_ = conf.Sizes.Alignof(tv.Type)
 	}
 }
 
-// Issue #53884.
+// go.dev/issue/53884.
 func TestAtomicAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
 
@@ -137,6 +131,65 @@ var s struct {
 			if offsets[0] != want[0] || offsets[1] != want[1] || offsets[2] != want[2] {
 				t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, want)
 			}
+		})
+	}
+}
+
+type gcSizeTest struct {
+	name string
+	src  string
+}
+
+var gcSizesTests = []gcSizeTest{
+	{
+		"issue60431",
+		`
+package main
+
+import "unsafe"
+
+// The foo struct size is expected to be rounded up to 16 bytes.
+type foo struct {
+	a int64
+	b bool
+}
+
+func main() {
+	assert(unsafe.Sizeof(foo{}) == 16)
+}`,
+	},
+	{
+		"issue60734",
+		`
+package main
+
+import (
+	"unsafe"
+)
+
+// The Data struct size is expected to be rounded up to 16 bytes.
+type Data struct {
+	Value  uint32   // 4 bytes
+	Label  [10]byte // 10 bytes
+	Active bool     // 1 byte
+	// padded with 1 byte to make it align
+}
+
+func main() {
+	assert(unsafe.Sizeof(Data{}) == 16)
+}
+`,
+	},
+}
+
+func TestGCSizes(t *testing.T) {
+	types.DefPredeclaredTestFuncs()
+	for _, tc := range gcSizesTests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			conf := types.Config{Importer: importer.Default(), Sizes: types.SizesFor("gc", "amd64")}
+			mustTypecheck(tc.src, &conf, nil)
 		})
 	}
 }

@@ -1,4 +1,0 @@
-pkg bytes, func CutPrefix([]uint8, []uint8) ([]uint8, bool) #42537
-pkg bytes, func CutSuffix([]uint8, []uint8) ([]uint8, bool) #42537
-pkg strings, func CutPrefix(string, string) (string, bool) #42537
-pkg strings, func CutSuffix(string, string) (string, bool) #42537

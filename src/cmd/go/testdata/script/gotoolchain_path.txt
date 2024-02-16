@@ -1,0 +1,85 @@
+# This test only checks that basic PATH lookups work.
+# The full test of toolchain version selection is in gotoolchain.txt.
+
+[short] skip
+
+env TESTGO_VERSION=go1.21pre3
+
+# Compile a fake toolchain to put in the path under various names.
+env GOTOOLCHAIN=
+mkdir $WORK/bin
+go build -o $WORK/bin/go1.50.0$GOEXE ./fakego.go  # adds .exe extension implicitly on Windows
+
+[!GOOS:plan9] env PATH=$WORK/bin
+[GOOS:plan9] env path=$WORK/bin
+
+go version
+stdout go1.21pre3
+
+# GOTOOLCHAIN=go1.50.0
+env GOTOOLCHAIN=go1.50.0
+! go version
+stderr 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=path with toolchain line
+env GOTOOLCHAIN=local
+go mod init m
+go mod edit -toolchain=go1.50.0
+grep go1.50.0 go.mod
+env GOTOOLCHAIN=path
+! go version
+stderr 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=path with go line
+env GOTOOLCHAIN=local
+go mod edit -toolchain=none -go=1.50.0
+grep 'go 1.50.0' go.mod
+! grep toolchain go.mod
+env GOTOOLCHAIN=path
+! go version
+stderr 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=auto with toolchain line
+env GOTOOLCHAIN=local
+go mod edit -toolchain=go1.50.0 -go=1.21
+grep 'go 1.21$' go.mod
+grep 'toolchain go1.50.0' go.mod
+env GOTOOLCHAIN=auto
+! go version
+stderr 'running go1.50.0 from PATH'
+
+# GOTOOLCHAIN=auto with go line
+env GOTOOLCHAIN=local
+go mod edit -toolchain=none -go=1.50.0
+grep 'go 1.50.0$' go.mod
+! grep toolchain go.mod
+env GOTOOLCHAIN=auto
+! go version
+stderr 'running go1.50.0 from PATH'
+
+# NewerToolchain should find Go 1.50.0.
+env GOTOOLCHAIN=local
+go mod edit -toolchain=none -go=1.22
+grep 'go 1.22$' go.mod
+! grep toolchain go.mod
+env GOTOOLCHAIN=path
+! go run rsc.io/fortune@v0.0.1
+stderr 'running go1.50.0 from PATH'
+
+-- fakego.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	exe, _ := os.Executable()
+	name := filepath.Base(exe)
+	name = strings.TrimSuffix(name, ".exe")
+	fmt.Fprintf(os.Stderr, "running %s from PATH\n", name)
+	os.Exit(1) // fail in case we are running this accidentally (like in "go mod edit")
+}

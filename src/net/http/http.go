@@ -86,21 +86,27 @@ func hexEscapeNonASCII(s string) string {
 		return s
 	}
 	b := make([]byte, 0, newLen)
+	var pos int
 	for i := 0; i < len(s); i++ {
 		if s[i] >= utf8.RuneSelf {
+			if pos < i {
+				b = append(b, s[pos:i]...)
+			}
 			b = append(b, '%')
 			b = strconv.AppendInt(b, int64(s[i]), 16)
-		} else {
-			b = append(b, s[i])
+			pos = i + 1
 		}
+	}
+	if pos < len(s) {
+		b = append(b, s[pos:]...)
 	}
 	return string(b)
 }
 
-// NoBody is an io.ReadCloser with no bytes. Read always returns EOF
+// NoBody is an [io.ReadCloser] with no bytes. Read always returns EOF
 // and Close always returns nil. It can be used in an outgoing client
 // request to explicitly signal that a request has zero bytes.
-// An alternative, however, is to simply set Request.Body to nil.
+// An alternative, however, is to simply set [Request.Body] to nil.
 var NoBody = noBody{}
 
 type noBody struct{}
@@ -115,7 +121,7 @@ var (
 	_ io.ReadCloser = NoBody
 )
 
-// PushOptions describes options for Pusher.Push.
+// PushOptions describes options for [Pusher.Push].
 type PushOptions struct {
 	// Method specifies the HTTP method for the promised request.
 	// If set, it must be "GET" or "HEAD". Empty means "GET".

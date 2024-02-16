@@ -10,6 +10,7 @@ import (
 	"errors"
 	"hash"
 	"hash/crc32"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"os"
@@ -20,6 +21,8 @@ import (
 	"sync"
 	"time"
 )
+
+var zipinsecurepath = godebug.New("zipinsecurepath")
 
 var (
 	ErrFormat       = errors.New("zip: not a valid zip file")
@@ -45,15 +48,15 @@ type Reader struct {
 	fileList     []fileListEntry
 }
 
-// A ReadCloser is a Reader that must be closed when no longer needed.
+// A ReadCloser is a [Reader] that must be closed when no longer needed.
 type ReadCloser struct {
 	f *os.File
 	Reader
 }
 
 // A File is a single file in a ZIP archive.
-// The file information is in the embedded FileHeader.
-// The file content can be accessed by calling Open.
+// The file information is in the embedded [FileHeader].
+// The file content can be accessed by calling [File.Open].
 type File struct {
 	FileHeader
 	zip          *Reader
@@ -63,6 +66,14 @@ type File struct {
 }
 
 // OpenReader will open the Zip file specified by name and return a ReadCloser.
+//
+// If any file inside the archive uses a non-local name
+// (as defined by [filepath.IsLocal]) or a name containing backslashes
+// and the GODEBUG environment variable contains `zipinsecurepath=0`,
+// OpenReader returns the reader with an ErrInsecurePath error.
+// A future version of Go may introduce this behavior by default.
+// Programs that want to accept non-local names can ignore
+// the ErrInsecurePath error and use the returned reader.
 func OpenReader(name string) (*ReadCloser, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -74,68 +85,55 @@ func OpenReader(name string) (*ReadCloser, error) {
 		return nil, err
 	}
 	r := new(ReadCloser)
-	if err := r.init(f, fi.Size()); err != nil {
+	if err = r.init(f, fi.Size()); err != nil && err != ErrInsecurePath {
 		f.Close()
 		return nil, err
 	}
 	r.f = f
-	return r, nil
+	return r, err
 }
 
-// NewReader returns a new Reader reading from r, which is assumed to
+// NewReader returns a new [Reader] reading from r, which is assumed to
 // have the given size in bytes.
 //
-// ErrInsecurePath and a valid *Reader are returned if the names of any
-// files in the archive:
-//
-//   - are absolute;
-//   - are a relative path escaping the current directory, such as "../a";
-//   - contain a backslash (\) character; or
-//   - on Windows, are a reserved file name such as "NUL".
-//
-// The caller may ignore the ErrInsecurePath error,
-// but is then responsible for sanitizing paths as appropriate.
+// If any file inside the archive uses a non-local name
+// (as defined by [filepath.IsLocal]) or a name containing backslashes
+// and the GODEBUG environment variable contains `zipinsecurepath=0`,
+// NewReader returns the reader with an [ErrInsecurePath] error.
+// A future version of Go may introduce this behavior by default.
+// Programs that want to accept non-local names can ignore
+// the [ErrInsecurePath] error and use the returned reader.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")
 	}
 	zr := new(Reader)
-	if err := zr.init(r, size); err != nil {
+	var err error
+	if err = zr.init(r, size); err != nil && err != ErrInsecurePath {
 		return nil, err
 	}
-	for _, f := range zr.File {
-		if f.Name == "" {
-			// Zip permits an empty file name field.
-			continue
-		}
-		// The zip specification states that names must use forward slashes,
-		// so consider any backslashes in the name insecure.
-		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
-			return zr, ErrInsecurePath
-		}
-	}
-	return zr, nil
+	return zr, err
 }
 
-func (z *Reader) init(r io.ReaderAt, size int64) error {
-	end, baseOffset, err := readDirectoryEnd(r, size)
+func (r *Reader) init(rdr io.ReaderAt, size int64) error {
+	end, baseOffset, err := readDirectoryEnd(rdr, size)
 	if err != nil {
 		return err
 	}
-	z.r = r
-	z.baseOffset = baseOffset
+	r.r = rdr
+	r.baseOffset = baseOffset
 	// Since the number of directory records is not validated, it is not
-	// safe to preallocate z.File without first checking that the specified
+	// safe to preallocate r.File without first checking that the specified
 	// number of files is reasonable, since a malformed archive may
 	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
 	// header which will be _at least_ 30 bytes we can safely preallocate
 	// if (data size / 30) >= end.directoryRecords.
 	if end.directorySize < uint64(size) && (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
-		z.File = make([]*File, 0, end.directoryRecords)
+		r.File = make([]*File, 0, end.directoryRecords)
 	}
-	z.Comment = end.comment
-	rs := io.NewSectionReader(r, 0, size)
-	if _, err = rs.Seek(z.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
+	r.Comment = end.comment
+	rs := io.NewSectionReader(rdr, 0, size)
+	if _, err = rs.Seek(r.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
 		return err
 	}
 	buf := bufio.NewReader(rs)
@@ -145,51 +143,51 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
-		f := &File{zip: z, zipr: r}
+		f := &File{zip: r, zipr: rdr}
 		err = readDirectoryHeader(f, buf)
-
-		// For compatibility with other zip programs,
-		// if we have a non-zero base offset and can't read
-		// the first directory header, try again with a zero
-		// base offset.
-		if err == ErrFormat && z.baseOffset != 0 && len(z.File) == 0 {
-			z.baseOffset = 0
-			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
-				return err
-			}
-			buf.Reset(rs)
-			continue
-		}
-
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
-		f.headerOffset += z.baseOffset
-		z.File = append(z.File, f)
+		f.headerOffset += r.baseOffset
+		r.File = append(r.File, f)
 	}
-	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+	if uint16(len(r.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
+	}
+	if zipinsecurepath.Value() == "0" {
+		for _, f := range r.File {
+			if f.Name == "" {
+				// Zip permits an empty file name field.
+				continue
+			}
+			// The zip specification states that names must use forward slashes,
+			// so consider any backslashes in the name insecure.
+			if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+				zipinsecurepath.IncNonDefault()
+				return ErrInsecurePath
+			}
+		}
 	}
 	return nil
 }
 
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
-// Reader will default to looking up the decompressor at the package level.
-func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
-	if z.decompressors == nil {
-		z.decompressors = make(map[uint16]Decompressor)
+// [Reader] will default to looking up the decompressor at the package level.
+func (r *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
+	if r.decompressors == nil {
+		r.decompressors = make(map[uint16]Decompressor)
 	}
-	z.decompressors[method] = dcomp
+	r.decompressors[method] = dcomp
 }
 
-func (z *Reader) decompressor(method uint16) Decompressor {
-	dcomp := z.decompressors[method]
+func (r *Reader) decompressor(method uint16) Decompressor {
+	dcomp := r.decompressors[method]
 	if dcomp == nil {
 		dcomp = decompressor(method)
 	}
@@ -204,7 +202,7 @@ func (rc *ReadCloser) Close() error {
 // DataOffset returns the offset of the file's possibly-compressed
 // data, relative to the beginning of the zip file.
 //
-// Most callers should instead use Open, which transparently
+// Most callers should instead use [File.Open], which transparently
 // decompresses data and verifies checksums.
 func (f *File) DataOffset() (offset int64, err error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -214,7 +212,7 @@ func (f *File) DataOffset() (offset int64, err error) {
 	return f.headerOffset + bodyOffset, nil
 }
 
-// Open returns a ReadCloser that provides access to the File's contents.
+// Open returns a [ReadCloser] that provides access to the [File]'s contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -222,7 +220,16 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return nil, err
 	}
 	if strings.HasSuffix(f.Name, "/") {
-		if f.CompressedSize64 != 0 || f.hasDataDescriptor() {
+		// The ZIP specification (APPNOTE.TXT) specifies that directories, which
+		// are technically zero-byte files, must not have any associated file
+		// data. We previously tried failing here if f.CompressedSize64 != 0,
+		// but it turns out that a number of implementations (namely, the Java
+		// jar tool) don't properly set the storage method on directories
+		// resulting in a file with compressed size > 0 but uncompressed size ==
+		// 0. We still want to fail when a directory has associated uncompressed
+		// data, but we are tolerant of cases where the uncompressed size is
+		// zero but compressed size is not.
+		if f.UncompressedSize64 != 0 {
 			return &dirReader{ErrFormat}, nil
 		} else {
 			return &dirReader{io.EOF}, nil
@@ -248,7 +255,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return rc, nil
 }
 
-// OpenRaw returns a Reader that provides access to the File's contents without
+// OpenRaw returns a [Reader] that provides access to the [File]'s contents without
 // decompression.
 func (f *File) OpenRaw() (io.Reader, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -462,8 +469,8 @@ parseExtras:
 
 				const ticksPerSecond = 1e7    // Windows timestamp resolution
 				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
-				secs := int64(ts / ticksPerSecond)
-				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
+				secs := ts / ticksPerSecond
+				nsecs := (1e9 / ticksPerSecond) * (ts % ticksPerSecond)
 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
 				modified = time.Unix(epoch.Unix()+secs, nsecs)
 			}
@@ -608,12 +615,31 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset 
 		}
 	}
 
+	maxInt64 := uint64(1<<63 - 1)
+	if d.directorySize > maxInt64 || d.directoryOffset > maxInt64 {
+		return nil, 0, ErrFormat
+	}
+
 	baseOffset = directoryEndOffset - int64(d.directorySize) - int64(d.directoryOffset)
 
 	// Make sure directoryOffset points to somewhere in our file.
 	if o := baseOffset + int64(d.directoryOffset); o < 0 || o >= size {
 		return nil, 0, ErrFormat
 	}
+
+	// If the directory end data tells us to use a non-zero baseOffset,
+	// but we would find a valid directory entry if we assume that the
+	// baseOffset is 0, then just use a baseOffset of 0.
+	// We've seen files in which the directory end data gives us
+	// an incorrect baseOffset.
+	if baseOffset > 0 {
+		off := int64(d.directoryOffset)
+		rs := io.NewSectionReader(r, off, size-off)
+		if readDirectoryHeader(&File{}, rs) == nil {
+			baseOffset = 0
+		}
+	}
+
 	return d, baseOffset, nil
 }
 
@@ -727,14 +753,14 @@ type fileInfoDirEntry interface {
 	fs.DirEntry
 }
 
-func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
-	if e.isDup {
-		return nil, errors.New(e.name + ": duplicate entries in zip file")
+func (f *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if f.isDup {
+		return nil, errors.New(f.name + ": duplicate entries in zip file")
 	}
-	if !e.isDir {
-		return headerFileInfo{&e.file.FileHeader}, nil
+	if !f.isDir {
+		return headerFileInfo{&f.file.FileHeader}, nil
 	}
-	return e, nil
+	return f, nil
 }
 
 // Only used for directories.
@@ -753,6 +779,10 @@ func (f *fileListEntry) ModTime() time.Time {
 }
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
+
+func (f *fileListEntry) String() string {
+	return fs.FormatDirEntry(f)
+}
 
 // toValidName coerces name to be a valid name for fs.FS.Open.
 func toValidName(name string) string {

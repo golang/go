@@ -1,0 +1,37 @@
+# go mod verify should not try to verify the workspace modules.
+# This is a test for #54372.
+
+go mod verify
+stdout 'all modules verified'
+! stderr .
+
+-- go.work --
+go 1.21
+
+use (
+    ./a
+    ./b
+    ./c
+    ./d
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.21
+
+require rsc.io/quote v1.1.0
+-- a/a.go --
+package a
+import _ "rsc.io/quote"
+-- b/go.mod --
+module example.com/b
+
+go 1.21
+-- c/go.mod --
+module example.com/c
+
+go 1.21
+-- d/go.mod --
+module example.com/d
+
+go 1.21

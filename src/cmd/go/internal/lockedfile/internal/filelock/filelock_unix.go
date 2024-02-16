@@ -38,7 +38,3 @@ func lock(f File, lt lockType) (err error) {
 func unlock(f File) error {
 	return lock(f, syscall.LOCK_UN)
 }
-
-func isNotSupported(err error) bool {
-	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
-}

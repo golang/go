@@ -4,12 +4,8 @@ Vendoring in std and cmd
 The Go command maintains copies of external packages needed by the
 standard library in the src/vendor and src/cmd/vendor directories.
 
-In GOPATH mode, imports of vendored packages are resolved to these
-directories following normal vendor directory logic
-(see golang.org/s/go15vendor).
-
-In module mode, std and cmd are modules (defined in src/go.mod and
-src/cmd/go.mod). When a package outside std or cmd is imported
+There are two modules, std and cmd, defined in src/go.mod and
+src/cmd/go.mod. When a package outside std or cmd is imported
 by a package inside std or cmd, the import path is interpreted
 as if it had a "vendor/" prefix. For example, within "crypto/tls",
 an import of "golang.org/x/crypto/cryptobyte" resolves to
@@ -34,14 +30,15 @@ Maintaining vendor directories
 ==============================
 
 Before updating vendor directories, ensure that module mode is enabled.
-Make sure GO111MODULE=off is not set ('on' or 'auto' should work).
+Make sure that GO111MODULE is not set in the environment, or that it is
+set to 'on' or 'auto'.
 
 Requirements may be added, updated, and removed with 'go get'.
 The vendor directory may be updated with 'go mod vendor'.
 A typical sequence might be:
 
     cd src
-    go get -d golang.org/x/net@latest
+    go get golang.org/x/net@master
     go mod tidy
     go mod vendor
 

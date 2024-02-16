@@ -8,6 +8,7 @@ package user
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -141,7 +142,7 @@ func buildGroup(grp *_C_struct_group) *Group {
 
 type bufferKind _C_int
 
-const (
+var (
 	userBuffer  = bufferKind(_C__SC_GETPW_R_SIZE_MAX)
 	groupBuffer = bufferKind(_C__SC_GETGR_R_SIZE_MAX)
 )
@@ -164,12 +165,15 @@ func (k bufferKind) initialSize() _C_size_t {
 // retryWithBuffer repeatedly calls f(), increasing the size of the
 // buffer each time, until f succeeds, fails with a non-ERANGE error,
 // or the buffer exceeds a reasonable limit.
-func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
-	buf := make([]byte, startSize)
+func retryWithBuffer(kind bufferKind, f func([]byte) syscall.Errno) error {
+	buf := make([]byte, kind.initialSize())
 	for {
 		errno := f(buf)
 		if errno == 0 {
 			return nil
+		} else if runtime.GOOS == "aix" && errno+1 == 0 {
+			// On AIX getpwuid_r appears to return -1,
+			// not ERANGE, on buffer overflow.
 		} else if errno != syscall.ERANGE {
 			return errno
 		}

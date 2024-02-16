@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"unicode"
 )
 
@@ -35,6 +36,18 @@ func ExampleBuffer_Bytes() {
 	buf.Write([]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'})
 	os.Stdout.Write(buf.Bytes())
 	// Output: hello world
+}
+
+func ExampleBuffer_AvailableBuffer() {
+	var buf bytes.Buffer
+	for i := 0; i < 4; i++ {
+		b := buf.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		b = append(b, ' ')
+		buf.Write(b)
+	}
+	os.Stdout.Write(buf.Bytes())
+	// Output: 0 1 2 3
 }
 
 func ExampleBuffer_Cap() {
@@ -68,9 +81,9 @@ func ExampleBuffer_Next() {
 	var b bytes.Buffer
 	b.Grow(64)
 	b.Write([]byte("abcde"))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s", string(b.Next(2)))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s", b.Next(2))
 	// Output:
 	// ab
 	// cd
@@ -108,6 +121,19 @@ func ExampleBuffer_ReadByte() {
 	// Output
 	// 97
 	// bcde
+}
+
+func ExampleClone() {
+	b := []byte("abc")
+	clone := bytes.Clone(b)
+	fmt.Printf("%s\n", clone)
+	clone[0] = 'd'
+	fmt.Printf("%s\n", b)
+	fmt.Printf("%s\n", clone)
+	// Output:
+	// abc
+	// abc
+	// dbc
 }
 
 func ExampleCompare() {
@@ -186,6 +212,17 @@ func ExampleContainsRune() {
 	// false
 }
 
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r >= 'a' && r <= 'z'
+	}
+	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
+	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
+	// Output:
+	// false
+	// true
+}
+
 func ExampleCount() {
 	fmt.Println(bytes.Count([]byte("cheese"), []byte("e")))
 	fmt.Println(bytes.Count([]byte("five"), []byte(""))) // before & after each rune
@@ -208,6 +245,30 @@ func ExampleCut() {
 	// Cut("Gopher", "ph") = "Go", "er", true
 	// Cut("Gopher", "er") = "Goph", "", true
 	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
+func ExampleCutPrefix() {
+	show := func(s, sep string) {
+		after, found := bytes.CutPrefix([]byte(s), []byte(sep))
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	// Output:
+	// CutPrefix("Gopher", "Go") = "pher", true
+	// CutPrefix("Gopher", "ph") = "Gopher", false
+}
+
+func ExampleCutSuffix() {
+	show := func(s, sep string) {
+		before, found := bytes.CutSuffix([]byte(s), []byte(sep))
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "er")
+	// Output:
+	// CutSuffix("Gopher", "Go") = "Gopher", false
+	// CutSuffix("Gopher", "er") = "Goph", true
 }
 
 func ExampleEqual() {
@@ -347,6 +408,21 @@ func ExampleLastIndexFunc() {
 	// -1
 }
 
+func ExampleMap() {
+	rot13 := func(r rune) rune {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			return 'A' + (r-'A'+13)%26
+		case r >= 'a' && r <= 'z':
+			return 'a' + (r-'a'+13)%26
+		}
+		return r
+	}
+	fmt.Printf("%s\n", bytes.Map(rot13, []byte("'Twas brillig and the slithy gopher...")))
+	// Output:
+	// 'Gjnf oevyyvt naq gur fyvgul tbcure...
+}
+
 func ExampleReader_Len() {
 	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
 	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
@@ -443,6 +519,16 @@ func ExampleToTitleSpecial() {
 	// Output:
 	// Original : ahoj vývojári golang
 	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
+}
+
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("abc"), []byte("\uFFFD")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("a\xffb\xC0\xAFc\xff"), []byte("")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("\xed\xa0\x80"), []byte("abc")))
+	// Output:
+	// abc
+	// abc
+	// abc
 }
 
 func ExampleTrim() {

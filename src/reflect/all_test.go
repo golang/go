@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+	"internal/abi"
 	"internal/goarch"
 	"internal/testenv"
 	"io"
@@ -30,6 +31,8 @@ import (
 	"time"
 	"unsafe"
 )
+
+const bucketCount = abi.MapBucketCount
 
 var sink any
 
@@ -1393,6 +1396,11 @@ func TestIsNil(t *testing.T) {
 	NotNil(fi, t)
 }
 
+func setField[S, V any](in S, offset uintptr, value V) (out S) {
+	*(*V)(unsafe.Add(unsafe.Pointer(&in), offset)) = value
+	return in
+}
+
 func TestIsZero(t *testing.T) {
 	for i, tt := range []struct {
 		x    any
@@ -1426,14 +1434,14 @@ func TestIsZero(t *testing.T) {
 		{float32(1.2), false},
 		{float64(0), true},
 		{float64(1.2), false},
-		{math.Copysign(0, -1), false},
+		{math.Copysign(0, -1), true},
 		{complex64(0), true},
 		{complex64(1.2), false},
 		{complex128(0), true},
 		{complex128(1.2), false},
-		{complex(math.Copysign(0, -1), 0), false},
-		{complex(0, math.Copysign(0, -1)), false},
-		{complex(math.Copysign(0, -1), math.Copysign(0, -1)), false},
+		{complex(math.Copysign(0, -1), 0), true},
+		{complex(0, math.Copysign(0, -1)), true},
+		{complex(math.Copysign(0, -1), math.Copysign(0, -1)), true},
 		{uintptr(0), true},
 		{uintptr(128), false},
 		// Array
@@ -1446,6 +1454,8 @@ func TestIsZero(t *testing.T) {
 		{[3][]int{{1}}, false},                  // incomparable array
 		{[1 << 12]byte{}, true},
 		{[1 << 12]byte{1}, false},
+		{[1]struct{ p *int }{}, true},
+		{[1]struct{ p *int }{{new(int)}}, false},
 		{[3]Value{}, true},
 		{[3]Value{{}, ValueOf(0), {}}, false},
 		// Chan
@@ -1482,6 +1492,20 @@ func TestIsZero(t *testing.T) {
 		{struct{ s []int }{[]int{1}}, false},  // incomparable struct
 		{struct{ Value }{}, true},
 		{struct{ Value }{ValueOf(0)}, false},
+		{struct{ _, a, _ uintptr }{}, true}, // comparable struct with blank fields
+		{setField(struct{ _, a, _ uintptr }{}, 0*unsafe.Sizeof(uintptr(0)), 1), true},
+		{setField(struct{ _, a, _ uintptr }{}, 1*unsafe.Sizeof(uintptr(0)), 1), false},
+		{setField(struct{ _, a, _ uintptr }{}, 2*unsafe.Sizeof(uintptr(0)), 1), true},
+		{struct{ _, a, _ func() }{}, true}, // incomparable struct with blank fields
+		{setField(struct{ _, a, _ func() }{}, 0*unsafe.Sizeof((func())(nil)), func() {}), true},
+		{setField(struct{ _, a, _ func() }{}, 1*unsafe.Sizeof((func())(nil)), func() {}), false},
+		{setField(struct{ _, a, _ func() }{}, 2*unsafe.Sizeof((func())(nil)), func() {}), true},
+		{struct{ a [256]S }{}, true},
+		{struct{ a [256]S }{a: [256]S{2: {i1: 1}}}, false},
+		{struct{ a [256]float32 }{}, true},
+		{struct{ a [256]float32 }{a: [256]float32{2: 1.0}}, false},
+		{struct{ _, a [256]S }{}, true},
+		{setField(struct{ _, a [256]S }{}, 0*unsafe.Sizeof(int64(0)), int64(1)), true},
 		// UnsafePointer
 		{(unsafe.Pointer)(nil), true},
 		{(unsafe.Pointer)(new(int)), false},
@@ -1518,6 +1542,15 @@ func TestIsZero(t *testing.T) {
 		}()
 		(Value{}).IsZero()
 	}()
+}
+
+func TestInternalIsZero(t *testing.T) {
+	b := make([]byte, 512)
+	for a := 0; a < 8; a++ {
+		for i := 1; i <= 512-a; i++ {
+			InternalIsZero(b[a : a+i])
+		}
+	}
 }
 
 func TestInterfaceExtraction(t *testing.T) {
@@ -1703,6 +1736,12 @@ func TestChan(t *testing.T) {
 		if i, ok := cv.Recv(); i.Int() != 0 || ok {
 			t.Errorf("after close Recv %d, %t", i.Int(), ok)
 		}
+		// Closing a read-only channel
+		shouldPanic("", func() {
+			c := make(<-chan int, 1)
+			cv := ValueOf(c)
+			cv.Close()
+		})
 	}
 
 	// check creation of unbuffered channel
@@ -3278,13 +3317,15 @@ type unexpI interface {
 	f() (int32, int8)
 }
 
-var unexpi unexpI = new(unexp)
-
 func TestUnexportedMethods(t *testing.T) {
-	typ := TypeOf(unexpi)
-
+	typ := TypeOf(new(unexp))
 	if got := typ.NumMethod(); got != 0 {
 		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
+	}
+
+	typ = TypeOf((*unexpI)(nil))
+	if got := typ.Elem().NumMethod(); got != 1 {
+		t.Errorf("NumMethod=%d, want 1 satisfied methods", got)
 	}
 }
 
@@ -3468,16 +3509,24 @@ func TestAllocations(t *testing.T) {
 		var i any
 		var v Value
 
-		// We can uncomment this when compiler escape analysis
-		// is good enough to see that the integer assigned to i
-		// does not escape and therefore need not be allocated.
-		//
-		// i = 42 + j
-		// v = ValueOf(i)
-		// if int(v.Int()) != 42+j {
-		// 	panic("wrong int")
-		// }
-
+		i = 42 + j
+		v = ValueOf(i)
+		if int(v.Int()) != 42+j {
+			panic("wrong int")
+		}
+	})
+	noAlloc(t, 100, func(j int) {
+		var i any
+		var v Value
+		i = [3]int{j, j, j}
+		v = ValueOf(i)
+		if v.Len() != 3 {
+			panic("wrong length")
+		}
+	})
+	noAlloc(t, 100, func(j int) {
+		var i any
+		var v Value
 		i = func(j int) int { return j }
 		v = ValueOf(i)
 		if v.Interface().(func(int) int)(j) != j {
@@ -4706,7 +4755,7 @@ func TestConvertSlice2Array(t *testing.T) {
 	// Converting a slice to non-empty array needs to return
 	// a non-addressable copy of the original memory.
 	if v.CanAddr() {
-		t.Fatalf("convert slice to non-empty array returns a addressable copy array")
+		t.Fatalf("convert slice to non-empty array returns an addressable copy array")
 	}
 	for i := range s {
 		ov.Index(i).Set(ValueOf(i + 1))
@@ -7006,10 +7055,18 @@ func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	// e.g. with rep(2, lit(1, 0)).
 	bits = trimBitmap(bits)
 
-	if !bytes.Equal(heapBits, bits) {
-		_, _, line, _ := runtime.Caller(1)
-		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
+	if bytes.HasPrefix(heapBits, bits) {
+		// Just the prefix matching is OK.
+		//
+		// The Go runtime's pointer/scalar iterator generates pointers beyond
+		// the size of the type, up to the size of the size class. This space
+		// is safe for the GC to scan since it's zero, and GCBits checks to
+		// make sure that's true. But we need to handle the fact that the bitmap
+		// may be larger than we expect.
+		return
 	}
+	_, _, line, _ := runtime.Caller(1)
+	t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 }
 
 func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
@@ -7018,15 +7075,20 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// repeat a bitmap for a small array or executing a repeat in
 	// a GC program.
 	val := MakeSlice(typ, 0, cap)
-	data := NewAt(ArrayOf(cap, typ), val.UnsafePointer())
+	data := NewAt(typ.Elem(), val.UnsafePointer())
 	heapBits := GCBits(data.Interface())
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
 	bits = trimBitmap(rep(cap, bits))
-	if !bytes.Equal(heapBits, bits) {
-		_, _, line, _ := runtime.Caller(1)
-		t.Errorf("line %d: heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", line, typ, cap, heapBits, bits)
+	if bytes.Equal(heapBits, bits) {
+		return
 	}
+	if len(heapBits) > len(bits) && bytes.Equal(heapBits[:len(bits)], bits) {
+		// Just the prefix matching is OK.
+		return
+	}
+	_, _, line, _ := runtime.Caller(1)
+	t.Errorf("line %d: heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", line, typ, cap, heapBits, bits)
 }
 
 func TestGCBits(t *testing.T) {
@@ -7162,7 +7224,7 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
-	hdr := make([]byte, 8/goarch.PtrSize)
+	hdr := make([]byte, bucketCount/goarch.PtrSize)
 
 	verifyMapBucket := func(t *testing.T, k, e Type, m any, want []byte) {
 		verifyGCBits(t, MapBucketOf(k, e), want)
@@ -7171,14 +7233,14 @@ func TestGCBits(t *testing.T) {
 	verifyMapBucket(t,
 		Tscalar, Tptr,
 		map[Xscalar]Xptr(nil),
-		join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalarptr, Tptr,
 		map[Xscalarptr]Xptr(nil),
-		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 	verifyMapBucket(t, Tint64, Tptr,
 		map[int64]Xptr(nil),
-		join(hdr, rep(8, rep(8/goarch.PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalar, Tscalar,
 		map[Xscalar]Xscalar(nil),
@@ -7186,23 +7248,23 @@ func TestGCBits(t *testing.T) {
 	verifyMapBucket(t,
 		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
 		map[[2]Xscalarptr][3]Xptrscalar(nil),
-		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
+		join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
 		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
 		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
 		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
 		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8, lit(1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
 		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
 		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
 		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
@@ -8359,4 +8421,49 @@ func TestInitFuncTypes(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestClear(t *testing.T) {
+	m := make(map[string]any, len(valueTests))
+	for _, tt := range valueTests {
+		m[tt.s] = tt.i
+	}
+	mapTestFn := func(v Value) bool { v.Clear(); return v.Len() == 0 }
+
+	s := make([]*pair, len(valueTests))
+	for i := range s {
+		s[i] = &valueTests[i]
+	}
+	sliceTestFn := func(v Value) bool {
+		v.Clear()
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	}
+
+	panicTestFn := func(v Value) bool { shouldPanic("reflect.Value.Clear", func() { v.Clear() }); return true }
+
+	tests := []struct {
+		name     string
+		value    Value
+		testFunc func(v Value) bool
+	}{
+		{"map", ValueOf(m), mapTestFn},
+		{"slice no pointer", ValueOf([]int{1, 2, 3, 4, 5}), sliceTestFn},
+		{"slice has pointer", ValueOf(s), sliceTestFn},
+		{"non-map/slice", ValueOf(1), panicTestFn},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !tc.testFunc(tc.value) {
+				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
+			}
+		})
+	}
 }

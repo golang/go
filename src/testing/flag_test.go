@@ -32,14 +32,17 @@ func TestFlag(t *testing.T) {
 			if err != nil {
 				exe = os.Args[0]
 			}
-			cmd := exec.Command(exe, "-test.run=TestFlag", "-test_flag_arg="+flag)
+			cmd := exec.Command(exe, "-test.run=^TestFlag$", "-test_flag_arg="+flag)
 			if flag != "" {
 				cmd.Args = append(cmd.Args, flag)
 			}
 			cmd.Env = append(cmd.Environ(), flagTestEnv+"=1")
 			b, err := cmd.CombinedOutput()
 			if len(b) > 0 {
-				t.Logf("%s", b)
+				// When we set -test.v=test2json, we need to escape the ^V control
+				// character used for JSON framing so that the JSON parser doesn't
+				// misinterpret the subprocess output as output from the parent test.
+				t.Logf("%q", b)
 			}
 			if err != nil {
 				t.Error(err)

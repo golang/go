@@ -8,12 +8,9 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"log"
 	"os"
 	"os/exec"
-	"strings"
-	"testing"
 	"text/template"
 
 	"cmd/go/internal/test/internal/genflags"
@@ -33,7 +30,7 @@ func regenerate() error {
 
 	t := template.Must(template.New("fileTemplate").Parse(fileTemplate))
 	tData := map[string][]string{
-		"testFlags":    testFlags(),
+		"testFlags":    genflags.ShortTestFlags(),
 		"vetAnalyzers": vetAnalyzers,
 	}
 	buf := bytes.NewBuffer(nil)
@@ -61,28 +58,6 @@ func regenerate() error {
 	}
 
 	return nil
-}
-
-func testFlags() []string {
-	testing.Init()
-
-	var names []string
-	flag.VisitAll(func(f *flag.Flag) {
-		var name string
-		var found bool
-		if name, found = strings.CutPrefix(f.Name, "test."); !found {
-			return
-		}
-
-		switch name {
-		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker":
-			// These flags are only for use by cmd/go.
-		default:
-			names = append(names, name)
-		}
-	})
-
-	return names
 }
 
 const fileTemplate = `// Copyright 2019 The Go Authors. All rights reserved.

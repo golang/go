@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
+//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
 
 package boring
 
@@ -11,7 +11,6 @@ import "C"
 import (
 	"errors"
 	"runtime"
-	"unsafe"
 )
 
 type ecdsaSignature struct {
@@ -124,7 +123,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
 	size := C._goboringcrypto_ECDSA_size(priv.key)
 	sig := make([]byte, size)
 	var sigLen C.uint
-	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), &sigLen, priv.key) == 0 {
+	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), base(sig), &sigLen, priv.key) == 0 {
 		return nil, fail("ECDSA_sign")
 	}
 	runtime.KeepAlive(priv)
@@ -132,7 +131,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
 }
 
 func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
-	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
+	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), base(sig), C.size_t(len(sig)), pub.key) != 0
 	runtime.KeepAlive(pub)
 	return ok
 }

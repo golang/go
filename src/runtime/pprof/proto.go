@@ -197,7 +197,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
 	// Decide what to do about HasInlineFrames and HasLineNumbers.
 	// Also, another approach to handle the mapping entry with
-	// incomplete symbolization results is to dupliace the mapping
+	// incomplete symbolization results is to duplicate the mapping
 	// entry (but with different Has* fields values) and use
 	// different entries for symbolized locations and unsymbolized locations.
 	if hasFuncs {
@@ -395,6 +395,10 @@ func (b *profileBuilder) build() {
 // location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
 // an inline marker as the runtime traceback function returns.
 //
+// It may return an empty slice even if locs is non-empty, for example if locs consists
+// solely of runtime.goexit. We still count these empty stacks in profiles in order to
+// get the right cumulative sample count.
+//
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
 	b.deck.reset()
@@ -557,7 +561,7 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
 		if last.Entry != newFrame.Entry { // newFrame is for a different function.
 			return false
 		}
-		if last.Function == newFrame.Function { // maybe recursion.
+		if runtime_FrameSymbolName(&last) == runtime_FrameSymbolName(&newFrame) { // maybe recursion.
 			return false
 		}
 	}
@@ -607,13 +611,14 @@ func (b *profileBuilder) emitLocation() uint64 {
 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
 	for _, frame := range b.deck.frames {
 		// Write out each line in frame expansion.
-		funcID := uint64(b.funcs[frame.Function])
+		funcName := runtime_FrameSymbolName(&frame)
+		funcID := uint64(b.funcs[funcName])
 		if funcID == 0 {
 			funcID = uint64(len(b.funcs)) + 1
-			b.funcs[frame.Function] = int(funcID)
+			b.funcs[funcName] = int(funcID)
 			newFuncs = append(newFuncs, newFunc{
 				id:        funcID,
-				name:      frame.Function,
+				name:      funcName,
 				file:      frame.File,
 				startLine: int64(runtime_FrameStartLine(&frame)),
 			})

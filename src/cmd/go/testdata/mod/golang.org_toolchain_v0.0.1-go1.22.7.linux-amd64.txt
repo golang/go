@@ -1,0 +1,8 @@
+golang.org/toolchain v0.0.1-go1.22.7.linux-amd64
+written by hand
+-- .info --
+{"Version":"v0.0.1-go1.22.7.linux-amd64"}
+-- .mod --
+golang.org/toolchain
+-- go.mod --
+golang.org/toolchain

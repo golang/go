@@ -60,7 +60,3 @@ func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
 	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
 	return e
 }
-
-func CloseOnExec(fd int32) {
-	Syscall6(SYS_FCNTL, uintptr(fd), F_SETFD, FD_CLOEXEC, 0, 0, 0)
-}

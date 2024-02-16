@@ -1,1 +1,0 @@
-pkg net/http, type Server struct, DisableGeneralOptionsHandler bool #41773

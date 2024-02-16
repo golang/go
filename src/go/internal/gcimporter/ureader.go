@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"internal/pkgbits"
+	"sort"
 )
 
 // A pkgReader holds the shared state for reading a unified IR package
@@ -29,8 +30,6 @@ type pkgReader struct {
 	// laterFns holds functions that need to be invoked at the end of
 	// import reading.
 	laterFns []func()
-	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
-	laterFors map[types.Type]int
 
 	// ifaces holds a list of constructed Interfaces, which need to have
 	// Complete called after importing is done.
@@ -39,15 +38,6 @@ type pkgReader struct {
 
 // later adds a function to be invoked at the end of import reading.
 func (pr *pkgReader) later(fn func()) {
-	pr.laterFns = append(pr.laterFns, fn)
-}
-
-// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
-func (pr *pkgReader) laterFor(t types.Type, fn func()) {
-	if pr.laterFors == nil {
-		pr.laterFors = make(map[types.Type]int)
-	}
-	pr.laterFors[t] = len(pr.laterFns)
 	pr.laterFns = append(pr.laterFns, fn)
 }
 
@@ -94,6 +84,16 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 		iface.Complete()
 	}
 
+	// Imports() of pkg are all of the transitive packages that were loaded.
+	var imps []*types.Package
+	for _, imp := range pr.pkgs {
+		if imp != nil && imp != pkg {
+			imps = append(imps, imp)
+		}
+	}
+	sort.Sort(byPath(imps))
+	pkg.SetImports(imps)
+
 	pkg.MarkComplete()
 	return pkg
 }
@@ -118,7 +118,7 @@ type readerDict struct {
 	// tparams is a slice of the constructed TypeParams for the element.
 	tparams []*types.TypeParam
 
-	// devived is a slice of types derived from tparams, which may be
+	// derived is a slice of types derived from tparams, which may be
 	// instantiated while reading the current element.
 	derived      []derivedInfo
 	derivedTypes []types.Type // lazily instantiated from derived
@@ -233,43 +233,7 @@ func (r *reader) doPkg() *types.Package {
 	pkg := types.NewPackage(path, name)
 	r.p.imports[path] = pkg
 
-	imports := make([]*types.Package, r.Len())
-	for i := range imports {
-		imports[i] = r.pkg()
-	}
-
-	// The documentation for (*types.Package).Imports requires
-	// flattening the import graph when reading from export data, as
-	// obviously incorrect as that is.
-	//
-	// TODO(mdempsky): Remove this if go.dev/issue/54096 is accepted.
-	pkg.SetImports(flattenImports(imports))
-
 	return pkg
-}
-
-// flattenImports returns the transitive closure of all imported
-// packages rooted from pkgs.
-func flattenImports(pkgs []*types.Package) []*types.Package {
-	var res []*types.Package
-	seen := make(map[*types.Package]struct{})
-	for _, pkg := range pkgs {
-		if _, ok := seen[pkg]; ok {
-			continue
-		}
-		seen[pkg] = struct{}{}
-		res = append(res, pkg)
-
-		// pkg.Imports() is already flattened.
-		for _, pkg := range pkg.Imports() {
-			if _, ok := seen[pkg]; ok {
-				continue
-			}
-			seen[pkg] = struct{}{}
-			res = append(res, pkg)
-		}
-	}
-	return res
 }
 
 // @@@ Types
@@ -538,43 +502,32 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 			named.SetTypeParams(r.typeParamNames())
 
-			rhs := r.typ()
-			pk := r.p
-			pk.laterFor(named, func() {
-				// First be sure that the rhs is initialized, if it needs to be initialized.
-				delete(pk.laterFors, named) // prevent cycles
-				if i, ok := pk.laterFors[rhs]; ok {
-					f := pk.laterFns[i]
-					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
-					f()                        // initialize RHS
-				}
-				underlying := rhs.Underlying()
+			underlying := r.typ().Underlying()
 
-				// If the underlying type is an interface, we need to
-				// duplicate its methods so we can replace the receiver
-				// parameter's type (#49906).
-				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
-					methods := make([]*types.Func, iface.NumExplicitMethods())
-					for i := range methods {
-						fn := iface.ExplicitMethod(i)
-						sig := fn.Type().(*types.Signature)
+			// If the underlying type is an interface, we need to
+			// duplicate its methods so we can replace the receiver
+			// parameter's type (#49906).
+			if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
+				methods := make([]*types.Func, iface.NumExplicitMethods())
+				for i := range methods {
+					fn := iface.ExplicitMethod(i)
+					sig := fn.Type().(*types.Signature)
 
-						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
-						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
-					}
-
-					embeds := make([]types.Type, iface.NumEmbeddeds())
-					for i := range embeds {
-						embeds[i] = iface.EmbeddedType(i)
-					}
-
-					newIface := types.NewInterfaceType(methods, embeds)
-					r.p.ifaces = append(r.p.ifaces, newIface)
-					underlying = newIface
+					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
 				}
 
-				named.SetUnderlying(underlying)
-			})
+				embeds := make([]types.Type, iface.NumEmbeddeds())
+				for i := range embeds {
+					embeds[i] = iface.EmbeddedType(i)
+				}
+
+				newIface := types.NewInterfaceType(methods, embeds)
+				r.p.ifaces = append(r.p.ifaces, newIface)
+				underlying = newIface
+			}
+
+			named.SetUnderlying(underlying)
 
 			for i, n := 0, r.Len(); i < n; i++ {
 				named.AddMethod(r.method())

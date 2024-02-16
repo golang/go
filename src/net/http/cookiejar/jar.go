@@ -73,7 +73,7 @@ type Jar struct {
 	nextSeqNum uint64
 }
 
-// New returns a new cookie jar. A nil *Options is equivalent to a zero
+// New returns a new cookie jar. A nil [*Options] is equivalent to a zero
 // Options.
 func New(o *Options) (*Jar, error) {
 	jar := &Jar{
@@ -151,7 +151,7 @@ func hasDotSuffix(s, suffix string) bool {
 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
 }
 
-// Cookies implements the Cookies method of the http.CookieJar interface.
+// Cookies implements the Cookies method of the [http.CookieJar] interface.
 //
 // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
 func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
@@ -226,7 +226,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 	return cookies
 }
 
-// SetCookies implements the SetCookies method of the http.CookieJar interface.
+// SetCookies implements the SetCookies method of the [http.CookieJar] interface.
 //
 // It does nothing if the URL's scheme is not HTTP or HTTPS.
 func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
@@ -365,7 +365,7 @@ func isIP(host string) bool {
 	return net.ParseIP(host) != nil
 }
 
-// defaultPath returns the directory part of an URL's path according to
+// defaultPath returns the directory part of a URL's path according to
 // RFC 6265 section 5.1.4.
 func defaultPath(path string) string {
 	if len(path) == 0 || path[0] != '/' {
@@ -379,7 +379,7 @@ func defaultPath(path string) string {
 	return path[:i] // Path is either of form "/abc/xyz" or "/abc/xyz/".
 }
 
-// newEntry creates an entry from a http.Cookie c. now is the current time and
+// newEntry creates an entry from an http.Cookie c. now is the current time and
 // is compared to c.Expires to determine deletion of c. defPath and host are the
 // default-path and the canonical host name of the URL c was received from.
 //
@@ -440,7 +440,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 var (
 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
-	errNoHostname      = errors.New("cookiejar: no host name available (IP only)")
 )
 
 // endOfTime is the time when session (non-persistent) cookies expire.
@@ -465,14 +464,14 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// dot in the domain-attribute before processing the cookie.
 		//
 		// Most browsers don't do that for IP addresses, only curl
-		// version 7.54) and IE (version 11) do not reject a
+		// (version 7.54) and IE (version 11) do not reject a
 		//     Set-Cookie: a=1; domain=.127.0.0.1
 		// This leading dot is optional and serves only as hint for
 		// humans to indicate that a cookie with "domain=.bbc.co.uk"
 		// would be sent to every subdomain of bbc.co.uk.
 		// It just doesn't make sense on IP addresses.
 		// The other processing and validation steps in RFC 6265 just
-		// collaps to:
+		// collapse to:
 		if host != domain {
 			return "", false, errIllegalDomain
 		}

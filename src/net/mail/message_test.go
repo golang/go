@@ -39,6 +39,47 @@ So, "Hello".
 		},
 		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
 	},
+	{
+		// RFC 5965, Appendix B.1, a part of the multipart message (a header-only sub message)
+		in: `Feedback-Type: abuse
+User-Agent: SomeGenerator/1.0
+Version: 1
+`,
+		header: Header{
+			"Feedback-Type": []string{"abuse"},
+			"User-Agent":    []string{"SomeGenerator/1.0"},
+			"Version":       []string{"1"},
+		},
+		body: "",
+	},
+	{
+		// RFC 5322 permits any printable ASCII character,
+		// except colon, in a header key. Issue #58862.
+		in: `From: iant@golang.org
+Custom/Header: v
+
+Body
+`,
+		header: Header{
+			"From":          []string{"iant@golang.org"},
+			"Custom/Header": []string{"v"},
+		},
+		body: "Body\n",
+	},
+	{
+		// RFC 4155 mbox format. We've historically permitted this,
+		// so we continue to permit it. Issue #60332.
+		in: `From iant@golang.org Mon Jun 19 00:00:00 2023
+From: iant@golang.org
+
+Hello, gophers!
+`,
+		header: Header{
+			"From":                               []string{"iant@golang.org"},
+			"From iant@golang.org Mon Jun 19 00": []string{"00:00 2023"},
+		},
+		body: "Hello, gophers!\n",
+	},
 }
 
 func TestParsing(t *testing.T) {
@@ -344,8 +385,11 @@ func TestAddressParsingError(t *testing.T) {
 		13: {"group not closed: null@example.com", "expected comma"},
 		14: {"group: first@example.com, second@example.com;", "group with multiple addresses"},
 		15: {"john.doe", "missing '@' or angle-addr"},
-		16: {"john.doe@", "no angle-addr"},
+		16: {"john.doe@", "missing '@' or angle-addr"},
 		17: {"John Doe@foo.bar", "no angle-addr"},
+		18: {" group: null@example.com; (asd", "misformatted parenthetical comment"},
+		19: {" group: ; (asd", "misformatted parenthetical comment"},
+		20: {`(John) Doe <jdoe@machine.example>`, "missing word in phrase:"},
 	}
 
 	for i, tc := range mustErrTestCases {
@@ -395,24 +439,19 @@ func TestAddressParsing(t *testing.T) {
 				Address: "john.q.public@example.com",
 			}},
 		},
+		// Comment in display name
+		{
+			`John (middle) Doe <jdoe@machine.example>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// Display name is quoted string, so comment is not a comment
 		{
 			`"John (middle) Doe" <jdoe@machine.example>`,
 			[]*Address{{
 				Name:    "John (middle) Doe",
-				Address: "jdoe@machine.example",
-			}},
-		},
-		{
-			`John (middle) Doe <jdoe@machine.example>`,
-			[]*Address{{
-				Name:    "John (middle) Doe",
-				Address: "jdoe@machine.example",
-			}},
-		},
-		{
-			`John !@M@! Doe <jdoe@machine.example>`,
-			[]*Address{{
-				Name:    "John !@M@! Doe",
 				Address: "jdoe@machine.example",
 			}},
 		},
@@ -744,6 +783,26 @@ func TestAddressParsing(t *testing.T) {
 				{
 					Name:    "Adam Sjøgren (Debian)",
 					Address: "asjo@example.com",
+				},
+			},
+		},
+		// Comment in group display name
+		{
+			`group (comment:): a@example.com, b@example.com;`,
+			[]*Address{
+				{
+					Address: "a@example.com",
+				},
+				{
+					Address: "b@example.com",
+				},
+			},
+		},
+		{
+			`x(:"):"@a.example;("@b.example;`,
+			[]*Address{
+				{
+					Address: `@a.example;(@b.example`,
 				},
 			},
 		},

@@ -169,7 +169,7 @@ func fuseBlockIf(b *Block) bool {
 // There may be false positives.
 func isEmpty(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() {
+		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || opcodeTable[v.Op].nilCheck {
 			return false
 		}
 	}

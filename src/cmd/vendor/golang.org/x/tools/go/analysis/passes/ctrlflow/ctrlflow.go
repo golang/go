@@ -24,6 +24,7 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:       "ctrlflow",
 	Doc:        "build a control-flow graph",
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ctrlflow",
 	Run:        run,
 	ResultType: reflect.TypeOf(new(CFGs)),
 	FactTypes:  []analysis.Fact{new(noReturn)},

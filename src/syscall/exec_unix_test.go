@@ -7,12 +7,15 @@
 package syscall_test
 
 import (
+	"bytes"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -177,7 +180,7 @@ func TestForeground(t *testing.T) {
 	// equivalent.
 	fpgrp := int32(0)
 
-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
 	if errno != 0 {
 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
@@ -214,7 +217,7 @@ func TestForeground(t *testing.T) {
 
 	// This call fails on darwin/arm64. The failure doesn't matter, though.
 	// This is just best effort.
-	syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
 }
 
 func TestForegroundSignal(t *testing.T) {
@@ -228,7 +231,7 @@ func TestForegroundSignal(t *testing.T) {
 	// equivalent.
 	fpgrp := int32(0)
 
-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
 	if errno != 0 {
 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
@@ -239,7 +242,7 @@ func TestForegroundSignal(t *testing.T) {
 
 	defer func() {
 		signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
-		syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+		syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
 		signal.Reset()
 	}()
 
@@ -307,7 +310,7 @@ func TestInvalidExec(t *testing.T) {
 // TestExec is for issue #41702.
 func TestExec(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelper")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestExecHelper$")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
 	o, err := cmd.CombinedOutput()
 	if err != nil {
@@ -340,8 +343,59 @@ func TestExecHelper(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	argv := []string{os.Args[0], "-test.run=TestExecHelper"}
+	argv := []string{os.Args[0], "-test.run=^TestExecHelper$"}
 	syscall.Exec(os.Args[0], argv, os.Environ())
 
 	t.Error("syscall.Exec returned")
+}
+
+// Test that rlimit values are restored by exec.
+func TestRlimitRestored(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "" {
+		fmt.Println(syscall.OrigRlimitNofile().Cur)
+		os.Exit(0)
+	}
+
+	orig := syscall.OrigRlimitNofile()
+	if orig == nil {
+		t.Skip("skipping test because rlimit not adjusted at startup")
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		executable = os.Args[0]
+	}
+
+	cmd := testenv.Command(t, executable, "-test.run=^TestRlimitRestored$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf("subprocess failed: %v", err)
+	}
+	s := string(bytes.TrimSpace(out))
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		t.Fatalf("could not parse %q as number: %v", s, v)
+	}
+
+	if v != uint64(orig.Cur) {
+		t.Errorf("exec rlimit = %d, want %d", v, orig)
+	}
+}
+
+func TestForkExecNilArgv(t *testing.T) {
+	defer func() {
+		if p := recover(); p != nil {
+			t.Fatal("forkExec panicked")
+		}
+	}()
+
+	// We don't really care what the result of forkExec is, just that it doesn't
+	// panic, so we choose something we know won't actually spawn a process (probably).
+	syscall.ForkExec("/dev/null", nil, nil)
 }

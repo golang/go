@@ -3,19 +3,6 @@ env GO111MODULE=off
 # issue 28491: errors in test source files should not prevent
 # "go list -test" from returning useful information.
 
-# go list prints information for package, internal test,
-# external test, but not testmain package when there is a
-# syntax error in test sources.
-! go list -test -deps syntaxerr
-stdout pkgdep
-stdout testdep_a
-stdout testdep_b
-stdout ^syntaxerr$
-stdout '^syntaxerr \[syntaxerr.test\]'
-stdout '^syntaxerr_test \[syntaxerr.test\]'
-! stdout '^syntaxerr\.test'
-stderr 'expected declaration'
-
 # go list -e prints information for all test packages.
 # The syntax error is shown in the package error field.
 go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' syntaxerr
@@ -30,13 +17,6 @@ stdout 'syntaxerr\.test "[^"]*expected declaration'
 
 [short] stop
 
-# go list prints partial information with test naming error
-! go list -test -deps nameerr
-stdout pkgdep
-stdout testdep_a
-stdout testdep_b
-stderr 'wrong signature for TestBad'
-
 go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' nameerr
 stdout 'pkgdep <nil>'
 stdout 'testdep_a <nil>'
@@ -48,15 +28,10 @@ stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
 ! go list -test -deps genericerr
 stderr 'wrong signature for TestGeneric, test functions cannot have type parameters'
 
-# go list prints partial information with error if test has cyclic import
-! go list -test -deps cycleerr
-stdout cycleerr
-stderr 'import cycle not allowed in test'
-
 go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' cycleerr
 stdout 'cycleerr <nil>'
 stdout 'testdep_a <nil>'
-stdout 'testdep_cycle <nil>'
+stdout 'testdep_cycle \[cycleerr.test\] <nil>'
 stdout 'cycleerr \[cycleerr.test\] "[^"]*import cycle not allowed in test'
 ! stderr 'import cycle not allowed in test'
 

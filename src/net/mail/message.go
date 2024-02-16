@@ -13,7 +13,7 @@ Notable divergences:
   - The full range of spacing (the CFWS syntax element) is not supported,
     such as breaking addresses across lines.
   - No unicode normalization is performed.
-  - The special characters ()[]:;@\, are allowed to appear unquoted in names.
+  - A leading From line is permitted, as in mbox format (RFC 4155).
 */
 package mail
 
@@ -53,8 +53,8 @@ type Message struct {
 func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
-	hdr, err := tp.ReadMIMEHeader()
-	if err != nil {
+	hdr, err := readHeader(tp)
+	if err != nil && (err != io.EOF || len(hdr) == 0) {
 		return nil, err
 	}
 
@@ -62,6 +62,54 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 		Header: Header(hdr),
 		Body:   tp.R,
 	}, nil
+}
+
+// readHeader reads the message headers from r.
+// This is like textproto.ReadMIMEHeader, but doesn't validate.
+// The fix for issue #53188 tightened up net/textproto to enforce
+// restrictions of RFC 7230.
+// This package implements RFC 5322, which does not have those restrictions.
+// This function copies the relevant code from net/textproto,
+// simplified for RFC 5322.
+func readHeader(r *textproto.Reader) (map[string][]string, error) {
+	m := make(map[string][]string)
+
+	// The first line cannot start with a leading space.
+	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
+		line, err := r.ReadLine()
+		if err != nil {
+			return m, err
+		}
+		return m, errors.New("malformed initial line: " + line)
+	}
+
+	for {
+		kv, err := r.ReadContinuedLine()
+		if kv == "" {
+			return m, err
+		}
+
+		// Key ends at first colon.
+		k, v, ok := strings.Cut(kv, ":")
+		if !ok {
+			return m, errors.New("malformed header line: " + kv)
+		}
+		key := textproto.CanonicalMIMEHeaderKey(k)
+
+		// Permit empty key, because that is what we did in the past.
+		if key == "" {
+			continue
+		}
+
+		// Skip initial spaces in value.
+		value := strings.TrimLeft(v, " \t")
+
+		m[key] = append(m[key], value)
+
+		if err != nil {
+			return m, err
+		}
+	}
 }
 
 // Layouts suitable for passing to time.Parse.
@@ -231,7 +279,7 @@ func (a *Address) String() string {
 	// Add quotes if needed
 	quoteLocal := false
 	for i, r := range local {
-		if isAtext(r, false, false) {
+		if isAtext(r, false) {
 			continue
 		}
 		if r == '.' {
@@ -395,7 +443,7 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	if !p.consume('<') {
 		atext := true
 		for _, r := range displayName {
-			if !isAtext(r, true, false) {
+			if !isAtext(r, true) {
 				atext = false
 				break
 			}
@@ -430,7 +478,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 	// handle empty group.
 	p.skipSpace()
 	if p.consume(';') {
-		p.skipCFWS()
+		if !p.skipCFWS() {
+			return nil, errors.New("mail: misformatted parenthetical comment")
+		}
 		return group, nil
 	}
 
@@ -447,7 +497,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 			return nil, errors.New("mail: misformatted parenthetical comment")
 		}
 		if p.consume(';') {
-			p.skipCFWS()
+			if !p.skipCFWS() {
+				return nil, errors.New("mail: misformatted parenthetical comment")
+			}
 			break
 		}
 		if !p.consume(',') {
@@ -517,6 +569,12 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 	var words []string
 	var isPrevEncoded bool
 	for {
+		// obs-phrase allows CFWS after one word
+		if len(words) > 0 {
+			if !p.skipCFWS() {
+				return "", errors.New("mail: misformatted parenthetical comment")
+			}
+		}
 		// word = atom / quoted-string
 		var word string
 		p.skipSpace()
@@ -612,7 +670,6 @@ Loop:
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 // If permissive is true, consumeAtom will not fail on:
 // - leading/trailing/double dots in the atom (see golang.org/issue/4938)
-// - special characters (RFC 5322 3.2.3) except '<', '>', ':' and '"' (see golang.org/issue/21018)
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
 	i := 0
 
@@ -623,7 +680,7 @@ Loop:
 		case size == 1 && r == utf8.RuneError:
 			return "", fmt.Errorf("mail: invalid utf-8 in address: %q", p.s)
 
-		case size == 0 || !isAtext(r, dot, permissive):
+		case size == 0 || !isAtext(r, dot):
 			break Loop
 
 		default:
@@ -801,18 +858,13 @@ func (e charsetError) Error() string {
 
 // isAtext reports whether r is an RFC 5322 atext character.
 // If dot is true, period is included.
-// If permissive is true, RFC 5322 3.2.3 specials is included,
-// except '<', '>', ':' and '"'.
-func isAtext(r rune, dot, permissive bool) bool {
+func isAtext(r rune, dot bool) bool {
 	switch r {
 	case '.':
 		return dot
 
 	// RFC 5322 3.2.3. specials
-	case '(', ')', '[', ']', ';', '@', '\\', ',':
-		return permissive
-
-	case '<', '>', '"', ':':
+	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '"': // RFC 5322 3.2.3. specials
 		return false
 	}
 	return isVchar(r)

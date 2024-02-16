@@ -8,6 +8,7 @@ package xcoff
 import (
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/saferio"
 	"io"
@@ -173,7 +174,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	var nscns uint16
 	var symptr uint64
-	var nsyms int32
+	var nsyms uint32
 	var opthdr uint16
 	var hdrsz int
 	switch f.TargetMachine {
@@ -225,7 +226,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), io.SeekStart); err != nil {
 		return nil, err
 	}
-	f.Sections = make([]*Section, nscns)
+	c := saferio.SliceCap[*Section](uint64(nscns))
+	if c < 0 {
+		return nil, fmt.Errorf("too many XCOFF sections (%d)", nscns)
+	}
+	f.Sections = make([]*Section, 0, c)
 	for i := 0; i < int(nscns); i++ {
 		var scnptr uint64
 		s := new(Section)
@@ -257,11 +262,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		r2 := r
 		if scnptr == 0 { // .bss must have all 0s
-			r2 = zeroReaderAt{}
+			r2 = &nobitsSectionReader{}
 		}
 		s.sr = io.NewSectionReader(r2, int64(scnptr), int64(s.Size))
 		s.ReaderAt = s.sr
-		f.Sections[i] = s
+		f.Sections = append(f.Sections, s)
 	}
 
 	// Symbol map needed by relocation
@@ -283,9 +288,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
-			if numaux < 0 {
-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
-			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = uint64(se.Nvalue)
@@ -306,9 +308,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
-			if numaux < 0 {
-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
-			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = se.Nvalue
@@ -394,34 +393,39 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 	// Read relocations
 	// Only for .data or .text section
-	for _, sect := range f.Sections {
+	for sectNum, sect := range f.Sections {
 		if sect.Type != STYP_TEXT && sect.Type != STYP_DATA {
 			continue
 		}
-		sect.Relocs = make([]Reloc, sect.Nreloc)
 		if sect.Relptr == 0 {
 			continue
 		}
+		c := saferio.SliceCap[Reloc](uint64(sect.Nreloc))
+		if c < 0 {
+			return nil, fmt.Errorf("too many relocs (%d) for section %d", sect.Nreloc, sectNum)
+		}
+		sect.Relocs = make([]Reloc, 0, c)
 		if _, err := sr.Seek(int64(sect.Relptr), io.SeekStart); err != nil {
 			return nil, err
 		}
 		for i := uint32(0); i < sect.Nreloc; i++ {
+			var reloc Reloc
 			switch f.TargetMachine {
 			case U802TOCMAGIC:
 				rel := new(Reloc32)
 				if err := binary.Read(sr, binary.BigEndian, rel); err != nil {
 					return nil, err
 				}
-				sect.Relocs[i].VirtualAddress = uint64(rel.Rvaddr)
-				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
-				sect.Relocs[i].Type = rel.Rtype
-				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
+				reloc.VirtualAddress = uint64(rel.Rvaddr)
+				reloc.Symbol = idxToSym[int(rel.Rsymndx)]
+				reloc.Type = rel.Rtype
+				reloc.Length = rel.Rsize&0x3F + 1
 
 				if rel.Rsize&0x80 != 0 {
-					sect.Relocs[i].Signed = true
+					reloc.Signed = true
 				}
 				if rel.Rsize&0x40 != 0 {
-					sect.Relocs[i].InstructionFixed = true
+					reloc.InstructionFixed = true
 				}
 
 			case U64_TOCMAGIC:
@@ -429,32 +433,29 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				if err := binary.Read(sr, binary.BigEndian, rel); err != nil {
 					return nil, err
 				}
-				sect.Relocs[i].VirtualAddress = rel.Rvaddr
-				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
-				sect.Relocs[i].Type = rel.Rtype
-				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
+				reloc.VirtualAddress = rel.Rvaddr
+				reloc.Symbol = idxToSym[int(rel.Rsymndx)]
+				reloc.Type = rel.Rtype
+				reloc.Length = rel.Rsize&0x3F + 1
 				if rel.Rsize&0x80 != 0 {
-					sect.Relocs[i].Signed = true
+					reloc.Signed = true
 				}
 				if rel.Rsize&0x40 != 0 {
-					sect.Relocs[i].InstructionFixed = true
+					reloc.InstructionFixed = true
 				}
 			}
+
+			sect.Relocs = append(sect.Relocs, reloc)
 		}
 	}
 
 	return f, nil
 }
 
-// zeroReaderAt is ReaderAt that reads 0s.
-type zeroReaderAt struct{}
+type nobitsSectionReader struct{}
 
-// ReadAt writes len(p) 0s into p.
-func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
-	for i := range p {
-		p[i] = 0
-	}
-	return len(p), nil
+func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+	return 0, errors.New("unexpected read from section with uninitialized data")
 }
 
 // Data reads and returns the contents of the XCOFF section s.
@@ -517,7 +518,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
 		return nil, err
 	}
 	var istlen uint32
-	var nimpid int32
+	var nimpid uint32
 	var impoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -587,7 +588,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 	var stlen uint32
 	var stoff uint64
-	var nsyms int32
+	var nsyms uint32
 	var symoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -632,7 +633,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	all := make([]ImportedSymbol, 0)
 	for i := 0; i < int(nsyms); i++ {
 		var name string
-		var ifile int32
+		var ifile uint32
 		var ok bool
 		switch f.TargetMachine {
 		case U802TOCMAGIC:

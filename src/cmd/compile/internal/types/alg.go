@@ -13,7 +13,6 @@ type AlgKind int
 //go:generate stringer -type AlgKind -trimprefix A alg.go
 
 const (
-	// These values are known by runtime.
 	ANOEQ AlgKind = iota
 	AMEM0
 	AMEM8
@@ -104,7 +103,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
 		return ASPECIAL, nil
 
 	case TSTRUCT:
-		fields := t.FieldSlice()
+		fields := t.Fields()
 
 		// One-field struct is same as that one field alone.
 		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
@@ -148,7 +147,7 @@ func IsComparable(t *Type) bool {
 
 // IncomparableField returns an incomparable Field of struct Type t, if any.
 func IncomparableField(t *Type) *Field {
-	for _, f := range t.FieldSlice() {
+	for _, f := range t.Fields() {
 		if !IsComparable(f.Type) {
 			return f
 		}

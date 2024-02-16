@@ -1,0 +1,141 @@
+go work vendor
+cmp modules.txt.want vendor/modules.txt
+go list example.com/a example.com/b
+
+# Module required in go.mod but not marked explicit in modules.txt
+cp modules.txt.required_but_not_explicit vendor/modules.txt
+! go list example.com/a example.com/b
+cmpenv stderr required_but_not_explicit_error.txt
+
+# Replacement in go.mod but no replacement in modules.txt
+cp modules.txt.missing_replacement vendor/modules.txt
+! go list example.com/a example.com/b
+cmpenv stderr missing_replacement_error.txt
+
+# Replacement in go.mod but different replacement target in modules.txt
+cp modules.txt.different_replacement vendor/modules.txt
+! go list example.com/a example.com/b
+cmpenv stderr different_replacement_error.txt
+
+# Module marked explicit in modules.txt but not required in go.mod
+cp modules.txt.extra_explicit vendor/modules.txt
+! go list example.com/a example.com/b
+cmpenv stderr extra_explicit_error.txt
+
+# Replacement in modules.txt but not in go.mod
+cp modules.txt.extra_replacement vendor/modules.txt
+! go list example.com/a example.com/b
+cmpenv stderr extra_replacement_error.txt
+
+-- modules.txt.want --
+## workspace
+# example.com/p v1.0.0 => ./p
+## explicit; go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+-- modules.txt.required_but_not_explicit --
+## workspace
+# example.com/p v1.0.0 => ./p
+## go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+-- required_but_not_explicit_error.txt --
+go: inconsistent vendoring in $GOPATH${/}src:
+	example.com/p@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt
+
+	To ignore the vendor directory, use -mod=readonly or -mod=mod.
+	To sync the vendor directory, run:
+		go work vendor
+-- modules.txt.missing_replacement --
+## workspace
+# example.com/p v1.0.0
+## explicit; go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+-- missing_replacement_error.txt --
+go: inconsistent vendoring in $GOPATH${/}src:
+	example.com/p@v1.0.0: is replaced in a${/}go.mod, but not marked as replaced in vendor/modules.txt
+
+	To ignore the vendor directory, use -mod=readonly or -mod=mod.
+	To sync the vendor directory, run:
+		go work vendor
+-- modules.txt.different_replacement --
+## workspace
+# example.com/p v1.0.0 => ./r
+## explicit; go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+-- different_replacement_error.txt --
+go: inconsistent vendoring in $GOPATH${/}src:
+	example.com/p@v1.0.0: is replaced by ../p in a${/}go.mod, but marked as replaced by ./r in vendor/modules.txt
+
+	To ignore the vendor directory, use -mod=readonly or -mod=mod.
+	To sync the vendor directory, run:
+		go work vendor
+-- modules.txt.extra_explicit --
+## workspace
+# example.com/p v1.0.0 => ./p
+## explicit; go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+# example.com/r v1.0.0
+example.com/r
+## explicit; go 1.21
+-- extra_explicit_error.txt --
+go: inconsistent vendoring in $GOPATH${/}src:
+	example.com/r@v1.0.0: is marked as explicit in vendor/modules.txt, but not explicitly required in a go.mod
+
+	To ignore the vendor directory, use -mod=readonly or -mod=mod.
+	To sync the vendor directory, run:
+		go work vendor
+-- modules.txt.extra_replacement --
+## workspace
+# example.com/p v1.0.0 => ./p
+## explicit; go 1.21
+# example.com/q v1.0.0 => ./q
+## explicit; go 1.21
+# example.com/r v1.0.0 => ./r
+example.com/r
+## go 1.21
+-- extra_replacement_error.txt --
+go: inconsistent vendoring in $GOPATH${/}src:
+	example.com/r@v1.0.0: is marked as replaced in vendor/modules.txt, but not replaced in the workspace
+
+	To ignore the vendor directory, use -mod=readonly or -mod=mod.
+	To sync the vendor directory, run:
+		go work vendor
+-- go.work --
+go 1.21
+
+use (
+    ./a
+    ./b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.21
+
+require example.com/p v1.0.0
+
+replace example.com/p v1.0.0 => ../p
+-- a/a.go --
+package p
+-- b/go.mod --
+module example.com/b
+
+go 1.21
+
+require example.com/q v1.0.0
+
+replace example.com/q v1.0.0 => ../q
+-- b/b.go --
+package b
+-- p/go.mod --
+module example.com/p
+
+go 1.21
+-- q/go.mod --
+module example.com/q
+
+go 1.21

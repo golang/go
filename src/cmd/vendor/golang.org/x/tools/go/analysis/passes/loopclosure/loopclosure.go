@@ -2,46 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package loopclosure defines an Analyzer that checks for references to
-// enclosing loop variables from within nested functions.
 package loopclosure
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/versions"
 )
 
-const Doc = `check references to loop variables from within nested functions
-
-This analyzer checks for references to loop variables from within a function
-literal inside the loop body. It checks for patterns where access to a loop
-variable is known to escape the current loop iteration:
- 1. a call to go or defer at the end of the loop body
- 2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
- 3. a call testing.T.Run where the subtest body invokes t.Parallel()
-
-In the case of (1) and (2), the analyzer only considers references in the last
-statement of the loop body as it is not deep enough to understand the effects
-of subsequent statements which might render the reference benign.
-
-For example:
-
-	for i, v := range s {
-		go func() {
-			println(i, v) // not what you might expect
-		}()
-	}
-
-See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "loopclosure",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "loopclosure"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -50,10 +32,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.RangeStmt)(nil),
 		(*ast.ForStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Nodes(nodeFilter, func(n ast.Node, push bool) bool {
+		if !push {
+			// inspect.Nodes is slightly suboptimal as we only use push=true.
+			return true
+		}
 		// Find the variables updated by the loop statement.
 		var vars []types.Object
 		addVar := func(expr ast.Expr) {
@@ -65,6 +52,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		var body *ast.BlockStmt
 		switch n := n.(type) {
+		case *ast.File:
+			// Only traverse the file if its goversion is strictly before go1.22.
+			goversion := versions.Lang(versions.FileVersions(pass.TypesInfo, n))
+			// goversion is empty for older go versions (or the version is invalid).
+			return goversion == "" || versions.Compare(goversion, "go1.22") < 0
 		case *ast.RangeStmt:
 			body = n.Body
 			addVar(n.Key)
@@ -83,7 +75,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		}
 		if vars == nil {
-			return
+			return true
 		}
 
 		// Inspect statements to find function literals that may be run outside of
@@ -91,59 +83,122 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		//
 		// For go, defer, and errgroup.Group.Go, we ignore all but the last
 		// statement, because it's hard to prove go isn't followed by wait, or
-		// defer by return.
+		// defer by return. "Last" is defined recursively.
 		//
+		// TODO: consider allowing the "last" go/defer/Go statement to be followed by
+		// N "trivial" statements, possibly under a recursive definition of "trivial"
+		// so that that checker could, for example, conclude that a go statement is
+		// followed by an if statement made of only trivial statements and trivial expressions,
+		// and hence the go statement could still be checked.
+		forEachLastStmt(body.List, func(last ast.Stmt) {
+			var stmts []ast.Stmt
+			switch s := last.(type) {
+			case *ast.GoStmt:
+				stmts = litStmts(s.Call.Fun)
+			case *ast.DeferStmt:
+				stmts = litStmts(s.Call.Fun)
+			case *ast.ExprStmt: // check for errgroup.Group.Go
+				if call, ok := s.X.(*ast.CallExpr); ok {
+					stmts = litStmts(goInvoke(pass.TypesInfo, call))
+				}
+			}
+			for _, stmt := range stmts {
+				reportCaptured(pass, vars, stmt)
+			}
+		})
+
+		// Also check for testing.T.Run (with T.Parallel).
 		// We consider every t.Run statement in the loop body, because there is
-		// no such commonly used mechanism for synchronizing parallel subtests.
+		// no commonly used mechanism for synchronizing parallel subtests.
 		// It is of course theoretically possible to synchronize parallel subtests,
 		// though such a pattern is likely to be exceedingly rare as it would be
 		// fighting against the test runner.
-		lastStmt := len(body.List) - 1
-		for i, s := range body.List {
-			var stmts []ast.Stmt // statements that must be checked for escaping references
+		for _, s := range body.List {
 			switch s := s.(type) {
-			case *ast.GoStmt:
-				if i == lastStmt {
-					stmts = litStmts(s.Call.Fun)
-				}
-
-			case *ast.DeferStmt:
-				if i == lastStmt {
-					stmts = litStmts(s.Call.Fun)
-				}
-
-			case *ast.ExprStmt: // check for errgroup.Group.Go and testing.T.Run (with T.Parallel)
+			case *ast.ExprStmt:
 				if call, ok := s.X.(*ast.CallExpr); ok {
-					if i == lastStmt {
-						stmts = litStmts(goInvoke(pass.TypesInfo, call))
+					for _, stmt := range parallelSubtest(pass.TypesInfo, call) {
+						reportCaptured(pass, vars, stmt)
 					}
-					if stmts == nil {
-						stmts = parallelSubtest(pass.TypesInfo, call)
-					}
-				}
-			}
 
-			for _, stmt := range stmts {
-				ast.Inspect(stmt, func(n ast.Node) bool {
-					id, ok := n.(*ast.Ident)
-					if !ok {
-						return true
-					}
-					obj := pass.TypesInfo.Uses[id]
-					if obj == nil {
-						return true
-					}
-					for _, v := range vars {
-						if v == obj {
-							pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
-						}
-					}
-					return true
-				})
+				}
 			}
 		}
+		return true
 	})
 	return nil, nil
+}
+
+// reportCaptured reports a diagnostic stating a loop variable
+// has been captured by a func literal if checkStmt has escaping
+// references to vars. vars is expected to be variables updated by a loop statement,
+// and checkStmt is expected to be a statements from the body of a func literal in the loop.
+func reportCaptured(pass *analysis.Pass, vars []types.Object, checkStmt ast.Stmt) {
+	ast.Inspect(checkStmt, func(n ast.Node) bool {
+		id, ok := n.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		obj := pass.TypesInfo.Uses[id]
+		if obj == nil {
+			return true
+		}
+		for _, v := range vars {
+			if v == obj {
+				pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
+			}
+		}
+		return true
+	})
+}
+
+// forEachLastStmt calls onLast on each "last" statement in a list of statements.
+// "Last" is defined recursively so, for example, if the last statement is
+// a switch statement, then each switch case is also visited to examine
+// its last statements.
+func forEachLastStmt(stmts []ast.Stmt, onLast func(last ast.Stmt)) {
+	if len(stmts) == 0 {
+		return
+	}
+
+	s := stmts[len(stmts)-1]
+	switch s := s.(type) {
+	case *ast.IfStmt:
+	loop:
+		for {
+			forEachLastStmt(s.Body.List, onLast)
+			switch e := s.Else.(type) {
+			case *ast.BlockStmt:
+				forEachLastStmt(e.List, onLast)
+				break loop
+			case *ast.IfStmt:
+				s = e
+			case nil:
+				break loop
+			}
+		}
+	case *ast.ForStmt:
+		forEachLastStmt(s.Body.List, onLast)
+	case *ast.RangeStmt:
+		forEachLastStmt(s.Body.List, onLast)
+	case *ast.SwitchStmt:
+		for _, c := range s.Body.List {
+			cc := c.(*ast.CaseClause)
+			forEachLastStmt(cc.Body, onLast)
+		}
+	case *ast.TypeSwitchStmt:
+		for _, c := range s.Body.List {
+			cc := c.(*ast.CaseClause)
+			forEachLastStmt(cc.Body, onLast)
+		}
+	case *ast.SelectStmt:
+		for _, c := range s.Body.List {
+			cc := c.(*ast.CommClause)
+			forEachLastStmt(cc.Body, onLast)
+		}
+	default:
+		onLast(s)
+	}
 }
 
 // litStmts returns all statements from the function body of a function
@@ -202,6 +257,11 @@ func goInvoke(info *types.Info, call *ast.CallExpr) ast.Expr {
 //	}
 func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
 	if !isMethodCall(info, call, "testing", "T", "Run") {
+		return nil
+	}
+
+	if len(call.Args) != 2 {
+		// Ignore calls such as t.Run(fn()).
 		return nil
 	}
 
@@ -311,20 +371,5 @@ func isMethodCall(info *types.Info, expr ast.Expr, pkgPath, typeName, method str
 	if ptr, ok := recv.Type().(*types.Pointer); ok {
 		rtype = ptr.Elem()
 	}
-	named, ok := rtype.(*types.Named)
-	if !ok {
-		return false
-	}
-	if named.Obj().Name() != typeName {
-		return false
-	}
-	pkg := f.Pkg()
-	if pkg == nil {
-		return false
-	}
-	if pkg.Path() != pkgPath {
-		return false
-	}
-
-	return true
+	return analysisutil.IsNamedType(rtype, pkgPath, typeName)
 }

@@ -1535,6 +1535,17 @@ func TestContainsRune(t *testing.T) {
 	}
 }
 
+func TestContainsFunc(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsFunc(ct.str, func(r rune) bool {
+			return ct.r == r
+		}) != ct.expected {
+			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
+				ct.str, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var EqualFoldTests = []struct {
 	s, t string
 	out  bool
@@ -1668,7 +1679,7 @@ func TestCutPrefix(t *testing.T) {
 
 var cutSuffixTests = []struct {
 	s, sep string
-	after  string
+	before string
 	found  bool
 }{
 	{"abc", "bc", "a", true},
@@ -1681,8 +1692,8 @@ var cutSuffixTests = []struct {
 
 func TestCutSuffix(t *testing.T) {
 	for _, tt := range cutSuffixTests {
-		if after, found := CutSuffix(tt.s, tt.sep); after != tt.after || found != tt.found {
-			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		if before, found := CutSuffix(tt.s, tt.sep); before != tt.before || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, before, found, tt.before, tt.found)
 		}
 	}
 }

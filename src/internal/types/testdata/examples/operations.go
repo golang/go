@@ -7,11 +7,11 @@ package p
 // indirection
 
 func _[P any](p P) {
-        _ = *p // ERROR cannot indirect p
+        _ = *p // ERROR "cannot indirect p"
 }
 
 func _[P interface{ int }](p P) {
-        _ = *p // ERROR cannot indirect p
+        _ = *p // ERROR "cannot indirect p"
 }
 
 func _[P interface{ *int }](p P) {
@@ -19,7 +19,7 @@ func _[P interface{ *int }](p P) {
 }
 
 func _[P interface{ *int | *string }](p P) {
-        _ = *p // ERROR must have identical base types
+        _ = *p // ERROR "must have identical base types"
 }
 
 type intPtr *int

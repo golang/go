@@ -1,3 +1,4 @@
+pkg crypto/tls, type ConnectionState struct, TLSUnique //deprecated
 pkg debug/elf, const R_PPC64_SECTOFF_LO_DS = 61
 pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
 pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -501,6 +502,7 @@ pkg text/template/parse, type Node interface { Copy, String, Type }
 pkg unicode, const Version = "10.0.0"
 pkg unicode, const Version = "11.0.0"
 pkg unicode, const Version = "12.0.0"
+pkg unicode, const Version = "13.0.0"
 pkg unicode, const Version = "6.2.0"
 pkg unicode, const Version = "6.3.0"
 pkg unicode, const Version = "7.0.0"
@@ -574,3 +576,25 @@ pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 498
 pkg syscall (freebsd-arm-cgo), const SYS_STAT = 188
 pkg syscall (freebsd-arm-cgo), const SYS_STAT ideal-int
 pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 396
+pkg syscall (freebsd-arm64), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm64), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm64), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm64), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm64), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm64), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm64), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm64), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm64), const SYS_STAT = 188
+pkg syscall (freebsd-arm64), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm64), const SYS_STATFS = 396
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm64-cgo), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm64-cgo), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm64-cgo), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm64-cgo), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm64-cgo), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm64-cgo), const SYS_STAT = 188
+pkg syscall (freebsd-arm64-cgo), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm64-cgo), const SYS_STATFS = 396

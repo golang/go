@@ -41,7 +41,7 @@ func (v *Value) Load() (val any) {
 
 var firstStoreInProgress byte
 
-// Store sets the value of the Value to x.
+// Store sets the value of the Value v to val.
 // All calls to Store for a given Value must use values of the same concrete type.
 // Store of an inconsistent type panics, as does Store(nil).
 func (v *Value) Store(val any) {
@@ -190,5 +190,5 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
 }
 
 // Disable/enable preemption, implemented in runtime.
-func runtime_procPin()
+func runtime_procPin() int
 func runtime_procUnpin()

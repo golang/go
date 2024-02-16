@@ -23,5 +23,6 @@
 TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
 	NO_LOCAL_POINTERS
 	MOVQ	$0, AX // wantInlined
-	CALL    runtime_test·callerStartLine<ABIInternal>(SB)
+	MOVQ	·CallerStartLine(SB), DX
+	CALL	(DX)
 	RET

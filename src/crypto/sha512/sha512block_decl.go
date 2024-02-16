@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build s390x || ppc64le || ppc64
+//go:build ppc64le || ppc64 || riscv64 || s390x
 
 package sha512
 
 //go:noescape
-
 func block(dig *digest, p []byte)

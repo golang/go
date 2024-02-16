@@ -51,11 +51,11 @@ func _() { var init int; _ = init }
 
 // invalid array types
 type (
-	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
+	iA0 [... /* ERROR "invalid use of [...] array" */ ]byte
 	// The error message below could be better. At the moment
 	// we believe an integer that is too large is not an integer.
 	// But at least we get an error.
-	iA1 [1 /* ERROR "must be integer" */ <<100]int
+	iA1 [1 /* ERROR "invalid array length" */ <<100]int
 	iA2 [- /* ERROR "invalid array length" */ 1]complex128
 	iA3 ["foo" /* ERROR "must be integer" */ ]string
 	iA4 [float64 /* ERROR "must be integer" */ (0)]int
@@ -63,7 +63,7 @@ type (
 
 
 type (
-	p1 pi.foo /* ERROR "no field or method foo" */
+	p1 pi.foo /* ERROR "pi.foo is not a type" */
 	p2 unsafe.Pointer
 )
 
@@ -189,10 +189,10 @@ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
 // TODO(#43215) this should be detected as a cycle error
 func f5([unsafe.Sizeof(f5)]int) {}
 
-func (S0) m1 (x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
-func (S0) m2 (x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
-func (S0) m3 () (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
-func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
+func (S0) m1 (x S0.m1 /* ERROR "S0.m1 is not a type" */ ) {}
+func (S0) m2 (x *S0.m2 /* ERROR "S0.m2 is not a type" */ ) {}
+func (S0) m3 () (x S0.m3 /* ERROR "S0.m3 is not a type" */ ) { return }
+func (S0) m4 () (x *S0.m4 /* ERROR "S0.m4 is not a type" */ ) { return }
 
 // interfaces may not have any blank methods
 type BlankI interface {

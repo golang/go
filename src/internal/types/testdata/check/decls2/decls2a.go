@@ -95,8 +95,8 @@ func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
 // Methods associated with non-local or unnamed types.
 func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
 func ([ /* ERROR "invalid receiver" */ ]int) m() {}
-func (time /* ERROR "cannot define new methods on non-local type time\.Time" */ .Time) m() {}
-func (* /* ERROR "cannot define new methods on non-local type time\.Time" */ time.Time) m() {}
+func (time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
+func (* /* ERROR "cannot define new methods on non-local type time.Time" */ time.Time) m() {}
 func (x /* ERROR "invalid receiver" */ interface{}) m() {}
 
 // Unsafe.Pointer is treated like a pointer when used as receiver type.

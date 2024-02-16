@@ -5,16 +5,16 @@
 /*
 Package template (html/template) implements data-driven templates for
 generating HTML output safe against code injection. It provides the
-same interface as package text/template and should be used instead of
-text/template whenever the output is HTML.
+same interface as [text/template] and should be used instead of
+[text/template] whenever the output is HTML.
 
 The documentation here focuses on the security features of the package.
 For information about how to program the templates themselves, see the
-documentation for text/template.
+documentation for [text/template].
 
 # Introduction
 
-This package wraps package text/template so you can share its template API
+This package wraps [text/template] so you can share its template API
 to parse and execute HTML templates safely.
 
 	tmpl, err := template.New("name").Parse(...)
@@ -231,5 +231,12 @@ Least Surprise Property:
 "A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
 knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
+
+As a consequence of the Least Surprise Property, template actions within an
+ECMAScript 6 template literal are disabled by default.
+Handling string interpolation within these literals is rather complex resulting
+in no clear safe way to support it.
+To re-enable template actions within ECMAScript 6 template literals, use the
+GODEBUG=jstmpllitinterp=1 environment variable.
 */
 package template

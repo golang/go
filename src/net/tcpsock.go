@@ -24,7 +24,7 @@ type TCPAddr struct {
 	Zone string // IPv6 scoped addressing zone
 }
 
-// AddrPort returns the TCPAddr a as a netip.AddrPort.
+// AddrPort returns the [TCPAddr] a as a [netip.AddrPort].
 //
 // If a.Port does not fit in a uint16, it's silently truncated.
 //
@@ -79,7 +79,7 @@ func (a *TCPAddr) opAddr() Addr {
 // recommended, because it will return at most one of the host name's
 // IP addresses.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	switch network {
@@ -96,7 +96,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	return addrs.forResolve(network, address).(*TCPAddr), nil
 }
 
-// TCPAddrFromAddrPort returns addr as a TCPAddr. If addr.IsValid() is false,
+// TCPAddrFromAddrPort returns addr as a [TCPAddr]. If addr.IsValid() is false,
 // then the returned TCPAddr will contain a nil IP field, indicating an
 // address family-agnostic unspecified address.
 func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
@@ -107,22 +107,22 @@ func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
 	}
 }
 
-// TCPConn is an implementation of the Conn interface for TCP network
+// TCPConn is an implementation of the [Conn] interface for TCP network
 // connections.
 type TCPConn struct {
 	conn
 }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawConn(c.fd)
+	return newRawConn(c.fd), nil
 }
 
-// ReadFrom implements the io.ReaderFrom ReadFrom method.
+// ReadFrom implements the [io.ReaderFrom] ReadFrom method.
 func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -130,6 +130,18 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	n, err := c.readFrom(r)
 	if err != nil && err != io.EOF {
 		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
+}
+
+// WriteTo implements the io.WriterTo WriteTo method.
+func (c *TCPConn) WriteTo(w io.Writer) (int64, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeTo(w)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "writeto", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -167,8 +179,10 @@ func (c *TCPConn) CloseWrite() error {
 // If sec == 0, the operating system discards any unsent or
 // unacknowledged data.
 //
-// If sec > 0, the data is sent in the background as with sec < 0. On
-// some operating systems after sec seconds have elapsed any remaining
+// If sec > 0, the data is sent in the background as with sec < 0.
+// On some operating systems including Linux, this may cause Close to block
+// until all data has been sent or discarded.
+// On some operating systems after sec seconds have elapsed any remaining
 // unsent data may be discarded.
 func (c *TCPConn) SetLinger(sec int) error {
 	if !c.ok() {
@@ -217,6 +231,22 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 	return nil
 }
 
+// MultipathTCP reports whether the ongoing connection is using MPTCP.
+//
+// If Multipath TCP is not supported by the host, by the other peer or
+// intentionally / accidentally filtered out by a device in between, a
+// fallback to TCP will be done. This method does its best to check if
+// MPTCP is still being used or not.
+//
+// On Linux, more conditions are verified on kernels >= v5.16, improving
+// the results.
+func (c *TCPConn) MultipathTCP() (bool, error) {
+	if !c.ok() {
+		return false, syscall.EINVAL
+	}
+	return isUsingMultipathTCP(c.fd), nil
+}
+
 func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
 	setNoDelay(fd, true)
 	if keepAlive == 0 {
@@ -232,7 +262,7 @@ func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Dura
 	return &TCPConn{conn{fd}}
 }
 
-// DialTCP acts like Dial for TCP networks.
+// DialTCP acts like [Dial] for TCP networks.
 //
 // The network must be a TCP network name; see func Dial for details.
 //
@@ -257,14 +287,14 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 
 // TCPListener is a TCP network listener. Clients should typically
-// use variables of type Listener instead of assuming TCP.
+// use variables of type [Listener] instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
 	lc ListenConfig
 }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 //
 // The returned RawConn only supports calling Control. Read and
 // Write return an error.
@@ -272,7 +302,7 @@ func (l *TCPListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
 	}
-	return newRawListener(l.fd)
+	return newRawListener(l.fd), nil
 }
 
 // AcceptTCP accepts the next incoming call and returns the new
@@ -288,8 +318,8 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
 	return c, nil
 }
 
-// Accept implements the Accept method in the Listener interface; it
-// waits for the next call and returns a generic Conn.
+// Accept implements the Accept method in the [Listener] interface; it
+// waits for the next call and returns a generic [Conn].
 func (l *TCPListener) Accept() (Conn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
@@ -313,7 +343,7 @@ func (l *TCPListener) Close() error {
 	return nil
 }
 
-// Addr returns the listener's network address, a *TCPAddr.
+// Addr returns the listener's network address, a [*TCPAddr].
 // The Addr returned is shared by all invocations of Addr, so
 // do not modify it.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
@@ -324,13 +354,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.pfd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
-	}
-	return nil
+	return l.fd.SetDeadline(t)
 }
 
-// File returns a copy of the underlying os.File.
+// File returns a copy of the underlying [os.File].
 // It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
@@ -348,7 +375,7 @@ func (l *TCPListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenTCP acts like Listen for TCP networks.
+// ListenTCP acts like [Listen] for TCP networks.
 //
 // The network must be a TCP network name; see func Dial for details.
 //

@@ -10,7 +10,7 @@ stderr '^main.go:4:5: ambiguous import: found package image in multiple director
 
 cd ../c
 ! go build -mod=vendor
-stderr 'main.go:4:5: package p is not in GOROOT'
+stderr 'main.go:4:5: package p is not in std'
 
 -- a/go.mod --
 module image

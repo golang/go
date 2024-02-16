@@ -119,6 +119,7 @@ var (
 	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
 	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
 	procGetFileType                        = modkernel32.NewProc("GetFileType")
+	procGetFinalPathNameByHandleW          = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
 	procGetLastError                       = modkernel32.NewProc("GetLastError")
 	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
@@ -128,7 +129,6 @@ var (
 	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
 	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
-	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
 	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
@@ -780,6 +780,15 @@ func GetFileType(filehandle Handle) (n uint32, err error) {
 	return
 }
 
+func getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) {
+	r0, _, e1 := Syscall6(procGetFinalPathNameByHandleW.Addr(), 4, uintptr(file), uintptr(unsafe.Pointer(filePath)), uintptr(filePathSize), uintptr(flags), 0, 0)
+	n = uint32(r0)
+	if n == 0 || n >= filePathSize {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) {
 	r0, _, e1 := Syscall6(procGetFullPathNameW.Addr(), 4, uintptr(unsafe.Pointer(path)), uintptr(buflen), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(fname)), 0, 0)
 	n = uint32(r0)
@@ -849,11 +858,8 @@ func GetShortPathName(longpath *uint16, shortpath *uint16, buflen uint32) (n uin
 	return
 }
 
-func GetStartupInfo(startupInfo *StartupInfo) (err error) {
-	r1, _, e1 := Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
+func getStartupInfo(startupInfo *StartupInfo) {
+	Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
 	return
 }
 
@@ -861,15 +867,6 @@ func GetStdHandle(stdhandle int) (handle Handle, err error) {
 	r0, _, e1 := Syscall(procGetStdHandle.Addr(), 1, uintptr(stdhandle), 0, 0)
 	handle = Handle(r0)
 	if handle == InvalidHandle {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
-	r0, _, e1 := Syscall(procGetSystemDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(dirLen), 0)
-	len = uint32(r0)
-	if len == 0 {
 		err = errnoErr(e1)
 	}
 	return

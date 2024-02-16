@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -54,6 +55,20 @@ var Go = &Command{
 	UsageLine: "go",
 	Long:      `Go is a tool for managing Go source code.`,
 	// Commands initialized in package main
+}
+
+// Lookup returns the subcommand with the given name, if any.
+// Otherwise it returns nil.
+//
+// Lookup ignores subcommands that have len(c.Commands) == 0 and c.Run == nil.
+// Such subcommands are only for use as arguments to "help".
+func (c *Command) Lookup(name string) *Command {
+	for _, sub := range c.Commands {
+		if sub.Name() == name && (len(c.Commands) > 0 || c.Runnable()) {
+			return sub
+		}
+	}
+	return nil
 }
 
 // hasFlag reports whether a command or any of its subcommands contain the given
@@ -131,6 +146,28 @@ func ExitIfErrors() {
 	if exitStatus != 0 {
 		Exit()
 	}
+}
+
+func Error(err error) {
+	// We use errors.Join to return multiple errors from various routines.
+	// If we receive multiple errors joined with a basic errors.Join,
+	// handle each one separately so that they all have the leading "go: " prefix.
+	// A plain interface check is not good enough because there might be
+	// other kinds of structured errors that are logically one unit and that
+	// add other context: only handling the wrapped errors would lose
+	// that context.
+	if err != nil && reflect.TypeOf(err).String() == "*errors.joinError" {
+		for _, e := range err.(interface{ Unwrap() []error }).Unwrap() {
+			Error(e)
+		}
+		return
+	}
+	Errorf("go: %v", err)
+}
+
+func Fatal(err error) {
+	Error(err)
+	Exit()
 }
 
 var exitStatus = 0

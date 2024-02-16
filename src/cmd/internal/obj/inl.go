@@ -50,19 +50,35 @@ type InlinedCall struct {
 	Parent   int      // index of the parent in the InlTree or < 0 if outermost call
 	Pos      src.XPos // position of the inlined call
 	Func     *LSym    // function that was inlined
+	Name     string   // bare name of the function (w/o package prefix)
 	ParentPC int32    // PC of instruction just before inlined body. Only valid in local trees.
 }
 
 // Add adds a new call to the tree, returning its index.
-func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
+func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym, name string) int {
 	r := len(tree.nodes)
 	call := InlinedCall{
 		Parent: parent,
 		Pos:    pos,
 		Func:   func_,
+		Name:   name,
 	}
 	tree.nodes = append(tree.nodes, call)
 	return r
+}
+
+// AllParents invokes do on each InlinedCall in the inlining call
+// stack, from outermost to innermost.
+//
+// That is, if inlIndex corresponds to f inlining g inlining h,
+// AllParents invokes do with the call for inlining g into f, and then
+// inlining h into g.
+func (tree *InlTree) AllParents(inlIndex int, do func(InlinedCall)) {
+	if inlIndex >= 0 {
+		call := tree.nodes[inlIndex]
+		tree.AllParents(call.Parent, do)
+		do(call)
+	}
 }
 
 func (tree *InlTree) Parent(inlIndex int) int {
@@ -108,20 +124,15 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 	return ctxt.PosTable.Pos(xpos)
 }
 
-// AllPos returns a slice of the positions inlined at xpos, from
-// innermost (index zero) to outermost.  To avoid allocation
-// the input slice is truncated, and used for the result, extended
-// as necessary.
-func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
+// AllPos invokes do with every position in the inlining call stack for xpos,
+// from outermost to innermost. That is, xpos corresponds to f inlining g inlining h,
+// AllPos invokes do with the position in f, then the position in g, then the position in h.
+func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
 	pos := ctxt.InnermostPos(xpos)
-	result = result[:0]
-	result = append(result, ctxt.PosTable.Pos(xpos))
-	for ix := pos.Base().InliningIndex(); ix >= 0; {
-		call := ctxt.InlTree.nodes[ix]
-		ix = call.Parent
-		result = append(result, ctxt.PosTable.Pos(call.Pos))
-	}
-	return result
+	ctxt.InlTree.AllParents(pos.Base().InliningIndex(), func(call InlinedCall) {
+		do(ctxt.InnermostPos(call.Pos))
+	})
+	do(pos)
 }
 
 func dumpInlTree(ctxt *Link, tree InlTree) {

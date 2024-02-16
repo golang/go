@@ -4,8 +4,10 @@
 # even if there is an explicit go.mod file containing the
 # gopkg.in path.
 
-[short] skip
-[!net] skip
+skip 'skipping test that depends on an unreliable third-party server; see https://go.dev/issue/54503'
+	# TODO(#54043): Make this test hermetic and re-enable it.
+
+[!net:gopkg.in] skip
 [!git] skip
 
 env GO111MODULE=on

@@ -14,8 +14,8 @@ func _[_ any, _ interface{any}](any) {
 func identity[T any](x T) T { return x }
 
 func _[_ any](x int) int { panic(0) }
-func _[T any](T /* ERROR redeclared */ T)() {}
-func _[T, T /* ERROR redeclared */ any]() {}
+func _[T any](T /* ERROR "redeclared" */ T)() {}
+func _[T, T /* ERROR "redeclared" */ any]() {}
 
 // Constraints (incl. any) may be parenthesized.
 func _[_ (any)]() {}
@@ -31,15 +31,15 @@ func reverse[T any](list []T) []T {
         return rlist
 }
 
-var _ = reverse /* ERROR cannot use generic function reverse */
-var _ = reverse[int, float32 /* ERROR got 2 type arguments */ ] ([]int{1, 2, 3})
-var _ = reverse[int]([ /* ERROR cannot use */ ]float32{1, 2, 3})
+var _ = reverse /* ERROR "cannot use generic function reverse" */
+var _ = reverse[int, float32 /* ERROR "got 2 type arguments" */ ] ([]int{1, 2, 3})
+var _ = reverse[int]([ /* ERROR "cannot use" */ ]float32{1, 2, 3})
 var f = reverse[chan int]
-var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
+var _ = f(0 /* ERRORx `cannot use 0 .* as \[\]chan int` */ )
 
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
-var _ = swap /* ERROR multiple-value */ [int, float32](1, 2)
+var _ = swap /* ERROR "multiple-value" */ [int, float32](1, 2)
 var f32, i = swap[int, float32](swap[float32, int](1, 2))
 var _ float32 = f32
 var _ int = i
@@ -58,10 +58,10 @@ func min[T interface{ ~int }](x, y T) T {
 }
 
 func _[T interface{~int | ~float32}](x, y T) bool { return x < y }
-func _[T any](x, y T) bool { return x /* ERROR type parameter T is not comparable */ < y }
-func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR type parameter T is not comparable */ < y }
+func _[T any](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
 
-func _[T C1[T]](x, y T) bool { return x /* ERROR type parameter T is not comparable */ < y }
+func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
 func _[T C2[T]](x, y T) bool { return x < y }
 
 type C1[T any] interface{}
@@ -72,16 +72,16 @@ func new[T any]() *T {
         return &x
 }
 
-var _ = new /* ERROR cannot use generic function new */
+var _ = new /* ERROR "cannot use generic function new" */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR "invalid map key type T (missing comparable constraint)" */]int) {} // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int { panic(0) }
+func f1[T1 any](struct{T1 /* ERRORx `cannot be a .* type parameter` */ }) int { panic(0) }
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int { panic(0) }
+func f2[t1 any](struct{t1 /* ERRORx `cannot be a .* type parameter` */ ; x float32}) int { panic(0) }
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
@@ -96,29 +96,29 @@ func _[T any] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ ~int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ ~string }] (x T, i int) { _ = x[i] }
 func _[T interface{ ~[]int }] (x T, i int) { _ = x[i] }
-func _[T interface{ ~[10]int | ~*[20]int | ~map[int]int }] (x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+func _[T interface{ ~[10]int | ~*[20]int | ~map[int]int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] } // map and non-map types
 func _[T interface{ ~string | ~[]byte }] (x T, i int) { _ = x[i] }
 func _[T interface{ ~[]int | ~[1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 func _[T interface{ ~string | ~[]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 
 // indexing with various combinations of map types in type sets (see issue #42616)
-func _[T interface{ ~[]E | ~map[int]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+func _[T interface{ ~[]E | ~map[int]E }, E any](x T, i int) { _ = x /* ERROR "cannot index" */ [i] } // map and non-map types
 func _[T interface{ ~[]E }, E any](x T, i int) { _ = &x[i] }
 func _[T interface{ ~map[int]E }, E any](x T, i int) { _, _ = x[i] } // comma-ok permitted
-func _[T interface{ ~map[int]E }, E any](x T, i int) { _ = &x /* ERROR cannot take address */ [i] }
-func _[T interface{ ~map[int]E | ~map[uint]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // different map element types
-func _[T interface{ ~[]E | ~map[string]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+func _[T interface{ ~map[int]E }, E any](x T, i int) { _ = &x /* ERROR "cannot take address" */ [i] }
+func _[T interface{ ~map[int]E | ~map[uint]E }, E any](x T, i int) { _ = x /* ERROR "cannot index" */ [i] } // different map element types
+func _[T interface{ ~[]E | ~map[string]E }, E any](x T, i int) { _ = x /* ERROR "cannot index" */ [i] } // map and non-map types
 
 // indexing with various combinations of array and other types in type sets
-func _[T interface{ [10]int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
-func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
-func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
+func _[T interface{ [10]int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR "out of bounds" */ ] }
+func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR "out of bounds" */ ] }
+func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR "out of bounds" */ ] }
 
 // indexing with strings and non-variable arrays (assignment not permitted)
-func _[T string](x T) { _ = x[0]; x /* ERROR cannot assign */ [0] = 0 }
-func _[T []byte | string](x T) { x /* ERROR cannot assign */ [0] = 0 }
-func _[T [10]byte]() { f := func() (x T) { return }; f /* ERROR cannot assign */ ()[0] = 0 }
-func _[T [10]byte]() { f := func() (x *T) { return }; f /* ERROR cannot index */ ()[0] = 0 }
+func _[T string](x T) { _ = x[0]; x /* ERROR "cannot assign" */ [0] = 0 }
+func _[T []byte | string](x T) { x /* ERROR "cannot assign" */ [0] = 0 }
+func _[T [10]byte]() { f := func() (x T) { return }; f /* ERROR "cannot assign" */ ()[0] = 0 }
+func _[T [10]byte]() { f := func() (x *T) { return }; f /* ERROR "cannot index" */ ()[0] = 0 }
 func _[T [10]byte]() { f := func() (x *T) { return }; (*f())[0] = 0 }
 func _[T *[10]byte]() { f := func() (x T) { return }; f()[0] = 0 }
 
@@ -129,22 +129,22 @@ func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
 func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
 func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
 func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
-func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
 
 type myByte1 []byte
 type myByte2 []byte
 func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j:k] }
+func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j:k] }
 
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
-func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j] }
+func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
+func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j] }
 
 // len/cap built-ins
 
-func _[T any](x T) { _ = len(x /* ERROR invalid argument */ ) }
-func _[T interface{ ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
-func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _[T any](x T) { _ = len(x /* ERROR "invalid argument" */ ) }
+func _[T interface{ ~int }](x T) { _ = len(x /* ERROR "invalid argument" */ ) }
+func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = len(x /* ERROR "invalid argument" */ ) }
 func _[T interface{ ~string }](x T) { _ = len(x) }
 func _[T interface{ ~[10]int }](x T) { _ = len(x) }
 func _[T interface{ ~[]byte }](x T) { _ = len(x) }
@@ -152,20 +152,20 @@ func _[T interface{ ~map[int]int }](x T) { _ = len(x) }
 func _[T interface{ ~chan int }](x T) { _ = len(x) }
 func _[T interface{ ~string | ~[]byte | ~chan int }](x T) { _ = len(x) }
 
-func _[T any](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ ~string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T any](x T) { _ = cap(x /* ERROR "invalid argument" */ ) }
+func _[T interface{ ~int }](x T) { _ = cap(x /* ERROR "invalid argument" */ ) }
+func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = cap(x /* ERROR "invalid argument" */ ) }
+func _[T interface{ ~string }](x T) { _ = cap(x /* ERROR "invalid argument" */ ) }
 func _[T interface{ ~[10]int }](x T) { _ = cap(x) }
 func _[T interface{ ~[]byte }](x T) { _ = cap(x) }
-func _[T interface{ ~map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~map[int]int }](x T) { _ = cap(x /* ERROR "invalid argument" */ ) }
 func _[T interface{ ~chan int }](x T) { _ = cap(x) }
 func _[T interface{ ~[]byte | ~chan int }](x T) { _ = cap(x) }
 
 // range iteration
 
 func _[T interface{}](x T) {
-        for range x /* ERROR cannot range */ {}
+        for range x /* ERROR "cannot range" */ {}
 }
 
 type myString string
@@ -206,18 +206,18 @@ func _[
         var c0 chan int
         for range c0 {}
         for _ = range c0 {}
-        for _, _ /* ERROR permits only one iteration variable */ = range c0 {}
+        for _, _ /* ERROR "permits only one iteration variable" */ = range c0 {}
 
         var c1 C1
         for range c1 {}
         for _ = range c1 {}
-        for _, _ /* ERROR permits only one iteration variable */ = range c1 {}
+        for _, _ /* ERROR "permits only one iteration variable" */ = range c1 {}
 
         var c2 C2
         for range c2 {}
 
         var c3 C3
-        for range c3 /* ERROR receive from send-only channel */ {}
+        for range c3 /* ERROR "receive from send-only channel" */ {}
 
         var s0 []int
         for range s0 {}
@@ -230,7 +230,7 @@ func _[
         for _, _ = range s1 {}
 
         var s2 S2
-        for range s2 /* ERROR cannot range over s2.*no core type */ {}
+        for range s2 /* ERRORx `cannot range over s2.*no core type` */ {}
 
         var a0 []int
         for range a0 {}
@@ -243,7 +243,7 @@ func _[
         for _, _ = range a1 {}
 
         var a2 A2
-        for range a2 /* ERROR cannot range over a2.*no core type */ {}
+        for range a2 /* ERRORx `cannot range over a2.*no core type` */ {}
 
         var p0 *[10]int
         for range p0 {}
@@ -256,7 +256,7 @@ func _[
         for _, _ = range p1 {}
 
         var p2 P2
-        for range p2 /* ERROR cannot range over p2.*no core type */ {}
+        for range p2 /* ERRORx `cannot range over p2.*no core type` */ {}
 
         var m0 map[string]int
         for range m0 {}
@@ -269,22 +269,22 @@ func _[
         for _, _ = range m1 {}
 
         var m2 M2
-        for range m2 /* ERROR cannot range over m2.*no core type */ {}
+        for range m2 /* ERRORx `cannot range over m2.*no core type` */ {}
 }
 
 // type inference checks
 
-var _ = new /* ERROR cannot infer T */ ()
+var _ = new /* ERROR "cannot infer T" */ ()
 
 func f4[A, B, C any](A, B) C { panic(0) }
 
-var _ = f4 /* ERROR cannot infer C */ (1, 2)
+var _ = f4 /* ERROR "cannot infer C" */ (1, 2)
 var _ = f4[int, float32, complex128](1, 2)
 
 func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
 
 var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
-var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
+var _ = f5 /* ERROR "cannot infer" */ (0, nil, struct{f []complex128}{})
 var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
 
 func f6[A any](A, []A) int { panic(0) }
@@ -293,29 +293,29 @@ var _ = f6(0, nil)
 
 func f6nil[A any](A) int { panic(0) }
 
-var _ = f6nil /* ERROR cannot infer */ (nil)
+var _ = f6nil /* ERROR "cannot infer" */ (nil)
 
 // type inference with variadic functions
 
 func f7[T any](...T) T { panic(0) }
 
-var _ int = f7 /* ERROR cannot infer T */ ()
+var _ int = f7 /* ERROR "cannot infer T" */ ()
 var _ int = f7(1)
 var _ int = f7(1, 2)
 var _ int = f7([]int{}...)
-var _ int = f7 /* ERROR cannot use */ ([]float64{}...)
+var _ int = f7 /* ERROR "cannot use" */ ([]float64{}...)
 var _ float64 = f7([]float64{}...)
 var _ = f7[float64](1, 2.3)
 var _ = f7(float64(1), 2.3)
-var _ = f7(1, 2.3 /* ERROR does not match */ )
-var _ = f7(1.2, 3 /* ERROR does not match */ )
+var _ = f7(1, 2.3)
+var _ = f7(1.2, 3)
 
 func f8[A, B any](A, B, ...B) int { panic(0) }
 
-var _ = f8(1) /* ERROR not enough arguments */
+var _ = f8(1) /* ERROR "not enough arguments" */
 var _ = f8(1, 2.3)
 var _ = f8(1, 2.3, 3.4, 4.5)
-var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
+var _ = f8(1, 2.3, 3.4, 4)
 var _ = f8[int, float64](1, 2.3, 3.4, 4)
 
 var _ = f8[int, float64](0, 0, nil...) // test case for #18268
@@ -323,14 +323,14 @@ var _ = f8[int, float64](0, 0, nil...) // test case for #18268
 // init functions cannot have type parameters
 
 func init() {}
-func init[_ /* ERROR func init must have no type parameters */ any]() {}
-func init[P /* ERROR func init must have no type parameters */ any]() {}
+func init[_ /* ERROR "func init must have no type parameters" */ any]() {}
+func init[P /* ERROR "func init must have no type parameters" */ any]() {}
 
 type T struct {}
 
 func (T) m1() {}
-func (T) m2[ /* ERROR method must have no type parameters */ _ any]() {}
-func (T) m3[ /* ERROR method must have no type parameters */ P any]() {}
+func (T) m2[ /* ERROR "method must have no type parameters" */ _ any]() {}
+func (T) m3[ /* ERROR "method must have no type parameters" */ P any]() {}
 
 // type inference across parameterized types
 
@@ -354,7 +354,7 @@ func _[P any]() {
 }
 
 // corner case for type inference
-// (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
+// (was bug: after instantiating f11, the type-checker didn't mark f11 as non-generic)
 
 func f11[T any]() {}
 
@@ -454,17 +454,17 @@ func (_ R2[X, Y]) m2(X) Y
 //         }
 //
 //         // type assertions and type switches over generic types are strict
-//         _ = p /* ERROR cannot have dynamic type I4 */.(I4)
+//         _ = p /* ERROR "cannot have dynamic type I4" */.(I4)
 //         switch p.(type) {
-//         case I4 /* ERROR cannot have dynamic type I4 */ :
+//         case I4 /* ERROR "cannot have dynamic type I4" */ :
 //         }
 // }
 
 // type assertions and type switches over generic types lead to errors for now
 
 func _[T any](x T) {
-	_ = x /* ERROR cannot use type assertion */ .(int)
-	switch x /* ERROR cannot use type switch */ .(type) {
+	_ = x /* ERROR "cannot use type assertion" */ .(int)
+	switch x /* ERROR "cannot use type switch" */ .(type) {
 	}
 
 	// work-around
@@ -475,8 +475,8 @@ func _[T any](x T) {
 }
 
 func _[T interface{~int}](x T) {
-	_ = x /* ERROR cannot use type assertion */ .(int)
-	switch x /* ERROR cannot use type switch */ .(type) {
+	_ = x /* ERROR "cannot use type assertion" */ .(int)
+	switch x /* ERROR "cannot use type switch" */ .(type) {
 	}
 
 	// work-around
@@ -490,19 +490,19 @@ func _[T interface{~int}](x T) {
 type C[P any] interface{}
 
 func _[P C[P]] (x P) {
-	x.m /* ERROR x.m undefined */ ()
+	x.m /* ERROR "x.m undefined" */ ()
 }
 
 type I interface {}
 
 func _[P I] (x P) {
-	x.m /* ERROR type P has no field or method m */ ()
+	x.m /* ERROR "type P has no field or method m" */ ()
 }
 
 func _[P interface{}] (x P) {
-	x.m /* ERROR type P has no field or method m */ ()
+	x.m /* ERROR "type P has no field or method m" */ ()
 }
 
 func _[P any] (x P) {
-	x.m /* ERROR type P has no field or method m */ ()
+	x.m /* ERROR "type P has no field or method m" */ ()
 }

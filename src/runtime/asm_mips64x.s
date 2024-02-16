@@ -41,7 +41,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 nocgo:
 	// update stackguard after _cgo_init
 	MOVV	(g_stack+stack_lo)(g), R1
-	ADDV	$const__StackGuard, R1
+	ADDV	$const_stackGuard, R1
 	MOVV	R1, g_stackguard0(g)
 	MOVV	R1, g_stackguard1(g)
 
@@ -205,6 +205,29 @@ noswitch:
 	ADDV	$8, R29
 	JMP	(R4)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+	MOVV	fn+0(FP), REGCTXT	// context register
+	MOVV	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVV	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)
+	MOVV	R2, g_m(g)	// g.m = curm
+	MOVV	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVV	(g_stack+stack_hi)(g), R2
+	ADDV	$(-4*8), R2, R29
+
+	// call target function
+	MOVV	0(REGCTXT), R25
+	JAL	(R25)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -218,6 +241,13 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVV	R29, (g_sched+gobuf_sp)(g)
+	MOVV	R31, (g_sched+gobuf_pc)(g)
+	MOVV	R3, (g_sched+gobuf_lr)(g)
+	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVV	g_m(g), R7
 	MOVV	m_g0(R7), R8
@@ -230,13 +260,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	g, R8, 3(PC)
 	JAL	runtime·badmorestackgsignal(SB)
 	JAL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVV	R29, (g_sched+gobuf_sp)(g)
-	MOVV	R31, (g_sched+gobuf_pc)(g)
-	MOVV	R3, (g_sched+gobuf_lr)(g)
-	MOVV	REGCTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -469,13 +492,23 @@ g0:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+	// It is used to dropm while thread is exiting.
+	MOVV	fn+0(FP), R5
+	BNE	R5, loadg
+	// Restore the g from frame.
+	MOVV	frame+8(FP), g
+	JMP	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R1
 	BEQ	R1, nocgo
 	JAL	runtime·load_g(SB)
 nocgo:
 
-	// If g is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -488,7 +521,7 @@ nocgo:
 
 needm:
 	MOVV	g, savedm-8(SP) // g is zero, so is m.
-	MOVV	$runtime·needm(SB), R4
+	MOVV	$runtime·needAndBindM(SB), R4
 	JAL	(R4)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -559,10 +592,24 @@ havem:
 	MOVV	savedsp-24(SP), R2	// must match frame size
 	MOVV	R2, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it wasn't the first call from a C thread on pthread platforms,
+	//    since then we skip dropm to reuse the m in the first call.
 	MOVV	savedm-8(SP), R3
 	BNE	R3, droppedm
+
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	MOVV	_cgo_pthread_key_created(SB), R3
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	BEQ	R3, dropm
+	MOVV	(R3), R3
+	BNE	R3, droppedm
+
+dropm:
 	MOVV	$runtime·dropm(SB), R4
 	JAL	(R4)
 droppedm:
@@ -631,45 +678,43 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	R1, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R20 is the destination of the write
-// - R21 is the value being written at R20.
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R25, and returns a pointer
+// to the buffer space in R25.
 // It clobbers R23 (the linker temp register).
 // The act of CALLing gcWriteBarrier will clobber R31 (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$192
 	// Save the registers clobbered by the fast path.
 	MOVV	R1, 184(R29)
 	MOVV	R2, 192(R29)
+retry:
 	MOVV	g_m(g), R1
 	MOVV	m_p(R1), R1
 	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
+	MOVV	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
 	// Increment wbBuf.next position.
-	ADDV	$16, R2
-	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
-	MOVV	(p_wbBuf+wbBuf_end)(R1), R1
-	MOVV	R1, R23		// R23 is linker temp register
-	// Record the write.
-	MOVV	R21, -16(R2)	// Record value
-	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
-	MOVV	R1, -8(R2)	// Record *slot
+	ADDV	R25, R2
 	// Is the buffer full?
-	BEQ	R2, R23, flush
-ret:
+	SGTU	R2, R23, R23
+	BNE	R23, flush
+	// Commit to the larger buffer.
+	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
+	// Make return value (the original next position)
+	SUBV	R25, R2, R25
+	// Restore registers.
 	MOVV	184(R29), R1
 	MOVV	192(R29), R2
-	// Do the write.
-	MOVV	R21, (R20)
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOVV	R20, 8(R29)	// Also first argument to wbBufFlush
-	MOVV	R21, 16(R29)	// Also second argument to wbBufFlush
+	MOVV	R20, 8(R29)
+	MOVV	R21, 16(R29)
 	// R1 already saved
 	// R2 already saved
 	MOVV	R3, 24(R29)
@@ -702,7 +747,6 @@ flush:
 	// R30 is g.
 	// R31 is LR, which was saved by the prologue.
 
-	// This takes arguments R20 and R21.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVV	8(R29), R20
@@ -727,7 +771,32 @@ flush:
 	MOVV	160(R29), R22
 	MOVV	168(R29), R24
 	MOVV	176(R29), R25
-	JMP	ret
+	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$8, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$16, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$24, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$32, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$40, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$48, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$56, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$64, R25
+	JMP	gcWriteBarrier<>(SB)
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

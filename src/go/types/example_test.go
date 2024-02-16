@@ -5,7 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-//go:build !android && !ios && !js
+//go:build !android && !ios && !js && !wasip1
 
 package types_test
 
@@ -35,25 +35,23 @@ func ExampleScope() {
 	// Parse the source files for a package.
 	fset := token.NewFileSet()
 	var files []*ast.File
-	for _, file := range []struct{ name, input string }{
-		{"main.go", `
-package main
+	for _, src := range []string{
+		`package main
 import "fmt"
 func main() {
 	freezing := FToC(-18)
 	fmt.Println(freezing, Boiling) }
-`},
-		{"celsius.go", `
-package main
+`,
+		`package main
 import "fmt"
 type Celsius float64
 func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
 func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
 const Boiling Celsius = 100
 func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
-`},
+`,
 	} {
-		files = append(files, mustParse(fset, file.name, file.input))
+		files = append(files, mustParse(fset, src))
 	}
 
 	// Type-check a package consisting of these files.
@@ -79,13 +77,13 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// .  func temperature.FToC(f float64) temperature.Celsius
 	// .  func temperature.Unused()
 	// .  func temperature.main()
-	// .  main.go scope {
+	// .  main scope {
 	// .  .  package fmt
 	// .  .  function scope {
 	// .  .  .  var freezing temperature.Celsius
 	// .  .  }
 	// .  }
-	// .  celsius.go scope {
+	// .  main scope {
 	// .  .  package fmt
 	// .  .  function scope {
 	// .  .  .  var c temperature.Celsius
@@ -180,8 +178,10 @@ func fib(x int) int {
 	}
 	return fib(x-1) - fib(x-2)
 }`
+	// We need a specific fileset in this test below for positions.
+	// Cannot use typecheck helper.
 	fset := token.NewFileSet()
-	f := mustParse(fset, "fib.go", input)
+	f := mustParse(fset, input)
 
 	// Type-check the package.
 	// We create an empty map for each kind of input
@@ -248,10 +248,10 @@ func fib(x int) int {
 	//   defined at -
 	//   used at 6:15
 	// func fib(x int) int:
-	//   defined at fib.go:8:6
+	//   defined at fib:8:6
 	//   used at 12:20, 12:9
 	// type S string:
-	//   defined at fib.go:4:6
+	//   defined at fib:4:6
 	//   used at 6:23
 	// type int:
 	//   defined at -
@@ -260,13 +260,13 @@ func fib(x int) int {
 	//   defined at -
 	//   used at 4:8
 	// var b S:
-	//   defined at fib.go:6:8
+	//   defined at fib:6:8
 	//   used at 6:19
 	// var c string:
-	//   defined at fib.go:6:11
+	//   defined at fib:6:11
 	//   used at 6:25
 	// var x int:
-	//   defined at fib.go:8:10
+	//   defined at fib:8:10
 	//   used at 10:10, 12:13, 12:24, 9:5
 	//
 	// Types and Values of each expression:

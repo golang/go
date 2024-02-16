@@ -24,11 +24,11 @@
 #define RARG3 CX
 #endif
 
-// Called from intrumented code.
+// Called from instrumented code.
 // func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
 TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 	MOVQ	addr+0(FP), RARG0
-	MOVQ	size+8(FP), RARG1
+	MOVQ	sz+8(FP), RARG1
 	MOVQ	sp+16(FP), RARG2
 	MOVQ	pc+24(FP), RARG3
 	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
@@ -38,7 +38,7 @@ TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
 // func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
 TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 	MOVQ	addr+0(FP), RARG0
-	MOVQ	size+8(FP), RARG1
+	MOVQ	sz+8(FP), RARG1
 	MOVQ	sp+16(FP), RARG2
 	MOVQ	pc+24(FP), RARG3
 	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
@@ -48,7 +48,7 @@ TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
 // func runtime·asanunpoison(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
 	MOVQ	addr+0(FP), RARG0
-	MOVQ	size+8(FP), RARG1
+	MOVQ	sz+8(FP), RARG1
 	// void __asan_unpoison_go(void *addr, uintptr_t sz);
 	MOVQ	$__asan_unpoison_go(SB), AX
 	JMP	asancall<>(SB)
@@ -56,17 +56,17 @@ TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
 // func runtime·asanpoison(addr unsafe.Pointer, sz uintptr)
 TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
 	MOVQ	addr+0(FP), RARG0
-	MOVQ	size+8(FP), RARG1
+	MOVQ	sz+8(FP), RARG1
 	// void __asan_poison_go(void *addr, uintptr_t sz);
 	MOVQ	$__asan_poison_go(SB), AX
 	JMP	asancall<>(SB)
 
 // func runtime·asanregisterglobals(addr unsafe.Pointer, n uintptr)
 TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
-	MOVD	addr+0(FP), RARG0
-	MOVD	size+8(FP), RARG1
+	MOVQ	addr+0(FP), RARG0
+	MOVQ	n+8(FP), RARG1
 	// void __asan_register_globals_go(void *addr, uintptr_t n);
-	MOVD	$__asan_register_globals_go(SB), AX
+	MOVQ	$__asan_register_globals_go(SB), AX
 	JMP	asancall<>(SB)
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.

@@ -144,11 +144,9 @@ const (
 	__SC_PAGE_SIZE        = C._SC_PAGE_SIZE
 	__SC_NPROCESSORS_ONLN = C._SC_NPROCESSORS_ONLN
 
-	_F_SETFD    = C.F_SETFD
-	_F_SETFL    = C.F_SETFL
-	_F_GETFD    = C.F_GETFD
-	_F_GETFL    = C.F_GETFL
-	_FD_CLOEXEC = C.FD_CLOEXEC
+	_F_SETFL = C.F_SETFL
+	_F_GETFD = C.F_GETFD
+	_F_GETFL = C.F_GETFL
 )
 
 type sigset C.sigset_t

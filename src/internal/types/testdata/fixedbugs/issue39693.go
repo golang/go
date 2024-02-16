@@ -11,7 +11,7 @@ type Number1 interface {
 }
 
 func Add1[T Number1](a, b T) T {
-	return a /* ERROR not defined */ + b
+	return a /* ERROR "not defined" */ + b
 }
 
 type Number2 interface {

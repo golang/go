@@ -172,7 +172,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <typ>
 	if hasType {
-		if x.typ != Typ[Invalid] {
+		if isValid(x.typ) {
 			var intro string
 			if isGeneric(x.typ) {
 				intro = " of generic type "
@@ -184,6 +184,10 @@ func operandString(x *operand, qf Qualifier) string {
 			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+				// If we have the type set and it's empty, say so for better error messages.
+				if hasEmptyTypeset(tpar) {
+					buf.WriteString(" with empty type set")
+				}
 			}
 		} else {
 			buf.WriteString(" with invalid type")
@@ -231,7 +235,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is a typed or the untyped nil value.
+// isNil reports whether x is the (untyped) nil value.
 func (x *operand) isNil() bool { return x.mode == nilvalue }
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
@@ -241,7 +245,7 @@ func (x *operand) isNil() bool { return x.mode == nilvalue }
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
-	if x.mode == invalid || T == Typ[Invalid] {
+	if x.mode == invalid || !isValid(T) {
 		return true, 0 // avoid spurious errors
 	}
 
@@ -286,18 +290,26 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return true, 0
 	}
 
-	// T is an interface type and x implements T and T is not a type parameter.
-	// Also handle the case where T is a pointer to an interface.
+	// T is an interface type, but not a type parameter, and V implements T.
+	// Also handle the case where T is a pointer to an interface so that we get
+	// the Checker.implements error cause.
 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
-		if !check.implements(V, T, false, cause) {
+		if check.implements(x.Pos(), V, T, false, cause) {
+			return true, 0
+		}
+		// V doesn't implement T but V may still be assignable to T if V
+		// is a type parameter; do not report an error in that case yet.
+		if Vp == nil {
 			return false, InvalidIfaceAssign
 		}
-		return true, 0
+		if cause != nil {
+			*cause = ""
+		}
 	}
 
 	// If V is an interface, check if a missing type assertion is the problem.
 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-		if check.implements(T, V, false, nil) {
+		if check.implements(x.Pos(), T, V, false, nil) {
 			// T implements V, so give hint about type assertion.
 			if cause != nil {
 				*cause = "need type assertion"

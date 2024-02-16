@@ -12,10 +12,10 @@
 //	go run savedir.go /path/to/dir >saved.txt
 //
 // Typically the tree is later extracted during a test with tg.extract("testdata/saved.txt").
-//
 package main
 
 import (
+	"cmd/go/internal/str"
 	"flag"
 	"fmt"
 	"internal/txtar"
@@ -70,7 +70,7 @@ func main() {
 			log.Printf("%s: ignoring invalid UTF-8 data", path)
 			return nil
 		}
-		a.Files = append(a.Files, txtar.File{Name: strings.TrimPrefix(path, dir+string(filepath.Separator)), Data: data})
+		a.Files = append(a.Files, txtar.File{Name: str.TrimFilePathPrefix(path, dir), Data: data})
 		return nil
 	})
 

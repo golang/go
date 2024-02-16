@@ -6,7 +6,7 @@ env GOSUMDB=off
 # tag that appears in any commit that is a (transitive) parent of the commit
 # supplied to 'go get', regardless of branches
 
-[!net] skip
+[short] skip
 [!git] skip
 
 # For this test repository:

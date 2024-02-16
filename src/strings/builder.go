@@ -5,11 +5,12 @@
 package strings
 
 import (
+	"internal/bytealg"
 	"unicode/utf8"
 	"unsafe"
 )
 
-// A Builder is used to efficiently build a string using Write methods.
+// A Builder is used to efficiently build a string using [Builder.Write] methods.
 // It minimizes memory copying. The zero value is ready to use.
 // Do not copy a non-zero Builder.
 type Builder struct {
@@ -56,7 +57,7 @@ func (b *Builder) Len() int { return len(b.buf) }
 // already written.
 func (b *Builder) Cap() int { return cap(b.buf) }
 
-// Reset resets the Builder to be empty.
+// Reset resets the [Builder] to be empty.
 func (b *Builder) Reset() {
 	b.addr = nil
 	b.buf = nil
@@ -65,7 +66,7 @@ func (b *Builder) Reset() {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Builder) grow(n int) {
-	buf := make([]byte, len(b.buf), 2*cap(b.buf)+n)
+	buf := bytealg.MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
 	copy(buf, b.buf)
 	b.buf = buf
 }

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -92,7 +90,9 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+	case *AddrError, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+		return nil
+	case interface{ isAddrinfoErrno() }:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
@@ -155,32 +155,33 @@ func TestDialError(t *testing.T) {
 
 	d := Dialer{Timeout: someTimeout}
 	for i, tt := range dialErrorTests {
-		c, err := d.Dial(tt.network, tt.address)
-		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->%s", i, c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
-			c.Close()
-			continue
-		}
-		if tt.network == "tcp" || tt.network == "udp" {
-			nerr := err
-			if op, ok := nerr.(*OpError); ok {
-				nerr = op.Err
+		i, tt := i, tt
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			c, err := d.Dial(tt.network, tt.address)
+			if err == nil {
+				t.Errorf("should fail; %s:%s->%s", c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
+				c.Close()
+				return
 			}
-			if sys, ok := nerr.(*os.SyscallError); ok {
-				nerr = sys.Err
+			if tt.network == "tcp" || tt.network == "udp" {
+				nerr := err
+				if op, ok := nerr.(*OpError); ok {
+					nerr = op.Err
+				}
+				if sys, ok := nerr.(*os.SyscallError); ok {
+					nerr = sys.Err
+				}
+				if nerr == errOpNotSupported {
+					t.Fatalf("should fail without %v; %s:%s->", nerr, tt.network, tt.address)
+				}
 			}
-			if nerr == errOpNotSupported {
-				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
-				continue
+			if c != nil {
+				t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
 			}
-		}
-		if c != nil {
-			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
-		}
-		if err = parseDialError(err); err != nil {
-			t.Errorf("#%d: %v", i, err)
-			continue
-		}
+			if err = parseDialError(err); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
@@ -206,10 +207,11 @@ func TestProtocolDialError(t *testing.T) {
 			t.Errorf("%s: should fail", network)
 			continue
 		}
-		if err = parseDialError(err); err != nil {
+		if err := parseDialError(err); err != nil {
 			t.Errorf("%s: %v", network, err)
 			continue
 		}
+		t.Logf("%s: error as expected: %v", network, err)
 	}
 }
 
@@ -218,6 +220,7 @@ func TestDialAddrError(t *testing.T) {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
+
 	if !supportsIPv4() || !supportsIPv6() {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
@@ -234,38 +237,42 @@ func TestDialAddrError(t *testing.T) {
 		// control name resolution.
 		{"tcp6", "", &TCPAddr{IP: IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}}},
 	} {
-		var err error
-		var c Conn
-		var op string
-		if tt.lit != "" {
-			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
-			op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
-		} else {
-			c, err = DialTCP(tt.network, nil, tt.addr)
-			op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
+		desc := tt.lit
+		if desc == "" {
+			desc = tt.addr.String()
 		}
-		if err == nil {
-			c.Close()
-			t.Errorf("%s succeeded, want error", op)
-			continue
-		}
-		if perr := parseDialError(err); perr != nil {
-			t.Errorf("%s: %v", op, perr)
-			continue
-		}
-		operr := err.(*OpError).Err
-		aerr, ok := operr.(*AddrError)
-		if !ok {
-			t.Errorf("%s: %v is %T, want *AddrError", op, err, operr)
-			continue
-		}
-		want := tt.lit
-		if tt.lit == "" {
-			want = tt.addr.IP.String()
-		}
-		if aerr.Addr != want {
-			t.Errorf("%s: %v, error Addr=%q, want %q", op, err, aerr.Addr, want)
-		}
+		t.Run(fmt.Sprintf("%s/%s", tt.network, desc), func(t *testing.T) {
+			var err error
+			var c Conn
+			var op string
+			if tt.lit != "" {
+				c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
+				op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
+			} else {
+				c, err = DialTCP(tt.network, nil, tt.addr)
+				op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
+			}
+			t.Logf("%s: %v", op, err)
+			if err == nil {
+				c.Close()
+				t.Fatalf("%s succeeded, want error", op)
+			}
+			if perr := parseDialError(err); perr != nil {
+				t.Fatal(perr)
+			}
+			operr := err.(*OpError).Err
+			aerr, ok := operr.(*AddrError)
+			if !ok {
+				t.Fatalf("OpError.Err is %T, want *AddrError", operr)
+			}
+			want := tt.lit
+			if tt.lit == "" {
+				want = tt.addr.IP.String()
+			}
+			if aerr.Addr != want {
+				t.Errorf("error Addr=%q, want %q", aerr.Addr, want)
+			}
+		})
 	}
 }
 
@@ -303,32 +310,32 @@ func TestListenError(t *testing.T) {
 	defer sw.Set(socktest.FilterListen, nil)
 
 	for i, tt := range listenErrorTests {
-		ln, err := Listen(tt.network, tt.address)
-		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
-			ln.Close()
-			continue
-		}
-		if tt.network == "tcp" {
-			nerr := err
-			if op, ok := nerr.(*OpError); ok {
-				nerr = op.Err
+		t.Run(fmt.Sprintf("%s_%s", tt.network, tt.address), func(t *testing.T) {
+			ln, err := Listen(tt.network, tt.address)
+			if err == nil {
+				t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
+				ln.Close()
+				return
 			}
-			if sys, ok := nerr.(*os.SyscallError); ok {
-				nerr = sys.Err
+			if tt.network == "tcp" {
+				nerr := err
+				if op, ok := nerr.(*OpError); ok {
+					nerr = op.Err
+				}
+				if sys, ok := nerr.(*os.SyscallError); ok {
+					nerr = sys.Err
+				}
+				if nerr == errOpNotSupported {
+					t.Fatalf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
+				}
 			}
-			if nerr == errOpNotSupported {
-				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
-				continue
+			if ln != nil {
+				t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
 			}
-		}
-		if ln != nil {
-			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
-		}
-		if err = parseDialError(err); err != nil {
-			t.Errorf("#%d: %v", i, err)
-			continue
-		}
+			if err = parseDialError(err); err != nil {
+				t.Errorf("#%d: %v", i, err)
+			}
+		})
 	}
 }
 
@@ -359,19 +366,20 @@ func TestListenPacketError(t *testing.T) {
 	}
 
 	for i, tt := range listenPacketErrorTests {
-		c, err := ListenPacket(tt.network, tt.address)
-		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
-			c.Close()
-			continue
-		}
-		if c != nil {
-			t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
-		}
-		if err = parseDialError(err); err != nil {
-			t.Errorf("#%d: %v", i, err)
-			continue
-		}
+		t.Run(fmt.Sprintf("%s_%s", tt.network, tt.address), func(t *testing.T) {
+			c, err := ListenPacket(tt.network, tt.address)
+			if err == nil {
+				t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
+				c.Close()
+				return
+			}
+			if c != nil {
+				t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
+			}
+			if err = parseDialError(err); err != nil {
+				t.Errorf("#%d: %v", i, err)
+			}
+		})
 	}
 }
 
@@ -472,7 +480,9 @@ second:
 		return nil
 	}
 	switch err := nestedErr.(type) {
-	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+	case *AddrError, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+		return nil
+	case interface{ isAddrinfoErrno() }:
 		return nil
 	case *os.SyscallError:
 		nestedErr = err.Err
@@ -553,49 +563,57 @@ third:
 }
 
 func TestCloseError(t *testing.T) {
-	ln := newLocalListener(t, "tcp")
-	defer ln.Close()
-	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
+	t.Run("tcp", func(t *testing.T) {
+		ln := newLocalListener(t, "tcp")
+		defer ln.Close()
+		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
 
-	for i := 0; i < 3; i++ {
-		err = c.(*TCPConn).CloseRead()
-		if perr := parseCloseError(err, true); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
+		for i := 0; i < 3; i++ {
+			err = c.(*TCPConn).CloseRead()
+			if perr := parseCloseError(err, true); perr != nil {
+				t.Errorf("#%d: %v", i, perr)
+			}
 		}
-	}
-	for i := 0; i < 3; i++ {
-		err = c.(*TCPConn).CloseWrite()
-		if perr := parseCloseError(err, true); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
+		for i := 0; i < 3; i++ {
+			err = c.(*TCPConn).CloseWrite()
+			if perr := parseCloseError(err, true); perr != nil {
+				t.Errorf("#%d: %v", i, perr)
+			}
 		}
-	}
-	for i := 0; i < 3; i++ {
-		err = c.Close()
-		if perr := parseCloseError(err, false); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
+		for i := 0; i < 3; i++ {
+			err = c.Close()
+			if perr := parseCloseError(err, false); perr != nil {
+				t.Errorf("#%d: %v", i, perr)
+			}
+			err = ln.Close()
+			if perr := parseCloseError(err, false); perr != nil {
+				t.Errorf("#%d: %v", i, perr)
+			}
 		}
-		err = ln.Close()
-		if perr := parseCloseError(err, false); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
-		}
-	}
+	})
 
-	pc, err := ListenPacket("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pc.Close()
-
-	for i := 0; i < 3; i++ {
-		err = pc.Close()
-		if perr := parseCloseError(err, false); perr != nil {
-			t.Errorf("#%d: %v", i, perr)
+	t.Run("udp", func(t *testing.T) {
+		if !testableNetwork("udp") {
+			t.Skipf("skipping: udp not available")
 		}
-	}
+
+		pc, err := ListenPacket("udp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pc.Close()
+
+		for i := 0; i < 3; i++ {
+			err = pc.Close()
+			if perr := parseCloseError(err, false); perr != nil {
+				t.Errorf("#%d: %v", i, perr)
+			}
+		}
+	})
 }
 
 // parseAcceptError parses nestedErr and reports whether it is a valid

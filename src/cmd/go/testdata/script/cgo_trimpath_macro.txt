@@ -1,0 +1,71 @@
+# This is a test that -trimpath trims the paths of every directory
+# of Cgo dependencies in the module, and trims file paths included
+# through the __FILE__ macro using --file-prefix-map.
+
+[!cgo] skip
+[short] skip 'links and runs binaries'
+
+# Test in main module.
+go run -trimpath -mod=vendor ./main
+stdout '(\\_\\_|/_)[\\/]m[\\/]c[\\/]bar.h'
+
+# Test in vendored module.
+go run -trimpath -mod=vendor v.com/main
+stdout '(\\_\\_|/_)[\\/]vendor[\\/]v.com[\\/]c[\\/]bar.h'
+
+# Test in GOPATH mode.
+env GO111MODULE=off
+go run -trimpath ./main
+stdout '(\\_\\_|/_)[\\/]GOPATH[\\/]src[\\/]c[\\/]bar.h'
+
+-- go.mod --
+module m
+
+require v.com v1.0.0
+-- go.sum --
+v.com v1.0.0 h1:xxx
+v.com v1.0.0/go.mod h1:xxx
+-- vendor/modules.txt --
+# v.com v1.0.0
+## explicit; go 1.20
+v.com/main
+-- vendor/v.com/main/main.go --
+package main
+
+// #cgo CFLAGS: -I../c
+// #include "stdio.h"
+// void printfile();
+import "C"
+
+func main() {
+    C.printfile()
+    C.fflush(C.stdout)
+}
+-- vendor/v.com/main/foo.c --
+#include "bar.h"
+-- vendor/v.com/c/bar.h --
+#include "stdio.h"
+
+void printfile() {
+    printf("%s\n", __FILE__);
+}
+-- main/main.go --
+package main
+
+// #cgo CFLAGS: -I../c
+// #include "stdio.h"
+// void printfile();
+import "C"
+
+func main() {
+    C.printfile()
+    C.fflush(C.stdout)
+}
+-- main/foo.c --
+#include "bar.h"
+-- c/bar.h --
+#include "stdio.h"
+
+void printfile() {
+    printf("%s\n", __FILE__);
+}

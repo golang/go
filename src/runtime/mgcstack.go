@@ -166,8 +166,6 @@ func (obj *stackObject) setRecord(r *stackObjectRecord) {
 // A stackScanState keeps track of the state used during the GC walk
 // of a goroutine.
 type stackScanState struct {
-	cache pcvalueCache
-
 	// stack limits
 	stack stack
 

@@ -48,28 +48,28 @@ var (
 	s19 = s1 /* ERROR "cannot call" */ ()
  	s20 = f0 /* ERROR "no value" */ ()
 	s21 = f6(1, s1, i)
-	s22 = f6(1, s1, uu /* ERROR "cannot use .* in argument" */ )
+	s22 = f6(1, s1, uu /* ERRORx `cannot use .* in argument` */ )
 
 	t1 int = i + j
 	t2 int = i /* ERROR "mismatched types" */ + x
-	t3 int = c /* ERROR "cannot use .* variable declaration" */ + d
+	t3 int = c /* ERRORx `cannot use .* variable declaration` */ + d
 	t4 string = s + t
 	t5 string = s /* ERROR "invalid operation" */ / t
 	t6 byte = array[t1]
 	t7 byte = array[x /* ERROR "must be integer" */]
-	t8 *int = & /* ERROR "cannot use .* variable declaration" */ a
+	t8 *int = & /* ERRORx `cannot use .* variable declaration` */ a
 	t10 *int = &42 /* ERROR "cannot take address" */
 	t11 *complex64 = &v
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
 	t14 int = i << j
-	t15 math /* ERROR "not in selector" */
+	t15 math /* ERROR "math is not a type" */
 	t16 math.xxx /* ERROR "undefined" */
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()
 	t20 int = f0 /* ERROR "no value" */ ()
-	t21 int = a /* ERROR "cannot use .* variable declaration" */
+	t21 int = a /* ERRORx `cannot use .* variable declaration` */
 )
 
 // Various more complex expressions
@@ -96,8 +96,8 @@ var (
 	v11 = xx/yy*yy - xx
 	v12 = true && false
 	v13 = nil /* ERROR "use of untyped nil" */
-	v14 string = 257 // ERROR cannot use 257 .* as string value in variable declaration$
-	v15 int8 = 257 // ERROR cannot use 257 .* as int8 value in variable declaration .*overflows
+	v14 string = 257 // ERRORx `cannot use 257 .* as string value in variable declaration$`
+	v15 int8 = 257 // ERRORx `cannot use 257 .* as int8 value in variable declaration .*overflows`
 )
 
 // Multiple assignment expressions

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -617,50 +617,6 @@ func TestTCPStress(t *testing.T) {
 	<-done
 }
 
-func TestTCPSelfConnect(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// TODO(brainman): do not know why it hangs.
-		t.Skip("known-broken test on windows")
-	}
-
-	ln := newLocalListener(t, "tcp")
-	var d Dialer
-	c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
-	if err != nil {
-		ln.Close()
-		t.Fatal(err)
-	}
-	network := c.LocalAddr().Network()
-	laddr := *c.LocalAddr().(*TCPAddr)
-	c.Close()
-	ln.Close()
-
-	// Try to connect to that address repeatedly.
-	n := 100000
-	if testing.Short() {
-		n = 1000
-	}
-	switch runtime.GOOS {
-	case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
-		// Non-Linux systems take a long time to figure
-		// out that there is nothing listening on localhost.
-		n = 100
-	}
-	for i := 0; i < n; i++ {
-		d.Timeout = time.Millisecond
-		c, err := d.Dial(network, laddr.String())
-		if err == nil {
-			addr := c.LocalAddr().(*TCPAddr)
-			if addr.Port == laddr.Port || addr.IP.Equal(laddr.IP) {
-				t.Errorf("Dial %v should fail", addr)
-			} else {
-				t.Logf("Dial %v succeeded - possibly racing with other listener", addr)
-			}
-			c.Close()
-		}
-	}
-}
-
 // Test that >32-bit reads work on 64-bit systems.
 // On 32-bit systems this tests that maxint reads work.
 func TestTCPBig(t *testing.T) {
@@ -714,6 +670,11 @@ func TestTCPBig(t *testing.T) {
 }
 
 func TestCopyPipeIntoTCP(t *testing.T) {
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skipf("skipping: os.Pipe not supported on %s", runtime.GOOS)
+	}
+
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
@@ -825,5 +786,50 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
 
 	if got != defaultTCPKeepAlive {
 		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAlive)
+	}
+}
+
+func TestTCPListenAfterClose(t *testing.T) {
+	// Regression test for https://go.dev/issue/50216:
+	// after calling Close on a Listener, the fake net implementation would
+	// erroneously Accept a connection dialed before the call to Close.
+
+	ln := newLocalListener(t, "tcp")
+	defer ln.Close()
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+
+	d := &Dialer{}
+	for n := 2; n > 0; n-- {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
+			if err == nil {
+				<-ctx.Done()
+				c.Close()
+			}
+		}()
+	}
+
+	c, err := ln.Accept()
+	if err == nil {
+		c.Close()
+	} else {
+		t.Error(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	wg.Wait()
+	ln.Close()
+
+	c, err = ln.Accept()
+	if !errors.Is(err, ErrClosed) {
+		if err == nil {
+			c.Close()
+		}
+		t.Errorf("after l.Close(), l.Accept() = _, %v\nwant %v", err, ErrClosed)
 	}
 }

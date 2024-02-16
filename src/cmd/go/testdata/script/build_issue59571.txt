@@ -1,0 +1,40 @@
+# Regression test for https://go.dev/issue/59571
+# Build should be reproducible, even with aliased generic types.
+
+go build -a -o 1.a
+go build -a -o 2.a
+cmp -q 1.a 2.a
+
+-- go.mod --
+module m
+
+go 1.20
+-- m.go --
+package m
+
+type (
+	SliceFlag[T any] struct{}
+
+	Alias1  = SliceFlag[[1]int]
+	Alias2  = SliceFlag[[2]int]
+	Alias3  = SliceFlag[[3]int]
+	Alias4  = SliceFlag[[4]int]
+	Alias5  = SliceFlag[[5]int]
+	Alias6  = SliceFlag[[6]int]
+	Alias7  = SliceFlag[[7]int]
+	Alias8  = SliceFlag[[8]int]
+	Alias9  = SliceFlag[[9]int]
+	Alias10 = SliceFlag[[10]int]
+	Alias11 = SliceFlag[[11]int]
+	Alias12 = SliceFlag[[12]int]
+	Alias13 = SliceFlag[[13]int]
+	Alias14 = SliceFlag[[14]int]
+	Alias15 = SliceFlag[[15]int]
+	Alias16 = SliceFlag[[16]int]
+	Alias17 = SliceFlag[[17]int]
+	Alias18 = SliceFlag[[18]int]
+	Alias19 = SliceFlag[[19]int]
+	Alias20 = SliceFlag[[20]int]
+)
+
+func (x *SliceFlag[T]) String() string { return "zzz" }

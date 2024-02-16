@@ -30,7 +30,7 @@ const (
 )
 
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
-// https://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
+// https://learn.microsoft.com/en-gb/archive/blogs/drnick/windows-and-upn-format-credentials
 //sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
 //sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
 
@@ -290,7 +290,6 @@ type Tokenprimarygroup struct {
 //sys	OpenProcessToken(h Handle, access uint32, token *Token) (err error) = advapi32.OpenProcessToken
 //sys	GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) = advapi32.GetTokenInformation
 //sys	GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) = userenv.GetUserProfileDirectoryW
-//sys	getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) = kernel32.GetSystemDirectoryW
 
 // An access token contains the security information for a logon session.
 // The system creates an access token when a user logs on, and every

@@ -1,3 +1,7 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 // TODO: should we share backing storage for similarly-shaped types?
@@ -23,6 +27,12 @@ type allocator struct {
 	maxLog   int    // log_2 of maximum allocation size
 }
 
+type derived struct {
+	name string // name for alloc/free functions
+	typ  string // the type they return/accept
+	base string // underlying allocator
+}
+
 func genAllocators() {
 	allocators := []allocator{
 		{
@@ -36,63 +46,13 @@ func genAllocators() {
 			maxLog:   32,
 		},
 		{
-			name:     "BlockSlice",
-			typ:      "[]*Block",
+			name:     "Int64Slice",
+			typ:      "[]int64",
 			capacity: "cap(%s)",
-			mak:      "make([]*Block, %s)",
-			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = nil\n}",
-			minLog:   5,
-			maxLog:   32,
-		},
-		{
-			name:     "BoolSlice",
-			typ:      "[]bool",
-			capacity: "cap(%s)",
-			mak:      "make([]bool, %s)",
-			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = false\n}",
-			minLog:   8,
-			maxLog:   32,
-		},
-		{
-			name:     "IntSlice",
-			typ:      "[]int",
-			capacity: "cap(%s)",
-			mak:      "make([]int, %s)",
+			mak:      "make([]int64, %s)",
 			resize:   "%s[:%s]",
 			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
 			minLog:   5,
-			maxLog:   32,
-		},
-		{
-			name:     "Int32Slice",
-			typ:      "[]int32",
-			capacity: "cap(%s)",
-			mak:      "make([]int32, %s)",
-			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
-			minLog:   6,
-			maxLog:   32,
-		},
-		{
-			name:     "Int8Slice",
-			typ:      "[]int8",
-			capacity: "cap(%s)",
-			mak:      "make([]int8, %s)",
-			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
-			minLog:   8,
-			maxLog:   32,
-		},
-		{
-			name:     "IDSlice",
-			typ:      "[]ID",
-			capacity: "cap(%s)",
-			mak:      "make([]ID, %s)",
-			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
-			minLog:   6,
 			maxLog:   32,
 		},
 		{
@@ -126,18 +86,60 @@ func genAllocators() {
 			maxLog:   32,
 		},
 	}
+	deriveds := []derived{
+		{
+			name: "BlockSlice",
+			typ:  "[]*Block",
+			base: "ValueSlice",
+		},
+		{
+			name: "IntSlice",
+			typ:  "[]int",
+			base: "Int64Slice",
+		},
+		{
+			name: "Int32Slice",
+			typ:  "[]int32",
+			base: "Int64Slice",
+		},
+		{
+			name: "Int8Slice",
+			typ:  "[]int8",
+			base: "Int64Slice",
+		},
+		{
+			name: "BoolSlice",
+			typ:  "[]bool",
+			base: "Int64Slice",
+		},
+		{
+			name: "IDSlice",
+			typ:  "[]ID",
+			base: "Int64Slice",
+		},
+	}
 
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "// Code generated from _gen/allocators.go; DO NOT EDIT.\n")
+	fmt.Fprintf(w, "// Code generated from _gen/allocators.go using 'go generate'; DO NOT EDIT.\n")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
 
 	fmt.Fprintln(w, "import (")
+	fmt.Fprintln(w, "\"internal/unsafeheader\"")
 	fmt.Fprintln(w, "\"math/bits\"")
 	fmt.Fprintln(w, "\"sync\"")
+	fmt.Fprintln(w, "\"unsafe\"")
 	fmt.Fprintln(w, ")")
 	for _, a := range allocators {
 		genAllocator(w, a)
+	}
+	for _, d := range deriveds {
+		for _, base := range allocators {
+			if base.name == d.base {
+				genDerived(w, d, base)
+				break
+			}
+		}
 	}
 	// gofmt result
 	b := w.Bytes()
@@ -194,5 +196,34 @@ func genAllocator(w io.Writer, a allocator) {
 		fmt.Fprintf(w, "*sp = s\n")
 		fmt.Fprintf(w, "poolFree%s[b-%d].Put(sp)\n", a.name, a.minLog)
 	}
+	fmt.Fprintf(w, "}\n")
+}
+func genDerived(w io.Writer, d derived, base allocator) {
+	fmt.Fprintf(w, "func (c *Cache) alloc%s(n int) %s {\n", d.name, d.typ)
+	if d.typ[:2] != "[]" || base.typ[:2] != "[]" {
+		panic(fmt.Sprintf("bad derived types: %s %s", d.typ, base.typ))
+	}
+	fmt.Fprintf(w, "var base %s\n", base.typ[2:])
+	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
+	fmt.Fprintf(w, "if unsafe.Sizeof(base)%%unsafe.Sizeof(derived) != 0 { panic(\"bad\") }\n")
+	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
+	fmt.Fprintf(w, "b := c.alloc%s(int((uintptr(n)+scale-1)/scale))\n", base.name)
+	fmt.Fprintf(w, "s := unsafeheader.Slice {\n")
+	fmt.Fprintf(w, "  Data: unsafe.Pointer(&b[0]),\n")
+	fmt.Fprintf(w, "  Len: n,\n")
+	fmt.Fprintf(w, "  Cap: cap(b)*int(scale),\n")
+	fmt.Fprintf(w, "  }\n")
+	fmt.Fprintf(w, "return *(*%s)(unsafe.Pointer(&s))\n", d.typ)
+	fmt.Fprintf(w, "}\n")
+	fmt.Fprintf(w, "func (c *Cache) free%s(s %s) {\n", d.name, d.typ)
+	fmt.Fprintf(w, "var base %s\n", base.typ[2:])
+	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
+	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
+	fmt.Fprintf(w, "b := unsafeheader.Slice {\n")
+	fmt.Fprintf(w, "  Data: unsafe.Pointer(&s[0]),\n")
+	fmt.Fprintf(w, "  Len: int((uintptr(len(s))+scale-1)/scale),\n")
+	fmt.Fprintf(w, "  Cap: int((uintptr(cap(s))+scale-1)/scale),\n")
+	fmt.Fprintf(w, "  }\n")
+	fmt.Fprintf(w, "c.free%s(*(*%s)(unsafe.Pointer(&b)))\n", base.name, base.typ)
 	fmt.Fprintf(w, "}\n")
 }

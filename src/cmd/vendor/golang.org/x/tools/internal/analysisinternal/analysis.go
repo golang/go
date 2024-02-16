@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package analysisinternal exposes internal-only fields from go/analysis.
+// Package analysisinternal provides gopls' internal analyses with a
+// number of helper functions that operate on typed syntax trees.
 package analysisinternal
 
 import (
@@ -12,15 +13,6 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
-)
-
-// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
-// in Go 1.18+.
-var DiagnoseFuzzTests bool = false
-
-var (
-	GetTypeErrors func(p interface{}) []types.Error
-	SetTypeErrors func(p interface{}, errors []types.Error)
 )
 
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
@@ -50,7 +42,7 @@ func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		case u.Info()&types.IsString != 0:
 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
 		default:
-			panic("unknown basic type")
+			panic(fmt.Sprintf("unknown basic type %v", u))
 		}
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
@@ -159,6 +151,10 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				},
 			})
 		}
+		if t.Variadic() {
+			last := params[len(params)-1]
+			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
+		}
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
 			r := TypeExpr(f, pkg, t.Results().At(i).Type())
@@ -209,14 +205,6 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		return nil
 	}
 }
-
-type TypeErrorPass string
-
-const (
-	NoNewVars      TypeErrorPass = "nonewvars"
-	NoResultValues TypeErrorPass = "noresultvalues"
-	UndeclaredName TypeErrorPass = "undeclaredname"
-)
 
 // StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
 // Some examples:

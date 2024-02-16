@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package printf defines an Analyzer that checks consistency
-// of Printf format strings and arguments.
 package printf
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -32,42 +31,18 @@ func init() {
 	Analyzer.Flags.Var(isPrint, "funcs", "comma-separated list of print function names to check")
 }
 
+//go:embed doc.go
+var doc string
+
 var Analyzer = &analysis.Analyzer{
 	Name:       "printf",
-	Doc:        Doc,
+	Doc:        analysisutil.MustExtractDoc(doc, "printf"),
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
 	ResultType: reflect.TypeOf((*Result)(nil)),
 	FactTypes:  []analysis.Fact{new(isWrapper)},
 }
-
-const Doc = `check consistency of Printf format strings and arguments
-
-The check applies to known functions (for example, those in package fmt)
-as well as any detected wrappers of known functions.
-
-A function that wants to avail itself of printf checking but is not
-found by this analyzer's heuristics (for example, due to use of
-dynamic calls) can insert a bogus call:
-
-	if false {
-		_ = fmt.Sprintf(format, args...) // enable printf checking
-	}
-
-The -funcs flag specifies a comma-separated list of names of additional
-known formatting functions or methods. If the name contains a period,
-it must denote a specific function using one of the following forms:
-
-	dir/pkg.Function
-	dir/pkg.Type.Method
-	(*dir/pkg.Type).Method
-
-Otherwise the name is interpreted as a case-insensitive unqualified
-identifier such as "errorf". Either way, if a listed name ends in f, the
-function is assumed to be Printf-like, taking a format string before the
-argument list. Otherwise it is assumed to be Print-like, taking a list
-of arguments with no format string.
-`
 
 // Kind is a kind of fmt function behavior.
 type Kind int
@@ -303,7 +278,7 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 			// print/printf function can take, adding an ellipsis
 			// would break the program. For example:
 			//
-			//   func foo(arg1 string, arg2 ...interface{} {
+			//   func foo(arg1 string, arg2 ...interface{}) {
 			//       fmt.Printf("%s %v", arg1, arg2)
 			//   }
 			return
@@ -340,9 +315,10 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
 // driver applying analyzers to standard packages because "go vet" does
 // not do so with gccgo, and nor do some other build systems.
-// TODO(adonovan): eliminate the redundant facts once this restriction
-// is lifted.
 var isPrint = stringSet{
+	"fmt.Appendf":  true,
+	"fmt.Append":   true,
+	"fmt.Appendln": true,
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
 	"fmt.Fprintf":  true,
@@ -535,13 +511,8 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		analysisutil.IsNamedType(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
-}
-
-func isNamed(T types.Type, pkgpath, name string) bool {
-	named, ok := T.(*types.Named)
-	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
@@ -910,7 +881,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		if reason != "" {
 			details = " (" + reason + ")"
 		}
-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s, see also https://pkg.go.dev/fmt#hdr-Printing", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
+		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
 		return false
 	}
 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
@@ -1080,7 +1051,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
+				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", fn.FullName(), m[0])
 			}
 		}
 	}

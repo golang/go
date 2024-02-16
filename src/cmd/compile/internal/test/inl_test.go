@@ -6,7 +6,6 @@ package test
 
 import (
 	"bufio"
-	"internal/buildcfg"
 	"internal/goexperiment"
 	"internal/testenv"
 	"io"
@@ -45,15 +44,16 @@ func TestIntendedInlining(t *testing.T) {
 			"chanbuf",
 			"evacuated",
 			"fastlog2",
-			"fastrand",
 			"float64bits",
 			"funcspdelta",
 			"getm",
 			"getMCache",
 			"isDirectIface",
 			"itabHashFunc",
+			"nextslicecap",
 			"noescape",
 			"pcvalueCacheKey",
+			"rand32",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",
@@ -73,11 +73,13 @@ func TestIntendedInlining(t *testing.T) {
 			"gclinkptr.ptr",
 			"guintptr.ptr",
 			"writeHeapBitsForAddr",
+			"heapBitsSlice",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
 			"spanOf",
 			"spanOfUnchecked",
+			"typePointers.nextFast",
 			"(*gcWork).putFast",
 			"(*gcWork).tryGetFast",
 			"(*guintptr).set",
@@ -86,8 +88,15 @@ func TestIntendedInlining(t *testing.T) {
 			"(*mspan).base",
 			"(*mspan).markBitsForBase",
 			"(*mspan).markBitsForIndex",
+			"(*mspan).writeUserArenaHeapBits",
 			"(*muintptr).set",
 			"(*puintptr).set",
+			"(*wbBuf).get1",
+			"(*wbBuf).get2",
+
+			// Trace-related ones.
+			"traceLocker.ok",
+			"traceEnabled",
 		},
 		"runtime/internal/sys": {},
 		"runtime/internal/math": {
@@ -106,6 +115,9 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
 		},
+		"internal/abi": {
+			"UseInterfaceSwitchCache",
+		},
 		"compress/flate": {
 			"byLiteral.Len",
 			"byLiteral.Less",
@@ -122,6 +134,9 @@ func TestIntendedInlining(t *testing.T) {
 			"RuneLen",
 			"AppendRune",
 			"ValidRune",
+		},
+		"unicode/utf16": {
+			"Decode",
 		},
 		"reflect": {
 			"Value.Bool",
@@ -176,6 +191,15 @@ func TestIntendedInlining(t *testing.T) {
 		"net": {
 			"(*UDPConn).ReadFromUDP",
 		},
+		"sync": {
+			// Both OnceFunc and its returned closure need to be inlinable so
+			// that the returned closure can be inlined into the caller of OnceFunc.
+			"OnceFunc",
+			"OnceFunc.func2", // The returned closure.
+			// TODO(austin): It would be good to check OnceValue and OnceValues,
+			// too, but currently they aren't reported because they have type
+			// parameters and aren't instantiated in sync.
+		},
 		"sync/atomic": {
 			// (*Bool).CompareAndSwap handled below.
 			"(*Bool).Load",
@@ -206,7 +230,10 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Uintptr).Load",
 			"(*Uintptr).Store",
 			"(*Uintptr).Swap",
-			// (*Pointer[T])'s methods' handled below.
+			"(*Pointer[go.shape.int]).CompareAndSwap",
+			"(*Pointer[go.shape.int]).Load",
+			"(*Pointer[go.shape.int]).Store",
+			"(*Pointer[go.shape.int]).Swap",
 		},
 	}
 
@@ -226,19 +253,15 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
+		// runtime/internal/atomic.Loaduintptr is only intrinsified on these platforms.
+		want["runtime"] = append(want["runtime"], "traceAcquire")
+	}
 	if bits.UintSize == 64 {
 		// mix is only defined on 64-bit architectures
 		want["runtime"] = append(want["runtime"], "mix")
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
-	}
-	if buildcfg.Experiment.Unified {
-		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
-		// TODO(cuonglm): remove once non-unified IR frontend gone.
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Load")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Store")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Swap")
 	}
 
 	switch runtime.GOARCH {

@@ -339,3 +339,151 @@ func callerLine(t *testing.T, skip int) int {
 	}
 	return line
 }
+
+func BenchmarkCallers(b *testing.B) {
+	b.Run("cached", func(b *testing.B) {
+		// Very pcvalueCache-friendly, no inlining.
+		callersCached(b, 100)
+	})
+	b.Run("inlined", func(b *testing.B) {
+		// Some inlining, still pretty cache-friendly.
+		callersInlined(b, 100)
+	})
+	b.Run("no-cache", func(b *testing.B) {
+		// Cache-hostile
+		callersNoCache(b, 100)
+	})
+}
+
+func callersCached(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + callersCached(b, n-1)
+}
+
+func callersInlined(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + callersInlined1(b, n-1)
+}
+func callersInlined1(b *testing.B, n int) int { return callersInlined2(b, n) }
+func callersInlined2(b *testing.B, n int) int { return callersInlined3(b, n) }
+func callersInlined3(b *testing.B, n int) int { return callersInlined4(b, n) }
+func callersInlined4(b *testing.B, n int) int { return callersInlined(b, n) }
+
+func callersNoCache(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	switch n % 16 {
+	case 0:
+		return 1 + callersNoCache(b, n-1)
+	case 1:
+		return 1 + callersNoCache(b, n-1)
+	case 2:
+		return 1 + callersNoCache(b, n-1)
+	case 3:
+		return 1 + callersNoCache(b, n-1)
+	case 4:
+		return 1 + callersNoCache(b, n-1)
+	case 5:
+		return 1 + callersNoCache(b, n-1)
+	case 6:
+		return 1 + callersNoCache(b, n-1)
+	case 7:
+		return 1 + callersNoCache(b, n-1)
+	case 8:
+		return 1 + callersNoCache(b, n-1)
+	case 9:
+		return 1 + callersNoCache(b, n-1)
+	case 10:
+		return 1 + callersNoCache(b, n-1)
+	case 11:
+		return 1 + callersNoCache(b, n-1)
+	case 12:
+		return 1 + callersNoCache(b, n-1)
+	case 13:
+		return 1 + callersNoCache(b, n-1)
+	case 14:
+		return 1 + callersNoCache(b, n-1)
+	default:
+		return 1 + callersNoCache(b, n-1)
+	}
+}
+
+func BenchmarkFPCallers(b *testing.B) {
+	b.Run("cached", func(b *testing.B) {
+		// Very pcvalueCache-friendly, no inlining.
+		fpCallersCached(b, 100)
+	})
+}
+
+func fpCallersCached(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.FPCallers(pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + fpCallersCached(b, n-1)
+}
+
+func TestFPUnwindAfterRecovery(t *testing.T) {
+	if !runtime.FramePointerEnabled {
+		t.Skip("frame pointers not supported for this architecture")
+	}
+	// Make sure that frame pointer unwinding succeeds from a deferred
+	// function run after recovering from a panic. It can fail if the
+	// recovery does not properly restore the caller's frame pointer before
+	// running the remaining deferred functions.
+	//
+	// This test does not verify the accuracy of the call stack (it
+	// currently includes a frame from runtime.deferreturn which would
+	// normally be omitted). It is only intended to check that producing the
+	// call stack won't crash.
+	defer func() {
+		pcs := make([]uintptr, 32)
+		for i := range pcs {
+			// If runtime.recovery doesn't properly restore the
+			// frame pointer before returning control to this
+			// function, it will point somewhere lower in the stack
+			// from one of the frames of runtime.gopanic() or one of
+			// it's callees prior to recovery.  So, we put some
+			// non-zero values on the stack to ensure that frame
+			// pointer unwinding will crash if it sees the old,
+			// invalid frame pointer.
+			pcs[i] = 10
+		}
+		runtime.FPCallers(pcs)
+		t.Logf("%v", pcs)
+	}()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("did not recover from panic")
+		}
+	}()
+	panic(1)
+}

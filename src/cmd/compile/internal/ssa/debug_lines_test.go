@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -45,7 +44,7 @@ func testGoArch() string {
 
 func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false
@@ -84,7 +83,7 @@ func TestDebugLinesPushback(t *testing.T) {
 
 	case "arm64", "amd64": // register ABI
 		fn := "(*List[go.shape.int_0]).PushBack"
-		if buildcfg.Experiment.Unified {
+		if true /* was buildcfg.Experiment.Unified */ {
 			// Unified mangles differently
 			fn = "(*List[go.shape.int]).PushBack"
 		}
@@ -101,7 +100,7 @@ func TestDebugLinesConvert(t *testing.T) {
 
 	case "arm64", "amd64": // register ABI
 		fn := "G[go.shape.int_0]"
-		if buildcfg.Experiment.Unified {
+		if true /* was buildcfg.Experiment.Unified */ {
 			// Unified mangles differently
 			fn = "G[go.shape.int]"
 		}
@@ -222,7 +221,7 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 	sortInlineStacks(gotStacks)
 	sortInlineStacks(wantStacks)
 	if !reflect.DeepEqual(wantStacks, gotStacks) {
-		t.Errorf("wanted inlines %+v but got %+v", wantStacks, gotStacks)
+		t.Errorf("wanted inlines %+v but got %+v\n%s", wantStacks, gotStacks, dumpBytes)
 	}
 
 }

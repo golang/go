@@ -9,9 +9,6 @@
 #include "time_windows.h"
 
 TEXT time·now(SB),NOSPLIT,$0-24
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
-
 	MOVQ	$_INTERRUPT_TIME, DI
 	MOVQ	time_lo(DI), AX
 	IMULQ	$100, AX
@@ -36,7 +33,4 @@ TEXT time·now(SB),NOSPLIT,$0-24
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
 	MOVL	CX, nsec+8(FP)
-	RET
-useQPC:
-	JMP	runtime·nowQPC(SB)
 	RET

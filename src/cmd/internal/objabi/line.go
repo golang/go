@@ -8,6 +8,7 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -41,6 +42,13 @@ func AbsFile(dir, file, rewrites string) string {
 	abs, rewritten := ApplyRewrites(abs, rewrites)
 	if !rewritten && buildcfg.GOROOT != "" && hasPathPrefix(abs, buildcfg.GOROOT) {
 		abs = "$GOROOT" + abs[len(buildcfg.GOROOT):]
+	}
+
+	// Rewrite paths to match the slash convention of the target.
+	// This helps ensure that cross-compiled distributions remain
+	// bit-for-bit identical to natively compiled distributions.
+	if runtime.GOOS == "windows" {
+		abs = strings.ReplaceAll(abs, `\`, "/")
 	}
 
 	if abs == "" {

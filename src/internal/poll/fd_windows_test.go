@@ -5,12 +5,15 @@
 package poll_test
 
 import (
+	"errors"
 	"fmt"
 	"internal/poll"
+	"internal/syscall/windows"
 	"os"
 	"sync"
 	"syscall"
 	"testing"
+	"unsafe"
 )
 
 type loggedFD struct {
@@ -38,6 +41,8 @@ func logFD(net string, fd *poll.FD, err error) {
 func init() {
 	loggedFDs = make(map[syscall.Handle]*loggedFD)
 	*poll.LogInitFD = logFD
+
+	poll.InitWSA()
 }
 
 func findLoggedFD(h syscall.Handle) (lfd *loggedFD, found bool) {
@@ -108,4 +113,75 @@ func TestSerialFdsAreInitialised(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWSASocketConflict(t *testing.T) {
+	s, err := windows.WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, windows.WSA_FLAG_OVERLAPPED)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
+	_, err = fd.Init("tcp", true)
+	if err != nil {
+		syscall.CloseHandle(s)
+		t.Fatal(err)
+	}
+	defer fd.Close()
+
+	const SIO_TCP_INFO = syscall.IOC_INOUT | syscall.IOC_VENDOR | 39
+	inbuf := uint32(0)
+	var outbuf _TCP_INFO_v0
+	cbbr := uint32(0)
+
+	var ov syscall.Overlapped
+	// Create an event so that we can efficiently wait for completion
+	// of a requested overlapped I/O operation.
+	ov.HEvent, _ = windows.CreateEvent(nil, 0, 0, nil)
+	if ov.HEvent == 0 {
+		t.Fatalf("could not create the event!")
+	}
+	defer syscall.CloseHandle(ov.HEvent)
+
+	if err = fd.WSAIoctl(
+		SIO_TCP_INFO,
+		(*byte)(unsafe.Pointer(&inbuf)),
+		uint32(unsafe.Sizeof(inbuf)),
+		(*byte)(unsafe.Pointer(&outbuf)),
+		uint32(unsafe.Sizeof(outbuf)),
+		&cbbr,
+		&ov,
+		0,
+	); err != nil && !errors.Is(err, syscall.ERROR_IO_PENDING) {
+		t.Fatalf("could not perform the WSAIoctl: %v", err)
+	}
+
+	if err != nil && errors.Is(err, syscall.ERROR_IO_PENDING) {
+		// It is possible that the overlapped I/O operation completed
+		// immediately so there is no need to wait for it to complete.
+		if res, err := syscall.WaitForSingleObject(ov.HEvent, syscall.INFINITE); res != 0 {
+			t.Fatalf("waiting for the completion of the overlapped IO failed: %v", err)
+		}
+	}
+}
+
+type _TCP_INFO_v0 struct {
+	State             uint32
+	Mss               uint32
+	ConnectionTimeMs  uint64
+	TimestampsEnabled bool
+	RttUs             uint32
+	MinRttUs          uint32
+	BytesInFlight     uint32
+	Cwnd              uint32
+	SndWnd            uint32
+	RcvWnd            uint32
+	RcvBuf            uint32
+	BytesOut          uint64
+	BytesIn           uint64
+	BytesReordered    uint32
+	BytesRetrans      uint32
+	FastRetrans       uint32
+	DupAcksIn         uint32
+	TimeoutEpisodes   uint32
+	SynRetrans        uint8
 }

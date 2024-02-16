@@ -23,11 +23,16 @@ func _() {
 	_ = x[ClassString-12]
 	_ = x[ClassReferenceAlt-13]
 	_ = x[ClassStringAlt-14]
+	_ = x[ClassAddrPtr-15]
+	_ = x[ClassLocList-16]
+	_ = x[ClassRngList-17]
+	_ = x[ClassRngListsPtr-18]
+	_ = x[ClassStrOffsetsPtr-19]
 }
 
-const _Class_name = "ClassUnknownClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAlt"
+const _Class_name = "ClassUnknownClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAltClassAddrPtrClassLocListClassRngListClassRngListsPtrClassStrOffsetsPtr"
 
-var _Class_index = [...]uint8{0, 12, 24, 34, 47, 59, 68, 80, 95, 106, 123, 137, 154, 165, 182, 196}
+var _Class_index = [...]uint16{0, 12, 24, 34, 47, 59, 68, 80, 95, 106, 123, 137, 154, 165, 182, 196, 208, 220, 232, 248, 266}
 
 func (i Class) String() string {
 	if i < 0 || i >= Class(len(_Class_index)-1) {

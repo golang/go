@@ -35,7 +35,7 @@ type Signature struct {
 // is variadic, it must have at least one parameter, and the last parameter
 // must be of unnamed slice type.
 //
-// Deprecated: Use NewSignatureType instead which allows for type parameters.
+// Deprecated: Use [NewSignatureType] instead which allows for type parameters.
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
@@ -77,7 +77,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 // function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
-// as a *Named or an *Interface. Due to embedding, an interface may
+// as a *[Named] or an *[Interface]. Due to embedding, an interface may
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
@@ -116,7 +116,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			tparams := check.declareTypeParams(nil, rparams)
+			// The scope of the type parameter T in "func (r T[T]) f()"
+			// starts after f, not at "r"; see #52038.
+			scopePos := ftyp.Params.Pos()
+			tparams := check.declareTypeParams(nil, rparams, scopePos)
 			sig.rparams = bindTParams(tparams)
 			// Blank identifiers don't get declared, so naive type-checking of the
 			// receiver type expression would fail in Checker.collectParams below,
@@ -141,7 +144,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
+				if recv := asNamed(check.genericType(rname, nil)); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}
@@ -159,7 +162,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			} else if len(tparams) < len(recvTParams) {
 				// Reporting an error here is a stop-gap measure to avoid crashes in the
 				// compiler when a type parameter/argument cannot be inferred later. It
-				// may lead to follow-on errors (see issues #51339, #51343).
+				// may lead to follow-on errors (see issues go.dev/issue/51339, go.dev/issue/51343).
 				// TODO(gri) find a better solution
 				got := measure(len(tparams), "type parameter")
 				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
@@ -177,13 +180,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
-	// declarations and then squash that scope into the parent scope (and report any redeclarations at
-	// that time).
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, false)
-	params, variadic := check.collectParams(scope, ftyp.Params, true)
-	results, _ := check.collectParams(scope, ftyp.Results, false)
+	// Use a temporary scope for all parameter declarations and then
+	// squash that scope into the parent scope (and report any
+	// redeclarations at that time).
+	//
+	// TODO(adonovan): now that each declaration has the correct
+	// scopePos, there should be no need for scope squashing.
+	// Audit to ensure all lookups honor scopePos and simplify.
+	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
+	scopePos := ftyp.End() // all parameters' scopes start after the signature
+	recvList, _ := check.collectParams(scope, recvPar, false, scopePos)
+	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
+	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
 	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -197,7 +205,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
 			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")
@@ -208,17 +216,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		sig.recv = recv
 
 		// Delay validation of receiver type as it may cause premature expansion
-		// of types the receiver type is dependent on (see issues #51232, #51233).
+		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			if rtyp == Typ[Invalid] {
+			atyp := Unalias(rtyp)
+			if !isValid(atyp) {
 				return // error was reported before
 			}
 			// spec: "The type denoted by T is called the receiver base type; it must not
 			// be a pointer or interface type and it must be declared in the same package
 			// as the method."
-			switch T := rtyp.(type) {
+			switch T := atyp.(type) {
 			case *Named:
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
@@ -262,7 +271,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 // collectParams declares the parameters of list in scope and returns the corresponding
 // variable list.
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool, scopePos token.Pos) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -290,7 +299,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
-				check.declare(scope, name, par, scope.pos)
+				check.declare(scope, name, par, scopePos)
 				params = append(params, par)
 			}
 			named = true

@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"net"
 	"strings"
@@ -35,6 +36,26 @@ const (
 	// supported by this package. See golang.org/issue/32716.
 	VersionSSL30 = 0x0300
 )
+
+// VersionName returns the name for the provided TLS version number
+// (e.g. "TLS 1.3"), or a fallback representation of the value if the
+// version is not implemented by this package.
+func VersionName(version uint16) string {
+	switch version {
+	case VersionSSL30:
+		return "SSLv3"
+	case VersionTLS10:
+		return "TLS 1.0"
+	case VersionTLS11:
+		return "TLS 1.1"
+	case VersionTLS12:
+		return "TLS 1.2"
+	case VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return fmt.Sprintf("0x%04X", version)
+	}
+}
 
 const (
 	maxPlaintext       = 16384        // maximum plaintext payload length
@@ -90,6 +111,7 @@ const (
 	extensionSignatureAlgorithms     uint16 = 13
 	extensionALPN                    uint16 = 16
 	extensionSCT                     uint16 = 18
+	extensionExtendedMasterSecret    uint16 = 23
 	extensionSessionTicket           uint16 = 35
 	extensionPreSharedKey            uint16 = 41
 	extensionEarlyData               uint16 = 42
@@ -99,6 +121,7 @@ const (
 	extensionCertificateAuthorities  uint16 = 47
 	extensionSignatureAlgorithmsCert uint16 = 50
 	extensionKeyShare                uint16 = 51
+	extensionQUICTransportParameters uint16 = 57
 	extensionRenegotiationInfo       uint16 = 0xff01
 )
 
@@ -270,12 +293,8 @@ type ConnectionState struct {
 	OCSPResponse []byte
 
 	// TLSUnique contains the "tls-unique" channel binding value (see RFC 5929,
-	// Section 3). This value will be nil for TLS 1.3 connections and for all
-	// resumed connections.
-	//
-	// Deprecated: there are conditions in which this value might not be unique
-	// to a connection. See the Security Considerations sections of RFC 5705 and
-	// RFC 7627, and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
+	// Section 3). This value will be nil for TLS 1.3 connections and for
+	// resumed connections that don't support Extended Master Secret (RFC 7627).
 	TLSUnique []byte
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
@@ -285,7 +304,13 @@ type ConnectionState struct {
 // ExportKeyingMaterial returns length bytes of exported key material in a new
 // slice as defined in RFC 5705. If context is nil, it is not used as part of
 // the seed. If the connection was set to allow renegotiation via
-// Config.Renegotiation, this function will return an error.
+// Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
+// Extended Master Secret, this function will return an error.
+//
+// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
+// in Go 1.22 due to security issues (see the Security Considerations sections
+// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
+// tlsunsafeekm=1.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
@@ -327,25 +352,6 @@ func requiresClientCert(c ClientAuthType) bool {
 	default:
 		return false
 	}
-}
-
-// ClientSessionState contains the state needed by clients to resume TLS
-// sessions.
-type ClientSessionState struct {
-	sessionTicket      []uint8               // Encrypted ticket used for session resumption with server
-	vers               uint16                // TLS version negotiated for the session
-	cipherSuite        uint16                // Ciphersuite negotiated for the session
-	masterSecret       []byte                // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
-	serverCertificates []*x509.Certificate   // Certificate chain presented by the server
-	verifiedChains     [][]*x509.Certificate // Certificate chains we built for verification
-	receivedAt         time.Time             // When the session ticket was received from the server
-	ocspResponse       []byte                // Stapled OCSP response presented by the server
-	scts               [][]byte              // SCTs presented by the server
-
-	// TLS 1.3 fields.
-	nonce  []byte    // Ticket nonce sent by the server, to derive PSK
-	useBy  time.Time // Expiration of the ticket lifetime as set by the server
-	ageAdd uint32    // Random obfuscation factor for sending the ticket age
 }
 
 // ClientSessionCache is a cache of ClientSessionState objects that can be used
@@ -601,10 +607,16 @@ type Config struct {
 	// non-nil error, the handshake is aborted and that error results.
 	//
 	// If normal verification fails then the handshake will abort before
-	// considering this callback. If normal verification is disabled by
-	// setting InsecureSkipVerify, or (for a server) when ClientAuth is
-	// RequestClientCert or RequireAnyClientCert, then this callback will
-	// be considered but the verifiedChains argument will always be nil.
+	// considering this callback. If normal verification is disabled (on the
+	// client when InsecureSkipVerify is set, or on a server when ClientAuth is
+	// RequestClientCert or RequireAnyClientCert), then this callback will be
+	// considered but the verifiedChains argument will always be nil. When
+	// ClientAuth is NoClientCert, this callback is not called on the server.
+	// rawCerts may be empty on the server if ClientAuth is RequestClientCert or
+	// VerifyClientCertIfGiven.
+	//
+	// This callback is not invoked on resumed connections, as certificates are
+	// not re-verified on resumption.
 	//
 	// verifiedChains and its contents should not be modified.
 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
@@ -615,8 +627,9 @@ type Config struct {
 	// and that error results.
 	//
 	// If normal verification fails then the handshake will abort before
-	// considering this callback. This callback will run for all connections
-	// regardless of InsecureSkipVerify or ClientAuth settings.
+	// considering this callback. This callback will run for all connections,
+	// including resumptions, regardless of InsecureSkipVerify or ClientAuth
+	// settings.
 	VerifyConnection func(ConnectionState) error
 
 	// RootCAs defines the set of root certificate authorities
@@ -659,7 +672,9 @@ type Config struct {
 	// the list is ignored. Note that TLS 1.3 ciphersuites are not configurable.
 	//
 	// If CipherSuites is nil, a safe default list is used. The default cipher
-	// suites might change over time.
+	// suites might change over time. In Go 1.22 RSA key exchange based cipher
+	// suites were removed from the default list, but can be re-added with the
+	// GODEBUG setting tlsrsakex=1.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites is a legacy field and has no effect.
@@ -691,16 +706,42 @@ type Config struct {
 	// session resumption. It is only used by clients.
 	ClientSessionCache ClientSessionCache
 
+	// UnwrapSession is called on the server to turn a ticket/identity
+	// previously produced by [WrapSession] into a usable session.
+	//
+	// UnwrapSession will usually either decrypt a session state in the ticket
+	// (for example with [Config.EncryptTicket]), or use the ticket as a handle
+	// to recover a previously stored state. It must use [ParseSessionState] to
+	// deserialize the session state.
+	//
+	// If UnwrapSession returns an error, the connection is terminated. If it
+	// returns (nil, nil), the session is ignored. crypto/tls may still choose
+	// not to resume the returned session.
+	UnwrapSession func(identity []byte, cs ConnectionState) (*SessionState, error)
+
+	// WrapSession is called on the server to produce a session ticket/identity.
+	//
+	// WrapSession must serialize the session state with [SessionState.Bytes].
+	// It may then encrypt the serialized state (for example with
+	// [Config.DecryptTicket]) and use it as the ticket, or store the state and
+	// return a handle for it.
+	//
+	// If WrapSession returns an error, the connection is terminated.
+	//
+	// Warning: the return value will be exposed on the wire and to clients in
+	// plaintext. The application is in charge of encrypting and authenticating
+	// it (and rotating keys) or returning high-entropy identifiers. Failing to
+	// do so correctly can compromise current, previous, and future connections
+	// depending on the protocol version.
+	WrapSession func(ConnectionState, *SessionState) ([]byte, error)
+
 	// MinVersion contains the minimum TLS version that is acceptable.
 	//
-	// By default, TLS 1.2 is currently used as the minimum when acting as a
-	// client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
-	// supported by this package, both as a client and as a server.
+	// By default, TLS 1.2 is currently used as the minimum. TLS 1.0 is the
+	// minimum supported by this package.
 	//
-	// The client-side default can temporarily be reverted to TLS 1.0 by
-	// including the value "x509sha1=1" in the GODEBUG environment variable.
-	// Note that this option will be removed in Go 1.19 (but it will still be
-	// possible to set this field to VersionTLS10 explicitly).
+	// The server-side default can be reverted to TLS 1.0 by including the value
+	// "tls10server=1" in the GODEBUG environment variable.
 	MinVersion uint16
 
 	// MaxVersion contains the maximum TLS version that is acceptable.
@@ -747,10 +788,6 @@ type Config struct {
 }
 
 const (
-	// ticketKeyNameLen is the number of bytes of identifier that is prepended to
-	// an encrypted session ticket in order to identify the key used to encrypt it.
-	ticketKeyNameLen = 16
-
 	// ticketKeyLifetime is how long a ticket key remains valid and can be used to
 	// resume a client connection.
 	ticketKeyLifetime = 7 * 24 * time.Hour // 7 days
@@ -762,9 +799,6 @@ const (
 
 // ticketKey is the internal representation of a session ticket key.
 type ticketKey struct {
-	// keyName is an opaque byte string that serves to identify the session
-	// ticket key. It's exposed as plaintext in every session ticket.
-	keyName [ticketKeyNameLen]byte
 	aesKey  [16]byte
 	hmacKey [16]byte
 	// created is the time at which this ticket key was created. See Config.ticketKeys.
@@ -776,18 +810,21 @@ type ticketKey struct {
 // bytes and this function expands that into sufficient name and key material.
 func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 	hashed := sha512.Sum512(b[:])
-	copy(key.keyName[:], hashed[:ticketKeyNameLen])
-	copy(key.aesKey[:], hashed[ticketKeyNameLen:ticketKeyNameLen+16])
-	copy(key.hmacKey[:], hashed[ticketKeyNameLen+16:ticketKeyNameLen+32])
+	// The first 16 bytes of the hash used to be exposed on the wire as a ticket
+	// prefix. They MUST NOT be used as a secret. In the future, it would make
+	// sense to use a proper KDF here, like HKDF with a fixed salt.
+	const legacyTicketKeyNameLen = 16
+	copy(key.aesKey[:], hashed[legacyTicketKeyNameLen:])
+	copy(key.hmacKey[:], hashed[legacyTicketKeyNameLen+len(key.aesKey):])
 	key.created = c.time()
 	return key
 }
 
 // maxSessionTicketLifetime is the maximum allowed lifetime of a TLS 1.3 session
-// ticket, and the lifetime we set for tickets we send.
+// ticket, and the lifetime we set for all tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
-// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a Config that is
+// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
 // being used concurrently by a TLS client or server.
 func (c *Config) Clone() *Config {
 	if c == nil {
@@ -816,6 +853,8 @@ func (c *Config) Clone() *Config {
 		SessionTicketsDisabled:      c.SessionTicketsDisabled,
 		SessionTicketKey:            c.SessionTicketKey,
 		ClientSessionCache:          c.ClientSessionCache,
+		UnwrapSession:               c.UnwrapSession,
+		WrapSession:                 c.WrapSession,
 		MinVersion:                  c.MinVersion,
 		MaxVersion:                  c.MaxVersion,
 		CurvePreferences:            c.CurvePreferences,
@@ -969,12 +1008,17 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
+var tlsrsakex = godebug.New("tlsrsakex")
+
 func (c *Config) cipherSuites() []uint16 {
 	if needFIPS() {
 		return fipsCipherSuites(c)
 	}
 	if c.CipherSuites != nil {
 		return c.CipherSuites
+	}
+	if tlsrsakex.Value() == "1" {
+		return defaultCipherSuitesWithRSAKex
 	}
 	return defaultCipherSuites
 }
@@ -991,15 +1035,18 @@ var supportedVersions = []uint16{
 const roleClient = true
 const roleServer = false
 
+var tls10server = godebug.New("tls10server")
+
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
 		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
 			continue
 		}
-		if (c == nil || c.MinVersion == 0) &&
-			isClient && v < VersionTLS12 {
-			continue
+		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+			if isClient || tls10server.Value() != "1" {
+				continue
+			}
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue
@@ -1120,9 +1167,9 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 // the client that sent the ClientHello. Otherwise, it returns an error
 // describing the reason for the incompatibility.
 //
-// If this ClientHelloInfo was passed to a GetConfigForClient or GetCertificate
-// callback, this method will take into account the associated Config. Note that
-// if GetConfigForClient returns a different Config, the change can't be
+// If this [ClientHelloInfo] was passed to a GetConfigForClient or GetCertificate
+// callback, this method will take into account the associated [Config]. Note that
+// if GetConfigForClient returns a different [Config], the change can't be
 // accounted for by this method.
 //
 // This function will call x509.ParseCertificate unless c.Leaf is set, which can
@@ -1394,7 +1441,7 @@ func (c *Certificate) leaf() (*x509.Certificate, error) {
 }
 
 type handshakeMessage interface {
-	marshal() []byte
+	marshal() ([]byte, error)
 	unmarshal([]byte) bool
 }
 
@@ -1413,7 +1460,7 @@ type lruSessionCacheEntry struct {
 	state      *ClientSessionState
 }
 
-// NewLRUClientSessionCache returns a ClientSessionCache with the given
+// NewLRUClientSessionCache returns a [ClientSessionCache] with the given
 // capacity that uses an LRU strategy. If capacity is < 1, a default capacity
 // is used instead.
 func NewLRUClientSessionCache(capacity int) ClientSessionCache {
@@ -1462,7 +1509,7 @@ func (c *lruSessionCache) Put(sessionKey string, cs *ClientSessionState) {
 	c.m[sessionKey] = elem
 }
 
-// Get returns the ClientSessionState value associated with a given key. It
+// Get returns the [ClientSessionState] value associated with a given key. It
 // returns (nil, false) if no value is found.
 func (c *lruSessionCache) Get(sessionKey string) (*ClientSessionState, bool) {
 	c.Lock()

@@ -18,6 +18,6 @@ func (T2) foo() string { return "" }
 
 func _() {
 	var i I
-	_ = i /* ERROR impossible type assertion: i\.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\) */ .(T1)
-	_ = i /* ERROR impossible type assertion: i\.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\) */ .(T2)
+	_ = i /* ERROR "impossible type assertion: i.(T1)\n\tT1 does not implement I (missing method Foo)\n\t\thave foo()\n\t\twant Foo()" */ .(T1)
+	_ = i /* ERROR "impossible type assertion: i.(T2)\n\tT2 does not implement I (missing method Foo)\n\t\thave foo() string\n\t\twant Foo()" */ .(T2)
 }

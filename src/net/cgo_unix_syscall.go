@@ -19,6 +19,8 @@ const (
 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
 	_C_EAI_AGAIN    = unix.EAI_AGAIN
 	_C_EAI_NONAME   = unix.EAI_NONAME
+	_C_EAI_SERVICE  = unix.EAI_SERVICE
+	_C_EAI_NODATA   = unix.EAI_NODATA
 	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
 	_C_IPPROTO_TCP  = syscall.IPPROTO_TCP
@@ -38,18 +40,7 @@ type (
 	_C_struct_sockaddr    = syscall.RawSockaddr
 )
 
-func _C_GoString(p *_C_char) string {
-	return unix.GoString(p)
-}
-
-func _C_CString(s string) *_C_char {
-	p := make([]byte, len(s)+1)
-	copy(p, s)
-	return &p[0]
-}
-
-func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
-func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
+func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
 
 func _C_malloc(n uintptr) unsafe.Pointer {
 	if n <= 0 {
@@ -59,7 +50,6 @@ func _C_malloc(n uintptr) unsafe.Pointer {
 }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.Flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.Next }
@@ -83,8 +73,9 @@ func _C_res_ninit(state *_C_struct___res_state) error {
 	return nil
 }
 
-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
-	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) int {
+	x, _ := unix.ResNsearch(state, dname, class, typ, ans, anslen)
+	return x
 }
 
 func _C_res_nclose(state *_C_struct___res_state) {

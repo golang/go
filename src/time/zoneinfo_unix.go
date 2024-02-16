@@ -16,11 +16,13 @@ import (
 )
 
 // Many systems use /usr/share/zoneinfo, Solaris 2 has
-// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
+// NixOS has /etc/zoneinfo.
 var platformZoneSources = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
 	"/usr/lib/locale/TZ/",
+	"/etc/zoneinfo",
 }
 
 func initLocal() {

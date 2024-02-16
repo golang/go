@@ -254,7 +254,7 @@ func TestFuseSideEffects(t *testing.T) {
 			Valu("p", OpArg, c.config.Types.IntPtr, 0, nil),
 			If("c1", "z0", "exit")),
 		Bloc("z0",
-			Valu("nilcheck", OpNilCheck, types.TypeVoid, 0, nil, "p", "mem"),
+			Valu("nilcheck", OpNilCheck, c.config.Types.IntPtr, 0, nil, "p", "mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem"),

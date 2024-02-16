@@ -1,3 +1,7 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package http_test
 
 import (
@@ -13,9 +17,6 @@ import (
 
 func TestResponseControllerFlush(t *testing.T) { run(t, testResponseControllerFlush) }
 func testResponseControllerFlush(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	continuec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
@@ -49,9 +50,6 @@ func testResponseControllerFlush(t *testing.T, mode testMode) {
 
 func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack) }
 func testResponseControllerHijack(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	const header = "X-Header"
 	const value = "set"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -83,16 +81,13 @@ func TestResponseControllerSetPastWriteDeadline(t *testing.T) {
 	run(t, testResponseControllerSetPastWriteDeadline)
 }
 func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctl := NewResponseController(w)
 		w.Write([]byte("one"))
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("before setting deadline: ctl.Flush() = %v, want nil", err)
 		}
-		if err := ctl.SetWriteDeadline(time.Now()); err != nil {
+		if err := ctl.SetWriteDeadline(time.Now().Add(-10 * time.Second)); err != nil {
 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
 		}
 
@@ -128,9 +123,6 @@ func TestResponseControllerSetFutureWriteDeadline(t *testing.T) {
 	run(t, testResponseControllerSetFutureWriteDeadline)
 }
 func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	errc := make(chan error, 1)
 	startwritec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -167,11 +159,10 @@ func TestResponseControllerSetPastReadDeadline(t *testing.T) {
 	run(t, testResponseControllerSetPastReadDeadline)
 }
 func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	readc := make(chan struct{})
+	donec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(donec)
 		ctl := NewResponseController(w)
 		b := make([]byte, 3)
 		n, err := io.ReadFull(r.Body, b)
@@ -207,10 +198,19 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		defer pw.Close()
 		pw.Write([]byte("one"))
-		<-readc
+		select {
+		case <-readc:
+		case <-donec:
+			select {
+			case <-readc:
+			default:
+				t.Errorf("server handler unexpectedly exited without closing readc")
+				return
+			}
+		}
 		pw.Write([]byte("two"))
-		pw.Close()
 	}()
 	defer wg.Wait()
 	res, err := cst.c.Post(cst.ts.URL, "text/foo", pr)
@@ -223,9 +223,6 @@ func TestResponseControllerSetFutureReadDeadline(t *testing.T) {
 	run(t, testResponseControllerSetFutureReadDeadline)
 }
 func testResponseControllerSetFutureReadDeadline(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	respBody := "response body"
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {
 		ctl := NewResponseController(w)
@@ -261,10 +258,8 @@ func (w wrapWriter) Unwrap() ResponseWriter {
 
 func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
 func testWrappedResponseController(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skip until h2_bundle.go is updated")
-	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w = wrapWriter{w}
 		ctl := NewResponseController(w)
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("ctl.Flush() = %v, want nil", err)
@@ -280,5 +275,54 @@ func testWrappedResponseController(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatalf("unexpected connection error: %v", err)
 	}
+	io.Copy(io.Discard, res.Body)
 	defer res.Body.Close()
+}
+
+func TestResponseControllerEnableFullDuplex(t *testing.T) {
+	run(t, testResponseControllerEnableFullDuplex)
+}
+func testResponseControllerEnableFullDuplex(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {
+		ctl := NewResponseController(w)
+		if err := ctl.EnableFullDuplex(); err != nil {
+			// TODO: Drop test for HTTP/2 when x/net is updated to support
+			// EnableFullDuplex. Since HTTP/2 supports full duplex by default,
+			// the rest of the test is fine; it's just the EnableFullDuplex call
+			// that fails.
+			if mode != http2Mode {
+				t.Errorf("ctl.EnableFullDuplex() = %v, want nil", err)
+			}
+		}
+		w.WriteHeader(200)
+		ctl.Flush()
+		for {
+			var buf [1]byte
+			n, err := req.Body.Read(buf[:])
+			if n != 1 || err != nil {
+				break
+			}
+			w.Write(buf[:])
+			ctl.Flush()
+		}
+	}))
+	pr, pw := io.Pipe()
+	res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	for i := byte(0); i < 10; i++ {
+		if _, err := pw.Write([]byte{i}); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+		var buf [1]byte
+		if n, err := res.Body.Read(buf[:]); n != 1 || err != nil {
+			t.Fatalf("Read: %v, %v", n, err)
+		}
+		if buf[0] != i {
+			t.Fatalf("read byte %v, want %v", buf[0], i)
+		}
+	}
+	pw.Close()
 }

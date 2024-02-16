@@ -60,10 +60,6 @@ type Flags struct {
 	StaticLockRanking bool
 	BoringCrypto      bool
 
-	// Unified enables the compiler's unified IR construction
-	// experiment.
-	Unified bool
-
 	// Regabi is split into several sub-experiments that can be
 	// enabled individually. Not all combinations work.
 	// The "regabi" GOEXPERIMENT is an alias for all "working"
@@ -100,4 +96,35 @@ type Flags struct {
 	// this compels the Go runtime to write to some arbitrary file, which
 	// may be exploited.
 	PageTrace bool
+
+	// CgoCheck2 enables an expensive cgo rule checker.
+	// When this experiment is enabled, cgo rule checks occur regardless
+	// of the GODEBUG=cgocheck setting provided at runtime.
+	CgoCheck2 bool
+
+	// LoopVar changes loop semantics so that each iteration gets its own
+	// copy of the iteration variable.
+	LoopVar bool
+
+	// CacheProg adds support to cmd/go to use a child process to implement
+	// the build cache; see https://github.com/golang/go/issues/59719.
+	CacheProg bool
+
+	// NewInliner enables a new+improved version of the function
+	// inlining phase within the Go compiler.
+	NewInliner bool
+
+	// RangeFunc enables range over func.
+	RangeFunc bool
+
+	// Range enables range over int and func.
+	Range bool
+
+	// AllocHeaders enables a different, more efficient way for the GC to
+	// manage heap metadata.
+	AllocHeaders bool
+
+	// ExecTracer2 controls whether to use the new execution trace
+	// implementation.
+	ExecTracer2 bool
 }

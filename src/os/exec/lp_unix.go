@@ -69,11 +69,20 @@ func LookPath(file string) (string, error) {
 		}
 		path := filepath.Join(dir, file)
 		if err := findExecutable(path); err == nil {
-			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
-				return path, &Error{file, ErrDot}
+			if !filepath.IsAbs(path) {
+				if execerrdot.Value() != "0" {
+					return path, &Error{file, ErrDot}
+				}
+				execerrdot.IncNonDefault()
 			}
 			return path, nil
 		}
 	}
 	return "", &Error{file, ErrNotFound}
+}
+
+// lookExtensions is a no-op on non-Windows platforms, since
+// they do not restrict executables to specific extensions.
+func lookExtensions(path, dir string) (string, error) {
+	return path, nil
 }

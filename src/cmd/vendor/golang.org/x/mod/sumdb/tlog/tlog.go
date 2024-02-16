@@ -131,7 +131,7 @@ func StoredHashIndex(level int, n int64) int64 {
 	return i + int64(level)
 }
 
-// SplitStoredHashIndex is the inverse of StoredHashIndex.
+// SplitStoredHashIndex is the inverse of [StoredHashIndex].
 // That is, SplitStoredHashIndex(StoredHashIndex(level, n)) == level, n.
 func SplitStoredHashIndex(index int64) (level int, n int64) {
 	// Determine level 0 record before index.
@@ -183,7 +183,7 @@ func StoredHashes(n int64, data []byte, r HashReader) ([]Hash, error) {
 	return StoredHashesForRecordHash(n, RecordHash(data), r)
 }
 
-// StoredHashesForRecordHash is like StoredHashes but takes
+// StoredHashesForRecordHash is like [StoredHashes] but takes
 // as its second argument RecordHash(data) instead of data itself.
 func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	// Start with the record hash.
@@ -227,7 +227,7 @@ type HashReader interface {
 	ReadHashes(indexes []int64) ([]Hash, error)
 }
 
-// A HashReaderFunc is a function implementing HashReader.
+// A HashReaderFunc is a function implementing [HashReader].
 type HashReaderFunc func([]int64) ([]Hash, error)
 
 func (f HashReaderFunc) ReadHashes(indexes []int64) ([]Hash, error) {

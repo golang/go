@@ -270,7 +270,7 @@ func rawstring(size int) (s string, b []byte) {
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
-	cap := roundupsize(uintptr(size))
+	cap := roundupsize(uintptr(size), true)
 	p := mallocgc(cap, nil, false)
 	if cap != uintptr(size) {
 		memclrNoHeapPointers(add(p, uintptr(size)), cap-uintptr(size))
@@ -285,7 +285,7 @@ func rawruneslice(size int) (b []rune) {
 	if uintptr(size) > maxAlloc/4 {
 		throw("out of memory")
 	}
-	mem := roundupsize(uintptr(size) * 4)
+	mem := roundupsize(uintptr(size)*4, true)
 	p := mallocgc(mem, nil, false)
 	if mem != uintptr(size)*4 {
 		memclrNoHeapPointers(add(p, uintptr(size)*4), mem-uintptr(size)*4)
@@ -343,6 +343,10 @@ func gostringn(p *byte, l int) string {
 
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
 const (

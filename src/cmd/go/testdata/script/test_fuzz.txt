@@ -1,4 +1,6 @@
 [!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
 
 # Test that running a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.

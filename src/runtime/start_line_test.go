@@ -71,7 +71,7 @@ func TestStartLine(t *testing.T) {
 	// optimizations are disabled.
 	testenv.SkipIfOptimizationOff(t)
 
-	testCases := []struct{
+	testCases := []struct {
 		name string
 		fn   func() int
 		want int

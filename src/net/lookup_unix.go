@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build unix || js || wasip1
 
 package net
 
@@ -10,7 +10,6 @@ import (
 	"context"
 	"internal/bytealg"
 	"sync"
-	"syscall"
 )
 
 var onceReadProtocols sync.Once
@@ -55,51 +54,41 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
 
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	order, conf := systemConf().hostLookupOrder(r, host)
-	if !r.preferGo() && order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
-			return addrs, err
-		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
-		order = hostLookupFilesDNS
+	if order == hostLookupCgo {
+		return cgoLookupHost(ctx, host)
 	}
 	return r.goLookupHostOrder(ctx, host, order, conf)
 }
 
 func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
-	if r.preferGo() {
-		return r.goLookupIP(ctx, network, host)
-	}
 	order, conf := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
-			return addrs, err
-		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
-		order = hostLookupFilesDNS
+		return cgoLookupIP(ctx, network, host)
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
 	return ips, err
 }
 
 func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
-	if !r.preferGo() && systemConf().canUseCgo() {
-		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
-			if err != nil {
-				// Issue 18213: if cgo fails, first check to see whether we
-				// have the answer baked-in to the net package.
-				if port, err := goLookupPort(network, service); err == nil {
-					return port, nil
-				}
+	// Port lookup is not a DNS operation.
+	// Prefer the cgo resolver if possible.
+	if !systemConf().mustUseGoResolver(r) {
+		port, err := cgoLookupPort(ctx, network, service)
+		if err != nil {
+			// Issue 18213: if cgo fails, first check to see whether we
+			// have the answer baked-in to the net package.
+			if port, err := goLookupPort(network, service); err == nil {
+				return port, nil
 			}
-			return port, err
 		}
+		return port, err
 	}
 	return goLookupPort(network, service)
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	order, conf := systemConf().hostLookupOrder(r, name)
-	if !r.preferGo() && order == hostLookupCgo {
+	if order == hostLookupCgo {
 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
@@ -124,35 +113,9 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	order, conf := systemConf().hostLookupOrder(r, "")
-	if !r.preferGo() && order == hostLookupCgo {
-		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
-			return ptrs, err
-		}
+	order, conf := systemConf().addrLookupOrder(r, addr)
+	if order == hostLookupCgo {
+		return cgoLookupPTR(ctx, addr)
 	}
-	return r.goLookupPTR(ctx, addr, conf)
-}
-
-// concurrentThreadsLimit returns the number of threads we permit to
-// run concurrently doing DNS lookups via cgo. A DNS lookup may use a
-// file descriptor so we limit this to less than the number of
-// permitted open files. On some systems, notably Darwin, if
-// getaddrinfo is unable to open a file descriptor it simply returns
-// EAI_NONAME rather than a useful error. Limiting the number of
-// concurrent getaddrinfo calls to less than the permitted number of
-// file descriptors makes that error less likely. We don't bother to
-// apply the same limit to DNS lookups run directly from Go, because
-// there we will return a meaningful "too many open files" error.
-func concurrentThreadsLimit() int {
-	var rlim syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
-		return 500
-	}
-	r := int(rlim.Cur)
-	if r > 500 {
-		r = 500
-	} else if r > 30 {
-		r -= 30
-	}
-	return r
+	return r.goLookupPTR(ctx, addr, order, conf)
 }

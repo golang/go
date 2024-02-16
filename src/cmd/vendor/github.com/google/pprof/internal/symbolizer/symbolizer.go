@@ -19,7 +19,7 @@ package symbolizer
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -110,13 +110,13 @@ func postURL(source, post string, tr http.RoundTripper) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http post %s: %v", source, statusCodeError(resp))
 	}
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func statusCodeError(resp *http.Response) error {
 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
 		// error is from pprof endpoint
-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+		if body, err := io.ReadAll(resp.Body); err == nil {
 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
 		}
 	}
@@ -181,6 +181,7 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 			l.Line[i] = profile.Line{
 				Function: f,
 				Line:     int64(frame.Line),
+				Column:   int64(frame.Column),
 			}
 		}
 
@@ -214,9 +215,9 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
 func demanglerModeToOptions(demanglerMode string) []demangle.Option {
 	switch demanglerMode {
 	case "": // demangled, simplified: no parameters, no templates, no return type
-		return []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
+		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams, demangle.NoTemplateParams}
 	case "templates": // demangled, simplified: no parameters, no return type
-		return []demangle.Option{demangle.NoParams}
+		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams}
 	case "full":
 		return []demangle.Option{demangle.NoClones}
 	case "none": // no demangling
@@ -371,7 +372,7 @@ type mappingTable struct {
 	segments map[*profile.Mapping]plugin.ObjFile
 }
 
-// Close releases any external processes being used for the mapping.
+// close releases any external processes being used for the mapping.
 func (mt *mappingTable) close() {
 	for _, segment := range mt.segments {
 		segment.Close()

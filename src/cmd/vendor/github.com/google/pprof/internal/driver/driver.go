@@ -59,9 +59,8 @@ func PProf(eo *plugin.Options) error {
 	return interactive(p, o)
 }
 
+// generateRawReport is allowed to modify p.
 func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) (*command, *report.Report, error) {
-	p = p.Copy() // Prevent modification to the incoming profile.
-
 	// Identify units of numeric tags in profile.
 	numLabelUnits := identifyNumLabelUnits(p, o.UI)
 
@@ -110,6 +109,7 @@ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.O
 	return c, rpt, nil
 }
 
+// generateReport is allowed to modify p.
 func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) error {
 	c, rpt, err := generateRawReport(p, cmd, cfg, o)
 	if err != nil {
@@ -201,7 +201,6 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 	case report.Proto, report.Raw, report.Callgrind:
 		trim = false
 		cfg.Granularity = "addresses"
-		cfg.NoInlines = false
 	}
 
 	if !trim {
@@ -257,7 +256,7 @@ func aggregate(prof *profile.Profile, cfg config) error {
 	default:
 		return fmt.Errorf("unexpected granularity")
 	}
-	return prof.Aggregate(inlines, function, filename, linenumber, address)
+	return prof.Aggregate(inlines, function, filename, linenumber, cfg.ShowColumns, address)
 }
 
 func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {
@@ -364,4 +363,24 @@ func valueExtractor(ix int) sampleValueFunc {
 	return func(v []int64) int64 {
 		return v[ix]
 	}
+}
+
+// profileCopier can be used to obtain a fresh copy of a profile.
+// It is useful since reporting code may mutate the profile handed to it.
+type profileCopier []byte
+
+func makeProfileCopier(src *profile.Profile) profileCopier {
+	// Pre-serialize the profile. We will deserialize every time a fresh copy is needed.
+	var buf bytes.Buffer
+	src.WriteUncompressed(&buf)
+	return profileCopier(buf.Bytes())
+}
+
+// newCopy returns a new copy of the profile.
+func (c profileCopier) newCopy() *profile.Profile {
+	p, err := profile.ParseUncompressed([]byte(c))
+	if err != nil {
+		panic(err)
+	}
+	return p
 }

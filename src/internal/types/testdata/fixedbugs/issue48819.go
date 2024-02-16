@@ -6,7 +6,7 @@ package p
 
 import "unsafe"
 
-type T /* ERROR invalid recursive type: T refers to itself */ struct {
+type T /* ERROR "invalid recursive type: T refers to itself" */ struct {
 	T
 }
 

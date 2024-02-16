@@ -345,6 +345,36 @@ func TestBitwiseContended(t *testing.T) {
 	}
 }
 
+func TestCasRel(t *testing.T) {
+	const _magic = 0x5a5aa5a5
+	var x struct {
+		before uint32
+		i      uint32
+		after  uint32
+		o      uint32
+		n      uint32
+	}
+
+	x.before = _magic
+	x.after = _magic
+	for j := 0; j < 32; j += 1 {
+		x.i = (1 << j) + 0
+		x.o = (1 << j) + 0
+		x.n = (1 << j) + 1
+		if !atomic.CasRel(&x.i, x.o, x.n) {
+			t.Fatalf("should have swapped %#x %#x", x.o, x.n)
+		}
+
+		if x.i != x.n {
+			t.Fatalf("wrong x.i after swap: x.i=%#x x.n=%#x", x.i, x.n)
+		}
+
+		if x.before != _magic || x.after != _magic {
+			t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, _magic, _magic)
+		}
+	}
+}
+
 func TestStorepNoWB(t *testing.T) {
 	var p [2]*int
 	for i := range p {

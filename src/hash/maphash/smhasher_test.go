@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !race
+
 package maphash
 
 import (
@@ -17,6 +19,9 @@ import (
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
+
+// Note: due to the long running time of these tests, they are
+// currently disabled in -race mode.
 
 var fixedSeed = MakeSeed()
 
@@ -376,7 +381,7 @@ func avalancheTest1(t *testing.T, k key) {
 	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
 	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
 	}
-	c *= 4.0 // allowed slack - we don't need to be perfectly random
+	c *= 11.0 // allowed slack: 40% to 60% - we don't need to be perfectly random
 	mean := .5 * REP
 	stddev := .5 * math.Sqrt(REP)
 	low := int(mean - c*stddev)

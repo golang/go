@@ -1,0 +1,29 @@
+# Regression test for https://go.dev/issue/47650:
+# 'go get' with a pseudo-version of a non-root package within a module
+# erroneously rejected the pseudo-version as invalid, because it did not fetch
+# enough commit history to validate the pseudo-version base.
+
+[short] skip 'creates and uses a git repository'
+[!git] skip
+
+env GOPRIVATE=vcs-test.golang.org
+
+# If we request a package in a subdirectory of a module by commit hash, we
+# successfully resolve it to a pseudo-version derived from a tag on the parent
+# commit.
+cp go.mod go.mod.orig
+go get -x vcs-test.golang.org/git/issue47650.git/cmd/issue47650@21535ef346c3
+stderr '^go: added vcs-test.golang.org/git/issue47650.git v0.1.1-0.20210811175200-21535ef346c3$'
+
+# Explicitly requesting that same version should succeed, fetching additional
+# history for the requested commit as needed in order to validate the
+# pseudo-version base.
+go clean -modcache
+cp go.mod.orig go.mod
+go get -x vcs-test.golang.org/git/issue47650.git/cmd/issue47650@v0.1.1-0.20210811175200-21535ef346c3
+stderr '^go: added vcs-test.golang.org/git/issue47650.git v0.1.1-0.20210811175200-21535ef346c3$'
+
+-- go.mod --
+module example
+
+go 1.20

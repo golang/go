@@ -11,10 +11,10 @@ type integer interface {
 
 func Add1024[T integer](s []T) {
 	for i, v := range s {
-		s[i] = v + 1024 // ERROR cannot convert 1024 \(untyped int constant\) to type T
+		s[i] = v + 1024 // ERROR "cannot convert 1024 (untyped int constant) to type T"
 	}
 }
 
 func f[T interface{ int8 }]() {
-	println(T(1024 /* ERROR cannot convert 1024 \(untyped int value\) to type T */))
+	println(T(1024 /* ERROR "cannot convert 1024 (untyped int value) to type T" */))
 }

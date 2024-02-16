@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && s390x && gc
-// +build linux
-// +build s390x
-// +build gc
 
 #include "textflag.h"
 

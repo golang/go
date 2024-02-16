@@ -282,14 +282,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3Const(v.AuxInt & 0xff)
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
 		// BFC is only available on ARMv7, and its result and source are in the same register
-		if buildcfg.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+		if buildcfg.GOARM.Version == 7 && v.Reg() == v.Args[0].Reg() {
 			var val uint32
 			if v.Op == ssa.OpARMANDconst {
 				val = ^uint32(v.AuxInt)
@@ -302,7 +302,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p := s.Prog(arm.ABFC)
 				p.From.Type = obj.TYPE_CONST
 				p.From.Offset = int64(width)
-				p.SetFrom3Const(int64(lsb))
+				p.AddRestSourceConst(int64(lsb))
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = v.Reg()
 				break
@@ -646,7 +646,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			default:
 			}
 		}
-		if buildcfg.GOARM >= 6 {
+		if buildcfg.GOARM.Version >= 6 {
 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
 			genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
 			return
@@ -710,7 +710,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

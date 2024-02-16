@@ -189,6 +189,18 @@ TEXT libc_getcwd_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_getcwd_trampoline_addr(SB), RODATA, $8
 DATA	·libc_getcwd_trampoline_addr(SB)/8, $libc_getcwd_trampoline<>(SB)
 
+TEXT libc_getresuid_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_getresuid(SB)
+	RET
+GLOBL	·libc_getresuid_trampoline_addr(SB), RODATA, $8
+DATA	·libc_getresuid_trampoline_addr(SB)/8, $libc_getresuid_trampoline<>(SB)
+
+TEXT libc_getresgid_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_getresgid(SB)
+	RET
+GLOBL	·libc_getresgid_trampoline_addr(SB), RODATA, $8
+DATA	·libc_getresgid_trampoline_addr(SB)/8, $libc_getresgid_trampoline<>(SB)
+
 TEXT libc_ioctl_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_ioctl(SB)
 	RET
@@ -200,6 +212,12 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
 	RET
 GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
 DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+
+TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_fcntl(SB)
+	RET
+GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
+DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
 
 TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_ppoll(SB)
@@ -248,6 +266,12 @@ TEXT libc_chroot_trampoline<>(SB),NOSPLIT,$0-0
 	RET
 GLOBL	·libc_chroot_trampoline_addr(SB), RODATA, $8
 DATA	·libc_chroot_trampoline_addr(SB)/8, $libc_chroot_trampoline<>(SB)
+
+TEXT libc_clock_gettime_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_clock_gettime(SB)
+	RET
+GLOBL	·libc_clock_gettime_trampoline_addr(SB), RODATA, $8
+DATA	·libc_clock_gettime_trampoline_addr(SB)/8, $libc_clock_gettime_trampoline<>(SB)
 
 TEXT libc_close_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_close(SB)
@@ -681,12 +705,6 @@ TEXT libc_setresuid_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_setresuid_trampoline_addr(SB), RODATA, $8
 DATA	·libc_setresuid_trampoline_addr(SB)/8, $libc_setresuid_trampoline<>(SB)
 
-TEXT libc_setrlimit_trampoline<>(SB),NOSPLIT,$0-0
-	CALL	libc_setrlimit(SB)
-	RET
-GLOBL	·libc_setrlimit_trampoline_addr(SB), RODATA, $8
-DATA	·libc_setrlimit_trampoline_addr(SB)/8, $libc_setrlimit_trampoline<>(SB)
-
 TEXT libc_setrtable_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_setrtable(SB)
 	RET
@@ -789,8 +807,26 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
 DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
 
+TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_getfsstat(SB)
+	RET
+GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
+DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
+
 TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_utimensat(SB)
 	RET
 GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
 DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
+
+TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_pledge(SB)
+	RET
+GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
+DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
+
+TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_unveil(SB)
+	RET
+GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
+DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)

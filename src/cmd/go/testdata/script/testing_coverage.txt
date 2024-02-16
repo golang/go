@@ -1,0 +1,57 @@
+
+# Rudimentary test of testing.Coverage().
+
+[short] skip
+[!GOEXPERIMENT:coverageredesign] skip
+
+# Simple test.
+go test -v -cover -count=1
+
+# Make sure test still passes when test executable is built and
+# run outside the go command.
+go test -c -o t.exe -cover
+exec ./t.exe
+
+-- go.mod --
+module hello
+
+go 1.20
+-- hello.go --
+package hello
+
+func Hello() {
+	println("hello")
+}
+
+// contents not especially interesting, just need some code
+func foo(n int) int {
+	t := 0
+	for i := 0; i < n; i++ {
+		for j := 0; j < i; j++ {
+			t += i ^ j
+			if t == 1010101 {
+				break
+			}
+		}
+	}
+	return t
+}
+
+-- hello_test.go --
+package hello
+
+import "testing"
+
+func TestTestCoverage(t *testing.T) {
+	Hello()
+	C1 := testing.Coverage()
+	foo(29)
+	C2 := testing.Coverage()
+	if C1 == 0.0 || C2 == 0.0 {
+		t.Errorf("unexpected zero values C1=%f C2=%f", C1, C2)
+	}
+	if C1 >= C2 {
+		t.Errorf("testing.Coverage() not monotonically increasing C1=%f C2=%f", C1, C2)
+	}
+}
+

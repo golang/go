@@ -31,7 +31,7 @@ go vet -n -- .
 go vet .
 env GOFLAGS='-tags=buggy'
 ! go vet .
-stderr 'possible formatting directive'
+stderr 'possible Printf formatting directive'
 
 # Enabling one analyzer in GOFLAGS should disable the rest implicitly...
 env GOFLAGS='-tags=buggy -unsafeptr'
@@ -41,7 +41,7 @@ go vet .
 # enabled via GOFLAGS.
 env GOFLAGS='-tags=buggy -printf'
 ! go vet -unsafeptr
-stderr 'possible formatting directive'
+stderr 'possible Printf formatting directive'
 
 # Analyzer flags don't exist unless we're running 'go vet',
 # and we shouldn't run the vet tool to discover them otherwise.
@@ -52,27 +52,25 @@ env GOFLAGS='-unsafeptr'
 stderr 'go: parsing \$GOFLAGS: unknown flag -unsafeptr'
 env GOFLAGS=
 
-env GOCACHE=$WORK/gocache
-
 # "go test" on a user package should by default enable an explicit list of analyzers.
-go test -x -run=none .
+go test -n -run=none .
 stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # An explicitly-empty -vet argument should imply the default analyzers.
-go test -x -vet= -run=none .
+go test -n -vet= -run=none .
 stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # "go test" on a standard package should by default disable an explicit list.
-go test -x -run=none encoding/binary
+go test -n -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
-go test -x -vet= -run=none encoding/binary
+go test -n -vet= -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 # Both should allow users to override via the -vet flag.
-go test -x -vet=unreachable -run=none .
+go test -n -vet=unreachable -run=none .
 stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
-go test -x -vet=unreachable -run=none encoding/binary
+go test -n -vet=unreachable -run=none encoding/binary
 stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
 
 -- go.mod --

@@ -3,17 +3,10 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
-// actually a function descriptor for _main<>(SB)
-TEXT _rt0_ppc64_linux(SB),NOSPLIT,$0
-	DWORD $_main<>(SB)
-	DWORD $0
-	DWORD $0
-
-TEXT main(SB),NOSPLIT,$0
-	DWORD $_main<>(SB)
-	DWORD $0
-	DWORD $0
+DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_linux, _main<>)
+DEFINE_PPC64X_FUNCDESC(main, _main<>)
 
 TEXT _main<>(SB),NOSPLIT,$-8
 	// In a statically linked binary, the stack contains argc,

@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/abi"
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
@@ -99,6 +100,19 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 }
 
 func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
+	if ctxt.Target.IsRISCV64() {
+		// Avoid adding local symbols to the pcln table - RISC-V
+		// linking generates a very large number of these, particularly
+		// for HI20 symbols (which we need to load in order to be able
+		// to resolve relocations). Unnecessarily including all of
+		// these symbols quickly blows out the size of the pcln table
+		// and overflows hash buckets.
+		symName := ctxt.loader.SymName(s)
+		if symName == "" || strings.HasPrefix(symName, ".L") {
+			return false
+		}
+	}
+
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
 	return !container.Has(s)
@@ -168,7 +182,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		}
 
 		inlFunc := ldr.FuncInfo(call.Func)
-		var funcID objabi.FuncID
+		var funcID abi.FuncID
 		startLine := int32(0)
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
@@ -288,35 +302,11 @@ func walkFuncs(ctxt *Link, funcs []loader.Sym, f func(loader.Sym)) {
 func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[loader.Sym]uint32 {
 	nameOffsets := make(map[loader.Sym]uint32, state.nfunc)
 
-	// The name used by the runtime is the concatenation of the 3 returned strings.
-	// For regular functions, only one returned string is nonempty.
-	// For generic functions, we use three parts so that we can print everything
-	// within the outermost "[]" as "...".
-	nameParts := func(name string) (string, string, string) {
-		i := strings.IndexByte(name, '[')
-		if i < 0 {
-			return name, "", ""
-		}
-		// TODO: use LastIndexByte once the bootstrap compiler is >= Go 1.5.
-		j := len(name) - 1
-		for j > i && name[j] != ']' {
-			j--
-		}
-		if j <= i {
-			return name, "", ""
-		}
-		return name[:i], "[...]", name[j+1:]
-	}
-
 	// Write the null terminated strings.
 	writeFuncNameTab := func(ctxt *Link, s loader.Sym) {
 		symtab := ctxt.loader.MakeSymbolUpdater(s)
 		for s, off := range nameOffsets {
-			a, b, c := nameParts(ctxt.loader.SymName(s))
-			o := int64(off)
-			o = symtab.AddStringAt(o, a)
-			o = symtab.AddStringAt(o, b)
-			_ = symtab.AddCStringAt(o, c)
+			symtab.AddCStringAt(int64(off), ctxt.loader.SymName(s))
 		}
 	}
 
@@ -324,8 +314,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 	var size int64
 	walkFuncs(ctxt, funcs, func(s loader.Sym) {
 		nameOffsets[s] = uint32(size)
-		a, b, c := nameParts(ctxt.loader.SymName(s))
-		size += int64(len(a) + len(b) + len(c) + 1) // NULL terminate
+		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
 	})
 
 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
@@ -531,8 +520,8 @@ func numPCData(ldr *loader.Loader, s loader.Sym, fi loader.FuncInfo) uint32 {
 	}
 	numPCData := uint32(ldr.NumPcdata(s))
 	if fi.NumInlTree() > 0 {
-		if numPCData < objabi.PCDATA_InlTreeIndex+1 {
-			numPCData = objabi.PCDATA_InlTreeIndex + 1
+		if numPCData < abi.PCDATA_InlTreeIndex+1 {
+			numPCData = abi.PCDATA_InlTreeIndex + 1
 		}
 	}
 	return numPCData
@@ -569,10 +558,10 @@ func funcData(ldr *loader.Loader, s loader.Sym, fi loader.FuncInfo, inlSym loade
 	if fi.Valid() {
 		fdSyms = ldr.Funcdata(s, fdSyms)
 		if fi.NumInlTree() > 0 {
-			if len(fdSyms) < objabi.FUNCDATA_InlTree+1 {
-				fdSyms = append(fdSyms, make([]loader.Sym, objabi.FUNCDATA_InlTree+1-len(fdSyms))...)
+			if len(fdSyms) < abi.FUNCDATA_InlTree+1 {
+				fdSyms = append(fdSyms, make([]loader.Sym, abi.FUNCDATA_InlTree+1-len(fdSyms))...)
 			}
-			fdSyms[objabi.FUNCDATA_InlTree] = inlSym
+			fdSyms[abi.FUNCDATA_InlTree] = inlSym
 		}
 	}
 	return fdSyms
@@ -600,8 +589,8 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 			fi.Preload()
 			numFuncData := ldr.NumFuncdata(s)
 			if fi.NumInlTree() > 0 {
-				if numFuncData < objabi.FUNCDATA_InlTree+1 {
-					numFuncData = objabi.FUNCDATA_InlTree + 1
+				if numFuncData < abi.FUNCDATA_InlTree+1 {
+					numFuncData = abi.FUNCDATA_InlTree + 1
 				}
 			}
 			size += int64(numPCData(ldr, s, fi) * 4)
@@ -702,14 +691,14 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		off = sb.SetUint32(ctxt.Arch, off, uint32(startLine))
 
 		// funcID uint8
-		var funcID objabi.FuncID
+		var funcID abi.FuncID
 		if fi.Valid() {
 			funcID = fi.FuncID()
 		}
 		off = sb.SetUint8(ctxt.Arch, off, uint8(funcID))
 
 		// flag uint8
-		var flag objabi.FuncFlag
+		var flag abi.FuncFlag
 		if fi.Valid() {
 			flag = fi.FuncFlag()
 		}
@@ -727,7 +716,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 				sb.SetUint32(ctxt.Arch, off+int64(j*4), uint32(ldr.SymValue(pcSym)))
 			}
 			if fi.NumInlTree() > 0 {
-				sb.SetUint32(ctxt.Arch, off+objabi.PCDATA_InlTreeIndex*4, uint32(ldr.SymValue(pcinline)))
+				sb.SetUint32(ctxt.Arch, off+abi.PCDATA_InlTreeIndex*4, uint32(ldr.SymValue(pcinline)))
 			}
 		}
 
@@ -738,6 +727,17 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		for j := range funcdata {
 			dataoff := off + int64(4*j)
 			fdsym := funcdata[j]
+
+			// cmd/internal/obj optimistically populates ArgsPointerMaps and
+			// ArgInfo for assembly functions, hoping that the compiler will
+			// emit appropriate symbols from their Go stub declarations. If
+			// it didn't though, just ignore it.
+			//
+			// TODO(cherryyz): Fix arg map generation (see discussion on CL 523335).
+			if fdsym != 0 && (j == abi.FUNCDATA_ArgsPointerMaps || j == abi.FUNCDATA_ArgInfo) && ldr.IsFromAssembly(s) && ldr.Data(fdsym) == nil {
+				fdsym = 0
+			}
+
 			if fdsym == 0 {
 				sb.SetUint32(ctxt.Arch, dataoff, ^uint32(0)) // ^0 is a sentinel for "no value"
 				continue
@@ -827,9 +827,8 @@ func expandGoroot(s string) string {
 }
 
 const (
-	BUCKETSIZE    = 256 * MINFUNC
 	SUBBUCKETS    = 16
-	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
+	SUBBUCKETSIZE = abi.FuncTabBucketSize / SUBBUCKETS
 	NOIDX         = 0x7fffffff
 )
 
@@ -847,7 +846,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 	// that map to that subbucket.
 	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
 
-	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
+	nbuckets := int32((max - min + abi.FuncTabBucketSize - 1) / abi.FuncTabBucketSize)
 
 	size := 4*int64(nbuckets) + int64(n)
 
@@ -878,7 +877,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 				q = ldr.SymValue(e)
 			}
 
-			//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
+			//fmt.Printf("%d: [%x %x] %s\n", idx, p, q, ldr.SymName(s))
 			for ; p < q; p += SUBBUCKETSIZE {
 				i = int((p - min) / SUBBUCKETSIZE)
 				if indexes[i] > idx {

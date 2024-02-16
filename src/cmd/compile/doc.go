@@ -247,14 +247,75 @@ at times when it is unsafe for the calling goroutine to be preempted.
 
 	//go:linkname localname [importpath.name]
 
-This special directive does not apply to the Go code that follows it.
-Instead, the //go:linkname directive instructs the compiler to use ``importpath.name''
-as the object file symbol name for the variable or function declared as ``localname''
-in the source code.
-If the ``importpath.name'' argument is omitted, the directive uses the
-symbol's default object file symbol name and only has the effect of making
-the symbol accessible to other packages.
-Because this directive can subvert the type system and package
-modularity, it is only enabled in files that have imported "unsafe".
+The //go:linkname directive conventionally precedes the var or func
+declaration named by ``localname``, though its position does not
+change its effect.
+This directive determines the object-file symbol used for a Go var or
+func declaration, allowing two Go symbols to alias the same
+object-file symbol, thereby enabling one package to access a symbol in
+another package even when this would violate the usual encapsulation
+of unexported declarations, or even type safety.
+For that reason, it is only enabled in files that have imported "unsafe".
+
+It may be used in two scenarios. Let's assume that package upper
+imports package lower, perhaps indirectly. In the first scenario,
+package lower defines a symbol whose object file name belongs to
+package upper. Both packages contain a linkname directive: package
+lower uses the two-argument form and package upper uses the
+one-argument form. In the example below, lower.f is an alias for the
+function upper.g:
+
+    package upper
+    import _ "unsafe"
+    //go:linkname g
+    func g()
+
+    package lower
+    import _ "unsafe"
+    //go:linkname f upper.g
+    func f() { ... }
+
+The linkname directive in package upper suppresses the usual error for
+a function that lacks a body. (That check may alternatively be
+suppressed by including a .s file, even an empty one, in the package.)
+
+In the second scenario, package upper unilaterally creates an alias
+for a symbol in package lower. In the example below, upper.g is an alias
+for the function lower.f.
+
+    package upper
+    import _ "unsafe"
+    //go:linkname g lower.f
+    func g()
+
+    package lower
+    func f() { ... }
+
+The declaration of lower.f may also have a linkname directive with a
+single argument, f. This is optional, but helps alert the reader that
+the function is accessed from outside the package.
+
+	//go:wasmimport importmodule importname
+
+The //go:wasmimport directive is wasm-only and must be followed by a
+function declaration.
+It specifies that the function is provided by a wasm module identified
+by ``importmodule`` and ``importname``.
+
+	//go:wasmimport a_module f
+	func g()
+
+The types of parameters and return values to the Go function are translated to
+Wasm according to the following table:
+
+    Go types        Wasm types
+    int32, uint32   i32
+    int64, uint64   i64
+    float32         f32
+    float64         f64
+    unsafe.Pointer  i32
+
+Any other parameter types are disallowed by the compiler.
+
 */
 package main

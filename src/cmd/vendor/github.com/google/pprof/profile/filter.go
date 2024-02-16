@@ -22,6 +22,10 @@ import "regexp"
 // samples where at least one frame matches focus but none match ignore.
 // Returns true is the corresponding regexp matched at least one sample.
 func (p *Profile) FilterSamplesByName(focus, ignore, hide, show *regexp.Regexp) (fm, im, hm, hnm bool) {
+	if focus == nil && ignore == nil && hide == nil && show == nil {
+		fm = true // Missing focus implies a match
+		return
+	}
 	focusOrIgnore := make(map[uint64]bool)
 	hidden := make(map[uint64]bool)
 	for _, l := range p.Location {

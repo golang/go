@@ -13,15 +13,21 @@ import (
 	"testing"
 )
 
+type testStatAndLstatParams struct {
+	isLink     bool
+	statCheck  func(*testing.T, string, fs.FileInfo)
+	lstatCheck func(*testing.T, string, fs.FileInfo)
+}
+
 // testStatAndLstat verifies that all os.Stat, os.Lstat os.File.Stat and os.Readdir work.
-func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCheck func(*testing.T, string, fs.FileInfo)) {
+func testStatAndLstat(t *testing.T, path string, params testStatAndLstatParams) {
 	// test os.Stat
 	sfi, err := os.Stat(path)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	statCheck(t, path, sfi)
+	params.statCheck(t, path, sfi)
 
 	// test os.Lstat
 	lsfi, err := os.Lstat(path)
@@ -29,9 +35,9 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		t.Error(err)
 		return
 	}
-	lstatCheck(t, path, lsfi)
+	params.lstatCheck(t, path, lsfi)
 
-	if isLink {
+	if params.isLink {
 		if os.SameFile(sfi, lsfi) {
 			t.Errorf("stat and lstat of %q should not be the same", path)
 		}
@@ -54,13 +60,13 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		t.Error(err)
 		return
 	}
-	statCheck(t, path, sfi2)
+	params.statCheck(t, path, sfi2)
 
 	if !os.SameFile(sfi, sfi2) {
 		t.Errorf("stat of open %q file and stat of %q should be the same", path, path)
 	}
 
-	if isLink {
+	if params.isLink {
 		if os.SameFile(sfi2, lsfi) {
 			t.Errorf("stat of opened %q file and lstat of %q should not be the same", path, path)
 		}
@@ -70,12 +76,13 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		}
 	}
 
-	// test fs.FileInfo returned by os.Readdir
-	if len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
-		// skip os.Readdir test of directories with slash at the end
+	parentdir, base := filepath.Split(path)
+	if parentdir == "" || base == "" {
+		// skip os.Readdir test of files without directory or file name component,
+		// such as directories with slash at the end or Windows device names.
 		return
 	}
-	parentdir := filepath.Dir(path)
+
 	parent, err := os.Open(parentdir)
 	if err != nil {
 		t.Error(err)
@@ -89,7 +96,6 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		return
 	}
 	var lsfi2 fs.FileInfo
-	base := filepath.Base(path)
 	for _, fi2 := range fis {
 		if fi2.Name() == base {
 			lsfi2 = fi2
@@ -100,7 +106,7 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
 		t.Errorf("failed to find %q in its parent", path)
 		return
 	}
-	lstatCheck(t, path, lsfi2)
+	params.lstatCheck(t, path, lsfi2)
 
 	if !os.SameFile(lsfi, lsfi2) {
 		t.Errorf("lstat of %q file in %q directory and %q should be the same", lsfi2.Name(), parentdir, path)
@@ -141,19 +147,34 @@ func testIsFile(t *testing.T, path string, fi fs.FileInfo) {
 }
 
 func testDirStats(t *testing.T, path string) {
-	testStatAndLstat(t, path, false, testIsDir, testIsDir)
+	params := testStatAndLstatParams{
+		isLink:     false,
+		statCheck:  testIsDir,
+		lstatCheck: testIsDir,
+	}
+	testStatAndLstat(t, path, params)
 }
 
 func testFileStats(t *testing.T, path string) {
-	testStatAndLstat(t, path, false, testIsFile, testIsFile)
+	params := testStatAndLstatParams{
+		isLink:     false,
+		statCheck:  testIsFile,
+		lstatCheck: testIsFile,
+	}
+	testStatAndLstat(t, path, params)
 }
 
 func testSymlinkStats(t *testing.T, path string, isdir bool) {
-	if isdir {
-		testStatAndLstat(t, path, true, testIsDir, testIsSymlink)
-	} else {
-		testStatAndLstat(t, path, true, testIsFile, testIsSymlink)
+	params := testStatAndLstatParams{
+		isLink:     true,
+		lstatCheck: testIsSymlink,
 	}
+	if isdir {
+		params.statCheck = testIsDir
+	} else {
+		params.statCheck = testIsFile
+	}
+	testStatAndLstat(t, path, params)
 }
 
 func testSymlinkSameFile(t *testing.T, path, link string) {
@@ -182,8 +203,34 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
 	}
 }
 
+func testSymlinkSameFileOpen(t *testing.T, link string) {
+	f, err := os.Open(link)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	fi2, err := os.Stat(link)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if !os.SameFile(fi, fi2) {
+		t.Errorf("os.Open(%q).Stat() and os.Stat(%q) are not the same file", link, link)
+	}
+}
+
 func TestDirAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")
@@ -198,6 +245,7 @@ func TestDirAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, dirlink, true)
 	testSymlinkSameFile(t, dir, dirlink)
+	testSymlinkSameFileOpen(t, dirlink)
 
 	linklink := filepath.Join(tmpdir, "linklink")
 	if err := os.Symlink(dirlink, linklink); err != nil {
@@ -205,10 +253,12 @@ func TestDirAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, linklink, true)
 	testSymlinkSameFile(t, dir, linklink)
+	testSymlinkSameFileOpen(t, linklink)
 }
 
 func TestFileAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	file := filepath.Join(tmpdir, "file")
@@ -223,6 +273,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, filelink, false)
 	testSymlinkSameFile(t, file, filelink)
+	testSymlinkSameFileOpen(t, filelink)
 
 	linklink := filepath.Join(tmpdir, "linklink")
 	if err := os.Symlink(filelink, linklink); err != nil {
@@ -230,11 +281,13 @@ func TestFileAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, linklink, false)
 	testSymlinkSameFile(t, file, linklink)
+	testSymlinkSameFileOpen(t, linklink)
 }
 
 // see issue 27225 for details
 func TestSymlinkWithTrailingSlash(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")
@@ -247,11 +300,7 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
 	}
 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
 
-	if runtime.GOOS == "windows" {
-		testSymlinkStats(t, dirlinkWithSlash, true)
-	} else {
-		testDirStats(t, dirlinkWithSlash)
-	}
+	testDirStats(t, dirlinkWithSlash)
 
 	fi1, err := os.Stat(dir)
 	if err != nil {
@@ -265,5 +314,26 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
 	}
 	if !os.SameFile(fi1, fi2) {
 		t.Errorf("os.Stat(%q) and os.Stat(%q) are not the same file", dir, dirlinkWithSlash)
+	}
+}
+
+func TestStatConsole(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping on non-Windows")
+	}
+	t.Parallel()
+	consoleNames := []string{
+		"CONIN$",
+		"CONOUT$",
+		"CON",
+	}
+	for _, name := range consoleNames {
+		params := testStatAndLstatParams{
+			isLink:     false,
+			statCheck:  testIsFile,
+			lstatCheck: testIsFile,
+		}
+		testStatAndLstat(t, name, params)
+		testStatAndLstat(t, `\\.\`+name, params)
 	}
 }

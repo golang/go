@@ -1,4 +1,4 @@
-[!net] skip
+[short] skip
 [!exec:svn] skip
 
 # 'go mod download' will fall back to svn+ssh once svn fails over protocols like https.

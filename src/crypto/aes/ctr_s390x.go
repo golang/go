@@ -32,7 +32,7 @@ type aesctr struct {
 }
 
 // NewCTR returns a Stream which encrypts/decrypts using the AES block
-// cipher in counter mode. The length of iv must be the same as BlockSize.
+// cipher in counter mode. The length of iv must be the same as [BlockSize].
 func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
 	if len(iv) != BlockSize {
 		panic("cipher.NewCTR: IV length must equal block size")

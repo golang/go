@@ -1,5 +1,5 @@
 ! go work init doesnotexist
-stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+stderr 'go: directory doesnotexist does not exist'
 go env GOWORK
 ! stdout .
 
@@ -12,6 +12,7 @@ stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
 stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
 cd a
 go get rsc.io/quote
+cat go.mod
 go env GOMOD # go env GOMOD reports the module in a single module context
 stdout $GOPATH(\\|/)src(\\|/)a(\\|/)go.mod
 cd ..
@@ -31,7 +32,7 @@ stdout 'example.com/b'
 # -mod can only be set to readonly in workspace mode
 go list -mod=readonly all
 ! go list -mod=mod all
-stderr '^go: -mod may only be set to readonly when in workspace mode'
+stderr '^go: -mod may only be set to readonly or vendor when in workspace mode'
 env GOWORK=off
 go list -mod=mod all
 env GOWORK=
@@ -44,11 +45,13 @@ stderr 'reading go.work: path .* appears multiple times in workspace'
 cp go.work.backup go.work
 
 cp go.work.d go.work
+go work use # update go version
 go run example.com/d
 
 # Test that we don't run into "newRequirements called with unsorted roots"
 # panic with unsorted main modules.
 cp go.work.backwards go.work
+go work use # update go version
 go run example.com/d
 
 # Test that command-line-arguments work inside and outside modules.
@@ -64,9 +67,9 @@ go build -n -o foo foo.go
 go 1.18
 
 use (
-  a
-  b
-  ../src/a
+	a
+	b
+	../src/a
 )
 -- go.work.want --
 go $goversion
@@ -94,7 +97,7 @@ import "fmt"
 import "rsc.io/quote"
 
 func HelloFromA() {
-  fmt.Println(quote.Hello())
+	fmt.Println(quote.Hello())
 }
 
 -- b/go.mod --
@@ -107,7 +110,7 @@ package main
 import "example.com/a"
 
 func main() {
-  a.HelloFromA()
+	a.HelloFromA()
 }
 -- b/lib/hello.go --
 package lib
@@ -138,9 +141,9 @@ func main() {
 go 1.18
 
 use (
-    d
-    b
-    a
+	d
+	b
+	a
 )
 
 -- foo.go --

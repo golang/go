@@ -101,11 +101,9 @@ const (
 	__SC_PAGE_SIZE        = 0x30
 	__SC_NPROCESSORS_ONLN = 0x48
 
-	_F_SETFD    = 0x2
-	_F_SETFL    = 0x4
-	_F_GETFD    = 0x1
-	_F_GETFL    = 0x3
-	_FD_CLOEXEC = 0x1
+	_F_SETFL = 0x4
+	_F_GETFD = 0x1
+	_F_GETFL = 0x3
 )
 
 type sigset [4]uint64

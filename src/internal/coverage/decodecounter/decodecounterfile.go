@@ -79,7 +79,7 @@ func checkMagic(v [4]byte) bool {
 
 func (cdr *CounterDataReader) readFooter() error {
 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
-	if _, err := cdr.mr.Seek(-ftrSize, os.SEEK_END); err != nil {
+	if _, err := cdr.mr.Seek(-ftrSize, io.SeekEnd); err != nil {
 		return err
 	}
 	if err := binary.Read(cdr.mr, binary.LittleEndian, &cdr.ftr); err != nil {
@@ -115,13 +115,13 @@ func (cdr *CounterDataReader) readSegmentPreamble() error {
 		return err
 	}
 	// Seek past any padding to bring us up to a 4-byte boundary.
-	if of, err := cdr.mr.Seek(0, os.SEEK_CUR); err != nil {
+	if of, err := cdr.mr.Seek(0, io.SeekCurrent); err != nil {
 		return err
 	} else {
 		rem := of % 4
 		if rem != 0 {
 			pad := 4 - rem
-			if _, err := cdr.mr.Seek(pad, os.SEEK_CUR); err != nil {
+			if _, err := cdr.mr.Seek(pad, io.SeekCurrent); err != nil {
 				return err
 			}
 		}
@@ -236,7 +236,7 @@ func (cdr *CounterDataReader) NumSegments() uint32 {
 	return cdr.ftr.NumSegments
 }
 
-// BeginNextSegment sets up the the reader to read the next segment,
+// BeginNextSegment sets up the reader to read the next segment,
 // returning TRUE if we do have another segment to read, or FALSE
 // if we're done with all the segments (also an error if
 // something went wrong).
@@ -248,7 +248,7 @@ func (cdr *CounterDataReader) BeginNextSegment() (bool, error) {
 	cdr.fcnCount = 0
 	// Seek past footer from last segment.
 	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
-	if _, err := cdr.mr.Seek(ftrSize, os.SEEK_CUR); err != nil {
+	if _, err := cdr.mr.Seek(ftrSize, io.SeekCurrent); err != nil {
 		return false, err
 	}
 	// Read preamble for this segment.

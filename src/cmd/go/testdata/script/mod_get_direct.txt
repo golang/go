@@ -2,8 +2,7 @@
 # 'GOPROXY=direct go get golang.org/x/tools/gopls@master' did not correctly
 # resolve the pseudo-version for its dependency on golang.org/x/tools.
 
-[short] skip
-[!net] skip
+[!net:cloud.google.com] skip
 [!git] skip
 
 env GO111MODULE=on

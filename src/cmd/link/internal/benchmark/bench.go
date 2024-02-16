@@ -106,7 +106,7 @@ func (m *Metrics) Report(w io.Writer) {
 	fmt.Fprintf(w, "%s 1 %d ns/op\n", makeBenchString("total time"+gcString), totTime.Nanoseconds())
 }
 
-// Starts marks the beginning of a new measurement phase.
+// Start marks the beginning of a new measurement phase.
 // Once a metric is started, it continues until either a Report is issued, or another Start is called.
 func (m *Metrics) Start(name string) {
 	if m == nil {

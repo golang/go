@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Build toolchain using Go 1.4.
+// Build toolchain using Go bootstrap version.
 //
 // The general strategy is to copy the source files we need into
 // a new GOPATH workspace, adjust import paths appropriately,
-// invoke the Go 1.4 go command to build those sources,
+// invoke the Go bootstrap toolchains go command to build those sources,
 // and then copy the binaries back.
 
 package main
@@ -20,17 +20,18 @@ import (
 )
 
 // bootstrapDirs is a list of directories holding code that must be
-// compiled with a Go 1.4 toolchain to produce the bootstrapTargets.
+// compiled with the Go bootstrap toolchain to produce the bootstrapTargets.
 // All directories in this list are relative to and must be below $GOROOT/src.
 //
 // The list has two kinds of entries: names beginning with cmd/ with
 // no other slashes, which are commands, and other paths, which are packages
 // supporting the commands. Packages in the standard library can be listed
-// if a newer copy needs to be substituted for the Go 1.4 copy when used
+// if a newer copy needs to be substituted for the Go bootstrap copy when used
 // by the command packages. Paths ending with /... automatically
 // include all packages within subdirectories as well.
 // These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
 var bootstrapDirs = []string{
+	"cmp",
 	"cmd/asm",
 	"cmd/asm/internal/...",
 	"cmd/cgo",
@@ -59,24 +60,37 @@ var bootstrapDirs = []string{
 	"debug/elf",
 	"debug/macho",
 	"debug/pe",
+	"go/build/constraint",
 	"go/constant",
+	"go/version",
+	"internal/abi",
 	"internal/coverage",
+	"cmd/internal/cov/covcmd",
+	"internal/bisect",
 	"internal/buildcfg",
+	"internal/goarch",
+	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goroot",
+	"internal/gover",
 	"internal/goversion",
+	// internal/lazyregexp is provided by Go 1.17, which permits it to
+	// be imported by other packages in this list, but is not provided
+	// by the Go 1.17 version of gccgo. It's on this list only to
+	// support gccgo, and can be removed if we require gccgo 14 or later.
+	"internal/lazyregexp",
 	"internal/pkgbits",
+	"internal/platform",
 	"internal/profile",
 	"internal/race",
 	"internal/saferio",
-	"internal/platform",
+	"internal/syscall/unix",
 	"internal/types/errors",
 	"internal/unsafeheader",
 	"internal/xcoff",
-	"math/big",
+	"internal/zstd",
 	"math/bits",
 	"sort",
-	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -87,20 +101,16 @@ var ignorePrefixes = []string{
 	"#",
 }
 
-// File suffixes that use build tags introduced since Go 1.4.
+// File suffixes that use build tags introduced since Go 1.17.
 // These must not be copied into the bootstrap build directory.
 // Also ignore test files.
 var ignoreSuffixes = []string{
-	"_arm64.s",
-	"_arm64.go",
-	"_loong64.s",
-	"_loong64.go",
-	"_riscv64.s",
-	"_riscv64.go",
-	"_wasm.s",
-	"_wasm.go",
 	"_test.s",
 	"_test.go",
+	// Skip PGO profile. No need to build toolchain1 compiler
+	// with PGO. And as it is not a text file the import path
+	// rewrite will break it.
+	".pgo",
 }
 
 var tryDirs = []string{
@@ -136,7 +146,7 @@ func bootstrapBuildTools() {
 	xmkdirall(base)
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
-	writefile("module bootstrap\n", pathf("%s/%s", base, "go.mod"), 0)
+	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
 	for _, dir := range bootstrapDirs {
 		recurse := strings.HasSuffix(dir, "/...")
 		dir = strings.TrimSuffix(dir, "/...")
@@ -181,12 +191,12 @@ func bootstrapBuildTools() {
 		})
 	}
 
-	// Set up environment for invoking Go 1.4 go command.
-	// GOROOT points at Go 1.4 GOROOT,
+	// Set up environment for invoking Go bootstrap toolchains go command.
+	// GOROOT points at Go bootstrap GOROOT,
 	// GOPATH points at our bootstrap workspace,
 	// GOBIN is empty, so that binaries are installed to GOPATH/bin,
 	// and GOOS, GOHOSTOS, GOARCH, and GOHOSTOS are empty,
-	// so that Go 1.4 builds whatever kind of binary it knows how to build.
+	// so that Go bootstrap toolchain builds whatever kind of binary it knows how to build.
 	// Restore GOROOT, GOPATH, and GOBIN when done.
 	// Don't bother with GOOS, GOHOSTOS, GOARCH, and GOHOSTARCH,
 	// because setup will take care of those when bootstrapBuildTools returns.
@@ -205,20 +215,14 @@ func bootstrapBuildTools() {
 	os.Setenv("GOARCH", "")
 	os.Setenv("GOHOSTARCH", "")
 
-	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
-	// workaround bugs in Go 1.4's compiler. See discussion thread:
-	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+	// Run Go bootstrap to build binaries.
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
 	// Use the purego build tag to disable other assembly code,
 	// such as in cmd/internal/notsha256.
-	// Note that if we are using Go 1.10 or later as bootstrap, the -gcflags=-l
-	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
-	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
-		"-gcflags=-l",
 		"-tags=math_big_pure_go compiler_bootstrap purego",
 	}
 	if vflag > 0 {
@@ -285,13 +289,11 @@ func bootstrapRewriteFile(srcFile string) string {
 	// binary that works for the current gohostarch.
 	// This saves 6+ seconds of bootstrap.
 	if archCaps, ok := isUnneededSSARewriteFile(srcFile, gohostarch); ok {
-		return fmt.Sprintf(`// Code generated by go tool dist; DO NOT EDIT.
-
-package ssa
+		return fmt.Sprintf(`%spackage ssa
 
 func rewriteValue%s(v *Value) bool { panic("unused during bootstrap") }
 func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
-`, archCaps, archCaps)
+`, generatedHeader, archCaps, archCaps)
 	}
 
 	return bootstrapFixImports(srcFile)
@@ -314,7 +316,7 @@ func bootstrapFixImports(srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"")) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"") || strings.HasPrefix(line, "\trtabi \"")) {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {
@@ -326,7 +328,7 @@ func bootstrapFixImports(srcFile string) string {
 		}
 	}
 
-	lines[0] = "// Code generated by go tool dist; DO NOT EDIT.\n// This is a bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
+	lines[0] = generatedHeader + "// This is a bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
 
 	return strings.Join(lines, "")
 }

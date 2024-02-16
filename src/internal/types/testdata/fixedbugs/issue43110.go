@@ -9,10 +9,10 @@ type P *struct{}
 func _() {
 	// want an error even if the switch is empty
 	var a struct{ _ func() }
-	switch a /* ERROR cannot switch on a */ {
+	switch a /* ERROR "cannot switch on a" */ {
 	}
 
-	switch a /* ERROR cannot switch on a */ {
+	switch a /* ERROR "cannot switch on a" */ {
 	case a: // no follow-on error here
 	}
 
@@ -30,10 +30,10 @@ func _() {
 	}
 
 	switch (func())(nil) {
-	case f /* ERROR invalid case f in switch on .* \(func can only be compared to nil\) */ :
+	case f /* ERRORx `invalid case f in switch on .* \(func can only be compared to nil\)` */ :
 	}
 
-	switch nil /* ERROR use of untyped nil in switch expression */ {
+	switch nil /* ERROR "use of untyped nil in switch expression" */ {
 	}
 
 	// this is ok

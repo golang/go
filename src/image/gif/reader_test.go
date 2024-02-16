@@ -28,7 +28,7 @@ const (
 	trailerStr = "\x3b"
 )
 
-// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+// lzw.NewReader wants an io.ByteReader, this ensures we're compatible.
 var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.

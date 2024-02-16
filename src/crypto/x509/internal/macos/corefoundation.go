@@ -186,6 +186,13 @@ func CFErrorCopyDescription(errRef CFRef) CFRef {
 }
 func x509_CFErrorCopyDescription_trampoline()
 
+//go:cgo_import_dynamic x509_CFErrorGetCode CFErrorGetCode "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFErrorGetCode(errRef CFRef) int {
+	return int(syscall(abi.FuncPCABI0(x509_CFErrorGetCode_trampoline), uintptr(errRef), 0, 0, 0, 0, 0))
+}
+func x509_CFErrorGetCode_trampoline()
+
 //go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
 func CFStringCreateExternalRepresentation(strRef CFRef) (CFRef, error) {

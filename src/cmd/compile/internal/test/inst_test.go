@@ -18,21 +18,14 @@ func TestInst(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveGoRun(t)
 
-	var tmpdir string
-	var err error
-	tmpdir, err = os.MkdirTemp("", "TestDict")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
-
 	// Build ptrsort.go, which uses package mysort.
 	var output []byte
+	var err error
 	filename := "ptrsort.go"
 	exename := "ptrsort"
 	outname := "ptrsort.out"
 	gotool := testenv.GoToolPath(t)
-	dest := filepath.Join(tmpdir, exename)
+	dest := filepath.Join(t.TempDir(), exename)
 	cmd := testenv.Command(t, gotool, "build", "-o", dest, filepath.Join("testdata", filename))
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOutput: %s\n", err, output)

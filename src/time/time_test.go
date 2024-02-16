@@ -283,7 +283,7 @@ func TestTruncateRound(t *testing.T) {
 	testOne := func(ti, tns, di int64) bool {
 		t.Helper()
 
-		t0 := Unix(ti, int64(tns)).UTC()
+		t0 := Unix(ti, tns).UTC()
 		d := Duration(di)
 		if d < 0 {
 			d = -d
@@ -321,7 +321,7 @@ func TestTruncateRound(t *testing.T) {
 		// The commented out code would round half to even instead of up,
 		// but that makes it time-zone dependent, which is a bit strange.
 		if r > int64(d)/2 || r+r == int64(d) /*&& bq.Bit(0) == 1*/ {
-			t1 = t1.Add(Duration(d))
+			t1 = t1.Add(d)
 		}
 
 		// Check that time.Round works.
@@ -830,10 +830,10 @@ func TestUnmarshalInvalidTimes(t *testing.T) {
 	}{
 		{`{}`, "Time.UnmarshalJSON: input is not a JSON string"},
 		{`[]`, "Time.UnmarshalJSON: input is not a JSON string"},
-		{`"2000-01-01T1:12:34Z"`, `parsing time "2000-01-01T1:12:34Z" as "2006-01-02T15:04:05Z07:00": cannot parse "1" as "15"`},
-		{`"2000-01-01T00:00:00,000Z"`, `parsing time "2000-01-01T00:00:00,000Z" as "2006-01-02T15:04:05Z07:00": cannot parse "," as "."`},
-		{`"2000-01-01T00:00:00+24:00"`, `parsing time "2000-01-01T00:00:00+24:00": timezone hour out of range`},
-		{`"2000-01-01T00:00:00+00:60"`, `parsing time "2000-01-01T00:00:00+00:60": timezone minute out of range`},
+		{`"2000-01-01T1:12:34Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00,000Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00+24:00"`, `<nil>`},
+		{`"2000-01-01T00:00:00+00:60"`, `<nil>`},
 		{`"2000-01-01T00:00:00+123:45"`, `parsing time "2000-01-01T00:00:00+123:45" as "2006-01-02T15:04:05Z07:00": cannot parse "+123:45" as "Z07:00"`},
 	}
 
@@ -842,13 +842,13 @@ func TestUnmarshalInvalidTimes(t *testing.T) {
 
 		want := tt.want
 		err := json.Unmarshal([]byte(tt.in), &ts)
-		if err == nil || err.Error() != want {
+		if fmt.Sprint(err) != want {
 			t.Errorf("Time.UnmarshalJSON(%s) = %v, want %v", tt.in, err, want)
 		}
 
 		if strings.HasPrefix(tt.in, `"`) && strings.HasSuffix(tt.in, `"`) {
 			err = ts.UnmarshalText([]byte(strings.Trim(tt.in, `"`)))
-			if err == nil || err.Error() != want {
+			if fmt.Sprint(err) != want {
 				t.Errorf("Time.UnmarshalText(%s) = %v, want %v", tt.in, err, want)
 			}
 		}
@@ -1106,14 +1106,14 @@ var subTests = []struct {
 	{Date(2009, 11, 23, 0, 0, 0, 0, UTC), Date(2009, 11, 24, 0, 0, 0, 0, UTC), -24 * Hour},
 	{Date(2009, 11, 24, 0, 0, 0, 0, UTC), Date(2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
 	{Date(-2009, 11, 24, 0, 0, 0, 0, UTC), Date(-2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
-	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), Duration(minDuration)},
-	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(maxDuration)},
-	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Duration(maxDuration)},
-	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(minDuration)},
+	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), minDuration},
+	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, maxDuration},
+	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), maxDuration},
+	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, minDuration},
 	{Date(2290, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), 290*365*24*Hour + 71*24*Hour},
-	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
+	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), maxDuration},
 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
-	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
+	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), minDuration},
 	{Date(2311, 11, 26, 02, 16, 47, 63535996, UTC), Date(2019, 8, 16, 2, 29, 30, 268436582, UTC), 9223372036795099414},
 	{MinMonoTime, MaxMonoTime, minDuration},
 	{MaxMonoTime, MinMonoTime, maxDuration},
@@ -1640,7 +1640,7 @@ func TestZeroMonthString(t *testing.T) {
 
 // Issue 24692: Out of range weekday panics
 func TestWeekdayString(t *testing.T) {
-	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
+	if got, want := Tuesday.String(), "Tuesday"; got != want {
 		t.Errorf("Tuesday weekday = %q; want %q", got, want)
 	}
 	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {
@@ -1860,16 +1860,26 @@ func TestZoneBounds(t *testing.T) {
 		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), boundTwo, boundThree},
 		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
 
+		// The ZoneBounds of a "Asia/Shanghai" after the last transition (Standard Time)
+		7:  {boundThree, boundThree, Time{}},
+		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, Time{}},
+		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, Time{}},
+		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, Time{}},
+		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, Time{}},
+		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, Time{}},
+		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, Time{}},
+		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, Time{}},
+
 		// The ZoneBounds of a local time would return two local Time.
 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
-		7:  {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
-		8:  {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
-		9:  {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
-		10: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		11: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		12: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		13: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		14: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+		15: {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
+		16: {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
+		17: {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+		18: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		19: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
 	}
 	for i, tt := range realTests {
 		start, end := tt.giveTime.ZoneBounds()

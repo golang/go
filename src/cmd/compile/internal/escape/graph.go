@@ -38,7 +38,7 @@ import (
 //        e.value(k, n.Left)
 //    }
 
-// An location represents an abstract location that stores a Go
+// A location represents an abstract location that stores a Go
 // variable.
 type location struct {
 	n         ir.Node  // represented variable or expression, if any
@@ -66,15 +66,8 @@ type location struct {
 	// in the walk queue.
 	queued bool
 
-	// escapes reports whether the represented variable's address
-	// escapes; that is, whether the variable must be heap
-	// allocated.
-	escapes bool
-
-	// transient reports whether the represented expression's
-	// address does not outlive the statement; that is, whether
-	// its storage can be immediately reused.
-	transient bool
+	// attrs is a bitset of location attributes.
+	attrs locAttr
 
 	// paramEsc records the represented parameter's leak set.
 	paramEsc leaks
@@ -83,6 +76,32 @@ type location struct {
 	reassigned bool // has this variable been reassigned?
 	addrtaken  bool // has this variable's address been taken?
 }
+
+type locAttr uint8
+
+const (
+	// attrEscapes indicates whether the represented variable's address
+	// escapes; that is, whether the variable must be heap allocated.
+	attrEscapes locAttr = 1 << iota
+
+	// attrPersists indicates whether the represented expression's
+	// address outlives the statement; that is, whether its storage
+	// cannot be immediately reused.
+	attrPersists
+
+	// attrMutates indicates whether pointers that are reachable from
+	// this location may have their addressed memory mutated. This is
+	// used to detect string->[]byte conversions that can be safely
+	// optimized away.
+	attrMutates
+
+	// attrCalls indicates whether closures that are reachable from this
+	// location may be called without tracking their results. This is
+	// used to better optimize indirect closure calls.
+	attrCalls
+)
+
+func (l *location) hasAttr(attr locAttr) bool { return l.attrs&attr != 0 }
 
 // An edge represents an assignment edge between two Go variables.
 type edge struct {
@@ -100,9 +119,38 @@ func (l *location) leakTo(sink *location, derefs int) {
 	// If sink is a result parameter that doesn't escape (#44614)
 	// and we can fit return bits into the escape analysis tag,
 	// then record as a result leak.
-	if !sink.escapes && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
+	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
 		ri := sink.resultIndex - 1
 		if ri < numEscResults {
+			// Leak to result parameter.
+			l.paramEsc.AddResult(ri, derefs)
+			return
+		}
+	}
+
+	// Otherwise, record as heap leak.
+	l.paramEsc.AddHeap(derefs)
+}
+
+// leakTo records that parameter l leaks to sink.
+func (b *batch) leakTo(l, sink *location, derefs int) {
+	if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
+		if base.Flag.LowerM >= 2 {
+			fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(sink), derefs)
+		}
+		explanation := b.explainPath(sink, l)
+		if logopt.Enabled() {
+			var e_curfn *ir.Func // TODO(mdempsky): Fix.
+			logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
+				fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(sink), derefs), explanation)
+		}
+	}
+
+	// If sink is a result parameter that doesn't escape (#44614)
+	// and we can fit return bits into the escape analysis tag,
+	// then record as a result leak.
+	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
+		if ri := sink.resultIndex - 1; ri < numEscResults {
 			// Leak to result parameter.
 			l.paramEsc.AddResult(ri, derefs)
 			return
@@ -182,7 +230,7 @@ func (b *batch) flow(k hole, src *location) {
 	if dst == src && k.derefs >= 0 { // dst = dst, dst = *dst, ...
 		return
 	}
-	if dst.escapes && k.derefs < 0 { // dst = &src
+	if dst.hasAttr(attrEscapes) && k.derefs < 0 { // dst = &src
 		if base.Flag.LowerM >= 2 || logopt.Enabled() {
 			pos := base.FmtPos(src.n.Pos())
 			if base.Flag.LowerM >= 2 {
@@ -195,7 +243,7 @@ func (b *batch) flow(k hole, src *location) {
 			}
 
 		}
-		src.escapes = true
+		src.attrs |= attrEscapes | attrPersists | attrMutates | attrCalls
 		return
 	}
 
@@ -204,33 +252,37 @@ func (b *batch) flow(k hole, src *location) {
 }
 
 func (b *batch) heapHole() hole    { return b.heapLoc.asHole() }
+func (b *batch) mutatorHole() hole { return b.mutatorLoc.asHole() }
+func (b *batch) calleeHole() hole  { return b.calleeLoc.asHole() }
 func (b *batch) discardHole() hole { return b.blankLoc.asHole() }
 
 func (b *batch) oldLoc(n *ir.Name) *location {
 	if n.Canonical().Opt == nil {
-		base.Fatalf("%v has no location", n)
+		base.FatalfAt(n.Pos(), "%v has no location", n)
 	}
 	return n.Canonical().Opt.(*location)
 }
 
-func (e *escape) newLoc(n ir.Node, transient bool) *location {
+func (e *escape) newLoc(n ir.Node, persists bool) *location {
 	if e.curfn == nil {
 		base.Fatalf("e.curfn isn't set")
 	}
 	if n != nil && n.Type() != nil && n.Type().NotInHeap() {
-		base.ErrorfAt(n.Pos(), "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
+		base.ErrorfAt(n.Pos(), 0, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
 	}
 
 	if n != nil && n.Op() == ir.ONAME {
 		if canon := n.(*ir.Name).Canonical(); n != canon {
-			base.Fatalf("newLoc on non-canonical %v (canonical is %v)", n, canon)
+			base.FatalfAt(n.Pos(), "newLoc on non-canonical %v (canonical is %v)", n, canon)
 		}
 	}
 	loc := &location{
 		n:         n,
 		curfn:     e.curfn,
 		loopDepth: e.loopDepth,
-		transient: transient,
+	}
+	if persists {
+		loc.attrs |= attrPersists
 	}
 	e.allLocs = append(e.allLocs, loc)
 	if n != nil {
@@ -239,11 +291,11 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 			if n.Class == ir.PPARAM && n.Curfn == nil {
 				// ok; hidden parameter
 			} else if n.Curfn != e.curfn {
-				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
+				base.FatalfAt(n.Pos(), "curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
 			}
 
 			if n.Opt != nil {
-				base.Fatalf("%v already has a location", n)
+				base.FatalfAt(n.Pos(), "%v already has a location", n)
 			}
 			n.Opt = loc
 		}
@@ -265,7 +317,7 @@ func (e *escape) teeHole(ks ...hole) hole {
 	// Given holes "l1 = _", "l2 = **_", "l3 = *_", ..., create a
 	// new temporary location ltmp, wire it into place, and return
 	// a hole for "ltmp = _".
-	loc := e.newLoc(nil, true)
+	loc := e.newLoc(nil, false)
 	for _, k := range ks {
 		// N.B., "p = &q" and "p = &tmp; tmp = q" are not
 		// semantically equivalent. To combine holes like "l1
@@ -285,7 +337,7 @@ func (e *escape) teeHole(ks ...hole) hole {
 // Its main effect is to prevent immediate reuse of temporary
 // variables introduced during Order.
 func (e *escape) later(k hole) hole {
-	loc := e.newLoc(nil, false)
+	loc := e.newLoc(nil, true)
 	e.flow(k, loc)
 	return loc.asHole()
 }

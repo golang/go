@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/coverage"
 	"io"
-	"reflect"
 	"sync/atomic"
 	"unsafe"
 )
@@ -27,7 +26,7 @@ func WriteMetaDir(dir string) error {
 
 // WriteMeta writes the meta-data content (the payload that would
 // normally be emitted to a meta-data file) for the currently running
-// program to the the writer 'w'. An error will be returned if the
+// program to the writer 'w'. An error will be returned if the
 // operation can't be completed successfully (for example, if the
 // currently running program was not built with "-cover", or if a
 // write fails).
@@ -50,11 +49,14 @@ func WriteMeta(w io.Writer) error {
 // counter data written will be a snapshot taken at the point of the
 // call.
 func WriteCountersDir(dir string) error {
+	if cmode != coverage.CtrModeAtomic {
+		return fmt.Errorf("WriteCountersDir invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
+	}
 	return emitCounterDataToDirectory(dir)
 }
 
-// WriteCounters writes coverage counter-data content for
-// the currently running program to the writer 'w'. An error will be
+// WriteCounters writes coverage counter-data content for the
+// currently running program to the writer 'w'. An error will be
 // returned if the operation can't be completed successfully (for
 // example, if the currently running program was not built with
 // "-cover", or if a write fails). The counter data written will be a
@@ -62,6 +64,9 @@ func WriteCountersDir(dir string) error {
 func WriteCounters(w io.Writer) error {
 	if w == nil {
 		return fmt.Errorf("error: nil writer in WriteCounters")
+	}
+	if cmode != coverage.CtrModeAtomic {
+		return fmt.Errorf("WriteCounters invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
 	}
 	// Ask the runtime for the list of coverage counter symbols.
 	cl := getCovCounterList()
@@ -92,7 +97,7 @@ func ClearCounters() error {
 		return fmt.Errorf("program not built with -cover")
 	}
 	if cmode != coverage.CtrModeAtomic {
-		return fmt.Errorf("ClearCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
+		return fmt.Errorf("ClearCounters invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
 	}
 
 	// Implementation note: this function would be faster and simpler
@@ -152,13 +157,8 @@ func ClearCounters() error {
 	// inconsistency when reading the counter array from the thread
 	// running ClearCounters.
 
-	var sd []atomic.Uint32
-
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
 	for _, c := range cl {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
+		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
 		for i := 0; i < len(sd); i++ {
 			// Skip ahead until the next non-zero value.
 			sdi := sd[i].Load()

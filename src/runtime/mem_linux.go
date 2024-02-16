@@ -36,65 +36,9 @@ func sysAllocOS(n uintptr) unsafe.Pointer {
 
 var adviseUnused = uint32(_MADV_FREE)
 
+const madviseUnsupported = 0
+
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
-	// By default, Linux's "transparent huge page" support will
-	// merge pages into a huge page if there's even a single
-	// present regular page, undoing the effects of madvise(adviseUnused)
-	// below. On amd64, that means khugepaged can turn a single
-	// 4KB page to 2MB, bloating the process's RSS by as much as
-	// 512X. (See issue #8832 and Linux kernel bug
-	// https://bugzilla.kernel.org/show_bug.cgi?id=93111)
-	//
-	// To work around this, we explicitly disable transparent huge
-	// pages when we release pages of the heap. However, we have
-	// to do this carefully because changing this flag tends to
-	// split the VMA (memory mapping) containing v in to three
-	// VMAs in order to track the different values of the
-	// MADV_NOHUGEPAGE flag in the different regions. There's a
-	// default limit of 65530 VMAs per address space (sysctl
-	// vm.max_map_count), so we must be careful not to create too
-	// many VMAs (see issue #12233).
-	//
-	// Since huge pages are huge, there's little use in adjusting
-	// the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
-	// exploding the number of VMAs by only adjusting the
-	// MADV_NOHUGEPAGE flag on a large granularity. This still
-	// gets most of the benefit of huge pages while keeping the
-	// number of VMAs under control. With hugePageSize = 2MB, even
-	// a pessimal heap can reach 128GB before running out of VMAs.
-	if physHugePageSize != 0 {
-		// If it's a large allocation, we want to leave huge
-		// pages enabled. Hence, we only adjust the huge page
-		// flag on the huge pages containing v and v+n-1, and
-		// only if those aren't aligned.
-		var head, tail uintptr
-		if uintptr(v)&(physHugePageSize-1) != 0 {
-			// Compute huge page containing v.
-			head = alignDown(uintptr(v), physHugePageSize)
-		}
-		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
-			// Compute huge page containing v+n-1.
-			tail = alignDown(uintptr(v)+n-1, physHugePageSize)
-		}
-
-		// Note that madvise will return EINVAL if the flag is
-		// already set, which is quite likely. We ignore
-		// errors.
-		if head != 0 && head+physHugePageSize == tail {
-			// head and tail are different but adjacent,
-			// so do this in one call.
-			madvise(unsafe.Pointer(head), 2*physHugePageSize, _MADV_NOHUGEPAGE)
-		} else {
-			// Advise the huge pages containing v and v+n-1.
-			if head != 0 {
-				madvise(unsafe.Pointer(head), physHugePageSize, _MADV_NOHUGEPAGE)
-			}
-			if tail != 0 && tail != head {
-				madvise(unsafe.Pointer(tail), physHugePageSize, _MADV_NOHUGEPAGE)
-			}
-		}
-	}
-
 	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
 		// madvise will round this to any physical page
 		// *covered* by this range, so an unaligned madvise
@@ -102,17 +46,31 @@ func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 		throw("unaligned sysUnused")
 	}
 
-	var advise uint32
-	if debug.madvdontneed != 0 {
+	advise := atomic.Load(&adviseUnused)
+	if debug.madvdontneed != 0 && advise != madviseUnsupported {
 		advise = _MADV_DONTNEED
-	} else {
-		advise = atomic.Load(&adviseUnused)
 	}
-	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
-		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
-		// not supported.
+	switch advise {
+	case _MADV_FREE:
+		if madvise(v, n, _MADV_FREE) == 0 {
+			break
+		}
 		atomic.Store(&adviseUnused, _MADV_DONTNEED)
-		madvise(v, n, _MADV_DONTNEED)
+		fallthrough
+	case _MADV_DONTNEED:
+		// MADV_FREE was added in Linux 4.5. Fall back on MADV_DONTNEED if it's
+		// not supported.
+		if madvise(v, n, _MADV_DONTNEED) == 0 {
+			break
+		}
+		atomic.Store(&adviseUnused, madviseUnsupported)
+		fallthrough
+	case madviseUnsupported:
+		// Since Linux 3.18, support for madvise is optional.
+		// Fall back on mmap if it's not supported.
+		// _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE will unmap all the
+		// pages in the old mapping, and remap the memory region.
+		mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 	}
 
 	if debug.harddecommit > 0 {
@@ -133,19 +91,7 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 			throw("runtime: cannot remap pages in address space")
 		}
 		return
-
-		// Don't do the sysHugePage optimization in hard decommit mode.
-		// We're breaking up pages everywhere, there's no point.
 	}
-	// Partially undo the NOHUGEPAGE marks from sysUnused
-	// for whole huge pages between v and v+n. This may
-	// leave huge pages off at the end points v and v+n
-	// even though allocations may cover these entire huge
-	// pages. We could detect this and undo NOHUGEPAGE on
-	// the end points as well, but it's probably not worth
-	// the cost because when neighboring allocations are
-	// freed sysUnused will just set NOHUGEPAGE again.
-	sysHugePageOS(v, n)
 }
 
 func sysHugePageOS(v unsafe.Pointer, n uintptr) {
@@ -159,6 +105,40 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
 		}
 	}
+}
+
+func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
+	if uintptr(v)&(physPageSize-1) != 0 {
+		// The Linux implementation requires that the address
+		// addr be page-aligned, and allows length to be zero.
+		throw("unaligned sysNoHugePageOS")
+	}
+	madvise(v, n, _MADV_NOHUGEPAGE)
+}
+
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+	if uintptr(v)&(physPageSize-1) != 0 {
+		// The Linux implementation requires that the address
+		// addr be page-aligned, and allows length to be zero.
+		throw("unaligned sysHugePageCollapseOS")
+	}
+	if physHugePageSize == 0 {
+		return
+	}
+	// N.B. If you find yourself debugging this code, note that
+	// this call can fail with EAGAIN because it's best-effort.
+	// Also, when it returns an error, it's only for the last
+	// huge page in the region requested.
+	//
+	// It can also sometimes return EINVAL if the corresponding
+	// region hasn't been backed by physical memory. This is
+	// difficult to guarantee in general, and it also means
+	// there's no way to distinguish whether this syscall is
+	// actually available. Oops.
+	//
+	// Anyway, that's why this call just doesn't bother checking
+	// any errors.
+	madvise(v, n, _MADV_COLLAPSE)
 }
 
 // Don't split the stack as this function may be invoked without a valid G,
@@ -189,5 +169,13 @@ func sysMapOS(v unsafe.Pointer, n uintptr) {
 	if p != v || err != 0 {
 		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
+	}
+
+	// Disable huge pages if the GODEBUG for it is set.
+	//
+	// Note that there are a few sysHugePage calls that can override this, but
+	// they're all for GC metadata.
+	if debug.disablethp != 0 {
+		sysNoHugePageOS(v, n)
 	}
 }

@@ -270,4 +270,4 @@ TEXT asmtest(SB), DUPOK|NOSPLIT, $0
 	HASHCHK -8(R1), R2                      // 7fe115e5
 	HASHCHKP -8(R1), R2                     // 7fe11565
 
-        RET
+	RET

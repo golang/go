@@ -93,7 +93,7 @@ func _() {
 }
 
 // Test case for constants depending on function literals (see also #22992).
-const A /* ERROR initialization cycle */ = unsafe.Sizeof(func() { _ = A })
+const A /* ERROR "initialization cycle" */ = unsafe.Sizeof(func() { _ = A })
 
 func _() {
 	// The function literal below must not see a.
@@ -111,13 +111,13 @@ func _() {
 const (
 	_ byte = 255 + iota
 	/* some gap */
-	_ // ERROR overflows
+	_ // ERROR "overflows"
 	/* some gap */
-	/* some gap */ _ /* ERROR overflows */; _ /* ERROR overflows */
+	/* some gap */ _ /* ERROR "overflows" */; _ /* ERROR "overflows" */
 	/* some gap */
 	_ = 255 + iota
-	_ = byte /* ERROR overflows */ (255) + iota
-	_ /* ERROR overflows */
+	_ = byte /* ERROR "overflows" */ (255) + iota
+	_ /* ERROR "overflows" */
 )
 
 // Test cases from issue.
@@ -125,14 +125,14 @@ const (
 	ok = byte(iota + 253)
 	bad
 	barn
-	bard // ERROR cannot convert
+	bard // ERROR "overflows"
 )
 
 const (
 	c = len([1 - iota]int{})
 	d
-	e // ERROR invalid array length
-	f // ERROR invalid array length
+	e // ERROR "invalid array length"
+	f // ERROR "invalid array length"
 )
 
 // Test that identifiers in implicit (omitted) RHS

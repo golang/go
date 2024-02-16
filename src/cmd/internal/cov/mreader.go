@@ -51,7 +51,7 @@ func (r *MReader) Read(p []byte) (int, error) {
 		r.off += int64(amt)
 		return amt, nil
 	}
-	return r.rdr.Read(p)
+	return io.ReadFull(r.rdr, p)
 }
 
 func (r *MReader) ReadByte() (byte, error) {

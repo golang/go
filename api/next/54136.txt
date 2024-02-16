@@ -1,6 +1,0 @@
-pkg net/http, func NewResponseController(ResponseWriter) *ResponseController #54136
-pkg net/http, method (*ResponseController) Flush() error #54136
-pkg net/http, method (*ResponseController) Hijack() (net.Conn, *bufio.ReadWriter, error) #54136
-pkg net/http, method (*ResponseController) SetReadDeadline(time.Time) error #54136
-pkg net/http, method (*ResponseController) SetWriteDeadline(time.Time) error #54136
-pkg net/http, type ResponseController struct #54136

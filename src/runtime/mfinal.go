@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -190,7 +191,7 @@ func runfinq() {
 		fb := finq
 		finq = nil
 		if fb == nil {
-			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceEvGoBlock, 1)
+			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceBlockSystemGoroutine, 1)
 			continue
 		}
 		argRegs = intArgRegs
@@ -234,16 +235,16 @@ func runfinq() {
 					// confusing the write barrier.
 					*(*[2]uintptr)(frame) = [2]uintptr{}
 				}
-				switch f.fint.kind & kindMask {
+				switch f.fint.Kind_ & kindMask {
 				case kindPtr:
 					// direct use of pointer
 					*(*unsafe.Pointer)(r) = f.arg
 				case kindInterface:
 					ityp := (*interfacetype)(unsafe.Pointer(f.fint))
 					// set up with empty interface
-					(*eface)(r)._type = &f.ot.typ
+					(*eface)(r)._type = &f.ot.Type
 					(*eface)(r).data = f.arg
-					if len(ityp.mhdr) != 0 {
+					if len(ityp.Methods) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
 						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
@@ -272,6 +273,52 @@ func runfinq() {
 			fb = next
 		}
 	}
+}
+
+func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
+	// 0-length objects are okay.
+	if p == unsafe.Pointer(&zerobase) {
+		return true
+	}
+
+	// Global initializers might be linker-allocated.
+	//	var Foo = &Object{}
+	//	func main() {
+	//		runtime.SetFinalizer(Foo, nil)
+	//	}
+	// The relevant segments are: noptrdata, data, bss, noptrbss.
+	// We cannot assume they are in any order or even contiguous,
+	// due to external linking.
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.noptrdata <= uintptr(p) && uintptr(p) < datap.enoptrdata ||
+			datap.data <= uintptr(p) && uintptr(p) < datap.edata ||
+			datap.bss <= uintptr(p) && uintptr(p) < datap.ebss ||
+			datap.noptrbss <= uintptr(p) && uintptr(p) < datap.enoptrbss {
+			return true
+		}
+	}
+	return false
+}
+
+// blockUntilEmptyFinalizerQueue blocks until either the finalizer
+// queue is emptied (and the finalizers have executed) or the timeout
+// is reached. Returns true if the finalizer queue was emptied.
+// This is used by the runtime and sync tests.
+func blockUntilEmptyFinalizerQueue(timeout int64) bool {
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&finlock)
+		// We know the queue has been drained when both finq is nil
+		// and the finalizer g has stopped executing.
+		empty := finq == nil
+		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+		unlock(&finlock)
+		if empty {
+			return true
+		}
+		Gosched()
+	}
+	return false
 }
 
 // SetFinalizer sets the finalizer associated with obj to the provided
@@ -305,11 +352,11 @@ func runfinq() {
 // There is no guarantee that finalizers will run before a program exits,
 // so typically they are useful only for releasing non-memory resources
 // associated with an object during a long-running program.
-// For example, an os.File object could use a finalizer to close the
+// For example, an [os.File] object could use a finalizer to close the
 // associated operating system file descriptor when a program discards
 // an os.File without calling Close, but it would be a mistake
 // to depend on a finalizer to flush an in-memory I/O buffer such as a
-// bufio.Writer, because the buffer would not be flushed at program exit.
+// [bufio.Writer], because the buffer would not be flushed at program exit.
 //
 // It is not guaranteed that a finalizer will run if the size of *obj is
 // zero bytes, because it may share same address with other zero-size
@@ -332,14 +379,14 @@ func runfinq() {
 // the object is reachable until it is no longer required.
 // Objects stored in global variables, or that can be found by tracing
 // pointers from a global variable, are reachable. For other objects,
-// pass the object to a call of the KeepAlive function to mark the
+// pass the object to a call of the [KeepAlive] function to mark the
 // last point in the function where the object must be reachable.
 //
 // For example, if p points to a struct, such as os.File, that contains
 // a file descriptor d, and p has a finalizer that closes that file
 // descriptor, and if the last use of p in a function is a call to
 // syscall.Write(p.d, buf, size), then p may be unreachable as soon as
-// the program enters syscall.Write. The finalizer may run at that moment,
+// the program enters [syscall.Write]. The finalizer may run at that moment,
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
@@ -371,11 +418,11 @@ func SetFinalizer(obj any, finalizer any) {
 	if etyp == nil {
 		throw("runtime.SetFinalizer: first argument is nil")
 	}
-	if etyp.kind&kindMask != kindPtr {
-		throw("runtime.SetFinalizer: first argument is " + etyp.string() + ", not pointer")
+	if etyp.Kind_&kindMask != kindPtr {
+		throw("runtime.SetFinalizer: first argument is " + toRType(etyp).string() + ", not pointer")
 	}
 	ot := (*ptrtype)(unsafe.Pointer(etyp))
-	if ot.elem == nil {
+	if ot.Elem == nil {
 		throw("nil elem type!")
 	}
 
@@ -385,37 +432,24 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	// find the containing object
-	base, _, _ := findObject(uintptr(e.data), 0, 0)
+	base, span, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
-		// 0-length objects are okay.
-		if e.data == unsafe.Pointer(&zerobase) {
+		if isGoPointerWithoutSpan(e.data) {
 			return
 		}
-
-		// Global initializers might be linker-allocated.
-		//	var Foo = &Object{}
-		//	func main() {
-		//		runtime.SetFinalizer(Foo, nil)
-		//	}
-		// The relevant segments are: noptrdata, data, bss, noptrbss.
-		// We cannot assume they are in any order or even contiguous,
-		// due to external linking.
-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			if datap.noptrdata <= uintptr(e.data) && uintptr(e.data) < datap.enoptrdata ||
-				datap.data <= uintptr(e.data) && uintptr(e.data) < datap.edata ||
-				datap.bss <= uintptr(e.data) && uintptr(e.data) < datap.ebss ||
-				datap.noptrbss <= uintptr(e.data) && uintptr(e.data) < datap.enoptrbss {
-				return
-			}
-		}
 		throw("runtime.SetFinalizer: pointer not in allocated block")
+	}
+
+	// Move base forward if we've got an allocation header.
+	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+		base += mallocHeaderSize
 	}
 
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
+		if ot.Elem == nil || ot.Elem.PtrBytes != 0 || ot.Elem.Size_ >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
@@ -430,43 +464,43 @@ func SetFinalizer(obj any, finalizer any) {
 		return
 	}
 
-	if ftyp.kind&kindMask != kindFunc {
-		throw("runtime.SetFinalizer: second argument is " + ftyp.string() + ", not a function")
+	if ftyp.Kind_&kindMask != kindFunc {
+		throw("runtime.SetFinalizer: second argument is " + toRType(ftyp).string() + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
-	if ft.dotdotdot() {
-		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string() + " because dotdotdot")
+	if ft.IsVariadic() {
+		throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string() + " because dotdotdot")
 	}
-	if ft.inCount != 1 {
-		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
+	if ft.InCount != 1 {
+		throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string())
 	}
-	fint := ft.in()[0]
+	fint := ft.InSlice()[0]
 	switch {
 	case fint == etyp:
 		// ok - same type
 		goto okarg
-	case fint.kind&kindMask == kindPtr:
-		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+	case fint.Kind_&kindMask == kindPtr:
+		if (fint.Uncommon() == nil || etyp.Uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).Elem == ot.Elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
 		}
-	case fint.kind&kindMask == kindInterface:
+	case fint.Kind_&kindMask == kindInterface:
 		ityp := (*interfacetype)(unsafe.Pointer(fint))
-		if len(ityp.mhdr) == 0 {
+		if len(ityp.Methods) == 0 {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
+		if itab := assertE2I2(ityp, efaceOf(&obj)._type); itab != nil {
 			goto okarg
 		}
 	}
-	throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
+	throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string())
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
-	for _, t := range ft.out() {
-		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
+	for _, t := range ft.OutSlice() {
+		nret = alignUp(nret, uintptr(t.Align_)) + t.Size_
 	}
 	nret = alignUp(nret, goarch.PtrSize)
 
@@ -502,11 +536,11 @@ okarg:
 //	// No more uses of p after this point.
 //
 // Without the KeepAlive call, the finalizer could run at the start of
-// syscall.Read, closing the file descriptor before syscall.Read makes
+// [syscall.Read], closing the file descriptor before syscall.Read makes
 // the actual system call.
 //
 // Note: KeepAlive should only be used to prevent finalizers from
-// running prematurely. In particular, when used with unsafe.Pointer,
+// running prematurely. In particular, when used with [unsafe.Pointer],
 // the rules for valid uses of unsafe.Pointer still apply.
 func KeepAlive(x any) {
 	// Introduce a use of x that the compiler can't eliminate.

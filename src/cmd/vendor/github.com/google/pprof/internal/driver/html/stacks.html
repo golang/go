@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}</title>
+  {{template "css" .}}
+  {{template "stacks_css"}}
+</head>
+<body>
+  {{template "header" .}}
+  <div id="stack-holder">
+    <div id="stack-chart"></div>
+    <div id="current-details"></div>
+  </div>
+  <div id="action-menu" class="submenu">
+    <span id="action-title"></span>
+    <hr>
+    <a title="{{.Help.list}}" id="action-source" href="./source">Show source code</a>
+    <a title="{{.Help.list}}" id="action-source-tab" href="./source" target="_blank">Show source in new tab</a>
+    <hr>
+    <a title="{{.Help.focus}}" id="action-focus" href="?">Focus</a>
+    <a title="{{.Help.ignore}}" id="action-ignore" href="?">Ignore</a>
+    <a title="{{.Help.hide}}" id="action-hide" href="?">Hide</a>
+    <a title="{{.Help.show_from}}" id="action-showfrom" href="?">Show from</a>
+  </div>
+  {{template "script" .}}
+  {{template "stacks_js"}}
+  <script>
+    stackViewer({{.Stacks}}, {{.Nodes}});
+  </script>
+</body>
+</html>

@@ -61,6 +61,10 @@ go mod edit -replace=x.1=y.1/v2@v2.3.6
 cmpenv go.mod $WORK/go.mod.edit4
 go mod edit -dropreplace=x.1
 cmpenv go.mod $WORK/go.mod.edit5
+go mod edit -replace=x.1=../y.1/@v2
+cmpenv go.mod $WORK/go.mod.edit6
+! go mod edit -replace=x.1=y.1/@v2
+stderr '^go: -replace=x.1=y.1/@v2: invalid new path: malformed import path "y.1/": trailing slash$'
 
 # go mod edit -fmt
 cp $WORK/go.mod.badfmt go.mod
@@ -218,6 +222,21 @@ retract (
 )
 
 require x.3 v1.99.0
+-- $WORK/go.mod.edit6 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+
+replace x.1 => ../y.1/@v2
 -- $WORK/local/go.mod.edit --
 module local-only
 

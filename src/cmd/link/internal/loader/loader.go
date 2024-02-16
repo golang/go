@@ -14,6 +14,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"internal/abi"
 	"io"
 	"log"
 	"math/bits"
@@ -26,7 +27,7 @@ var _ = fmt.Print
 
 // Sym encapsulates a global symbol index, used to identify a specific
 // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
-type Sym int
+type Sym = sym.LoaderSym
 
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
@@ -219,23 +220,19 @@ type Loader struct {
 	attrLocal            Bitmap // "local" symbols, indexed by global index
 	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by global idx
 	attrUsedInIface      Bitmap // "used in interface" symbols, indexed by global idx
+	attrSpecial          Bitmap // "special" frame symbols, indexed by global idx
 	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           Bitmap // shared symbols, indexed by ext sym index
 	attrExternal         Bitmap // external symbols, indexed by ext sym index
+	generatedSyms        Bitmap // symbols that generate their content, indexed by ext sym idx
 
 	attrReadOnly         map[Sym]bool     // readonly data for this sym
-	attrSpecial          map[Sym]struct{} // "special" frame symbols
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
-	generatedSyms        map[Sym]struct{} // symbols that generate their content
 
 	// Outer and Sub relations for symbols.
-	// TODO: figure out whether it's more efficient to just have these
-	// as fields on extSymPayload (note that this won't be a viable
-	// strategy if somewhere in the linker we set sub/outer for a
-	// non-external sym).
-	outer map[Sym]Sym
+	outer []Sym // indexed by global index
 	sub   map[Sym]Sym
 
 	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
@@ -264,8 +261,6 @@ type Loader struct {
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
-	elfsetstring elfsetstringFunc
-
 	errorReporter *ErrorReporter
 
 	npkgsyms    int // number of package symbols, for accounting
@@ -287,8 +282,6 @@ const (
 	goObjStart
 )
 
-type elfsetstringFunc func(str string, off int)
-
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
@@ -307,7 +300,7 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
-func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 	nbuiltin := goobj.NBuiltin()
 	extReader := &oReader{objidx: extObj}
 	ldr := &Loader{
@@ -317,7 +310,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		extReader:            extReader,
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]uint32),
-		outer:                make(map[Sym]Sym),
 		sub:                  make(map[Sym]Sym),
 		dynimplib:            make(map[Sym]string),
 		dynimpvers:           make(map[Sym]string),
@@ -331,15 +323,12 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
-		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
-		generatedSyms:        make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
-		elfsetstring:         elfsetstring,
 		errorReporter:        reporter,
 		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
@@ -370,6 +359,9 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		panic("addSym called after external symbol is created")
 	}
 	i := Sym(len(l.objSyms))
+	if int(i) != len(l.objSyms) { // overflow
+		panic("too many symbols")
+	}
 	addToGlobal := func() {
 		l.objSyms = append(l.objSyms, objSym{r.objidx, li})
 	}
@@ -491,10 +483,14 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 // name/version.
 func (l *Loader) newExtSym(name string, ver int) Sym {
 	i := Sym(len(l.objSyms))
+	if int(i) != len(l.objSyms) { // overflow
+		panic("too many symbols")
+	}
 	if l.extStart == 0 {
 		l.extStart = i
 	}
 	l.growValues(int(i) + 1)
+	l.growOuter(int(i) + 1)
 	l.growAttrBitmaps(int(i) + 1)
 	pi := l.newPayload(name, ver)
 	l.objSyms = append(l.objSyms, objSym{l.extReader.objidx, uint32(pi)})
@@ -992,7 +988,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
 	return l.attrExternal.Has(l.extIndex(i))
 }
 
-// SetAttrExternal sets the "external" property for an host object
+// SetAttrExternal sets the "external" property for a host object
 // symbol (see AttrExternal).
 func (l *Loader) SetAttrExternal(i Sym, v bool) {
 	if !l.IsExternal(i) {
@@ -1009,17 +1005,16 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
 // address (i.e. Value) computed by the usual mechanism of
 // data.go:dodata() & data.go:address().
 func (l *Loader) AttrSpecial(i Sym) bool {
-	_, ok := l.attrSpecial[i]
-	return ok
+	return l.attrSpecial.Has(i)
 }
 
 // SetAttrSpecial sets the "special" property for a symbol (see
 // AttrSpecial).
 func (l *Loader) SetAttrSpecial(i Sym, v bool) {
 	if v {
-		l.attrSpecial[i] = struct{}{}
+		l.attrSpecial.Set(i)
 	} else {
-		delete(l.attrSpecial, i)
+		l.attrSpecial.Unset(i)
 	}
 }
 
@@ -1038,6 +1033,14 @@ func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
 		l.attrCgoExportDynamic[i] = struct{}{}
 	} else {
 		delete(l.attrCgoExportDynamic, i)
+	}
+}
+
+// ForAllCgoExportDynamic calls f for every symbol that has been
+// marked with the "cgo_export_dynamic" compiler directive.
+func (l *Loader) ForAllCgoExportDynamic(f func(Sym)) {
+	for s := range l.attrCgoExportDynamic {
+		f(s)
 	}
 }
 
@@ -1063,8 +1066,10 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 // generator symbol through the SetIsGeneratedSym. The functions for generator
 // symbols are kept in the Link context.
 func (l *Loader) IsGeneratedSym(i Sym) bool {
-	_, ok := l.generatedSyms[i]
-	return ok
+	if !l.IsExternal(i) {
+		return false
+	}
+	return l.generatedSyms.Has(l.extIndex(i))
 }
 
 // SetIsGeneratedSym marks symbols as generated symbols. Data shouldn't be
@@ -1075,9 +1080,9 @@ func (l *Loader) SetIsGeneratedSym(i Sym, v bool) {
 		panic("only external symbols can be generated")
 	}
 	if v {
-		l.generatedSyms[i] = struct{}{}
+		l.generatedSyms.Set(l.extIndex(i))
 	} else {
-		delete(l.generatedSyms, i)
+		l.generatedSyms.Unset(l.extIndex(i))
 	}
 }
 
@@ -1121,7 +1126,7 @@ func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
 //
 // - Outer symbol covers the address ranges of its sub-symbols.
 //   Outer.Sub is set in this case.
-// - Outer symbol doesn't conver the address ranges. It is zero-sized
+// - Outer symbol doesn't cover the address ranges. It is zero-sized
 //   and doesn't have sub-symbols. In the case, the inner symbol is
 //   not actually a "SubSymbol". (Tricky!)
 //
@@ -1182,6 +1187,15 @@ func (l *Loader) IsDict(i Sym) bool {
 	return r.Sym(li).IsDict()
 }
 
+// Returns whether this symbol is a compiler-generated package init func.
+func (l *Loader) IsPkgInit(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsPkgInit()
+}
+
 // Return whether this is a trampoline of a deferreturn call.
 func (l *Loader) IsDeferReturnTramp(i Sym) bool {
 	return l.deferReturnTramp[i]
@@ -1226,6 +1240,16 @@ func (l *Loader) Data(i Sym) []byte {
 	}
 	r, li := l.toLocal(i)
 	return r.Data(li)
+}
+
+// Returns the symbol content of the i-th symbol as a string. i is global index.
+func (l *Loader) DataString(i Sym) string {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return string(pp.data)
+	}
+	r, li := l.toLocal(i)
+	return r.DataString(li)
 }
 
 // FreeData clears the symbol data of an external symbol, allowing the memory
@@ -1273,7 +1297,7 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 	l.align[i] = uint8(bits.Len32(uint32(align)))
 }
 
-// SymValue returns the section of the i-th symbol. i is global index.
+// SymSect returns the section of the i-th symbol. i is global index.
 func (l *Loader) SymSect(i Sym) *sym.Section {
 	if int(i) >= len(l.symSects) {
 		// symSects is extended lazily -- it the sym in question is
@@ -1292,14 +1316,6 @@ func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
 	l.symSects[i] = sect.Index
 }
 
-// growSects grows the slice used to store symbol sections.
-func (l *Loader) growSects(reqLen int) {
-	curLen := len(l.symSects)
-	if reqLen > curLen {
-		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
-	}
-}
-
 // NewSection creates a new (output) section.
 func (l *Loader) NewSection() *sym.Section {
 	sect := new(sym.Section)
@@ -1312,7 +1328,7 @@ func (l *Loader) NewSection() *sym.Section {
 	return sect
 }
 
-// SymDynImplib returns the "dynimplib" attribute for the specified
+// SymDynimplib returns the "dynimplib" attribute for the specified
 // symbol, making up a portion of the info for a symbol specified
 // on a "cgo_import_dynamic" compiler directive.
 func (l *Loader) SymDynimplib(i Sym) string {
@@ -1495,7 +1511,7 @@ func (l *Loader) SetSymDynid(i Sym, val int32) {
 	}
 }
 
-// DynIdSyms returns the set of symbols for which dynID is set to an
+// DynidSyms returns the set of symbols for which dynID is set to an
 // interesting (non-default) value. This is expected to be a fairly
 // small set.
 func (l *Loader) DynidSyms() []Sym {
@@ -1563,6 +1579,9 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
 }
 
 // SymLocalentry returns an offset in bytes of the "local entry" of a symbol.
+//
+// On PPC64, a value of 1 indicates the symbol does not use or preserve a TOC
+// pointer in R2, nor does it have a distinct local entry.
 func (l *Loader) SymLocalentry(i Sym) uint8 {
 	return l.localentry[i]
 }
@@ -1599,6 +1618,39 @@ func (l *Loader) Aux(i Sym, j int) Aux {
 		return Aux{}
 	}
 	return Aux{r.Aux(li, j), r, l}
+}
+
+// WasmImportSym returns the auxiliary WebAssembly import symbol associated with
+// a given function symbol. The aux sym only exists for Go function stubs that
+// have been annotated with the //go:wasmimport directive.  The aux sym
+// contains the information necessary for the linker to add a WebAssembly
+// import statement.
+// (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
+func (l *Loader) WasmImportSym(fnSymIdx Sym) (Sym, bool) {
+	if l.SymType(fnSymIdx) != sym.STEXT {
+		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+	}
+	r, li := l.toLocal(fnSymIdx)
+	auxs := r.Auxs(li)
+	for i := range auxs {
+		a := &auxs[i]
+		switch a.Type() {
+		case goobj.AuxWasmImport:
+			return l.resolve(r, a.Sym()), true
+		}
+	}
+
+	return 0, false
+}
+
+// SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
+// a given function symbol.
+func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
+	if l.SymType(fnSymIdx) != sym.STEXT {
+		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+	}
+
+	return l.aux1(fnSymIdx, goobj.AuxSehUnwindInfo)
 }
 
 // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
@@ -1638,6 +1690,15 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 		}
 	}
 	return
+}
+
+func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
+	aux := l.aux1(i, goobj.AuxDwarfInfo)
+	if aux != 0 && l.SymType(aux) != sym.SDWARFVAR {
+		fmt.Println(l.SymName(i), l.SymType(i), l.SymType(aux), sym.SDWARFVAR)
+		panic("aux dwarf info sym with wrong type")
+	}
+	return aux
 }
 
 // AddInteriorSym sets up 'interior' as an interior symbol of
@@ -1689,17 +1750,22 @@ func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
 	l.outer[interior] = container
 }
 
-// OuterSym gets the outer symbol for host object loaded symbols.
+// OuterSym gets the outer/container symbol.
 func (l *Loader) OuterSym(i Sym) Sym {
-	// FIXME: add check for isExternal?
 	return l.outer[i]
 }
 
 // SubSym gets the subsymbol for host object loaded symbols.
 func (l *Loader) SubSym(i Sym) Sym {
-	// NB: note -- no check for l.isExternal(), since I am pretty sure
-	// that later phases in the linker set subsym for "type:" syms
 	return l.sub[i]
+}
+
+// growOuter grows the slice used to store outer symbol.
+func (l *Loader) growOuter(reqLen int) {
+	curLen := len(l.outer)
+	if reqLen > curLen {
+		l.outer = append(l.outer, make([]Sym, reqLen-curLen)...)
+	}
 }
 
 // SetCarrierSym declares that 'c' is the carrier or container symbol
@@ -1794,6 +1860,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
 		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
 		l.attrUsedInIface = growBitmap(reqLen, l.attrUsedInIface)
+		l.attrSpecial = growBitmap(reqLen, l.attrSpecial)
 	}
 	l.growExtAttrBitmaps()
 }
@@ -1806,6 +1873,7 @@ func (l *Loader) growExtAttrBitmaps() {
 		l.attrDuplicateOK = growBitmap(extReqLen, l.attrDuplicateOK)
 		l.attrShared = growBitmap(extReqLen, l.attrShared)
 		l.attrExternal = growBitmap(extReqLen, l.attrExternal)
+		l.generatedSyms = growBitmap(extReqLen, l.generatedSyms)
 	}
 }
 
@@ -1828,7 +1896,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
 	return l.relocs(r, li)
 }
 
-// Relocs returns a Relocs object given a local sym index and reader.
+// relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	var rs []goobj.Reloc
 	if l.isExtReader(r) {
@@ -1950,11 +2018,11 @@ func (fi *FuncInfo) Locals() int {
 	return int((*goobj.FuncInfo)(nil).ReadLocals(fi.data))
 }
 
-func (fi *FuncInfo) FuncID() objabi.FuncID {
+func (fi *FuncInfo) FuncID() abi.FuncID {
 	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
 }
 
-func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
+func (fi *FuncInfo) FuncFlag() abi.FuncFlag {
 	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
@@ -1986,7 +2054,7 @@ func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
 // is an entry point, meaning that unwinders should stop when they hit
 // this function.
 func (fi *FuncInfo) TopFrame() bool {
-	return (fi.FuncFlag() & objabi.FuncFlag_TOPFRAME) != 0
+	return (fi.FuncFlag() & abi.FuncFlagTopFrame) != 0
 }
 
 type InlTreeNode struct {
@@ -2178,6 +2246,7 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 		loadObjRefs(l, o.r, arch)
 	}
 	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
+	l.outer = make([]Sym, l.NSym(), l.NSym()+1000)
 }
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {

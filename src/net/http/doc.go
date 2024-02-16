@@ -5,7 +5,7 @@
 /*
 Package http provides HTTP client and server implementations.
 
-Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
+[Get], [Head], [Post], and [PostForm] make HTTP (or HTTPS) requests:
 
 	resp, err := http.Get("http://example.com/")
 	...
@@ -14,7 +14,7 @@ Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
 	resp, err := http.PostForm("http://example.com/form",
 		url.Values{"key": {"Value"}, "id": {"123"}})
 
-The client must close the response body when finished with it:
+The caller must close the response body when finished with it:
 
 	resp, err := http.Get("http://example.com/")
 	if err != nil {
@@ -24,8 +24,10 @@ The client must close the response body when finished with it:
 	body, err := io.ReadAll(resp.Body)
 	// ...
 
+# Clients and Transports
+
 For control over HTTP client headers, redirect policy, and other
-settings, create a Client:
+settings, create a [Client]:
 
 	client := &http.Client{
 		CheckRedirect: redirectPolicyFunc,
@@ -41,7 +43,7 @@ settings, create a Client:
 	// ...
 
 For control over proxies, TLS configuration, keep-alives,
-compression, and other settings, create a Transport:
+compression, and other settings, create a [Transport]:
 
 	tr := &http.Transport{
 		MaxIdleConns:       10,
@@ -54,9 +56,11 @@ compression, and other settings, create a Transport:
 Clients and Transports are safe for concurrent use by multiple
 goroutines and for efficiency should only be created once and re-used.
 
+# Servers
+
 ListenAndServe starts an HTTP server with a given address and handler.
-The handler is usually nil, which means to use DefaultServeMux.
-Handle and HandleFunc add handlers to DefaultServeMux:
+The handler is usually nil, which means to use [DefaultServeMux].
+[Handle] and [HandleFunc] add handlers to [DefaultServeMux]:
 
 	http.Handle("/foo", fooHandler)
 
@@ -78,11 +82,13 @@ custom Server:
 	}
 	log.Fatal(s.ListenAndServe())
 
+# HTTP/2
+
 Starting with Go 1.6, the http package has transparent support for the
 HTTP/2 protocol when using HTTPS. Programs that must disable HTTP/2
-can do so by setting Transport.TLSNextProto (for clients) or
-Server.TLSNextProto (for servers) to a non-nil, empty
-map. Alternatively, the following GODEBUG environment variables are
+can do so by setting [Transport.TLSNextProto] (for clients) or
+[Server.TLSNextProto] (for servers) to a non-nil, empty
+map. Alternatively, the following GODEBUG settings are
 currently supported:
 
 	GODEBUG=http2client=0  # disable HTTP/2 client support
@@ -90,11 +96,9 @@ currently supported:
 	GODEBUG=http2debug=1   # enable verbose HTTP/2 debug logs
 	GODEBUG=http2debug=2   # ... even more verbose, with frame dumps
 
-The GODEBUG variables are not covered by Go's API compatibility
-promise. Please report any issues before disabling HTTP/2
-support: https://golang.org/s/http2bug
+Please report any issues before disabling HTTP/2 support: https://golang.org/s/http2bug
 
-The http package's Transport and Server both automatically enable
+The http package's [Transport] and [Server] both automatically enable
 HTTP/2 support for simple configurations. To enable HTTP/2 for more
 complex configurations, to use lower-level HTTP/2 features, or to use
 a newer version of Go's http2 package, import "golang.org/x/net/http2"

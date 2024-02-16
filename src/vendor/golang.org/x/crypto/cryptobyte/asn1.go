@@ -431,6 +431,14 @@ func (s *String) readBase128Int(out *int) bool {
 		}
 		ret <<= 7
 		b := s.read(1)[0]
+
+		// ITU-T X.690, section 8.19.2:
+		// The subidentifier shall be encoded in the fewest possible octets,
+		// that is, the leading octet of the subidentifier shall not have the value 0x80.
+		if i == 0 && b == 0x80 {
+			return false
+		}
+
 		ret |= int(b & 0x7f)
 		if b&0x80 == 0 {
 			*out = ret
@@ -559,7 +567,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	return true
 }
 
-// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
+// ReadASN1BitStringAsBytes decodes an ASN.1 BIT STRING into out and advances. It is
 // an error if the BIT STRING is not a whole number of bytes. It reports
 // whether the read was successful.
 func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
@@ -725,13 +733,14 @@ func (s *String) ReadOptionalASN1OctetString(out *[]byte, outPresent *bool, tag 
 	return true
 }
 
-// ReadOptionalASN1Boolean sets *out to the value of the next ASN.1 BOOLEAN or,
-// if the next bytes are not an ASN.1 BOOLEAN, to the value of defaultValue.
-// It reports whether the operation was successful.
-func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
+// ReadOptionalASN1Boolean attempts to read an optional ASN.1 BOOLEAN
+// explicitly tagged with tag into out and advances. If no element with a
+// matching tag is present, it sets "out" to defaultValue instead. It reports
+// whether the read was successful.
+func (s *String) ReadOptionalASN1Boolean(out *bool, tag asn1.Tag, defaultValue bool) bool {
 	var present bool
 	var child String
-	if !s.ReadOptionalASN1(&child, &present, asn1.BOOLEAN) {
+	if !s.ReadOptionalASN1(&child, &present, tag) {
 		return false
 	}
 
@@ -740,7 +749,7 @@ func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
 		return true
 	}
 
-	return s.ReadASN1Boolean(out)
+	return child.ReadASN1Boolean(out)
 }
 
 func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {

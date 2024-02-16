@@ -1,0 +1,31 @@
+[short] skip
+[!cgo] skip
+
+# Test that cgo rejects attempts to declare methods
+# on the types C.T or *C.T; see issue #57926.
+
+! go build
+stderr 'cannot define new methods on non-local type C.T'
+stderr 'cannot define new methods on non-local type \*C.T'
+! stderr 'Alias'
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a.go --
+package a
+
+/*
+typedef int T;
+*/
+import "C"
+
+func (C.T) f() {}
+func (recv *C.T) g() {}
+
+// The check is more education than enforcement,
+// and is easily defeated using a type alias.
+type Alias = C.T
+func (Alias) h() {}
+func (*Alias) i() {}

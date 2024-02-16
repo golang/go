@@ -68,7 +68,7 @@ func TestScanRune(t *testing.T) {
 		var i, runeCount int
 		var expect rune
 		// Use a string range loop to validate the sequence of runes.
-		for i, expect = range string(test) {
+		for i, expect = range test {
 			if !s.Scan() {
 				break
 			}

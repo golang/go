@@ -95,6 +95,11 @@ func (b *Builder) AddUint32(v uint32) {
 	b.add(byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 }
 
+// AddUint48 appends a big-endian, 48-bit value to the byte string.
+func (b *Builder) AddUint48(v uint64) {
+	b.add(byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
 // AddUint64 appends a big-endian, 64-bit value to the byte string.
 func (b *Builder) AddUint64(v uint64) {
 	b.add(byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
@@ -303,9 +308,9 @@ func (b *Builder) add(bytes ...byte) {
 	b.result = append(b.result, bytes...)
 }
 
-// Unwrite rolls back n bytes written directly to the Builder. An attempt by a
-// child builder passed to a continuation to unwrite bytes from its parent will
-// panic.
+// Unwrite rolls back non-negative n bytes written directly to the Builder.
+// An attempt by a child builder passed to a continuation to unwrite bytes
+// from its parent will panic.
 func (b *Builder) Unwrite(n int) {
 	if b.err != nil {
 		return
@@ -316,6 +321,9 @@ func (b *Builder) Unwrite(n int) {
 	length := len(b.result) - b.pendingLenLen - b.offset
 	if length < 0 {
 		panic("cryptobyte: internal error")
+	}
+	if n < 0 {
+		panic("cryptobyte: attempted to unwrite negative number of bytes")
 	}
 	if n > length {
 		panic("cryptobyte: attempted to unwrite more than was written")

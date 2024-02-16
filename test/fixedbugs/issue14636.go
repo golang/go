@@ -1,5 +1,6 @@
-// +build !nacl,!js,!android,gc
 // run
+
+//go:build !nacl && !js && !wasip1 && !android && gc
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

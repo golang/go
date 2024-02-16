@@ -7,7 +7,7 @@ package vcweb
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -77,7 +77,7 @@ func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (htt
 			accessDir = path.Dir(accessDir)
 		}
 
-		data, err := ioutil.ReadAll(accessFile)
+		data, err := io.ReadAll(accessFile)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

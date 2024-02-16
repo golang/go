@@ -25,7 +25,7 @@ type Encoder struct {
 }
 
 // EncoderBufferPool is an interface for getting and returning temporary
-// instances of the EncoderBuffer struct. This can be used to reuse buffers
+// instances of the [EncoderBuffer] struct. This can be used to reuse buffers
 // when encoding multiple images.
 type EncoderBufferPool interface {
 	Get() *EncoderBuffer
@@ -190,7 +190,7 @@ func (e *encoder) writePLTEAndTRNS(p color.Palette) {
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
 // including an 8-byte header and 4-byte CRC checksum per Write call. Such calls
-// should be relatively infrequent, since writeIDATs uses a bufio.Writer.
+// should be relatively infrequent, since writeIDATs uses a [bufio.Writer].
 //
 // This method should only be called from writeIDATs (via writeImage).
 // No other code should treat an encoder as an io.Writer.
@@ -586,7 +586,7 @@ func levelToZlib(l CompressionLevel) int {
 func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be
-// encoded, but images that are not image.NRGBA might be encoded lossily.
+// encoded, but images that are not [image.NRGBA] might be encoded lossily.
 func Encode(w io.Writer, m image.Image) error {
 	var e Encoder
 	return e.Encode(w, m)

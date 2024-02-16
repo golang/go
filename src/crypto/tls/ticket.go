@@ -5,181 +5,417 @@
 package tls
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
 	"errors"
 	"io"
 
 	"golang.org/x/crypto/cryptobyte"
 )
 
-// sessionState contains the information that is serialized into a session
-// ticket in order to later resume a connection.
-type sessionState struct {
-	vers         uint16
-	cipherSuite  uint16
-	createdAt    uint64
-	masterSecret []byte // opaque master_secret<1..2^16-1>;
-	// struct { opaque certificate<1..2^24-1> } Certificate;
-	certificates [][]byte // Certificate certificate_list<0..2^24-1>;
+// A SessionState is a resumable session.
+type SessionState struct {
+	// Encoded as a SessionState (in the language of RFC 8446, Section 3).
+	//
+	//   enum { server(1), client(2) } SessionStateType;
+	//
+	//   opaque Certificate<1..2^24-1>;
+	//
+	//   Certificate CertificateChain<0..2^24-1>;
+	//
+	//   opaque Extra<0..2^24-1>;
+	//
+	//   struct {
+	//       uint16 version;
+	//       SessionStateType type;
+	//       uint16 cipher_suite;
+	//       uint64 created_at;
+	//       opaque secret<1..2^8-1>;
+	//       Extra extra<0..2^24-1>;
+	//       uint8 ext_master_secret = { 0, 1 };
+	//       uint8 early_data = { 0, 1 };
+	//       CertificateEntry certificate_list<0..2^24-1>;
+	//       CertificateChain verified_chains<0..2^24-1>; /* excluding leaf */
+	//       select (SessionState.early_data) {
+	//           case 0: Empty;
+	//           case 1: opaque alpn<1..2^8-1>;
+	//       };
+	//       select (SessionState.type) {
+	//           case server: Empty;
+	//           case client: struct {
+	//               select (SessionState.version) {
+	//                   case VersionTLS10..VersionTLS12: Empty;
+	//                   case VersionTLS13: struct {
+	//                       uint64 use_by;
+	//                       uint32 age_add;
+	//                   };
+	//               };
+	//           };
+	//       };
+	//   } SessionState;
+	//
 
-	// usedOldKey is true if the ticket from which this session came from
-	// was encrypted with an older key and thus should be refreshed.
-	usedOldKey bool
+	// Extra is ignored by crypto/tls, but is encoded by [SessionState.Bytes]
+	// and parsed by [ParseSessionState].
+	//
+	// This allows [Config.UnwrapSession]/[Config.WrapSession] and
+	// [ClientSessionCache] implementations to store and retrieve additional
+	// data alongside this session.
+	//
+	// To allow different layers in a protocol stack to share this field,
+	// applications must only append to it, not replace it, and must use entries
+	// that can be recognized even if out of order (for example, by starting
+	// with an id and version prefix).
+	Extra [][]byte
+
+	// EarlyData indicates whether the ticket can be used for 0-RTT in a QUIC
+	// connection. The application may set this to false if it is true to
+	// decline to offer 0-RTT even if supported.
+	EarlyData bool
+
+	version     uint16
+	isClient    bool
+	cipherSuite uint16
+	// createdAt is the generation time of the secret on the sever (which for
+	// TLS 1.0–1.2 might be earlier than the current session) and the time at
+	// which the ticket was received on the client.
+	createdAt         uint64 // seconds since UNIX epoch
+	secret            []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
+	extMasterSecret   bool
+	peerCertificates  []*x509.Certificate
+	activeCertHandles []*activeCert
+	ocspResponse      []byte
+	scts              [][]byte
+	verifiedChains    [][]*x509.Certificate
+	alpnProtocol      string // only set if EarlyData is true
+
+	// Client-side TLS 1.3-only fields.
+	useBy  uint64 // seconds since UNIX epoch
+	ageAdd uint32
 }
 
-func (m *sessionState) marshal() []byte {
+// Bytes encodes the session, including any private fields, so that it can be
+// parsed by [ParseSessionState]. The encoding contains secret values critical
+// to the security of future and possibly past sessions.
+//
+// The specific encoding should be considered opaque and may change incompatibly
+// between Go versions.
+func (s *SessionState) Bytes() ([]byte, error) {
 	var b cryptobyte.Builder
-	b.AddUint16(m.vers)
-	b.AddUint16(m.cipherSuite)
-	addUint64(&b, m.createdAt)
-	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes(m.masterSecret)
+	b.AddUint16(s.version)
+	if s.isClient {
+		b.AddUint8(2) // client
+	} else {
+		b.AddUint8(1) // server
+	}
+	b.AddUint16(s.cipherSuite)
+	addUint64(&b, s.createdAt)
+	b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddBytes(s.secret)
 	})
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-		for _, cert := range m.certificates {
+		for _, extra := range s.Extra {
 			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-				b.AddBytes(cert)
+				b.AddBytes(extra)
 			})
 		}
 	})
-	return b.BytesOrPanic()
-}
-
-func (m *sessionState) unmarshal(data []byte) bool {
-	*m = sessionState{usedOldKey: m.usedOldKey}
-	s := cryptobyte.String(data)
-	if ok := s.ReadUint16(&m.vers) &&
-		s.ReadUint16(&m.cipherSuite) &&
-		readUint64(&s, &m.createdAt) &&
-		readUint16LengthPrefixed(&s, &m.masterSecret) &&
-		len(m.masterSecret) != 0; !ok {
-		return false
+	if s.extMasterSecret {
+		b.AddUint8(1)
+	} else {
+		b.AddUint8(0)
 	}
-	var certList cryptobyte.String
-	if !s.ReadUint24LengthPrefixed(&certList) {
-		return false
+	if s.EarlyData {
+		b.AddUint8(1)
+	} else {
+		b.AddUint8(0)
 	}
-	for !certList.Empty() {
-		var cert []byte
-		if !readUint24LengthPrefixed(&certList, &cert) {
-			return false
-		}
-		m.certificates = append(m.certificates, cert)
-	}
-	return s.Empty()
-}
-
-// sessionStateTLS13 is the content of a TLS 1.3 session ticket. Its first
-// version (revision = 0) doesn't carry any of the information needed for 0-RTT
-// validation and the nonce is always empty.
-type sessionStateTLS13 struct {
-	// uint8 version  = 0x0304;
-	// uint8 revision = 0;
-	cipherSuite      uint16
-	createdAt        uint64
-	resumptionSecret []byte      // opaque resumption_master_secret<1..2^8-1>;
-	certificate      Certificate // CertificateEntry certificate_list<0..2^24-1>;
-}
-
-func (m *sessionStateTLS13) marshal() []byte {
-	var b cryptobyte.Builder
-	b.AddUint16(VersionTLS13)
-	b.AddUint8(0) // revision
-	b.AddUint16(m.cipherSuite)
-	addUint64(&b, m.createdAt)
-	b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes(m.resumptionSecret)
+	marshalCertificate(&b, Certificate{
+		Certificate:                 certificatesToBytesSlice(s.peerCertificates),
+		OCSPStaple:                  s.ocspResponse,
+		SignedCertificateTimestamps: s.scts,
 	})
-	marshalCertificate(&b, m.certificate)
-	return b.BytesOrPanic()
+	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+		for _, chain := range s.verifiedChains {
+			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+				// We elide the first certificate because it's always the leaf.
+				if len(chain) == 0 {
+					b.SetError(errors.New("tls: internal error: empty verified chain"))
+					return
+				}
+				for _, cert := range chain[1:] {
+					b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddBytes(cert.Raw)
+					})
+				}
+			})
+		}
+	})
+	if s.EarlyData {
+		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes([]byte(s.alpnProtocol))
+		})
+	}
+	if s.isClient {
+		if s.version >= VersionTLS13 {
+			addUint64(&b, s.useBy)
+			b.AddUint32(s.ageAdd)
+		}
+	}
+	return b.Bytes()
 }
 
-func (m *sessionStateTLS13) unmarshal(data []byte) bool {
-	*m = sessionStateTLS13{}
+func certificatesToBytesSlice(certs []*x509.Certificate) [][]byte {
+	s := make([][]byte, 0, len(certs))
+	for _, c := range certs {
+		s = append(s, c.Raw)
+	}
+	return s
+}
+
+// ParseSessionState parses a [SessionState] encoded by [SessionState.Bytes].
+func ParseSessionState(data []byte) (*SessionState, error) {
+	ss := &SessionState{}
 	s := cryptobyte.String(data)
-	var version uint16
-	var revision uint8
-	return s.ReadUint16(&version) &&
-		version == VersionTLS13 &&
-		s.ReadUint8(&revision) &&
-		revision == 0 &&
-		s.ReadUint16(&m.cipherSuite) &&
-		readUint64(&s, &m.createdAt) &&
-		readUint8LengthPrefixed(&s, &m.resumptionSecret) &&
-		len(m.resumptionSecret) != 0 &&
-		unmarshalCertificate(&s, &m.certificate) &&
-		s.Empty()
+	var typ, extMasterSecret, earlyData uint8
+	var cert Certificate
+	var extra cryptobyte.String
+	if !s.ReadUint16(&ss.version) ||
+		!s.ReadUint8(&typ) ||
+		(typ != 1 && typ != 2) ||
+		!s.ReadUint16(&ss.cipherSuite) ||
+		!readUint64(&s, &ss.createdAt) ||
+		!readUint8LengthPrefixed(&s, &ss.secret) ||
+		!s.ReadUint24LengthPrefixed(&extra) ||
+		!s.ReadUint8(&extMasterSecret) ||
+		!s.ReadUint8(&earlyData) ||
+		len(ss.secret) == 0 ||
+		!unmarshalCertificate(&s, &cert) {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	for !extra.Empty() {
+		var e []byte
+		if !readUint24LengthPrefixed(&extra, &e) {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		ss.Extra = append(ss.Extra, e)
+	}
+	switch extMasterSecret {
+	case 0:
+		ss.extMasterSecret = false
+	case 1:
+		ss.extMasterSecret = true
+	default:
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	switch earlyData {
+	case 0:
+		ss.EarlyData = false
+	case 1:
+		ss.EarlyData = true
+	default:
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	for _, cert := range cert.Certificate {
+		c, err := globalCertCache.newCert(cert)
+		if err != nil {
+			return nil, err
+		}
+		ss.activeCertHandles = append(ss.activeCertHandles, c)
+		ss.peerCertificates = append(ss.peerCertificates, c.cert)
+	}
+	ss.ocspResponse = cert.OCSPStaple
+	ss.scts = cert.SignedCertificateTimestamps
+	var chainList cryptobyte.String
+	if !s.ReadUint24LengthPrefixed(&chainList) {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	for !chainList.Empty() {
+		var certList cryptobyte.String
+		if !chainList.ReadUint24LengthPrefixed(&certList) {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		var chain []*x509.Certificate
+		if len(ss.peerCertificates) == 0 {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		chain = append(chain, ss.peerCertificates[0])
+		for !certList.Empty() {
+			var cert []byte
+			if !readUint24LengthPrefixed(&certList, &cert) {
+				return nil, errors.New("tls: invalid session encoding")
+			}
+			c, err := globalCertCache.newCert(cert)
+			if err != nil {
+				return nil, err
+			}
+			ss.activeCertHandles = append(ss.activeCertHandles, c)
+			chain = append(chain, c.cert)
+		}
+		ss.verifiedChains = append(ss.verifiedChains, chain)
+	}
+	if ss.EarlyData {
+		var alpn []byte
+		if !readUint8LengthPrefixed(&s, &alpn) {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		ss.alpnProtocol = string(alpn)
+	}
+	if isClient := typ == 2; !isClient {
+		if !s.Empty() {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		return ss, nil
+	}
+	ss.isClient = true
+	if len(ss.peerCertificates) == 0 {
+		return nil, errors.New("tls: no server certificates in client session")
+	}
+	if ss.version < VersionTLS13 {
+		if !s.Empty() {
+			return nil, errors.New("tls: invalid session encoding")
+		}
+		return ss, nil
+	}
+	if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) || !s.Empty() {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+	return ss, nil
 }
 
-func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
-	if len(c.ticketKeys) == 0 {
+// sessionState returns a partially filled-out [SessionState] with information
+// from the current connection.
+func (c *Conn) sessionState() (*SessionState, error) {
+	return &SessionState{
+		version:           c.vers,
+		cipherSuite:       c.cipherSuite,
+		createdAt:         uint64(c.config.time().Unix()),
+		alpnProtocol:      c.clientProtocol,
+		peerCertificates:  c.peerCertificates,
+		activeCertHandles: c.activeCertHandles,
+		ocspResponse:      c.ocspResponse,
+		scts:              c.scts,
+		isClient:          c.isClient,
+		extMasterSecret:   c.extMasterSecret,
+		verifiedChains:    c.verifiedChains,
+	}, nil
+}
+
+// EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
+// session ticket keys. It can be used as a [Config.WrapSession] implementation.
+func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
+	ticketKeys := c.ticketKeys(nil)
+	stateBytes, err := ss.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return c.encryptTicket(stateBytes, ticketKeys)
+}
+
+func (c *Config) encryptTicket(state []byte, ticketKeys []ticketKey) ([]byte, error) {
+	if len(ticketKeys) == 0 {
 		return nil, errors.New("tls: internal error: session ticket keys unavailable")
 	}
 
-	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(state)+sha256.Size)
-	keyName := encrypted[:ticketKeyNameLen]
-	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
+	encrypted := make([]byte, aes.BlockSize+len(state)+sha256.Size)
+	iv := encrypted[:aes.BlockSize]
+	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
+	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 
-	if _, err := io.ReadFull(c.config.rand(), iv); err != nil {
+	if _, err := io.ReadFull(c.rand(), iv); err != nil {
 		return nil, err
 	}
-	key := c.ticketKeys[0]
-	copy(keyName, key.keyName[:])
+	key := ticketKeys[0]
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
 		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
 	}
-	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], state)
+	cipher.NewCTR(block, iv).XORKeyStream(ciphertext, state)
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
-	mac.Write(encrypted[:len(encrypted)-sha256.Size])
+	mac.Write(authenticated)
 	mac.Sum(macBytes[:0])
 
 	return encrypted, nil
 }
 
-func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey bool) {
-	if len(encrypted) < ticketKeyNameLen+aes.BlockSize+sha256.Size {
-		return nil, false
+// DecryptTicket decrypts a ticket encrypted by [Config.EncryptTicket]. It can
+// be used as a [Config.UnwrapSession] implementation.
+//
+// If the ticket can't be decrypted or parsed, DecryptTicket returns (nil, nil).
+func (c *Config) DecryptTicket(identity []byte, cs ConnectionState) (*SessionState, error) {
+	ticketKeys := c.ticketKeys(nil)
+	stateBytes := c.decryptTicket(identity, ticketKeys)
+	if stateBytes == nil {
+		return nil, nil
 	}
-
-	keyName := encrypted[:ticketKeyNameLen]
-	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
-	macBytes := encrypted[len(encrypted)-sha256.Size:]
-	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
-
-	keyIndex := -1
-	for i, candidateKey := range c.ticketKeys {
-		if bytes.Equal(keyName, candidateKey.keyName[:]) {
-			keyIndex = i
-			break
-		}
-	}
-	if keyIndex == -1 {
-		return nil, false
-	}
-	key := &c.ticketKeys[keyIndex]
-
-	mac := hmac.New(sha256.New, key.hmacKey[:])
-	mac.Write(encrypted[:len(encrypted)-sha256.Size])
-	expected := mac.Sum(nil)
-
-	if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
-		return nil, false
-	}
-
-	block, err := aes.NewCipher(key.aesKey[:])
+	s, err := ParseSessionState(stateBytes)
 	if err != nil {
-		return nil, false
+		return nil, nil // drop unparsable tickets on the floor
 	}
-	plaintext = make([]byte, len(ciphertext))
-	cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
+	return s, nil
+}
 
-	return plaintext, keyIndex > 0
+func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte {
+	if len(encrypted) < aes.BlockSize+sha256.Size {
+		return nil
+	}
+
+	iv := encrypted[:aes.BlockSize]
+	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
+	authenticated := encrypted[:len(encrypted)-sha256.Size]
+	macBytes := encrypted[len(encrypted)-sha256.Size:]
+
+	for _, key := range ticketKeys {
+		mac := hmac.New(sha256.New, key.hmacKey[:])
+		mac.Write(authenticated)
+		expected := mac.Sum(nil)
+
+		if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
+			continue
+		}
+
+		block, err := aes.NewCipher(key.aesKey[:])
+		if err != nil {
+			return nil
+		}
+		plaintext := make([]byte, len(ciphertext))
+		cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
+
+		return plaintext
+	}
+
+	return nil
+}
+
+// ClientSessionState contains the state needed by a client to
+// resume a previous TLS session.
+type ClientSessionState struct {
+	ticket  []byte
+	session *SessionState
+}
+
+// ResumptionState returns the session ticket sent by the server (also known as
+// the session's identity) and the state necessary to resume this session.
+//
+// It can be called by [ClientSessionCache.Put] to serialize (with
+// [SessionState.Bytes]) and store the session.
+func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionState, err error) {
+	return cs.ticket, cs.session, nil
+}
+
+// NewResumptionState returns a state value that can be returned by
+// [ClientSessionCache.Get] to resume a previous session.
+//
+// state needs to be returned by [ParseSessionState], and the ticket and session
+// state must have been returned by [ClientSessionState.ResumptionState].
+func NewResumptionState(ticket []byte, state *SessionState) (*ClientSessionState, error) {
+	return &ClientSessionState{
+		ticket: ticket, session: state,
+	}, nil
 }

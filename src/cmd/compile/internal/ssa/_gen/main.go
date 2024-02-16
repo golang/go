@@ -191,7 +191,7 @@ func main() {
 
 func genOp() {
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go; DO NOT EDIT.\n")
+	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
 

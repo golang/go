@@ -89,7 +89,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 //	} else
 //		return 0;
 TEXT ·Casp1(SB), NOSPLIT, $0-25
-	JMP runtime∕internal∕atomic·Cas64(SB)
+	JMP	·Cas64(SB)
 
 // uint32 xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
@@ -256,6 +256,66 @@ TEXT ·And(SB), NOSPLIT, $0-12
 	DBAR
 	RET
 
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOVV	ptr+0(FP), R4
+	MOVW	val+8(FP), R5
+	DBAR
+	LL	(R4), R6
+	OR	R5, R6, R7
+	SC	R7, (R4)
+	BEQ	R7, -4(PC)
+	DBAR
+	MOVW R6, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOVV	ptr+0(FP), R4
+	MOVW	val+8(FP), R5
+	DBAR
+	LL	(R4), R6
+	AND	R5, R6, R7
+	SC	R7, (R4)
+	BEQ	R7, -4(PC)
+	DBAR
+	MOVW R6, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOVV	ptr+0(FP), R4
+	MOVV	val+8(FP), R5
+	DBAR
+	LLV	(R4), R6
+	OR	R5, R6, R7
+	SCV	R7, (R4)
+	BEQ	R7, -4(PC)
+	DBAR
+	MOVV R6, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOVV	ptr+0(FP), R4
+	MOVV	val+8(FP), R5
+	DBAR
+	LLV	(R4), R6
+	AND	R5, R6, R7
+	SCV	R7, (R4)
+	BEQ	R7, -4(PC)
+	DBAR
+	MOVV R6, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	JMP	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	JMP	·Or64(SB)
+
 // uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOVV	ptr+0(FP), R19
@@ -294,13 +354,13 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 
 // uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
-	JMP	atomic·Load(SB)
+	JMP	·Load(SB)
 
 // uint64 ·LoadAcq64(uint64 volatile* ptr)
 TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
-	JMP	atomic·Load64(SB)
+	JMP	·Load64(SB)
 
 // uintptr ·LoadAcquintptr(uintptr volatile* ptr)
 TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
-	JMP     atomic·Load64(SB)
+	JMP	·Load64(SB)
 

@@ -17,6 +17,119 @@ import (
 	"internal/buildcfg"
 )
 
+/*
+
+   Wasm implementation
+   -------------------
+
+   Wasm is a strange Go port because the machine isn't
+   a register-based machine, threads are different, code paths
+   are different, etc. We outline those differences here.
+
+   See the design doc for some additional info on this topic.
+   https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4/edit#heading=h.mjo1bish3xni
+
+   PCs:
+
+   Wasm doesn't have PCs in the normal sense that you can jump
+   to or call to. Instead, we simulate these PCs using our own construct.
+
+   A PC in the Wasm implementation is the combination of a function
+   ID and a block ID within that function. The function ID is an index
+   into a function table which transfers control to the start of the
+   function in question, and the block ID is a sequential integer
+   indicating where in the function we are.
+
+   Every function starts with a branch table which transfers control
+   to the place in the function indicated by the block ID. The block
+   ID is provided to the function as the sole Wasm argument.
+
+   Block IDs do not encode every possible PC. They only encode places
+   in the function where it might be suspended. Typically these places
+   are call sites.
+
+   Sometimes we encode the function ID and block ID separately. When
+   recorded together as a single integer, we use the value F<<16+B.
+
+   Threads:
+
+   Wasm doesn't (yet) have threads. We have to simulate threads by
+   keeping goroutine stacks in linear memory and unwinding
+   the Wasm stack each time we want to switch goroutines.
+
+   To support unwinding a stack, each function call returns on the Wasm
+   stack a boolean that tells the function whether it should return
+   immediately or not. When returning immediately, a return address
+   is left on the top of the Go stack indicating where the goroutine
+   should be resumed.
+
+   Stack pointer:
+
+   There is a single global stack pointer which records the stack pointer
+   used by the currently active goroutine. This is just an address in
+   linear memory where the Go runtime is maintaining the stack for that
+   goroutine.
+
+   Functions cache the global stack pointer in a local variable for
+   faster access, but any changes must be spilled to the global variable
+   before any call and restored from the global variable after any call.
+
+   Calling convention:
+
+   All Go arguments and return values are passed on the Go stack, not
+   the wasm stack. In addition, return addresses are pushed on the
+   Go stack at every call point. Return addresses are not used during
+   normal execution, they are used only when resuming goroutines.
+   (So they are not really a "return address", they are a "resume address".)
+
+   All Go functions have the Wasm type (i32)->i32. The argument
+   is the block ID and the return value is the exit immediately flag.
+
+   Callsite:
+    - write arguments to the Go stack (starting at SP+0)
+    - push return address to Go stack (8 bytes)
+    - write local SP to global SP
+    - push 0 (type i32) to Wasm stack
+    - issue Call
+    - restore local SP from global SP
+    - pop int32 from top of Wasm stack. If nonzero, exit function immediately.
+    - use results from Go stack (starting at SP+sizeof(args))
+       - note that the callee will have popped the return address
+
+   Prologue:
+    - initialize local SP from global SP
+    - jump to the location indicated by the block ID argument
+      (which appears in local variable 0)
+    - at block 0
+      - check for Go stack overflow, call morestack if needed
+      - subtract frame size from SP
+      - note that arguments now start at SP+framesize+8
+
+   Normal epilogue:
+    - pop frame from Go stack
+    - pop return address from Go stack
+    - push 0 (type i32) on the Wasm stack
+    - return
+   Exit immediately epilogue:
+    - push 1 (type i32) on the Wasm stack
+    - return
+    - note that the return address and stack frame are left on the Go stack
+
+   The main loop that executes goroutines is wasm_pc_f_loop, in
+   runtime/rt0_js_wasm.s. It grabs the saved return address from
+   the top of the Go stack (actually SP-8?), splits it up into F
+   and B parts, then calls F with its Wasm argument set to B.
+
+   Note that when resuming a goroutine, only the most recent function
+   invocation of that goroutine appears on the Wasm stack. When that
+   Wasm function returns normally, the next most recent frame will
+   then be started up by wasm_pc_f_loop.
+
+   Global 0 is SP (stack pointer)
+   Global 1 is CTXT (closure pointer)
+   Global 2 is GP (goroutine pointer)
+*/
+
 func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &wasm.Linkwasm
 	arch.REGSP = wasm.REG_SP
@@ -172,10 +285,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 	case ssa.OpWasmLoweredWB:
-		getValue64(s, v.Args[0])
-		getValue64(s, v.Args[1])
-		p := s.Prog(wasm.ACALLNORESUME) // TODO(neelance): If possible, turn this into a simple wasm.ACall).
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: v.Aux.(*obj.LSym)}
+		p := s.Prog(wasm.ACall)
+		// AuxInt encodes how many buffer entries we need.
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.GCWriteBarrier[v.AuxInt-1]}
+		setReg(s, v.Reg0()) // move result from wasm stack to register local
 
 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
 		getValue32(s, v.Args[0])

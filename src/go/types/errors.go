@@ -52,11 +52,11 @@ func (err *error_) empty() bool {
 	return err.desc == nil
 }
 
-func (err *error_) pos() token.Pos {
+func (err *error_) posn() positioner {
 	if err.empty() {
-		return token.NoPos
+		return noposn
 	}
-	return err.desc[0].posn.Pos()
+	return err.desc[0].posn
 }
 
 func (err *error_) msg(fset *token.FileSet, qf Qualifier) string {
@@ -82,13 +82,13 @@ func (err *error_) String() string {
 	if err.empty() {
 		return "no error"
 	}
-	return fmt.Sprintf("%d: %s", err.pos(), err.msg(nil, nil))
+	return fmt.Sprintf("%d: %s", err.posn().Pos(), err.msg(nil, nil))
 }
 
 // errorf adds formatted error information to err.
 // It may be called multiple times to provide additional information.
-func (err *error_) errorf(at token.Pos, format string, args ...interface{}) {
-	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
+func (err *error_) errorf(at positioner, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{at, format, args})
 }
 
 func (check *Checker) qualifier(pkg *Package) string {
@@ -228,6 +228,16 @@ func (check *Checker) report(errp *error_) {
 		panic("no error code provided")
 	}
 
+	// If we have a URL for error codes, add a link to the first line.
+	if errp.code != 0 && check.conf._ErrorURL != "" {
+		u := fmt.Sprintf(check.conf._ErrorURL, errp.code)
+		if i := strings.Index(msg, "\n"); i >= 0 {
+			msg = msg[:i] + u + msg[i:]
+		} else {
+			msg += u
+		}
+	}
+
 	span := spanOf(errp.desc[0].posn)
 	e := Error{
 		Fset:       check.fset,
@@ -266,7 +276,7 @@ func (check *Checker) report(errp *error_) {
 		check.firstErr = err
 	}
 
-	if trace {
+	if check.conf._Trace {
 		pos := e.Pos
 		msg := e.Msg
 		check.trace(pos, "ERROR: %s", msg)
@@ -293,7 +303,7 @@ func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
 }
 
 func (check *Checker) error(at positioner, code Code, msg string) {
-	check.report(newErrorf(at, code, msg))
+	check.report(newErrorf(at, code, "%s", msg))
 }
 
 func (check *Checker) errorf(at positioner, code Code, format string, args ...any) {
@@ -306,10 +316,10 @@ func (check *Checker) softErrorf(at positioner, code Code, format string, args .
 	check.report(err)
 }
 
-func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at positioner, v goVersion, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
-	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
+	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, v)
 	check.report(err)
 }
 
@@ -367,7 +377,7 @@ func spanOf(at positioner) posSpan {
 			pos := x.Pos()
 			return posSpan{pos, pos, x.expr.End()}
 		}
-		return posSpan{token.NoPos, token.NoPos, token.NoPos}
+		return posSpan{nopos, nopos, nopos}
 	default:
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}

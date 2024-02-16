@@ -4,7 +4,7 @@
 
 // Package errors implements functions to manipulate errors.
 //
-// The New function creates errors whose only content is a text message.
+// The [New] function creates errors whose only content is a text message.
 //
 // An error e wraps another error if e's type has one of the methods
 //
@@ -16,17 +16,17 @@
 // indicates that e does not wrap any error. It is invalid for an
 // Unwrap method to return an []error containing a nil error value.
 //
-// An easy way to create wrapped errors is to call fmt.Errorf and apply
+// An easy way to create wrapped errors is to call [fmt.Errorf] and apply
 // the %w verb to the error argument:
 //
 //	wrapsErr := fmt.Errorf("... %w ...", ..., err, ...)
 //
-// Successive unwrapping of an error creates a tree. The Is and As
+// Successive unwrapping of an error creates a tree. The [Is] and [As]
 // functions inspect an error's tree by examining first the error
 // itself followed by the tree of each of its children in turn
 // (pre-order, depth-first traversal).
 //
-// Is examines the tree of its first argument looking for an error that
+// [Is] examines the tree of its first argument looking for an error that
 // matches the second. It reports whether it finds a match. It should be
 // used in preference to simple equality checks:
 //
@@ -36,9 +36,9 @@
 //
 //	if err == fs.ErrExist
 //
-// because the former will succeed if err wraps fs.ErrExist.
+// because the former will succeed if err wraps [io/fs.ErrExist].
 //
-// As examines the tree of its first argument looking for an error that can be
+// [As] examines the tree of its first argument looking for an error that can be
 // assigned to its second argument, which must be a pointer. If it succeeds, it
 // performs the assignment and returns true. Otherwise, it returns false. The form
 //
@@ -53,7 +53,7 @@
 //		fmt.Println(perr.Path)
 //	}
 //
-// because the former will succeed if err wraps an *fs.PathError.
+// because the former will succeed if err wraps an [*io/fs.PathError].
 package errors
 
 // New returns an error that formats as the given text.
@@ -70,3 +70,18 @@ type errorString struct {
 func (e *errorString) Error() string {
 	return e.s
 }
+
+// ErrUnsupported indicates that a requested operation cannot be performed,
+// because it is unsupported. For example, a call to [os.Link] when using a
+// file system that does not support hard links.
+//
+// Functions and methods should not return this error but should instead
+// return an error including appropriate context that satisfies
+//
+//	errors.Is(err, errors.ErrUnsupported)
+//
+// either by directly wrapping ErrUnsupported or by implementing an [Is] method.
+//
+// Functions and methods should document the cases in which an error
+// wrapping this will be returned.
+var ErrUnsupported = New("unsupported operation")

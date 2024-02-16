@@ -23,7 +23,7 @@ type T3 interface {
 
 func _() {
 	_ = T0(0)
-	_ = T1 /* ERROR cannot use interface T1 in conversion */ (1)
-	_ = T2 /* ERROR cannot use interface T2 in conversion */ (2)
-	_ = T3 /* ERROR cannot use interface T3 in conversion */ (3)
+	_ = T1 /* ERROR "cannot use interface T1 in conversion" */ (1)
+	_ = T2 /* ERROR "cannot use interface T2 in conversion" */ (2)
+	_ = T3 /* ERROR "cannot use interface T3 in conversion" */ (3)
 }

@@ -629,6 +629,11 @@ func BenchmarkEqual(b *testing.B) {
 	})
 
 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
+
+	b.Run("same", func(b *testing.B) {
+		benchBytes(b, sizes, bmEqual(func(a, b []byte) bool { return Equal(a, a) }))
+	})
+
 	benchBytes(b, sizes, bmEqual(Equal))
 }
 
@@ -649,6 +654,38 @@ func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
 		}
 		buf1[n-1] = '\x00'
 		buf2[n-1] = '\x00'
+	}
+}
+
+func BenchmarkEqualBothUnaligned(b *testing.B) {
+	sizes := []int{64, 4 << 10}
+	if !isRaceBuilder {
+		sizes = append(sizes, []int{4 << 20, 64 << 20}...)
+	}
+	maxSize := 2 * (sizes[len(sizes)-1] + 8)
+	if len(bmbuf) < maxSize {
+		bmbuf = make([]byte, maxSize)
+	}
+
+	for _, n := range sizes {
+		for _, off := range []int{0, 1, 4, 7} {
+			buf1 := bmbuf[off : off+n]
+			buf2Start := (len(bmbuf) / 2) + off
+			buf2 := bmbuf[buf2Start : buf2Start+n]
+			buf1[n-1] = 'x'
+			buf2[n-1] = 'x'
+			b.Run(fmt.Sprint(n, off), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					eq := Equal(buf1, buf2)
+					if !eq {
+						b.Fatal("bad equal")
+					}
+				}
+			})
+			buf1[n-1] = '\x00'
+			buf2[n-1] = '\x00'
+		}
 	}
 }
 
@@ -1728,7 +1765,7 @@ func TestCutPrefix(t *testing.T) {
 
 var cutSuffixTests = []struct {
 	s, sep string
-	after  string
+	before string
 	found  bool
 }{
 	{"abc", "bc", "a", true},
@@ -1741,8 +1778,8 @@ var cutSuffixTests = []struct {
 
 func TestCutSuffix(t *testing.T) {
 	for _, tt := range cutSuffixTests {
-		if after, found := CutSuffix([]byte(tt.s), []byte(tt.sep)); string(after) != tt.after || found != tt.found {
-			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		if before, found := CutSuffix([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, before, found, tt.before, tt.found)
 		}
 	}
 }
@@ -1842,6 +1879,17 @@ func TestContainsRune(t *testing.T) {
 	for _, ct := range ContainsRuneTests {
 		if ContainsRune(ct.b, ct.r) != ct.expected {
 			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
+				ct.b, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
+func TestContainsFunc(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsFunc(ct.b, func(r rune) bool {
+			return ct.r == r
+		}) != ct.expected {
+			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
 				ct.b, ct.r, !ct.expected, ct.expected)
 		}
 	}

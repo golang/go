@@ -283,3 +283,84 @@ TEXT ·And(SB), NOSPLIT, $0-8
 	LOCK
 	ANDL	BX, (AX)
 	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-12
+	MOVL	ptr+0(FP), BX
+	MOVL	val+4(FP), CX
+casloop:
+	MOVL 	CX, DX
+	MOVL	(BX), AX
+	ANDL	AX, DX
+	LOCK
+	CMPXCHGL	DX, (BX)
+	JNZ casloop
+	MOVL 	AX, ret+8(FP)
+	RET
+
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-12
+	MOVL	ptr+0(FP), BX
+	MOVL	val+4(FP), CX
+casloop:
+	MOVL 	CX, DX
+	MOVL	(BX), AX
+	ORL	AX, DX
+	LOCK
+	CMPXCHGL	DX, (BX)
+	JNZ casloop
+	MOVL 	AX, ret+8(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-20
+	MOVL	ptr+0(FP), BP
+	// DI:SI = v
+	MOVL	val_lo+4(FP), SI
+	MOVL	val_hi+8(FP), DI
+	// DX:AX = *addr
+	MOVL	0(BP), AX
+	MOVL	4(BP), DX
+casloop:
+	// CX:BX = DX:AX (*addr) & DI:SI (mask)
+	MOVL	AX, BX
+	MOVL	DX, CX
+	ANDL	SI, BX
+	ANDL	DI, CX
+	LOCK
+	CMPXCHG8B	0(BP)
+	JNZ casloop
+	MOVL	AX, ret_lo+12(FP)
+	MOVL	DX, ret_hi+16(FP)
+	RET
+
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-20
+	MOVL	ptr+0(FP), BP
+	// DI:SI = v
+	MOVL	val_lo+4(FP), SI
+	MOVL	val_hi+8(FP), DI
+	// DX:AX = *addr
+	MOVL	0(BP), AX
+	MOVL	4(BP), DX
+casloop:
+	// CX:BX = DX:AX (*addr) | DI:SI (mask)
+	MOVL	AX, BX
+	MOVL	DX, CX
+	ORL	SI, BX
+	ORL	DI, CX
+	LOCK
+	CMPXCHG8B	0(BP)
+	JNZ casloop
+	MOVL	AX, ret_lo+12(FP)
+	MOVL	DX, ret_hi+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-12
+	JMP	·And32(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-12
+	JMP	·Or32(SB)

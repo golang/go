@@ -27,6 +27,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
+	. "internal/types/errors"
 	"strings"
 )
 
@@ -39,6 +40,7 @@ type Error struct {
 	Msg  string     // default error message, user-friendly
 	Full string     // full error message, for debugging (may contain internal details)
 	Soft bool       // if set, error is "soft"
+	Code Code       // error code
 }
 
 // Error returns an error string formatted as follows:
@@ -108,11 +110,11 @@ type Config struct {
 	// type checker will initialize this field with a newly created context.
 	Context *Context
 
-	// GoVersion describes the accepted Go language version. The string
-	// must follow the format "go%d.%d" (e.g. "go1.12") or ist must be
-	// empty; an empty string indicates the latest language version.
-	// If the format is invalid, invoking the type checker will cause a
-	// panic.
+	// GoVersion describes the accepted Go language version. The string must
+	// start with a prefix of the form "go%d.%d" (e.g. "go1.20", "go1.21rc1", or
+	// "go1.21.0") or it must be empty; an empty string disables Go language
+	// version checks. If the format is invalid, invoking the type checker will
+	// result in an error.
 	GoVersion string
 
 	// If IgnoreFuncBodies is set, function bodies are not
@@ -168,9 +170,11 @@ type Config struct {
 	// for unused imports.
 	DisableUnusedImportCheck bool
 
-	// If AltComparableSemantics is set, ordinary (non-type parameter)
-	// interfaces satisfy the comparable constraint.
-	AltComparableSemantics bool
+	// If a non-empty ErrorURL format string is provided, it is used
+	// to format an error URL link that is appended to the first line
+	// of an error message. ErrorURL must be a format string containing
+	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+	ErrorURL string
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
@@ -264,6 +268,15 @@ type Info struct {
 	// scope, the function scopes are embedded in the file scope of the file
 	// containing the function declaration.
 	//
+	// The Scope of a function contains the declarations of any
+	// type parameters, parameters, and named results, plus any
+	// local declarations in the body block.
+	// It is coextensive with the complete extent of the
+	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
+	// The Scopes mapping does not contain an entry for the
+	// function body ([*ast.BlockStmt]); the function's scope is
+	// associated with the [*ast.FuncType].
+	//
 	// The following node types may appear in Scopes:
 	//
 	//     *syntax.File
@@ -284,6 +297,13 @@ type Info struct {
 	// in source order. Variables without an initialization expression do not
 	// appear in this list.
 	InitOrder []*Initializer
+
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*syntax.PosBase]string
 }
 
 func (info *Info) recordTypes() bool {
@@ -324,6 +344,23 @@ func (info *Info) ObjectOf(id *syntax.Name) Object {
 		return obj
 	}
 	return info.Uses[id]
+}
+
+// PkgNameOf returns the local package name defined by the import,
+// or nil if not found.
+//
+// For dot-imports, the package name is ".".
+//
+// Precondition: the Defs and Implicts maps are populated.
+func (info *Info) PkgNameOf(imp *syntax.ImportDecl) *PkgName {
+	var obj Object
+	if imp.LocalPkgName != nil {
+		obj = info.Defs[imp.LocalPkgName]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, _ := obj.(*PkgName)
+	return pkgname
 }
 
 // TypeAndValue reports the type and value (for constants)
@@ -431,70 +468,4 @@ func (init *Initializer) String() string {
 func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Package, error) {
 	pkg := NewPackage(path, "")
 	return pkg, NewChecker(conf, pkg, info).Files(files)
-}
-
-// AssertableTo reports whether a value of type V can be asserted to have type T.
-//
-// The behavior of AssertableTo is unspecified in three cases:
-//   - if T is Typ[Invalid]
-//   - if V is a generalized interface; i.e., an interface that may only be used
-//     as a type constraint in Go code
-//   - if T is an uninstantiated generic type
-func AssertableTo(V *Interface, T Type) bool {
-	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
-	// handling here.
-	if T.Underlying() == Typ[Invalid] {
-		return false
-	}
-	return (*Checker)(nil).newAssertableTo(V, T)
-}
-
-// AssignableTo reports whether a value of type V is assignable to a variable
-// of type T.
-//
-// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func AssignableTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
-	return ok
-}
-
-// ConvertibleTo reports whether a value of type V is convertible to a value of
-// type T.
-//
-// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func ConvertibleTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
-}
-
-// Implements reports whether type V implements interface T.
-//
-// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
-// generic type.
-func Implements(V Type, T *Interface) bool {
-	if T.Empty() {
-		// All types (even Typ[Invalid]) implement the empty interface.
-		return true
-	}
-	// Checker.implements suppresses errors for invalid types, so we need special
-	// handling here.
-	if V.Underlying() == Typ[Invalid] {
-		return false
-	}
-	return (*Checker)(nil).implements(V, T, false, nil)
-}
-
-// Identical reports whether x and y are identical types.
-// Receivers of Signature types are ignored.
-func Identical(x, y Type) bool {
-	return identical(x, y, true, nil)
-}
-
-// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
-// Receivers of Signature types are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	return identical(x, y, false, nil)
 }

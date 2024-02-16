@@ -40,15 +40,21 @@ func main() {
 		re = regexp.MustCompile("Pad_cgo[A-Za-z0-9_]*")
 		s = re.ReplaceAllString(s, "_")
 
-		// We want to keep X__val in Fsid. Hide it and restore it later.
+		// We want to keep the X_ fields that are already consistently exported
+		// for the other linux GOARCH settings.
+		// Hide them and restore later.
 		s = strings.Replace(s, "X__val", "MKPOSTFSIDVAL", 1)
+		s = strings.Replace(s, "X__ifi_pad", "MKPOSTIFIPAD", 1)
+		s = strings.Replace(s, "X_f", "MKPOSTSYSINFOTF", 1)
 
 		// Replace other unwanted fields with blank identifiers.
 		re = regexp.MustCompile("X_[A-Za-z0-9_]*")
 		s = re.ReplaceAllString(s, "_")
 
-		// Restore X__val in Fsid.
+		// Restore preserved fields.
 		s = strings.Replace(s, "MKPOSTFSIDVAL", "X__val", 1)
+		s = strings.Replace(s, "MKPOSTIFIPAD", "X__ifi_pad", 1)
+		s = strings.Replace(s, "MKPOSTSYSINFOTF", "X_f", 1)
 
 		// Force the type of RawSockaddr.Data to [14]int8 to match
 		// the existing gccgo API.

@@ -147,10 +147,14 @@ func (s *State) ExpandEnv(str string, inRegexp bool) string {
 // originally created.
 func (s *State) ExtractFiles(ar *txtar.Archive) error {
 	wd := s.workdir
+
 	// Add trailing separator to terminate wd.
 	// This prevents extracting to outside paths which prefix wd,
 	// e.g. extracting to /home/foobar when wd is /home/foo
-	if !strings.HasSuffix(wd, string(filepath.Separator)) {
+	if wd == "" {
+		panic("s.workdir is unexpectedly empty")
+	}
+	if !os.IsPathSeparator(wd[len(wd)-1]) {
 		wd += string(filepath.Separator)
 	}
 
@@ -194,7 +198,7 @@ func (s *State) LookupEnv(key string) (string, bool) {
 	return v, ok
 }
 
-// Path returns the absolute path in the host operaating system for a
+// Path returns the absolute path in the host operating system for a
 // script-based (generally slash-separated and relative) path.
 func (s *State) Path(path string) string {
 	if filepath.IsAbs(path) {

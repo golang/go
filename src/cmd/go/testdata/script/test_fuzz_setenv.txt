@@ -1,5 +1,6 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 go test -fuzz=FuzzA -fuzztime=100x fuzz_setenv_test.go
 

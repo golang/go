@@ -4,6 +4,8 @@
 
 int exceptionCount;
 int continueCount;
+int unhandledCount;
+
 LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
 {
     if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
@@ -11,9 +13,19 @@ LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
         exceptionCount++;
         // prepare context to resume execution
         CONTEXT *c = ExceptionInfo->ContextRecord;
-        c->Rip = *(ULONG_PTR *)c->Rsp;
+#ifdef _AMD64_
+        c->Rip = *(DWORD64 *)c->Rsp;
         c->Rsp += 8;
+#elif defined(_X86_)
+        c->Eip = *(DWORD *)c->Esp;
+        c->Esp += 4;
+#else
+        c->Pc = c->Lr;
+#endif
+#ifdef _ARM64_
+        // TODO: remove when windows/arm64 supports SEH stack unwinding.
         return EXCEPTION_CONTINUE_EXECUTION;
+#endif
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -22,6 +34,14 @@ LONG WINAPI customContinueHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
     if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
     {
         continueCount++;
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+LONG WINAPI unhandledExceptionHandler(struct _EXCEPTION_POINTERS *ExceptionInfo) {
+    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+    {
+        unhandledCount++;
         return EXCEPTION_CONTINUE_EXECUTION;
     }
     return EXCEPTION_CONTINUE_SEARCH;
@@ -51,10 +71,15 @@ int main()
         fflush(stdout);
         return 2;
     }
+    void *prevUnhandledHandler = SetUnhandledExceptionFilter(unhandledExceptionHandler);
     CallMeBack(throwFromC);
     RemoveVectoredContinueHandler(continueHandlerHandle);
     RemoveVectoredExceptionHandler(exceptionHandlerHandle);
-    printf("exceptionCount: %d\ncontinueCount: %d\n", exceptionCount, continueCount);
+    if (prevUnhandledHandler != NULL)
+    {
+        SetUnhandledExceptionFilter(prevUnhandledHandler);
+    }
+    printf("exceptionCount: %d\ncontinueCount: %d\nunhandledCount: %d\n", exceptionCount, continueCount, unhandledCount);
     fflush(stdout);
     return 0;
 }

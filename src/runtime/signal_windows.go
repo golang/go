@@ -10,28 +10,47 @@ import (
 	"unsafe"
 )
 
-func disableWER() {
-	// do not display Windows Error Reporting dialogue
-	const (
-		SEM_FAILCRITICALERRORS     = 0x0001
-		SEM_NOGPFAULTERRORBOX      = 0x0002
-		SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
-		SEM_NOOPENFILEERRORBOX     = 0x8000
-	)
-	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
-	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+const (
+	_SEM_FAILCRITICALERRORS = 0x0001
+	_SEM_NOGPFAULTERRORBOX  = 0x0002
+	_SEM_NOOPENFILEERRORBOX = 0x8000
+
+	_WER_FAULT_REPORTING_NO_UI = 0x0020
+)
+
+func preventErrorDialogs() {
+	errormode := stdcall0(_GetErrorMode)
+	stdcall1(_SetErrorMode, errormode|_SEM_FAILCRITICALERRORS|_SEM_NOGPFAULTERRORBOX|_SEM_NOOPENFILEERRORBOX)
+
+	// Disable WER fault reporting UI.
+	// Do this even if WER is disabled as a whole,
+	// as WER might be enabled later with setTraceback("wer")
+	// and we still want the fault reporting UI to be disabled if this happens.
+	var werflags uintptr
+	stdcall2(_WerGetFlags, currentProcess, uintptr(unsafe.Pointer(&werflags)))
+	stdcall1(_WerSetFlags, werflags|_WER_FAULT_REPORTING_NO_UI)
 }
 
-// in sys_windows_386.s and sys_windows_amd64.s
+// enableWER re-enables Windows error reporting without fault reporting UI.
+func enableWER() {
+	// re-enable Windows Error Reporting
+	errormode := stdcall0(_GetErrorMode)
+	if errormode&_SEM_NOGPFAULTERRORBOX != 0 {
+		stdcall1(_SetErrorMode, errormode^_SEM_NOGPFAULTERRORBOX)
+	}
+}
+
+// in sys_windows_386.s, sys_windows_amd64.s, sys_windows_arm.s, and sys_windows_arm64.s
 func exceptiontramp()
 func firstcontinuetramp()
 func lastcontinuetramp()
+func sehtramp()
+func sigresume()
 
 func initExceptionHandler() {
 	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || GOARCH == "386" {
-		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable.
+	if GOARCH == "386" {
+		// use SetUnhandledExceptionFilter for windows-386.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
 	} else {
@@ -75,6 +94,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 	default:
 		return false
 	case _EXCEPTION_ACCESS_VIOLATION:
+	case _EXCEPTION_IN_PAGE_ERROR:
 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
 	case _EXCEPTION_INT_OVERFLOW:
 	case _EXCEPTION_FLT_DENORMAL_OPERAND:
@@ -88,13 +108,105 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 	return true
 }
 
+const (
+	callbackVEH = iota
+	callbackFirstVCH
+	callbackLastVCH
+)
+
+// sigFetchGSafe is like getg() but without panicking
+// when TLS is not set.
+// Only implemented on windows/386, which is the only
+// arch that loads TLS when calling getg(). Others
+// use a dedicated register.
+func sigFetchGSafe() *g
+
+func sigFetchG() *g {
+	if GOARCH == "386" {
+		return sigFetchGSafe()
+	}
+	return getg()
+}
+
+// sigtrampgo is called from the exception handler function, sigtramp,
+// written in assembly code.
+// Return EXCEPTION_CONTINUE_EXECUTION if the exception is handled,
+// else return EXCEPTION_CONTINUE_SEARCH.
+//
+// It is nosplit for the same reason as exceptionhandler.
+//
+//go:nosplit
+func sigtrampgo(ep *exceptionpointers, kind int) int32 {
+	gp := sigFetchG()
+	if gp == nil {
+		return _EXCEPTION_CONTINUE_SEARCH
+	}
+
+	var fn func(info *exceptionrecord, r *context, gp *g) int32
+	switch kind {
+	case callbackVEH:
+		fn = exceptionhandler
+	case callbackFirstVCH:
+		fn = firstcontinuehandler
+	case callbackLastVCH:
+		fn = lastcontinuehandler
+	default:
+		throw("unknown sigtramp callback")
+	}
+
+	// Check if we are running on g0 stack, and if we are,
+	// call fn directly instead of creating the closure.
+	// for the systemstack argument.
+	//
+	// A closure can't be marked as nosplit, so it might
+	// call morestack if we are at the g0 stack limit.
+	// If that happens, the runtime will call abort
+	// and end up in sigtrampgo again.
+	// TODO: revisit this workaround if/when closures
+	// can be compiled as nosplit.
+	//
+	// Note that this scenario should only occur on
+	// TestG0StackOverflow. Any other occurrence should
+	// be treated as a bug.
+	var ret int32
+	if gp != gp.m.g0 {
+		systemstack(func() {
+			ret = fn(ep.record, ep.context, gp)
+		})
+	} else {
+		ret = fn(ep.record, ep.context, gp)
+	}
+	if ret == _EXCEPTION_CONTINUE_SEARCH {
+		return ret
+	}
+
+	// Check if we need to set up the control flow guard workaround.
+	// On Windows, the stack pointer in the context must lie within
+	// system stack limits when we resume from exception.
+	// Store the resume SP and PC in alternate registers
+	// and return to sigresume on the g0 stack.
+	// sigresume makes no use of the stack at all,
+	// loading SP from RX and jumping to RY, being RX and RY two scratch registers.
+	// Note that blindly smashing RX and RY is only safe because we know sigpanic
+	// will not actually return to the original frame, so the registers
+	// are effectively dead. But this does mean we can't use the
+	// same mechanism for async preemption.
+	if ep.context.ip() == abi.FuncPCABI0(sigresume) {
+		// sigresume has already been set up by a previous exception.
+		return ret
+	}
+	prepareContextForSigResume(ep.context)
+	ep.context.set_sp(gp.m.g0.sched.sp)
+	ep.context.set_ip(abi.FuncPCABI0(sigresume))
+	return ret
+}
+
 // Called by sigtramp from Windows VEH handler.
 // Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
 // or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
 //
-// This is the first entry into Go code for exception handling. This
-// is nosplit to avoid growing the stack until we've checked for
-// _EXCEPTION_BREAKPOINT, which is raised if we overflow the g0 stack,
+// This is nosplit to avoid growing the stack until we've checked for
+// _EXCEPTION_BREAKPOINT, which is raised by abort() if we overflow the g0 stack.
 //
 //go:nosplit
 func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
@@ -150,6 +262,43 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 
+// sehhandler is reached as part of the SEH chain.
+//
+// It is nosplit for the same reason as exceptionhandler.
+//
+//go:nosplit
+func sehhandler(_ *exceptionrecord, _ uint64, _ *context, dctxt *_DISPATCHER_CONTEXT) int32 {
+	g0 := getg()
+	if g0 == nil || g0.m.curg == nil {
+		// No g available, nothing to do here.
+		return _EXCEPTION_CONTINUE_SEARCH_SEH
+	}
+	// The Windows SEH machinery will unwind the stack until it finds
+	// a frame with a handler for the exception or until the frame is
+	// outside the stack boundaries, in which case it will call the
+	// UnhandledExceptionFilter. Unfortunately, it doesn't know about
+	// the goroutine stack, so it will stop unwinding when it reaches the
+	// first frame not running in g0. As a result, neither non-Go exceptions
+	// handlers higher up the stack nor UnhandledExceptionFilter will be called.
+	//
+	// To work around this, manually unwind the stack until the top of the goroutine
+	// stack is reached, and then pass the control back to Windows.
+	gp := g0.m.curg
+	ctxt := dctxt.ctx()
+	var base, sp uintptr
+	for {
+		entry := stdcall3(_RtlLookupFunctionEntry, ctxt.ip(), uintptr(unsafe.Pointer(&base)), 0)
+		if entry == 0 {
+			break
+		}
+		stdcall8(_RtlVirtualUnwind, 0, base, ctxt.ip(), entry, uintptr(unsafe.Pointer(ctxt)), 0, uintptr(unsafe.Pointer(&sp)), 0)
+		if sp < gp.stack.lo || gp.stack.hi <= sp {
+			break
+		}
+	}
+	return _EXCEPTION_CONTINUE_SEARCH_SEH
+}
+
 // It seems Windows searches ContinueHandler's list even
 // if ExceptionHandler returns EXCEPTION_CONTINUE_EXECUTION.
 // firstcontinuehandler will stop that search,
@@ -165,8 +314,6 @@ func firstcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 
-var testingWER bool
-
 // lastcontinuehandler is reached, because runtime cannot handle
 // current exception. lastcontinuehandler will print crash info and exit.
 //
@@ -178,9 +325,6 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 		// Go DLL/archive has been loaded in a non-go program.
 		// If the exception does not originate from go, the go runtime
 		// should not take responsibility of crashing the process.
-		return _EXCEPTION_CONTINUE_SEARCH
-	}
-	if testingWER {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 
@@ -214,7 +358,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	// g0 stack bounds so we have room to print the traceback. If
 	// this somehow overflows the stack, the OS will trap it.
 	g0.stack.lo = 0
-	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard0 = g0.stack.lo + stackGuard
 	g0.stackguard1 = g0.stackguard0
 
 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
@@ -239,7 +383,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	}
 
 	if docrash {
-		crash()
+		dieFromException(info, r)
 	}
 
 	exit(2)
@@ -252,7 +396,7 @@ func sigpanic() {
 	}
 
 	switch gp.sig {
-	case _EXCEPTION_ACCESS_VIOLATION:
+	case _EXCEPTION_ACCESS_VIOLATION, _EXCEPTION_IN_PAGE_ERROR:
 		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
@@ -282,19 +426,6 @@ func sigpanic() {
 	throw("fault")
 }
 
-var (
-	badsignalmsg [100]byte
-	badsignallen int32
-)
-
-func setBadSignalMsg() {
-	const msg = "runtime: signal received on thread not created by Go.\n"
-	for i, c := range msg {
-		badsignalmsg[i] = byte(c)
-		badsignallen++
-	}
-}
-
 // Following are not implemented.
 
 func initsig(preinit bool) {
@@ -309,26 +440,42 @@ func sigdisable(sig uint32) {
 func sigignore(sig uint32) {
 }
 
-func badsignal2()
-
-func raisebadsignal(sig uint32) {
-	badsignal2()
-}
-
 func signame(sig uint32) string {
 	return ""
 }
 
 //go:nosplit
 func crash() {
-	// TODO: This routine should do whatever is needed
-	// to make the Windows program abort/crash as it
-	// would if Go was not intercepting signals.
-	// On Unix the routine would remove the custom signal
-	// handler and then raise a signal (like SIGABRT).
-	// Something like that should happen here.
-	// It's okay to leave this empty for now: if crash returns
-	// the ordinary exit-after-panic happens.
+	dieFromException(nil, nil)
+}
+
+// dieFromException raises an exception that bypasses all exception handlers.
+// This provides the expected exit status for the shell.
+//
+//go:nosplit
+func dieFromException(info *exceptionrecord, r *context) {
+	if info == nil {
+		gp := getg()
+		if gp.sig != 0 {
+			// Try to reconstruct an exception record from
+			// the exception information stored in gp.
+			info = &exceptionrecord{
+				exceptionaddress: gp.sigpc,
+				exceptioncode:    gp.sig,
+				numberparameters: 2,
+			}
+			info.exceptioninformation[0] = gp.sigcode0
+			info.exceptioninformation[1] = gp.sigcode1
+		} else {
+			// By default, a failing Go application exits with exit code 2.
+			// Use this value when gp does not contain exception info.
+			info = &exceptionrecord{
+				exceptioncode: 2,
+			}
+		}
+	}
+	const FAIL_FAST_GENERATE_EXCEPTION_ADDRESS = 0x1
+	stdcall3(_RaiseFailFastException, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(r)), FAIL_FAST_GENERATE_EXCEPTION_ADDRESS)
 }
 
 // gsignalStack is unused on Windows.

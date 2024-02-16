@@ -1,14 +1,17 @@
 pkg bufio, method (*Writer) AvailableBuffer() []uint8
 pkg bufio, method (ReadWriter) AvailableBuffer() []uint8
 pkg bytes, func Cut([]uint8, []uint8) ([]uint8, []uint8, bool)
+pkg bytes, func Title //deprecated
 pkg crypto/tls, method (*Conn) NetConn() net.Conn
+pkg crypto/tls, type Config struct, PreferServerCipherSuites //deprecated
+pkg crypto/x509, method (*CertPool) Subjects //deprecated
 pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
 pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
 pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
-pkg debug/elf, const R_PPC64_RELATIVE = 22
-pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
 pkg debug/dwarf, type BasicType struct, DataBitOffset int64
 pkg debug/dwarf, type StructField struct, DataBitOffset int64
+pkg debug/elf, const R_PPC64_RELATIVE = 22
+pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
 pkg debug/plan9obj, var ErrNoSymbols error
 pkg go/ast, method (*IndexListExpr) End() token.Pos
 pkg go/ast, method (*IndexListExpr) Pos() token.Pos
@@ -24,6 +27,7 @@ pkg go/token, const TILDE = 88
 pkg go/token, const TILDE Token
 pkg go/types, func Instantiate(*Context, Type, []Type, bool) (Type, error)
 pkg go/types, func NewContext() *Context
+pkg go/types, func NewSignature //deprecated
 pkg go/types, func NewSignatureType(*Var, []*TypeParam, []*TypeParam, *Tuple, *Tuple, bool) *Signature
 pkg go/types, func NewTerm(bool, Type) *Term
 pkg go/types, func NewTypeParam(*TypeName, Type) *TypeParam
@@ -81,6 +85,7 @@ pkg net, method (*UDPConn) ReadFromUDPAddrPort([]uint8) (int, netip.AddrPort, er
 pkg net, method (*UDPConn) ReadMsgUDPAddrPort([]uint8, []uint8) (int, int, int, netip.AddrPort, error)
 pkg net, method (*UDPConn) WriteMsgUDPAddrPort([]uint8, []uint8, netip.AddrPort) (int, int, error)
 pkg net, method (*UDPConn) WriteToUDPAddrPort([]uint8, netip.AddrPort) (int, error)
+pkg net, type Error interface, Temporary //deprecated
 pkg net/http, func MaxBytesHandler(Handler, int64) Handler
 pkg net/http, method (*Cookie) Valid() error
 pkg net/netip, func AddrFrom16([16]uint8) Addr
@@ -174,6 +179,7 @@ pkg runtime/debug, type BuildSetting struct, Key string
 pkg runtime/debug, type BuildSetting struct, Value string
 pkg strings, func Clone(string) string
 pkg strings, func Cut(string, string) (string, string, bool)
+pkg strings, func Title //deprecated
 pkg sync, method (*Mutex) TryLock() bool
 pkg sync, method (*RWMutex) TryLock() bool
 pkg sync, method (*RWMutex) TryRLock() bool
@@ -183,7 +189,21 @@ pkg syscall (freebsd-amd64), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-arm), type SysProcAttr struct, Pdeathsig Signal
 pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (windows-386), func Syscall //deprecated
+pkg syscall (windows-386), func Syscall12 //deprecated
+pkg syscall (windows-386), func Syscall15 //deprecated
+pkg syscall (windows-386), func Syscall18 //deprecated
+pkg syscall (windows-386), func Syscall6 //deprecated
+pkg syscall (windows-386), func Syscall9 //deprecated
 pkg syscall (windows-386), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall //deprecated
+pkg syscall (windows-amd64), func Syscall12 //deprecated
+pkg syscall (windows-amd64), func Syscall15 //deprecated
+pkg syscall (windows-amd64), func Syscall18 //deprecated
+pkg syscall (windows-amd64), func Syscall6 //deprecated
+pkg syscall (windows-amd64), func Syscall9 //deprecated
 pkg syscall (windows-amd64), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
 pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
 pkg testing, method (*F) Add(...interface{})

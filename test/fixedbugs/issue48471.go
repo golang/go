@@ -52,5 +52,5 @@ func g() {
 
 	var t *T4
 	t = i // ERROR "cannot use i \(variable of type I\) as \*T4 value in assignment: need type assertion"
-	_ = i
+	_ = t
 }

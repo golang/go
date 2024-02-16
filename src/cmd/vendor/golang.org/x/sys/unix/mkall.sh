@@ -50,7 +50,7 @@ if [[ "$GOOS" = "linux" ]]; then
 	# Use the Docker-based build system
 	# Files generated through docker (use $cmd so you can Ctl-C the build or run)
 	$cmd docker build --tag generate:$GOOS $GOOS
-	$cmd docker run --interactive --tty --volume $(cd -- "$(dirname -- "$0")/.." && /bin/pwd):/build generate:$GOOS
+	$cmd docker run --interactive --tty --volume $(cd -- "$(dirname -- "$0")/.." && pwd):/build generate:$GOOS
 	exit
 fi
 
@@ -174,10 +174,10 @@ openbsd_arm64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
 openbsd_mips64)
+	mkasm="go run mkasm.go"
 	mkerrors="$mkerrors -m64"
-	mksyscall="go run mksyscall.go -openbsd"
+	mksyscall="go run mksyscall.go -openbsd -libc"
 	mksysctl="go run mksysctl_openbsd.go"
-	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
 	# Let the type of C char be signed for making the bare syscall
 	# API consistent across platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"

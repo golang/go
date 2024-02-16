@@ -364,6 +364,21 @@ func p256PointDoubleAsm(res, in *P256Point)
 // Montgomery domain (with R 2²⁵⁶) as four uint64 limbs in little-endian order.
 type p256OrdElement [4]uint64
 
+// p256OrdReduce ensures s is in the range [0, ord(G)-1].
+func p256OrdReduce(s *p256OrdElement) {
+	// Since 2 * ord(G) > 2²⁵⁶, we can just conditionally subtract ord(G),
+	// keeping the result if it doesn't underflow.
+	t0, b := bits.Sub64(s[0], 0xf3b9cac2fc632551, 0)
+	t1, b := bits.Sub64(s[1], 0xbce6faada7179e84, b)
+	t2, b := bits.Sub64(s[2], 0xffffffffffffffff, b)
+	t3, b := bits.Sub64(s[3], 0xffffffff00000000, b)
+	tMask := b - 1 // zero if subtraction underflowed
+	s[0] ^= (t0 ^ s[0]) & tMask
+	s[1] ^= (t1 ^ s[1]) & tMask
+	s[2] ^= (t2 ^ s[2]) & tMask
+	s[3] ^= (t3 ^ s[3]) & tMask
+}
+
 // Add sets q = p1 + p2, and returns q. The points may overlap.
 func (q *P256Point) Add(r1, r2 *P256Point) *P256Point {
 	var sum, double P256Point
@@ -393,6 +408,7 @@ func (r *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	}
 	scalarReversed := new(p256OrdElement)
 	p256OrdBigToLittle(scalarReversed, (*[32]byte)(scalar))
+	p256OrdReduce(scalarReversed)
 
 	r.p256BaseMult(scalarReversed)
 	return r, nil
@@ -407,6 +423,7 @@ func (r *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) 
 	}
 	scalarReversed := new(p256OrdElement)
 	p256OrdBigToLittle(scalarReversed, (*[32]byte)(scalar))
+	p256OrdReduce(scalarReversed)
 
 	r.Set(q).p256ScalarMult(scalarReversed)
 	return r, nil

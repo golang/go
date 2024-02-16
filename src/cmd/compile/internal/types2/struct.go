@@ -80,7 +80,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(ident *syntax.Name, embedded bool, pos syntax.Pos) {
+	add := func(ident *syntax.Name, embedded bool) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -88,6 +88,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			tags = append(tags, tag)
 		}
 
+		pos := ident.Pos()
 		name := ident.Value
 		fld := NewField(pos, check.pkg, name, typ, embedded)
 		// spec: "Within a struct, non-blank field names must be unique."
@@ -100,11 +101,11 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 	// addInvalid adds an embedded field of invalid type to the struct for
 	// fields with errors; this keeps the number of struct fields in sync
 	// with the source as long as the fields are _ or have different names
-	// (issue #25627).
-	addInvalid := func(ident *syntax.Name, pos syntax.Pos) {
+	// (go.dev/issue/25627).
+	addInvalid := func(ident *syntax.Name) {
 		typ = Typ[Invalid]
 		tag = ""
-		add(ident, true, pos)
+		add(ident, true)
 	}
 
 	var prev syntax.Expr
@@ -121,21 +122,21 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 		}
 		if f.Name != nil {
 			// named field
-			add(f.Name, false, f.Name.Pos())
+			add(f.Name, false)
 		} else {
 			// embedded field
 			// spec: "An embedded type must be specified as a type name T or as a
 			// pointer to a non-interface type name *T, and T itself may not be a
 			// pointer type."
-			pos := syntax.StartPos(f.Type)
+			pos := syntax.StartPos(f.Type) // position of type, for errors
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
-				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
-				addInvalid(name, pos)
+				name = syntax.NewName(pos, "_")
+				addInvalid(name)
 				continue
 			}
-			add(name, true, pos)
+			add(name, true) // struct{p.T} field has position of T
 
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
@@ -147,7 +148,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 				t, isPtr := deref(embeddedTyp)
 				switch u := under(t).(type) {
 				case *Basic:
-					if t == Typ[Invalid] {
+					if !isValid(t) {
 						// error was reported before
 						return
 					}

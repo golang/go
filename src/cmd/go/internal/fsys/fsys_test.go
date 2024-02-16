@@ -7,7 +7,6 @@ package fsys
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"internal/testenv"
 	"internal/txtar"
 	"io"
@@ -38,7 +37,6 @@ func initOverlay(t *testing.T, config string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		overlay = nil
 		if err := os.Chdir(prevwd); err != nil {
 			t.Fatal(err)
 		}
@@ -57,10 +55,13 @@ func initOverlay(t *testing.T, config string) {
 
 	var overlayJSON OverlayJSON
 	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
-		t.Fatal(fmt.Errorf("parsing overlay JSON: %v", err))
+		t.Fatal("parsing overlay JSON:", err)
 	}
 
-	initFromJSON(overlayJSON)
+	if err := initFromJSON(overlayJSON); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { overlay = nil })
 }
 
 func TestIsDir(t *testing.T) {
@@ -827,7 +828,7 @@ func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	initOverlay(t, `{
-	"Replace": {"overlay_symlink": "symlink"}
+	"Replace": {"overlay_symlink/file": "symlink/file"}
 }
 -- dir/file --`)
 
@@ -841,11 +842,15 @@ func TestWalkSymlink(t *testing.T) {
 		dir       string
 		wantFiles []string
 	}{
-		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
+		{"control", "dir", []string{"dir", filepath.Join("dir", "file")}},
 		// ensure Walk doesn't walk into the directory pointed to by the symlink
 		// (because it's supposed to use Lstat instead of Stat).
-		{"symlink_to_dir", "symlink", []string{"symlink", "symlink" + string(filepath.Separator) + "file"}},
-		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink", "overlay_symlink" + string(filepath.Separator) + "file"}},
+		{"symlink_to_dir", "symlink", []string{"symlink"}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink", filepath.Join("overlay_symlink", "file")}},
+
+		// However, adding filepath.Separator should cause the link to be resolved.
+		{"symlink_with_slash", "symlink" + string(filepath.Separator), []string{"symlink" + string(filepath.Separator), filepath.Join("symlink", "file")}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink" + string(filepath.Separator), []string{"overlay_symlink" + string(filepath.Separator), filepath.Join("overlay_symlink", "file")}},
 	}
 
 	for _, tc := range testCases {
@@ -853,6 +858,7 @@ func TestWalkSymlink(t *testing.T) {
 			var got []string
 
 			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+				t.Logf("walk %q", path)
 				got = append(got, path)
 				if err != nil {
 					t.Errorf("walkfn: got non nil err argument: %v, want nil err argument", err)

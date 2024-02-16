@@ -4,7 +4,10 @@
 
 package poll
 
-import "syscall"
+import (
+	"internal/syscall/unix"
+	"syscall"
+)
 
 // Fsync invokes SYS_FCNTL with SYS_FULLFSYNC because
 // on OS X, SYS_FSYNC doesn't fully flush contents to disk.
@@ -15,7 +18,7 @@ func (fd *FD) Fsync() error {
 	}
 	defer fd.decref()
 	return ignoringEINTR(func() error {
-		_, err := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
+		_, err := unix.Fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
 		return err
 	})
 }

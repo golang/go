@@ -14,8 +14,8 @@ type thing2 struct {
 
 func _() {
 	var a1, b1 thing1
-	_ = a1 /* ERROR struct containing \[\]string cannot be compared */ == b1
+	_ = a1 /* ERROR "struct containing []string cannot be compared" */ == b1
 
 	var a2, b2 thing2
-	_ = a2 /* ERROR struct containing \[\]thing1 cannot be compared */ == b2
+	_ = a2 /* ERROR "struct containing []thing1 cannot be compared" */ == b2
 }

@@ -15,7 +15,9 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
 	// set g to g0
 	MOVD $runtime·g0(SB), g
 	CALLNORESUME runtime·check(SB)
+#ifdef GOOS_js
 	CALLNORESUME runtime·args(SB)
+#endif
 	CALLNORESUME runtime·osinit(SB)
 	CALLNORESUME runtime·schedinit(SB)
 	MOVD $runtime·mainPC(SB), 0(SP)
@@ -138,6 +140,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	I64Ne
 	If
 		CALLNORESUME runtime·badsystemstack(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// switch:
@@ -179,6 +182,9 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+	UNDEF
+
 // AES hashing not implemented for wasm
 TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
 	JMP	runtime·memhashFallback(SB)
@@ -206,6 +212,33 @@ TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
 TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
 	UNDEF
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+	MOVD fn+0(FP), CTXT	// context register
+	MOVD	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	MOVD	R2, g_m(g)	// g.m = curm
+	MOVD	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	I64Load (g_stack+stack_hi)(g)
+	I64Const $(-4*8)
+	I64Add
+	I32WrapI64
+	Set SP
+
+	// call target function
+	Get CTXT
+	I32WrapI64
+	I64Load $0
+	CALL
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 // Called during function prolog when more stack is needed.
 //
 // The traceback routines see morestack on a g0 as being
@@ -219,12 +252,19 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	// R2 = g0
 	MOVD m_g0(R1), R2
 
+	// Set g->sched to context in f.
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVD 0(SP), g_sched+gobuf_pc(g)
+	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
+	MOVD CTXT, g_sched+gobuf_ctxt(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	Get g
-	Get R1
+	Get R2
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackg0(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Cannot grow signal stack (m->gsignal).
@@ -233,19 +273,14 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackgsignal(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
-
-	// Set g->sched to context in f.
-	MOVD 0(SP), g_sched+gobuf_pc(g)
-	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
-	MOVD CTXT, g_sched+gobuf_ctxt(g)
 
 	// Call newstack on m->g0's stack.
 	MOVD R2, g
@@ -404,42 +439,120 @@ TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
 TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 	UNDEF
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It has two WebAssembly parameters:
-// R0: the destination of the write (i64)
-// R1: the value being written (i64)
-TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
-	// R3 = g.m
-	MOVD g_m(g), R3
-	// R4 = p
-	MOVD m_p(R3), R4
-	// R5 = wbBuf.next
-	MOVD p_wbBuf+wbBuf_next(R4), R5
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed as a wasm argument
+// (put on the TOS by the caller, lives in local R0 in this body)
+// and returns a pointer to the buffer space as a wasm result
+// (left on the TOS in this body, appears on the wasm stack
+// in the caller).
+TEXT gcWriteBarrier<>(SB), NOSPLIT, $0
+	Loop
+		// R3 = g.m
+		MOVD g_m(g), R3
+		// R4 = p
+		MOVD m_p(R3), R4
+		// R5 = wbBuf.next
+		MOVD p_wbBuf+wbBuf_next(R4), R5
 
-	// Record value
-	MOVD R1, 0(R5)
-	// Record *slot
-	MOVD (R0), 8(R5)
+		// Increment wbBuf.next
+		Get R5
+		Get R0
+		I64Add
+		Set R5
 
-	// Increment wbBuf.next
-	Get R5
-	I64Const $16
-	I64Add
-	Set R5
-	MOVD R5, p_wbBuf+wbBuf_next(R4)
+		// Is the buffer full?
+		Get R5
+		I64Load (p_wbBuf+wbBuf_end)(R4)
+		I64LeU
+		If
+			// Commit to the larger buffer.
+			MOVD R5, p_wbBuf+wbBuf_next(R4)
 
-	Get R5
-	I64Load (p_wbBuf+wbBuf_end)(R4)
-	I64Eq
-	If
+			// Make return value (the original next position)
+			Get R5
+			Get R0
+			I64Sub
+
+			Return
+		End
+
 		// Flush
-		MOVD R0, 0(SP)
-		MOVD R1, 8(SP)
 		CALLNORESUME runtime·wbBufFlush(SB)
+
+		// Retry
+		Br $0
 	End
 
-	// Do the write
-	MOVD R1, (R0)
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $8
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $16
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $24
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $32
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $40
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $48
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $56
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $64
+	Call	gcWriteBarrier<>(SB)
+	Return
 
-	RET
+TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
+// Call the function for the current PC_F. Repeat until PAUSE != 0 indicates pause or exit.
+// The WebAssembly stack may unwind, e.g. when switching goroutines.
+// The Go stack on the linear memory is then used to jump to the correct functions
+// with this loop, without having to restore the full WebAssembly stack.
+// It is expected to have a pending call before entering the loop, so check PAUSE first.
+	Get PAUSE
+	I32Eqz
+	If
+	loop:
+		Loop
+			// Get PC_B & PC_F from -8(SP)
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $0 // PC_B
+
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $2 // PC_F
+
+			CallIndirect $0
+			Drop
+
+			Get PAUSE
+			I32Eqz
+			BrIf loop
+		End
+	End
+
+	I32Const $0
+	Set PAUSE
+
+	Return
+
+TEXT wasm_export_lib(SB),NOSPLIT,$0
+	UNDEF

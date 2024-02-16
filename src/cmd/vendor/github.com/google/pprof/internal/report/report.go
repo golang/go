@@ -293,7 +293,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
-// printProto writes the incoming proto via thw writer w.
+// printProto writes the incoming proto via the writer w.
 // If the divide_by option has been specified, samples are scaled appropriately.
 func printProto(w io.Writer, rpt *Report) error {
 	p, o := rpt.prof, rpt.options
@@ -339,6 +339,7 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Line: []profile.Line{
 				{
 					Line:     int64(n.Info.Lineno),
+					Column:   int64(n.Info.Columnno),
 					Function: f,
 				},
 			},
@@ -433,7 +434,16 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 	}
 
 	if len(syms) == 0 {
-		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
+		// The symbol regexp case
+		if address == nil {
+			return fmt.Errorf("no matches found for regexp %s", o.Symbol)
+		}
+
+		// The address case
+		if len(symbols) == 0 {
+			return fmt.Errorf("no matches found for address 0x%x", *address)
+		}
+		return fmt.Errorf("address 0x%x found in binary, but the corresponding symbols do not have samples in the profile", *address)
 	}
 
 	// Correlate the symbols from the binary with the profile samples.
@@ -505,22 +515,26 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 	return nil
 }
 
-// symbolsFromBinaries examines the binaries listed on the profile
-// that have associated samples, and identifies symbols matching rx.
+// symbolsFromBinaries examines the binaries listed on the profile that have
+// associated samples, and returns the identified symbols matching rx.
 func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regexp, address *uint64, obj plugin.ObjTool) []*objSymbol {
-	hasSamples := make(map[string]bool)
-	// Only examine mappings that have samples that match the
-	// regexp. This is an optimization to speed up pprof.
+	// fileHasSamplesAndMatched is for optimization to speed up pprof: when later
+	// walking through the profile mappings, it will only examine the ones that have
+	// samples and are matched to the regexp.
+	fileHasSamplesAndMatched := make(map[string]bool)
 	for _, n := range g.Nodes {
 		if name := n.Info.PrintableName(); rx.MatchString(name) && n.Info.Objfile != "" {
-			hasSamples[n.Info.Objfile] = true
+			fileHasSamplesAndMatched[n.Info.Objfile] = true
 		}
 	}
 
 	// Walk all mappings looking for matching functions with samples.
 	var objSyms []*objSymbol
 	for _, m := range prof.Mapping {
-		if !hasSamples[m.File] {
+		// Skip the mapping if its file does not have samples or is not matched to
+		// the regexp (unless the regexp is an address and the mapping's range covers
+		// the address)
+		if !fileHasSamplesAndMatched[m.File] {
 			if address == nil || !(m.Start <= *address && *address <= m.Limit) {
 				continue
 			}

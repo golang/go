@@ -16,6 +16,7 @@ import (
 	"internal/godebug"
 	"internal/goroot"
 	"internal/goversion"
+	"internal/platform"
 	"io"
 	"io/fs"
 	"os"
@@ -345,7 +346,7 @@ func defaultContext() Context {
 	default:
 		// cgo must be explicitly enabled for cross compilation builds
 		if runtime.GOARCH == c.GOARCH && runtime.GOOS == c.GOOS {
-			c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
+			c.CgoEnabled = platform.CgoSupported(c.GOOS, c.GOARCH)
 			break
 		}
 		c.CgoEnabled = false
@@ -455,6 +456,11 @@ type Package struct {
 	TestGoFiles  []string // _test.go files in package
 	XTestGoFiles []string // _test.go files outside package
 
+	// Go directive comments (//go:zzz...) found in source files.
+	Directives      []Directive
+	TestDirectives  []Directive
+	XTestDirectives []Directive
+
 	// Dependency information
 	Imports        []string                    // import paths from GoFiles, CgoFiles
 	ImportPos      map[string][]token.Position // line information for Imports
@@ -476,6 +482,12 @@ type Package struct {
 	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
 }
 
+// A Directive is a Go directive comment (//go:zzz...) found in a source file.
+type Directive struct {
+	Text string         // full line comment including leading slashes
+	Pos  token.Position // position of comment
+}
+
 // IsCommand reports whether the package is considered a
 // command to be installed (not just a library).
 // Packages named "main" are treated as commands.
@@ -483,13 +495,13 @@ func (p *Package) IsCommand() bool {
 	return p.Name == "main"
 }
 
-// ImportDir is like Import but processes the Go package found in
+// ImportDir is like [Import] but processes the Go package found in
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return ctxt.Import(".", dir, mode)
 }
 
-// NoGoError is the error used by Import to describe a directory
+// NoGoError is the error used by [Import] to describe a directory
 // containing no buildable Go source files. (It may still contain
 // test files, files hidden by build tags, and so on.)
 type NoGoError struct {
@@ -537,7 +549,7 @@ var installgoroot = godebug.New("installgoroot")
 //   - files with build constraints not satisfied by the context
 //
 // If an error occurs, Import returns a non-nil error and a non-nil
-// *Package containing partial information.
+// *[Package] containing partial information.
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
@@ -786,6 +798,9 @@ Found:
 
 			// Set the install target if applicable.
 			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+				if p.Goroot {
+					installgoroot.IncNonDefault()
+				}
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}
@@ -966,6 +981,7 @@ Found:
 
 		var fileList *[]string
 		var importMap, embedMap map[string][]token.Position
+		var directives *[]Directive
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
@@ -973,6 +989,7 @@ Found:
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
+				directives = &p.Directives
 			} else {
 				// Ignore imports and embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
@@ -981,14 +998,17 @@ Found:
 			fileList = &p.XTestGoFiles
 			importMap = xTestImportPos
 			embedMap = xTestEmbedPos
+			directives = &p.XTestDirectives
 		case isTest:
 			fileList = &p.TestGoFiles
 			importMap = testImportPos
 			embedMap = testEmbedPos
+			directives = &p.TestDirectives
 		default:
 			fileList = &p.GoFiles
 			importMap = importPos
 			embedMap = embedPos
+			directives = &p.Directives
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -1001,12 +1021,9 @@ Found:
 				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
 			}
 		}
-	}
-
-	// Now that p.CgoFiles has been set, use it to determine whether
-	// a package in GOROOT gets an install target:
-	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
+		if directives != nil {
+			*directives = append(*directives, info.directives...)
+		}
 	}
 
 	for tag := range allTags {
@@ -1372,7 +1389,7 @@ func parseWord(data []byte) (word, rest []byte) {
 }
 
 // MatchFile reports whether the file with the given name in the given directory
-// matches the context and would be included in a Package created by ImportDir
+// matches the context and would be included in a [Package] created by [ImportDir]
 // of that directory.
 //
 // MatchFile considers the name of the file and may use ctxt.OpenFile to
@@ -1386,13 +1403,14 @@ var dummyPkg Package
 
 // fileInfo records information learned about a file included in a build.
 type fileInfo struct {
-	name     string // full name including dir
-	header   []byte
-	fset     *token.FileSet
-	parsed   *ast.File
-	parseErr error
-	imports  []fileImport
-	embeds   []fileEmbed
+	name       string // full name including dir
+	header     []byte
+	fset       *token.FileSet
+	parsed     *ast.File
+	parseErr   error
+	imports    []fileImport
+	embeds     []fileEmbed
+	directives []Directive
 }
 
 type fileImport struct {
@@ -1666,6 +1684,11 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		//
 		line = strings.TrimSpace(line)
 		if len(line) < 5 || line[:4] != "#cgo" || (line[4] != ' ' && line[4] != '\t') {
+			continue
+		}
+
+		// #cgo (nocallback|noescape) <function name>
+		if fields := strings.Fields(line); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
 			continue
 		}
 

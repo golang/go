@@ -389,7 +389,6 @@ func BenchmarkCompareAndSwapNoExistingKey(b *testing.B) {
 }
 
 func BenchmarkCompareAndSwapValueNotEqual(b *testing.B) {
-	const n = 1 << 10
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.Store(0, 0)
@@ -530,6 +529,18 @@ func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
 				if m.CompareAndDelete(v, v) {
 					m.Store(v, v)
 				}
+			}
+		},
+	})
+}
+
+func BenchmarkClear(b *testing.B) {
+	benchMap(b, bench{
+		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
+			for ; pb.Next(); i++ {
+				k, v := i%256, i%256
+				m.Clear()
+				m.Store(k, v)
 			}
 		},
 	})

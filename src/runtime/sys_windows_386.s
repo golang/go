@@ -7,16 +7,28 @@
 #include "textflag.h"
 #include "time_windows.h"
 
+// Offsets into Thread Environment Block (pointer in FS)
+#define TEB_TlsSlots 0xE10
+#define TEB_ArbitraryPtr 0x14
+
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	JMP	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	fn+0(FP), BX
+	MOVL	SP, BP	// save stack pointer
 
 	// SetLastError(0).
 	MOVL	$0, 0x34(FS)
 
+	MOVL	libcall_n(BX), CX
+
+	// Fast version, do not store args on the stack.
+	CMPL	CX, $0
+	JE	docall
+
 	// Copy args to the stack.
-	MOVL	SP, BP
-	MOVL	libcall_n(BX), CX	// words
 	MOVL	CX, AX
 	SALL	$2, AX
 	SUBL	AX, SP			// room for args
@@ -25,6 +37,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	CLD
 	REP; MOVSL
 
+docall:
 	// Call stdcall or cdecl function.
 	// DI SI BP BX are preserved, SP is not
 	CALL	libcall_fn(BX)
@@ -41,41 +54,26 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 
 	RET
 
-TEXT	runtime·badsignal2(SB),NOSPLIT,$24
-	// stderr
-	MOVL	$-12, 0(SP)
-	MOVL	SP, BP
-	CALL	*runtime·_GetStdHandle(SB)
-	MOVL	BP, SP
-
-	MOVL	AX, 0(SP)	// handle
-	MOVL	$runtime·badsignalmsg(SB), DX // pointer
-	MOVL	DX, 4(SP)
-	MOVL	runtime·badsignallen(SB), DX // count
-	MOVL	DX, 8(SP)
-	LEAL	20(SP), DX  // written count
-	MOVL	$0, 0(DX)
-	MOVL	DX, 12(SP)
-	MOVL	$0, 16(SP) // overlapped
-	CALL	*runtime·_WriteFile(SB)
-
-	// Does not return.
-	CALL	runtime·abort(SB)
-	RET
-
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	0x34(FS), AX
 	MOVL	AX, ret+0(FP)
 	RET
 
+TEXT runtime·sigFetchGSafe<ABIInternal>(SB),NOSPLIT,$0
+	get_tls(AX)
+	CMPL	AX, $0
+	JE	2(PC)
+	MOVL	g(AX), AX
+	MOVL	AX, ret+0(FP)
+	RET
+
 // Called by Windows as a Vectored Exception Handler (VEH).
-// First argument is pointer to struct containing
+// AX is pointer to struct containing
 // exception record and context pointers.
-// Handler function is stored in AX.
-// Return 0 for 'not handled', -1 for handled.
+// CX is the kind of sigtramp function.
+// Return value of sigtrampgo is stored in AX.
 TEXT sigtramp<>(SB),NOSPLIT,$0-0
-	MOVL	ptrs+0(FP), CX
 	SUBL	$40, SP
 
 	// save callee-saved registers
@@ -84,58 +82,11 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
 
-	MOVL	AX, SI	// save handler address
-
-	// find g
-	get_tls(DX)
-	CMPL	DX, $0
-	JNE	3(PC)
-	MOVL	$0, AX // continue
-	JMP	done
-	MOVL	g(DX), DX
-	CMPL	DX, $0
-	JNE	2(PC)
-	CALL	runtime·badsignal2(SB)
-
-	// save g in case of stack switch
-	MOVL	DX, 32(SP)	// g
-	MOVL	SP, 36(SP)
-
-	// do we need to switch to the g0 stack?
-	MOVL	g_m(DX), BX
-	MOVL	m_g0(BX), BX
-	CMPL	DX, BX
-	JEQ	g0
-
-	// switch to the g0 stack
-	get_tls(BP)
-	MOVL	BX, g(BP)
-	MOVL	(g_sched+gobuf_sp)(BX), DI
-	// make room for sighandler arguments
-	// and re-save old SP for restoring later.
-	// (note that the 36(DI) here must match the 36(SP) above.)
-	SUBL	$40, DI
-	MOVL	SP, 36(DI)
-	MOVL	DI, SP
-
-g0:
-	MOVL	0(CX), BX // ExceptionRecord*
-	MOVL	4(CX), CX // Context*
-	MOVL	BX, 0(SP)
+	MOVL	AX, 0(SP)
 	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	CALL	SI	// call handler
-	// AX is set to report result back to Windows
-	MOVL	12(SP), AX
+	CALL	runtime·sigtrampgo(SB)
+	MOVL	8(SP), AX
 
-	// switch back to original stack and g
-	// no-op if we never left.
-	MOVL	36(SP), SP
-	MOVL	32(SP), DX	// note: different SP
-	get_tls(BP)
-	MOVL	DX, g(BP)
-
-done:
 	// restore callee-saved registers
 	MOVL	24(SP), DI
 	MOVL	20(SP), SI
@@ -147,8 +98,18 @@ done:
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
 
+// Trampoline to resume execution from exception handler.
+// This is part of the control flow guard workaround.
+// It switches stacks and jumps to the continuation address.
+// DX and CX are set above at the end of sigtrampgo
+// in the context that starts executing at sigresume.
+TEXT runtime·sigresume(SB),NOSPLIT,$0
+	MOVL	DX, SP
+	JMP	CX
+
 TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
-	MOVL	$runtime·exceptionhandler(SB), AX
+	MOVL	argframe+0(FP), AX
+	MOVL	$const_callbackVEH, CX
 	JMP	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
@@ -156,13 +117,12 @@ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
 	INT	$3
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
-	MOVL	$runtime·lastcontinuehandler(SB), AX
+	MOVL	argframe+0(FP), AX
+	MOVL	$const_callbackLastVCH, CX
 	JMP	sigtramp<>(SB)
 
-GLOBL runtime·cbctxts(SB), NOPTR, $4
-
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
-  	MOVL	0(SP), AX	// will use to find our callback context
+	MOVL	0(SP), AX	// will use to find our callback context
 
 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
 	ADDL	$4, SP
@@ -222,7 +182,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	RET
 
 // void tstart(M *newm);
-TEXT tstart<>(SB),NOSPLIT,$0
+TEXT tstart<>(SB),NOSPLIT,$8-4
 	MOVL	newm+0(FP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
@@ -231,15 +191,16 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVL	AX, (g_stack+stack_lo)(DX)
-	ADDL	$const__StackGuard, AX
+	ADDL	$const_stackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
 	MOVL	AX, g_stackguard1(DX)
 
 	// Set up tls.
-	LEAL	m_tls(CX), SI
-	MOVL	SI, 0x14(FS)
+	LEAL	m_tls(CX), DI
 	MOVL	CX, g_m(DX)
-	MOVL	DX, g(SI)
+	MOVL	DX, g(DI)
+	MOVL	DI, 4(SP)
+	CALL	runtime·setldt(SB) // clobbers CX and DX
 
 	// Someday the convention will be D is always cleared.
 	CLD
@@ -266,77 +227,14 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 	RET
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	MOVL	base+4(FP), CX
-	MOVL	CX, 0x14(FS)
-	RET
-
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-TEXT runtime·usleep2(SB),NOSPLIT,$20-4
-	MOVL	dt+0(FP), BX
-	MOVL	$-1, hi-4(SP)
-	MOVL	BX, lo-8(SP)
-	LEAL	lo-8(SP), BX
-	MOVL	BX, ptime-12(SP)
-	MOVL	$0, alertable-16(SP)
-	MOVL	$-1, handle-20(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-	RET
-
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
-	MOVL	dt+0(FP), BX
-	MOVL	$-1, hi-4(SP)
-	MOVL	BX, lo-8(SP)
-
-	get_tls(CX)
-	MOVL	g(CX), CX
-	MOVL	g_m(CX), CX
-	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
-	MOVL	CX, saved_timer-12(SP)
-
-	MOVL	$0, fResume-16(SP)
-	MOVL	$0, lpArgToCompletionRoutine-20(SP)
-	MOVL	$0, pfnCompletionRoutine-24(SP)
-	MOVL	$0, lPeriod-28(SP)
-	LEAL	lo-8(SP), BX
-	MOVL	BX, lpDueTime-32(SP)
-	MOVL	CX, hTimer-36(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_SetWaitableTimer(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-
-	MOVL	$0, ptime-28(SP)
-	MOVL	$0, alertable-32(SP)
-	MOVL	saved_timer-12(SP), CX
-	MOVL	CX, handle-36(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-
-	RET
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT,$0
-	MOVL	SP, BP
-	MOVL	runtime·_SwitchToThread(SB), AX
-	CALL	AX
-	MOVL	BP, SP
+// setldt(int slot, int base, int size)
+TEXT runtime·setldt(SB),NOSPLIT,$0-12
+	MOVL	base+4(FP), DX
+	MOVL	runtime·tls_g(SB), CX
+	MOVL	DX, 0(CX)(FS)
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 loop:
 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
 	MOVL	(_INTERRUPT_TIME+time_lo), CX
@@ -353,6 +251,32 @@ loop:
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
-useQPC:
-	JMP	runtime·nanotimeQPC(SB)
+
+// This is called from rt0_go, which runs on the system stack
+// using the initial stack allocated by the OS.
+TEXT runtime·wintls(SB),NOSPLIT,$0
+	// Allocate a TLS slot to hold g across calls to external code
+	MOVL	SP, BP
+	MOVL	runtime·_TlsAlloc(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+
+	MOVL	AX, CX	// TLS index
+
+	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+	CMPL	CX, $64
+	JB	ok
+	// Fallback to the TEB arbitrary pointer.
+	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
+	MOVL	$TEB_ArbitraryPtr, CX
+	JMP	settls
+ok:
+	// Convert the TLS index at CX into
+	// an offset from TEB_TlsSlots.
+	SHLL	$2, CX
+
+	// Save offset from TLS into tls_g.
+	ADDL	$TEB_TlsSlots, CX
+settls:
+	MOVL	CX, runtime·tls_g(SB)
 	RET

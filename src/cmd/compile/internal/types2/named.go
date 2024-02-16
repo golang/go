@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -141,7 +142,7 @@ const (
 // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	return (*Checker)(nil).newNamed(obj, underlying, methods)
@@ -224,7 +225,7 @@ func (n *Named) setState(state namedState) {
 	atomic.StoreUint32(&n.state_, uint32(state))
 }
 
-// newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+// newNamed is like NewNamed but with a *Checker receiver.
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, fromRHS: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
@@ -334,6 +335,12 @@ func (t *Named) NumMethods() int {
 // For an ordinary or instantiated type t, the receiver base type of this
 // method is the named type t. For an uninstantiated generic type t, each
 // method receiver is instantiated with its receiver type parameters.
+//
+// Methods are numbered deterministically: given the same list of source files
+// presented to the type checker, or the same sequence of NewMethod and AddMethod
+// calls, the mapping from method index to corresponding method remains the same.
+// But the specific ordering is not specified and must not be relied on as it may
+// change in the future.
 func (t *Named) Method(i int) *Func {
 	t.resolve()
 
@@ -434,7 +441,7 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
 		panic("underlying type must not be nil")
 	}
-	if _, ok := underlying.(*Named); ok {
+	if asNamed(underlying) != nil {
 		panic("underlying type must not be *Named")
 	}
 	t.resolve().underlying = underlying
@@ -444,16 +451,42 @@ func (t *Named) SetUnderlying(underlying Type) {
 }
 
 // AddMethod adds method m unless it is already in the method list.
-// t must not have type arguments.
+// The method must be in the same package as t, and t must not have
+// type arguments.
 func (t *Named) AddMethod(m *Func) {
+	assert(samePkg(t.obj.pkg, m.pkg))
 	assert(t.inst == nil)
 	t.resolve()
-	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
+	if t.methodIndex(m.name, false) < 0 {
 		t.methods = append(t.methods, m)
 	}
 }
 
-func (t *Named) Underlying() Type { return t.resolve().underlying }
+// methodIndex returns the index of the method with the given name.
+// If foldCase is set, capitalization in the name is ignored.
+// The result is negative if no such method exists.
+func (t *Named) methodIndex(name string, foldCase bool) int {
+	if name == "_" {
+		return -1
+	}
+	if foldCase {
+		for i, m := range t.methods {
+			if strings.EqualFold(m.name, name) {
+				return i
+			}
+		}
+	} else {
+		for i, m := range t.methods {
+			if m.name == name {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
@@ -539,7 +572,7 @@ loop:
 	for n := range seen {
 		// We should never have to update the underlying type of an imported type;
 		// those underlying types should have been resolved during the import.
-		// Also, doing so would lead to a race condition (was issue #31749).
+		// Also, doing so would lead to a race condition (was go.dev/issue/31749).
 		// Do this check always, not just in debug mode (it's cheap).
 		if n.obj.pkg != check.pkg {
 			panic("imported type with unresolved underlying type")
@@ -550,23 +583,18 @@ loop:
 	return u
 }
 
-func (n *Named) setUnderlying(typ Type) {
-	if n != nil {
-		n.underlying = typ
-	}
-}
-
 func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
 	n.resolve()
-	// If n is an instance, we may not have yet instantiated all of its methods.
-	// Look up the method index in orig, and only instantiate method at the
-	// matching index (if any).
-	i, _ := lookupMethod(n.Origin().methods, pkg, name, foldCase)
-	if i < 0 {
-		return -1, nil
+	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
+		// If n is an instance, we may not have yet instantiated all of its methods.
+		// Look up the method index in orig, and only instantiate method at the
+		// matching index (if any).
+		if i := n.Origin().methodIndex(name, foldCase); i >= 0 {
+			// For instances, m.Method(i) will be different from the orig method.
+			return i, n.Method(i)
+		}
 	}
-	// For instances, m.Method(i) will be different from the orig method.
-	return i, n.Method(i)
+	return -1, nil
 }
 
 // context returns the type-checker context.
@@ -598,7 +626,7 @@ func (n *Named) expandUnderlying() Type {
 	orig := n.inst.orig
 	targs := n.inst.targs
 
-	if _, unexpanded := orig.underlying.(*Named); unexpanded {
+	if asNamed(orig.underlying) != nil {
 		// We should only get a Named underlying type here during type checking
 		// (for example, in recursive type declarations).
 		assert(check != nil)
@@ -633,11 +661,18 @@ func (n *Named) expandUnderlying() Type {
 				old := iface
 				iface = check.newInterface()
 				iface.embeddeds = old.embeddeds
+				assert(old.complete) // otherwise we are copying incomplete data
 				iface.complete = old.complete
 				iface.implicit = old.implicit // should be false but be conservative
 				underlying = iface
 			}
 			iface.methods = methods
+			iface.tset = nil // recompute type set with new methods
+
+			// If check != nil, check.newInterface will have saved the interface for later completion.
+			if check == nil { // golang/go#61561: all newly created interfaces must be fully evaluated
+				iface.typeSet()
+			}
 		}
 	}
 
@@ -649,7 +684,7 @@ func (n *Named) expandUnderlying() Type {
 //
 // TODO(rfindley): eliminate this function or give it a better name.
 func safeUnderlying(typ Type) Type {
-	if t, _ := typ.(*Named); t != nil {
+	if t := asNamed(typ); t != nil {
 		return t.underlying
 	}
 	return typ.Underlying()

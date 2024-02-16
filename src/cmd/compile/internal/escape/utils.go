@@ -151,7 +151,7 @@ func mayAffectMemory(n ir.Node) bool {
 		n := n.(*ir.ConvExpr)
 		return mayAffectMemory(n.X)
 
-	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG:
 		n := n.(*ir.UnaryExpr)
 		return mayAffectMemory(n.X)
 

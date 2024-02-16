@@ -37,5 +37,7 @@ TEXT ·x509_CFDataCreate_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_CFDataCreate(SB)
 TEXT ·x509_CFErrorCopyDescription_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_CFErrorCopyDescription(SB)
+TEXT ·x509_CFErrorGetCode_trampoline(SB),NOSPLIT,$0-0
+	JMP x509_CFErrorGetCode(SB)
 TEXT ·x509_CFStringCreateExternalRepresentation_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_CFStringCreateExternalRepresentation(SB)

@@ -1,5 +1,6 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # When running seed inputs, T.Parallel should let multiple inputs run in
 # parallel.

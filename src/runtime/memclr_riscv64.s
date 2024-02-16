@@ -16,19 +16,20 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
 	BLT	X11, X9, check4
 
 	// Check alignment
-	AND	$3, X10, X5
+	AND	$7, X10, X5
 	BEQZ	X5, aligned
 
 	// Zero one byte at a time until we reach 8 byte alignment.
+	SUB	X5, X9, X5
 	SUB	X5, X11, X11
 align:
-	ADD	$-1, X5
+	SUB	$1, X5
 	MOVB	ZERO, 0(X10)
 	ADD	$1, X10
 	BNEZ	X5, align
 
 aligned:
-	MOV	$8, X9
+	// X9 already contains $8
 	BLT	X11, X9, check4
 	MOV	$16, X9
 	BLT	X11, X9, zero8
@@ -46,7 +47,7 @@ loop64:
 	MOV	ZERO, 48(X10)
 	MOV	ZERO, 56(X10)
 	ADD	$64, X10
-	ADD	$-64, X11
+	SUB	$64, X11
 	BGE	X11, X9, loop64
 	BEQZ	X11, done
 
@@ -59,7 +60,7 @@ zero32:
 	MOV	ZERO, 16(X10)
 	MOV	ZERO, 24(X10)
 	ADD	$32, X10
-	ADD	$-32, X11
+	SUB	$32, X11
 	BEQZ	X11, done
 
 check16:
@@ -69,7 +70,7 @@ zero16:
 	MOV	ZERO, 0(X10)
 	MOV	ZERO, 8(X10)
 	ADD	$16, X10
-	ADD	$-16, X11
+	SUB	$16, X11
 	BEQZ	X11, done
 
 check8:
@@ -78,7 +79,7 @@ check8:
 zero8:
 	MOV	ZERO, 0(X10)
 	ADD	$8, X10
-	ADD	$-8, X11
+	SUB	$8, X11
 	BEQZ	X11, done
 
 check4:
@@ -90,13 +91,13 @@ zero4:
 	MOVB	ZERO, 2(X10)
 	MOVB	ZERO, 3(X10)
 	ADD	$4, X10
-	ADD	$-4, X11
+	SUB	$4, X11
 
 loop1:
 	BEQZ	X11, done
 	MOVB	ZERO, 0(X10)
 	ADD	$1, X10
-	ADD	$-1, X11
+	SUB	$1, X11
 	JMP	loop1
 
 done:

@@ -6,6 +6,7 @@ package vcweb
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -14,8 +15,10 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 )
 
 type hgHandler struct {
@@ -47,9 +50,24 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		// if "hg" works at all then "hg serve" works too, and we'll execute that as
 		// a subprocess, using a reverse proxy to forward the request and response.
 
-		cmd := exec.Command(h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
 		cmd.Dir = dir
-		cmd.Env = append(env[:len(env):len(env)], "PWD="+dir)
+		cmd.Env = append(slices.Clip(env), "PWD="+dir)
+
+		cmd.Cancel = func() error {
+			err := cmd.Process.Signal(os.Interrupt)
+			if err != nil && !errors.Is(err, os.ErrProcessDone) {
+				err = cmd.Process.Kill()
+			}
+			return err
+		}
+		// This WaitDelay is arbitrary. After 'hg serve' prints its URL, any further
+		// I/O is only for debugging. (The actual output goes through the HTTP URL,
+		// not the standard I/O streams.)
+		cmd.WaitDelay = 10 * time.Second
 
 		stderr := new(strings.Builder)
 		cmd.Stderr = stderr
@@ -59,62 +77,46 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		readDone := make(chan struct{})
-		defer func() {
-			stdout.Close()
-			<-readDone
-		}()
-
-		hgURL := make(chan *url.URL, 1)
-		hgURLError := make(chan error, 1)
-		go func() {
-			defer close(readDone)
-			r := bufio.NewReader(stdout)
-			for {
-				line, err := r.ReadString('\n')
-				if err != nil {
-					return
-				}
-				u, err := url.Parse(strings.TrimSpace(line))
-				if err == nil {
-					hgURL <- u
-				} else {
-					hgURLError <- err
-				}
-				break
-			}
-			io.Copy(io.Discard, r)
-		}()
 
 		if err := cmd.Start(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		var wg sync.WaitGroup
 		defer func() {
-			if err := cmd.Process.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
-				cmd.Process.Kill()
-			}
+			cancel()
 			err := cmd.Wait()
 			if out := strings.TrimSuffix(stderr.String(), "interrupted!\n"); out != "" {
 				logger.Printf("%v: %v\n%s", cmd, err, out)
 			} else {
 				logger.Printf("%v", cmd)
 			}
+			wg.Wait()
 		}()
 
-		select {
-		case <-req.Context().Done():
-			logger.Printf("%v: %v", req.Context().Err(), cmd)
-			http.Error(w, req.Context().Err().Error(), http.StatusBadGateway)
+		r := bufio.NewReader(stdout)
+		line, err := r.ReadString('\n')
+		if err != nil {
 			return
-		case err := <-hgURLError:
+		}
+		// We have read what should be the server URL. 'hg serve' shouldn't need to
+		// write anything else to stdout, but it's not a big deal if it does anyway.
+		// Keep the stdout pipe open so that 'hg serve' won't get a SIGPIPE, but
+		// actively discard its output so that it won't hang on a blocking write.
+		wg.Add(1)
+		go func() {
+			io.Copy(io.Discard, r)
+			wg.Done()
+		}()
+
+		u, err := url.Parse(strings.TrimSpace(line))
+		if err != nil {
 			logger.Printf("%v: %v", cmd, err)
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
-		case url := <-hgURL:
-			logger.Printf("proxying hg request to %s", url)
-			httputil.NewSingleHostReverseProxy(url).ServeHTTP(w, req)
 		}
+		logger.Printf("proxying hg request to %s", u)
+		httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, req)
 	})
 
 	return handler, nil

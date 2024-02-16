@@ -8,7 +8,18 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unsafe"
 )
+
+func ExampleClone() {
+	s := "abc"
+	clone := strings.Clone(s)
+	fmt.Println(s == clone)
+	fmt.Println(unsafe.StringData(s) == unsafe.StringData(clone))
+	// Output:
+	// true
+	// false
+}
 
 func ExampleBuilder() {
 	var b strings.Builder
@@ -69,6 +80,17 @@ func ExampleContainsRune() {
 	// false
 }
 
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r == 'a' || r == 'e' || r == 'i' || r == 'o' || r == 'u'
+	}
+	fmt.Println(strings.ContainsFunc("hello", f))
+	fmt.Println(strings.ContainsFunc("rhythms", f))
+	// Output:
+	// true
+	// false
+}
+
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
@@ -91,6 +113,30 @@ func ExampleCut() {
 	// Cut("Gopher", "ph") = "Go", "er", true
 	// Cut("Gopher", "er") = "Goph", "", true
 	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
+func ExampleCutPrefix() {
+	show := func(s, sep string) {
+		after, found := strings.CutPrefix(s, sep)
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	// Output:
+	// CutPrefix("Gopher", "Go") = "pher", true
+	// CutPrefix("Gopher", "ph") = "Gopher", false
+}
+
+func ExampleCutSuffix() {
+	show := func(s, sep string) {
+		before, found := strings.CutSuffix(s, sep)
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "er")
+	// Output:
+	// CutSuffix("Gopher", "Go") = "Gopher", false
+	// CutSuffix("Gopher", "er") = "Goph", true
 }
 
 func ExampleEqualFold() {
@@ -401,4 +447,14 @@ func ExampleTrimRightFunc() {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	}))
 	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", strings.ToValidUTF8("abc", "\uFFFD"))
+	fmt.Printf("%s\n", strings.ToValidUTF8("a\xffb\xC0\xAFc\xff", ""))
+	fmt.Printf("%s\n", strings.ToValidUTF8("\xed\xa0\x80", "abc"))
+	// Output:
+	// abc
+	// abc
+	// abc
 }

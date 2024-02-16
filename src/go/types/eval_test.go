@@ -59,14 +59,14 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 func TestEvalBasic(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, typ := range Typ[Bool : String+1] {
-		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
+		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
 	}
 }
 
 func TestEvalComposite(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, test := range independentTestTypes {
-		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
+		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestEvalArith(t *testing.T) {
 	}
 	fset := token.NewFileSet()
 	for _, test := range tests {
-		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
+		testEval(t, fset, nil, nopos, test, Typ[UntypedBool], "", "true")
 	}
 }
 
@@ -139,7 +139,7 @@ func TestEvalPos(t *testing.T) {
 				/* c => , struct{c int} */
 				_ = c
 			}
-			_ = func(a, b, c int) /* c => , string */ {
+			_ = func(a, b, c int /* c => , string */) /* c => , int */ {
 				/* c => , int */
 			}
 			_ = c

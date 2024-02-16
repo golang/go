@@ -7,9 +7,14 @@ package unix
 import "syscall"
 
 const (
+	AT_EACCESS          = 0x100
+	AT_FDCWD            = -0x64
 	AT_REMOVEDIR        = 0x800
 	AT_SYMLINK_NOFOLLOW = 0x200
 
-	unlinkatTrap uintptr = syscall.SYS_UNLINKAT
-	openatTrap   uintptr = syscall.SYS_OPENAT
+	UTIME_OMIT = -0x2
+
+	unlinkatTrap       uintptr = syscall.SYS_UNLINKAT
+	openatTrap         uintptr = syscall.SYS_OPENAT
+	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
 )

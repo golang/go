@@ -105,7 +105,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 	MOVQ	AX, (g_stack+stack_hi)(DX)
 	SUBQ	$(0x100000), AX		// stack size
 	MOVQ	AX, (g_stack+stack_lo)(DX)
-	ADDQ	$const__StackGuard, AX
+	ADDQ	$const_stackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
 	MOVQ	AX, g_stackguard1(DX)
 
@@ -121,29 +121,28 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
 
 // Careful, this is called by __sighndlr, a libc function. We must preserve
 // registers as per AMD 64 ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 	// Note that we are executing on altsigstack here, so we have
 	// more stack available than NOSPLIT would have us believe.
 	// To defeat the linker, we make our own stack frame with
 	// more space:
-	SUBQ    $184, SP
-
+	SUBQ    $168, SP
 	// save registers
-	MOVQ    BX, 32(SP)
-	MOVQ    BP, 40(SP)
-	MOVQ	R12, 48(SP)
-	MOVQ	R13, 56(SP)
-	MOVQ	R14, 64(SP)
-	MOVQ	R15, 72(SP)
+	MOVQ    BX, 24(SP)
+	MOVQ    BP, 32(SP)
+	MOVQ	R12, 40(SP)
+	MOVQ	R13, 48(SP)
+	MOVQ	R14, 56(SP)
+	MOVQ	R15, 64(SP)
 
 	get_tls(BX)
 	// check that g exists
 	MOVQ	g(BX), R10
 	CMPQ	R10, $0
 	JNE	allgood
-	MOVQ	SI, 80(SP)
-	MOVQ	DX, 88(SP)
-	LEAQ	80(SP), AX
+	MOVQ	SI, 72(SP)
+	MOVQ	DX, 80(SP)
+	LEAQ	72(SP), AX
 	MOVQ	DI, 0(SP)
 	MOVQ	AX, 8(SP)
 	MOVQ	$runtime·badsignal(SB), AX
@@ -158,35 +157,35 @@ allgood:
 	MOVQ	g_m(R10), BP
 	LEAQ	m_libcall(BP), R11
 	MOVQ	libcall_fn(R11), R10
-	MOVQ	R10, 88(SP)
+	MOVQ	R10, 72(SP)
 	MOVQ	libcall_args(R11), R10
-	MOVQ	R10, 96(SP)
+	MOVQ	R10, 80(SP)
 	MOVQ	libcall_n(R11), R10
-	MOVQ	R10, 104(SP)
+	MOVQ	R10, 88(SP)
 	MOVQ    libcall_r1(R11), R10
-	MOVQ    R10, 168(SP)
+	MOVQ    R10, 152(SP)
 	MOVQ    libcall_r2(R11), R10
-	MOVQ    R10, 176(SP)
+	MOVQ    R10, 160(SP)
 
 	// save m->scratch
 	LEAQ	(m_mOS+mOS_scratch)(BP), R11
 	MOVQ	0(R11), R10
-	MOVQ	R10, 112(SP)
+	MOVQ	R10, 96(SP)
 	MOVQ	8(R11), R10
-	MOVQ	R10, 120(SP)
+	MOVQ	R10, 104(SP)
 	MOVQ	16(R11), R10
-	MOVQ	R10, 128(SP)
+	MOVQ	R10, 112(SP)
 	MOVQ	24(R11), R10
-	MOVQ	R10, 136(SP)
+	MOVQ	R10, 120(SP)
 	MOVQ	32(R11), R10
-	MOVQ	R10, 144(SP)
+	MOVQ	R10, 128(SP)
 	MOVQ	40(R11), R10
-	MOVQ	R10, 152(SP)
+	MOVQ	R10, 136(SP)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
 	MOVQ	(m_mOS+mOS_perrno)(BP), R10
 	MOVL	0(R10), R10
-	MOVQ	R10, 160(SP)
+	MOVQ	R10, 144(SP)
 
 	// prepare call
 	MOVQ	DI, 0(SP)
@@ -199,47 +198,46 @@ allgood:
 	MOVQ	g_m(BP), BP
 	// restore libcall
 	LEAQ	m_libcall(BP), R11
-	MOVQ	88(SP), R10
+	MOVQ	72(SP), R10
 	MOVQ	R10, libcall_fn(R11)
-	MOVQ	96(SP), R10
+	MOVQ	80(SP), R10
 	MOVQ	R10, libcall_args(R11)
-	MOVQ	104(SP), R10
+	MOVQ	88(SP), R10
 	MOVQ	R10, libcall_n(R11)
-	MOVQ    168(SP), R10
+	MOVQ    152(SP), R10
 	MOVQ    R10, libcall_r1(R11)
-	MOVQ    176(SP), R10
+	MOVQ    160(SP), R10
 	MOVQ    R10, libcall_r2(R11)
 
 	// restore scratch
 	LEAQ	(m_mOS+mOS_scratch)(BP), R11
-	MOVQ	112(SP), R10
+	MOVQ	96(SP), R10
 	MOVQ	R10, 0(R11)
-	MOVQ	120(SP), R10
+	MOVQ	104(SP), R10
 	MOVQ	R10, 8(R11)
-	MOVQ	128(SP), R10
+	MOVQ	112(SP), R10
 	MOVQ	R10, 16(R11)
-	MOVQ	136(SP), R10
+	MOVQ	120(SP), R10
 	MOVQ	R10, 24(R11)
-	MOVQ	144(SP), R10
+	MOVQ	128(SP), R10
 	MOVQ	R10, 32(R11)
-	MOVQ	152(SP), R10
+	MOVQ	136(SP), R10
 	MOVQ	R10, 40(R11)
 
 	// restore errno
 	MOVQ	(m_mOS+mOS_perrno)(BP), R11
-	MOVQ	160(SP), R10
+	MOVQ	144(SP), R10
 	MOVL	R10, 0(R11)
 
 exit:
 	// restore registers
-	MOVQ	32(SP), BX
-	MOVQ	40(SP), BP
-	MOVQ	48(SP), R12
-	MOVQ	56(SP), R13
-	MOVQ	64(SP), R14
-	MOVQ	72(SP), R15
-
-	ADDQ    $184, SP
+	MOVQ	24(SP), BX
+	MOVQ	32(SP), BP
+	MOVQ	40(SP), R12
+	MOVQ	48(SP), R13
+	MOVQ	56(SP), R14
+	MOVQ	64(SP), R15
+	ADDQ    $168, SP
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -247,12 +245,10 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
 	MOVQ	ctx+24(FP),  DX
-	PUSHQ	BP
-	MOVQ	SP, BP
-	ANDQ	$~15, SP     // alignment for x86_64 ABI
+	MOVQ	SP, BX		// callee-saved
+	ANDQ	$~15, SP	// alignment for x86_64 ABI
 	CALL	AX
-	MOVQ	BP, SP
-	POPQ	BP
+	MOVQ	BX, SP
 	RET
 
 // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,

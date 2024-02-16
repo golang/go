@@ -11,24 +11,24 @@ env GO111MODULE=on
 ! go build -mod=readonly nonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 ! go build nonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 # Building a nonexistent std package indirectly should also fail usefully.
 
 ! go build -mod=readonly ./importnonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 ! go build ./importnonexist
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
 
 # Building an *actual* std package should fail if GOROOT is set to something bogus.
 
@@ -38,7 +38,7 @@ env GOROOT=$WORK/not-a-valid-goroot
 ! go build ./importjson
 ! stderr 'import lookup disabled'
 ! stderr 'missing dot'
-stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in GOROOT \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
+stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in std \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
 
 -- go.mod --
 module example.com

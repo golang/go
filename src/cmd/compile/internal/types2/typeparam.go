@@ -9,11 +9,11 @@ import "sync/atomic"
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
-var lastID uint32
+var lastID atomic.Uint32
 
 // nextID returns a value increasing monotonically by 1 with
 // each call, starting with 1. It may be called concurrently.
-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+func nextID() uint64 { return uint64(lastID.Add(1)) }
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
@@ -23,9 +23,6 @@ type TypeParam struct {
 	index int       // type parameter index in source order, starting at 0
 	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
 }
-
-// Obj returns the type name for the type parameter t.
-func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
 // or Signature type by calling SetTypeParams. Setting a type parameter on more
@@ -58,6 +55,9 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	}
 	return typ
 }
+
+// Obj returns the type name for the type parameter t.
+func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // Index returns the index of the type param within its param list, or -1 if
 // the type parameter has not yet been bound to a type.
@@ -108,7 +108,7 @@ func (t *TypeParam) iface() *Interface {
 	var ityp *Interface
 	switch u := under(bound).(type) {
 	case *Basic:
-		if u == Typ[Invalid] {
+		if !isValid(u) {
 			// error is reported elsewhere
 			return &emptyInterface
 		}
@@ -132,7 +132,7 @@ func (t *TypeParam) iface() *Interface {
 		// pos is used for tracing output; start with the type parameter position.
 		pos := t.obj.pos
 		// use the (original or possibly instantiated) type bound position if we have one
-		if n, _ := bound.(*Named); n != nil {
+		if n := asNamed(bound); n != nil {
 			pos = n.obj.pos
 		}
 		computeInterfaceTypeSet(t.check, pos, ityp)

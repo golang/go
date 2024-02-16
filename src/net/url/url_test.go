@@ -704,11 +704,9 @@ var parseRequestURLTests = []struct {
 	// These two cases are valid as textual representations as
 	// described in RFC 4007, but are not valid as address
 	// literals with IPv6 zone identifiers in URIs as described in
-	// RFC 6874. However, this seems to be overridden by
-	// https://url.spec.whatwg.org/#percent-encoded-bytes
-	// which permits unencoded % characters.
-	{"http://[fe80::1%en0]/", true},
-	{"http://[fe80::1%en0]:8080/", true},
+	// RFC 6874.
+	{"http://[fe80::1%en0]/", false},
+	{"http://[fe80::1%en0]:8080/", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -898,28 +896,28 @@ var unescapeTests = []EscapeTest{
 	},
 	{
 		"%", // not enough characters after %
-		"%",
-		nil,
+		"",
+		EscapeError("%"),
 	},
 	{
 		"%a", // not enough characters after %
-		"%a",
-		nil,
+		"",
+		EscapeError("%a"),
 	},
 	{
 		"%1", // not enough characters after %
-		"%1",
-		nil,
+		"",
+		EscapeError("%1"),
 	},
 	{
 		"123%45%6", // not enough characters after %
-		"123E%6",
-		nil,
+		"",
+		EscapeError("%6"),
 	},
 	{
 		"%zzzzz", // invalid hex digits
-		"%zzzzz",
-		nil,
+		"",
+		EscapeError("%zz"),
 	},
 	{
 		"a+b",
@@ -1074,6 +1072,7 @@ type EncodeQueryTest struct {
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, ""},
+	{Values{}, ""},
 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
 	{Values{
@@ -1118,7 +1117,6 @@ func TestResolvePath(t *testing.T) {
 }
 
 func BenchmarkResolvePath(b *testing.B) {
-	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		resolvePath("a/b/c", ".././d")
@@ -1590,6 +1588,16 @@ func TestRequestURI(t *testing.T) {
 		if s != tt.out {
 			t.Errorf("%#v.RequestURI() == %q (expected %q)", tt.url, s, tt.out)
 		}
+	}
+}
+
+func TestParseFailure(t *testing.T) {
+	// Test that the first parse error is returned.
+	const url = "%gh&%ij"
+	_, err := ParseQuery(url)
+	errStr := fmt.Sprint(err)
+	if !strings.Contains(errStr, "%gh") {
+		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
 	}
 }
 
@@ -2110,7 +2118,6 @@ func TestJoinPath(t *testing.T) {
 		{
 			base: "http://[fe80::1%en0]:8080/",
 			elem: []string{"/go"},
-			out:  "http://[fe80::1%25en0]:8080/go",
 		},
 		{
 			base: "https://go.googlesource.com",

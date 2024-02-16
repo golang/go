@@ -12,6 +12,7 @@ import (
 	"debug/macho"
 	"debug/pe"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"internal/xcoff"
 	"io"
@@ -53,8 +54,8 @@ type Line struct {
 }
 
 func TestStmtLines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	if runtime.GOOS == "aix" {
@@ -75,8 +76,15 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	// Build cmd/go forcing DWARF enabled, as a large test case.
+	dir := t.TempDir()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-w=0", "-o", dir+"/test.exe", "cmd/go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+
 	lines := map[Line]bool{}
-	dw, err := open(testenv.GoToolPath(t))
+	dw, err := open(dir + "/test.exe")
 	must(err)
 	rdr := dw.Reader()
 	rdr.Seek(0)
