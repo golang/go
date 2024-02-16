@@ -79,8 +79,7 @@ assistQueue,
 < sched;
 sched < allg, allp;
 allp, wakeableSleep < timers;
-timers < netpollInit;
-timers < timer;
+timers < timer < netpollInit;
 
 # Channels
 scavenge, sweep, testR, wakeableSleep < hchan;
@@ -117,7 +116,7 @@ allg,
   hchan,
   notifyList,
   reflectOffs,
-  timers,
+  timer,
   traceStrings,
   userArenaState
 # Above MALLOC are things that can allocate memory.
