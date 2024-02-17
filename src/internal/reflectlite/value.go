@@ -456,8 +456,13 @@ func (f Flag) Ro() Flag {
 func (f Flag) MustBe(expected Kind) {
 	k := f.Kind()
 	if k != expected {
-		panic(NewValueError(valueMethodName(), Kind(k)))
+		mustBePanic(k)
 	}
+}
+
+//go:noinline
+func mustBePanic(k Kind) {
+	panic(NewValueError(valueMethodName(), k))
 }
 
 // mustBeExported panics if f records that the value was obtained using
@@ -524,8 +529,6 @@ func (e *ValueError) Error() string {
 }
 
 // valueMethodName returns the name of the exported calling method on Value.
-//
-//go:noinline
 func valueMethodName() string {
 	var pc [5]uintptr
 	n := runtime.Callers(1,
