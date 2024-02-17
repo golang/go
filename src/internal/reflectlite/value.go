@@ -447,21 +447,10 @@ func (f Flag) Ro() Flag {
 	return 0
 }
 
-// mustBe panics if f's kind is not expected.
-// Making this a method on flag instead of on  [reflect.Value]
-// (and embedding flag in Value) means that we can write
-// the very clear v.mustBe(Bool) and have it compile into
-// v.flag.mustBe(Bool), which will only bother to copy the
-// single important word for the receiver.
-func (f Flag) MustBe(expected Kind) {
+func MustBe(f Flag, expected Kind) {
 	if f.Kind() != expected {
-		mustBePanic(f)
+		panic(NewValueError(valueMethodName(), f.Kind()))
 	}
-}
-
-//go:noinline
-func mustBePanic(k Flag) {
-	panic(NewValueError(valueMethodName(), Kind(k.Kind())))
 }
 
 // mustBeExported panics if f records that the value was obtained using
@@ -509,7 +498,7 @@ func (f Flag) MustBeAssignableSlow() {
 //
 //go:noinline
 func (f Flag) PanicNotMap() {
-	f.MustBe(abi.Map)
+	MustBe(f, abi.Map)
 }
 
 // A ValueError occurs when a Value method is invoked on
@@ -551,6 +540,6 @@ func valueMethodName() string {
 
 // NewValueError default return [ValueError].
 // When reflect is imported, return [reflect.ValueError].
-var NewValueError func(Method string, Kind abi.Kind) interface{} = func(Method string, Kind abi.Kind) interface{} {
+var NewValueError func(Method string, Kind abi.Kind) any = func(Method string, Kind abi.Kind) any {
 	return &ValueError{Method: Method, Kind: Kind}
 }

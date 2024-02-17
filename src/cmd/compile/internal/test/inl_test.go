@@ -231,7 +231,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Swap",
 		},
 		"internal/reflectlite": {
-			"Flag.MustBe",
+			"MustBe",
 			"Flag.MustBeAssignable",
 			"Flag.MustBeExported",
 			"Flag.Kind",

@@ -194,7 +194,7 @@ func (v Value) Bool() bool {
 }
 
 func (v Value) panicNotBool() {
-	v.flag.MustBe(abi.Bool)
+	reflectlite.MustBe(v.flag, abi.Bool)
 }
 
 var bytesType = rtypeOf(([]byte)(nil))
@@ -235,7 +235,7 @@ func (v Value) bytesSlow() []byte {
 // runes returns v's underlying value.
 // It panics if v's underlying value is not a slice of runes (int32s).
 func (v Value) runes() []rune {
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	if v.typ().Elem().Kind() != abi.Int32 {
 		panic("reflect.Value.Bytes of non-rune slice")
 	}
@@ -270,7 +270,7 @@ func (v Value) CanSet() bool {
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (v Value) Call(in []Value) []Value {
-	v.flag.MustBe(abi.Func)
+	reflectlite.MustBe(v.flag, abi.Func)
 	v.flag.MustBeExported()
 	return v.call("Call", in)
 }
@@ -283,7 +283,7 @@ func (v Value) Call(in []Value) []Value {
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
 func (v Value) CallSlice(in []Value) []Value {
-	v.flag.MustBe(abi.Func)
+	reflectlite.MustBe(v.flag, abi.Func)
 	v.flag.MustBeExported()
 	return v.call("CallSlice", in)
 }
@@ -1085,7 +1085,7 @@ func (v Value) capNonSlice() int {
 // It panics if v's Kind is not [Chan] or
 // v is a receive-only channel.
 func (v Value) Close() {
-	v.flag.MustBe(abi.Chan)
+	reflectlite.MustBe(v.flag, abi.Chan)
 	v.flag.MustBeExported()
 	tt := (*chanType)(unsafe.Pointer(v.typ()))
 	if ChanDir(tt.Dir)&SendDir == 0 {
@@ -1211,7 +1211,7 @@ func (v Value) FieldByIndex(index []int) Value {
 	if len(index) == 1 {
 		return v.Field(index[0])
 	}
-	v.flag.MustBe(abi.Struct)
+	reflectlite.MustBe(v.flag, abi.Struct)
 	for i, x := range index {
 		if i > 0 {
 			if v.Kind() == Pointer && v.typ().Elem().Kind() == abi.Struct {
@@ -1234,7 +1234,7 @@ func (v Value) FieldByIndexErr(index []int) (Value, error) {
 	if len(index) == 1 {
 		return v.Field(index[0]), nil
 	}
-	v.flag.MustBe(abi.Struct)
+	reflectlite.MustBe(v.flag, abi.Struct)
 	for i, x := range index {
 		if i > 0 {
 			if v.Kind() == Ptr && v.typ().Elem().Kind() == abi.Struct {
@@ -1253,7 +1253,7 @@ func (v Value) FieldByIndexErr(index []int) (Value, error) {
 // It returns the zero Value if no field was found.
 // It panics if v's Kind is not [Struct].
 func (v Value) FieldByName(name string) Value {
-	v.flag.MustBe(abi.Struct)
+	reflectlite.MustBe(v.flag, abi.Struct)
 	if f, ok := toRType(v.typ()).FieldByName(name); ok {
 		return v.FieldByIndex(f.Index)
 	}
@@ -1430,7 +1430,7 @@ func valueInterface(v Value, safe bool) any {
 // Deprecated: The memory representation of interface values is not
 // compatible with InterfaceData.
 func (v Value) InterfaceData() [2]uintptr {
-	v.flag.MustBe(abi.Interface)
+	reflectlite.MustBe(v.flag, abi.Interface)
 	// The compiler loses track as it converts to uintptr. Force escape.
 	escapes(v.ptr)
 	// We treat this as a read operation, so we allow
@@ -1696,7 +1696,7 @@ var stringType = rtypeOf("")
 // It returns the zero Value if key is not found in the map or if v represents a nil map.
 // As in Go, the key's value must be assignable to the map's key type.
 func (v Value) MapIndex(key Value) Value {
-	v.flag.MustBe(abi.Map)
+	reflectlite.MustBe(v.flag, abi.Map)
 	tt := (*mapType)(unsafe.Pointer(v.typ()))
 
 	// Do not require key to be exported, so that DeepEqual
@@ -1735,7 +1735,7 @@ func (v Value) MapIndex(key Value) Value {
 // It panics if v's Kind is not [Map].
 // It returns an empty slice if v represents a nil map.
 func (v Value) MapKeys() []Value {
-	v.flag.MustBe(abi.Map)
+	reflectlite.MustBe(v.flag, abi.Map)
 	tt := (*mapType)(unsafe.Pointer(v.typ()))
 	keyType := tt.Key
 
@@ -1907,7 +1907,7 @@ func (iter *MapIter) Next() bool {
 // which may allow the previously iterated-over map to be garbage collected.
 func (iter *MapIter) Reset(v Value) {
 	if v.IsValid() {
-		v.flag.MustBe(abi.Map)
+		reflectlite.MustBe(v.flag, abi.Map)
 	}
 	iter.m = v
 	iter.hiter = hiter{}
@@ -2009,7 +2009,7 @@ func (v Value) MethodByName(name string) Value {
 // NumField returns the number of fields in the struct v.
 // It panics if v's Kind is not [Struct].
 func (v Value) NumField() int {
-	v.flag.MustBe(abi.Struct)
+	reflectlite.MustBe(v.flag, abi.Struct)
 	tt := (*structType)(unsafe.Pointer(v.typ()))
 	return len(tt.Fields)
 }
@@ -2140,7 +2140,7 @@ func (v Value) Pointer() uintptr {
 // The boolean value ok is true if the value x corresponds to a send
 // on the channel, false if it is a zero value received because the channel is closed.
 func (v Value) Recv() (x Value, ok bool) {
-	v.flag.MustBe(abi.Chan)
+	reflectlite.MustBe(v.flag, abi.Chan)
 	v.flag.MustBeExported()
 	return v.recv(false)
 }
@@ -2173,7 +2173,7 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
 // It panics if v's kind is not [Chan] or if x's type is not the same type as v's element type.
 // As in Go, x's value must be assignable to the channel's element type.
 func (v Value) Send(x Value) {
-	v.flag.MustBe(abi.Chan)
+	reflectlite.MustBe(v.flag, abi.Chan)
 	v.flag.MustBeExported()
 	v.send(x, false)
 }
@@ -2223,7 +2223,7 @@ func (v Value) Set(x Value) {
 // It panics if v's Kind is not [Bool] or if [Value.CanSet] returns false.
 func (v Value) SetBool(x bool) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Bool)
+	reflectlite.MustBe(v.flag, abi.Bool)
 	*(*bool)(v.ptr) = x
 }
 
@@ -2231,7 +2231,7 @@ func (v Value) SetBool(x bool) {
 // It panics if v's underlying value is not a slice of bytes.
 func (v Value) SetBytes(x []byte) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	if toRType(v.typ()).Elem().Kind() != Uint8 { // TODO add Elem method, fix mustBe(Slice) to return slice.
 		panic("reflect.Value.SetBytes of non-byte slice")
 	}
@@ -2242,7 +2242,7 @@ func (v Value) SetBytes(x []byte) {
 // It panics if v's underlying value is not a slice of runes (int32s).
 func (v Value) setRunes(x []rune) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	if v.typ().Elem().Kind() != abi.Int32 {
 		panic("reflect.Value.setRunes of non-rune slice")
 	}
@@ -2302,7 +2302,7 @@ func (v Value) SetInt(x int64) {
 // greater than the capacity of the slice.
 func (v Value) SetLen(n int) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	s := (*unsafeheader.Slice)(v.ptr)
 	if uint(n) > uint(s.Cap) {
 		panic("reflect: slice length out of range in SetLen")
@@ -2315,7 +2315,7 @@ func (v Value) SetLen(n int) {
 // greater than the capacity of the slice.
 func (v Value) SetCap(n int) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	s := (*unsafeheader.Slice)(v.ptr)
 	if n < s.Len || n > s.Cap {
 		panic("reflect: slice capacity out of range in SetCap")
@@ -2330,7 +2330,7 @@ func (v Value) SetCap(n int) {
 // As in Go, key's elem must be assignable to the map's key type,
 // and elem's value must be assignable to the map's elem type.
 func (v Value) SetMapIndex(key, elem Value) {
-	v.flag.MustBe(abi.Map)
+	reflectlite.MustBe(v.flag, abi.Map)
 	v.flag.MustBeExported()
 	key.flag.MustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ()))
@@ -2401,7 +2401,7 @@ func (v Value) SetUint(x uint64) {
 // It panics if v's Kind is not UnsafePointer.
 func (v Value) SetPointer(x unsafe.Pointer) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.UnsafePointer)
+	reflectlite.MustBe(v.flag, abi.UnsafePointer)
 	*(*unsafe.Pointer)(v.ptr) = x
 }
 
@@ -2409,7 +2409,7 @@ func (v Value) SetPointer(x unsafe.Pointer) {
 // It panics if v's Kind is not [String] or if [Value.CanSet] returns false.
 func (v Value) SetString(x string) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.String)
+	reflectlite.MustBe(v.flag, abi.String)
 	*(*string)(v.ptr) = x
 }
 
@@ -2556,7 +2556,7 @@ func (v Value) stringNonString() string {
 // If the receive cannot finish without blocking, x is the zero Value and ok is false.
 // If the channel is closed, x is the zero value for the channel's element type and ok is false.
 func (v Value) TryRecv() (x Value, ok bool) {
-	v.flag.MustBe(abi.Chan)
+	reflectlite.MustBe(v.flag, abi.Chan)
 	v.flag.MustBeExported()
 	return v.recv(true)
 }
@@ -2566,7 +2566,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
 // It reports whether the value was sent.
 // As in Go, x's value must be assignable to the channel's element type.
 func (v Value) TrySend(x Value) bool {
-	v.flag.MustBe(abi.Chan)
+	reflectlite.MustBe(v.flag, abi.Chan)
 	v.flag.MustBeExported()
 	return v.send(x, true)
 }
@@ -2766,7 +2766,7 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 // allocate the memory.
 func (v Value) Grow(n int) {
 	v.flag.MustBeAssignable()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 	v.grow(n)
 }
 
@@ -2792,7 +2792,7 @@ func (v Value) grow(n int) {
 // incremented by the number of specified elements.
 func (v Value) extendSlice(n int) Value {
 	v.flag.MustBeExported()
-	v.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(v.flag, abi.Slice)
 
 	// Shallow copy the slice header to avoid mutating the source slice.
 	sh := *(*unsafeheader.Slice)(v.ptr)
@@ -2824,7 +2824,7 @@ func (v Value) Clear() {
 // Append appends the values x to a slice s and returns the resulting slice.
 // As in Go, each x's value must be assignable to the slice's element type.
 func Append(s Value, x ...Value) Value {
-	s.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(s.flag, abi.Slice)
 	n := s.Len()
 	s = s.extendSlice(len(x))
 	for i, v := range x {
@@ -2836,8 +2836,8 @@ func Append(s Value, x ...Value) Value {
 // AppendSlice appends a slice t to a slice s and returns the resulting slice.
 // The slices s and t must have the same element type.
 func AppendSlice(s, t Value) Value {
-	s.flag.MustBe(abi.Slice)
-	t.flag.MustBe(abi.Slice)
+	reflectlite.MustBe(s.flag, abi.Slice)
+	reflectlite.MustBe(s.flag, abi.Slice)
 	typesMustMatch("reflect.AppendSlice", s.Type().Elem(), t.Type().Elem())
 	ns := s.Len()
 	nt := t.Len()
@@ -3008,7 +3008,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			if !ch.IsValid() {
 				break
 			}
-			ch.flag.MustBe(abi.Chan)
+			reflectlite.MustBe(ch.flag, abi.Chan)
 			ch.flag.MustBeExported()
 			tt := (*chanType)(unsafe.Pointer(ch.typ()))
 			if ChanDir(tt.Dir)&SendDir == 0 {
@@ -3039,7 +3039,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			if !ch.IsValid() {
 				break
 			}
-			ch.flag.MustBe(abi.Chan)
+			reflectlite.MustBe(ch.flag, abi.Chan)
 			ch.flag.MustBeExported()
 			tt := (*chanType)(unsafe.Pointer(ch.typ()))
 			if ChanDir(tt.Dir)&RecvDir == 0 {
@@ -3898,7 +3898,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func kindAsFlag[T abi.Kind | Kind | int](k T) reflectlite.Flag { return reflectlite.Flag(k) }
 
 func init() {
-	reflectlite.NewValueError = func(Method string, kind abi.Kind) interface{} {
+	reflectlite.NewValueError = func(Method string, kind abi.Kind) any {
 		return &ValueError{Method: Method, Kind: Kind(kind)}
 	}
 }
