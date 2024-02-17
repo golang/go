@@ -454,8 +454,9 @@ func (f Flag) Ro() Flag {
 // v.flag.mustBe(Bool), which will only bother to copy the
 // single important word for the receiver.
 func (f Flag) MustBe(expected Kind) {
-	if f.Kind() != expected {
-		panic(NewValueError(valueMethodName(), Kind(f.Kind())))
+	k := f.Kind()
+	if k != expected {
+		panic(NewValueError(valueMethodName(), Kind(k)))
 	}
 }
 
@@ -523,6 +524,8 @@ func (e *ValueError) Error() string {
 }
 
 // valueMethodName returns the name of the exported calling method on Value.
+//
+//go:noinline
 func valueMethodName() string {
 	var pc [5]uintptr
 	n := runtime.Callers(1,
