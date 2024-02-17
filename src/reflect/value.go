@@ -193,6 +193,7 @@ func (v Value) Bool() bool {
 	return *(*bool)(v.ptr)
 }
 
+//go:noinline
 func (v Value) panicNotBool() {
 	reflectlite.MustBe(v.flag, abi.Bool)
 }
