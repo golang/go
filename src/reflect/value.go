@@ -3896,3 +3896,9 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 }
 
 func kindAsFlag[T abi.Kind | Kind | int](k T) reflectlite.Flag { return reflectlite.Flag(k) }
+
+func init() {
+	reflectlite.NewValueError = func(Method string, kind abi.Kind) interface{} {
+		return &ValueError{Method: Method, Kind: Kind(kind)}
+	}
+}

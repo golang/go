@@ -456,7 +456,7 @@ func (f Flag) Ro() Flag {
 func (f Flag) MustBe(expected Kind) {
 	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
 	if Kind(f&FlagKindMask) != expected {
-		panic(&ValueError{valueMethodName(), Kind(f.Kind())})
+		panic(NewValueError(valueMethodName(), Kind(f.Kind())))
 	}
 }
 
@@ -470,7 +470,7 @@ func (f Flag) MustBeExported() {
 
 func (f Flag) MustBeExportedSlow() {
 	if f == 0 {
-		panic(&ValueError{valueMethodName(), abi.Invalid})
+		panic(NewValueError(valueMethodName(), abi.Invalid))
 	}
 	if f&FlagRO != 0 {
 		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
@@ -488,7 +488,7 @@ func (f Flag) MustBeAssignable() {
 
 func (f Flag) MustBeAssignableSlow() {
 	if f == 0 {
-		panic(&ValueError{valueMethodName(), abi.Invalid})
+		panic(NewValueError(valueMethodName(), abi.Invalid))
 	}
 	// Assignable if addressable and not read-only.
 	if f&FlagRO != 0 {
@@ -543,4 +543,10 @@ func valueMethodName() string {
 		}
 	}
 	return "unknown method"
+}
+
+// NewValueError default return [ValueError] .
+// When reflect is imported, return [reflect.ValueError].
+var NewValueError func(Method string, Kind abi.Kind) interface{} = func(Method string, Kind abi.Kind) interface{} {
+	return &ValueError{Method: Method, Kind: Kind}
 }
