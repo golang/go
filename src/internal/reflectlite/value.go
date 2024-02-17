@@ -455,13 +455,13 @@ func (f Flag) Ro() Flag {
 // single important word for the receiver.
 func (f Flag) MustBe(expected Kind) {
 	if f.Kind() != expected {
-		mustBePanic(f.Kind())
+		mustBePanic(f)
 	}
 }
 
 //go:noinline
-func mustBePanic(k Kind) {
-	panic(NewValueError(valueMethodName(), k))
+func mustBePanic(k Flag) {
+	panic(NewValueError(valueMethodName(), Kind(k.Kind())))
 }
 
 // mustBeExported panics if f records that the value was obtained using
