@@ -99,7 +99,7 @@ func ExampleParseDuration() {
 	fmt.Println(complex)
 	fmt.Printf("There are %.0f seconds in %v.\n", complex.Seconds(), complex)
 	fmt.Printf("There are %d nanoseconds in %v.\n", micro.Nanoseconds(), micro)
-	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro)
+	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro2)
 	// Output:
 	// 10h0m0s
 	// 1h10m10s

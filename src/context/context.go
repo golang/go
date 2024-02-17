@@ -740,13 +740,13 @@ func stringify(v any) string {
 	case string:
 		return s
 	}
-	return "<not Stringer>"
+	return reflectlite.TypeOf(v).String()
 }
 
 func (c *valueCtx) String() string {
-	return contextName(c.Context) + ".WithValue(type " +
-		reflectlite.TypeOf(c.key).String() +
-		", val " + stringify(c.val) + ")"
+	return contextName(c.Context) + ".WithValue(" +
+		stringify(c.key) + ", " +
+		stringify(c.val) + ")"
 }
 
 func (c *valueCtx) Value(key any) any {

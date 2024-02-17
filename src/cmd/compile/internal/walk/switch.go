@@ -700,7 +700,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	} else {
 		// runtime.itab's hash field
 		if itabHashField == nil {
-			itabHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+			itabHashField = runtimeField("hash", rttype.ITab.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = itabHashField
 	}

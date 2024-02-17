@@ -22,7 +22,7 @@ func checkStaticValueResult(n Node, newres Node) {
 	}
 }
 
-// checkStaticValueResult compares the result from ReassignOracle.Reassigned
+// checkReassignedResult compares the result from ReassignOracle.Reassigned
 // with the corresponding result from ir.Reassigned to make sure they agree.
 // This method is called only when turned on via build tag.
 func checkReassignedResult(n *Name, newres bool) {

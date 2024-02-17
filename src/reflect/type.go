@@ -1694,13 +1694,13 @@ func MapOf(key, elem Type) Type {
 		return typehash(ktyp, p, seed)
 	}
 	mt.Flags = 0
-	if ktyp.Size_ > maxKeySize {
+	if ktyp.Size_ > abi.MapMaxKeyBytes {
 		mt.KeySize = uint8(goarch.PtrSize)
 		mt.Flags |= 1 // indirect key
 	} else {
 		mt.KeySize = uint8(ktyp.Size_)
 	}
-	if etyp.Size_ > maxValSize {
+	if etyp.Size_ > abi.MapMaxElemBytes {
 		mt.ValueSize = uint8(goarch.PtrSize)
 		mt.Flags |= 2 // indirect value
 	} else {
@@ -1954,21 +1954,11 @@ func hashMightPanic(t *abi.Type) bool {
 	}
 }
 
-// Make sure these routines stay in sync with ../runtime/map.go!
-// These types exist only for GC, so we only fill out GC relevant info.
-// Currently, that's just size and the GC program. We also fill in string
-// for possible debugging use.
-const (
-	bucketSize uintptr = abi.MapBucketCount
-	maxKeySize uintptr = abi.MapMaxKeyBytes
-	maxValSize uintptr = abi.MapMaxElemBytes
-)
-
 func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
-	if ktyp.Size_ > maxKeySize {
+	if ktyp.Size_ > abi.MapMaxKeyBytes {
 		ktyp = ptrTo(ktyp)
 	}
-	if etyp.Size_ > maxValSize {
+	if etyp.Size_ > abi.MapMaxElemBytes {
 		etyp = ptrTo(etyp)
 	}
 
@@ -1980,29 +1970,29 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 	var gcdata *byte
 	var ptrdata uintptr
 
-	size := bucketSize*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize
+	size := abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize
 	if size&uintptr(ktyp.Align_-1) != 0 || size&uintptr(etyp.Align_-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
 	}
 
 	if ktyp.PtrBytes != 0 || etyp.PtrBytes != 0 {
-		nptr := (bucketSize*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
+		nptr := (abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
 		n := (nptr + 7) / 8
 
 		// Runtime needs pointer masks to be a multiple of uintptr in size.
 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
 		mask := make([]byte, n)
-		base := bucketSize / goarch.PtrSize
+		base := uintptr(abi.MapBucketCount / goarch.PtrSize)
 
 		if ktyp.PtrBytes != 0 {
-			emitGCMask(mask, base, ktyp, bucketSize)
+			emitGCMask(mask, base, ktyp, abi.MapBucketCount)
 		}
-		base += bucketSize * ktyp.Size_ / goarch.PtrSize
+		base += abi.MapBucketCount * ktyp.Size_ / goarch.PtrSize
 
 		if etyp.PtrBytes != 0 {
-			emitGCMask(mask, base, etyp, bucketSize)
+			emitGCMask(mask, base, etyp, abi.MapBucketCount)
 		}
-		base += bucketSize * etyp.Size_ / goarch.PtrSize
+		base += abi.MapBucketCount * etyp.Size_ / goarch.PtrSize
 
 		word := base
 		mask[word/8] |= 1 << (word % 8)
@@ -2930,5 +2920,9 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 
 // TypeFor returns the [Type] that represents the type argument T.
 func TypeFor[T any]() Type {
-	return TypeOf((*T)(nil)).Elem()
+	var v T
+	if t := TypeOf(v); t != nil {
+		return t // optimize for T being a non-interface kind
+	}
+	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }

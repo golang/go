@@ -1222,7 +1222,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	// that relocations can target them with smaller addends.
 	// On Windows, we only get 21 bits, again (presumably) signed.
 	// Also, on Windows (always) and Darwin (for very large binaries), the external
-	// linker does't support CALL relocations with addend, so we generate "label"
+	// linker doesn't support CALL relocations with addend, so we generate "label"
 	// symbols for functions of which we can target the middle (Duff's devices).
 	if !ctxt.IsDarwin() && !ctxt.IsWindows() || !ctxt.IsExternal() {
 		return

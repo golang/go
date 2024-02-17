@@ -29,6 +29,7 @@ const asanenabled = true
 // asan{read,write} are nosplit because they may be called between
 // fork and exec, when the stack must not grow. See issue #50391.
 
+//go:linkname asanread
 //go:nosplit
 func asanread(addr unsafe.Pointer, sz uintptr) {
 	sp := getcallersp()
@@ -36,6 +37,7 @@ func asanread(addr unsafe.Pointer, sz uintptr) {
 	doasanread(addr, sz, sp, pc)
 }
 
+//go:linkname asanwrite
 //go:nosplit
 func asanwrite(addr unsafe.Pointer, sz uintptr) {
 	sp := getcallersp()

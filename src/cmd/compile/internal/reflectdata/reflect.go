@@ -1331,20 +1331,25 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	//   _      [4]byte
 	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 	// }
-	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
-	o = objw.SymPtr(lsym, o, writeType(typ), 0)
-	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
-	o += 4                                        // skip unused field
+	c := rttype.NewCursor(lsym, 0, rttype.ITab)
+	c.Field("Inter").WritePtr(writeType(iface))
+	c.Field("Type").WritePtr(writeType(typ))
+	c.Field("Hash").WriteUint32(types.TypeHash(typ)) // copy of type hash
+
+	var delta int64
+	c = c.Field("Fun")
 	if !completeItab {
 		// If typ doesn't implement iface, make method entries be zero.
-		o = objw.Uintptr(lsym, o, 0)
-		entries = entries[:0]
-	}
-	for _, fn := range entries {
-		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+		c.Elem(0).WriteUintptr(0)
+	} else {
+		var a rttype.ArrayCursor
+		a, delta = c.ModifyArray(len(entries))
+		for i, fn := range entries {
+			a.Elem(i).WritePtrWeak(fn) // method pointer for each method
+		}
 	}
 	// Nothing writes static itabs, so they are read only.
-	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+	objw.Global(lsym, int32(rttype.ITab.Size()+delta), int16(obj.DUPOK|obj.RODATA))
 	lsym.Set(obj.AttrContentAddressable, true)
 }
 

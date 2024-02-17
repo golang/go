@@ -12,7 +12,6 @@ import (
 	"go/token"
 	. "internal/types/errors"
 	"strings"
-	"unicode"
 )
 
 // funcInst type-checks a function instantiation.
@@ -207,7 +206,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 1:
 			check.expr(nil, x, call.Args[0])
 			if x.mode != invalid {
-				if call.Ellipsis.IsValid() {
+				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -472,7 +471,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.Ellipsis.IsValid()
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -801,7 +800,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(under(x.typ)) {
@@ -827,22 +826,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		if isInterfacePtr(x.typ) {
 			why = check.interfacePtrError(x.typ)
 		} else {
-			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// Check if capitalization of sel matters and provide better error message in that case.
-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod should
-			//           have an (internal) mechanism for case-insensitive lookup that we should use
-			//           instead (see types2).
-			if len(sel) > 0 {
-				var changeCase string
-				if r := rune(sel[0]); unicode.IsUpper(r) {
-					changeCase = string(unicode.ToLower(r)) + sel[1:]
-				} else {
-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
-				}
-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					why += ", but does have " + changeCase
-				}
-			}
+			alt, _, _ := lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
@@ -857,7 +842,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
@@ -1011,7 +995,7 @@ func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
 func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	var x operand
 	x.mode = value // anything but invalid
-	switch n := unparen(e).(type) {
+	switch n := ast.Unparen(e).(type) {
 	case nil:
 		// nothing to do
 	case *ast.Ident:

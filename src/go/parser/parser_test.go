@@ -800,3 +800,24 @@ func TestGoVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue57490(t *testing.T) {
+	src := `package p; func f() { var x struct` // program not correctly terminated
+	fset := token.NewFileSet()
+	file, err := ParseFile(fset, "", src, 0)
+	if err == nil {
+		t.Fatalf("syntax error expected, but no error reported")
+	}
+
+	// Because of the syntax error, the end position of the function declaration
+	// is past the end of the file's position range.
+	funcEnd := file.Decls[0].End()
+
+	// Offset(funcEnd) must not panic (to test panic, set debug=true in token package)
+	// (panic: offset 35 out of bounds [0, 34] (position 36 out of bounds [1, 35]))
+	tokFile := fset.File(file.Pos())
+	offset := tokFile.Offset(funcEnd)
+	if offset != tokFile.Size() {
+		t.Fatalf("offset = %d, want %d", offset, tokFile.Size())
+	}
+}

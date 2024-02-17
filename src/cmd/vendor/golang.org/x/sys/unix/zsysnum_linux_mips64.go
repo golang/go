@@ -362,4 +362,8 @@ const (
 	SYS_SET_MEMPOLICY_HOME_NODE = 5450
 	SYS_CACHESTAT               = 5451
 	SYS_FCHMODAT2               = 5452
+	SYS_MAP_SHADOW_STACK        = 5453
+	SYS_FUTEX_WAKE              = 5454
+	SYS_FUTEX_WAIT              = 5455
+	SYS_FUTEX_REQUEUE           = 5456
 )

@@ -367,12 +367,13 @@ func asmArgs(a *Action, p *load.Package) []any {
 	}
 
 	if cfg.Goarch == "arm" {
-		// Define GOARM_value from cfg.GOARM.
-		switch cfg.GOARM {
-		case "7":
+		// Define GOARM_value from cfg.GOARM, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(cfg.GOARM, "7"):
 			args = append(args, "-D", "GOARM_7")
 			fallthrough
-		case "6":
+		case strings.Contains(cfg.GOARM, "6"):
 			args = append(args, "-D", "GOARM_6")
 			fallthrough
 		default:

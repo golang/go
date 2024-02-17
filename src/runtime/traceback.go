@@ -993,12 +993,24 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 			}
 			print(")\n")
 			print("\t", file, ":", line)
-			if !iu.isInlined(uf) {
-				if u.frame.pc > f.entry() {
-					print(" +", hex(u.frame.pc-f.entry()))
-				}
-				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
-					print(" fp=", hex(u.frame.fp), " sp=", hex(u.frame.sp), " pc=", hex(u.frame.pc))
+			// The contract between Callers and CallersFrames uses
+			// return addresses, which are +1 relative to the CALL
+			// instruction. Follow that convention.
+			pc := uf.pc + 1
+			if !iu.isInlined(uf) && pc > f.entry() {
+				// Func-relative PCs make no sense for inlined
+				// frames because there is no actual entry.
+				print(" +", hex(pc-f.entry()))
+			}
+			if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+				if !iu.isInlined(uf) {
+					// The stack information makes no sense for inline frames.
+					print(" fp=", hex(u.frame.fp), " sp=", hex(u.frame.sp), " pc=", hex(pc))
+				} else {
+					// The PC for an inlined frame is a special marker NOP,
+					// but crash monitoring tools may still parse the PCs
+					// and feed them to CallersFrames.
+					print(" pc=", hex(pc))
 				}
 			}
 			print("\n")
@@ -1133,10 +1145,32 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 
 // isExportedRuntime reports whether name is an exported runtime function.
 // It is only for runtime functions, so ASCII A-Z is fine.
-// TODO: this handles exported functions but not exported methods.
 func isExportedRuntime(name string) bool {
-	const n = len("runtime.")
-	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
+	// Check and remove package qualifier.
+	n := len("runtime.")
+	if len(name) <= n || name[:n] != "runtime." {
+		return false
+	}
+	name = name[n:]
+	rcvr := ""
+
+	// Extract receiver type, if any.
+	// For example, runtime.(*Func).Entry
+	i := len(name) - 1
+	for i >= 0 && name[i] != '.' {
+		i--
+	}
+	if i >= 0 {
+		rcvr = name[:i]
+		name = name[i+1:]
+		// Remove parentheses and star for pointer receivers.
+		if len(rcvr) >= 3 && rcvr[0] == '(' && rcvr[1] == '*' && rcvr[len(rcvr)-1] == ')' {
+			rcvr = rcvr[2 : len(rcvr)-1]
+		}
+	}
+
+	// Exported functions and exported methods on exported types.
+	return len(name) > 0 && 'A' <= name[0] && name[0] <= 'Z' && (len(rcvr) == 0 || 'A' <= rcvr[0] && rcvr[0] <= 'Z')
 }
 
 // elideWrapperCalling reports whether a wrapper function that called
