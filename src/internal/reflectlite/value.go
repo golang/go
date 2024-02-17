@@ -454,8 +454,7 @@ func (f Flag) Ro() Flag {
 // v.flag.mustBe(Bool), which will only bother to copy the
 // single important word for the receiver.
 func (f Flag) MustBe(expected Kind) {
-	// TODO(mvdan): use f.kind() again once mid-stack inlining gets better
-	if Kind(f&FlagKindMask) != expected {
+	if f.Kind() != expected {
 		panic(NewValueError(valueMethodName(), Kind(f.Kind())))
 	}
 }
