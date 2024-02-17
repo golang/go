@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -540,6 +541,7 @@ var (
 	testC            bool                              // -c flag
 	testCoverPkgs    []*load.Package                   // -coverpkg flag
 	testCoverProfile string                            // -coverprofile flag
+	testFailFast     bool                              // -failfast flag
 	testFuzz         string                            // -fuzz flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
@@ -589,9 +591,10 @@ var (
 
 	testHelp bool // -help option passed to test via -args
 
-	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
-	testWaitDelay   time.Duration                // how long to wait for output to close after a test binary exits; zero means unlimited
-	testCacheExpire time.Time                    // ignore cached test results before this time
+	testKillTimeout    = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
+	testWaitDelay      time.Duration                // how long to wait for output to close after a test binary exits; zero means unlimited
+	testCacheExpire    time.Time                    // ignore cached test results before this time
+	testShouldFailFast atomic.Bool                  // signals pending tests to fail fast
 
 	testBlockProfile, testCPUProfile, testMemProfile, testMutexProfile, testTrace string // profiling flag that limits test to one package
 
@@ -1355,6 +1358,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	// Wait for previous test to get started and print its first json line.
 	select {
 	case <-r.prev:
+		// If should fail fast then release next test and exit.
+		if testShouldFailFast.Load() {
+			close(r.next)
+			return nil
+		}
 	case <-base.Interrupted:
 		// We can't wait for the previous test action to complete: we don't start
 		// new actions after an interrupt, so if that action wasn't already running
@@ -1631,6 +1639,10 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		r.c.saveOutput(a)
 	} else {
+		if testFailFast {
+			testShouldFailFast.Store(true)
+		}
+
 		base.SetExitStatus(1)
 		if cancelSignaled {
 			fmt.Fprintf(cmd.Stdout, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
