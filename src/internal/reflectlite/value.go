@@ -449,8 +449,13 @@ func (f Flag) Ro() Flag {
 
 func MustBe(f Flag, expected Kind) {
 	if f.Kind() != expected {
-		panic(NewValueError(valueMethodName(), f.Kind()))
+		panicMustBe(f)
 	}
+}
+
+//go:noinline
+func panicMustBe(f Flag) {
+	panic(NewValueError(valueMethodName(), f.Kind()))
 }
 
 // mustBeExported panics if f records that the value was obtained using
