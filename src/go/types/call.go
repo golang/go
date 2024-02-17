@@ -206,7 +206,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 1:
 			check.expr(nil, x, call.Args[0])
 			if x.mode != invalid {
-				if call.Ellipsis.IsValid() {
+				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -471,7 +471,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.Ellipsis.IsValid()
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -826,22 +826,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		if isInterfacePtr(x.typ) {
 			why = check.interfacePtrError(x.typ)
 		} else {
-			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// check if there's a field or method with different capitalization
-			if obj, _, _ = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true); obj != nil {
-				var what string // empty or description with trailing space " " (default case, should never be reached)
-				switch obj.(type) {
-				case *Var:
-					what = "field "
-				case *Func:
-					what = "method "
-				}
-				if samePkg(obj.Pkg(), check.pkg) || obj.Exported() {
-					why = check.sprintf("%s, but does have %s%s", why, what, obj.Name())
-				} else if obj.Name() == sel {
-					why = check.sprintf("%s%s is not exported", what, obj.Name())
-				}
-			}
+			alt, _, _ := lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
@@ -1009,7 +995,7 @@ func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
 func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	var x operand
 	x.mode = value // anything but invalid
-	switch n := unparen(e).(type) {
+	switch n := ast.Unparen(e).(type) {
 	case nil:
 		// nothing to do
 	case *ast.Ident:

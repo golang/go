@@ -2920,5 +2920,9 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 
 // TypeFor returns the [Type] that represents the type argument T.
 func TypeFor[T any]() Type {
-	return TypeOf((*T)(nil)).Elem()
+	var v T
+	if t := TypeOf(v); t != nil {
+		return t // optimize for T being a non-interface kind
+	}
+	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }

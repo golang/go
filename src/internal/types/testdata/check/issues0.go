@@ -104,7 +104,7 @@ func issue10979() {
 
 // issue11347
 // These should not crash.
-var a1, b1 /* ERROR "cycle" */ , c1 /* ERROR "cycle" */ b1 = 0 > 0<<""[""[c1]]>c1
+var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 is not a type" */ = 0 > 0<<""[""[c1]]>c1
 var a2, b2 /* ERROR "cycle" */ = 0 /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ > 0<<""[b2]
 var a3, b3 /* ERROR "cycle" */ = int /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ (1<<""[b3])
 

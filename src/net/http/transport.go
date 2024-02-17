@@ -1761,6 +1761,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if t.OnProxyConnectResponse != nil {
 			err = t.OnProxyConnectResponse(ctx, cm.proxyURL, connectReq, resp)
 			if err != nil {
+				conn.Close()
 				return nil, err
 			}
 		}

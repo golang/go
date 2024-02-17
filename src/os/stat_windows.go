@@ -74,7 +74,16 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 	// save information about the link target.
 	// Set FILE_FLAG_BACKUP_SEMANTICS so that CreateFile will create the handle
 	// even if name refers to a directory.
-	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+	var flags uint32 = syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT
+	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, flags, 0)
+
+	if err == windows.ERROR_INVALID_PARAMETER {
+		// Console handles, like "\\.\con", require generic read access. See
+		// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew#consoles.
+		// We haven't set it previously because it is normally not required
+		// to read attributes and some files may not allow it.
+		h, err = syscall.CreateFile(namep, syscall.GENERIC_READ, 0, nil, syscall.OPEN_EXISTING, flags, 0)
+	}
 	if err != nil {
 		// Since CreateFile failed, we can't determine whether name refers to a
 		// name surrogate, or some other kind of reparse point. Since we can't return a

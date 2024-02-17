@@ -597,6 +597,22 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 	}
 }
 
+// Test that we don't attempt trailing-slash redirect on a path that already has
+// a trailing slash.
+// See issue #65624.
+func TestMuxNoSlashRedirectWithTrailingSlash(t *testing.T) {
+	mux := NewServeMux()
+	mux.HandleFunc("/{x}/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	w := httptest.NewRecorder()
+	req, _ := NewRequest("GET", "/", nil)
+	mux.ServeHTTP(w, req)
+	if g, w := w.Code, 404; g != w {
+		t.Errorf("got %d, want %d", g, w)
+	}
+}
+
 func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
 func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -2659,7 +2675,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
 		{MethodHead, nil, "text/html; charset=utf-8", ""},
 		{MethodPost, nil, "", ""},
 		{MethodDelete, nil, "", ""},
@@ -4798,6 +4814,16 @@ func TestServerValidatesHeaders(t *testing.T) {
 		// See RFC 7230, Section 3.2.4.
 		{"Foo : bar\r\n", 400},
 		{"Foo\t: bar\r\n", 400},
+
+		// Empty header keys are invalid.
+		// See RFC 7230, Section 3.2.
+		{": empty key\r\n", 400},
+
+		// Requests with invalid Content-Length headers should be rejected
+		// regardless of the presence of a Transfer-Encoding header.
+		// Check out RFC 9110, Section 8.6 and RFC 9112, Section 6.3.3.
+		{"Content-Length: notdigits\r\n", 400},
+		{"Content-Length: notdigits\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", 400},
 
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay

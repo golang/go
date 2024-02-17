@@ -20,7 +20,6 @@ const (
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateFileA CreateFileA%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
@@ -78,7 +77,6 @@ var (
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
-	_CreateFileA,
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
@@ -418,29 +416,14 @@ func initHighResTimer() {
 	}
 }
 
-//go:linkname canUseLongPaths os.canUseLongPaths
+//go:linkname canUseLongPaths internal/syscall/windows.CanUseLongPaths
 var canUseLongPaths bool
 
-// We want this to be large enough to hold the contents of sysDirectory, *plus*
-// a slash and another component that itself is greater than MAX_PATH.
-var longFileName [(_MAX_PATH+1)*2 + 1]byte
-
-// initLongPathSupport initializes the canUseLongPaths variable, which is
-// linked into os.canUseLongPaths for determining whether or not long paths
-// need to be fixed up. In the best case, this function is running on newer
-// Windows 10 builds, which have a bit field member of the PEB called
-// "IsLongPathAwareProcess." When this is set, we don't need to go through the
-// error-prone fixup function in order to access long paths. So this init
-// function first checks the Windows build number, sets the flag, and then
-// tests to see if it's actually working. If everything checks out, then
-// canUseLongPaths is set to true, and later when called, os.fixLongPath
-// returns early without doing work.
+// initLongPathSupport enables long path support.
 func initLongPathSupport() {
 	const (
 		IsLongPathAwareProcess = 0x80
 		PebBitFieldOffset      = 3
-		OPEN_EXISTING          = 3
-		ERROR_PATH_NOT_FOUND   = 3
 	)
 
 	// Check that we're ≥ 10.0.15063.
@@ -451,40 +434,10 @@ func initLongPathSupport() {
 	}
 
 	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
+	// This flag is not documented, but it's known to be used
+	// by Windows to enable long path support.
 	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
-	originalBitField := *bitField
 	*bitField |= IsLongPathAwareProcess
-
-	// Check that this actually has an effect, by constructing a large file
-	// path and seeing whether we get ERROR_PATH_NOT_FOUND, rather than
-	// some other error, which would indicate the path is too long, and
-	// hence long path support is not successful. This whole section is NOT
-	// strictly necessary, but is a nice validity check for the near to
-	// medium term, when this functionality is still relatively new in
-	// Windows.
-	targ := longFileName[len(longFileName)-33 : len(longFileName)-1]
-	if readRandom(targ) != len(targ) {
-		readTimeRandom(targ)
-	}
-	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
-	const dig = "0123456789abcdef"
-	for i := 0; i < 32; i++ {
-		longFileName[start+i*2] = dig[longFileName[len(longFileName)-33+i]>>4]
-		longFileName[start+i*2+1] = dig[longFileName[len(longFileName)-33+i]&0xf]
-	}
-	start += 64
-	for i := start; i < len(longFileName)-1; i++ {
-		longFileName[i] = 'A'
-	}
-	stdcall7(_CreateFileA, uintptr(unsafe.Pointer(&longFileName[0])), 0, 0, 0, OPEN_EXISTING, 0, 0)
-	// The ERROR_PATH_NOT_FOUND error value is distinct from
-	// ERROR_FILE_NOT_FOUND or ERROR_INVALID_NAME, the latter of which we
-	// expect here due to the final component being too long.
-	if getlasterror() == ERROR_PATH_NOT_FOUND {
-		*bitField = originalBitField
-		println("runtime: warning: IsLongPathAwareProcess failed to enable long paths; proceeding in fixup mode")
-		return
-	}
 
 	canUseLongPaths = true
 }

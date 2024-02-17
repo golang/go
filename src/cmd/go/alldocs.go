@@ -1004,6 +1004,8 @@
 //	    Retracted  []string      // retraction information, if any (with -retracted or -u)
 //	    Deprecated string        // deprecation message, if any (with -u)
 //	    Error      *ModuleError  // error loading module
+//	    Sum        string        // checksum for path, version (as in go.sum)
+//	    GoModSum   string        // checksum for go.mod (as in go.sum)
 //	    Origin     any           // provenance of module
 //	    Reuse      bool          // reuse of old module info is safe
 //	}

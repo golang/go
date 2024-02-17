@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -25,31 +24,23 @@ import (
 // GoroutinesHandlerFunc returns a HandlerFunc that serves list of goroutine groups.
 func GoroutinesHandlerFunc(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// goroutineGroup describes a group of goroutines grouped by start PC.
+		// goroutineGroup describes a group of goroutines grouped by name.
 		type goroutineGroup struct {
-			ID       uint64        // Unique identifier (PC).
 			Name     string        // Start function.
 			N        int           // Total number of goroutines in this group.
 			ExecTime time.Duration // Total execution time of all goroutines in this group.
 		}
-		// Accumulate groups by PC.
-		groupsByPC := make(map[uint64]goroutineGroup)
+		// Accumulate groups by Name.
+		groupsByName := make(map[string]goroutineGroup)
 		for _, summary := range summaries {
-			group := groupsByPC[summary.PC]
-			group.ID = summary.PC
+			group := groupsByName[summary.Name]
 			group.Name = summary.Name
 			group.N++
 			group.ExecTime += summary.ExecTime
-			groupsByPC[summary.PC] = group
+			groupsByName[summary.Name] = group
 		}
 		var groups []goroutineGroup
-		for pc, group := range groupsByPC {
-			group.ID = pc
-			// If goroutine didn't run during the trace (no sampled PC),
-			// the v.ID and v.Name will be zero value.
-			if group.ID == 0 && group.Name == "" {
-				group.Name = "(Inactive, no stack trace sampled)"
-			}
+		for _, group := range groupsByName {
 			groups = append(groups, group)
 		}
 		slices.SortFunc(groups, func(a, b goroutineGroup) int {
@@ -92,7 +83,7 @@ Click a start location to view more details about that group.<br>
   </tr>
 {{range $}}
   <tr>
-    <td><code><a href="/goroutine?id={{.ID}}">{{.Name}}</a></code></td>
+    <td><code><a href="/goroutine?name={{.Name}}">{{or .Name "(Inactive, no stack trace sampled)"}}</a></code></td>
 	<td>{{.N}}</td>
 	<td>{{.ExecTime}}</td>
   </tr>
@@ -106,11 +97,7 @@ Click a start location to view more details about that group.<br>
 // goroutines in a particular group.
 func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		pc, err := strconv.ParseUint(r.FormValue("id"), 10, 64)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to parse id parameter '%v': %v", r.FormValue("id"), err), http.StatusInternalServerError)
-			return
-		}
+		goroutineName := r.FormValue("name")
 
 		type goroutine struct {
 			*trace.GoroutineSummary
@@ -130,7 +117,7 @@ func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.H
 		for _, summary := range summaries {
 			totalExecTime += summary.ExecTime
 
-			if summary.PC != pc {
+			if summary.Name != goroutineName {
 				continue
 			}
 			nonOverlappingStats := summary.NonOverlappingStats()
@@ -198,9 +185,8 @@ func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.H
 		}
 		sort.Strings(allRangeStats)
 
-		err = templGoroutine.Execute(w, struct {
+		err := templGoroutine.Execute(w, struct {
 			Name                string
-			PC                  uint64
 			N                   int
 			ExecTimePercent     string
 			MaxTotal            time.Duration
@@ -209,7 +195,6 @@ func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.H
 			RangeStats          []string
 		}{
 			Name:                name,
-			PC:                  pc,
 			N:                   len(goroutines),
 			ExecTimePercent:     execTimePercent,
 			MaxTotal:            maxTotalTime,
@@ -339,19 +324,19 @@ Table of contents
 	</tr>
 	<tr>
 		<td>Network wait profile:</td>
-		<td> <a href="/io?id={{.PC}}">graph</a> <a href="/io?id={{.PC}}&raw=1" download="io.profile">(download)</a></td>
+		<td> <a href="/io?name={{.Name}}">graph</a> <a href="/io?name={{.Name}}&raw=1" download="io.profile">(download)</a></td>
 	</tr>
 	<tr>
 		<td>Sync block profile:</td>
-		<td> <a href="/block?id={{.PC}}">graph</a> <a href="/block?id={{.PC}}&raw=1" download="block.profile">(download)</a></td>
+		<td> <a href="/block?name={{.Name}}">graph</a> <a href="/block?name={{.Name}}&raw=1" download="block.profile">(download)</a></td>
 	</tr>
 	<tr>
 		<td>Syscall profile:</td>
-		<td> <a href="/syscall?id={{.PC}}">graph</a> <a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">(download)</a></td>
+		<td> <a href="/syscall?name={{.Name}}">graph</a> <a href="/syscall?name={{.Name}}&raw=1" download="syscall.profile">(download)</a></td>
 		</tr>
 	<tr>
 		<td>Scheduler wait profile:</td>
-		<td> <a href="/sched?id={{.PC}}">graph</a> <a href="/sched?id={{.PC}}&raw=1" download="sched.profile">(download)</a></td>
+		<td> <a href="/sched?name={{.Name}}">graph</a> <a href="/sched?name={{.Name}}&raw=1" download="sched.profile">(download)</a></td>
 	</tr>
 </table>
 

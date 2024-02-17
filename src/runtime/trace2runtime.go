@@ -133,7 +133,7 @@ const (
 
 var traceGoStopReasonStrings = [...]string{
 	traceGoStopGeneric:   "unspecified",
-	traceGoStopGoSched:   "runtime.GoSched",
+	traceGoStopGoSched:   "runtime.Gosched",
 	traceGoStopPreempted: "preempted",
 }
 
