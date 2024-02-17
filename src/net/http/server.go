@@ -1923,7 +1923,12 @@ func (c *conn) serve(ctx context.Context) {
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
-				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+				if handler := c.server.TLSConfig.LooksLikeHttpResponseHandler; handler != nil {
+					// configurable error message for Client sent an HTTP request to an HTTPS server.
+					io.WriteString(re.Conn, handler(re.RecondBytes))
+				} else {
+					io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+				}
 				re.Conn.Close()
 				return
 			}

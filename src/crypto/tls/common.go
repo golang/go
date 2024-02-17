@@ -785,6 +785,10 @@ type Config struct {
 	// autoSessionTicketKeys is like sessionTicketKeys but is owned by the
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
+
+	// If tlsRecordHeaderLooksLikeHTTP, call this function,
+	// then get return string to io.WriteString
+	LooksLikeHttpResponseHandler func(RecondBytes []byte) string
 }
 
 const (
