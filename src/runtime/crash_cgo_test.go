@@ -34,6 +34,7 @@ func TestCgoSignalDeadlock(t *testing.T) {
 	if testing.Short() && runtime.GOOS == "windows" {
 		t.Skip("Skipping in short mode") // takes up to 64 seconds
 	}
+	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "CgoSignalDeadlock")
 	want := "OK\n"
 	if got != want {

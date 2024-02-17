@@ -24,6 +24,7 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
 	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
 		testenv.SkipFlaky(t, 49681)
 	}
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
@@ -85,6 +86,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 		// See go.dev/issues/43800.
 		t.Skip("this test can't run on windows/arm")
 	}
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
@@ -205,6 +207,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("this test can only run on windows/amd64")
 	}
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
@@ -271,6 +274,7 @@ func TestIssue59213(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 
@@ -289,8 +293,6 @@ func TestIssue59213(t *testing.T) {
 
 	cc := goEnv("CC")
 	cgoCflags := goEnv("CGO_CFLAGS")
-
-	t.Parallel()
 
 	tmpdir := t.TempDir()
 	dllfile := filepath.Join(tmpdir, "test.dll")

@@ -80,6 +80,7 @@ func TestStackGrowth(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
+	t.Parallel()
 
 	var wg sync.WaitGroup
 
