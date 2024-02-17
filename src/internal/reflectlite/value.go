@@ -545,7 +545,7 @@ func valueMethodName() string {
 	return "unknown method"
 }
 
-// NewValueError default return [ValueError] .
+// NewValueError default return [ValueError].
 // When reflect is imported, return [reflect.ValueError].
 var NewValueError func(Method string, Kind abi.Kind) interface{} = func(Method string, Kind abi.Kind) interface{} {
 	return &ValueError{Method: Method, Kind: Kind}
