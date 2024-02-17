@@ -1004,6 +1004,7 @@ func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
 }
 
 func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+	t.Parallel()
 	testenv.MustHaveGoRun(t)
 
 	exe, err := buildTestProg(t, "testprog")

@@ -45,10 +45,12 @@ func doRequest(useSelect bool) (*response, error) {
 }
 
 func TestChanSendSelectBarrier(t *testing.T) {
+	t.Parallel()
 	testChanSendBarrier(true)
 }
 
 func TestChanSendBarrier(t *testing.T) {
+	t.Parallel()
 	testChanSendBarrier(false)
 }
 

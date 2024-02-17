@@ -18,6 +18,7 @@ func TestExitHooks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping due to -short")
 	}
+	t.Parallel()
 	// Note the HasCGO() test below; this is to prevent the test
 	// running if CGO_ENABLED=0 is in effect.
 	haverace := platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)

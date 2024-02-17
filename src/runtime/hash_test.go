@@ -143,6 +143,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
+	t.Parallel()
 	h := newHashSet()
 	var b [3]byte
 	for i := 0; i < 256; i++ {
@@ -164,6 +165,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
 
 // Different length strings of all zeros have distinct hashes.
 func TestSmhasherZeros(t *testing.T) {
+	t.Parallel()
 	N := 256 * 1024
 	if testing.Short() {
 		N = 1024
@@ -187,6 +189,7 @@ func TestSmhasherTwoNonzero(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
+	t.Parallel()
 	h := newHashSet()
 	for n := 2; n <= 16; n++ {
 		twoNonZero(h, n)
@@ -232,6 +235,7 @@ func TestSmhasherCyclic(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
+	t.Parallel()
 	r := rand.New(rand.NewSource(1234))
 	const REPEAT = 8
 	const N = 1000000
@@ -475,6 +479,7 @@ func TestSmhasherAvalanche(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
+	t.Parallel()
 	avalancheTest1(t, &BytesKey{make([]byte, 2)})
 	avalancheTest1(t, &BytesKey{make([]byte, 4)})
 	avalancheTest1(t, &BytesKey{make([]byte, 8)})
@@ -545,7 +550,7 @@ func TestSmhasherWindowed(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
-	h := newHashSet()
+	t.Parallel()
 	t.Logf("32 bit keys")
 	windowed(t, h, &Int32Key{})
 	t.Logf("64 bit keys")
@@ -588,10 +593,10 @@ func TestSmhasherText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
-	h := newHashSet()
-	text(t, h, "Foo", "Bar")
-	text(t, h, "FooBar", "")
-	text(t, h, "", "FooBar")
+	t.Parallel()
+	text(t, "Foo", "Bar")
+	text(t, "FooBar", "")
+	text(t, "", "FooBar")
 }
 func text(t *testing.T, h *HashSet, prefix, suffix string) {
 	const N = 4
@@ -798,6 +803,7 @@ func TestCollisions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	for i := 0; i < 16; i++ {
 		for j := 0; j < 16; j++ {
 			if j == i {
