@@ -454,9 +454,8 @@ func (f Flag) Ro() Flag {
 // v.flag.mustBe(Bool), which will only bother to copy the
 // single important word for the receiver.
 func (f Flag) MustBe(expected Kind) {
-	k := f.Kind()
-	if k != expected {
-		mustBePanic(k)
+	if f.Kind() != expected {
+		mustBePanic(f.Kind())
 	}
 }
 
