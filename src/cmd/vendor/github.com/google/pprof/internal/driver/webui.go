@@ -112,7 +112,6 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 	ui.help["details"] = "Show information about the profile and this view"
 	ui.help["graph"] = "Display profile as a directed graph"
 	ui.help["flamegraph"] = "Display profile as a flame graph"
-	ui.help["flamegraphold"] = "Display profile as a flame graph (old version; slated for removal)"
 	ui.help["reset"] = "Show the entire profile"
 	ui.help["save_config"] = "Save current settings"
 
@@ -130,9 +129,9 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 			"/disasm":        http.HandlerFunc(ui.disasm),
 			"/source":        http.HandlerFunc(ui.source),
 			"/peek":          http.HandlerFunc(ui.peek),
-			"/flamegraphold": http.HandlerFunc(ui.flamegraph),
 			"/flamegraph":    http.HandlerFunc(ui.stackView),
-			"/flamegraph2":   http.HandlerFunc(ui.stackView), // Support older URL
+			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
+			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
 			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
 			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -209,15 +208,20 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
 	// https://github.com/google/pprof/pull/348
 	mux := http.NewServeMux()
 	mux.Handle("/ui/", http.StripPrefix("/ui", handler))
-	mux.Handle("/", redirectWithQuery("/ui"))
+	mux.Handle("/", redirectWithQuery("/ui", http.StatusTemporaryRedirect))
 	s := &http.Server{Handler: mux}
 	return s.Serve(ln)
 }
 
-func redirectWithQuery(path string) http.HandlerFunc {
+// redirectWithQuery responds with a given redirect code, preserving query
+// parameters in the redirect URL. It does not convert relative paths to
+// absolute paths like http.Redirect does, so that HTTPServerArgs.Handlers can
+// generate relative redirects that work with the external prefixing.
+func redirectWithQuery(path string, code int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathWithQuery := &gourl.URL{Path: path, RawQuery: r.URL.RawQuery}
-		http.Redirect(w, r, pathWithQuery.String(), http.StatusTemporaryRedirect)
+		w.Header().Set("Location", pathWithQuery.String())
+		w.WriteHeader(code)
 	}
 }
 
