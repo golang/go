@@ -2195,6 +2195,12 @@ func TestIssue61737(t *testing.T) {
 	iface.NumMethods() // unlike go/types, there is no Complete() method, so we complete implicitly
 }
 
+func TestNewAlias_Issue65455(t *testing.T) {
+	obj := NewTypeName(nopos, nil, "A", nil)
+	alias := NewAlias(obj, Typ[Int])
+	alias.Underlying() // must not panic
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	f := mustParse(src)

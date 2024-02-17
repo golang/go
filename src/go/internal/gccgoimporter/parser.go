@@ -902,6 +902,7 @@ const (
 	gccgoBuiltinERROR      = 19
 	gccgoBuiltinBYTE       = 20
 	gccgoBuiltinRUNE       = 21
+	gccgoBuiltinANY        = 22
 )
 
 func lookupBuiltinType(typ int) types.Type {
@@ -926,6 +927,7 @@ func lookupBuiltinType(typ int) types.Type {
 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
 		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
 		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
+		gccgoBuiltinANY:        types.Universe.Lookup("any").Type(),
 	}[typ]
 }
 

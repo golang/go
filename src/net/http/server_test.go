@@ -250,6 +250,24 @@ func TestEscapedPathsAndPatterns(t *testing.T) {
 	t.Run("1.21", func(t *testing.T) { run(t, true) })
 }
 
+func TestCleanPath(t *testing.T) {
+	for _, test := range []struct {
+		in, want string
+	}{
+		{"//", "/"},
+		{"/x", "/x"},
+		{"//x", "/x"},
+		{"x//", "/x/"},
+		{"a//b/////c", "/a/b/c"},
+		{"/foo/../bar/./..//baz", "/baz"},
+	} {
+		got := cleanPath(test.in)
+		if got != test.want {
+			t.Errorf("%s: got %q, want %q", test.in, got, test.want)
+		}
+	}
+}
+
 func BenchmarkServerMatch(b *testing.B) {
 	fn := func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "OK")

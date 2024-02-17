@@ -1184,9 +1184,14 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := fieldIndex(utyp.fields, check.pkg, key.Value, false)
+					i := fieldIndex(fields, check.pkg, key.Value, false)
 					if i < 0 {
-						check.errorf(kv.Key, MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
+						var alt Object
+						if j := fieldIndex(fields, check.pkg, key.Value, true); j >= 0 {
+							alt = fields[j]
+						}
+						msg := check.lookupError(base, key.Value, alt, true)
+						check.error(kv.Key, MissingLitField, msg)
 						continue
 					}
 					fld := fields[i]

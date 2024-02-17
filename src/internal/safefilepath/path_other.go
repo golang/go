@@ -6,7 +6,10 @@
 
 package safefilepath
 
-import "runtime"
+import (
+	"internal/bytealg"
+	"runtime"
+)
 
 func fromFS(path string) (string, error) {
 	if runtime.GOOS == "plan9" {
@@ -14,10 +17,8 @@ func fromFS(path string) (string, error) {
 			return "", errInvalidPath
 		}
 	}
-	for i := range path {
-		if path[i] == 0 {
-			return "", errInvalidPath
-		}
+	if bytealg.IndexByteString(path, 0) >= 0 {
+		return "", errInvalidPath
 	}
 	return path, nil
 }

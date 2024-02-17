@@ -2273,7 +2273,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 
 	// Shouldn't send the body for POST or HEAD; that leaves GET.
 	if !hadCT && r.Method == "GET" {
-		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>.\n"
+		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>."
 		fmt.Fprintln(w, body)
 	}
 }
@@ -2577,8 +2577,8 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 
 	n, matches := mux.tree.match(host, method, path)
 	// If we have an exact match, or we were asked not to try trailing-slash redirection,
-	// then we're done.
-	if !exactMatch(n, path) && u != nil {
+	// or the URL already has a trailing slash, then we're done.
+	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") {
 		// If there is an exact match with a trailing slash, then redirect.
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)

@@ -9,7 +9,10 @@
 
 package types
 
-import "go/token"
+import (
+	"go/ast"
+	"go/token"
+)
 
 // cmpPos compares the positions p and q and returns a result r as follows:
 //
@@ -20,3 +23,6 @@ import "go/token"
 // If p and q are in different files, p is before q if the filename
 // of p sorts lexicographically before the filename of q.
 func cmpPos(p, q token.Pos) int { return int(p - q) }
+
+// hasDots reports whether the last argument in the call is followed by ...
+func hasDots(call *ast.CallExpr) bool { return call.Ellipsis.IsValid() }

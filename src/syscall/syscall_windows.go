@@ -1261,7 +1261,7 @@ func Fchdir(fd Handle) (err error) {
 	if err != nil {
 		return err
 	}
-	// When using VOLUME_NAME_DOS, the path is always pefixed by "\\?\".
+	// When using VOLUME_NAME_DOS, the path is always prefixed by "\\?\".
 	// That prefix tells the Windows APIs to disable all string parsing and to send
 	// the string that follows it straight to the file system.
 	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,

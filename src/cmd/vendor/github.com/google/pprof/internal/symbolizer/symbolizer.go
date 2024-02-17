@@ -181,6 +181,7 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 			l.Line[i] = profile.Line{
 				Function: f,
 				Line:     int64(frame.Line),
+				Column:   int64(frame.Column),
 			}
 		}
 

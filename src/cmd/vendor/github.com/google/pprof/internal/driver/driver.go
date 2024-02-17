@@ -256,7 +256,7 @@ func aggregate(prof *profile.Profile, cfg config) error {
 	default:
 		return fmt.Errorf("unexpected granularity")
 	}
-	return prof.Aggregate(inlines, function, filename, linenumber, address)
+	return prof.Aggregate(inlines, function, filename, linenumber, cfg.ShowColumns, address)
 }
 
 func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {

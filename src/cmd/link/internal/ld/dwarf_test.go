@@ -65,7 +65,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 		"internal/abi.SliceType":     true,
 		"internal/abi.StructType":    true,
 		"internal/abi.InterfaceType": true,
-		"runtime.itab":               true,
+		"internal/abi.ITab":          true,
 	}
 
 	found := findTypes(t, dwarf, want)
@@ -2050,6 +2050,10 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 		// For any type DIE with DW_AT_go_runtime_type set...
 		rtt, hasRT := die.Val(intdwarf.DW_AT_go_runtime_type).(uint64)
 		if !hasRT || rtt == 0 {
+			continue
+		}
+		// ... except unsafe.Pointer...
+		if name, _ := die.Val(intdwarf.DW_AT_name).(string); name == "unsafe.Pointer" {
 			continue
 		}
 		typesChecked++

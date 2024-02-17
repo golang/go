@@ -103,6 +103,7 @@ var filemap = map[string]action{
 	"const.go":          func(f *ast.File) { fixTokenPos(f) },
 	"context.go":        nil,
 	"context_test.go":   nil,
+	"errsupport.go":     nil,
 	"gccgosizes.go":     nil,
 	"gcsizes.go":        func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
 	"hilbert_test.go":   func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
