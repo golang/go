@@ -169,7 +169,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 // and Typ[Invalid] if it is an invalid lhs expression.
 func (check *Checker) lhsVar(lhs ast.Expr) Type {
 	// Determine if the lhs is a (possibly parenthesized) identifier.
-	ident, _ := unparen(lhs).(*ast.Ident)
+	ident, _ := ast.Unparen(lhs).(*ast.Ident)
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Name == "_" {
@@ -325,7 +325,7 @@ func (check *Checker) assignError(rhs []ast.Expr, l, r int) {
 	rhs0 := rhs[0]
 
 	if len(rhs) == 1 {
-		if call, _ := unparen(rhs0).(*ast.CallExpr); call != nil {
+		if call, _ := ast.Unparen(rhs0).(*ast.CallExpr); call != nil {
 			check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
 			return
 		}
@@ -344,9 +344,9 @@ func (check *Checker) returnError(at positioner, lhs []*Var, rhs []*operand) {
 	}
 	var err error_
 	err.code = WrongResultCount
-	err.errorf(at.Pos(), "%s return values", qualifier)
-	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
-	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+	err.errorf(at, "%s return values", qualifier)
+	err.errorf(noposn, "have %s", check.typesSummary(operandTypes(rhs), false))
+	err.errorf(noposn, "want %s", check.typesSummary(varTypes(lhs), false))
 	check.report(&err)
 }
 
@@ -366,7 +366,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 	// error message don't handle it as n:n mapping below.
 	isCall := false
 	if r == 1 {
-		_, isCall = unparen(orig_rhs[0]).(*ast.CallExpr)
+		_, isCall = ast.Unparen(orig_rhs[0]).(*ast.CallExpr)
 	}
 
 	// If we have a n:n mapping from lhs variable to rhs expression,
@@ -445,7 +445,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 	// error message don't handle it as n:n mapping below.
 	isCall := false
 	if r == 1 {
-		_, isCall = unparen(orig_rhs[0]).(*ast.CallExpr)
+		_, isCall = ast.Unparen(orig_rhs[0]).(*ast.CallExpr)
 	}
 
 	// If we have a n:n mapping from lhs variable to rhs expression,

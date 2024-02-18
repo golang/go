@@ -169,8 +169,8 @@ func TestReaderUpcomingHeaderKeys(t *testing.T) {
 func TestReadMIMEHeaderNoKey(t *testing.T) {
 	r := reader(": bar\ntest-1: 1\n\n")
 	m, err := r.ReadMIMEHeader()
-	want := MIMEHeader{"Test-1": {"1"}}
-	if !reflect.DeepEqual(m, want) || err != nil {
+	want := MIMEHeader{}
+	if !reflect.DeepEqual(m, want) || err == nil {
 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
 	}
 }
@@ -227,6 +227,7 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		"Foo\r\n\t: foo\r\n\r\n",
 		"Foo-\n\tBar",
 		"Foo \tBar: foo\r\n\r\n",
+		": empty key\r\n\r\n",
 	}
 	for _, input := range inputs {
 		r := reader(input)

@@ -1,13 +1,4 @@
 pkg archive/tar, method (*Writer) AddFS(fs.FS) error #58000
-pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
-pkg archive/tar, type FileInfoNames interface, Gname(int) (string, error) #50102
-pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
-pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
-pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
-pkg archive/tar, type FileInfoNames interface, Name() string #50102
-pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
-pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
-pkg archive/tar, type FileInfoNames interface, Uname(int) (string, error) #50102
 pkg archive/zip, method (*Writer) AddFS(fs.FS) error #54898
 pkg cmp, func Or[$0 comparable](...$0) $0 #60204
 pkg crypto/x509, func OIDFromInts([]uint64) (OID, error) #60665

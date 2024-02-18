@@ -765,6 +765,7 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	var p []runtime.StackRecord
 	var labels []unsafe.Pointer
 	n, ok := fetch(nil, nil)
+
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added

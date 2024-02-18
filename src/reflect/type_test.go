@@ -78,6 +78,9 @@ func TestIsRegularMemory(t *testing.T) {
 		}{})}, true},
 		{"map[int][int]", args{reflect.TypeOf(map[int]int{})}, false},
 		{"[4]chan int", args{reflect.TypeOf([4]chan int{})}, true},
+		{"[0]struct{_ S}", args{reflect.TypeOf([0]struct {
+			_ S
+		}{})}, true},
 		{"struct{i int; _ S}", args{reflect.TypeOf(struct {
 			i int
 			_ S
@@ -98,5 +101,19 @@ func TestIsRegularMemory(t *testing.T) {
 				t.Errorf("isRegularMemory() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+var sinkType reflect.Type
+
+func BenchmarkTypeForString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[string]()
+	}
+}
+
+func BenchmarkTypeForError(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[error]()
 	}
 }

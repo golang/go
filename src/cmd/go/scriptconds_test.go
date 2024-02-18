@@ -55,6 +55,7 @@ func scriptConditions() map[string]script.Cond {
 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
 	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
+	add("pielinkext", script.Condition("platform requires external linking for PIE", pieLinkExt))
 	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
@@ -232,4 +233,10 @@ func mustLinkExt(s *script.State) (bool, error) {
 	GOOS, _ := s.LookupEnv("GOOS")
 	GOARCH, _ := s.LookupEnv("GOARCH")
 	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
+}
+
+func pieLinkExt(s *script.State) (bool, error) {
+	GOOS, _ := s.LookupEnv("GOOS")
+	GOARCH, _ := s.LookupEnv("GOARCH")
+	return !platform.InternalLinkPIESupported(GOOS, GOARCH), nil
 }

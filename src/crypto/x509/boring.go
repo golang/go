@@ -22,7 +22,7 @@ func boringAllowCert(c *Certificate) bool {
 	}
 
 	// The key must be RSA 2048, RSA 3072, RSA 4096,
-	// or ECDSA P-256 or P-384.
+	// or ECDSA P-256, P-384, P-521.
 	switch k := c.PublicKey.(type) {
 	default:
 		return false
@@ -31,7 +31,7 @@ func boringAllowCert(c *Certificate) bool {
 			return false
 		}
 	case *ecdsa.PublicKey:
-		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() {
+		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
 			return false
 		}
 	}

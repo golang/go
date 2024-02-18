@@ -29,6 +29,8 @@ x_cgo_getstackbound(uintptr bounds[2])
 	pthread_attr_get_np(pthread_self(), &attr);
 	pthread_attr_getstack(&attr, &addr, &size); // low address
 #else
+	// We don't know how to get the current stacks, so assume they are the
+	// same as the default stack bounds.
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	addr = __builtin_frame_address(0) + 4096 - size;

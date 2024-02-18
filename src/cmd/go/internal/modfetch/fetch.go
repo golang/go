@@ -569,6 +569,47 @@ func HaveSum(mod module.Version) bool {
 	return false
 }
 
+// RecordedSum returns the sum if the go.sum file contains an entry for mod.
+// The boolean reports true if an entry was found or
+// false if no entry found or two conflicting sums are found.
+// The entry's hash must be generated with a known hash algorithm.
+// mod.Version may have a "/go.mod" suffix to distinguish sums for
+// .mod and .zip files.
+func RecordedSum(mod module.Version) (sum string, ok bool) {
+	goSum.mu.Lock()
+	defer goSum.mu.Unlock()
+	inited, err := initGoSum()
+	foundSum := ""
+	if err != nil || !inited {
+		return "", false
+	}
+	for _, goSums := range goSum.w {
+		for _, h := range goSums[mod] {
+			if !strings.HasPrefix(h, "h1:") {
+				continue
+			}
+			if !goSum.status[modSum{mod, h}].dirty {
+				if foundSum != "" && foundSum != h { // conflicting sums exist
+					return "", false
+				}
+				foundSum = h
+			}
+		}
+	}
+	for _, h := range goSum.m[mod] {
+		if !strings.HasPrefix(h, "h1:") {
+			continue
+		}
+		if !goSum.status[modSum{mod, h}].dirty {
+			if foundSum != "" && foundSum != h { // conflicting sums exist
+				return "", false
+			}
+			foundSum = h
+		}
+	}
+	return foundSum, true
+}
+
 // checkMod checks the given module's checksum and Go version.
 func checkMod(ctx context.Context, mod module.Version) {
 	// Do the file I/O before acquiring the go.sum lock.

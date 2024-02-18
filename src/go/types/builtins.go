@@ -22,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
-	if call.Ellipsis.IsValid() && id != _Append {
+	if hasDots(call) && id != _Append {
 		check.errorf(atPos(call.Ellipsis),
 			InvalidDotDotDot,
 			invalidOp+"invalid use of ... with built-in %s", bin.name)
@@ -113,7 +113,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() {
+		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				if t := coreString(y.typ); t != nil && isString(t) {
@@ -705,7 +705,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
 		// (no argument evaluated yet)
 		arg0 := argList[0]
-		selx, _ := unparen(arg0).(*ast.SelectorExpr)
+		selx, _ := ast.Unparen(arg0).(*ast.SelectorExpr)
 		if selx == nil {
 			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
 			check.use(arg0)
@@ -719,7 +719,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Name
-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := lookupFieldOrMethod(base, false, check.pkg, sel, false)
 		switch obj.(type) {
 		case nil:
 			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
@@ -1033,5 +1033,3 @@ func arrayPtrDeref(typ Type) Type {
 	}
 	return typ
 }
-
-func unparen(e ast.Expr) ast.Expr { return ast.Unparen(e) }

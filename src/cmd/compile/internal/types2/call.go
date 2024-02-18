@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
 	"strings"
-	"unicode"
 )
 
 // funcInst type-checks a function instantiation.
@@ -109,9 +108,13 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse)
+		var err error_
+		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse, &err)
 		if targs == nil {
-			// error was already reported
+			if !err.empty() {
+				err.code = CannotInferTypeArgs
+				check.report(&err)
+			}
 			x.mode = invalid
 			return nil, nil
 		}
@@ -206,7 +209,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 						break
 					}
 				}
-				if call.HasDots {
+				if hasDots(call) {
 					check.errorf(call.ArgList[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -465,7 +468,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.HasDots
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -603,13 +606,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false)
+		var err error_
+		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false, &err)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
-			return // error already reported
+			if !err.empty() {
+				check.errorf(err.pos(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg(check.qualifier))
+			}
+			return
 		}
 
 		// update result signature: instantiate if needed
@@ -791,7 +798,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(under(x.typ)) {
@@ -817,21 +824,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		if isInterfacePtr(x.typ) {
 			why = check.interfacePtrError(x.typ)
 		} else {
-			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// Check if capitalization of sel matters and provide better error message in that case.
-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
-			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
-			if len(sel) > 0 {
-				var changeCase string
-				if r := rune(sel[0]); unicode.IsUpper(r) {
-					changeCase = string(unicode.ToLower(r)) + sel[1:]
-				} else {
-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
-				}
-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					why += ", but does have " + changeCase
-				}
-			}
+			alt, _, _ := lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
@@ -846,7 +840,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}

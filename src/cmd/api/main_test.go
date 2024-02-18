@@ -851,6 +851,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 			buf.WriteByte('.')
 		}
 		buf.WriteString(typ.Obj().Name())
+		if targs := typ.TypeArgs(); targs.Len() > 0 {
+			buf.WriteByte('[')
+			for i := 0; i < targs.Len(); i++ {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				w.writeType(buf, targs.At(i))
+			}
+			buf.WriteByte(']')
+		}
 
 	case *types.TypeParam:
 		// Type parameter names may change, so use a placeholder instead.

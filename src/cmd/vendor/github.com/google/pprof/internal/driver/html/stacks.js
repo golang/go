@@ -75,8 +75,12 @@ function stackViewer(stacks, nodes) {
     hiliter: (n, on) => { return hilite(n, on); },
     current: () => {
       let r = new Map();
-      for (let p of pivots) {
-        r.set(p, true);
+      if (pivots.length == 1 && pivots[0] == 0) {
+        // Not pivoting
+      } else {
+        for (let p of pivots) {
+          r.set(p, true);
+        }
       }
       return r;
     }});
@@ -145,7 +149,7 @@ function stackViewer(stacks, nodes) {
     }
 
     // Update params to include src.
-    let v = stacks.Sources[src].RE;
+    let v = pprofQuoteMeta(stacks.Sources[src].FullName);
     if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
       // Add new source to current parameter value.
       const old = params.get(param);
@@ -174,7 +178,11 @@ function stackViewer(stacks, nodes) {
   function switchPivots(regexp) {
     // Switch URL without hitting the server.
     const url = new URL(document.URL);
-    url.searchParams.set('p', regexp);
+    if (regexp === '' || regexp === '^$') {
+      url.searchParams.delete('p');  // Not pivoting
+    } else {
+      url.searchParams.set('p', regexp);
+    }
     history.pushState('', '', url.toString()); // Makes back-button work
     matches = new Set();
     search.value = '';
@@ -445,7 +453,7 @@ function stackViewer(stacks, nodes) {
       r.appendChild(t);
     }
 
-    r.addEventListener('click', () => { switchPivots(src.RE); });
+    r.addEventListener('click', () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
     r.addEventListener('mouseenter', () => { handleEnter(box, r); });
     r.addEventListener('mouseleave', () => { handleLeave(box); });
     r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });

@@ -57,8 +57,9 @@ stdout '^test2json.exe: .+'
 stdout '^\tpath\tcmd/test2json$'
 ! stdout 'mod[^e]'
 
-# Repeat the test with -buildmode=pie.
+# Repeat the test with -buildmode=pie and default linking.
 [!buildmode:pie] stop
+[pielinkext] [!cgo] stop
 go build -buildmode=pie -o external.exe rsc.io/fortune
 go version external.exe
 stdout '^external.exe: .+'
@@ -68,9 +69,7 @@ stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 # Also test PIE with internal linking.
-# currently only supported on linux/amd64, linux/arm64 and windows/amd64.
-[!GOOS:linux] [!GOOS:windows] stop
-[!GOARCH:amd64] [!GOARCH:arm64] stop
+[pielinkext] stop
 go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
 go version internal.exe
 stdout '^internal.exe: .+'

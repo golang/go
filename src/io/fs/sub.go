@@ -33,7 +33,7 @@ type SubFS interface {
 // chroot-style security mechanism, and Sub does not change that fact.
 func Sub(fsys FS, dir string) (FS, error) {
 	if !ValidPath(dir) {
-		return nil, &PathError{Op: "sub", Path: dir, Err: errors.New("invalid name")}
+		return nil, &PathError{Op: "sub", Path: dir, Err: ErrInvalid}
 	}
 	if dir == "." {
 		return fsys, nil
@@ -52,7 +52,7 @@ type subFS struct {
 // fullName maps name to the fully-qualified name dir/name.
 func (f *subFS) fullName(op string, name string) (string, error) {
 	if !ValidPath(name) {
-		return "", &PathError{Op: op, Path: name, Err: errors.New("invalid name")}
+		return "", &PathError{Op: op, Path: name, Err: ErrInvalid}
 	}
 	return path.Join(f.dir, name), nil
 }

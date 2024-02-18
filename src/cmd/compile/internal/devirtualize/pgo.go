@@ -740,7 +740,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, e
 	}
 
 	if base.Debug.PGODebug >= 2 {
-		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
+		fmt.Printf("%v: call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
 	}
 	return hottest.Dst.AST, hottest.Weight
 }

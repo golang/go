@@ -494,7 +494,7 @@ func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error 
 	}
 
 	// Usually desc is already p.Desc(), but if not, signal cmdError.Error to
-	// add a line explicitly metioning the import path.
+	// add a line explicitly mentioning the import path.
 	needsPath := importPath != "" && p != nil && desc != p.Desc()
 
 	err := &cmdError{desc, out, importPath, needsPath}

@@ -30,9 +30,16 @@ func TestValueEqual(t *testing.T) {
 		BoolValue(true),
 		BoolValue(false),
 		TimeValue(testTime),
+		TimeValue(time.Date(2001, 1, 2, 3, 4, 5, 0, time.UTC)),
 		AnyValue(&x),
 		AnyValue(&y),
 		GroupValue(Bool("b", true), Int("i", 3)),
+		GroupValue(Bool("b", true), Int("i", 4)),
+		GroupValue(Bool("b", true), Int("j", 4)),
+		DurationValue(3 * time.Second),
+                DurationValue(2 * time.Second),
+                StringValue("foo"),
+                StringValue("fuu"),
 	}
 	for i, v1 := range vals {
 		for j, v2 := range vals {
@@ -164,6 +171,7 @@ func TestValueAny(t *testing.T) {
 		time.Minute,
 		time.Time{},
 		3.14,
+		"foo",
 	} {
 		v := AnyValue(want)
 		got := v.Any()

@@ -8,6 +8,7 @@ package xcoff
 import (
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/saferio"
 	"io"
@@ -261,7 +262,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		r2 := r
 		if scnptr == 0 { // .bss must have all 0s
-			r2 = zeroReaderAt{}
+			r2 = &nobitsSectionReader{}
 		}
 		s.sr = io.NewSectionReader(r2, int64(scnptr), int64(s.Size))
 		s.ReaderAt = s.sr
@@ -451,15 +452,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	return f, nil
 }
 
-// zeroReaderAt is ReaderAt that reads 0s.
-type zeroReaderAt struct{}
+type nobitsSectionReader struct{}
 
-// ReadAt writes len(p) 0s into p.
-func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
-	for i := range p {
-		p[i] = 0
-	}
-	return len(p), nil
+func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+	return 0, errors.New("unexpected read from section with uninitialized data")
 }
 
 // Data reads and returns the contents of the XCOFF section s.

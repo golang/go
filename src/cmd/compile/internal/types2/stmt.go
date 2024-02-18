@@ -1026,9 +1026,8 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 		}
 		return typ.elem, nil, "", false, true
 	case *Signature:
-		// TODO(gri) when this becomes enabled permanently, add version check
-		if !buildcfg.Experiment.RangeFunc {
-			break
+		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
+			return bad("requires go1.23 or later")
 		}
 		assert(typ.Recv() == nil)
 		switch {

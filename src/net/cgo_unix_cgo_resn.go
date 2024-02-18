@@ -33,7 +33,7 @@ func _C_res_nclose(state *_C_struct___res_state) {
 	C.res_nclose(state)
 }
 
-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) (int, error) {
-	x, err := C.res_nsearch(state, dname, C.int(class), C.int(typ), ans, C.int(anslen))
-	return int(x), err
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) int {
+	x := C.res_nsearch(state, dname, C.int(class), C.int(typ), ans, C.int(anslen))
+	return int(x)
 }
