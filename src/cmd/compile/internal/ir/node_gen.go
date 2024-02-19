@@ -301,6 +301,9 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
 	if doNodes(n.Args, do) {
 		return true
 	}
+	if n.DeferAt != nil && do(n.DeferAt) {
+		return true
+	}
 	if doNames(n.KeepAlive, do) {
 		return true
 	}
@@ -312,6 +315,9 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
 		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
+	if n.DeferAt != nil {
+		n.DeferAt = edit(n.DeferAt).(Node)
+	}
 	editNames(n.KeepAlive, edit)
 }
 func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
@@ -320,6 +326,9 @@ func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
 		n.Fun = edit(n.Fun).(Node)
 	}
 	editNodes(n.Args, edit)
+	if n.DeferAt != nil {
+		n.DeferAt = edit(n.DeferAt).(Node)
+	}
 	if n.RType != nil {
 		n.RType = edit(n.RType).(Node)
 	}
@@ -668,6 +677,49 @@ func (n *ForStmt) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.Body, edit)
 }
 
+func (n *FourStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *FourStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
+	return &c
+}
+func (n *FourStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Cond != nil && do(n.Cond) {
+		return true
+	}
+	if n.Post != nil && do(n.Post) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	return false
+}
+func (n *FourStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	if n.Post != nil {
+		n.Post = edit(n.Post).(Node)
+	}
+	editNodes(n.Body, edit)
+}
+func (n *FourStmt) editChildrenWithHidden(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	if n.Post != nil {
+		n.Post = edit(n.Post).(Node)
+	}
+	editNodes(n.Body, edit)
+}
+
 func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 
 func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
@@ -683,6 +735,9 @@ func (n *GoDeferStmt) doChildren(do func(Node) bool) bool {
 	if n.Call != nil && do(n.Call) {
 		return true
 	}
+	if n.DeferAt != nil && do(n.DeferAt) {
+		return true
+	}
 	return false
 }
 func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
@@ -690,11 +745,17 @@ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
 	if n.Call != nil {
 		n.Call = edit(n.Call).(Node)
 	}
+	if n.DeferAt != nil {
+		n.DeferAt = edit(n.DeferAt).(Expr)
+	}
 }
 func (n *GoDeferStmt) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.Call != nil {
 		n.Call = edit(n.Call).(Node)
+	}
+	if n.DeferAt != nil {
+		n.DeferAt = edit(n.DeferAt).(Expr)
 	}
 }
 
@@ -866,6 +927,9 @@ func (n *InterfaceSwitchStmt) doChildren(do func(Node) bool) bool {
 	if n.RuntimeType != nil && do(n.RuntimeType) {
 		return true
 	}
+	if n.Hash != nil && do(n.Hash) {
+		return true
+	}
 	return false
 }
 func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
@@ -879,6 +943,9 @@ func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
 	if n.RuntimeType != nil {
 		n.RuntimeType = edit(n.RuntimeType).(Node)
 	}
+	if n.Hash != nil {
+		n.Hash = edit(n.Hash).(Node)
+	}
 }
 func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
@@ -890,6 +957,9 @@ func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
 	}
 	if n.RuntimeType != nil {
 		n.RuntimeType = edit(n.RuntimeType).(Node)
+	}
+	if n.Hash != nil {
+		n.Hash = edit(n.Hash).(Node)
 	}
 }
 
@@ -1697,6 +1767,40 @@ func (n *UnaryExpr) editChildrenWithHidden(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
+}
+
+func (n *UnlessStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *UnlessStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	c.Body = copyNodes(c.Body)
+	return &c
+}
+func (n *UnlessStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Cond != nil && do(n.Cond) {
+		return true
+	}
+	if doNodes(n.Body, do) {
+		return true
+	}
+	return false
+}
+func (n *UnlessStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	editNodes(n.Body, edit)
+}
+func (n *UnlessStmt) editChildrenWithHidden(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Cond != nil {
+		n.Cond = edit(n.Cond).(Node)
+	}
+	editNodes(n.Body, edit)
 }
 
 func (n *typeNode) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

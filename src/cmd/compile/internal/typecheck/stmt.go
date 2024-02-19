@@ -198,6 +198,35 @@ func tcFor(n *ir.ForStmt) ir.Node {
 	return n
 }
 
+func tcFour(n *ir.FourStmt) ir.Node {
+	Stmts(n.Init())
+	n.Cond = Expr(n.Cond)
+	n.Cond = DefaultLit(n.Cond, nil)
+	if n.Cond != nil {
+		t := n.Cond.Type()
+		if t != nil && !t.IsBoolean() {
+			base.Errorf("non-bool %L used as four condition", n.Cond)
+		}
+	}
+	n.Post = Stmt(n.Post)
+	Stmts(n.Body)
+	return n
+}
+
+func tcUnless(n *ir.UnlessStmt) ir.Node {
+	Stmts(n.Init())
+	n.Cond = Expr(n.Cond)
+	n.Cond = DefaultLit(n.Cond, nil)
+	if n.Cond != nil {
+		t := n.Cond.Type()
+		if t != nil && !t.IsBoolean() {
+			base.Errorf("non-bool %L used as unless condition", n.Cond)
+		}
+	}
+	Stmts(n.Body)
+	return n
+}
+
 // tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
 func tcGoDefer(n *ir.GoDeferStmt) {
 	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())

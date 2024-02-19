@@ -1288,6 +1288,14 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.Code(stmtFor)
 		w.forStmt(stmt)
 
+	case *syntax.FourStmt:
+		w.Code(stmtFour)
+		w.fourStmt(stmt)
+
+	case *syntax.UnlessStmt:
+		w.Code(stmtUnless)
+		w.unlessStmt(stmt)
+
 	case *syntax.IfStmt:
 		w.Code(stmtIf)
 		w.ifStmt(stmt)
@@ -1495,6 +1503,37 @@ func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	// -gcflags=-d=loopvar=3 enables logging for 1.22 but does not turn loopvar on for <= 1.21.
 
 	return is122 || lv > 0 && lv != 3
+}
+
+func (w *writer) fourStmt(stmt *syntax.FourStmt) {
+	w.Sync(pkgbits.SyncFourStmt)
+	w.openScope(stmt.Pos())
+
+	w.pos(stmt)
+	w.stmt(stmt.Init)
+	w.optExpr(stmt.Cond)
+	w.stmt(stmt.Post)
+
+	w.blockStmt(stmt.Body)
+	w.Bool(w.distinctVarsFour(stmt))
+	w.closeAnotherScope()
+}
+
+func (w *writer) distinctVarsFour(stmt *syntax.FourStmt) bool {
+	lv := base.Debug.LoopVar
+	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
+	return is122 || lv > 0 && lv != 3
+}
+
+func (w *writer) unlessStmt(stmt *syntax.UnlessStmt) {
+	w.Sync(pkgbits.SyncUnlessStmt)
+	w.openScope(stmt.Pos())
+	w.pos(stmt)
+	w.stmt(stmt.Init)
+	w.optExpr(stmt.Cond)
+	w.blockStmt(stmt.Then)
+	w.closeAnotherScope()
 }
 
 func (w *writer) ifStmt(stmt *syntax.IfStmt) {

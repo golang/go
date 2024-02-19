@@ -127,6 +127,14 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.ForStmt)
 		return walkFor(n)
 
+	case ir.OFOUR:
+		n := n.(*ir.FourStmt)
+		return walkFour(n)
+
+	case ir.OUNLESS:
+		n := n.(*ir.UnlessStmt)
+		return walkUnless(n)
+
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
 		return walkIf(n)
@@ -187,6 +195,25 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	}
 
 	n.Post = walkStmt(n.Post)
+	walkStmtList(n.Body)
+	return n
+}
+
+func walkFour(n *ir.FourStmt) ir.Node {
+	if n.Cond != nil {
+		init := ir.TakeInit(n.Cond)
+		walkStmtList(init)
+		n.Cond = walkExpr(n.Cond, &init)
+		n.Cond = ir.InitExpr(init, n.Cond)
+	}
+
+	n.Post = walkStmt(n.Post)
+	walkStmtList(n.Body)
+	return n
+}
+
+func walkUnless(n *ir.UnlessStmt) ir.Node {
+	n.Cond = walkExpr(n.Cond, n.PtrInit())
 	walkStmtList(n.Body)
 	return n
 }

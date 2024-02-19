@@ -52,6 +52,8 @@ const (
 	_Else        // else
 	_Fallthrough // fallthrough
 	_For         // for
+	_Four        // four
+	_Unless      // unless
 	_Func        // func
 	_Go          // go
 	_Goto        // goto

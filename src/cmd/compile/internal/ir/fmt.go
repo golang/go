@@ -49,6 +49,8 @@ var OpNames = []string{
 	OEQ:               "==",
 	OFALL:             "fallthrough",
 	OFOR:              "for",
+	OFOUR:             "four",
+	OUNLESS:           "unless",
 	OGE:               ">=",
 	OGOTO:             "goto",
 	OGT:               ">",
@@ -279,6 +281,8 @@ var OpPrec = []int{
 	ODEFER:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
+	OFOUR:       -1,
+	OUNLESS:     -1,
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,
@@ -294,7 +298,7 @@ var OpPrec = []int{
 // StmtWithInit reports whether op is a statement with an explicit init list.
 func StmtWithInit(op Op) bool {
 	switch op {
-	case OIF, OFOR, OSWITCH:
+	case OIF, OFOR, OSWITCH, OFOUR, OUNLESS:
 		return true
 	}
 	return false
@@ -413,6 +417,43 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 		fmt.Fprint(s, "for")
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct */")
+		}
+		if simpleinit {
+			fmt.Fprintf(s, " %v;", n.Init()[0])
+		} else if n.Post != nil {
+			fmt.Fprint(s, " ;")
+		}
+
+		if n.Cond != nil {
+			fmt.Fprintf(s, " %v", n.Cond)
+		}
+
+		if n.Post != nil {
+			fmt.Fprintf(s, "; %v", n.Post)
+		} else if simpleinit {
+			fmt.Fprint(s, ";")
+		}
+
+		fmt.Fprintf(s, " { %v }", n.Body)
+
+	case OUNLESS:
+		n := n.(*UnlessStmt)
+		if simpleinit {
+			fmt.Fprintf(s, "unless %v; %v { %v }", n.Init()[0], n.Cond, n.Body)
+		} else {
+			fmt.Fprintf(s, "unless %v { %v }", n.Cond, n.Body)
+		}
+
+	case OFOUR:
+		n := n.(*FourStmt)
+		if !exportFormat { // TODO maybe only if FmtShort, same below
+			fmt.Fprintf(s, "four loop")
+			break
+		}
+
+		fmt.Fprint(s, "four")
 		if n.DistinctVars {
 			fmt.Fprint(s, " /* distinct */")
 		}

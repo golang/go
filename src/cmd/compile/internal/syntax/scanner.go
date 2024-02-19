@@ -421,7 +421,7 @@ func hash(s []byte) uint {
 	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
 }
 
-var keywordMap [1 << 6]token // size must be power of two
+var keywordMap [1 << 7]token // size must be power of two
 
 func init() {
 	// populate keywordMap

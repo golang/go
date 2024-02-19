@@ -835,6 +835,23 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
+	case ir.OFOUR:
+		n := n.(*ir.FourStmt)
+		t := o.markTemp()
+		n.Cond = o.exprInPlace(n.Cond)
+		orderBlock(&n.Body, o.free)
+		n.Post = orderStmtInPlace(n.Post, o.free)
+		o.out = append(o.out, n)
+		o.popTemp(t)
+
+	case ir.OUNLESS:
+		n := n.(*ir.UnlessStmt)
+		t := o.markTemp()
+		n.Cond = o.exprInPlace(n.Cond)
+		o.popTemp(t)
+		orderBlock(&n.Body, o.free)
+		o.out = append(o.out, n)
+
 	// Clean temporaries from condition at
 	// beginning of both branches.
 	case ir.OIF:
