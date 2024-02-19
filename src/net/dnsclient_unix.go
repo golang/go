@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,14 +42,8 @@ var (
 	errLameReferral              = errors.New("lame referral")
 	errCannotUnmarshalDNSMessage = errors.New("cannot unmarshal DNS message")
 	errCannotMarshalDNSMessage   = errors.New("cannot marshal DNS message")
-	errServerMisbehaving         = errors.New("server misbehaving")
 	errInvalidDNSResponse        = errors.New("invalid DNS response")
 	errNoAnswerFromDNSServer     = errors.New("no answer from DNS server")
-
-	// errServerTemporarilyMisbehaving is like errServerMisbehaving, except
-	// that when it gets translated to a DNSError, the IsTemporary field
-	// gets set to true.
-	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
 )
 
 func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
@@ -211,7 +206,8 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 
 // checkHeader performs basic sanity checks on the header.
 func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
-	rcode := extractExtendedRCode(*p, h)
+	pOPT := *p
+	rcode := extractExtendedRCode(&pOPT, h)
 
 	if rcode == dnsmessage.RCodeNameError {
 		return errNoSuchHost
@@ -228,16 +224,13 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 		return errLameReferral
 	}
 
-	if rcode != dnsmessage.RCodeSuccess && rcode != dnsmessage.RCodeNameError {
+	if rcode != dnsmessage.RCodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.
-		if rcode == dnsmessage.RCodeServerFailure {
-			return errServerTemporarilyMisbehaving
-		}
-		return errServerMisbehaving
+		return extractExtendedDNSError(&pOPT, rcode)
 	}
 
 	return nil
@@ -263,7 +256,7 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 
 // extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
 // If an OPT record is not found, the RCode from the hdr is returned.
-func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
+func extractExtendedRCode(p *dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
 	p.SkipAllAnswers()
 	p.SkipAllAuthorities()
 	for {
@@ -275,6 +268,144 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage
 			return ahdr.ExtendedRCode(hdr.RCode)
 		}
 		p.SkipAdditional()
+	}
+}
+
+// extractExtendedDNSError returns a *serverMisbehavingError error constructed from
+// Extended DNS Error found in the OPT resource.
+// The provided Parser should be as left by the extractExtendedRCode function.
+func extractExtendedDNSError(p *dnsmessage.Parser, rcode dnsmessage.RCode) error {
+	ahdr, err := p.AdditionalHeader()
+	if err != nil {
+		return &serverMisbehavingError{
+			temporary: rcode == dnsmessage.RCodeServerFailure,
+		}
+	}
+	if ahdr.Type == dnsmessage.TypeOPT {
+		opt, err := p.OPTResource()
+		if err != nil {
+			return errCannotUnmarshalDNSMessage
+		}
+		for _, v := range opt.Options {
+			if v.Code == 15 {
+				if len(v.Data) < 2 {
+					return errCannotUnmarshalDNSMessage
+				}
+				err := &serverMisbehavingError{
+					temporary:             rcode == dnsmessage.RCodeServerFailure,
+					extendedDNSErrorAvail: true,
+					extendedDNSErrorCode:  uint16(v.Data[1]) | uint16(v.Data[0])<<8,
+					extendedDNSErrorText:  v.Data[2:],
+				}
+				// The EXTRA-TEXT field is allowed to contain arbitrary UTF-8 string,
+				// this is nice, but it allows attacker to control the error message.
+				// We are a bit restrictive here and only allow printable ASCII characters.
+				if !safeExtendedDNSErrorText(err.extendedDNSErrorText) {
+					err.extendedDNSErrorText = nil
+				}
+				return err
+			}
+		}
+	}
+	return &serverMisbehavingError{
+		temporary: rcode == dnsmessage.RCodeServerFailure,
+	}
+}
+
+func safeExtendedDNSErrorText(text []byte) bool {
+	for _, v := range text {
+		if v < ' ' || v > '~' {
+			return false
+		}
+	}
+	return true
+}
+
+type serverMisbehavingError struct {
+	temporary bool
+
+	extendedDNSErrorAvail bool
+	extendedDNSErrorCode  uint16
+	extendedDNSErrorText  []byte
+}
+
+func (s *serverMisbehavingError) Error() string {
+	if s.extendedDNSErrorAvail {
+		extendedErr := s.extendedDNSError()
+		if extendedErr != "" {
+			return `server misbehaving: error from remote: ` + extendedErr
+		}
+	}
+	return "server misbehaving"
+}
+
+func prefixedErrorString(prefix string, text []byte) string {
+	if len(text) == 0 {
+		return prefix
+	}
+	return prefix + ": " + strconv.Quote(string(text))
+}
+
+func (e *serverMisbehavingError) extendedDNSError() string {
+	switch e.extendedDNSErrorCode {
+	case 0: // Other
+		if len(e.extendedDNSErrorText) == 0 {
+			return ""
+		}
+		return strconv.Quote(string(e.extendedDNSErrorText))
+	case 1:
+		return prefixedErrorString("Unsupported DNSKEY Algorithm", e.extendedDNSErrorText)
+	case 2:
+		return prefixedErrorString("Unsupported DS Digest Type", e.extendedDNSErrorText)
+	case 3:
+		return prefixedErrorString("Stale Answer", e.extendedDNSErrorText)
+	case 4:
+		return prefixedErrorString("Forged Answer", e.extendedDNSErrorText)
+	case 5:
+		return prefixedErrorString("DNSSEC Indeterminate", e.extendedDNSErrorText)
+	case 6:
+		return prefixedErrorString("DNSSEC Bogus", e.extendedDNSErrorText)
+	case 7:
+		return prefixedErrorString("Signature Expired", e.extendedDNSErrorText)
+	case 8:
+		return prefixedErrorString("Signature Not Yet Valid", e.extendedDNSErrorText)
+	case 9:
+		return prefixedErrorString("DNSKEY Missing", e.extendedDNSErrorText)
+	case 10:
+		return prefixedErrorString("RRSIGs Missing", e.extendedDNSErrorText)
+	case 11:
+		return prefixedErrorString("No Zone Key Bit Set", e.extendedDNSErrorText)
+	case 12:
+		return prefixedErrorString("NSEC Missing", e.extendedDNSErrorText)
+	case 13:
+		return prefixedErrorString("Cached Error", e.extendedDNSErrorText)
+	case 14:
+		return prefixedErrorString("Not Ready", e.extendedDNSErrorText)
+	case 15:
+		return prefixedErrorString("Blocked", e.extendedDNSErrorText)
+	case 16:
+		return prefixedErrorString("Censored", e.extendedDNSErrorText)
+	case 17:
+		return prefixedErrorString("Filtered", e.extendedDNSErrorText)
+	case 18:
+		return prefixedErrorString("Prohibited", e.extendedDNSErrorText)
+	case 19:
+		return prefixedErrorString("Stale NXDOMAIN Answer", e.extendedDNSErrorText)
+	case 20:
+		return prefixedErrorString("Not Authoritative", e.extendedDNSErrorText)
+	case 21:
+		return prefixedErrorString("Not Supported", e.extendedDNSErrorText)
+	case 22:
+		return prefixedErrorString("No Reachable Authority", e.extendedDNSErrorText)
+	case 23:
+		return prefixedErrorString("Network Error", e.extendedDNSErrorText)
+	case 24:
+		return prefixedErrorString("Invalid Data", e.extendedDNSErrorText)
+	default:
+		if len(e.extendedDNSErrorText) == 0 {
+			return ""
+		}
+		return strconv.Quote(string(e.extendedDNSErrorText))
 	}
 }
 
@@ -324,8 +455,8 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 					Name:   name,
 					Server: server,
 				}
-				if err == errServerTemporarilyMisbehaving {
-					dnsErr.IsTemporary = true
+				if v, ok := err.(*serverMisbehavingError); ok {
+					dnsErr.IsTemporary = v.temporary
 				}
 				if err == errNoSuchHost {
 					// The name does not exist, so trying

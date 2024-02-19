@@ -2757,7 +2757,48 @@ func TestExtendedRCode(t *testing.T) {
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
 	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
 	var dnsErr *DNSError
-	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
+	if !(errors.As(err, &dnsErr) && strings.Contains(err.Error(), "server misbehaving")) {
 		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
+	}
+}
+
+func TestExtendedDNSError(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			var edns0Hdr dnsmessage.ResourceHeader
+			edns0Hdr.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeServerFailure, false)
+
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeServerFailure,
+				},
+				Questions: []dnsmessage.Question{q.Questions[0]},
+				Additionals: []dnsmessage.Resource{{
+					Header: edns0Hdr,
+					Body: &dnsmessage.OPTResource{
+						Options: []dnsmessage.Option{
+							{Code: 59001},
+							{
+								Code: 15,
+								Data: slices.Concat(
+									[]byte{0, 15}, // Error Code (Blocked)
+									[]byte("your IP address has been blocked temporally"), // Extra-Text
+								),
+							},
+						},
+					},
+				}},
+			}, nil
+		},
+	}
+
+	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "dnssec-failed.org.", dnsmessage.TypeA)
+	if err == nil ||
+		!strings.Contains(err.Error(), "server misbehaving") ||
+		!strings.Contains(err.Error(), `Blocked: "your IP address has been blocked temporally"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
