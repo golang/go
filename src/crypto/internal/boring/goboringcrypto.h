@@ -125,9 +125,7 @@ void _goboringcrypto_EVP_AEAD_CTX_cleanup(GO_EVP_AEAD_CTX*);
 int _goboringcrypto_EVP_AEAD_CTX_seal(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
 int _goboringcrypto_EVP_AEAD_CTX_open(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
 const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm_tls12(void);
-const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm_tls13(void);
 const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm_tls12(void);
-const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm_tls13(void);
 enum go_evp_aead_direction_t {
 	go_evp_aead_open = 0,
 	go_evp_aead_seal = 1

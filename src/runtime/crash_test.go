@@ -6,15 +6,21 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
+	tracev2 "internal/trace/v2"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"testing"
@@ -23,7 +29,19 @@ import (
 
 var toRemove []string
 
+const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
+
 func TestMain(m *testing.M) {
+	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
+	case "crash":
+		crash()
+		panic("unreachable")
+	default:
+		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
+	case "":
+		// fall through to normal behavior
+	}
+
 	_, coreErrBefore := os.Stat("core")
 
 	status := m.Run()
@@ -773,6 +791,16 @@ func init() {
 		// We expect to crash, so exit 0 to indicate failure.
 		os.Exit(0)
 	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_READMEMSTATS") == "1" {
+		runtime.ReadMemStats(nil)
+		os.Exit(0)
+	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_FUNCMETHOD") == "1" {
+		var f *runtime.Func
+		_ = f.Entry()
+		os.Exit(0)
+	}
+
 }
 
 func TestRuntimePanic(t *testing.T) {
@@ -784,6 +812,32 @@ func TestRuntimePanic(t *testing.T) {
 	if err == nil {
 		t.Error("child process did not fail")
 	} else if want := "runtime.unexportedPanicForTesting"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeFunction(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.ReadMemStats"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeMethod(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.(*Func).Entry"; !bytes.Contains(out, []byte(want)) {
 		t.Errorf("output did not contain expected string %q", want)
 	}
 }
@@ -823,6 +877,71 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// For TestCrashWhileTracing: test a panic without involving the testing
+// harness, as we rely on stdout only containing trace output.
+func init() {
+	if os.Getenv("TEST_CRASH_WHILE_TRACING") == "1" {
+		trace.Start(os.Stdout)
+		trace.Log(context.Background(), "xyzzy-cat", "xyzzy-msg")
+		panic("yzzyx")
+	}
+}
+
+func TestCrashWhileTracing(t *testing.T) {
+	if !goexperiment.ExecTracer2 {
+		t.Skip("skipping because this test is incompatible with the legacy tracer")
+	}
+
+	testenv.MustHaveExec(t)
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))
+	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
+	stdOut, err := cmd.StdoutPipe()
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("could not start subprocess: %v", err)
+	}
+	r, err := tracev2.NewReader(stdOut)
+	if err != nil {
+		t.Fatalf("could not create trace.NewReader: %v", err)
+	}
+	var seen bool
+	i := 1
+loop:
+	for ; ; i++ {
+		ev, err := r.ReadEvent()
+		if err != nil {
+			if err != io.EOF {
+				t.Errorf("error at event %d: %v", i, err)
+			}
+			break loop
+		}
+		switch ev.Kind() {
+		case tracev2.EventLog:
+			v := ev.Log()
+			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
+				// Should we already stop reading here? More events may come, but
+				// we're not guaranteeing a fully unbroken trace until the last
+				// byte...
+				seen = true
+			}
+		}
+	}
+	if err := cmd.Wait(); err == nil {
+		t.Error("the process should have panicked")
+	}
+	if !seen {
+		t.Errorf("expected one matching log event matching, but none of the %d received trace events match", i)
+	}
+	t.Logf("stderr output:\n%s", errOut.String())
+	needle := "yzzyx\n"
+	if n := strings.Count(errOut.String(), needle); n != 1 {
+		t.Fatalf("did not find expected panic message %q\n(exit status %v)", needle, err)
+	}
 }
 
 // Test that panic message is not clobbered.

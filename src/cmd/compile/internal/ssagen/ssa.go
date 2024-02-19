@@ -22,6 +22,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -3700,7 +3701,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 
 		if typ.IsFloat() {
 			switch Arch.LinkArch.Family {
-			case sys.AMD64, sys.ARM64:
+			case sys.AMD64, sys.ARM64, sys.RISCV64:
 				var op ssa.Op
 				switch {
 				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
@@ -4894,22 +4895,22 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft16, types.Types[types.TUINT16], args[0], args[1])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[types.TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm, sys.Loong64)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[types.TUINT64], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm, sys.Loong64)
+		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
 	makeOnesCountAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -5537,7 +5538,7 @@ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) 
 	i := s.expr(fn.X)
 	itab := s.newValue1(ssa.OpITab, types.Types[types.TUINTPTR], i)
 	s.nilCheck(itab)
-	itabidx := fn.Offset() + 2*int64(types.PtrSize) + 8 // offset of fun field in runtime.itab
+	itabidx := fn.Offset() + rttype.ITab.OffsetOf("Fun")
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
 	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
@@ -6522,7 +6523,7 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 		targetItab = s.expr(n.ITab)
 		// TODO(mdempsky): Investigate whether compiling n.RType could be
 		// better than loading itab.typ.
-		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), targetItab)) // itab.typ
+		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), targetItab))
 	} else {
 		target = s.expr(n.RType)
 	}
@@ -6580,7 +6581,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 					return
 				}
 				// Load type out of itab, build interface with existing idata.
-				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+				off := s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab)
 				typ := s.load(byteptr, off)
 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
 				res = s.newValue2(ssa.OpIMake, dst, typ, idata)
@@ -6590,7 +6591,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			s.startBlock(bOk)
 			// nonempty -> empty
 			// Need to load type from itab
-			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+			off := s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab)
 			s.vars[typVar] = s.load(byteptr, off)
 			s.endBlock()
 
@@ -6644,7 +6645,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		s.startBlock(bNonNil)
 		typ := itab
 		if !src.IsEmptyInterface() {
-			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab))
+			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, rttype.ITab.OffsetOf("Type"), itab))
 		}
 
 		// Check the cache first.
@@ -6685,9 +6686,9 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				// Load hash from type or itab.
 				var hash *ssa.Value
 				if src.IsEmptyInterface() {
-					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, typ), s.mem())
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, rttype.Type.OffsetOf("Hash"), typ), s.mem())
 				} else {
-					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, 2*s.config.PtrSize, itab), s.mem())
+					hash = s.newValue2(ssa.OpLoad, typs.UInt32, s.newValue1I(ssa.OpOffPtr, typs.UInt32Ptr, rttype.ITab.OffsetOf("Hash"), itab), s.mem())
 				}
 				hash = s.newValue1(zext, typs.Uintptr, hash)
 				s.vars[hashVar] = hash
@@ -7095,48 +7096,14 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
 	}
 
-	// Populate the data.
-	// The data is a stream of bytes, which contains the offsets and sizes of the
-	// non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
-	// arguments, along with special "operators". Specifically,
-	// - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
-	//   size (1 byte)
-	// - special operators:
-	//   - 0xff - end of sequence
-	//   - 0xfe - print { (at the start of an aggregate-typed argument)
-	//   - 0xfd - print } (at the end of an aggregate-typed argument)
-	//   - 0xfc - print ... (more args/fields/elements)
-	//   - 0xfb - print _ (offset too large)
-	// These constants need to be in sync with runtime.traceback.go:printArgs.
-	const (
-		_endSeq         = 0xff
-		_startAgg       = 0xfe
-		_endAgg         = 0xfd
-		_dotdotdot      = 0xfc
-		_offsetTooLarge = 0xfb
-		_special        = 0xf0 // above this are operators, below this are ordinary offsets
-	)
-
-	const (
-		limit    = 10 // print no more than 10 args/components
-		maxDepth = 5  // no more than 5 layers of nesting
-
-		// maxLen is a (conservative) upper bound of the byte stream length. For
-		// each arg/component, it has no more than 2 bytes of data (size, offset),
-		// and no more than one {, }, ... at each level (it cannot have both the
-		// data and ... unless it is the last one, just be conservative). Plus 1
-		// for _endSeq.
-		maxLen = (maxDepth*3+2)*limit + 1
-	)
-
 	wOff := 0
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
 	// Write one non-aggregate arg/field/element.
 	write1 := func(sz, offset int64) {
-		if offset >= _special {
-			writebyte(_offsetTooLarge)
+		if offset >= rtabi.TraceArgsSpecial {
+			writebyte(rtabi.TraceArgsOffsetTooLarge)
 		} else {
 			writebyte(uint8(offset))
 			writebyte(uint8(sz))
@@ -7148,19 +7115,19 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	// Returns whether to continue visiting.
 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
 	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
-		if n >= limit {
-			writebyte(_dotdotdot)
+		if n >= rtabi.TraceArgsLimit {
+			writebyte(rtabi.TraceArgsDotdotdot)
 			return false
 		}
 		if !isAggregate(t) {
 			write1(t.Size(), baseOffset)
 			return true
 		}
-		writebyte(_startAgg)
+		writebyte(rtabi.TraceArgsStartAgg)
 		depth++
-		if depth >= maxDepth {
-			writebyte(_dotdotdot)
-			writebyte(_endAgg)
+		if depth >= rtabi.TraceArgsMaxDepth {
+			writebyte(rtabi.TraceArgsDotdotdot)
+			writebyte(rtabi.TraceArgsEndAgg)
 			n++
 			return true
 		}
@@ -7197,7 +7164,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 				}
 			}
 		}
-		writebyte(_endAgg)
+		writebyte(rtabi.TraceArgsEndAgg)
 		return true
 	}
 
@@ -7212,8 +7179,8 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			break
 		}
 	}
-	writebyte(_endSeq)
-	if wOff > maxLen {
+	writebyte(rtabi.TraceArgsEndSeq)
+	if wOff > rtabi.TraceArgsMaxLen {
 		base.Fatalf("ArgInfo too large")
 	}
 
@@ -7414,7 +7381,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			if b.Pos == src.NoXPos {
 				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
 				if b.Pos == src.NoXPos {
-					b.Pos = pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
+					b.Pos = s.pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
 				}
 			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
@@ -7449,14 +7416,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// still be inside the function in question. So if
 		// it ends in a call which doesn't return, add a
 		// nop (which will never execute) after the call.
-		Arch.Ginsnop(pp)
+		Arch.Ginsnop(s.pp)
 	}
 	if openDeferInfo != nil {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
 		s.pp.NextLive = s.livenessMap.DeferReturn
-		p := pp.Prog(obj.ACALL)
+		p := s.pp.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Deferreturn
@@ -7473,7 +7440,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 		}
 
-		pp.Prog(obj.ARET)
+		s.pp.Prog(obj.ARET)
 	}
 
 	if inlMarks != nil {
@@ -7482,7 +7449,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// We have some inline marks. Try to find other instructions we're
 		// going to emit anyway, and use those instructions instead of the
 		// inline marks.
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || Arch.LinkArch.Family == sys.Wasm {
 				// Don't use 0-sized instructions as inline marks, because we need
 				// to identify inline mark instructions by pc offset.
@@ -7500,16 +7467,16 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				hasCall = true
 			}
 			pos := p.Pos.AtColumn1()
-			s := inlMarksByPos[pos]
-			if len(s) == 0 {
+			marks := inlMarksByPos[pos]
+			if len(marks) == 0 {
 				continue
 			}
-			for _, m := range s {
+			for _, m := range marks {
 				// We found an instruction with the same source position as
 				// some of the inline marks.
 				// Use this instruction instead.
 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
-				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[m])
+				s.pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[m])
 				// Make the inline mark a real nop, so it doesn't generate any code.
 				m.As = obj.ANOP
 				m.Pos = src.NoXPos
@@ -7521,7 +7488,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
 		for _, p := range inlMarkList {
 			if p.As != obj.ANOP {
-				pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
+				s.pp.CurFunc.LSym.Func().AddInlMark(p, inlMarks[p])
 			}
 		}
 
@@ -7532,27 +7499,27 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			// equal to the start of the function.
 			// This ensures that runtime.FuncForPC(uintptr(reflect.ValueOf(fn).Pointer())).Name()
 			// returns the right answer. See issue 58300.
-			for p := pp.Text; p != nil; p = p.Link {
+			for p := s.pp.Text; p != nil; p = p.Link {
 				if p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.ANOP {
 					continue
 				}
 				if base.Ctxt.PosTable.Pos(p.Pos).Base().InliningIndex() >= 0 {
 					// Make a real (not 0-sized) nop.
-					nop := Arch.Ginsnop(pp)
+					nop := Arch.Ginsnop(s.pp)
 					nop.Pos = e.curfn.Pos().WithIsStmt()
 
 					// Unfortunately, Ginsnop puts the instruction at the
 					// end of the list. Move it up to just before p.
 
 					// Unlink from the current list.
-					for x := pp.Text; x != nil; x = x.Link {
+					for x := s.pp.Text; x != nil; x = x.Link {
 						if x.Link == nop {
 							x.Link = nop.Link
 							break
 						}
 					}
 					// Splice in right before p.
-					for x := pp.Text; x != nil; x = x.Link {
+					for x := s.pp.Text; x != nil; x = x.Link {
 						if x.Link == p {
 							nop.Link = p
 							x.Link = nop
@@ -7622,13 +7589,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// Add to list of jump tables to be resolved at assembly time.
 		// The assembler converts from *Prog entries to absolute addresses
 		// once it knows instruction byte offsets.
-		fi := pp.CurFunc.LSym.Func()
+		fi := s.pp.CurFunc.LSym.Func()
 		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
 	if e.log { // spew to stdout
 		filename := ""
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
 				filename = p.InnermostFilename()
 				f.Logf("# %s\n", filename)
@@ -7650,7 +7617,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")
 		filename := ""
-		for p := pp.Text; p != nil; p = p.Link {
+		for p := s.pp.Text; p != nil; p = p.Link {
 			// Don't spam every line with the file name, which is often huge.
 			// Only print changes, and "unknown" is not a change.
 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
@@ -7698,7 +7665,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			var allPosOld []src.Pos
 			var allPos []src.Pos
 
-			for p := pp.Text; p != nil; p = p.Link {
+			for p := s.pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
 					allPos = allPos[:0]
 					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })

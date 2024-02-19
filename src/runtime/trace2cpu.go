@@ -16,8 +16,9 @@ func traceInitReadCPU() {
 		throw("traceInitReadCPU called with trace enabled")
 	}
 	// Create new profBuf for CPU samples that will be emitted as events.
-	profBuf := newProfBuf(3, profBufWordCount, profBufTagCount) // after the timestamp, header is [pp.id, gp.goid, mp.procid]
-	trace.cpuLogRead = profBuf
+	// Format: after the timestamp, header is [pp.id, gp.goid, mp.procid].
+	trace.cpuLogRead[0] = newProfBuf(3, profBufWordCount, profBufTagCount)
+	trace.cpuLogRead[1] = newProfBuf(3, profBufWordCount, profBufTagCount)
 	// We must not acquire trace.signalLock outside of a signal handler: a
 	// profiling signal may arrive at any time and try to acquire it, leading to
 	// deadlock. Because we can't use that lock to protect updates to
@@ -25,7 +26,8 @@ func traceInitReadCPU() {
 	// writes of the pointer must be atomic. (And although this field is never
 	// the sole pointer to the profBuf value, it's best to allow a write barrier
 	// here.)
-	trace.cpuLogWrite.Store(profBuf)
+	trace.cpuLogWrite[0].Store(trace.cpuLogRead[0])
+	trace.cpuLogWrite[1].Store(trace.cpuLogRead[1])
 }
 
 // traceStartReadCPU creates a goroutine to start reading CPU profile
@@ -52,7 +54,15 @@ func traceStartReadCPU() {
 			// we would still want to do a goroutine-level sleep in between
 			// reads to avoid frequent wakeups.
 			trace.cpuSleep.sleep(100_000_000)
-			if !traceReadCPU(trace.cpuLogRead) {
+
+			tl := traceAcquire()
+			if !tl.ok() {
+				// Tracing disabled.
+				break
+			}
+			keepGoing := traceReadCPU(tl.gen)
+			traceRelease(tl)
+			if !keepGoing {
 				break
 			}
 		}
@@ -76,8 +86,10 @@ func traceStopReadCPU() {
 	//
 	// Wake the goroutine so it can observe that their the buffer is
 	// closed an exit.
-	trace.cpuLogWrite.Store(nil)
-	trace.cpuLogRead.close()
+	trace.cpuLogWrite[0].Store(nil)
+	trace.cpuLogWrite[1].Store(nil)
+	trace.cpuLogRead[0].close()
+	trace.cpuLogRead[1].close()
 	trace.cpuSleep.wake()
 
 	// Wait until the logger goroutine exits.
@@ -85,20 +97,28 @@ func traceStopReadCPU() {
 
 	// Clear state for the next trace.
 	trace.cpuLogDone = nil
-	trace.cpuLogRead = nil
+	trace.cpuLogRead[0] = nil
+	trace.cpuLogRead[1] = nil
 	trace.cpuSleep.close()
 }
 
-// traceReadCPU attempts to read from the provided profBuf and write
+// traceReadCPU attempts to read from the provided profBuf[gen%2] and write
 // into the trace. Returns true if there might be more to read or false
 // if the profBuf is closed or the caller should otherwise stop reading.
 //
+// The caller is responsible for ensuring that gen does not change. Either
+// the caller must be in a traceAcquire/traceRelease block, or must be calling
+// with traceAdvanceSema held.
+//
 // No more than one goroutine may be in traceReadCPU for the same
 // profBuf at a time.
-func traceReadCPU(pb *profBuf) bool {
+//
+// Must not run on the system stack because profBuf.read performs race
+// operations.
+func traceReadCPU(gen uintptr) bool {
 	var pcBuf [traceStackSize]uintptr
 
-	data, tags, eof := pb.read(profBufNonBlocking)
+	data, tags, eof := trace.cpuLogRead[gen%2].read(profBufNonBlocking)
 	for len(data) > 0 {
 		if len(data) < 4 || data[0] > uint64(len(data)) {
 			break // truncated profile
@@ -147,12 +167,7 @@ func traceReadCPU(pb *profBuf) bool {
 		}
 
 		// Write out a trace event.
-		tl := traceAcquire()
-		if !tl.ok() {
-			// Tracing disabled, exit without continuing.
-			return false
-		}
-		w := unsafeTraceWriter(tl.gen, trace.cpuBuf[tl.gen%2])
+		w := unsafeTraceWriter(gen, trace.cpuBuf[gen%2])
 
 		// Ensure we have a place to write to.
 		var flushed bool
@@ -163,7 +178,7 @@ func traceReadCPU(pb *profBuf) bool {
 		}
 
 		// Add the stack to the table.
-		stackID := trace.stackTab[tl.gen%2].put(pcBuf[:nstk])
+		stackID := trace.stackTab[gen%2].put(pcBuf[:nstk])
 
 		// Write out the CPU sample.
 		w.byte(byte(traceEvCPUSample))
@@ -173,8 +188,7 @@ func traceReadCPU(pb *profBuf) bool {
 		w.varint(goid)
 		w.varint(stackID)
 
-		trace.cpuBuf[tl.gen%2] = w.traceBuf
-		traceRelease(tl)
+		trace.cpuBuf[gen%2] = w.traceBuf
 	}
 	return !eof
 }
@@ -187,6 +201,7 @@ func traceReadCPU(pb *profBuf) bool {
 //
 //go:systemstack
 func traceCPUFlush(gen uintptr) {
+	// Flush any remaining trace buffers containing CPU samples.
 	if buf := trace.cpuBuf[gen%2]; buf != nil {
 		lock(&trace.lock)
 		traceBufFlush(buf, gen)
@@ -197,11 +212,36 @@ func traceCPUFlush(gen uintptr) {
 
 // traceCPUSample writes a CPU profile sample stack to the execution tracer's
 // profiling buffer. It is called from a signal handler, so is limited in what
-// it can do.
+// it can do. mp must be the thread that is currently stopped in a signal.
 func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 	if !traceEnabled() {
 		// Tracing is usually turned off; don't spend time acquiring the signal
 		// lock unless it's active.
+		return
+	}
+	if mp == nil {
+		// Drop samples that don't have an identifiable thread. We can't render
+		// this in any useful way anyway.
+		return
+	}
+
+	// We're going to conditionally write to one of two buffers based on the
+	// generation. To make sure we write to the correct one, we need to make
+	// sure this thread's trace seqlock is held. If it already is, then we're
+	// in the tracer and we can just take advantage of that. If it isn't, then
+	// we need to acquire it and read the generation.
+	locked := false
+	if mp.trace.seqlock.Load()%2 == 0 {
+		mp.trace.seqlock.Add(1)
+		locked = true
+	}
+	gen := trace.gen.Load()
+	if gen == 0 {
+		// Tracing is disabled, as it turns out. Release the seqlock if necessary
+		// and exit.
+		if locked {
+			mp.trace.seqlock.Add(1)
+		}
 		return
 	}
 
@@ -231,7 +271,7 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 		osyield()
 	}
 
-	if log := trace.cpuLogWrite.Load(); log != nil {
+	if log := trace.cpuLogWrite[gen%2].Load(); log != nil {
 		// Note: we don't pass a tag pointer here (how should profiling tags
 		// interact with the execution tracer?), but if we did we'd need to be
 		// careful about write barriers. See the long comment in profBuf.write.
@@ -239,4 +279,9 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 	}
 
 	trace.signalLock.Store(0)
+
+	// Release the seqlock if we acquired it earlier.
+	if locked {
+		mp.trace.seqlock.Add(1)
+	}
 }

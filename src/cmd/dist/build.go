@@ -38,6 +38,7 @@ var (
 	gomips           string
 	gomips64         string
 	goppc64          string
+	goriscv64        string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -177,6 +178,12 @@ func xinit() {
 	}
 	goppc64 = b
 
+	b = os.Getenv("GORISCV64")
+	if b == "" {
+		b = "rva20u64"
+	}
+	goriscv64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -236,6 +243,7 @@ func xinit() {
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOPPC64", goppc64)
+	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -891,6 +899,24 @@ func runInstall(pkg string, ch chan struct{}) {
 			asmArgs = append(asmArgs, "-D", "GOPPC64_power8")
 		}
 	}
+	if goarch == "riscv64" {
+		// Define GORISCV64_value from goriscv64
+		asmArgs = append(asmArgs, "-D", "GORISCV64_"+goriscv64)
+	}
+	if goarch == "arm" {
+		// Define GOARM_value from goarm, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(goarm, "7"):
+			asmArgs = append(asmArgs, "-D", "GOARM_7")
+			fallthrough
+		case strings.Contains(goarm, "6"):
+			asmArgs = append(asmArgs, "-D", "GOARM_6")
+			fallthrough
+		default:
+			asmArgs = append(asmArgs, "-D", "GOARM_5")
+		}
+	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 
 	// Collect symabis from assembly code.
@@ -1235,6 +1261,9 @@ func cmdenv() {
 	}
 	if goarch == "ppc64" || goarch == "ppc64le" {
 		xprintf(format, "GOPPC64", goppc64)
+	}
+	if goarch == "riscv64" {
+		xprintf(format, "GORISCV64", goriscv64)
 	}
 	xprintf(format, "GOWORK", "off")
 
@@ -1729,7 +1758,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/arm64":   true,
 	"openbsd/mips64":  true,
 	"openbsd/ppc64":   false,
-	"openbsd/riscv64": false,
+	"openbsd/riscv64": true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1745,9 +1774,8 @@ var cgoEnabled = map[string]bool{
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
 var broken = map[string]bool{
-	"linux/sparc64":   true, // An incomplete port. See CL 132155.
-	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
-	"openbsd/riscv64": true, // An incomplete port: go.dev/issue/55999.
+	"linux/sparc64":  true, // An incomplete port. See CL 132155.
+	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.

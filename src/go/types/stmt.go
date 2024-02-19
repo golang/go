@@ -270,7 +270,7 @@ L:
 // isNil reports whether the expression e denotes the predeclared value nil.
 func (check *Checker) isNil(e ast.Expr) bool {
 	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
-	if name, _ := unparen(e).(*ast.Ident); name != nil {
+	if name, _ := ast.Unparen(e).(*ast.Ident); name != nil {
 		_, ok := check.lookup(name.Name).(*Nil)
 		return ok
 	}
@@ -460,7 +460,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		check.assignVar(s.X, nil, &x)
+		check.assignVar(s.X, nil, &x, "assignment")
 
 	case *ast.AssignStmt:
 		switch s.Tok {
@@ -492,7 +492,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			if x.mode == invalid {
 				return
 			}
-			check.assignVar(s.Lhs[0], nil, &x)
+			check.assignVar(s.Lhs[0], nil, &x, "assignment")
 		}
 
 	case *ast.GoStmt:
@@ -779,7 +779,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			// if present, rhs must be a receive operation
 			if rhs != nil {
-				if x, _ := unparen(rhs).(*ast.UnaryExpr); x != nil && x.Op == token.ARROW {
+				if x, _ := ast.Unparen(rhs).(*ast.UnaryExpr); x != nil && x.Op == token.ARROW {
 					valid = true
 				}
 			}
@@ -833,7 +833,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	// Convert go/ast form to local variables.
-	type expr = ast.Expr
+	type Expr = ast.Expr
 	type identType = ast.Ident
 	identName := func(n *identType) string { return n.Name }
 	sKey, sValue := s.Key, s.Value
@@ -890,8 +890,10 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	// (irregular assignment, cannot easily map to existing assignment checks)
 
 	// lhs expressions and initialization value (rhs) types
-	lhs := [2]expr{sKey, sValue}
-	rhs := [2]Type{key, val} // key, val may be nil
+	lhs := [2]Expr{sKey, sValue} // sKey, sValue may be nil
+	rhs := [2]Type{key, val}     // key, val may be nil
+
+	constIntRange := x.mode == constant_ && isInteger(x.typ)
 
 	if isDef {
 		// short variable declaration
@@ -918,11 +920,13 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 			}
 
 			// initialize lhs variable
-			if typ := rhs[i]; typ != nil {
+			if constIntRange {
+				check.initVar(obj, &x, "range clause")
+			} else if typ := rhs[i]; typ != nil {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
-				check.initVar(obj, &x, "range clause")
+				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
 			} else {
 				obj.typ = Typ[Invalid]
 				obj.used = true // don't complain about unused variable
@@ -938,19 +942,29 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 		} else {
 			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
 		}
-	} else {
+	} else if sKey != nil /* lhs[0] != nil */ {
 		// ordinary assignment
 		for i, lhs := range lhs {
 			if lhs == nil {
 				continue
 			}
-			if typ := rhs[i]; typ != nil {
+
+			if constIntRange {
+				check.assignVar(lhs, nil, &x, "range clause")
+			} else if typ := rhs[i]; typ != nil {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
-				check.assignVar(lhs, nil, &x)
+				check.assignVar(lhs, nil, &x, "assignment") // error is on variable, use "assignment" not "range clause"
 			}
 		}
+	} else if constIntRange {
+		// If we don't have any iteration variables, we still need to
+		// check that a (possibly untyped) integer range expression x
+		// is valid.
+		// We do this by checking the assignment _ = x. This ensures
+		// that an untyped x can be converted to a value of type int.
+		check.assignment(&x, nil, "range clause")
 	}
 
 	check.stmt(inner, s.Body)
@@ -996,9 +1010,8 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 		}
 		return typ.elem, nil, "", false, true
 	case *Signature:
-		// TODO(gri) when this becomes enabled permanently, add version check
-		if !buildcfg.Experiment.RangeFunc {
-			break
+		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
+			return bad("requires go1.23 or later")
 		}
 		assert(typ.Recv() == nil)
 		switch {

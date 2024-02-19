@@ -71,7 +71,8 @@ var trace struct {
 	stringTab [2]traceStringTable // maps strings to unique ids
 
 	// cpuLogRead accepts CPU profile samples from the signal handler where
-	// they're generated. It uses a three-word header to hold the IDs of the P, G,
+	// they're generated. There are two profBufs here: one for gen%2, one for
+	// 1-gen%2. These profBufs use a three-word header to hold the IDs of the P, G,
 	// and M (respectively) that were active at the time of the sample. Because
 	// profBuf uses a record with all zeros in its header to indicate overflow,
 	// we make sure to make the P field always non-zero: The ID of a real P will
@@ -82,9 +83,9 @@ var trace struct {
 	// when sampling g0.
 	//
 	// Initialization and teardown of these fields is protected by traceAdvanceSema.
-	cpuLogRead  *profBuf
-	signalLock  atomic.Uint32           // protects use of the following member, only usable in signal handlers
-	cpuLogWrite atomic.Pointer[profBuf] // copy of cpuLogRead for use in signal handlers, set without signalLock
+	cpuLogRead  [2]*profBuf
+	signalLock  atomic.Uint32              // protects use of the following member, only usable in signal handlers
+	cpuLogWrite [2]atomic.Pointer[profBuf] // copy of cpuLogRead for use in signal handlers, set without signalLock
 	cpuSleep    *wakeableSleep
 	cpuLogDone  <-chan struct{}
 	cpuBuf      [2]*traceBuf
@@ -334,7 +335,7 @@ func traceAdvance(stopTrace bool) {
 			if !s.dead {
 				ug.goid = s.g.goid
 				if s.g.m != nil {
-					ug.mid = s.g.m.id
+					ug.mid = int64(s.g.m.procid)
 				}
 				ug.status = readgstatus(s.g) &^ _Gscan
 				ug.waitreason = s.g.waitreason
@@ -514,6 +515,9 @@ func traceAdvance(stopTrace bool) {
 		statusWriter = statusWriter.writeGoStatus(ug.goid, ug.mid, status, ug.inMarkAssist)
 	}
 	statusWriter.flush().end()
+
+	// Read everything out of the last gen's CPU profile buffer.
+	traceReadCPU(gen)
 
 	systemstack(func() {
 		// Flush CPU samples, stacks, and strings for the last generation. This is safe,
@@ -931,7 +935,13 @@ func newWakeableSleep() *wakeableSleep {
 func (s *wakeableSleep) sleep(ns int64) {
 	resetTimer(s.timer, nanotime()+ns)
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	wakeup := s.wakeup
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
+	}
 	unlock(&s.lock)
 	<-wakeup
 	stopTimer(s.timer)
@@ -944,6 +954,9 @@ func (s *wakeableSleep) wake() {
 	// Grab the wakeup channel, which may be nil if we're
 	// racing with close.
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	if s.wakeup != nil {
 		// Non-blocking send.
 		//
@@ -954,6 +967,9 @@ func (s *wakeableSleep) wake() {
 		case s.wakeup <- struct{}{}:
 		default:
 		}
+	}
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
 	}
 	unlock(&s.lock)
 }
@@ -968,11 +984,18 @@ func (s *wakeableSleep) wake() {
 func (s *wakeableSleep) close() {
 	// Set wakeup to nil so that a late timer ends up being a no-op.
 	lock(&s.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&s.lock))
+	}
 	wakeup := s.wakeup
 	s.wakeup = nil
 
 	// Close the channel.
 	close(wakeup)
+
+	if raceenabled {
+		racerelease(unsafe.Pointer(&s.lock))
+	}
 	unlock(&s.lock)
 	return
 }

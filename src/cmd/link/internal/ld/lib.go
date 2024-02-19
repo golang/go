@@ -273,10 +273,6 @@ var (
 	symSize int32
 )
 
-const (
-	MINFUNC = 16 // minimum size for a function
-)
-
 // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
 // are used, 0 otherwise.
 var abiInternalVer = sym.SymVerABIInternal
@@ -1878,9 +1874,10 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("\n")
 	}
 
-	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
+	cmd := exec.Command(argv[0], argv[1:]...)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+		Exitf("running %s failed: %v\n%s\n%s", argv[0], err, cmd, out)
 	}
 
 	// Filter out useless linker warnings caused by bugs outside Go.
@@ -1963,7 +1960,7 @@ func (ctxt *Link) hostlink() {
 			ctxt.Logf("\n")
 		}
 		if out, err := cmd.CombinedOutput(); err != nil {
-			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+			Exitf("%s: running dsymutil failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
@@ -1982,8 +1979,9 @@ func (ctxt *Link) hostlink() {
 			}
 			ctxt.Logf("\n")
 		}
-		if out, err := exec.Command(stripCmd, stripArgs...).CombinedOutput(); err != nil {
-			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
+		cmd = exec.Command(stripCmd, stripArgs...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {

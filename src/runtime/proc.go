@@ -579,7 +579,7 @@ func switchToCrashStack(fn func()) {
 // Disable crash stack on Windows for now. Apparently, throwing an exception
 // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
 // hangs the process (see issue 63938).
-const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm") && GOOS != "windows"
+const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
@@ -775,6 +775,7 @@ func schedinit() {
 	}
 
 	sched.maxmcount = 10000
+	crashFD.Store(^uintptr(0))
 
 	// The world starts stopped.
 	worldStopped()
@@ -4404,8 +4405,8 @@ func entersyscall_gcwait() {
 	pp := gp.m.oldp.ptr()
 
 	lock(&sched.lock)
+	trace := traceAcquire()
 	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
-		trace := traceAcquire()
 		if trace.ok() {
 			if goexperiment.ExecTracer2 {
 				// This is a steal in the new tracer. While it's very likely
@@ -4428,6 +4429,8 @@ func entersyscall_gcwait() {
 		if sched.stopwait--; sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
 		}
+	} else if trace.ok() {
+		traceRelease(trace)
 	}
 	unlock(&sched.lock)
 }
@@ -4605,11 +4608,18 @@ func exitsyscallfast(oldp *p) bool {
 	}
 
 	// Try to re-acquire the last P.
+	trace := traceAcquire()
 	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
 		// There's a cpu for us, so we can run.
 		wirep(oldp)
-		exitsyscallfast_reacquired()
+		exitsyscallfast_reacquired(trace)
+		if trace.ok() {
+			traceRelease(trace)
+		}
 		return true
+	}
+	if trace.ok() {
+		traceRelease(trace)
 	}
 
 	// Try to get any other idle P.
@@ -4646,10 +4656,9 @@ func exitsyscallfast(oldp *p) bool {
 // syscall.
 //
 //go:nosplit
-func exitsyscallfast_reacquired() {
+func exitsyscallfast_reacquired(trace traceLocker) {
 	gp := getg()
 	if gp.m.syscalltick != gp.m.p.ptr().syscalltick {
-		trace := traceAcquire()
 		if trace.ok() {
 			// The p was retaken and then enter into syscall again (since gp.m.syscalltick has changed).
 			// traceGoSysBlock for this syscall was already emitted,
@@ -4666,7 +4675,6 @@ func exitsyscallfast_reacquired() {
 					// Denote completion of the current syscall.
 					trace.GoSysExit(true)
 				}
-				traceRelease(trace)
 			})
 		}
 		gp.m.p.ptr().syscalltick++
@@ -6146,8 +6154,8 @@ func retake(now int64) uint32 {
 			// Otherwise the M from which we retake can exit the syscall,
 			// increment nmidle and report deadlock.
 			incidlelocked(-1)
+			trace := traceAcquire()
 			if atomic.Cas(&pp.status, s, _Pidle) {
-				trace := traceAcquire()
 				if trace.ok() {
 					trace.GoSysBlock(pp)
 					trace.ProcSteal(pp, false)
@@ -6156,6 +6164,8 @@ func retake(now int64) uint32 {
 				n++
 				pp.syscalltick++
 				handoffp(pp)
+			} else if trace.ok() {
+				traceRelease(trace)
 			}
 			incidlelocked(1)
 			lock(&allpLock)

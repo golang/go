@@ -478,13 +478,11 @@ func (ctxt *Link) domacho() {
 		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
 			var version uint32
 			switch ctxt.Arch.Family {
-			case sys.AMD64:
+			case sys.ARM64, sys.AMD64:
 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
 				// Having too old a version here was also implicated in some problems
 				// calling into macOS libraries (go.dev/issue/56784).
 				// In general this can be the most recent supported macOS version.
-				version = 10<<16 | 13<<8 | 0<<0 // 10.13.0
-			case sys.ARM64:
 				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
 			}
 			ml := newMachoLoad(ctxt.Arch, LC_BUILD_VERSION, 4)

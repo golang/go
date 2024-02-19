@@ -134,7 +134,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
+		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return
@@ -1164,9 +1164,14 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := fieldIndex(utyp.fields, check.pkg, key.Name)
+					i := fieldIndex(utyp.fields, check.pkg, key.Name, false)
 					if i < 0 {
-						check.errorf(kv, MissingLitField, "unknown field %s in struct literal of type %s", key.Name, base)
+						var alt Object
+						if j := fieldIndex(fields, check.pkg, key.Name, true); j >= 0 {
+							alt = fields[j]
+						}
+						msg := check.lookupError(base, key.Name, alt, true)
+						check.error(kv.Key, MissingLitField, msg)
 						continue
 					}
 					fld := fields[i]

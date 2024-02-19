@@ -561,7 +561,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 	for {
 		// Note: this differs from types2, but is necessary. The syntax parser
 		// strips unnecessary parens.
-		typ = unparen(typ)
+		typ = ast.Unparen(typ)
 
 		// check if we have a pointer type
 		if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
@@ -570,7 +570,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 				return false, nil
 			}
 			ptr = true
-			typ = unparen(pexpr.X) // continue with pointer base type
+			typ = ast.Unparen(pexpr.X) // continue with pointer base type
 		}
 
 		// typ must be a name, or a C.name cgo selector.

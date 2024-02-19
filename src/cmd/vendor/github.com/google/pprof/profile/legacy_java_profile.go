@@ -56,7 +56,7 @@ func javaCPUProfile(b []byte, period int64, parse func(b []byte) (uint64, []byte
 	}
 
 	// Strip out addresses for better merge.
-	if err = p.Aggregate(true, true, true, true, false); err != nil {
+	if err = p.Aggregate(true, true, true, true, false, false); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func parseJavaProfile(b []byte) (*Profile, error) {
 	}
 
 	// Strip out addresses for better merge.
-	if err = p.Aggregate(true, true, true, true, false); err != nil {
+	if err = p.Aggregate(true, true, true, true, false, false); err != nil {
 		return nil, err
 	}
 

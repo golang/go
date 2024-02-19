@@ -41,8 +41,10 @@ casl:
 	BNE	casl
 	MOVW	$1, R0
 
-	CMP	$7, R8
-	BLT	2(PC)
+#ifndef GOARM_7
+	CMP	$0, R11
+	BEQ	2(PC)
+#endif
 	DMB	MB_ISH
 
 	MOVB	R0, ret+12(FP)

@@ -172,7 +172,18 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
 			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+
+			pos, end := ret.Pos(), ret.End()
+			// golang/go#64547: cfg.Block.Return may return a synthetic
+			// ReturnStmt that overflows the file.
+			if pass.Fset.File(pos) != pass.Fset.File(end) {
+				end = pos
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     pos,
+				End:     end,
+				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
+			})
 		}
 	}
 }

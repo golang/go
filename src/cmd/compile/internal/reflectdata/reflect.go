@@ -55,24 +55,6 @@ type typeSig struct {
 	mtype *types.Type
 }
 
-// Builds a type representing a Bucket structure for
-// the given map type. This type is not visible to users -
-// we include only enough information to generate a correct GC
-// program for it.
-// Make sure this stays in sync with runtime/map.go.
-//
-//	A "bucket" is a "struct" {
-//	      tophash [BUCKETSIZE]uint8
-//	      keys [BUCKETSIZE]keyType
-//	      elems [BUCKETSIZE]elemType
-//	      overflow *bucket
-//	    }
-const (
-	BUCKETSIZE  = abi.MapBucketCount
-	MAXKEYSIZE  = abi.MapMaxKeyBytes
-	MAXELEMSIZE = abi.MapMaxElemBytes
-)
-
 func commonSize() int { return int(rttype.Type.Size()) } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
@@ -89,6 +71,18 @@ func makefield(name string, t *types.Type) *types.Field {
 
 // MapBucketType makes the map bucket type given the type of the map.
 func MapBucketType(t *types.Type) *types.Type {
+	// Builds a type representing a Bucket structure for
+	// the given map type. This type is not visible to users -
+	// we include only enough information to generate a correct GC
+	// program for it.
+	// Make sure this stays in sync with runtime/map.go.
+	//
+	//	A "bucket" is a "struct" {
+	//	      tophash [abi.MapBucketCount]uint8
+	//	      keys [abi.MapBucketCount]keyType
+	//	      elems [abi.MapBucketCount]elemType
+	//	      overflow *bucket
+	//	    }
 	if t.MapType().Bucket != nil {
 		return t.MapType().Bucket
 	}
@@ -97,25 +91,25 @@ func MapBucketType(t *types.Type) *types.Type {
 	elemtype := t.Elem()
 	types.CalcSize(keytype)
 	types.CalcSize(elemtype)
-	if keytype.Size() > MAXKEYSIZE {
+	if keytype.Size() > abi.MapMaxKeyBytes {
 		keytype = types.NewPtr(keytype)
 	}
-	if elemtype.Size() > MAXELEMSIZE {
+	if elemtype.Size() > abi.MapMaxElemBytes {
 		elemtype = types.NewPtr(elemtype)
 	}
 
 	field := make([]*types.Field, 0, 5)
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := types.NewArray(types.Types[types.TUINT8], BUCKETSIZE)
+	arr := types.NewArray(types.Types[types.TUINT8], abi.MapBucketCount)
 	field = append(field, makefield("topbits", arr))
 
-	arr = types.NewArray(keytype, BUCKETSIZE)
+	arr = types.NewArray(keytype, abi.MapBucketCount)
 	arr.SetNoalg(true)
 	keys := makefield("keys", arr)
 	field = append(field, keys)
 
-	arr = types.NewArray(elemtype, BUCKETSIZE)
+	arr = types.NewArray(elemtype, abi.MapBucketCount)
 	arr.SetNoalg(true)
 	elems := makefield("elems", arr)
 	field = append(field, elems)
@@ -142,25 +136,25 @@ func MapBucketType(t *types.Type) *types.Type {
 	if !types.IsComparable(t.Key()) {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
-	if BUCKETSIZE < 8 {
-		base.Fatalf("bucket size %d too small for proper alignment %d", BUCKETSIZE, 8)
+	if abi.MapBucketCount < 8 {
+		base.Fatalf("bucket size %d too small for proper alignment %d", abi.MapBucketCount, 8)
 	}
-	if uint8(keytype.Alignment()) > BUCKETSIZE {
+	if uint8(keytype.Alignment()) > abi.MapBucketCount {
 		base.Fatalf("key align too big for %v", t)
 	}
-	if uint8(elemtype.Alignment()) > BUCKETSIZE {
-		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
+	if uint8(elemtype.Alignment()) > abi.MapBucketCount {
+		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, abi.MapBucketCount)
 	}
-	if keytype.Size() > MAXKEYSIZE {
+	if keytype.Size() > abi.MapMaxKeyBytes {
 		base.Fatalf("key size too large for %v", t)
 	}
-	if elemtype.Size() > MAXELEMSIZE {
+	if elemtype.Size() > abi.MapMaxElemBytes {
 		base.Fatalf("elem size too large for %v", t)
 	}
-	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
+	if t.Key().Size() > abi.MapMaxKeyBytes && !keytype.IsPtr() {
 		base.Fatalf("key indirect incorrect for %v", t)
 	}
-	if t.Elem().Size() > MAXELEMSIZE && !elemtype.IsPtr() {
+	if t.Elem().Size() > abi.MapMaxElemBytes && !elemtype.IsPtr() {
 		base.Fatalf("elem indirect incorrect for %v", t)
 	}
 	if keytype.Size()%keytype.Alignment() != 0 {
@@ -1124,14 +1118,14 @@ func writeType(t *types.Type) *obj.LSym {
 		var flags uint32
 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
 		// and maptype builder in ../../../../reflect/type.go:MapOf.
-		if t.Key().Size() > MAXKEYSIZE {
+		if t.Key().Size() > abi.MapMaxKeyBytes {
 			c.Field("KeySize").WriteUint8(uint8(types.PtrSize))
 			flags |= 1 // indirect key
 		} else {
 			c.Field("KeySize").WriteUint8(uint8(t.Key().Size()))
 		}
 
-		if t.Elem().Size() > MAXELEMSIZE {
+		if t.Elem().Size() > abi.MapMaxElemBytes {
 			c.Field("ValueSize").WriteUint8(uint8(types.PtrSize))
 			flags |= 2 // indirect value
 		} else {
@@ -1337,20 +1331,25 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	//   _      [4]byte
 	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 	// }
-	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
-	o = objw.SymPtr(lsym, o, writeType(typ), 0)
-	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
-	o += 4                                        // skip unused field
+	c := rttype.NewCursor(lsym, 0, rttype.ITab)
+	c.Field("Inter").WritePtr(writeType(iface))
+	c.Field("Type").WritePtr(writeType(typ))
+	c.Field("Hash").WriteUint32(types.TypeHash(typ)) // copy of type hash
+
+	var delta int64
+	c = c.Field("Fun")
 	if !completeItab {
 		// If typ doesn't implement iface, make method entries be zero.
-		o = objw.Uintptr(lsym, o, 0)
-		entries = entries[:0]
-	}
-	for _, fn := range entries {
-		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+		c.Elem(0).WriteUintptr(0)
+	} else {
+		var a rttype.ArrayCursor
+		a, delta = c.ModifyArray(len(entries))
+		for i, fn := range entries {
+			a.Elem(i).WritePtrWeak(fn) // method pointer for each method
+		}
 	}
 	// Nothing writes static itabs, so they are read only.
-	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+	objw.Global(lsym, int32(rttype.ITab.Size()+delta), int16(obj.DUPOK|obj.RODATA))
 	lsym.Set(obj.AttrContentAddressable, true)
 }
 

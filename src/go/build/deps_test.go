@@ -75,6 +75,7 @@ var depsRules = `
 	< runtime
 	< sync/atomic
 	< internal/race
+	< internal/asan
 	< sync
 	< internal/bisect
 	< internal/godebug
@@ -672,7 +673,7 @@ var depsRules = `
 	internal/coverage, crypto/sha256, FMT
 	< cmd/internal/cov/covcmd;
 
-    encoding/json,
+	encoding/json,
 	runtime/debug,
 	internal/coverage/calloc,
 	internal/coverage/cformat,
@@ -680,6 +681,11 @@ var depsRules = `
 	internal/coverage/encodecounter, internal/coverage/encodemeta,
 	internal/coverage/pods
 	< runtime/coverage;
+
+	# Test-only packages can have anything they want
+	CGO, internal/syscall/unix < net/internal/cgotest;
+
+
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

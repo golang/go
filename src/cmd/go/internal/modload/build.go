@@ -364,11 +364,17 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 						m.GoMod = gomod
 					}
 				}
+				if gomodsum, ok := modfetch.RecordedSum(modkey(mod)); ok {
+					m.GoModSum = gomodsum
+				}
 			}
 			if checksumOk("") {
 				dir, err := modfetch.DownloadDir(ctx, mod)
 				if err == nil {
 					m.Dir = dir
+				}
+				if sum, ok := modfetch.RecordedSum(mod); ok {
+					m.Sum = sum
 				}
 			}
 

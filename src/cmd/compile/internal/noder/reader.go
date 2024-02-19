@@ -663,9 +663,24 @@ func (pr *pkgReader) objInstIdx(info objInfo, dict *readerDict, shaped bool) ir.
 }
 
 // objIdx returns the specified object, instantiated with the given
-// type arguments, if any. If shaped is true, then the shaped variant
-// of the object is returned instead.
+// type arguments, if any.
+// If shaped is true, then the shaped variant of the object is returned
+// instead.
 func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) ir.Node {
+	n, err := pr.objIdxMayFail(idx, implicits, explicits, shaped)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
+	return n
+}
+
+// objIdxMayFail is equivalent to objIdx, but returns an error rather than
+// failing the build if this object requires type arguments and the incorrect
+// number of type arguments were passed.
+//
+// Other sources of internal failure (such as duplicate definitions) still fail
+// the build.
+func (pr *pkgReader) objIdxMayFail(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
@@ -674,22 +689,25 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		assert(!sym.IsBlank())
 		switch sym.Pkg {
 		case types.BuiltinPkg, types.UnsafePkg:
-			return sym.Def.(ir.Node)
+			return sym.Def.(ir.Node), nil
 		}
 		if pri, ok := objReader[sym]; ok {
-			return pri.pr.objIdx(pri.idx, nil, explicits, shaped)
+			return pri.pr.objIdxMayFail(pri.idx, nil, explicits, shaped)
 		}
 		if sym.Pkg.Path == "runtime" {
-			return typecheck.LookupRuntime(sym.Name)
+			return typecheck.LookupRuntime(sym.Name), nil
 		}
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
-	dict := pr.objDictIdx(sym, idx, implicits, explicits, shaped)
+	dict, err := pr.objDictIdx(sym, idx, implicits, explicits, shaped)
+	if err != nil {
+		return nil, err
+	}
 
 	sym = dict.baseSym
 	if !sym.IsBlank() && sym.Def != nil {
-		return sym.Def.(*ir.Name)
+		return sym.Def.(*ir.Name), nil
 	}
 
 	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
@@ -725,7 +743,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		name := do(ir.OTYPE, false)
 		setType(name, r.typ())
 		name.SetAlias(true)
-		return name
+		return name, nil
 
 	case pkgbits.ObjConst:
 		name := do(ir.OLITERAL, false)
@@ -733,7 +751,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		val := FixValue(typ, r.Value())
 		setType(name, typ)
 		setValue(name, val)
-		return name
+		return name, nil
 
 	case pkgbits.ObjFunc:
 		if sym.Name == "init" {
@@ -768,7 +786,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		}
 
 		rext.funcExt(name, nil)
-		return name
+		return name, nil
 
 	case pkgbits.ObjType:
 		name := do(ir.OTYPE, true)
@@ -805,13 +823,13 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 			r.needWrapper(typ)
 		}
 
-		return name
+		return name, nil
 
 	case pkgbits.ObjVar:
 		name := do(ir.ONAME, false)
 		setType(name, r.typ())
 		rext.varExt(name)
-		return name
+		return name, nil
 	}
 }
 
@@ -908,7 +926,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 }
 
 // objDictIdx reads and returns the specified object dictionary.
-func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) *readerDict {
+func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	dict := readerDict{
@@ -919,7 +937,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 	nexplicits := r.Len()
 
 	if nimplicits > len(implicits) || nexplicits != len(explicits) {
-		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
+		return nil, fmt.Errorf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
 	}
 
 	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
@@ -984,7 +1002,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 		dict.itabs[i] = itabInfo{typ: r.typInfo(), iface: r.typInfo()}
 	}
 
-	return &dict
+	return &dict, nil
 }
 
 func (r *reader) typeParamNames() {
@@ -2529,7 +2547,10 @@ func (pr *pkgReader) objDictName(idx pkgbits.Index, implicits, explicits []*type
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
-	dict := pr.objDictIdx(sym, idx, implicits, explicits, false)
+	dict, err := pr.objDictIdx(sym, idx, implicits, explicits, false)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
 
 	return pr.dictNameOf(dict)
 }

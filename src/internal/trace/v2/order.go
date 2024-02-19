@@ -302,6 +302,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 			// Otherwise, we're talking about a G sitting in a syscall on an M.
 			// Validate the named M.
 			if mid == curCtx.M {
+				if gen != o.initialGen && curCtx.G != gid {
+					// If this isn't the first generation, we *must* have seen this
+					// binding occur already. Even if the G was blocked in a syscall
+					// for multiple generations since trace start, we would have seen
+					// a previous GoStatus event that bound the goroutine to an M.
+					return curCtx, false, fmt.Errorf("inconsistent thread for syscalling goroutine %d: thread has goroutine %d", gid, curCtx.G)
+				}
 				newCtx.G = gid
 				break
 			}

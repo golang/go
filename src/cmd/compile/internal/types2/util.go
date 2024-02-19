@@ -20,3 +20,6 @@ import "cmd/compile/internal/syntax"
 // If p and q are in different files, p is before q if the filename
 // of p sorts lexicographically before the filename of q.
 func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
+
+// hasDots reports whether the last argument in the call is followed by ...
+func hasDots(call *syntax.CallExpr) bool { return call.HasDots }

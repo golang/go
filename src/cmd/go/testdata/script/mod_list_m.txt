@@ -1,0 +1,16 @@
+go mod tidy
+
+go list -m -json all
+stdout '"GoModSum":\s+"h1:.+"'
+stdout '"Sum":\s+"h1:.+"'
+
+-- go.mod --
+module example
+
+go 1.21
+
+require rsc.io/quote v1.5.1
+-- example.go --
+package example
+
+import _ "rsc.io/quote"

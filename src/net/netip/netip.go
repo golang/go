@@ -756,11 +756,7 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().string4() + "%" + z
-			} else {
-				return "::ffff:" + ip.Unmap().string4()
-			}
+			return ip.string4In6()
 		}
 		return ip.string6()
 	}
@@ -777,13 +773,7 @@ func (ip Addr) AppendTo(b []byte) []byte {
 		return ip.appendTo4(b)
 	default:
 		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b
+			return ip.appendTo4In6(b)
 		}
 		return ip.appendTo6(b)
 	}
@@ -844,6 +834,23 @@ func (ip Addr) appendTo4(ret []byte) []byte {
 	ret = appendDecimal(ret, ip.v4(2))
 	ret = append(ret, '.')
 	ret = appendDecimal(ret, ip.v4(3))
+	return ret
+}
+
+func (ip Addr) string4In6() string {
+	const max = len("::ffff:255.255.255.255%enp5s0")
+	ret := make([]byte, 0, max)
+	ret = ip.appendTo4In6(ret)
+	return string(ret)
+}
+
+func (ip Addr) appendTo4In6(ret []byte) []byte {
+	ret = append(ret, "::ffff:"...)
+	ret = ip.Unmap().appendTo4(ret)
+	if ip.z != z6noz {
+		ret = append(ret, '%')
+		ret = append(ret, ip.Zone()...)
+	}
 	return ret
 }
 
@@ -939,20 +946,15 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		b := make([]byte, 0, max)
 		return ip.appendTo4(b), nil
 	default:
+		if ip.Is4In6() {
+			max := len("::ffff:255.255.255.255%enp5s0")
+			b := make([]byte, 0, max)
+			return ip.appendTo4In6(b), nil
+		}
 		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
 		b := make([]byte, 0, max)
-		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b, nil
-		}
 		return ip.appendTo6(b), nil
 	}
-
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
@@ -1114,20 +1116,31 @@ func (p AddrPort) Compare(p2 AddrPort) int {
 }
 
 func (p AddrPort) String() string {
+	var b []byte
 	switch p.ip.z {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
 		const max = len("255.255.255.255:65535")
-		buf := make([]byte, 0, max)
-		buf = p.ip.appendTo4(buf)
-		buf = append(buf, ':')
-		buf = strconv.AppendUint(buf, uint64(p.port), 10)
-		return string(buf)
+		b = make([]byte, 0, max)
+		b = p.ip.appendTo4(b)
 	default:
-		// TODO: this could be more efficient allocation-wise:
-		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
+		if p.ip.Is4In6() {
+			const max = len("[::ffff:255.255.255.255%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo4In6(b)
+		} else {
+			const max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo6(b)
+		}
+		b = append(b, ']')
 	}
+	b = append(b, ':')
+	b = strconv.AppendUint(b, uint64(p.port), 10)
+	return string(b)
 }
 
 // AppendTo appends a text encoding of p,
@@ -1140,15 +1153,10 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	case z4:
 		b = p.ip.appendTo4(b)
 	default:
+		b = append(b, '[')
 		if p.ip.Is4In6() {
-			b = append(b, "[::ffff:"...)
-			b = p.ip.Unmap().appendTo4(b)
-			if z := p.ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
+			b = p.ip.appendTo4In6(b)
 		} else {
-			b = append(b, '[')
 			b = p.ip.appendTo6(b)
 		}
 		b = append(b, ']')

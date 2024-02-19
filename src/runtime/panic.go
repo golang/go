@@ -420,17 +420,18 @@ func deferprocat(fn func(), frame any) {
 	return0()
 }
 
-// deferconvert converts a rangefunc defer list into an ordinary list.
+// deferconvert converts the rangefunc defer list of d0 into an ordinary list
+// following d0.
 // See the doc comment for deferrangefunc for details.
-func deferconvert(d *_defer) *_defer {
-	head := d.head
+func deferconvert(d0 *_defer) {
+	head := d0.head
 	if raceenabled {
 		racereadpc(unsafe.Pointer(head), getcallerpc(), abi.FuncPCABIInternal(deferconvert))
 	}
-	tail := d.link
-	d.rangefunc = false
-	d0 := d
+	tail := d0.link
+	d0.rangefunc = false
 
+	var d *_defer
 	for {
 		d = head.Load()
 		if head.CompareAndSwap(d, badDefer()) {
@@ -438,8 +439,7 @@ func deferconvert(d *_defer) *_defer {
 		}
 	}
 	if d == nil {
-		freedefer(d0)
-		return tail
+		return
 	}
 	for d1 := d; ; d1 = d1.link {
 		d1.sp = d0.sp
@@ -449,8 +449,8 @@ func deferconvert(d *_defer) *_defer {
 			break
 		}
 	}
-	freedefer(d0)
-	return d
+	d0.link = d
+	return
 }
 
 // deferprocStack queues a new deferred function with a defer record on the stack.
@@ -528,22 +528,18 @@ func newdefer() *_defer {
 	return d
 }
 
-// Free the given defer.
-// The defer cannot be used after this call.
-//
-// This is nosplit because the incoming defer is in a perilous state.
-// It's not on any defer list, so stack copying won't adjust stack
-// pointers in it (namely, d.link). Hence, if we were to copy the
-// stack, d could then contain a stale pointer.
-//
-//go:nosplit
-func freedefer(d *_defer) {
+// popDefer pops the head of gp's defer list and frees it.
+func popDefer(gp *g) {
+	d := gp._defer
+	d.fn = nil // Can in theory point to the stack
+	// We must not copy the stack between the updating gp._defer and setting
+	// d.link to nil. Between these two steps, d is not on any defer list, so
+	// stack copying won't adjust stack pointers in it (namely, d.link). Hence,
+	// if we were to copy the stack, d could then contain a stale pointer.
+	gp._defer = d.link
 	d.link = nil
 	// After this point we can copy the stack.
 
-	if d.fn != nil {
-		freedeferfn()
-	}
 	if !d.heap {
 		return
 	}
@@ -577,13 +573,6 @@ func freedefer(d *_defer) {
 
 	releasem(mp)
 	mp, pp = nil, nil
-}
-
-// Separate function so that it can split stack.
-// Windows otherwise runs out of stack space.
-func freedeferfn() {
-	// fn must be cleared before d is unlinked from gp.
-	throw("freedefer with d.fn != nil")
 }
 
 // deferreturn runs deferred functions for the caller's frame.
@@ -770,6 +759,16 @@ func gopanic(e any) {
 		fn()
 	}
 
+	// If we're tracing, flush the current generation to make the trace more
+	// readable.
+	//
+	// TODO(aktau): Handle a panic from within traceAdvance more gracefully.
+	// Currently it would hang. Not handled now because it is very unlikely, and
+	// already unrecoverable.
+	if traceEnabled() {
+		traceAdvance(false)
+	}
+
 	// ran out of deferred calls - old-school panic now
 	// Because it is unsafe to call arbitrary user code after freezing
 	// the world, we call preprintpanics to invoke all necessary Error
@@ -876,12 +875,12 @@ func (p *_panic) nextDefer() (func(), bool) {
 	Recheck:
 		if d := gp._defer; d != nil && d.sp == uintptr(p.sp) {
 			if d.rangefunc {
-				gp._defer = deferconvert(d)
+				deferconvert(d)
+				popDefer(gp)
 				goto Recheck
 			}
 
 			fn := d.fn
-			d.fn = nil
 
 			// TODO(mdempsky): Instead of having each deferproc call have
 			// its own "deferreturn(); return" sequence, we should just make
@@ -889,8 +888,7 @@ func (p *_panic) nextDefer() (func(), bool) {
 			p.retpc = d.pc
 
 			// Unlink and free.
-			gp._defer = d.link
-			freedefer(d)
+			popDefer(gp)
 
 			return fn, true
 		}

@@ -540,7 +540,7 @@ func dumpparams() {
 }
 
 func itab_callback(tab *itab) {
-	t := tab._type
+	t := tab.Type
 	dumptype(t)
 	dumpint(tagItab)
 	dumpint(uint64(uintptr(unsafe.Pointer(tab))))

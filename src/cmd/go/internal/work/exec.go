@@ -3069,12 +3069,12 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		if !str.Contains(ldflags, "-no-pie") {
+		if !slices.Contains(ldflags, "-no-pie") {
 			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
 			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
 			ldflags = append(ldflags, "-pie")
 		}
-		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
+		if slices.Contains(ldflags, "-pie") && slices.Contains(ldflags, "-static") {
 			// -static -pie doesn't make sense, and causes link errors.
 			// Issue 26197.
 			n := make([]string, 0, len(ldflags)-1)
