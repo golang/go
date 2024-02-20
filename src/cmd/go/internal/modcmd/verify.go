@@ -61,7 +61,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	if err != nil {
 		base.Fatal(err)
 	}
-	mods := mg.BuildList()[modload.MainModules.Len():]
+	mods := mg.BuildList()
 	// Use a slice of result channels, so that the output is deterministic.
 	errsChans := make([]<-chan []error, len(mods))
 
@@ -92,6 +92,9 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 func verifyMod(ctx context.Context, mod module.Version) []error {
 	if gover.IsToolchain(mod.Path) {
 		// "go" and "toolchain" have no disk footprint; nothing to verify.
+		return nil
+	}
+	if modload.MainModules.Contains(mod.Path) {
 		return nil
 	}
 	var errs []error
