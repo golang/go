@@ -454,9 +454,6 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 		fmt.Fprint(s, "four")
-		if n.DistinctVars {
-			fmt.Fprint(s, " /* distinct */")
-		}
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {

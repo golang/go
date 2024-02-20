@@ -89,7 +89,6 @@ func (e *escape) stmt(n ir.Node) {
 
 	case ir.OFOUR:
 		n := n.(*ir.FourStmt)
-		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 		e.loopDepth++
 		e.discard(n.Cond)
 		e.stmt(n.Post)

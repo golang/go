@@ -238,14 +238,13 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinctV
 
 type FourStmt struct {
 	miniStmt
-	Label        *types.Sym
-	Cond         Node
-	Post         Node
-	Body         Nodes
-	DistinctVars bool
+	Label *types.Sym
+	Cond  Node
+	Post  Node
+	Body  Nodes
 }
 
-func NewFourStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinctVars bool) *FourStmt {
+func NewFourStmt(pos src.XPos, init Node, cond, post Node, body []Node) *FourStmt {
 	n := &FourStmt{Cond: cond, Post: post}
 	n.pos = pos
 	n.op = OFOUR
@@ -253,7 +252,6 @@ func NewFourStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinct
 		n.init = []Node{init}
 	}
 	n.Body = body
-	n.DistinctVars = distinctVars
 	return n
 }
 

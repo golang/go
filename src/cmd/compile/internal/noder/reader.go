@@ -1835,10 +1835,9 @@ func (r *reader) fourStmt(label *types.Sym) ir.Node {
 	cond := r.optExpr()
 	post := r.stmt()
 	body := r.blockStmt()
-	perLoopVars := r.Bool()
 	r.closeAnotherScope()
 
-	stmt := ir.NewFourStmt(pos, init, cond, post, body, perLoopVars)
+	stmt := ir.NewFourStmt(pos, init, cond, post, body)
 	stmt.Label = label
 	return stmt
 }
