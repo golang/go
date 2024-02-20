@@ -11,6 +11,8 @@ package types2
 
 import "cmd/compile/internal/syntax"
 
+const isTypes2 = true
+
 // cmpPos compares the positions p and q and returns a result r as follows:
 //
 // r <  0: p is before q

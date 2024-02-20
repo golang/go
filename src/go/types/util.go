@@ -14,6 +14,8 @@ import (
 	"go/token"
 )
 
+const isTypes2 = false
+
 // cmpPos compares the positions p and q and returns a result r as follows:
 //
 // r <  0: p is before q
