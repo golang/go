@@ -56,18 +56,17 @@ func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking f
 		err error
 	}
 
+	if err := acquireThread(ctx); err != nil {
+		var zero T
+		return zero, &DNSError{
+			Name:      lookupName,
+			Err:       mapErr(err).Error(),
+			IsTimeout: err == context.DeadlineExceeded,
+		}
+	}
+
 	res := make(chan result, 1)
 	go func() {
-		if err := acquireThread(ctx); err != nil {
-			res <- result{
-				err: &DNSError{
-					Name:      lookupName,
-					Err:       mapErr(err).Error(),
-					IsTimeout: err == context.DeadlineExceeded,
-				},
-			}
-			return
-		}
 		defer releaseThread()
 		var r result
 		r.res, r.err = blocking()
