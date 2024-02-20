@@ -1877,7 +1877,6 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OFOUR:
 		// OFOUR: four Ninit; Left; Right { Nbody }
 		// cond (Left); body (Nbody); incr (Right)
-		fmt.Println("RILEY SSA FOUR")
 		n := n.(*ir.FourStmt)
 		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 		bCond := s.f.NewBlock(ssa.BlockPlain)
@@ -1951,7 +1950,6 @@ func (s *state) stmt(n ir.Node) {
 		s.startBlock(bEnd)
 
 	case ir.OUNLESS:
-		fmt.Println("RILEY SSA UNLESS")
 		n := n.(*ir.UnlessStmt)
 
 		bEnd := s.f.NewBlock(ssa.BlockPlain)

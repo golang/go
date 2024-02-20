@@ -259,7 +259,6 @@ func NewFourStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinct
 
 type UnlessStmt struct {
 	miniStmt
-	Label  *types.Sym
 	Cond   Node
 	Body   Nodes
 	Likely bool // code layout hint

@@ -1697,7 +1697,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		return r.fourStmt(label)
 
 	case stmtUnless:
-		return r.unlessStmt(label)
+		return r.unlessStmt()
 
 	case stmtIf:
 		return r.ifStmt()
@@ -1843,7 +1843,7 @@ func (r *reader) fourStmt(label *types.Sym) ir.Node {
 	return stmt
 }
 
-func (r *reader) unlessStmt(label *types.Sym) ir.Node {
+func (r *reader) unlessStmt() ir.Node {
 	r.Sync(pkgbits.SyncUnlessStmt)
 	r.openScope()
 	pos := r.pos()

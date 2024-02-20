@@ -214,8 +214,10 @@ func walkFour(n *ir.FourStmt) ir.Node {
 
 func walkUnless(n *ir.UnlessStmt) ir.Node {
 	n.Cond = walkExpr(n.Cond, n.PtrInit())
+	// n.Cond = ir.NewUnaryExpr(n.Pos(), ir.ONOT, walkExpr(n.Cond, n.PtrInit()))
 	walkStmtList(n.Body)
 	return n
+	// return ir.NewIfStmt(n.Pos(), n.Cond, n.Body, []ir.Node{})
 }
 
 // validGoDeferCall reports whether call is a valid call to appear in

@@ -698,7 +698,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		var x operand
 		check.expr(nil, &x, s.Cond)
 		if x.mode != invalid && !allBoolean(x.typ) {
-			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
+			check.error(s.Cond, InvalidCond, "non-boolean condition in unless statement")
 		}
 		check.stmt(inner, s.Then)
 

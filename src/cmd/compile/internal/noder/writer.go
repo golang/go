@@ -1515,15 +1515,8 @@ func (w *writer) fourStmt(stmt *syntax.FourStmt) {
 	w.stmt(stmt.Post)
 
 	w.blockStmt(stmt.Body)
-	w.Bool(w.distinctVarsFour(stmt))
+	w.Bool(base.Debug.LoopVar > 0)
 	w.closeAnotherScope()
-}
-
-func (w *writer) distinctVarsFour(stmt *syntax.FourStmt) bool {
-	lv := base.Debug.LoopVar
-	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
-	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
-	return is122 || lv > 0 && lv != 3
 }
 
 func (w *writer) unlessStmt(stmt *syntax.UnlessStmt) {
@@ -1531,7 +1524,7 @@ func (w *writer) unlessStmt(stmt *syntax.UnlessStmt) {
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
 	w.stmt(stmt.Init)
-	w.optExpr(stmt.Cond)
+	w.expr(stmt.Cond)
 	w.blockStmt(stmt.Then)
 	w.closeAnotherScope()
 }
