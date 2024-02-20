@@ -58,7 +58,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
-	if ft.Kind_&kindGCProg != 0 {
+	if ft.Kind_&abi.KindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
 
@@ -97,7 +97,7 @@ func MapBucketOf(x, y Type) Type {
 
 func CachedBucketOf(m Type) Type {
 	t := m.(*rtype)
-	if Kind(t.t.Kind_&kindMask) != Map {
+	if Kind(t.t.Kind_&abi.KindMask) != Map {
 		panic("not map")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))

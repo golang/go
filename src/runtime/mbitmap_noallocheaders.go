@@ -552,7 +552,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	h := writeHeapBitsForAddr(x)
 
 	// Handle GC program.
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Expand the gc program into the storage we're going to use for the actual object.
 		obj := (*uint8)(unsafe.Pointer(x))
 		n := runGCProg(addb(typ.GCData, 4), obj)
@@ -829,7 +829,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 
 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Expand gc program, using the object itself for storage.
 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
 		p = (*byte)(ptr)
@@ -852,7 +852,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
 	h = h.pad(typ.Size_ - typ.PtrBytes)
 	h.flush(uintptr(ptr), typ.Size_)
 
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Zero out temporary ptrmask buffer inside object.
 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
 	}

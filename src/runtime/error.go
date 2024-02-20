@@ -4,7 +4,10 @@
 
 package runtime
 
-import "internal/bytealg"
+import (
+	"internal/abi"
+	"internal/bytealg"
+)
 
 // The Error interface identifies a run time error.
 type Error interface {
@@ -259,39 +262,39 @@ func printanycustomtype(i any) {
 	typestring := toRType(eface._type).string()
 
 	switch eface._type.Kind_ {
-	case kindString:
+	case abi.String:
 		print(typestring, `("`, *(*string)(eface.data), `")`)
-	case kindBool:
+	case abi.Bool:
 		print(typestring, "(", *(*bool)(eface.data), ")")
-	case kindInt:
+	case abi.Int:
 		print(typestring, "(", *(*int)(eface.data), ")")
-	case kindInt8:
+	case abi.Int8:
 		print(typestring, "(", *(*int8)(eface.data), ")")
-	case kindInt16:
+	case abi.Int16:
 		print(typestring, "(", *(*int16)(eface.data), ")")
-	case kindInt32:
+	case abi.Int32:
 		print(typestring, "(", *(*int32)(eface.data), ")")
-	case kindInt64:
+	case abi.Int64:
 		print(typestring, "(", *(*int64)(eface.data), ")")
-	case kindUint:
+	case abi.Uint:
 		print(typestring, "(", *(*uint)(eface.data), ")")
-	case kindUint8:
+	case abi.Uint8:
 		print(typestring, "(", *(*uint8)(eface.data), ")")
-	case kindUint16:
+	case abi.Uint16:
 		print(typestring, "(", *(*uint16)(eface.data), ")")
-	case kindUint32:
+	case abi.Uint32:
 		print(typestring, "(", *(*uint32)(eface.data), ")")
-	case kindUint64:
+	case abi.Uint64:
 		print(typestring, "(", *(*uint64)(eface.data), ")")
-	case kindUintptr:
+	case abi.Uintptr:
 		print(typestring, "(", *(*uintptr)(eface.data), ")")
-	case kindFloat32:
+	case abi.Float32:
 		print(typestring, "(", *(*float32)(eface.data), ")")
-	case kindFloat64:
+	case abi.Float64:
 		print(typestring, "(", *(*float64)(eface.data), ")")
-	case kindComplex64:
+	case abi.Complex64:
 		print(typestring, *(*complex64)(eface.data))
-	case kindComplex128:
+	case abi.Complex128:
 		print(typestring, *(*complex128)(eface.data))
 	default:
 		print("(", typestring, ") ", eface.data)
