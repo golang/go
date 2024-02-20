@@ -4,6 +4,13 @@
 [short] skip
 [!cgo] skip
 
+# This test has problems when run on the LUCI darwin longtest builder,
+# which uses a more contemporary Xcode version that is unfriendly to
+# reproducible builds (see issue #64947 for the gory details). Note
+# that individual developers running "go test cmd/go" on Darwin may
+# still run into failures depending on their Xcode version.
+[GOOS:darwin] [go-builder] skip
+
 # This test is sensitive to cache invalidation,
 # so use a separate build cache that we can control.
 env GOCACHE=$WORK/gocache
