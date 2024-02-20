@@ -1966,6 +1966,9 @@ func (c *conn) serve(ctx context.Context) {
 			// If we read any bytes off the wire, we're active.
 			c.setState(c.rwc, StateActive, runHooks)
 		}
+		if c.server.shuttingDown() {
+			return
+		}
 		if err != nil {
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
