@@ -1163,7 +1163,12 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
+func GetsockoptInt(fd Handle, level, opt int) (int, error) {
+	optval := int32(0)
+	optlen := int32(unsafe.Sizeof(optval))
+	err := Getsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&optval)), &optlen)
+	return int(optval), err
+}
 
 func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
 	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}

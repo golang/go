@@ -2,101 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || freebsd || linux || netbsd || darwin || dragonfly
+//go:build aix || dragonfly || freebsd || linux || netbsd || solaris
 
 package net
 
-import "time"
+import (
+	"runtime"
+	"syscall"
+	"testing"
+)
 
-var testConfigs = []KeepAliveConfig{
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: 3 * time.Second,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     0,
-		Interval: 0,
-		Count:    0,
-	},
-	{
-		Enable:   true,
-		Idle:     -1,
-		Interval: -1,
-		Count:    -1,
-	},
-	{
-		Enable:   true,
-		Idle:     -1,
-		Interval: 3 * time.Second,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: -1,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: 3 * time.Second,
-		Count:    -1,
-	},
-	{
-		Enable:   true,
-		Idle:     -1,
-		Interval: -1,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     -1,
-		Interval: 3 * time.Second,
-		Count:    -1,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: -1,
-		Count:    -1,
-	},
-	{
-		Enable:   true,
-		Idle:     0,
-		Interval: 3 * time.Second,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: 0,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: 3 * time.Second,
-		Count:    0,
-	},
-	{
-		Enable:   true,
-		Idle:     0,
-		Interval: 0,
-		Count:    10,
-	},
-	{
-		Enable:   true,
-		Idle:     0,
-		Interval: 3 * time.Second,
-		Count:    0,
-	},
-	{
-		Enable:   true,
-		Idle:     5 * time.Second,
-		Interval: 0,
-		Count:    0,
-	},
+const (
+	syscall_TCP_KEEPIDLE  = syscall.TCP_KEEPIDLE
+	syscall_TCP_KEEPCNT   = syscall.TCP_KEEPCNT
+	syscall_TCP_KEEPINTVL = syscall.TCP_KEEPINTVL
+)
+
+type fdType = int
+
+func maybeSkipKeepAliveTest(t *testing.T) {
+	// TODO(panjf2000): stop skipping this test on Solaris
+	//  when https://go.dev/issue/64251 is fixed.
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping on solaris for now")
+	}
 }

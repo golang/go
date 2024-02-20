@@ -33,7 +33,7 @@ var testConfigs = []KeepAliveConfig{
 	},
 }
 
-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+func getCurrentKeepAliveSettings(fd fdType) (cfg KeepAliveConfig, err error) {
 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
 	if err != nil {
 		return
@@ -51,7 +51,7 @@ func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
 	return
 }
 
-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
+func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfig) {
 	if cfg.Idle == 0 {
 		cfg.Idle = defaultTCPKeepAliveIdle
 	}

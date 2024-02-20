@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || windows
 
 package net
 
@@ -12,20 +12,20 @@ import (
 	"time"
 )
 
-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+func getCurrentKeepAliveSettings(fd fdType) (cfg KeepAliveConfig, err error) {
 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
 	if err != nil {
 		return
 	}
-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE)
+	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
 	if err != nil {
 		return
 	}
-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL)
+	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
 	if err != nil {
 		return
 	}
-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPCNT)
+	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
 	if err != nil {
 		return
 	}
@@ -38,7 +38,7 @@ func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
 	return
 }
 
-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
+func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfig) {
 	if cfg.Idle == 0 {
 		cfg.Idle = defaultTCPKeepAliveIdle
 	}
@@ -66,7 +66,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) 
 		t.Fatalf("SO_KEEPALIVE: got %t; want %t", tcpKeepAlive != 0, cfg.Enable)
 	}
 
-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE)
+	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) 
 		t.Fatalf("TCP_KEEPIDLE: got %ds; want %v", tcpKeepAliveIdle, cfg.Idle)
 	}
 
-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL)
+	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) 
 		t.Fatalf("TCP_KEEPINTVL: got %ds; want %v", tcpKeepAliveInterval, cfg.Interval)
 	}
 
-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPCNT)
+	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
 	if err != nil {
 		t.Fatal(err)
 	}
