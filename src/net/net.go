@@ -58,7 +58,7 @@ Go resolver does not implement, and when the name being looked up ends in .local
 or is an mDNS name.
 
 On all systems (except Plan 9), when the cgo resolver is being used
-this package implies a concurrent cgo lookup limit to prevent the system
+this package applies a concurrent cgo lookup limit to prevent the system
 from running out of system threads. Currently, it is limited to 500 concurrent lookups.
 
 The resolver decision can be overridden by setting the netdns value of the
