@@ -4,8 +4,6 @@
 
 package x509
 
-//go:generate go run gen_testing_root.go
-
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
