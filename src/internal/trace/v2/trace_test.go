@@ -531,6 +531,10 @@ func TestTraceWaitOnPipe(t *testing.T) {
 	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
 }
 
+func TestTraceIterPull(t *testing.T) {
+	testTraceProg(t, "iter-pull.go", nil)
+}
+
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
 	testenv.MustHaveGoRun(t)
 
@@ -547,7 +551,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			cmd.Args = append(cmd.Args, "-race")
 		}
 		cmd.Args = append(cmd.Args, testPath)
-		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
+		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2", "GOEXPERIMENT=rangefunc")
 		if stress {
 			// Advance a generation constantly.
 			cmd.Env = append(cmd.Env, "GODEBUG=traceadvanceperiod=0")

@@ -334,7 +334,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 			curCtx.M = mid
 		}
 		o.queue.push(currentEvent())
-	case go122.EvGoCreate:
+	case go122.EvGoCreate, go122.EvGoCreateBlocked:
 		// Goroutines must be created on a running P, but may or may not be created
 		// by a running goroutine.
 		reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}
@@ -350,7 +350,11 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		if _, ok := o.gStates[newgid]; ok {
 			return false, fmt.Errorf("tried to create goroutine (%v) that already exists", newgid)
 		}
-		o.gStates[newgid] = &gState{id: newgid, status: go122.GoRunnable, seq: makeSeq(gen, 0)}
+		status := go122.GoRunnable
+		if typ == go122.EvGoCreateBlocked {
+			status = go122.GoWaiting
+		}
+		o.gStates[newgid] = &gState{id: newgid, status: status, seq: makeSeq(gen, 0)}
 		o.queue.push(currentEvent())
 	case go122.EvGoDestroy, go122.EvGoStop, go122.EvGoBlock:
 		// These are goroutine events that all require an active running
@@ -418,6 +422,64 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 		// N.B. No context to validate. Basically anything can unblock
 		// a goroutine (e.g. sysmon).
 		o.queue.push(currentEvent())
+	case go122.EvGoSwitch, go122.EvGoSwitchDestroy:
+		// GoSwitch and GoSwitchDestroy represent a trio of events:
+		// - Unblock of the goroutine to switch to.
+		// - Block or destroy of the current goroutine.
+		// - Start executing the next goroutine.
+		//
+		// Because it acts like a GoStart for the next goroutine, we can
+		// only advance it if the sequence numbers line up.
+		//
+		// The current goroutine on the thread must be actively running.
+		if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+			return false, err
+		}
+		curGState, ok := o.gStates[curCtx.G]
+		if !ok {
+			return false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(typ), curCtx.G)
+		}
+		if curGState.status != go122.GoRunning {
+			return false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(typ), GoRunning)
+		}
+		nextg := GoID(ev.args[0])
+		seq := makeSeq(gen, ev.args[1]) // seq is for nextg, not curCtx.G.
+		nextGState, ok := o.gStates[nextg]
+		if !ok || nextGState.status != go122.GoWaiting || !seq.succeeds(nextGState.seq) {
+			// We can't make an inference as to whether this is bad. We could just be seeing
+			// a GoSwitch on a different M before the goroutine was created, before it had its
+			// state emitted, or before we got to the right point in the trace yet.
+			return false, nil
+		}
+		o.queue.push(currentEvent())
+
+		// Update the state of the executing goroutine and emit an event for it
+		// (GoSwitch and GoSwitchDestroy will be interpreted as GoUnblock events
+		// for nextg).
+		switch typ {
+		case go122.EvGoSwitch:
+			// Goroutine blocked. It's waiting now and not running on this M.
+			curGState.status = go122.GoWaiting
+
+			// Emit a GoBlock event.
+			// TODO(mknyszek): Emit a reason.
+			o.queue.push(makeEvent(evt, curCtx, go122.EvGoBlock, ev.time, 0 /* no reason */, 0 /* no stack */))
+		case go122.EvGoSwitchDestroy:
+			// This goroutine is exiting itself.
+			delete(o.gStates, curCtx.G)
+
+			// Emit a GoDestroy event.
+			o.queue.push(makeEvent(evt, curCtx, go122.EvGoDestroy, ev.time))
+		}
+		// Update the state of the next goroutine.
+		nextGState.status = go122.GoRunning
+		nextGState.seq = seq
+		newCtx.G = nextg
+
+		// Queue an event for the next goroutine starting to run.
+		startCtx := curCtx
+		startCtx.G = NoGoroutine
+		o.queue.push(makeEvent(evt, startCtx, go122.EvGoStart, ev.time, uint64(nextg), ev.args[1]))
 	case go122.EvGoSyscallBegin:
 		// Entering a syscall requires an active running goroutine with a
 		// proc on some thread. It is always advancable.
@@ -578,15 +640,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 			newCtx.P = NoProc
 
 			// Queue an extra self-ProcSteal event.
-			extra := Event{
-				table: evt,
-				ctx:   curCtx,
-				base: baseEvent{
-					typ:  go122.EvProcSteal,
-					time: ev.time,
-				},
-			}
-			extra.base.args[0] = uint64(curCtx.P)
+			extra := makeEvent(evt, curCtx, go122.EvProcSteal, ev.time, uint64(curCtx.P))
 			extra.base.extra(version.Go122)[0] = uint64(go122.ProcSyscall)
 			o.queue.push(extra)
 		}
@@ -1154,4 +1208,22 @@ func (q *queue[T]) pop() (T, bool) {
 	*elem = *new(T) // Clear the entry before returning, so we don't hold onto old tables.
 	q.start++
 	return value, true
+}
+
+// makeEvent creates an Event from the provided information.
+//
+// It's just a convenience function; it's always OK to construct
+// an Event manually if this isn't quite the right way to express
+// the contents of the event.
+func makeEvent(table *evTable, ctx schedCtx, typ event.Type, time Time, args ...uint64) Event {
+	ev := Event{
+		table: table,
+		ctx:   ctx,
+		base: baseEvent{
+			typ:  typ,
+			time: time,
+		},
+	}
+	copy(ev.base.args[:], args)
+	return ev
 }

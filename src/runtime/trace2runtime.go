@@ -389,9 +389,13 @@ func (tl traceLocker) GCMarkAssistDone() {
 }
 
 // GoCreate emits a GoCreate event.
-func (tl traceLocker) GoCreate(newg *g, pc uintptr) {
+func (tl traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
 	newg.trace.setStatusTraced(tl.gen)
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoCreate, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
+	ev := traceEvGoCreate
+	if blocked {
+		ev = traceEvGoCreateBlocked
+	}
+	tl.eventWriter(traceGoRunning, traceProcRunning).commit(ev, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
 }
 
 // GoStart emits a GoStart event.
@@ -442,12 +446,34 @@ func (tl traceLocker) GoPark(reason traceBlockReason, skip int) {
 func (tl traceLocker) GoUnpark(gp *g, skip int) {
 	// Emit a GoWaiting status if necessary for the unblocked goroutine.
 	w := tl.eventWriter(traceGoRunning, traceProcRunning)
-	if !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
-		// Careful: don't use the event writer. We never want status or in-progress events
-		// to trigger more in-progress events.
-		w.w = w.w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist)
-	}
+	// Careful: don't use the event writer. We never want status or in-progress events
+	// to trigger more in-progress events.
+	w.w = emitUnblockStatus(w.w, gp, tl.gen)
 	w.commit(traceEvGoUnblock, traceArg(gp.goid), gp.trace.nextSeq(tl.gen), tl.stack(skip))
+}
+
+// GoCoroswitch emits a GoSwitch event. If destroy is true, the calling goroutine
+// is simultaneously being destroyed.
+func (tl traceLocker) GoSwitch(nextg *g, destroy bool) {
+	// Emit a GoWaiting status if necessary for the unblocked goroutine.
+	w := tl.eventWriter(traceGoRunning, traceProcRunning)
+	// Careful: don't use the event writer. We never want status or in-progress events
+	// to trigger more in-progress events.
+	w.w = emitUnblockStatus(w.w, nextg, tl.gen)
+	ev := traceEvGoSwitch
+	if destroy {
+		ev = traceEvGoSwitchDestroy
+	}
+	w.commit(ev, traceArg(nextg.goid), nextg.trace.nextSeq(tl.gen))
+}
+
+// emitUnblockStatus emits a GoStatus GoWaiting event for a goroutine about to be
+// unblocked to the trace writer.
+func emitUnblockStatus(w traceWriter, gp *g, gen uintptr) traceWriter {
+	if !gp.trace.statusWasTraced(gen) && gp.trace.acquireStatus(gen) {
+		w = w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist)
+	}
+	return w
 }
 
 // GoSysCall emits a GoSyscallBegin event.

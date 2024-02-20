@@ -67,6 +67,11 @@ const (
 	EvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	EvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, value string ID, stack]
+
+	// Coroutines. Added in Go 1.23.
+	EvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
+	EvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
+	EvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
 )
 
 // EventString returns the name of a Go 1.22 event.
@@ -331,6 +336,22 @@ var specs = [...]event.Spec{
 		IsTimedEvent: true,
 		StackIDs:     []int{4},
 		StringIDs:    []int{2, 3},
+	},
+	EvGoSwitch: event.Spec{
+		Name:         "GoSwitch",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoSwitchDestroy: event.Spec{
+		Name:         "GoSwitchDestroy",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoCreateBlocked: event.Spec{
+		Name:         "GoCreateBlocked",
+		Args:         []string{"dt", "new_g", "new_stack", "stack"},
+		IsTimedEvent: true,
+		StackIDs:     []int{3, 2},
 	},
 }
 

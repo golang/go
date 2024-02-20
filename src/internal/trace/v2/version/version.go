@@ -20,7 +20,8 @@ const (
 	Go119   Version = 19
 	Go121   Version = 21
 	Go122   Version = 22
-	Current         = Go122
+	Go123   Version = 23
+	Current         = Go123
 )
 
 var versions = map[Version][]event.Spec{
@@ -31,6 +32,10 @@ var versions = map[Version][]event.Spec{
 	Go121: nil,
 
 	Go122: go122.Specs(),
+	// Go 1.23 adds backwards-incompatible events, but
+	// traces produced by Go 1.22 are also always valid
+	// Go 1.23 traces.
+	Go123: go122.Specs(),
 }
 
 // Specs returns the set of event.Specs for this version.

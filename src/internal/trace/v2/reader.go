@@ -46,7 +46,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return &Reader{
 			go121Events: convertOldFormat(tr),
 		}, nil
-	case version.Go122:
+	case version.Go122, version.Go123:
 		return &Reader{
 			r: br,
 			order: ordering{

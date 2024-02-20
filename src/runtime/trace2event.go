@@ -81,6 +81,11 @@ const (
 	traceEvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	traceEvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	traceEvUserLog         // trace.Log [timestamp, internal task ID, key string ID, stack, value string ID]
+
+	// Coroutines.
+	traceEvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
+	traceEvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
+	traceEvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
 )
 
 // traceArg is a simple wrapper type to help ensure that arguments passed

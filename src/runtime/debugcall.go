@@ -124,7 +124,7 @@ func debugCallWrap(dispatch uintptr) {
 		// closure and start the goroutine with that closure, but the compiler disallows
 		// implicit closure allocation in the runtime.
 		fn := debugCallWrap1
-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc)
+		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc, false, waitReasonZero)
 		args := &debugCallWrapArgs{
 			dispatch: dispatch,
 			callingG: gp,

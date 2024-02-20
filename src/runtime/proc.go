@@ -4827,7 +4827,7 @@ func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newg := newproc1(fn, gp, pc)
+		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 
 		pp := getg().m.p.ptr()
 		runqput(pp, newg, true)
@@ -4838,10 +4838,10 @@ func newproc(fn *funcval) {
 	})
 }
 
-// Create a new g in state _Grunnable, starting at fn. callerpc is the
-// address of the go statement that created this. The caller is responsible
-// for adding the new g to the scheduler.
-func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+// Create a new g in state _Grunnable (or _Gwaiting if parked is true), starting at fn.
+// callerpc is the address of the go statement that created this. The caller is responsible
+// for adding the new g to the scheduler. If parked is true, waitreason must be non-zero.
+func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreason waitReason) *g {
 	if fn == nil {
 		fatal("go of nil func value")
 	}
@@ -4910,7 +4910,12 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 
 	// Get a goid and switch to runnable. Make all this atomic to the tracer.
 	trace := traceAcquire()
-	casgstatus(newg, _Gdead, _Grunnable)
+	var status uint32 = _Grunnable
+	if parked {
+		status = _Gwaiting
+		newg.waitreason = waitreason
+	}
+	casgstatus(newg, _Gdead, status)
 	if pp.goidcache == pp.goidcacheend {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
@@ -4923,7 +4928,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	pp.goidcache++
 	newg.trace.reset()
 	if trace.ok() {
-		trace.GoCreate(newg, newg.startpc)
+		trace.GoCreate(newg, newg.startpc, parked)
 		traceRelease(trace)
 	}
 
