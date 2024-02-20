@@ -374,12 +374,32 @@ type Func struct {
 // NewFunc returns a new function with the given signature, representing
 // the function's type.
 func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
-	// don't store a (typed) nil signature
 	var typ Type
 	if sig != nil {
 		typ = sig
+	} else {
+		// Don't store a (typed) nil *Signature.
+		// We can't simply replace it with new(Signature) either,
+		// as this would violate object.{Type,color} invariants.
+		// TODO(adonovan): propose to disallow NewFunc with nil *Signature.
 	}
 	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+}
+
+// Signature returns the signature (type) of the function or method.
+func (obj *Func) Signature() *Signature {
+	if obj.typ != nil {
+		return obj.typ.(*Signature) // normal case
+	}
+	// No signature: Signature was called either:
+	// - within go/types, before a FuncDecl's initially
+	//   nil Func.Type was lazily populated, indicating
+	//   a types bug; or
+	// - by a client after NewFunc(..., nil),
+	//   which is arguably a client bug, but we need a
+	//   proposal to tighten NewFunc's precondition.
+	// For now, return a trivial signature.
+	return new(Signature)
 }
 
 // FullName returns the package- or receiver-type-qualified name of

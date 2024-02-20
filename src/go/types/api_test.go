@@ -2324,7 +2324,7 @@ func f(x int) { y := x; print(y) }
 				wantParent = false
 			}
 		case *Func:
-			if obj.Type().(*Signature).Recv() != nil { // method
+			if obj.Signature().Recv() != nil { // method
 				wantParent = false
 			}
 		}
@@ -2615,9 +2615,9 @@ func fn() {
 
 		// Methods and method fields
 		{"concreteMethod", lookup("t").(*Named).Method(0)},
-		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
-		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
-		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
+		{"recv", lookup("t").(*Named).Method(0).Signature().Recv()},
+		{"mParam", lookup("t").(*Named).Method(0).Signature().Params().At(0)},
+		{"mResult", lookup("t").(*Named).Method(0).Signature().Results().At(0)},
 
 		// Interface methods
 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},

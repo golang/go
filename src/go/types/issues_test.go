@@ -115,7 +115,7 @@ type T struct{} // receiver type after method declaration
 	}
 
 	m := f.Decls[0].(*ast.FuncDecl)
-	res1 := defs[m.Name].(*Func).Type().(*Signature).Results().At(0)
+	res1 := defs[m.Name].(*Func).Signature().Results().At(0)
 	res2 := defs[m.Type.Results.List[0].Names[0]].(*Var)
 
 	if res1 != res2 {
@@ -369,7 +369,7 @@ func TestIssue28005(t *testing.T) {
 		// must match the method's name per the choice in the source file.
 		for i := 0; i < iface.NumMethods(); i++ {
 			m := iface.Method(i)
-			recvName := m.Type().(*Signature).Recv().Type().(*Named).Obj().Name()
+			recvName := m.Signature().Recv().Type().(*Named).Obj().Name()
 			if recvName != m.Name() {
 				t.Errorf("perm %v: got recv %s; want %s", perm, recvName, m.Name())
 			}
