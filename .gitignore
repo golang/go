@@ -20,7 +20,7 @@ _test
 _testmain.go
 
 /VERSION.cache
-demo2.go
+demo*.go
 /bin/
 /build.out
 /doc/articles/wiki/*.bin
