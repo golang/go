@@ -405,10 +405,6 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 					return hostLookupCgo, dnsConf
 				}
 
-				// e.g. "mdns4", "mdns4_minimal"
-				// We already returned true before if it was *.local.
-				// libc wouldn't have found a hit on this anyway.
-
 				// We don't parse mdns.allow files. They're rare. If one
 				// exists, it might list other TLDs (besides .local) or even
 				// '*', so just let libc deal with it.
