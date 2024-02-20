@@ -20,7 +20,6 @@ _test
 _testmain.go
 
 /VERSION.cache
-/bin/
 /build.out
 /doc/articles/wiki/*.bin
 /goinstall.log
