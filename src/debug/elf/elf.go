@@ -773,6 +773,7 @@ const (
 
 	PT_OPENBSD_RANDOMIZE ProgType = 0x65a3dbe6 /* Random data */
 	PT_OPENBSD_WXNEEDED  ProgType = 0x65a3dbe7 /* W^X violations */
+	PT_OPENBSD_NOBTCFI   ProgType = 0x65a3dbe8 /* No branch target CFI */
 	PT_OPENBSD_BOOTDATA  ProgType = 0x65a41be6 /* Boot arguments */
 
 	PT_SUNW_EH_FRAME ProgType = 0x6474e550 /* Frame unwind information */

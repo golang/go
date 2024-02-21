@@ -2185,6 +2185,10 @@ func asmbElf(ctxt *Link) {
 		ph.Type = elf.PT_GNU_STACK
 		ph.Flags = elf.PF_W + elf.PF_R
 		ph.Align = uint64(ctxt.Arch.RegSize)
+	} else if ctxt.HeadType == objabi.Hopenbsd {
+		ph := newElfPhdr()
+		ph.Type = elf.PT_OPENBSD_NOBTCFI
+		ph.Flags = elf.PF_X
 	} else if ctxt.HeadType == objabi.Hsolaris {
 		ph := newElfPhdr()
 		ph.Type = elf.PT_SUNWSTACK
