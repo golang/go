@@ -267,7 +267,9 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 	// determine token string
 	var tok string
 	switch p.tok {
-	case _Name, _Semi:
+	case _Name:
+		tok = "\"" + p.lit + "\""
+	case _Semi:
 		tok = p.lit
 	case _Literal:
 		tok = "literal " + p.lit
