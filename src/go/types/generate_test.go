@@ -133,10 +133,15 @@ var filemap = map[string]action{
 	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
 	"main_test.go":        nil,
 	"map.go":              nil,
-	"named.go":            func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
-	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
-	"objset.go":           nil,
+	"mono.go": func(f *ast.File) {
+		fixTokenPos(f)
+		insertImportPath(f, `"go/ast"`)
+		renameSelectorExprs(f, "syntax.Expr->ast.Expr")
+	},
+	"named.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"object.go":      func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
+	"object_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+	"objset.go":      nil,
 	"operand.go": func(f *ast.File) {
 		insertImportPath(f, `"go/token"`)
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)

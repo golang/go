@@ -42,6 +42,9 @@ func argErrPos(call *syntax.CallExpr) *syntax.CallExpr { return call }
 // ExprString returns a string representation of x.
 func ExprString(x syntax.Node) string { return syntax.String(x) }
 
+// startPos returns the start position of node n.
+func startPos(n syntax.Node) syntax.Pos { return syntax.StartPos(n) }
+
 // endPos returns the position of the first character immediately after node n.
 func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
 

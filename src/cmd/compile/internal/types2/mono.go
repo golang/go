@@ -150,9 +150,9 @@ func (check *Checker) reportInstanceLoop(v int) {
 		default:
 			panic("unexpected type")
 		case *Named:
-			err.addf(edge.pos, "%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+			err.addf(atPos(edge.pos), "%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
 		case *TypeParam:
-			err.addf(edge.pos, "%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+			err.addf(atPos(edge.pos), "%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
 		}
 	}
 	err.report()
@@ -173,7 +173,7 @@ func (w *monoGraph) recordInstance(pkg *Package, pos syntax.Pos, tparams []*Type
 	for i, tpar := range tparams {
 		pos := pos
 		if i < len(xlist) {
-			pos = syntax.StartPos(xlist[i])
+			pos = startPos(xlist[i])
 		}
 		w.assign(pkg, pos, tpar, targs[i])
 	}
