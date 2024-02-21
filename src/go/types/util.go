@@ -11,6 +11,7 @@ package types
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/token"
 )
 
@@ -37,3 +38,8 @@ func argErrPos(call *ast.CallExpr) positioner { return inNode(call, call.Rparen)
 
 // endPos returns the position of the first character immediately after node n.
 func endPos(n ast.Node) token.Pos { return n.End() }
+
+// makeFromLiteral returns the constant value for the given literal string and kind.
+func makeFromLiteral(lit string, kind token.Token) constant.Value {
+	return constant.MakeFromLiteral(lit, kind, 0)
+}

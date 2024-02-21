@@ -136,27 +136,37 @@ var filemap = map[string]action{
 	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
 	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"objset.go":           nil,
-	"package.go":          nil,
-	"pointer.go":          nil,
-	"predicates.go":       nil,
-	"scope.go":            func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
-	"selection.go":        nil,
-	"sizes.go":            func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
-	"slice.go":            nil,
-	"subst.go":            func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"termlist.go":         nil,
-	"termlist_test.go":    nil,
-	"tuple.go":            nil,
-	"typelists.go":        nil,
-	"typeparam.go":        nil,
-	"typeterm_test.go":    nil,
-	"typeterm.go":         nil,
-	"typestring.go":       nil,
-	"under.go":            nil,
-	"unify.go":            fixSprintf,
-	"universe.go":         fixGlobalTypVarDecl,
-	"util_test.go":        fixTokenPos,
-	"validtype.go":        nil,
+	"operand.go": func(f *ast.File) {
+		insertImportPath(f, `"go/token"`)
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f,
+			"syntax.Pos->token.Pos", "syntax.LitKind->token.Token",
+			"syntax.IntLit->token.INT", "syntax.FloatLit->token.FLOAT",
+			"syntax.ImagLit->token.IMAG", "syntax.RuneLit->token.CHAR",
+			"syntax.StringLit->token.STRING") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
+	},
+	"package.go":       nil,
+	"pointer.go":       nil,
+	"predicates.go":    nil,
+	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
+	"selection.go":     nil,
+	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"slice.go":         nil,
+	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"termlist.go":      nil,
+	"termlist_test.go": nil,
+	"tuple.go":         nil,
+	"typelists.go":     nil,
+	"typeparam.go":     nil,
+	"typeterm_test.go": nil,
+	"typeterm.go":      nil,
+	"typestring.go":    nil,
+	"under.go":         nil,
+	"unify.go":         fixSprintf,
+	"universe.go":      fixGlobalTypVarDecl,
+	"util_test.go":     fixTokenPos,
+	"validtype.go":     nil,
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
@@ -257,6 +267,18 @@ func renameImportPath(f *ast.File, renames ...string) {
 		}
 		return true
 	})
+}
+
+// insertImportPath inserts the given import path.
+// There must be at least one import declaration present already.
+func insertImportPath(f *ast.File, path string) {
+	for _, d := range f.Decls {
+		if g, _ := d.(*ast.GenDecl); g != nil && g.Tok == token.IMPORT {
+			g.Specs = append(g.Specs, &ast.ImportSpec{Path: &ast.BasicLit{ValuePos: g.End(), Kind: token.STRING, Value: path}})
+			return
+		}
+	}
+	panic("no import declaration present")
 }
 
 // fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",

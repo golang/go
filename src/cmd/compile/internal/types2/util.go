@@ -9,7 +9,11 @@
 
 package types2
 
-import "cmd/compile/internal/syntax"
+import (
+	"cmd/compile/internal/syntax"
+	"go/constant"
+	"go/token"
+)
 
 const isTypes2 = true
 
@@ -40,3 +44,16 @@ func ExprString(x syntax.Node) string { return syntax.String(x) }
 
 // endPos returns the position of the first character immediately after node n.
 func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
+
+// makeFromLiteral returns the constant value for the given literal string and kind.
+func makeFromLiteral(lit string, kind syntax.LitKind) constant.Value {
+	return constant.MakeFromLiteral(lit, kind2tok[kind], 0)
+}
+
+var kind2tok = [...]token.Token{
+	syntax.IntLit:    token.INT,
+	syntax.FloatLit:  token.FLOAT,
+	syntax.ImagLit:   token.IMAG,
+	syntax.RuneLit:   token.CHAR,
+	syntax.StringLit: token.STRING,
+}

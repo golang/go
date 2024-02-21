@@ -11,7 +11,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"go/token"
 	. "internal/types/errors"
 )
 
@@ -109,14 +108,20 @@ func (x *operand) Pos() syntax.Pos {
 // cgofunc    <expr> (               <mode>       of type <typ>)
 func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
-	if x.mode == nilvalue {
-		switch x.typ {
-		case nil, Typ[Invalid]:
-			return "nil (with invalid type)"
-		case Typ[UntypedNil]:
+	if isTypes2 {
+		if x.mode == nilvalue {
+			switch x.typ {
+			case nil, Typ[Invalid]:
+				return "nil (with invalid type)"
+			case Typ[UntypedNil]:
+				return "nil"
+			default:
+				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+			}
+		}
+	} else { // go/types
+		if x.mode == value && x.typ == Typ[UntypedNil] {
 			return "nil"
-		default:
-			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
 		}
 	}
 
@@ -224,7 +229,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 		unreachable()
 	}
 
-	val := constant.MakeFromLiteral(lit, kind2tok[k], 0)
+	val := makeFromLiteral(lit, k)
 	if val.Kind() == constant.Unknown {
 		x.mode = invalid
 		x.typ = Typ[Invalid]
@@ -236,7 +241,13 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 }
 
 // isNil reports whether x is the (untyped) nil value.
-func (x *operand) isNil() bool { return x.mode == nilvalue }
+func (x *operand) isNil() bool {
+	if isTypes2 {
+		return x.mode == nilvalue
+	} else { // go/types
+		return x.mode == value && x.typ == Typ[UntypedNil]
+	}
+}
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil cause is provided, it may be set to a more
@@ -332,7 +343,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return false, IncompatibleAssign
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
 			if *cause != "" {
@@ -384,13 +395,4 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	}
 
 	return false, IncompatibleAssign
-}
-
-// kind2tok translates syntax.LitKinds into token.Tokens.
-var kind2tok = [...]token.Token{
-	syntax.IntLit:    token.INT,
-	syntax.FloatLit:  token.FLOAT,
-	syntax.ImagLit:   token.IMAG,
-	syntax.RuneLit:   token.CHAR,
-	syntax.StringLit: token.STRING,
 }
