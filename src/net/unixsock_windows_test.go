@@ -7,34 +7,15 @@
 package net
 
 import (
-	"internal/syscall/windows/registry"
+	"internal/syscall/windows"
 	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 	"testing"
 )
 
-func isBuild17063() bool {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.READ)
-	if err != nil {
-		return false
-	}
-	defer k.Close()
-
-	s, _, err := k.GetStringValue("CurrentBuild")
-	if err != nil {
-		return false
-	}
-	ver, err := strconv.Atoi(s)
-	if err != nil {
-		return false
-	}
-	return ver >= 17063
-}
-
 func skipIfUnixSocketNotSupported(t *testing.T) {
-	// TODO: the isBuild17063 check should be enough, investigate why 386 and arm
+	// TODO: the windows.SupportUnixSocket check should be enough, investigate why 386 and arm
 	// can't run these tests on newer Windows.
 	switch runtime.GOARCH {
 	case "386":
@@ -42,7 +23,7 @@ func skipIfUnixSocketNotSupported(t *testing.T) {
 	case "arm":
 		t.Skip("not supported on windows/arm, see golang.org/issue/28061")
 	}
-	if !isBuild17063() {
+	if !windows.SupportUnixSocket() {
 		t.Skip("unix test")
 	}
 }

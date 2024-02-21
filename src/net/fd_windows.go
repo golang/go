@@ -135,7 +135,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
 			Rtt:                   windows.TCP_INITIAL_RTO_UNSPECIFIED_RTT, // use the default or overridden by the Administrator
 			MaxSynRetransmissions: 1,                                       // minimum possible value before Windows 10.0.16299
 		}
-		if windows.Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS() {
+		if windows.SupportTCPInitialRTONoSYNRetransmissions() {
 			// In Windows 10.0.16299 TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS makes ConnectEx() fails instantly.
 			params.MaxSynRetransmissions = windows.TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
 		}
