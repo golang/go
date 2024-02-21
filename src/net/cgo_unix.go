@@ -43,19 +43,6 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
 // For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
 // blocking might not be executed when the context gets cancelled early.
 func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking func() (T, error)) (T, error) {
-	if ctx.Done() == nil {
-		// Context is non-cancellable, so there is no need
-		// to handle the error from acquireThread.
-		acquireThread(ctx)
-		defer releaseThread()
-		return blocking()
-	}
-
-	type result struct {
-		res T
-		err error
-	}
-
 	if err := acquireThread(ctx); err != nil {
 		var zero T
 		return zero, &DNSError{
@@ -63,6 +50,16 @@ func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking f
 			Err:       mapErr(err).Error(),
 			IsTimeout: err == context.DeadlineExceeded,
 		}
+	}
+
+	if ctx.Done() == nil {
+		defer releaseThread()
+		return blocking()
+	}
+
+	type result struct {
+		res T
+		err error
 	}
 
 	res := make(chan result, 1)

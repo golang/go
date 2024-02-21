@@ -209,7 +209,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		return lookupPortMap(network, service)
 	}
 
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
 		return 0, &DNSError{
 			Name:      network + "/" + service,
@@ -278,7 +278,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 		return r.goLookupCNAME(ctx, name, order, conf)
 	}
 
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
 		return "", &DNSError{
 			Name:      name,
@@ -309,7 +309,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupSRV(ctx, service, proto, name)
 	}
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
 		return "", nil, &DNSError{
 			Name:      name,
@@ -345,7 +345,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupMX(ctx, name)
 	}
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
 		return nil, &DNSError{
 			Name:      name,
@@ -375,7 +375,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupNS(ctx, name)
 	}
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
 		return nil, &DNSError{
 			Name:      name,
@@ -404,7 +404,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 	if systemConf().mustUseGoResolver(r) {
 		return r.goLookupTXT(ctx, name)
 	}
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
 		return nil, &DNSError{
 			Name:      name,
@@ -438,7 +438,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 
-	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
 		return nil, &DNSError{
 			Name:      addr,
