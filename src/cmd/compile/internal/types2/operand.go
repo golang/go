@@ -27,7 +27,7 @@ const (
 	variable                     // operand is an addressable variable
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
-	nilvalue                     // operand is the nil value
+	nilvalue                     // operand is the nil value - only used by types2
 	commaok                      // like value, but operand may be used in a comma,ok expression
 	commaerr                     // like commaok, but second value is error, not boolean
 	cgofunc                      // operand is a cgo function
@@ -42,7 +42,7 @@ var operandModeString = [...]string{
 	variable:  "variable",
 	mapindex:  "map index expression",
 	value:     "value",
-	nilvalue:  "nil",
+	nilvalue:  "nil", // only used by types2
 	commaok:   "comma, ok expression",
 	commaerr:  "comma, error expression",
 	cgofunc:   "cgo function",

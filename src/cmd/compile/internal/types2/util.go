@@ -33,9 +33,10 @@ func dddErrPos(call *syntax.CallExpr) *syntax.CallExpr {
 }
 
 // argErrPos returns the node (poser) for reportign an invalid argument count.
-func argErrPos(call *syntax.CallExpr) *syntax.CallExpr {
-	return call
-}
+func argErrPos(call *syntax.CallExpr) *syntax.CallExpr { return call }
 
 // ExprString returns a string representation of x.
 func ExprString(x syntax.Node) string { return syntax.String(x) }
+
+// endPos returns the position of the first character immediately after node n.
+func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
