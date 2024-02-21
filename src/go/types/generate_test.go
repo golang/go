@@ -146,6 +146,7 @@ var filemap = map[string]action{
 	"typeparam.go":        nil,
 	"typeterm_test.go":    nil,
 	"typeterm.go":         nil,
+	"typestring.go":       nil,
 	"under.go":            nil,
 	"unify.go":            fixSprintf,
 	"universe.go":         fixGlobalTypVarDecl,
