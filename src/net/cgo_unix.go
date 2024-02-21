@@ -40,8 +40,20 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
 // doBlockingWithCtx executes a blocking function in a separate goroutine when the provided
 // context is cancellable. It is intended for use with calls that don't support context
 // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
-func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (T, error) {
+// For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
+// blocking might not be executed when the context gets cancelled early.
+func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking func() (T, error)) (T, error) {
+	if err := acquireThread(ctx); err != nil {
+		var zero T
+		return zero, &DNSError{
+			Name:      lookupName,
+			Err:       mapErr(err).Error(),
+			IsTimeout: err == context.DeadlineExceeded,
+		}
+	}
+
 	if ctx.Done() == nil {
+		defer releaseThread()
 		return blocking()
 	}
 
@@ -52,6 +64,7 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 
 	res := make(chan result, 1)
 	go func() {
+		defer releaseThread()
 		var r result
 		r.res, r.err = blocking()
 		res <- r
@@ -62,7 +75,11 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 		return r.res, r.err
 	case <-ctx.Done():
 		var zero T
-		return zero, mapErr(ctx.Err())
+		return zero, &DNSError{
+			Name:      lookupName,
+			Err:       mapErr(ctx.Err()).Error(),
+			IsTimeout: ctx.Err() == context.DeadlineExceeded,
+		}
 	}
 }
 
@@ -97,7 +114,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	return doBlockingWithCtx(ctx, func() (int, error) {
+	return doBlockingWithCtx(ctx, network+"/"+service, func() (int, error) {
 		return cgoLookupServicePort(&hints, network, service)
 	})
 }
@@ -146,9 +163,6 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 }
 
 func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
-	acquireThread()
-	defer releaseThread()
-
 	var hints _C_struct_addrinfo
 	*_C_ai_flags(&hints) = cgoAddrInfoFlags
 	*_C_ai_socktype(&hints) = _C_SOCK_STREAM
@@ -213,7 +227,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 }
 
 func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
-	return doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
+	return doBlockingWithCtx(ctx, name, func() ([]IPAddr, error) {
 		return cgoLookupHostIP(network, name)
 	})
 }
@@ -241,15 +255,12 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) 
 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
 	}
 
-	return doBlockingWithCtx(ctx, func() ([]string, error) {
+	return doBlockingWithCtx(ctx, addr, func() ([]string, error) {
 		return cgoLookupAddrPTR(addr, sa, salen)
 	})
 }
 
 func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
-	acquireThread()
-	defer releaseThread()
-
 	var gerrno int
 	var b []byte
 	for l := nameinfoLen; l <= maxNameinfoLen; l *= 2 {
@@ -310,15 +321,12 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	return doBlockingWithCtx(ctx, func() ([]dnsmessage.Resource, error) {
+	return doBlockingWithCtx(ctx, hostname, func() ([]dnsmessage.Resource, error) {
 		return cgoResSearch(hostname, rtype, class)
 	})
 }
 
 func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	acquireThread()
-	defer releaseThread()
-
 	resStateSize := unsafe.Sizeof(_C_struct___res_state{})
 	var state *_C_struct___res_state
 	if resStateSize > 0 {
