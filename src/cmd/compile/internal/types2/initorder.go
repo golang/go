@@ -314,11 +314,11 @@ func (a nodeQueue) Less(i, j int) bool {
 	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
-func (a *nodeQueue) Push(x interface{}) {
+func (a *nodeQueue) Push(x any) {
 	panic("unreachable")
 }
 
-func (a *nodeQueue) Pop() interface{} {
+func (a *nodeQueue) Pop() any {
 	n := len(*a)
 	x := (*a)[n-1]
 	x.index = -1 // for safety
