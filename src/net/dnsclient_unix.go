@@ -270,10 +270,10 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessag
 	hasAdd := false
 	for {
 		ahdr, err := p.AdditionalHeader()
-		hasAdd = hasAdd || err != dnsmessage.ErrSectionDone
 		if err != nil {
 			return hdr.RCode, hasAdd
 		}
+		hasAdd = true
 		if ahdr.Type == dnsmessage.TypeOPT {
 			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
 		}
