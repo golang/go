@@ -93,11 +93,8 @@ func parsePattern(s string) (_ *pattern, err error) {
 	}()
 
 	cutFunc := func(s string) (before, after string, found bool) {
-		if i := strings.IndexFunc(s, func(r rune) bool { return r == ' ' }); i >= 0 {
-			if j := strings.IndexFunc(s[i+1:], func(r rune) bool { return r != ' ' }); j >= 0 {
-				return s[:i], s[i+1:][j:], true
-			}
-			return s[:i], "", true
+		if i := strings.IndexAny(s, " \t"); i >= 0 {
+			return s[:i], strings.TrimSpace(s[i+1:]), true
 		}
 		return s, "", false
 	}

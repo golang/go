@@ -100,11 +100,11 @@ func TestParsePattern(t *testing.T) {
 		},
 		// Allow multiple spaces between method and path.
 		{
-			"GET  /",
+			"GET\t  /",
 			pattern{method: "GET", segments: []segment{multi("")}},
 		},
 		{
-			"POST   example.com/foo/{w}",
+			"POST \t  example.com/foo/{w}",
 			pattern{
 				method:   "POST",
 				host:     "example.com",
@@ -112,7 +112,7 @@ func TestParsePattern(t *testing.T) {
 			},
 		},
 		{
-			"DELETE    example.com/a/{foo12}/{$}",
+			"DELETE    \texample.com/a/{foo12}/{$}",
 			pattern{method: "DELETE", host: "example.com", segments: []segment{lit("a"), wild("foo12"), lit("/")}},
 		},
 	} {
