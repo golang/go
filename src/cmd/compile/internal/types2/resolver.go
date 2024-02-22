@@ -314,11 +314,10 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See go.dev/issue/32154.)
 							if alt := fileScope.Lookup(name); alt != nil {
-								var err error_
-								err.code = DuplicateDecl
-								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
+								err := check.newError(DuplicateDecl)
+								err.addf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
 								err.recordAltDecl(alt)
-								check.report(&err)
+								err.report()
 							} else {
 								fileScope.insert(name, obj)
 								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
@@ -473,17 +472,16 @@ func (check *Checker) collectObjects() {
 		for name, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(name); alt != nil {
 				obj = resolve(name, obj)
-				var err error_
-				err.code = DuplicateDecl
+				err := check.newError(DuplicateDecl)
 				if pkg, ok := obj.(*PkgName); ok {
-					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					err.recordAltDecl(pkg)
 				} else {
-					err.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
 					// TODO(gri) dot-imported objects don't have a position; recordAltDecl won't print anything
 					err.recordAltDecl(obj)
 				}
-				check.report(&err)
+				err.report()
 			}
 		}
 	}

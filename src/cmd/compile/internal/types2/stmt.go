@@ -260,11 +260,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if Identical(v.typ, vt.typ) {
-					var err error_
-					err.code = DuplicateCase
-					err.errorf(&v, "duplicate case %s in expression switch", &v)
-					err.errorf(vt.pos, "previous case")
-					check.report(&err)
+					err := check.newError(DuplicateCase)
+					err.addf(&v, "duplicate case %s in expression switch", &v)
+					err.addf(vt.pos, "previous case")
+					err.report()
 					continue L
 				}
 			}
@@ -307,11 +306,10 @@ L:
 				if T != nil {
 					Ts = TypeString(T, check.qualifier)
 				}
-				var err error_
-				err.code = DuplicateCase
-				err.errorf(e, "duplicate case %s in type switch", Ts)
-				err.errorf(other, "previous case")
-				check.report(&err)
+				err := check.newError(DuplicateCase)
+				err.addf(e, "duplicate case %s in type switch", Ts)
+				err.addf(other, "previous case")
+				err.report()
 				continue L
 			}
 		}
@@ -350,11 +348,10 @@ L:
 // 			if T != nil {
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
-// 			var err error_
-//			err.code = _DuplicateCase
-// 			err.errorf(e, "duplicate case %s in type switch", Ts)
-// 			err.errorf(other, "previous case")
-// 			check.report(&err)
+// 			err := check.newError(_DuplicateCase)
+// 			err.addf(e, "duplicate case %s in type switch", Ts)
+// 			err.addf(other, "previous case")
+// 			err.report()
 // 			continue L
 // 		}
 // 		seen[hash] = e
@@ -498,11 +495,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// with the same name as a result parameter is in scope at the place of the return."
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
-					var err error_
-					err.code = OutOfScopeResult
-					err.errorf(s, "result parameter %s not in scope at return", obj.name)
-					err.errorf(alt, "inner declaration of %s", obj)
-					check.report(&err)
+					err := check.newError(OutOfScopeResult)
+					err.addf(s, "result parameter %s not in scope at return", obj.name)
+					err.addf(alt, "inner declaration of %s", obj)
+					err.report()
 					// ok to continue
 				}
 			}

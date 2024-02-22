@@ -200,11 +200,10 @@ func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
 
 func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		var err error_
-		err.code = DuplicateDecl
-		err.errorf(pos, "%s redeclared", obj.Name())
+		err := check.newError(DuplicateDecl)
+		err.addf(pos, "%s redeclared", obj.Name())
 		err.recordAltDecl(alt)
-		check.report(&err)
+		err.report()
 		return false
 	}
 	return true

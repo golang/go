@@ -129,7 +129,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			}
 			if allFailed {
-				err.errorf(arg, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
+				err.addf(arg, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
@@ -142,12 +142,12 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		// the more general CannotInferTypeArgs.
 		if inferred != tpar {
 			if reverse {
-				err.errorf(arg, "inferred type %s for %s does not match type %s of %s", inferred, tpar, targ, arg.expr)
+				err.addf(arg, "inferred type %s for %s does not match type %s of %s", inferred, tpar, targ, arg.expr)
 			} else {
-				err.errorf(arg, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
+				err.addf(arg, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
 			}
 		} else {
-			err.errorf(arg, "type %s of %s does not match %s", targ, arg.expr, tpar)
+			err.addf(arg, "type %s of %s does not match %s", targ, arg.expr, tpar)
 		}
 	}
 
@@ -254,7 +254,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 						// TODO(gri) Type parameters that appear in the constraint and
 						//           for which we have type arguments inferred should
 						//           use those type arguments for a better error message.
-						err.errorf(posn, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
+						err.addf(posn, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
 						return nil
 					}
 				case single && !core.tilde:
@@ -279,7 +279,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					constraint := tpar.iface()
 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
 						// TODO(gri) better error message (see TODO above)
-						err.errorf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+						err.addf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
 						return nil
 					}
 				}
@@ -320,7 +320,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			} else {
 				m := maxType(max, arg.typ)
 				if m == nil {
-					err.errorf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
+					err.addf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
 					return nil
 				}
 				max = m
@@ -429,7 +429,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	for i, typ := range inferred {
 		if typ == nil || isParameterized(tparams, typ) {
 			obj := tparams[i].obj
-			err.errorf(posn, "cannot infer %s (%s)", obj.name, obj.pos)
+			err.addf(posn, "cannot infer %s (%s)", obj.name, obj.pos)
 			return nil
 		}
 	}
