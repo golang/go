@@ -831,7 +831,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 	case *types2.TypeName:
 		if obj.IsAlias() {
 			w.pos(obj)
-			w.typ(obj.Type())
+			w.typ(types2.Unalias(obj.Type()))
 			return pkgbits.ObjAlias
 		}
 
