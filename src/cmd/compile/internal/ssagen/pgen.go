@@ -84,13 +84,6 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	return a.Sym().Name < b.Sym().Name
 }
 
-// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
-type byStackVar []*ir.Name
-
-func (s byStackVar) Len() int           { return len(s) }
-func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
-func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
 // needAlloc reports whether n is within the current frame, for which we need to
 // allocate space. In particular, it excludes arguments and results, which are in
 // the callers frame.
@@ -158,10 +151,12 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	// Use sort.Stable instead of sort.Sort so stack layout (and thus
+	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
-	sort.Stable(byStackVar(fn.Dcl))
+	sort.SliceStable(fn.Dcl, func(i, j int) bool {
+		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j])
+	})
 
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
