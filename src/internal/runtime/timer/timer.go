@@ -44,6 +44,7 @@ type Timer struct {
 	Seq    uintptr
 
 	// Fields below may only be modified by the runtime.
+
 	// If this timer is on a heap, which P's heap it is on.
 	// uintptr rather than *runtime.p because p isn't accessible from here.
 	Pp uintptr
