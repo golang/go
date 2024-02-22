@@ -76,7 +76,7 @@ type segment struct {
 //     a literal or a wildcard of the form "{name}", "{name...}", or "{$}".
 //
 // METHOD, HOST and PATH are all optional; that is, the string can be "/".
-// If METHOD is present, it must be followed by a single space.
+// If METHOD is present, it must be followed by at least one ' ' or '\t'.
 // Wildcard names must be valid Go identifiers.
 // The "{$}" and "{name...}" wildcard must occur at the end of PATH.
 // PATH may end with a '/'.

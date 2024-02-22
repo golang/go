@@ -2335,7 +2335,7 @@ func RedirectHandler(url string, code int) Handler {
 //	[METHOD ][HOST]/[PATH]
 //
 // All three parts are optional; "/" is a valid pattern.
-// If METHOD is present, it must be followed by a single space.
+// If METHOD is present, it must be followed by at least one ' ' or '\t'.
 //
 // Literal (that is, non-wildcard) parts of a pattern match
 // the corresponding parts of a request case-sensitively.
