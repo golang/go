@@ -1120,6 +1120,19 @@ func TestReplaceOverlap(t *testing.T) {
 	}
 }
 
+func TestReplaceEndClearTail(t *testing.T) {
+	s := []int{11, 22, 33}
+	v := []int{99}
+	// case when j == len(s)
+	i, j := 1, 3
+	s = Replace(s, i, j, v...)
+
+	x := s[:3][2]
+	if want := 0; x != want {
+		t.Errorf("TestReplaceEndClearTail: obsolete element is %d, want %d", x, want)
+	}
+}
+
 func BenchmarkReplace(b *testing.B) {
 	cases := []struct {
 		name string
