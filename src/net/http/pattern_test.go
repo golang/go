@@ -98,7 +98,7 @@ func TestParsePattern(t *testing.T) {
 			"/%61%62/%7b/%",
 			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
 		},
-		// Allow multiple spaces between method and path.
+		// Allow multiple spaces matching regexp '[ \t]+' between method and path.
 		{
 			"GET\t  /",
 			pattern{method: "GET", segments: []segment{multi("")}},
