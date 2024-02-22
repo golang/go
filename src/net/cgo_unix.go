@@ -14,6 +14,7 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
 	"net/netip"
 	"syscall"
 	"unsafe"
@@ -287,11 +288,8 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
 		}
 		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary, IsNotFound: isErrorNoSuchHost}
 	}
-	for i := 0; i < len(b); i++ {
-		if b[i] == 0 {
-			b = b[:i]
-			break
-		}
+	if i := bytealg.IndexByte(b, 0); i != -1 {
+		b = b[:i]
 	}
 	return []string{absDomainName(string(b))}, nil
 }
