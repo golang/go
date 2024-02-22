@@ -285,7 +285,7 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.smap.lookup(t)
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return typ

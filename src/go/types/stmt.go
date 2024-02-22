@@ -183,7 +183,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	case statement:
 		return
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
 }

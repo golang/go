@@ -28,10 +28,6 @@ func assert(p bool) {
 	}
 }
 
-func unreachable() {
-	panic("unreachable")
-}
-
 // An error_ represents a type-checking error.
 // To report an error_, call Checker.report.
 type error_ struct {

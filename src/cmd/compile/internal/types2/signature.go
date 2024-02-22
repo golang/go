@@ -247,7 +247,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				case *TypeParam:
 					// The underlying type of a receiver base type cannot be a
 					// type parameter: "type T[P any] P" is not a valid declaration.
-					unreachable()
+					panic("unreachable")
 				}
 				if cause != "" {
 					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)

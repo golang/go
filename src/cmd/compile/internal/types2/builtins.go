@@ -908,7 +908,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// trace is only available in test mode - no need to record signature
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	assert(x.mode != invalid)
@@ -947,7 +947,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 	case *Interface:
 		return isTypeParam(t)
 	case *Named, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return false
 }
@@ -990,7 +990,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		case _Complex:
 			code = InvalidComplex
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
 

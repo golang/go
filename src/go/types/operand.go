@@ -229,7 +229,7 @@ func (x *operand) setConst(k token.Token, lit string) {
 	case token.STRING:
 		kind = UntypedString
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	val := makeFromLiteral(lit, k)

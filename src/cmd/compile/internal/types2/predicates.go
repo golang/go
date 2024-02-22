@@ -477,7 +477,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return false

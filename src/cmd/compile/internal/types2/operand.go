@@ -226,7 +226,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 	case syntax.StringLit:
 		kind = UntypedString
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	val := makeFromLiteral(lit, k)
