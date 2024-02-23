@@ -12,6 +12,7 @@ import (
 	"go/types"
 	"reflect"
 
+	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -259,6 +260,9 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 	case *types.Basic:
 		return uint32(t.Kind())
 
+	case *aliases.Alias:
+		return h.Hash(t.Underlying())
+
 	case *types.Array:
 		return 9043 + 2*uint32(t.Len()) + 3*h.Hash(t.Elem())
 
@@ -457,6 +461,9 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
 	// elements (mostly Slice, Pointer, Basic, Named),
 	// so there's no need to optimize anything else.
 	switch t := t.(type) {
+	case *aliases.Alias:
+		return h.shallowHash(t.Underlying())
+
 	case *types.Signature:
 		var hash uint32 = 604171
 		if t.Variadic() {
