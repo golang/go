@@ -334,8 +334,8 @@ noswitch:
 	B	(R0)
 
 // func switchToCrashStack0(fn func())
-TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-4
-	MOVW	R0, R7	// context register
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVW	fn+0(FP), R7 // context register
 	MOVW	g_m(g), R1 // curm
 
 	// set g to gcrash
