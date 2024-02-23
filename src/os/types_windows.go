@@ -48,18 +48,14 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		return nil, &PathError{Op: "GetFileInformationByHandle", Path: path, Err: err}
 	}
 
-	var ti windows.FILE_ATTRIBUTE_TAG_INFO
-	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
-	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
-			// It appears calling GetFileInformationByHandleEx with
-			// FILE_ATTRIBUTE_TAG_INFO fails on FAT file system with
-			// ERROR_INVALID_PARAMETER. Clear ti.ReparseTag in that
-			// instance to indicate no symlinks are possible.
-			ti.ReparseTag = 0
-		} else {
+	var reparseTag uint32
+	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		var ti windows.FILE_ATTRIBUTE_TAG_INFO
+		err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+		if err != nil {
 			return nil, &PathError{Op: "GetFileInformationByHandleEx", Path: path, Err: err}
 		}
+		reparseTag = ti.ReparseTag
 	}
 
 	return &fileStat{
@@ -73,7 +69,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		vol:            d.VolumeSerialNumber,
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
-		ReparseTag:     ti.ReparseTag,
+		ReparseTag:     reparseTag,
 		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
