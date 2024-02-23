@@ -245,6 +245,8 @@ applied to a Go struct, but now a Module struct:
         Retracted  []string      // retraction information, if any (with -retracted or -u)
         Deprecated string        // deprecation message, if any (with -u)
         Error      *ModuleError  // error loading module
+        Sum        string        // checksum for path, version (as in go.sum)
+        GoModSum   string        // checksum for go.mod (as in go.sum)
         Origin     any           // provenance of module
         Reuse      bool          // reuse of old module info is safe
     }
@@ -725,15 +727,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
+		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+			load.PrepareForCoverageBuild(pkgs)
+		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
-		}
-		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
-			load.PrepareForCoverageBuild(pkgs)
 		}
 		b.Do(ctx, a)
 	}

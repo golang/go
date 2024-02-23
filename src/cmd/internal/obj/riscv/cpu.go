@@ -28,7 +28,12 @@
 
 package riscv
 
-import "cmd/internal/obj"
+import (
+	"errors"
+	"fmt"
+
+	"cmd/internal/obj"
+)
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p riscv
 
@@ -605,6 +610,50 @@ const (
 
 	// End marker
 	ALAST
+)
+
+// opSuffix encoding to uint8 which fit into p.Scond
+var rmSuffixSet = map[string]uint8{
+	"RNE": RM_RNE,
+	"RTZ": RM_RTZ,
+	"RDN": RM_RDN,
+	"RUP": RM_RUP,
+	"RMM": RM_RMM,
+}
+
+const rmSuffixBit uint8 = 1 << 7
+
+func rmSuffixEncode(s string) (uint8, error) {
+	if s == "" {
+		return 0, errors.New("empty suffix")
+	}
+	enc, ok := rmSuffixSet[s]
+	if !ok {
+		return 0, fmt.Errorf("invalid encoding for unknown suffix:%q", s)
+	}
+	return enc | rmSuffixBit, nil
+}
+
+func rmSuffixString(u uint8) (string, error) {
+	if u&rmSuffixBit == 0 {
+		return "", fmt.Errorf("invalid suffix, require round mode bit:%x", u)
+	}
+
+	u &^= rmSuffixBit
+	for k, v := range rmSuffixSet {
+		if v == u {
+			return k, nil
+		}
+	}
+	return "", fmt.Errorf("unknown suffix:%x", u)
+}
+
+const (
+	RM_RNE uint8 = iota // Round to Nearest, ties to Even
+	RM_RTZ              // Round towards Zero
+	RM_RDN              // Round Down
+	RM_RUP              // Round Up
+	RM_RMM              // Round to Nearest, ties to Max Magnitude
 )
 
 // All unary instructions which write to their arguments (as opposed to reading

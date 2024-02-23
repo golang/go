@@ -37,9 +37,9 @@ func TestValueEqual(t *testing.T) {
 		GroupValue(Bool("b", true), Int("i", 4)),
 		GroupValue(Bool("b", true), Int("j", 4)),
 		DurationValue(3 * time.Second),
-                DurationValue(2 * time.Second),
-                StringValue("foo"),
-                StringValue("fuu"),
+		DurationValue(2 * time.Second),
+		StringValue("foo"),
+		StringValue("fuu"),
 	}
 	for i, v1 := range vals {
 		for j, v2 := range vals {

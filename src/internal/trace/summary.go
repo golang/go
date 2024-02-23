@@ -21,7 +21,7 @@ type Summary struct {
 type GoroutineSummary struct {
 	ID           tracev2.GoID
 	Name         string       // A non-unique human-friendly identifier for the goroutine.
-	PC           uint64       // The start PC of the goroutine.
+	PC           uint64       // The first PC we saw for the entry function of the goroutine
 	CreationTime tracev2.Time // Timestamp of the first appearance in the trace.
 	StartTime    tracev2.Time // Timestamp of the first time it started running. 0 if the goroutine never ran.
 	EndTime      tracev2.Time // Timestamp of when the goroutine exited. 0 if the goroutine never exited.
@@ -385,10 +385,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 			}
 
 			// The goroutine hasn't been identified yet. Take the transition stack
-			// and identify the goroutine by the bottom-most frame of that stack.
-			// This bottom-most frame will be identical for all transitions on this
+			// and identify the goroutine by the root frame of that stack.
+			// This root frame will be identical for all transitions on this
 			// goroutine, because it represents its immutable start point.
-			if g.PC == 0 {
+			if g.Name == "" {
 				stk := st.Stack
 				if stk != tracev2.NoStack {
 					var frame tracev2.StackFrame
@@ -396,9 +396,14 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 					stk.Frames(func(f tracev2.StackFrame) bool {
 						frame = f
 						ok = true
-						return false
+						return true
 					})
 					if ok {
+						// NB: this PC won't actually be consistent for
+						// goroutines which existed at the start of the
+						// trace. The UI doesn't use it directly; this
+						// mainly serves as an indication that we
+						// actually saw a call stack for the goroutine
 						g.PC = frame.PC
 						g.Name = frame.Func
 					}

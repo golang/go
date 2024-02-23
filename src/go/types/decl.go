@@ -160,7 +160,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 			}
 
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		assert(obj.Type() != nil)
 		return
@@ -169,7 +169,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	d := check.objMap[obj]
 	if d == nil {
 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		unreachable()
+		panic("unreachable")
 	}
 
 	// save/restore current environment and set up object environment
@@ -200,7 +200,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 }
 
@@ -214,7 +214,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 		isPkgObj := obj.Parent() == check.pkg.scope
 		if isPkgObj != inObjMap {
 			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -264,7 +264,7 @@ loop:
 		case *Func:
 			// ignored for now
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 

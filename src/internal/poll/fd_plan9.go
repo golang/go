@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -229,4 +230,15 @@ func (fd *FD) RawRead(f func(uintptr) bool) error {
 // RawWrite invokes the user-defined function f for a write operation.
 func (fd *FD) RawWrite(f func(uintptr) bool) error {
 	return errors.New("not implemented")
+}
+
+func DupCloseOnExec(fd int) (int, string, error) {
+	nfd, err := syscall.Dup(int(fd), -1)
+	if err != nil {
+		return 0, "dup", err
+	}
+	// Plan9 has no syscall.CloseOnExec but
+	// its forkAndExecInChild closes all fds
+	// not related to the fork+exec.
+	return nfd, "", nil
 }

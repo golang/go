@@ -1786,7 +1786,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		"type:internal/abi.SliceType",
 		"type:internal/abi.StructType",
 		"type:internal/abi.InterfaceType",
-		"type:runtime.itab",
+		"type:internal/abi.ITab",
 		"type:internal/abi.Imethod"} {
 		d.defgotype(d.lookupOrDiag(typ))
 	}

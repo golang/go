@@ -45,3 +45,15 @@ a/b.txt: -rw-rw-rw-
 		t.Errorf("MapFS modes want:\n%s\ngot:\n%s\n", want, got)
 	}
 }
+
+func TestMapFSFileInfoName(t *testing.T) {
+	m := MapFS{
+		"path/to/b.txt": &MapFile{},
+	}
+	info, _ := m.Stat("path/to/b.txt")
+	want := "b.txt"
+	got := info.Name()
+	if want != got {
+		t.Errorf("MapFS FileInfo.Name want:\n%s\ngot:\n%s\n", want, got)
+	}
+}

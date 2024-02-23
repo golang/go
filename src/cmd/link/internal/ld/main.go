@@ -102,6 +102,7 @@ var (
 	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+	flagRandLayout    = flag.Int64("randlayout", 0, "randomize function layout")
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
@@ -167,12 +168,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if final := gorootFinal(); final == "$GOROOT" {
-		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
-		// but runtime.GOROOT() should return the empty string, not a bogus value.
-		// (See https://go.dev/issue/51461.)
+	if buildcfg.GOROOT == "" {
+		// cmd/go clears the GOROOT variable when -trimpath is set,
+		// so omit it from the binary even if cmd/link itself has an
+		// embedded GOROOT value reported by runtime.GOROOT.
 	} else {
-		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+		addstrdata1(ctxt, "runtime.defaultGOROOT="+buildcfg.GOROOT)
 	}
 
 	buildVersion := buildcfg.Version

@@ -2621,9 +2621,6 @@ func typeptrdata(t *abi.Type) uintptr {
 	}
 }
 
-// See cmd/compile/internal/reflectdata/reflect.go for derivation of constant.
-const maxPtrmaskBytes = 2048
-
 // ArrayOf returns the array type with the given length and element type.
 // For example, if t represents int, ArrayOf(5, t) represents [5]int.
 //
@@ -2692,7 +2689,7 @@ func ArrayOf(length int, elem Type) Type {
 		array.GCData = typ.GCData
 		array.PtrBytes = typ.PtrBytes
 
-	case typ.Kind_&kindGCProg == 0 && array.Size_ <= maxPtrmaskBytes*8*goarch.PtrSize:
+	case typ.Kind_&kindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into length 1 bits in larger mask.
@@ -2920,5 +2917,9 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 
 // TypeFor returns the [Type] that represents the type argument T.
 func TypeFor[T any]() Type {
-	return TypeOf((*T)(nil)).Elem()
+	var v T
+	if t := TypeOf(v); t != nil {
+		return t // optimize for T being a non-interface kind
+	}
+	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }

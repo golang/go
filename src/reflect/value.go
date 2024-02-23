@@ -208,14 +208,7 @@ type emptyInterface struct {
 
 // nonEmptyInterface is the header for an interface value with methods.
 type nonEmptyInterface struct {
-	// see ../runtime/iface.go:/Itab
-	itab *struct {
-		ityp *abi.Type // static interface type
-		typ  *abi.Type // dynamic concrete type
-		hash uint32    // copy of typ.hash
-		_    [4]byte
-		fun  [100000]unsafe.Pointer // method table
-	}
+	itab *abi.ITab
 	word unsafe.Pointer
 }
 
@@ -897,8 +890,8 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *abi.Type, t 
 		if iface.itab == nil {
 			panic("reflect: " + op + " of method on nil interface value")
 		}
-		rcvrtype = iface.itab.typ
-		fn = unsafe.Pointer(&iface.itab.fun[i])
+		rcvrtype = iface.itab.Type
+		fn = unsafe.Pointer(&unsafe.Slice(&iface.itab.Fun[0], i+1)[i])
 		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.Typ)))
 	} else {
 		rcvrtype = v.typ()
@@ -3413,7 +3406,7 @@ func (v Value) Comparable() bool {
 		return v.Type().Comparable()
 
 	case Interface:
-		return v.Elem().Comparable()
+		return v.IsNil() || v.Elem().Comparable()
 
 	case Struct:
 		for i := 0; i < v.NumField(); i++ {

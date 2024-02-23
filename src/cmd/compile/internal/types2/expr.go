@@ -268,7 +268,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// upon assignment or use.
 		if debug {
 			check.dump("%v: found old type(%s): %s (new: %s)", atPos(x), x, old.typ, typ)
-			unreachable()
+			panic("unreachable")
 		}
 		return
 
@@ -337,7 +337,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// If the new type is not final and still untyped, just
@@ -546,7 +546,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// comparison is ok
@@ -1042,7 +1042,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	switch e := e.(type) {
 	case nil:
-		unreachable()
+		panic("unreachable")
 
 	case *syntax.BadExpr:
 		goto Error // error was reported before
@@ -1184,9 +1184,14 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := fieldIndex(utyp.fields, check.pkg, key.Value, false)
+					i := fieldIndex(fields, check.pkg, key.Value, false)
 					if i < 0 {
-						check.errorf(kv.Key, MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
+						var alt Object
+						if j := fieldIndex(fields, check.pkg, key.Value, true); j >= 0 {
+							alt = fields[j]
+						}
+						msg := check.lookupError(base, key.Value, alt, true)
+						check.error(kv.Key, MissingLitField, msg)
 						continue
 					}
 					fld := fields[i]
@@ -1649,7 +1654,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			msg = "%s is not an expression"
 			code = NotAnExpr
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
 		x.mode = invalid

@@ -1478,6 +1478,7 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 	ctx := w.getCtxForDial()
 	if ctx == nil {
+		t.decConnsPerHost(w.key)
 		return
 	}
 
@@ -1761,6 +1762,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if t.OnProxyConnectResponse != nil {
 			err = t.OnProxyConnectResponse(ctx, cm.proxyURL, connectReq, resp)
 			if err != nil {
+				conn.Close()
 				return nil, err
 			}
 		}

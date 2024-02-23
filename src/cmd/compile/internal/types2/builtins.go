@@ -22,9 +22,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
-	if call.HasDots && id != _Append {
-		//check.errorf(call.Ellipsis, invalidOp + "invalid use of ... with built-in %s", bin.name)
-		check.errorf(call,
+	if hasDots(call) && id != _Append {
+		check.errorf(dddErrPos(call),
 			InvalidDotDotDot,
 			invalidOp+"invalid use of ... with built-in %s", bin.name)
 		check.use(argList...)
@@ -76,7 +75,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			msg = "too many"
 		}
 		if msg != "" {
-			check.errorf(call, WrongArgCount, invalidOp+"%s arguments for %v (expected %d, found %d)", msg, call, bin.nargs, nargs)
+			check.errorf(argErrPos(call), WrongArgCount, invalidOp+"%s arguments for %v (expected %d, found %d)", msg, call, bin.nargs, nargs)
 			return
 		}
 	}
@@ -114,7 +113,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.HasDots {
+		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
 				if t := coreString(y.typ); t != nil && isString(t) {
@@ -909,7 +908,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// trace is only available in test mode - no need to record signature
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	assert(x.mode != invalid)
@@ -948,7 +947,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 	case *Interface:
 		return isTypeParam(t)
 	case *Named, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return false
 }
@@ -991,7 +990,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		case _Complex:
 			code = InvalidComplex
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
 
@@ -1033,15 +1032,4 @@ func arrayPtrDeref(typ Type) Type {
 		}
 	}
 	return typ
-}
-
-// unparen returns e with any enclosing parentheses stripped.
-func unparen(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
 }

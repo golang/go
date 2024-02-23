@@ -76,7 +76,7 @@ void x_cgo_getstackbound(uintptr bounds[2]);
 /*
  * Prints error then calls abort. For linux and android.
  */
-void fatalf(const char* format, ...);
+void fatalf(const char* format, ...) __attribute__ ((noreturn));
 
 /*
  * Registers the current mach thread port for EXC_BAD_ACCESS processing.

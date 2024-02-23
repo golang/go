@@ -118,7 +118,7 @@ func (sd *sysDialer) doDialTCPProto(ctx context.Context, laddr, raddr *TCPAddr, 
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd, sd.Dialer.KeepAlive, testHookSetKeepAlive), nil
+	return newTCPConn(fd, sd.Dialer.KeepAlive, sd.Dialer.KeepAliveConfig, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
 }
 
 func selfConnect(fd *netFD, err error) bool {
@@ -160,7 +160,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd, ln.lc.KeepAlive, nil), nil
+	return newTCPConn(fd, ln.lc.KeepAlive, ln.lc.KeepAliveConfig, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
 }
 
 func (ln *TCPListener) close() error {

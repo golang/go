@@ -2131,8 +2131,8 @@ func logicFlags32(x int32) flagConstant {
 
 func makeJumpTableSym(b *Block) *obj.LSym {
 	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.Func().LSym.Name, b.ID))
-	s.Set(obj.AttrDuplicateOK, true)
-	s.Set(obj.AttrLocal, true)
+	// The jump table symbol is accessed only from the function symbol.
+	s.Set(obj.AttrStatic, true)
 	return s
 }
 
@@ -2144,7 +2144,7 @@ func canRotate(c *Config, bits int64) bool {
 		return false
 	}
 	switch c.arch {
-	case "386", "amd64", "arm64":
+	case "386", "amd64", "arm64", "riscv64":
 		return true
 	case "arm", "s390x", "ppc64", "ppc64le", "wasm", "loong64":
 		return bits >= 32

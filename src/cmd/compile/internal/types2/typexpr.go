@@ -48,6 +48,20 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	}
 	check.recordUse(e, obj)
 
+	// If we want a type but don't have one, stop right here and avoid potential problems
+	// with missing underlying types. This also gives better error messages in some cases
+	// (see go.dev/issue/65344).
+	_, gotType := obj.(*TypeName)
+	if !gotType && wantType {
+		check.errorf(e, NotAType, "%s is not a type", obj.Name())
+		// avoid "declared but not used" errors
+		// (don't use Checker.use - we don't want to evaluate too much)
+		if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg /* see Checker.use1 */ {
+			v.used = true
+		}
+		return
+	}
+
 	// Type-check the object.
 	// Only call Checker.objDecl if the object doesn't have a type yet
 	// (in which case we must actually determine it) or the object is a
@@ -57,7 +71,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	// informative "not a type/value" error that this function's caller
 	// will issue (see go.dev/issue/25790).
 	typ := obj.Type()
-	if _, gotType := obj.(*TypeName); typ == nil || gotType && wantType {
+	if typ == nil || gotType && wantType {
 		check.objDecl(obj, def)
 		typ = obj.Type() // type must have been assigned by Checker.objDecl
 	}
@@ -125,7 +139,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = nilvalue
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	x.typ = typ

@@ -28,10 +28,6 @@ func assert(p bool) {
 	}
 }
 
-func unreachable() {
-	panic("unreachable")
-}
-
 // An error_ represents a type-checking error.
 // To report an error_, call Checker.report.
 type error_ struct {
@@ -102,7 +98,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
 		case syntax.Pos:
 			arg = a.String()
 		case syntax.Expr:
-			arg = syntax.String(a)
+			arg = ExprString(a)
 		case []syntax.Expr:
 			var buf strings.Builder
 			buf.WriteByte('[')
@@ -110,7 +106,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
 				if i > 0 {
 					buf.WriteString(", ")
 				}
-				buf.WriteString(syntax.String(x))
+				buf.WriteString(ExprString(x))
 			}
 			buf.WriteByte(']')
 			arg = buf.String()

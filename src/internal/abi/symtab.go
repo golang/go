@@ -107,3 +107,5 @@ const (
 )
 
 const MINFUNC = 16 // minimum size for a function
+
+const FuncTabBucketSize = 256 * MINFUNC // size of bucket in the pc->func lookup table

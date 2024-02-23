@@ -134,7 +134,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
+		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return
@@ -255,7 +255,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		// upon assignment or use.
 		if debug {
 			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
-			unreachable()
+			panic("unreachable")
 		}
 		return
 
@@ -301,7 +301,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// If the new type is not final and still untyped, just
@@ -524,7 +524,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// comparison is ok
@@ -1166,7 +1166,12 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 					}
 					i := fieldIndex(utyp.fields, check.pkg, key.Name, false)
 					if i < 0 {
-						check.errorf(kv, MissingLitField, "unknown field %s in struct literal of type %s", key.Name, base)
+						var alt Object
+						if j := fieldIndex(fields, check.pkg, key.Name, true); j >= 0 {
+							alt = fields[j]
+						}
+						msg := check.lookupError(base, key.Name, alt, true)
+						check.error(kv.Key, MissingLitField, msg)
 						continue
 					}
 					fld := fields[i]
@@ -1596,7 +1601,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			msg = "%s is not an expression"
 			code = NotAnExpr
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
 		x.mode = invalid

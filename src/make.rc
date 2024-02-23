@@ -7,9 +7,6 @@
 
 # Environment variables that control make.rc:
 #
-# GOROOT_FINAL: The expected final Go root, baked into binaries.
-# The default is the location of the Go tree during the build.
-#
 # GOHOSTARCH: The architecture for host tools (compilers and
 # binaries).  Binaries of this type must be executable on the current
 # system, so the only common reason to set this is to set

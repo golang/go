@@ -472,7 +472,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		case field:
 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -590,9 +590,9 @@ func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
 	return -1
 }
 
-// lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+// methodIndex returns the index of and method with matching package and name, or (-1, nil).
 // See Object.sameId for the meaning of foldCase.
-func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+func methodIndex(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
 	if name != "_" {
 		for i, m := range methods {
 			if m.sameId(pkg, name, foldCase) {

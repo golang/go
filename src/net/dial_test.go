@@ -690,6 +690,10 @@ func TestDialerDualStack(t *testing.T) {
 }
 
 func TestDialerKeepAlive(t *testing.T) {
+	t.Cleanup(func() {
+		testHookSetKeepAlive = func(KeepAliveConfig) {}
+	})
+
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
@@ -699,26 +703,30 @@ func TestDialerKeepAlive(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls := newLocalServer(t, "tcp")
+	ln := newLocalListener(t, "tcp", &ListenConfig{
+		KeepAlive: -1, // prevent calling hook from accepting
+	})
+	ls := (&streamListener{Listener: ln}).newLocalServer()
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { testHookSetKeepAlive = func(time.Duration) {} }()
 
 	tests := []struct {
 		ka       time.Duration
 		expected time.Duration
 	}{
 		{-1, -1},
-		{0, 15 * time.Second},
+		{0, 0},
 		{5 * time.Second, 5 * time.Second},
 		{30 * time.Second, 30 * time.Second},
 	}
 
+	var got time.Duration = -1
+	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
+
 	for _, test := range tests {
-		var got time.Duration = -1
-		testHookSetKeepAlive = func(d time.Duration) { got = d }
+		got = -1
 		d := Dialer{KeepAlive: test.ka}
 		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {

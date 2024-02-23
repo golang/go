@@ -103,3 +103,17 @@ func TestIsRegularMemory(t *testing.T) {
 		})
 	}
 }
+
+var sinkType reflect.Type
+
+func BenchmarkTypeForString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[string]()
+	}
+}
+
+func BenchmarkTypeForError(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[error]()
+	}
+}

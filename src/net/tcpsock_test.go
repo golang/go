@@ -775,8 +775,8 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
 	defer ln.Close()
 
 	got := time.Duration(-1)
-	testHookSetKeepAlive = func(d time.Duration) { got = d }
-	defer func() { testHookSetKeepAlive = func(time.Duration) {} }()
+	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
+	defer func() { testHookSetKeepAlive = func(KeepAliveConfig) {} }()
 
 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
 	if err != nil {
@@ -784,8 +784,8 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
 	}
 	defer c.Close()
 
-	if got != defaultTCPKeepAlive {
-		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAlive)
+	if got != 0 {
+		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAliveIdle)
 	}
 }
 

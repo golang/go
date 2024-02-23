@@ -42,6 +42,9 @@ var UncommonType *types.Type
 var InterfaceSwitch *types.Type
 var TypeAssert *types.Type
 
+// Interface tables (itabs)
+var ITab *types.Type
+
 func Init() {
 	// Note: this has to be called explicitly instead of being
 	// an init function so it runs after the types package has
@@ -64,6 +67,8 @@ func Init() {
 	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
 	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
 
+	ITab = fromReflect(reflect.TypeOf(abi.ITab{}))
+
 	// Make sure abi functions are correct. These functions are used
 	// by the linker which doesn't have the ability to do type layout,
 	// so we check the functions it uses here.
@@ -79,6 +84,9 @@ func Init() {
 	}
 	if got, want := int64(abi.TFlagOff(ptrSize)), Type.OffsetOf("TFlag"); got != want {
 		base.Fatalf("abi.TFlagOff() == %d, want %d", got, want)
+	}
+	if got, want := int64(abi.ITabTypeOff(ptrSize)), ITab.OffsetOf("Type"); got != want {
+		base.Fatalf("abi.ITabTypeOff() == %d, want %d", got, want)
 	}
 }
 
@@ -153,6 +161,12 @@ func (c Cursor) WritePtr(target *obj.LSym) {
 	} else {
 		objw.SymPtr(c.lsym, int(c.offset), target, 0)
 	}
+}
+func (c Cursor) WritePtrWeak(target *obj.LSym) {
+	if c.typ.Kind() != types.TUINTPTR {
+		base.Fatalf("can't write ptr, it has kind %s", c.typ.Kind())
+	}
+	objw.SymPtrWeak(c.lsym, int(c.offset), target, 0)
 }
 func (c Cursor) WriteUintptr(val uint64) {
 	if c.typ.Kind() != types.TUINTPTR {
@@ -248,6 +262,17 @@ func (c Cursor) Field(name string) Cursor {
 	}
 	base.Fatalf("couldn't find field %s in %v", name, c.typ)
 	return Cursor{}
+}
+
+func (c Cursor) Elem(i int64) Cursor {
+	if c.typ.Kind() != types.TARRAY {
+		base.Fatalf("can't call Elem on non-array %v", c.typ)
+	}
+	if i < 0 || i >= c.typ.NumElem() {
+		base.Fatalf("element access out of bounds [%d] in [0:%d]", i, c.typ.NumElem())
+	}
+	elem := c.typ.Elem()
+	return Cursor{lsym: c.lsym, offset: c.offset + i*elem.Size(), typ: elem}
 }
 
 type ArrayCursor struct {

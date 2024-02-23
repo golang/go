@@ -152,7 +152,7 @@ func TestValuesInfo(t *testing.T) {
 		// look for expression
 		var expr syntax.Expr
 		for e := range info.Types {
-			if syntax.String(e) == test.expr {
+			if ExprString(e) == test.expr {
 				expr = e
 				break
 			}
@@ -424,7 +424,7 @@ func TestTypesInfo(t *testing.T) {
 		// look for expression type
 		var typ Type
 		for e, tv := range info.Types {
-			if syntax.String(e) == test.expr {
+			if ExprString(e) == test.expr {
 				typ = tv.Type
 				break
 			}
@@ -1135,8 +1135,8 @@ func TestPredicatesInfo(t *testing.T) {
 		// look for expression predicates
 		got := "<missing>"
 		for e, tv := range info.Types {
-			//println(name, syntax.String(e))
-			if syntax.String(e) == test.expr {
+			//println(name, ExprString(e))
+			if ExprString(e) == test.expr {
 				got = predString(tv)
 				break
 			}
@@ -2193,6 +2193,12 @@ func TestIssue61737(t *testing.T) {
 	embedded := NewInterfaceType(embeddedMethods, nil)
 	iface := NewInterfaceType(methods, []Type{embedded})
 	iface.NumMethods() // unlike go/types, there is no Complete() method, so we complete implicitly
+}
+
+func TestNewAlias_Issue65455(t *testing.T) {
+	obj := NewTypeName(nopos, nil, "A", nil)
+	alias := NewAlias(obj, Typ[Int])
+	alias.Underlying() // must not panic
 }
 
 func TestIssue15305(t *testing.T) {

@@ -7,8 +7,6 @@
 package main
 
 import (
-	"cmd/go/internal/toolchain"
-	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
 	"fmt"
@@ -38,10 +36,14 @@ import (
 	"cmd/go/internal/run"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/version"
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
+	"cmd/go/internal/workcmd"
+
+	"golang.org/x/telemetry/counter"
 )
 
 func init() {
@@ -89,11 +91,13 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
+	counter.Open() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
 	flag.Usage = base.Usage
 	flag.Parse()
+	counter.CountFlags("cmd/go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -149,6 +153,7 @@ func main() {
 
 	cmd, used := lookupCmd(args)
 	cfg.CmdName = strings.Join(args[:used], " ")
+	counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	if len(cmd.Commands) > 0 {
 		if used >= len(args) {
 			help.PrintUsage(os.Stderr, cmd)
@@ -236,6 +241,7 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
+		counter.CountFlags("cmd/go/flag:"+cmd.Name()+"-", cmd.Flag)
 		args = cmd.Flag.Args()
 	}
 
@@ -320,6 +326,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
+	counter.Inc("cmd/go:flag-C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

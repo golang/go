@@ -264,7 +264,8 @@ func (s Stack) Frames(yield func(f StackFrame) bool) bool {
 		return true
 	}
 	stk := s.table.stacks.mustGet(s.id)
-	for _, f := range stk.frames {
+	for _, pc := range stk.pcs {
+		f := s.table.pcs[pc]
 		sf := StackFrame{
 			PC:   f.pc,
 			Func: s.table.strings.mustGet(f.funcID),
