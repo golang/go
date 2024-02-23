@@ -106,14 +106,8 @@ func (p *Process) release() error {
 }
 
 func findProcess(pid int) (p *Process, err error) {
-	h, err := pidfdFind(pid)
-	if err == ErrProcessDone {
-		return nil, err
-	}
-	// Ignore all other errors from pidfdFind,
-	// as the callers do not expect them, and
-	// we can use pid anyway.
-	return newProcess(pid, h), nil
+	// NOOP for unix.
+	return newProcess(pid, unsetHandle), nil
 }
 
 func (p *ProcessState) userTime() time.Duration {

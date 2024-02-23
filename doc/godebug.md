@@ -126,11 +126,6 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
-### Go 1.23
-
-Go 1.23 enabled Linux pidfd support for process lookup. This feature can be
-disabled by using the [`osfinderr` setting](/pkg/os#FindProcess).
-
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size

@@ -14,7 +14,6 @@
 package os
 
 import (
-	"internal/godebug"
 	"internal/syscall/unix"
 	"sync"
 	"syscall"
@@ -48,25 +47,6 @@ func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
 	}
 
 	return uintptr(*sysAttr.PidFD)
-}
-
-var osfinderr = godebug.New("osfinderr")
-
-func pidfdFind(pid int) (uintptr, error) {
-	if !pidfdWorks() {
-		return unsetHandle, syscall.ENOSYS
-	}
-	if osfinderr.Value() == "0" {
-		osfinderr.IncNonDefault()
-		return unsetHandle, syscall.ENOSYS
-
-	}
-
-	h, err := unix.PidFDOpen(pid, 0)
-	if err == nil {
-		return h, nil
-	}
-	return unsetHandle, convertESRCH(err)
 }
 
 func (p *Process) pidfdRelease() {
