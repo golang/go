@@ -117,10 +117,11 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 	},
 	"chan.go":         nil,
-	"const.go":        func(f *ast.File) { fixTokenPos(f) },
+	"const.go":        fixTokenPos,
 	"context.go":      nil,
 	"context_test.go": nil,
 	"conversions.go":  nil,
+	"errors_test.go":  func(f *ast.File) { renameIdents(f, "nopos->noposn") },
 	"errsupport.go":   nil,
 	"gccgosizes.go":   nil,
 	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
