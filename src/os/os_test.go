@@ -3450,7 +3450,7 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 
 	// Create a directory and file outside.
 	tmpDir := t.TempDir()
-	outsideDir, err := MkdirTemp(tmpDir, "copyfs")
+	outsideDir, err := MkdirTemp(tmpDir, "copyfs_out_")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}
@@ -3461,15 +3461,10 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 	}
 
 	// Create a directory and file inside.
-	testDataDir, err := filepath.Abs("./testdata/")
+	insideDir, err := MkdirTemp(tmpDir, "copyfs_in_")
 	if err != nil {
-		t.Fatalf("filepath.Abs: %v", err)
+		t.Fatalf("MkdirTemp: %v", err)
 	}
-	insideDir := filepath.Join(testDataDir, "copyfs")
-	if err := Mkdir(insideDir, 0755); err != nil {
-		t.Fatalf("Mkdir: %v", err)
-	}
-	defer RemoveAll(insideDir)
 	insideFile := filepath.Join(insideDir, "file.in.txt")
 	if err := WriteFile(insideFile, []byte("Testing CopyFS inside"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
@@ -3514,7 +3509,7 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 	// Copy the directory tree and verify.
 	forceMFTUpdateOnWindows(t, insideDir)
 	fsys := DirFS(insideDir)
-	tmpDupDir, err := MkdirTemp(tmpDir, "copyfs_dup")
+	tmpDupDir, err := MkdirTemp(tmpDir, "copyfs_dup_")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}
