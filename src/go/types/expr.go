@@ -1092,7 +1092,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			x.mode = value
 			x.typ = sig
 		} else {
-			check.errorf(e, InvalidSyntaxTree, "invalid function literal %s", e)
+			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
 			goto Error
 		}
 

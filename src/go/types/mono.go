@@ -138,8 +138,9 @@ func (check *Checker) reportInstanceLoop(v int) {
 
 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
 
+	err := check.newError(InvalidInstanceCycle)
 	obj0 := check.mono.vertices[v].obj
-	check.error(obj0, InvalidInstanceCycle, "instantiation cycle:")
+	err.addf(obj0, "instantiation cycle:")
 
 	qf := RelativeTo(check.pkg)
 	for _, v := range stack {
@@ -150,11 +151,12 @@ func (check *Checker) reportInstanceLoop(v int) {
 		default:
 			panic("unexpected type")
 		case *Named:
-			check.errorf(atPos(edge.pos), InvalidInstanceCycle, "\t%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+			err.addf(atPos(edge.pos), "%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
 		case *TypeParam:
-			check.errorf(atPos(edge.pos), InvalidInstanceCycle, "\t%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+			err.addf(atPos(edge.pos), "%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
 		}
 	}
+	err.report()
 }
 
 // recordCanon records that tpar is the canonical type parameter

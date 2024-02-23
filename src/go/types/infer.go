@@ -429,7 +429,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	for i, typ := range inferred {
 		if typ == nil || isParameterized(tparams, typ) {
 			obj := tparams[i].obj
-			err.addf(posn, "cannot infer %s (%s)", obj.name, obj.pos)
+			err.addf(posn, "cannot infer %s (%v)", obj.name, obj.pos)
 			return nil
 		}
 	}
