@@ -45,7 +45,7 @@ func (e *joinError) Error() string {
 	// Since Join returns nil if every value in errs is nil,
 	// e.errs cannot be empty.
 	if e.errs == nil {
-		return ""
+		return "<nil>"
 	}
 	if len(e.errs) == 1 {
 		return e.errs[0].Error()
