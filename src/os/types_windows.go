@@ -76,6 +76,19 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	}, nil
 }
 
+// newFileStatFromWin32FileAttributeData copies all required information
+// from syscall.Win32FileAttributeData d into the newly created fileStat.
+func newFileStatFromWin32FileAttributeData(d *syscall.Win32FileAttributeData) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   d.FileSizeHigh,
+		FileSizeLow:    d.FileSizeLow,
+	}
+}
+
 // newFileStatFromFileIDBothDirInfo copies all required information
 // from windows.FILE_ID_BOTH_DIR_INFO d into the newly created fileStat.
 func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileStat {
