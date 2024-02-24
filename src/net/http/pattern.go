@@ -94,7 +94,7 @@ func parsePattern(s string) (_ *pattern, err error) {
 
 	method, rest, found := s, "", false
 	if i := strings.IndexAny(s, " \t"); i >= 0 {
-		method, rest, found = s[:i], strings.Trim(s[i+1:], " \t"), true
+		method, rest, found = s[:i], strings.TrimLeft(s[i+1:], " \t"), true
 	}
 	if !found {
 		rest = method
