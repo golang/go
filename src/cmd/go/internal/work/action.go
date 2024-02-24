@@ -434,7 +434,7 @@ func (b *Builder) cacheAction(mode string, p *load.Package, f func() *Action) *A
 
 // AutoAction returns the "right" action for go build or go install of p.
 func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
-	if p.Name == "main" {
+	if !cfg.BuildCheckError && p.Name == "main" {
 		return b.LinkAction(mode, depMode, p)
 	}
 	return b.CompileAction(mode, depMode, p)

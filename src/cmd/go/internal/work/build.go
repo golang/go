@@ -247,6 +247,7 @@ func init() {
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
+	CmdInstall.Flag.BoolVar(&cfg.BuildCheckError, "checkerr", false, "set to true to validate only compilation errors and skip binary generation")
 	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
 		AddCoverFlags(CmdBuild, nil)
 		AddCoverFlags(CmdInstall, nil)
