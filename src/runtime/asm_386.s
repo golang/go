@@ -398,6 +398,35 @@ bad:
 	CALL	AX
 	INT	$3
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVL 	fn+0(FP), AX
+
+	get_tls(CX)
+	MOVL	g(CX), BX	// BX = g
+	MOVL	g_m(BX), DX	// DX = curm
+
+	// set g to gcrash
+	LEAL	runtime·gcrash(SB), BX // g = &gcrash
+	MOVL	DX, g_m(BX)            // g.m = curm
+	MOVL	BX, m_g0(DX)           // curm.g0 = g
+	get_tls(CX)
+	MOVL	BX, g(CX)
+
+	// switch to crashstack
+	MOVL	(g_stack+stack_hi)(BX), DX
+	SUBL	$(4*8), DX
+	MOVL	DX, SP
+
+	// call target function
+	MOVL	AX, DX
+	MOVL	0(AX), AX
+	CALL	AX
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -408,11 +437,19 @@ bad:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$0-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
+	MOVL	g(CX), DI
+	MOVL	g_m(DI), BX
+
+	// Set g->sched to context in f.
+	MOVL	0(SP), AX	// f's PC
+	MOVL	AX, (g_sched+gobuf_pc)(DI)
+	LEAL	4(SP), AX	// f's SP
+	MOVL	AX, (g_sched+gobuf_sp)(DI)
+	MOVL	DX, (g_sched+gobuf_ctxt)(DI)
+
 	MOVL	m_g0(BX), SI
 	CMPL	g(CX), SI
 	JNE	3(PC)
@@ -436,13 +473,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
-
-	// Set g->sched to context in f.
-	MOVL	0(SP), AX	// f's PC
-	MOVL	AX, (g_sched+gobuf_pc)(SI)
-	LEAL	4(SP), AX	// f's SP
-	MOVL	AX, (g_sched+gobuf_sp)(SI)
-	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVL	m_g0(BX), BP
