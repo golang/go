@@ -8,8 +8,10 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/asan"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
 	"runtime"
@@ -446,11 +448,11 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
 		}
 		race.Acquire(unsafe.Pointer(&ioSync))
 	}
-	if msanenabled && *done > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), int(*done))
 	}
 	return err
 }
@@ -463,11 +465,11 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error 
 	if race.Enabled && *done > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
 	}
-	if msanenabled && *done > 0 {
-		msanRead(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanRead(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), int(*done))
 	}
 	return err
 }
