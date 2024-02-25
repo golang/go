@@ -16,7 +16,7 @@ func (err *error_) recordAltDecl(obj Object) {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		err.errorf(pos, "other declaration of %s", obj.Name())
+		err.addf(pos, "other declaration of %s", obj.Name())
 	}
 }
 
@@ -27,11 +27,10 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			var err error_
-			err.code = DuplicateDecl
-			err.errorf(obj, "%s redeclared in this block", obj.Name())
+			err := check.newError(DuplicateDecl)
+			err.addf(obj, "%s redeclared in this block", obj.Name())
 			err.recordAltDecl(alt)
-			check.report(&err)
+			err.report()
 			return
 		}
 		obj.setScopePos(pos)
@@ -162,7 +161,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 			}
 
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		assert(obj.Type() != nil)
 		return
@@ -171,7 +170,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	d := check.objMap[obj]
 	if d == nil {
 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		unreachable()
+		panic("unreachable")
 	}
 
 	// save/restore current environment and set up object environment
@@ -202,7 +201,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 }
 
@@ -216,7 +215,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 		isPkgObj := obj.Parent() == check.pkg.scope
 		if isPkgObj != inObjMap {
 			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -266,7 +265,7 @@ loop:
 		case *Func:
 			// ignored for now
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -343,15 +342,14 @@ func (check *Checker) cycleError(cycle []Object) {
 		return
 	}
 
-	var err error_
-	err.code = InvalidDeclCycle
+	err := check.newError(InvalidDeclCycle)
 	if tname != nil {
-		err.errorf(obj, "invalid recursive type %s", objName)
+		err.addf(obj, "invalid recursive type %s", objName)
 	} else {
-		err.errorf(obj, "invalid cycle in declaration of %s", objName)
+		err.addf(obj, "invalid cycle in declaration of %s", objName)
 	}
 	for range cycle {
-		err.errorf(obj, "%s refers to", objName)
+		err.addf(obj, "%s refers to", objName)
 		i++
 		if i >= len(cycle) {
 			i = 0
@@ -359,8 +357,8 @@ func (check *Checker) cycleError(cycle []Object) {
 		obj = cycle[i]
 		objName = name(obj)
 	}
-	err.errorf(obj, "%s", objName)
-	check.report(&err)
+	err.addf(obj, "%s", objName)
+	err.report()
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -721,11 +719,10 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
-					var err error_
-					err.code = DuplicateFieldAndMethod
-					err.errorf(alt, "field and method with the same name %s", fld.name)
+					err := check.newError(DuplicateFieldAndMethod)
+					err.addf(alt, "field and method with the same name %s", fld.name)
 					err.recordAltDecl(fld)
-					check.report(&err)
+					err.report()
 				}
 			}
 		}

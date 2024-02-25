@@ -352,7 +352,7 @@ func (p *Profile) Remove(value any) {
 //
 // The debug parameter enables additional output.
 // Passing debug=0 writes the gzip-compressed protocol buffer described
-// in https://github.com/google/pprof/tree/master/proto#overview.
+// in https://github.com/google/pprof/tree/main/proto#overview.
 // Passing debug=1 writes the legacy text format with comments
 // translating addresses to function names and line numbers, so that a
 // programmer can read the profile without tools.

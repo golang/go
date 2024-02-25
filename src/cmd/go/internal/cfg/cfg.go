@@ -64,33 +64,31 @@ func ToolExeSuffix() string {
 
 // These are general "build flags" used by build and other commands.
 var (
-	BuildA                 bool     // -a flag
-	BuildBuildmode         string   // -buildmode flag
-	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
-	BuildContext           = defaultContext()
-	BuildMod               string                  // -mod flag
-	BuildModExplicit       bool                    // whether -mod was set explicitly
-	BuildModReason         string                  // reason -mod was set, if set by default
-	BuildLinkshared        bool                    // -linkshared flag
-	BuildMSan              bool                    // -msan flag
-	BuildASan              bool                    // -asan flag
-	BuildCover             bool                    // -cover flag
-	BuildCoverMode         string                  // -covermode flag
-	BuildCoverPkg          []string                // -coverpkg flag
-	BuildN                 bool                    // -n flag
-	BuildO                 string                  // -o flag
-	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
-	BuildPGO               string                  // -pgo flag
-	BuildPkgdir            string                  // -pkgdir flag
-	BuildRace              bool                    // -race flag
-	BuildToolexec          []string                // -toolexec flag
-	BuildToolchainName     string
-	BuildToolchainCompiler func() string
-	BuildToolchainLinker   func() string
-	BuildTrimpath          bool // -trimpath flag
-	BuildV                 bool // -v flag
-	BuildWork              bool // -work flag
-	BuildX                 bool // -x flag
+	BuildA             bool     // -a flag
+	BuildBuildmode     string   // -buildmode flag
+	BuildBuildvcs      = "auto" // -buildvcs flag: "true", "false", or "auto"
+	BuildContext       = defaultContext()
+	BuildMod           string                  // -mod flag
+	BuildModExplicit   bool                    // whether -mod was set explicitly
+	BuildModReason     string                  // reason -mod was set, if set by default
+	BuildLinkshared    bool                    // -linkshared flag
+	BuildMSan          bool                    // -msan flag
+	BuildASan          bool                    // -asan flag
+	BuildCover         bool                    // -cover flag
+	BuildCoverMode     string                  // -covermode flag
+	BuildCoverPkg      []string                // -coverpkg flag
+	BuildN             bool                    // -n flag
+	BuildO             string                  // -o flag
+	BuildP             = runtime.GOMAXPROCS(0) // -p flag
+	BuildPGO           string                  // -pgo flag
+	BuildPkgdir        string                  // -pkgdir flag
+	BuildRace          bool                    // -race flag
+	BuildToolexec      []string                // -toolexec flag
+	BuildToolchainName string
+	BuildTrimpath      bool // -trimpath flag
+	BuildV             bool // -v flag
+	BuildWork          bool // -work flag
+	BuildX             bool // -x flag
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
@@ -181,8 +179,6 @@ func defaultContext() build.Context {
 
 func init() {
 	SetGOROOT(Getenv("GOROOT"), false)
-	BuildToolchainCompiler = func() string { return "missing-compiler" }
-	BuildToolchainLinker = func() string { return "missing-linker" }
 }
 
 // SetGOROOT sets GOROOT and associated variables to the given values.
@@ -203,7 +199,6 @@ func SetGOROOT(goroot string, isTestGo bool) {
 		GOROOTpkg = filepath.Join(goroot, "pkg")
 		GOROOTsrc = filepath.Join(goroot, "src")
 	}
-	GOROOT_FINAL = findGOROOT_FINAL(goroot)
 
 	installedGOOS = runtime.GOOS
 	installedGOARCH = runtime.GOARCH
@@ -402,8 +397,6 @@ var (
 	GOROOTpkg string
 	GOROOTsrc string
 
-	GOROOT_FINAL string
-
 	GOBIN      = Getenv("GOBIN")
 	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
@@ -532,16 +525,6 @@ func findGOROOT(env string) string {
 				}
 			}
 		}
-	}
-	return def
-}
-
-func findGOROOT_FINAL(goroot string) string {
-	// $GOROOT_FINAL is only for use during make.bash
-	// so it is not settable using go/env, so we use os.Getenv here.
-	def := goroot
-	if env := os.Getenv("GOROOT_FINAL"); env != "" {
-		def = filepath.Clean(env)
 	}
 	return def
 }

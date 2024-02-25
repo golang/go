@@ -250,7 +250,42 @@ var crashFD atomic.Uintptr
 
 //go:linkname setCrashFD
 func setCrashFD(fd uintptr) uintptr {
-	return crashFD.Swap(fd)
+	// Don't change the crash FD if a crash is already in progress.
+	//
+	// Unlike the case below, this is not required for correctness, but it
+	// is generally nicer to have all of the crash output go to the same
+	// place rather than getting split across two different FDs.
+	if panicking.Load() > 0 {
+		return ^uintptr(0)
+	}
+
+	old := crashFD.Swap(fd)
+
+	// If we are panicking, don't return the old FD to runtime/debug for
+	// closing. writeErrData may have already read the old FD from crashFD
+	// before the swap and closing it would cause the write to be lost [1].
+	// The old FD will never be closed, but we are about to crash anyway.
+	//
+	// On the writeErrData thread, panicking.Add(1) happens-before
+	// crashFD.Load() [2].
+	//
+	// On this thread, swapping old FD for new in crashFD happens-before
+	// panicking.Load() > 0.
+	//
+	// Therefore, if panicking.Load() == 0 here (old FD will be closed), it
+	// is impossible for the writeErrData thread to observe
+	// crashFD.Load() == old FD.
+	//
+	// [1] Or, if really unlucky, another concurrent open could reuse the
+	// FD, sending the write into an unrelated file.
+	//
+	// [2] If gp != nil, it occurs when incrementing gp.m.dying in
+	// startpanic_m. If gp == nil, we read panicking.Load() > 0, so an Add
+	// must have happened-before.
+	if panicking.Load() > 0 {
+		return ^uintptr(0)
+	}
+	return old
 }
 
 // auxv is populated on relevant platforms but defined here for all platforms

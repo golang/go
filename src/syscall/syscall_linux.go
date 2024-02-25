@@ -17,9 +17,9 @@ import (
 	"unsafe"
 )
 
-// N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
+// N.B. RawSyscall6 is provided via linkname by internal/runtime/syscall.
 //
-// Errno is uintptr and thus compatible with the runtime/internal/syscall
+// Errno is uintptr and thus compatible with the internal/runtime/syscall
 // definition.
 
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

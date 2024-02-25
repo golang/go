@@ -21,6 +21,7 @@ const _INVALID_HANDLE_VALUE = ^uintptr(0)
 const (
 	netpollSourceReady = iota + 1
 	netpollSourceBreak
+	netpollSourceTimer
 )
 
 const (
@@ -148,15 +149,34 @@ func netpollBreak() {
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) (gList, int32) {
-	var entries [64]overlappedEntry
-	var wait, n, i uint32
-	var errno int32
-	var toRun gList
-
-	mp := getg().m
-
 	if iocphandle == _INVALID_HANDLE_VALUE {
 		return gList{}, 0
+	}
+
+	var entries [64]overlappedEntry
+	var wait uint32
+	var toRun gList
+	mp := getg().m
+
+	if delay >= 1e15 {
+		// An arbitrary cap on how long to wait for a timer.
+		// 1e15 ns == ~11.5 days.
+		delay = 1e15
+	}
+
+	if delay > 0 && mp.waitIocpHandle != 0 {
+		// GetQueuedCompletionStatusEx doesn't use a high resolution timer internally,
+		// so we use a separate higher resolution timer associated with a wait completion
+		// packet to wake up the poller. Note that the completion packet can be delivered
+		// to another thread, and the Go scheduler expects netpoll to only block up to delay,
+		// so we still need to use a timeout with GetQueuedCompletionStatusEx.
+		// TODO: Improve the Go scheduler to support non-blocking timers.
+		signaled := netpollQueueTimer(delay)
+		if signaled {
+			// There is a small window between the SetWaitableTimer and the NtAssociateWaitCompletionPacket
+			// where the timer can expire. We can return immediately in this case.
+			return gList{}, 0
+		}
 	}
 	if delay < 0 {
 		wait = _INFINITE
@@ -164,15 +184,10 @@ func netpoll(delay int64) (gList, int32) {
 		wait = 0
 	} else if delay < 1e6 {
 		wait = 1
-	} else if delay < 1e15 {
-		wait = uint32(delay / 1e6)
 	} else {
-		// An arbitrary cap on how long to wait for a timer.
-		// 1e9 ms == ~11.5 days.
-		wait = 1e9
+		wait = uint32(delay / 1e6)
 	}
-
-	n = uint32(len(entries) / int(gomaxprocs))
+	n := len(entries) / int(gomaxprocs)
 	if n < 8 {
 		n = 8
 	}
@@ -181,7 +196,7 @@ func netpoll(delay int64) (gList, int32) {
 	}
 	if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
 		mp.blocked = false
-		errno = int32(getlasterror())
+		errno := getlasterror()
 		if errno == _WAIT_TIMEOUT {
 			return gList{}, 0
 		}
@@ -190,7 +205,7 @@ func netpoll(delay int64) (gList, int32) {
 	}
 	mp.blocked = false
 	delta := int32(0)
-	for i = 0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		e := &entries[i]
 		switch unpackNetpollSource(e.key) {
 		case netpollSourceReady:
@@ -212,10 +227,58 @@ func netpoll(delay int64) (gList, int32) {
 				// Forward the notification to the blocked poller.
 				netpollBreak()
 			}
+		case netpollSourceTimer:
+			// TODO: We could avoid calling NtCancelWaitCompletionPacket for expired wait completion packets.
 		default:
 			println("runtime: GetQueuedCompletionStatusEx returned net_op with invalid key=", e.key)
 			throw("runtime: netpoll failed")
 		}
 	}
 	return toRun, delta
+}
+
+// netpollQueueTimer queues a timer to wake up the poller after the given delay.
+// It returns true if the timer expired during this call.
+func netpollQueueTimer(delay int64) (signaled bool) {
+	const (
+		STATUS_SUCCESS   = 0x00000000
+		STATUS_PENDING   = 0x00000103
+		STATUS_CANCELLED = 0xC0000120
+	)
+	mp := getg().m
+	// A wait completion packet can only be associated with one timer at a time,
+	// so we need to cancel the previous one if it exists. This wouldn't be necessary
+	// if the poller would only be woken up by the timer, in which case the association
+	// would be automatically cancelled, but it can also be woken up by other events,
+	// such as a netpollBreak, so we can get to this point with a timer that hasn't
+	// expired yet. In this case, the completion packet can still be picked up by
+	// another thread, so defer the cancellation until it is really necessary.
+	errno := stdcall2(_NtCancelWaitCompletionPacket, mp.waitIocpHandle, 1)
+	switch errno {
+	case STATUS_CANCELLED:
+		// STATUS_CANCELLED is returned when the associated timer has already expired,
+		// in which automatically cancels the wait completion packet.
+		fallthrough
+	case STATUS_SUCCESS:
+		dt := -delay / 100 // relative sleep (negative), 100ns units
+		if stdcall6(_SetWaitableTimer, mp.waitIocpTimer, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0) == 0 {
+			println("runtime: SetWaitableTimer failed; errno=", getlasterror())
+			throw("runtime: netpoll failed")
+		}
+		key := packNetpollKey(netpollSourceTimer, nil)
+		if errno := stdcall8(_NtAssociateWaitCompletionPacket, mp.waitIocpHandle, iocphandle, mp.waitIocpTimer, key, 0, 0, 0, uintptr(unsafe.Pointer(&signaled))); errno != 0 {
+			println("runtime: NtAssociateWaitCompletionPacket failed; errno=", errno)
+			throw("runtime: netpoll failed")
+		}
+	case STATUS_PENDING:
+		// STATUS_PENDING is returned if the wait operation can't be cancelled yet.
+		// This can happen if this thread was woken up by another event, such as a netpollBreak,
+		// and the timer expired just while calling NtCancelWaitCompletionPacket, in which case
+		// this call fails to cancel the association to avoid a race condition.
+		// This is a rare case, so we can just avoid using the high resolution timer this time.
+	default:
+		println("runtime: NtCancelWaitCompletionPacket failed; errno=", errno)
+		throw("runtime: netpoll failed")
+	}
+	return signaled
 }

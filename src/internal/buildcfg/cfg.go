@@ -15,26 +15,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
 var (
-	GOROOT    = runtime.GOROOT() // cached for efficiency
-	GOARCH    = envOr("GOARCH", defaultGOARCH)
-	GOOS      = envOr("GOOS", defaultGOOS)
-	GO386     = envOr("GO386", defaultGO386)
-	GOAMD64   = goamd64()
-	GOARM     = goarm()
-	GOMIPS    = gomips()
-	GOMIPS64  = gomips64()
-	GOPPC64   = goppc64()
+	GOROOT   = os.Getenv("GOROOT") // cached for efficiency
+	GOARCH   = envOr("GOARCH", defaultGOARCH)
+	GOOS     = envOr("GOOS", defaultGOOS)
+	GO386    = envOr("GO386", defaultGO386)
+	GOAMD64  = goamd64()
+	GOARM    = goarm()
+	GOMIPS   = gomips()
+	GOMIPS64 = gomips64()
+	GOPPC64  = goppc64()
 	GORISCV64 = goriscv64()
-	GOWASM    = gowasm()
-	ToolTags  = toolTags()
-	GO_LDSO   = defaultGO_LDSO
-	Version   = version
+	GOWASM   = gowasm()
+	ToolTags = toolTags()
+	GO_LDSO  = defaultGO_LDSO
+	Version  = version
 )
 
 // Error is one of the errors found (if any) in the build configuration.

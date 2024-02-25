@@ -223,7 +223,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
-		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
 		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
 		"TESTGO_GOROOT=" + testGOROOT,

@@ -474,7 +474,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		case field:
 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 

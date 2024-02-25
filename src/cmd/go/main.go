@@ -97,7 +97,7 @@ func main() {
 
 	flag.Usage = base.Usage
 	flag.Parse()
-	counter.CountFlags("cmd/go:flag-", *flag.CommandLine)
+	counter.CountFlags("cmd/go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -153,7 +153,7 @@ func main() {
 
 	cmd, used := lookupCmd(args)
 	cfg.CmdName = strings.Join(args[:used], " ")
-	counter.Inc("cmd/go:subcommand-" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	if len(cmd.Commands) > 0 {
 		if used >= len(args) {
 			help.PrintUsage(os.Stderr, cmd)
@@ -241,7 +241,7 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		counter.CountFlags("cmd/go/"+cmd.Name()+":flag-", cmd.Flag)
+		counter.CountFlags("cmd/go/flag:"+cmd.Name()+"-", cmd.Flag)
 		args = cmd.Flag.Args()
 	}
 

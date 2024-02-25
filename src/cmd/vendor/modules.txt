@@ -22,7 +22,7 @@ golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+# golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
 ## explicit; go 1.21
 golang.org/x/build/relnote
 # golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
@@ -44,13 +44,13 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
+# golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808
 ## explicit; go 1.20
 golang.org/x/telemetry/counter
 golang.org/x/telemetry/internal/counter
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
-# golang.org/x/term v0.16.0
+# golang.org/x/term v0.17.0
 ## explicit; go 1.18
 golang.org/x/term
 # golang.org/x/text v0.14.0
@@ -63,7 +63,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+# golang.org/x/tools v0.18.0
 ## explicit; go 1.18
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -110,6 +110,7 @@ golang.org/x/tools/go/ast/inspector
 golang.org/x/tools/go/cfg
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/bisect
 golang.org/x/tools/internal/facts

@@ -17,7 +17,7 @@ import (
 type testCase struct {
 	Name    string
 	Fn      func(*ast.File) bool
-	Version int
+	Version string
 	In      string
 	Out     string
 }
@@ -96,7 +96,7 @@ func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
-			if tt.Version == 0 {
+			if tt.Version == "" {
 				if testing.Verbose() {
 					// Don't run in parallel: cmd/fix sometimes writes directly to stderr,
 					// and since -v prints which test is currently running we want that
@@ -105,10 +105,10 @@ func TestRewrite(t *testing.T) {
 					t.Parallel()
 				}
 			} else {
-				old := goVersion
-				goVersion = tt.Version
+				old := *goVersion
+				*goVersion = tt.Version
 				defer func() {
-					goVersion = old
+					*goVersion = old
 				}()
 			}
 

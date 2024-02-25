@@ -3406,7 +3406,7 @@ func (v Value) Comparable() bool {
 		return v.Type().Comparable()
 
 	case Interface:
-		return v.Elem().Comparable()
+		return v.IsNil() || v.Elem().Comparable()
 
 	case Struct:
 		for i := 0; i < v.NumField(); i++ {

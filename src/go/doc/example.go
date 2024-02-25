@@ -388,7 +388,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
-			// Inpect type parameters.
+			// Inspect type parameters.
 			inspectFieldList(d.Type.TypeParams)
 			// Inspect types of parameters and results. See #28492.
 			inspectFieldList(d.Type.Params)

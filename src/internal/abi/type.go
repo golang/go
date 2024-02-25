@@ -749,3 +749,34 @@ const (
 	TraceArgsOffsetTooLarge = 0xfb
 	TraceArgsSpecial        = 0xf0 // above this are operators, below this are ordinary offsets
 )
+
+// MaxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
+// which holds 1-bit entries describing where pointers are in a given type.
+// Above this length, the GC information is recorded as a GC program,
+// which can express repetition compactly. In either form, the
+// information is used by the runtime to initialize the heap bitmap,
+// and for large types (like 128 or more words), they are roughly the
+// same speed. GC programs are never much larger and often more
+// compact. (If large arrays are involved, they can be arbitrarily
+// more compact.)
+//
+// The cutoff must be large enough that any allocation large enough to
+// use a GC program is large enough that it does not share heap bitmap
+// bytes with any other objects, allowing the GC program execution to
+// assume an aligned start and not use atomic operations. In the current
+// runtime, this means all malloc size classes larger than the cutoff must
+// be multiples of four words. On 32-bit systems that's 16 bytes, and
+// all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
+// On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
+// for size classes >= 256 bytes. On a 64-bit system, 256 bytes allocated
+// is 32 pointers, the bits for which fit in 4 bytes. So MaxPtrmaskBytes
+// must be >= 4.
+//
+// We used to use 16 because the GC programs do have some constant overhead
+// to get started, and processing 128 pointers seems to be enough to
+// amortize that overhead well.
+//
+// To make sure that the runtime's chansend can call typeBitsBulkBarrier,
+// we raised the limit to 2048, so that even 32-bit systems are guaranteed to
+// use bitmaps for objects up to 64 kB in size.
+const MaxPtrmaskBytes = 2048

@@ -513,7 +513,7 @@ func (check *Checker) recordUntyped() {
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
 			check.dump("%v: %s (type %s) is typed", atPos(x), x, info.typ)
-			unreachable()
+			panic("unreachable")
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
 	}
@@ -578,7 +578,7 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 		case *syntax.ParenExpr:
 			f = p.X
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 }

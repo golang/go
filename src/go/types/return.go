@@ -17,7 +17,7 @@ import (
 func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
 	switch s := s.(type) {
 	default:
-		unreachable()
+		panic("unreachable")
 
 	case *ast.BadStmt, *ast.DeclStmt, *ast.EmptyStmt, *ast.SendStmt,
 		*ast.IncDecStmt, *ast.AssignStmt, *ast.GoStmt, *ast.DeferStmt,
@@ -110,7 +110,7 @@ func (check *Checker) isTerminatingSwitch(body *ast.BlockStmt, label string) boo
 func hasBreak(s ast.Stmt, label string, implicit bool) bool {
 	switch s := s.(type) {
 	default:
-		unreachable()
+		panic("unreachable")
 
 	case *ast.BadStmt, *ast.DeclStmt, *ast.EmptyStmt, *ast.ExprStmt,
 		*ast.SendStmt, *ast.IncDecStmt, *ast.AssignStmt, *ast.GoStmt,

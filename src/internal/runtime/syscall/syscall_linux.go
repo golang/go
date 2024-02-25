@@ -60,3 +60,8 @@ func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
 	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
 	return e
 }
+
+func Eventfd(initval, flags int32) (fd int32, errno uintptr) {
+	r1, _, e := Syscall6(SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0, 0, 0, 0)
+	return int32(r1), e
+}

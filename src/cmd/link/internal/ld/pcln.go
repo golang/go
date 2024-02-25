@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -808,18 +807,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	return state
 }
 
-func gorootFinal() string {
-	root := buildcfg.GOROOT
-	if final := os.Getenv("GOROOT_FINAL"); final != "" {
-		root = final
-	}
-	return root
-}
-
 func expandGoroot(s string) string {
 	const n = len("$GOROOT")
 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
-		if final := gorootFinal(); final != "" {
+		if final := buildcfg.GOROOT; final != "" {
 			return filepath.ToSlash(filepath.Join(final, s[n:]))
 		}
 	}

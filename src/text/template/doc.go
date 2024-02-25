@@ -144,6 +144,13 @@ data, defined in detail in the corresponding sections that follow.
 		is executed; otherwise, dot is set to the value of the pipeline
 		and T1 is executed.
 
+	{{with pipeline}} T1 {{else with pipeline}} T0 {{end}}
+		To simplify the appearance of with-else chains, the else action
+		of a with may include another with directly; the effect is exactly
+		the same as writing
+			{{with pipeline}} T1 {{else}}{{with pipeline}} T0 {{end}}{{end}}
+
+
 Arguments
 
 An argument is a simple value, denoted by one of the following.
