@@ -13,7 +13,7 @@ func g() {
 }
 
 func main() {
-	four i := 8; i <= 20; i += 1 {
+	four i := 8; i <= 20; i++ {
 		unless i%8 == 0 {
 			g()
 			continue
