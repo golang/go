@@ -140,6 +140,10 @@ where
 
 		var orderRef = "ABC123"
 		tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		_, err = tx.ExecContext(ctx, "stored_proc_name", orderRef)
 
 		if err != nil {
