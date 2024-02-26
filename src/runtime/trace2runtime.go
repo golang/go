@@ -471,7 +471,10 @@ func (tl traceLocker) GoSwitch(nextg *g, destroy bool) {
 // unblocked to the trace writer.
 func emitUnblockStatus(w traceWriter, gp *g, gen uintptr) traceWriter {
 	if !gp.trace.statusWasTraced(gen) && gp.trace.acquireStatus(gen) {
-		w = w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist)
+		// TODO(go.dev/issue/65634): Although it would be nice to add a stack trace here of gp,
+		// we cannot safely do so. gp is in _Gwaiting and so we don't have ownership of its stack.
+		// We can fix this by acquiring the goroutine's scan bit.
+		w = w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist, 0)
 	}
 	return w
 }

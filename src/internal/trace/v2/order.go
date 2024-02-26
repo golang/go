@@ -140,6 +140,9 @@ var orderingDispatch = [256]orderingHandleFunc{
 	go122.EvGoSwitch:        (*ordering).advanceGoSwitch,
 	go122.EvGoSwitchDestroy: (*ordering).advanceGoSwitch,
 	go122.EvGoCreateBlocked: (*ordering).advanceGoCreate,
+
+	// GoStatus event with a stack. Added in Go 1.23.
+	go122.EvGoStatusStack: (*ordering).advanceGoStatus,
 }
 
 func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {

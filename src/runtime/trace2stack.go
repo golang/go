@@ -27,8 +27,9 @@ const (
 	logicalStackSentinel = ^uintptr(0)
 )
 
-// traceStack captures a stack trace and registers it in the trace stack table.
-// It then returns its unique ID.
+// traceStack captures a stack trace from a goroutine and registers it in the trace
+// stack table. It then returns its unique ID. If gp == nil, then traceStack will
+// attempt to use the current execution context.
 //
 // skip controls the number of leaf frames to omit in order to hide tracer internals
 // from stack traces, see CL 5523.
@@ -36,13 +37,22 @@ const (
 // Avoid calling this function directly. gen needs to be the current generation
 // that this stack trace is being written out for, which needs to be synchronized with
 // generations moving forward. Prefer traceEventWriter.stack.
-func traceStack(skip int, mp *m, gen uintptr) uint64 {
+func traceStack(skip int, gp *g, gen uintptr) uint64 {
 	var pcBuf [traceStackSize]uintptr
 
-	gp := getg()
-	curgp := gp.m.curg
+	// Figure out gp and mp for the backtrace.
+	var mp *m
+	if gp == nil {
+		mp = getg().m
+		gp = mp.curg
+	}
+	if gp != nil && mp == nil {
+		// We're getting the backtrace for a G that's not currently executing.
+		// It may still have an M, if it's locked to some M.
+		mp = gp.lockedm.ptr()
+	}
 	nstk := 1
-	if tracefpunwindoff() || mp.hasCgoOnStack() {
+	if tracefpunwindoff() || (mp != nil && mp.hasCgoOnStack()) {
 		// Slow path: Unwind using default unwinder. Used when frame pointer
 		// unwinding is unavailable or disabled (tracefpunwindoff), or might
 		// produce incomplete results or crashes (hasCgoOnStack). Note that no
@@ -50,30 +60,36 @@ func traceStack(skip int, mp *m, gen uintptr) uint64 {
 		// motivation is to take advantage of a potentially registered cgo
 		// symbolizer.
 		pcBuf[0] = logicalStackSentinel
-		if curgp == gp {
+		if getg() == gp {
 			nstk += callers(skip+1, pcBuf[1:])
-		} else if curgp != nil {
-			nstk += gcallers(curgp, skip, pcBuf[1:])
+		} else if gp != nil {
+			nstk += gcallers(gp, skip, pcBuf[1:])
 		}
 	} else {
 		// Fast path: Unwind using frame pointers.
 		pcBuf[0] = uintptr(skip)
-		if curgp == gp {
+		if getg() == gp {
 			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf[1:])
-		} else if curgp != nil {
-			// We're called on the g0 stack through mcall(fn) or systemstack(fn). To
+		} else if gp != nil {
+			// Two cases:
+			//
+			// (1) We're called on the g0 stack through mcall(fn) or systemstack(fn). To
 			// behave like gcallers above, we start unwinding from sched.bp, which
 			// points to the caller frame of the leaf frame on g's stack. The return
 			// address of the leaf frame is stored in sched.pc, which we manually
 			// capture here.
-			pcBuf[1] = curgp.sched.pc
-			nstk += 1 + fpTracebackPCs(unsafe.Pointer(curgp.sched.bp), pcBuf[2:])
+			//
+			// (2) We're called against a gp that we're not currently executing on, in
+			// which case it's currently not executing. gp.sched contains the most up-to-date
+			// information about where it stopped, and like case (1), we match gcallers here.
+			pcBuf[1] = gp.sched.pc
+			nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
 		}
 	}
 	if nstk > 0 {
 		nstk-- // skip runtime.goexit
 	}
-	if nstk > 0 && curgp.goid == 1 {
+	if nstk > 0 && gp.goid == 1 {
 		nstk-- // skip runtime.main
 	}
 	id := trace.stackTab[gen%2].put(pcBuf[:nstk])

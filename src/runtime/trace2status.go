@@ -48,7 +48,7 @@ const (
 )
 
 // writeGoStatus emits a GoStatus event as well as any active ranges on the goroutine.
-func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus, markAssist bool) traceWriter {
+func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus, markAssist bool, stackID uint64) traceWriter {
 	// The status should never be bad. Some invariant must have been violated.
 	if status == traceGoBad {
 		print("runtime: goid=", goid, "\n")
@@ -56,7 +56,11 @@ func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus,
 	}
 
 	// Trace the status.
-	w = w.event(traceEvGoStatus, traceArg(goid), traceArg(uint64(mid)), traceArg(status))
+	if stackID == 0 {
+		w = w.event(traceEvGoStatus, traceArg(goid), traceArg(uint64(mid)), traceArg(status))
+	} else {
+		w = w.event(traceEvGoStatusStack, traceArg(goid), traceArg(uint64(mid)), traceArg(status), traceArg(stackID))
+	}
 
 	// Trace any special ranges that are in-progress.
 	if markAssist {

@@ -604,7 +604,7 @@ func (e Event) StateTransition() StateTransition {
 	case go122.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoStatus:
+	case go122.EvGoStatus, go122.EvGoStatusStack:
 		// N.B. ordering.advance populates e.base.extra.
 		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])
 	default:
@@ -656,6 +656,7 @@ var go122Type2Kind = [...]EventKind{
 	go122.EvGoSwitch:            EventStateTransition,
 	go122.EvGoSwitchDestroy:     EventStateTransition,
 	go122.EvGoCreateBlocked:     EventStateTransition,
+	go122.EvGoStatusStack:       EventStateTransition,
 	evSync:                      EventSync,
 }
 

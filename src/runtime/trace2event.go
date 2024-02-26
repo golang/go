@@ -86,6 +86,9 @@ const (
 	traceEvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
 	traceEvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
 	traceEvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+
+	// GoStatus with stack.
+	traceEvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
 )
 
 // traceArg is a simple wrapper type to help ensure that arguments passed
@@ -119,7 +122,7 @@ func (tl traceLocker) eventWriter(goStatus traceGoStatus, procStatus traceProcSt
 		w = w.writeProcStatus(uint64(pp.id), procStatus, pp.trace.inSweep)
 	}
 	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
-		w = w.writeGoStatus(uint64(gp.goid), int64(tl.mp.procid), goStatus, gp.inMarkAssist)
+		w = w.writeGoStatus(uint64(gp.goid), int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */)
 	}
 	return traceEventWriter{w}
 }
@@ -168,7 +171,7 @@ func (w traceWriter) event(ev traceEv, args ...traceArg) traceWriter {
 // It then returns a traceArg representing that stack which may be
 // passed to write.
 func (tl traceLocker) stack(skip int) traceArg {
-	return traceArg(traceStack(skip, tl.mp, tl.gen))
+	return traceArg(traceStack(skip, nil, tl.gen))
 }
 
 // startPC takes a start PC for a goroutine and produces a unique

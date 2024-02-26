@@ -254,7 +254,8 @@ var errSkip = errors.New("skip event")
 // returns a descriptive error.
 func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR error) {
 	var mappedType event.Type
-	mappedArgs := ev.Args
+	var mappedArgs timedEventArgs
+	copy(mappedArgs[:], ev.Args[:])
 
 	switch ev.Type {
 	case oldtrace.EvGomaxprocs:
@@ -278,7 +279,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 					base: baseEvent{
 						typ:  go122.EvGoStatus,
 						time: Time(ev.Ts),
-						args: [4]uint64{uint64(gid), ^uint64(0), uint64(go122.GoRunnable)},
+						args: timedEventArgs{uint64(gid), ^uint64(0), uint64(go122.GoRunnable)},
 					},
 				})
 			}
@@ -289,20 +290,20 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		it.procMs[ProcID(ev.P)] = ThreadID(ev.Args[0])
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
 			mappedType = go122.EvProcStart
-			mappedArgs = [4]uint64{uint64(ev.P)}
+			mappedArgs = timedEventArgs{uint64(ev.P)}
 		} else {
 			it.seenProcs[ProcID(ev.P)] = struct{}{}
 			mappedType = go122.EvProcStatus
-			mappedArgs = [4]uint64{uint64(ev.P), uint64(go122.ProcRunning)}
+			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcRunning)}
 		}
 	case oldtrace.EvProcStop:
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
 			mappedType = go122.EvProcStop
-			mappedArgs = [4]uint64{uint64(ev.P)}
+			mappedArgs = timedEventArgs{uint64(ev.P)}
 		} else {
 			it.seenProcs[ProcID(ev.P)] = struct{}{}
 			mappedType = go122.EvProcStatus
-			mappedArgs = [4]uint64{uint64(ev.P), uint64(go122.ProcIdle)}
+			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcIdle)}
 		}
 	case oldtrace.EvGCStart:
 		mappedType = go122.EvGCBegin
@@ -312,10 +313,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		sid := it.builtinToStringID[sSTWUnknown+it.trace.STWReason(ev.Args[0])]
 		it.lastStwReason = sid
 		mappedType = go122.EvSTWBegin
-		mappedArgs = [4]uint64{uint64(sid)}
+		mappedArgs = timedEventArgs{uint64(sid)}
 	case oldtrace.EvSTWDone:
 		mappedType = go122.EvSTWEnd
-		mappedArgs = [4]uint64{it.lastStwReason}
+		mappedArgs = timedEventArgs{it.lastStwReason}
 	case oldtrace.EvGCSweepStart:
 		mappedType = go122.EvGCSweepBegin
 	case oldtrace.EvGCSweepDone:
@@ -329,7 +330,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 	case oldtrace.EvGoStart:
 		if it.preInit {
 			mappedType = go122.EvGoStatus
-			mappedArgs = [4]uint64{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
+			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
 			delete(it.createdPreInit, GoID(ev.Args[0]))
 		} else {
 			mappedType = go122.EvGoStart
@@ -345,7 +346,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			base: baseEvent{
 				typ:  go122.EvGoLabel,
 				time: Time(ev.Ts),
-				args: [4]uint64{ev.Args[2]},
+				args: timedEventArgs{ev.Args[2]},
 			},
 		}}
 		return Event{
@@ -358,49 +359,49 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			base: baseEvent{
 				typ:  go122.EvGoStart,
 				time: Time(ev.Ts),
-				args: ev.Args,
+				args: mappedArgs,
 			},
 		}, nil
 	case oldtrace.EvGoEnd:
 		mappedType = go122.EvGoDestroy
 	case oldtrace.EvGoStop:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
 	case oldtrace.EvGoSched:
 		mappedType = go122.EvGoStop
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
 	case oldtrace.EvGoPreempt:
 		mappedType = go122.EvGoStop
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
 	case oldtrace.EvGoSleep:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlock:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
 	case oldtrace.EvGoUnblock:
 		mappedType = go122.EvGoUnblock
 	case oldtrace.EvGoBlockSend:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockRecv:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockSelect:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockSync:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockCond:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockNet:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
 	case oldtrace.EvGoBlockGC:
 		mappedType = go122.EvGoBlock
-		mappedArgs = [4]uint64{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
 	case oldtrace.EvGoSysCall:
 		// Look for the next event for the same G to determine if the syscall
 		// blocked.
@@ -419,7 +420,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		})
 		if blocked {
 			mappedType = go122.EvGoSyscallBegin
-			mappedArgs = [4]uint64{1: uint64(ev.StkID)}
+			mappedArgs = timedEventArgs{1: uint64(ev.StkID)}
 		} else {
 			// Convert the old instantaneous syscall event to a pair of syscall
 			// begin and syscall end and give it the shortest possible duration,
@@ -434,7 +435,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 				base: baseEvent{
 					typ:  go122.EvGoSyscallBegin,
 					time: Time(ev.Ts),
-					args: [4]uint64{1: uint64(ev.StkID)},
+					args: timedEventArgs{1: uint64(ev.StkID)},
 				},
 			}
 
@@ -444,7 +445,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 				base: baseEvent{
 					typ:  go122.EvGoSyscallEnd,
 					time: Time(ev.Ts + 1),
-					args: [4]uint64{},
+					args: timedEventArgs{},
 				},
 			}
 
@@ -458,14 +459,14 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		return Event{}, errSkip
 	case oldtrace.EvGoWaiting:
 		mappedType = go122.EvGoStatus
-		mappedArgs = [4]uint64{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
+		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
 	case oldtrace.EvGoInSyscall:
 		mappedType = go122.EvGoStatus
 		// In the new tracer, GoStatus with GoSyscall knows what thread the
 		// syscall is on. In the old tracer, EvGoInSyscall doesn't contain that
 		// information and all we can do here is specify NoThread.
-		mappedArgs = [4]uint64{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
+		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
 	case oldtrace.EvHeapAlloc:
 		mappedType = go122.EvHeapAlloc
@@ -481,7 +482,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		if parent == 0 {
 			parent = uint64(NoTask)
 		}
-		mappedArgs = [4]uint64{ev.Args[0], parent, ev.Args[2], uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{ev.Args[0], parent, ev.Args[2], uint64(ev.StkID)}
 		name, _ := it.evt.strings.get(stringID(ev.Args[2]))
 		it.tasks[TaskID(ev.Args[0])] = taskState{name: name, parentID: TaskID(ev.Args[1])}
 	case oldtrace.EvUserTaskEnd:
@@ -491,14 +492,14 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		ts, ok := it.tasks[TaskID(ev.Args[0])]
 		if ok {
 			delete(it.tasks, TaskID(ev.Args[0]))
-			mappedArgs = [4]uint64{
+			mappedArgs = timedEventArgs{
 				ev.Args[0],
 				ev.Args[1],
 				uint64(ts.parentID),
 				uint64(it.evt.addExtraString(ts.name)),
 			}
 		} else {
-			mappedArgs = [4]uint64{ev.Args[0], ev.Args[1], uint64(NoTask), uint64(it.evt.addExtraString(""))}
+			mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], uint64(NoTask), uint64(it.evt.addExtraString(""))}
 		}
 	case oldtrace.EvUserRegion:
 		switch ev.Args[1] {
@@ -507,10 +508,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		case 1: // end
 			mappedType = go122.EvUserRegionEnd
 		}
-		mappedArgs = [4]uint64{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
 	case oldtrace.EvUserLog:
 		mappedType = go122.EvUserLog
-		mappedArgs = [4]uint64{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
+		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
 	case oldtrace.EvCPUSample:
 		mappedType = go122.EvCPUSample
 		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
@@ -518,7 +519,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		// they have the arguments stack, M, P, G.
 		//
 		// In Go 1.21, CPU samples did not have Ms.
-		mappedArgs = [4]uint64{uint64(ev.StkID), ^uint64(0), uint64(ev.P), ev.G}
+		mappedArgs = timedEventArgs{uint64(ev.StkID), ^uint64(0), uint64(ev.P), ev.G}
 	default:
 		return Event{}, fmt.Errorf("unexpected event type %v", ev.Type)
 	}

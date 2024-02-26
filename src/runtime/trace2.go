@@ -323,6 +323,7 @@ func traceAdvance(stopTrace bool) {
 		gp           *g
 		goid         uint64
 		mid          int64
+		stackID      uint64
 		status       uint32
 		waitreason   waitReason
 		inMarkAssist bool
@@ -366,6 +367,7 @@ func traceAdvance(stopTrace bool) {
 				ug.status = readgstatus(s.g) &^ _Gscan
 				ug.waitreason = s.g.waitreason
 				ug.inMarkAssist = s.g.inMarkAssist
+				ug.stackID = traceStack(0, gp, gen)
 			}
 			resumeG(s)
 			casgstatus(me, _Gwaiting, _Grunning)
@@ -542,7 +544,7 @@ func traceAdvance(stopTrace bool) {
 		// traced in gen between when we recorded it and now. If that's true, the goid
 		// and status we recorded then is exactly what we want right now.
 		status := goStatusToTraceGoStatus(ug.status, ug.waitreason)
-		statusWriter = statusWriter.writeGoStatus(ug.goid, ug.mid, status, ug.inMarkAssist)
+		statusWriter = statusWriter.writeGoStatus(ug.goid, ug.mid, status, ug.inMarkAssist, ug.stackID)
 	}
 	statusWriter.flush().end()
 
