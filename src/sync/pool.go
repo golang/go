@@ -76,6 +76,7 @@ type poolLocal struct {
 }
 
 // from runtime
+//
 //go:linkname runtime_randn runtime.randn
 func runtime_randn(n uint32) uint32
 
