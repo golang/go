@@ -565,7 +565,22 @@ func traceAdvance(stopTrace bool) {
 		unlock(&trace.lock)
 	})
 
+	// Perform status reset on dead Ps because they just appear as idle.
+	//
+	// Preventing preemption is sufficient to access allp safely. allp is only
+	// mutated by GOMAXPROCS calls, which require a STW.
+	//
+	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
+	// events to indicate whether a P exists, rather than just making its
+	// existence implicit.
+	mp = acquirem()
+	for _, pp := range allp[len(allp):cap(allp)] {
+		pp.trace.readyNextGen(traceNextGen(gen))
+	}
+	releasem(mp)
+
 	if stopTrace {
+		// Acquire the shutdown sema to begin the shutdown process.
 		semacquire(&traceShutdownSema)
 
 		// Finish off CPU profile reading.
@@ -586,16 +601,6 @@ func traceAdvance(stopTrace bool) {
 			}
 			traceRelease(tl)
 		})
-		// Perform status reset on dead Ps because they just appear as idle.
-		//
-		// Holding worldsema prevents allp from changing.
-		//
-		// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
-		// events to indicate whether a P exists, rather than just making its
-		// existence implicit.
-		for _, pp := range allp[len(allp):cap(allp)] {
-			pp.trace.readyNextGen(traceNextGen(gen))
-		}
 		semrelease(&worldsema)
 	}
 
