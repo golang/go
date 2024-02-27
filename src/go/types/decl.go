@@ -502,7 +502,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		// if any, would not be checked.
 		//
 		// TODO(gri) If we have no init expr, we should distribute
-		// a given type otherwise we need to re-evalate the type
+		// a given type otherwise we need to re-evaluate the type
 		// expr for each lhs variable, leading to duplicate work.
 	}
 
