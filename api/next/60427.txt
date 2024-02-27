@@ -1,4 +1,4 @@
-pkg reflect, method (Type) OverflowComplex(complex128) bool #60427
-pkg reflect, method (Type) OverflowFloat(float64) bool #60427
-pkg reflect, method (Type) OverflowInt(int64) bool #60427
-pkg reflect, method (Type) OverflowUint(uint64) bool #60427
+pkg reflect, type Type interface, OverflowComplex(complex128) bool #60427
+pkg reflect, type Type interface, OverflowFloat(float64) bool #60427
+pkg reflect, type Type interface, OverflowInt(int64) bool #60427
+pkg reflect, type Type interface, OverflowUint(uint64) bool #60427
