@@ -183,7 +183,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	case statement:
 		return
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
 }
@@ -341,11 +341,10 @@ L:
 // 			if T != nil {
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
-// 			var err error_
-//			err.code = DuplicateCase
-// 			err.errorf(e, "duplicate case %s in type switch", Ts)
-// 			err.errorf(other, "previous case")
-// 			check.report(&err)
+// 			err := check.newError(_DuplicateCase)
+// 			err.addf(e, "duplicate case %s in type switch", Ts)
+// 			err.addf(other, "previous case")
+// 			err.report()
 // 			continue L
 // 		}
 // 		seen[hash] = e
@@ -837,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	type identType = ast.Ident
 	identName := func(n *identType) string { return n.Name }
 	sKey, sValue := s.Key, s.Value
-	var sExtra ast.Expr = nil
+	var sExtra ast.Expr = nil // (used only in types2 fork)
 	isDef := s.Tok == token.DEFINE
 	rangeVar := s.X
 	noNewVarPos := inNode(s, s.TokPos)

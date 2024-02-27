@@ -258,9 +258,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// when building things in GOROOT.
 		//
 		// The C compiler does not, but for packages in GOROOT we rewrite the path
-		// as though -trimpath were set, so that we don't invalidate the build cache
-		// (and especially any precompiled C archive files) when changing
-		// GOROOT_FINAL. (See https://go.dev/issue/50183.)
+		// as though -trimpath were set. This used to be so that we did not invalidate
+		// the build cache (and especially precompiled archive files) when changing
+		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
+		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
+		// (https://go.dev/issue/62047).
+		// TODO(bcmills): Figure out whether this behavior is still useful.
 		//
 		// b.WorkDir is always either trimmed or rewritten to
 		// the literal string "/tmp/go-build".
@@ -1403,11 +1406,11 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
-		// The linker writes source file paths that say GOROOT_FINAL, but
-		// only if -trimpath is not specified (see ld() in gc.go).
-		gorootFinal := cfg.GOROOT_FINAL
+		// The linker writes source file paths that refer to GOROOT,
+		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
+		gorootFinal := cfg.GOROOT
 		if cfg.BuildTrimpath {
-			gorootFinal = trimPathGoRootFinal
+			gorootFinal = ""
 		}
 		fmt.Fprintf(h, "GOROOT=%s\n", gorootFinal)
 
@@ -2130,7 +2133,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 	file = mkAbs(p.Dir, file)
 	outfile = mkAbs(p.Dir, outfile)
 
-	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
+	// Elide source directory paths if -trimpath is set.
 	// This is needed for source files (e.g., a .c file in a package directory).
 	// TODO(golang.org/issue/36072): cgo also generates files with #line
 	// directives pointing to the source directory. It should not generate those

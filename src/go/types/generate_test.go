@@ -95,43 +95,66 @@ func generate(t *testing.T, filename string, write bool) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
-	"alias.go":          nil,
+	"alias.go": nil,
+	"assignments.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast", "poser->positioner", "nopos->noposn")
+	},
 	"array.go":          nil,
 	"api_predicates.go": nil,
 	"basic.go":          nil,
-	"chan.go":           nil,
-	"const.go":          func(f *ast.File) { fixTokenPos(f) },
-	"context.go":        nil,
-	"context_test.go":   nil,
-	"errsupport.go":     nil,
-	"gccgosizes.go":     nil,
-	"gcsizes.go":        func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
-	"hilbert_test.go":   func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
-	"infer.go": func(f *ast.File) {
-		fixTokenPos(f)
-		fixInferSig(f)
+	"builtins.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameIdents(f, "syntax->ast")
+		renameSelectors(f, "ArgList->Args")
+		fixSelValue(f)
+		fixAtPosCall(f)
 	},
+	"builtins_test.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`, `"cmd/compile/internal/types2"->"go/types"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "p.Value->p.Name") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
+	},
+	"chan.go":         nil,
+	"const.go":        fixTokenPos,
+	"context.go":      nil,
+	"context_test.go": nil,
+	"conversions.go":  nil,
+	"errors_test.go":  func(f *ast.File) { renameIdents(f, "nopos->noposn") },
+	"errsupport.go":   nil,
+	"gccgosizes.go":   nil,
+	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
-	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
 	"main_test.go":        nil,
 	"map.go":              nil,
-	"named.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
+	"named.go":            func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
-	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"objset.go":           nil,
-	"package.go":          nil,
-	"pointer.go":          nil,
-	"predicates.go":       nil,
-	"scope.go": func(f *ast.File) {
-		fixTokenPos(f)
-		renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy")
+	"operand.go": func(f *ast.File) {
+		insertImportPath(f, `"go/token"`)
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f,
+			"syntax.Pos->token.Pos", "syntax.LitKind->token.Token",
+			"syntax.IntLit->token.INT", "syntax.FloatLit->token.FLOAT",
+			"syntax.ImagLit->token.IMAG", "syntax.RuneLit->token.CHAR",
+			"syntax.StringLit->token.STRING") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
 	},
+	"package.go":       nil,
+	"pointer.go":       nil,
+	"predicates.go":    nil,
+	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
 	"selection.go":     nil,
 	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
 	"slice.go":         nil,
-	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
+	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"termlist.go":      nil,
 	"termlist_test.go": nil,
 	"tuple.go":         nil,
@@ -139,6 +162,7 @@ var filemap = map[string]action{
 	"typeparam.go":     nil,
 	"typeterm_test.go": nil,
 	"typeterm.go":      nil,
+	"typestring.go":    nil,
 	"under.go":         nil,
 	"unify.go":         fixSprintf,
 	"universe.go":      fixGlobalTypVarDecl,
@@ -149,38 +173,136 @@ var filemap = map[string]action{
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
 //           For now this is a good starting point.
 
-// renameIdent renames identifiers: each renames entry is of the form from->to.
-// Note: This doesn't change the use of the identifiers in comments.
-func renameIdents(f *ast.File, renames ...string) {
-	var list [][]string
+// A renameMap maps old strings to new strings.
+type renameMap map[string]string
+
+// makeRenameMap returns a renameMap populates from renames entries of the form "from->to".
+func makeRenameMap(renames ...string) renameMap {
+	m := make(renameMap)
 	for _, r := range renames {
 		s := strings.Split(r, "->")
 		if len(s) != 2 {
 			panic("invalid rename entry: " + r)
 		}
-		list = append(list, s)
+		m[s[0]] = s[1]
 	}
+	return m
+}
+
+// rename renames the given string s if a corresponding rename exists in m.
+func (m renameMap) rename(s *string) {
+	if r, ok := m[*s]; ok {
+		*s = r
+	}
+}
+
+// renameSel renames a selector expression of the form a.x to b.x (where a, b are identifiers)
+// if m contains the ("a.x" : "b.y") key-value pair.
+func (m renameMap) renameSel(n *ast.SelectorExpr) {
+	if a, _ := n.X.(*ast.Ident); a != nil {
+		a_x := a.Name + "." + n.Sel.Name
+		if r, ok := m[a_x]; ok {
+			b_y := strings.Split(r, ".")
+			if len(b_y) != 2 {
+				panic("invalid selector expression: " + r)
+			}
+			a.Name = b_y[0]
+			n.Sel.Name = b_y[1]
+		}
+	}
+}
+
+// renameIdents renames identifiers: each renames entry is of the form "from->to".
+// Note: This doesn't change the use of the identifiers in comments.
+func renameIdents(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.Ident:
-			for _, r := range list {
-				if n.Name == r[0] {
-					n.Name = r[1]
-				}
-			}
+			m.rename(&n.Name)
 			return false
 		}
 		return true
 	})
 }
 
-// renameImportPath renames an import path.
-func renameImportPath(f *ast.File, from, to string) {
+// renameSelectors is like renameIdents but only looks at selectors.
+func renameSelectors(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			m.rename(&n.Sel.Name)
+			return false
+		}
+		return true
+	})
+
+}
+
+// renameSelectorExprs is like renameIdents but only looks at selector expressions.
+// Each renames entry must be of the form "x.a->y.b".
+func renameSelectorExprs(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			m.renameSel(n)
+			return false
+		}
+		return true
+	})
+}
+
+// renameImportPath is like renameIdents but renames import paths.
+func renameImportPath(f *ast.File, renames ...string) {
+	m := makeRenameMap(renames...)
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ImportSpec:
-			if n.Path.Kind == token.STRING && n.Path.Value == from {
-				n.Path.Value = to
+			if n.Path.Kind != token.STRING {
+				panic("invalid import path")
+			}
+			m.rename(&n.Path.Value)
+			return false
+		}
+		return true
+	})
+}
+
+// insertImportPath inserts the given import path.
+// There must be at least one import declaration present already.
+func insertImportPath(f *ast.File, path string) {
+	for _, d := range f.Decls {
+		if g, _ := d.(*ast.GenDecl); g != nil && g.Tok == token.IMPORT {
+			g.Specs = append(g.Specs, &ast.ImportSpec{Path: &ast.BasicLit{ValuePos: g.End(), Kind: token.STRING, Value: path}})
+			return
+		}
+	}
+	panic("no import declaration present")
+}
+
+// fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",
+// uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
+func fixTokenPos(f *ast.File) {
+	m := makeRenameMap(`"cmd/compile/internal/syntax"->"go/token"`, "syntax.Pos->token.Pos", "IsKnown->IsValid")
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.ImportSpec:
+			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
+			if n.Path.Kind != token.STRING {
+				panic("invalid import path")
+			}
+			m.rename(&n.Path.Value)
+			return false
+		case *ast.SelectorExpr:
+			// rewrite syntax.Pos to token.Pos
+			m.renameSel(n)
+			return false
+		case *ast.CallExpr:
+			// rewrite x.IsKnown() to x.IsValid()
+			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && len(n.Args) == 0 {
+				m.rename(&fun.Sel.Name)
 				return false
 			}
 		}
@@ -188,28 +310,16 @@ func renameImportPath(f *ast.File, from, to string) {
 	})
 }
 
-// fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",
-// uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
-func fixTokenPos(f *ast.File) {
+// fixSelValue updates the selector x.Sel.Value to x.Sel.Name.
+func fixSelValue(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
-		case *ast.ImportSpec:
-			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
-			if n.Path.Kind == token.STRING && n.Path.Value == `"cmd/compile/internal/syntax"` {
-				n.Path.Value = `"go/token"`
-				return false
-			}
 		case *ast.SelectorExpr:
-			// rewrite syntax.Pos to token.Pos
-			if x, _ := n.X.(*ast.Ident); x != nil && x.Name == "syntax" && n.Sel.Name == "Pos" {
-				x.Name = "token"
-				return false
-			}
-		case *ast.CallExpr:
-			// rewrite x.IsKnown() to x.IsValid()
-			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && fun.Sel.Name == "IsKnown" && len(n.Args) == 0 {
-				fun.Sel.Name = "IsValid"
-				return false
+			if n.Sel.Name == "Value" {
+				if selx, _ := n.X.(*ast.SelectorExpr); selx != nil && selx.Sel.Name == "Sel" {
+					n.Sel.Name = "Name"
+					return false
+				}
 			}
 		}
 		return true
@@ -237,16 +347,16 @@ func fixInferSig(f *ast.File) {
 				switch selx.Sel.Name {
 				case "renameTParams":
 					// rewrite check.renameTParams(pos, ... ) to check.renameTParams(posn.Pos(), ... )
-					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+					if isIdent(n.Args[0], "pos") {
 						pos := n.Args[0].Pos()
 						fun := &ast.SelectorExpr{X: newIdent(pos, "posn"), Sel: newIdent(pos, "Pos")}
 						arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: nil, Ellipsis: token.NoPos, Rparen: pos}
 						n.Args[0] = arg
 						return false
 					}
-				case "errorf":
-					// rewrite check.errorf(pos, ...) to check.errorf(posn, ...)
-					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+				case "addf":
+					// rewrite err.addf(pos, ...) to err.addf(posn, ...)
+					if isIdent(n.Args[0], "pos") {
 						pos := n.Args[0].Pos()
 						arg := newIdent(pos, "posn")
 						n.Args[0] = arg
@@ -254,7 +364,7 @@ func fixInferSig(f *ast.File) {
 					}
 				case "allowVersion":
 					// rewrite check.allowVersion(..., pos, ...) to check.allowVersion(..., posn, ...)
-					if ident, _ := n.Args[1].(*ast.Ident); ident != nil && ident.Name == "pos" {
+					if isIdent(n.Args[1], "pos") {
 						pos := n.Args[1].Pos()
 						arg := newIdent(pos, "posn")
 						n.Args[1] = arg
@@ -267,21 +377,44 @@ func fixInferSig(f *ast.File) {
 	})
 }
 
-// fixErrErrorfCall updates calls of the form err.errorf(obj, ...) to err.errorf(obj.Pos(), ...).
+// fixAtPosCall updates calls of the form atPos(x) to x.Pos() in argument lists of (check).dump calls.
+// TODO(gri) can we avoid this and just use atPos consistently in go/types and types2?
+func fixAtPosCall(f *ast.File) {
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil && selx.Sel.Name == "dump" {
+				for i, arg := range n.Args {
+					if call, _ := arg.(*ast.CallExpr); call != nil {
+						// rewrite xxx.dump(..., atPos(x), ...) to xxx.dump(..., x.Pos(), ...)
+						if isIdent(call.Fun, "atPos") {
+							pos := call.Args[0].Pos()
+							fun := &ast.SelectorExpr{X: call.Args[0], Sel: newIdent(pos, "Pos")}
+							n.Args[i] = &ast.CallExpr{Fun: fun, Lparen: pos, Rparen: pos}
+							return false
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// fixErrErrorfCall updates calls of the form err.addf(obj, ...) to err.addf(obj.Pos(), ...).
 func fixErrErrorfCall(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
-				if ident, _ := selx.X.(*ast.Ident); ident != nil && ident.Name == "err" {
+				if isIdent(selx.X, "err") {
 					switch selx.Sel.Name {
 					case "errorf":
-						// rewrite err.errorf(obj, ... ) to err.errorf(obj.Pos(), ... )
+						// rewrite err.addf(obj, ... ) to err.addf(obj.Pos(), ... )
 						if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "obj" {
 							pos := n.Args[0].Pos()
 							fun := &ast.SelectorExpr{X: ident, Sel: newIdent(pos, "Pos")}
-							arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: nil, Ellipsis: token.NoPos, Rparen: pos}
-							n.Args[0] = arg
+							n.Args[0] = &ast.CallExpr{Fun: fun, Lparen: pos, Rparen: pos}
 							return false
 						}
 					}
@@ -298,34 +431,18 @@ func fixCheckErrorfCall(f *ast.File) {
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
-				if ident, _ := selx.X.(*ast.Ident); ident != nil && ident.Name == "check" {
+				if isIdent(selx.X, "check") {
 					switch selx.Sel.Name {
 					case "errorf":
 						// rewrite check.errorf(pos, ... ) to check.errorf(atPos(pos), ... )
-						if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+						if ident := asIdent(n.Args[0], "pos"); ident != nil {
 							pos := n.Args[0].Pos()
 							fun := newIdent(pos, "atPos")
-							arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: []ast.Expr{ident}, Ellipsis: token.NoPos, Rparen: pos}
-							n.Args[0] = arg
+							n.Args[0] = &ast.CallExpr{Fun: fun, Lparen: pos, Args: []ast.Expr{ident}, Rparen: pos}
 							return false
 						}
 					}
 				}
-			}
-		}
-		return true
-	})
-}
-
-// fixTraceSel renames uses of x.Trace to x.trace, where x for any x with a Trace field.
-func fixTraceSel(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.SelectorExpr:
-			// rewrite x.Trace to x._Trace (for Config.Trace)
-			if n.Sel.Name == "Trace" {
-				n.Sel.Name = "_Trace"
-				return false
 			}
 		}
 		return true
@@ -354,13 +471,26 @@ func fixSprintf(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			if fun, _ := n.Fun.(*ast.Ident); fun != nil && fun.Name == "sprintf" && len(n.Args) >= 4 /* ... args */ {
+			if isIdent(n.Fun, "sprintf") && len(n.Args) >= 4 /* ... args */ {
 				n.Args = insert(n.Args, 1, newIdent(n.Args[1].Pos(), "nil"))
 				return false
 			}
 		}
 		return true
 	})
+}
+
+// asIdent returns x as *ast.Ident if it is an identifier with the given name.
+func asIdent(x ast.Node, name string) *ast.Ident {
+	if ident, _ := x.(*ast.Ident); ident != nil && ident.Name == name {
+		return ident
+	}
+	return nil
+}
+
+// isIdent reports whether x is an identifier with the given name.
+func isIdent(x ast.Node, name string) bool {
+	return asIdent(x, name) != nil
 }
 
 // newIdent returns a new identifier with the given position and name.

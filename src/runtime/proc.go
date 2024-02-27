@@ -167,7 +167,7 @@ func main() {
 	// Allow newproc to start new Ms.
 	mainStarted = true
 
-	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+	if haveSysmon {
 		systemstack(func() {
 			newm(sysmon, nil, -1)
 		})
@@ -579,7 +579,7 @@ func switchToCrashStack(fn func()) {
 // Disable crash stack on Windows for now. Apparently, throwing an exception
 // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
 // hangs the process (see issue 63938).
-const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
+const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
@@ -3816,8 +3816,10 @@ func injectglist(glist *gList) {
 	}
 
 	npidle := int(sched.npidle.Load())
-	var globq gQueue
-	var n int
+	var (
+		globq gQueue
+		n     int
+	)
 	for n = 0; n < npidle && !q.empty(); n++ {
 		g := q.pop()
 		globq.pushBack(g)
@@ -3833,6 +3835,21 @@ func injectglist(glist *gList) {
 	if !q.empty() {
 		runqputbatch(pp, &q, qsize)
 	}
+
+	// Some P's might have become idle after we loaded `sched.npidle`
+	// but before any goroutines were added to the queue, which could
+	// lead to idle P's when there is work available in the global queue.
+	// That could potentially last until other goroutines become ready
+	// to run. That said, we need to find a way to hedge
+	//
+	// Calling wakep() here is the best bet, it will do nothing in the
+	// common case (no racing on `sched.npidle`), while it could wake one
+	// more P to execute G's, which might end up with >1 P's: the first one
+	// wakes another P and so forth until there is no more work, but this
+	// ought to be an extremely rare case.
+	//
+	// Also see "Worker thread parking/unparking" comment at the top of the file for details.
+	wakep()
 }
 
 // One round of scheduler: find a runnable goroutine and execute it.
@@ -5941,6 +5958,11 @@ var forcegcperiod int64 = 2 * 60 * 1e9
 // golang.org/issue/42515 is needed on NetBSD.
 var needSysmonWorkaround bool = false
 
+// haveSysmon indicates whether there is sysmon thread support.
+//
+// No threads on wasm yet, so no sysmon.
+const haveSysmon = GOARCH != "wasm"
+
 // Always runs without a P, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
@@ -6121,7 +6143,10 @@ func retake(now int64) uint32 {
 		s := pp.status
 		sysretake := false
 		if s == _Prunning || s == _Psyscall {
-			// Preempt G if it's running for too long.
+			// Preempt G if it's running on the same schedtick for
+			// too long. This could be from a single long-running
+			// goroutine or a sequence of goroutines run via
+			// runnext, which share a single schedtick time slice.
 			t := int64(pp.schedtick)
 			if int64(pd.schedtick) != t {
 				pd.schedtick = uint32(t)
@@ -6634,6 +6659,17 @@ const randomizeScheduler = raceenabled
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(pp *p, gp *g, next bool) {
+	if !haveSysmon && next {
+		// A runnext goroutine shares the same time slice as the
+		// current goroutine (inheritTime from runqget). To prevent a
+		// ping-pong pair of goroutines from starving all others, we
+		// depend on sysmon to preempt "long-running goroutines". That
+		// is, any set of goroutines sharing the same time slice.
+		//
+		// If there is no sysmon, we must avoid runnext entirely or
+		// risk starvation.
+		next = false
+	}
 	if randomizeScheduler && next && randn(2) == 0 {
 		next = false
 	}

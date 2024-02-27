@@ -28,16 +28,22 @@ func assert(p bool) {
 	}
 }
 
-func unreachable() {
-	panic("unreachable")
+// An error_ represents a type-checking error.
+// A new error_ is created with Checker.newError.
+// To report an error_, call error_.report.
+type error_ struct {
+	check *Checker
+	desc  []errorDesc
+	code  Code
+	soft  bool // TODO(gri) eventually determine this from an error code
 }
 
-// An error_ represents a type-checking error.
-// To report an error_, call Checker.report.
-type error_ struct {
-	desc []errorDesc
-	code Code
-	soft bool // TODO(gri) eventually determine this from an error code
+// newError returns a new error_ with the given error code.
+func (check *Checker) newError(code Code) *error_ {
+	if code == 0 {
+		panic("error code must not be 0")
+	}
+	return &error_{check: check, code: code}
 }
 
 // An errorDesc describes part of a type-checking error.
@@ -58,10 +64,12 @@ func (err *error_) pos() syntax.Pos {
 	return err.desc[0].pos
 }
 
-func (err *error_) msg(qf Qualifier) string {
+// msg returns the formatted error message without the primary error position pos().
+func (err *error_) msg() string {
 	if err.empty() {
 		return "no error"
 	}
+
 	var buf strings.Builder
 	for i := range err.desc {
 		p := &err.desc[i]
@@ -71,22 +79,18 @@ func (err *error_) msg(qf Qualifier) string {
 				fmt.Fprintf(&buf, "%s: ", p.pos)
 			}
 		}
-		buf.WriteString(sprintf(qf, false, p.format, p.args...))
+		buf.WriteString(err.check.sprintf(p.format, p.args...))
 	}
 	return buf.String()
 }
 
-// String is for testing.
-func (err *error_) String() string {
-	if err.empty() {
-		return "no error"
-	}
-	return fmt.Sprintf("%s: %s", err.pos(), err.msg(nil))
-}
-
-// errorf adds formatted error information to err.
+// addf adds formatted error information to err.
 // It may be called multiple times to provide additional information.
-func (err *error_) errorf(at poser, format string, args ...interface{}) {
+// The position of the first call to addf determines the position of the reported Error.
+// Subsequent calls to addf provide additional information in the form of additional lines
+// in the error message (types2) or continuation errors identified by a tab-indented error
+// message (go/types).
+func (err *error_) addf(at poser, format string, args ...interface{}) {
 	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
 }
 
@@ -102,7 +106,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
 		case syntax.Pos:
 			arg = a.String()
 		case syntax.Expr:
-			arg = syntax.String(a)
+			arg = ExprString(a)
 		case []syntax.Expr:
 			var buf strings.Builder
 			buf.WriteByte('[')
@@ -110,7 +114,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}
 				if i > 0 {
 					buf.WriteString(", ")
 				}
-				buf.WriteString(syntax.String(x))
+				buf.WriteString(ExprString(x))
 			}
 			buf.WriteByte(']')
 			arg = buf.String()
@@ -200,13 +204,6 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 	return sprintf(qf, false, format, args...)
 }
 
-func (check *Checker) report(err *error_) {
-	if err.empty() {
-		panic("no error to report")
-	}
-	check.err(err.pos(), err.code, err.msg(check.qualifier), err.soft)
-}
-
 func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
 		pos,
@@ -220,24 +217,18 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(sprintf(check.qualifier, true, format, args...))
 }
 
-func (check *Checker) err(at poser, code Code, msg string, soft bool) {
-	switch code {
-	case InvalidSyntaxTree:
+// report reports the error err, setting check.firstError if necessary.
+func (err *error_) report() {
+	if err.empty() {
+		panic("no error to report")
+	}
+
+	msg := err.msg()
+	code := err.code
+	assert(code != 0)
+	if code == InvalidSyntaxTree {
 		msg = "invalid syntax tree: " + msg
-	case 0:
-		panic("no error code provided")
 	}
-
-	// Cheap trick: Don't report errors with messages containing
-	// "invalid operand" or "invalid type" as those tend to be
-	// follow-on errors which don't add useful information. Only
-	// exclude them if these strings are not at the beginning,
-	// and only if we have at least one error already reported.
-	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
-		return
-	}
-
-	pos := atPos(at)
 
 	// If we are encountering an error while evaluating an inherited
 	// constant initialization expression, pos is the position of in
@@ -245,13 +236,29 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 	// constant identifier. Use the provided errpos instead.
 	// TODO(gri) We may also want to augment the error message and
 	// refer to the position (pos) in the original expression.
+	check := err.check
+	pos := err.pos()
 	if check.errpos.IsKnown() {
 		assert(check.iota != nil)
 		pos = check.errpos
 	}
 
+	if check.conf.Trace {
+		check.trace(pos, "ERROR: %s", msg)
+	}
+
+	// Cheap trick: Don't report errors with messages containing
+	// "invalid operand" or "invalid type" as those tend to be
+	// follow-on errors which don't add useful information. Only
+	// exclude them if these strings are not at the beginning,
+	// and only if we have at least one error already reported.
+	isInvalidErr := strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0
+	if check.firstErr != nil && isInvalidErr {
+		return
+	}
+
 	// If we have a URL for error codes, add a link to the first line.
-	if code != 0 && check.conf.ErrorURL != "" {
+	if check.conf.ErrorURL != "" {
 		u := fmt.Sprintf(check.conf.ErrorURL, code)
 		if i := strings.Index(msg, "\n"); i >= 0 {
 			msg = msg[:i] + u + msg[i:]
@@ -260,20 +267,27 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 		}
 	}
 
-	err := Error{pos, stripAnnotations(msg), msg, soft, code}
-	if check.firstErr == nil {
-		check.firstErr = err
+	e := Error{
+		Pos:  pos,
+		Msg:  stripAnnotations(msg),
+		Full: msg,
+		Soft: err.soft,
+		Code: code,
 	}
 
-	if check.conf.Trace {
-		check.trace(pos, "ERROR: %s", msg)
+	if check.firstErr == nil {
+		check.firstErr = e
 	}
 
 	f := check.conf.Error
 	if f == nil {
 		panic(bailout{}) // report only first error
 	}
-	f(err)
+
+	// TODO(gri) If e contains \t-indented sub-errors,
+	//           for go/types f must be called for each
+	//           of those sub-errors.
+	f(e)
 }
 
 const (
@@ -286,21 +300,29 @@ type poser interface {
 }
 
 func (check *Checker) error(at poser, code Code, msg string) {
-	check.err(at, code, msg, false)
+	err := check.newError(code)
+	err.addf(at, "%s", msg)
+	err.report()
 }
 
 func (check *Checker) errorf(at poser, code Code, format string, args ...interface{}) {
-	check.err(at, code, check.sprintf(format, args...), false)
+	err := check.newError(code)
+	err.addf(at, format, args...)
+	err.report()
 }
 
 func (check *Checker) softErrorf(at poser, code Code, format string, args ...interface{}) {
-	check.err(at, code, check.sprintf(format, args...), true)
+	err := check.newError(code)
+	err.addf(at, format, args...)
+	err.soft = true
+	err.report()
 }
 
 func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
-	msg = fmt.Sprintf("%s requires %s or later", msg, v)
-	check.err(at, UnsupportedFeature, msg, true)
+	err := check.newError(UnsupportedFeature)
+	err.addf(at, "%s requires %s or later", msg, v)
+	err.report()
 }
 
 // atPos reports the left (= start) position of at.

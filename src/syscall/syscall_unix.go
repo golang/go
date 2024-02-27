@@ -98,7 +98,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values using errors.Is.
+// Errno values can be tested against error values using [errors.Is].
 // For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -162,7 +162,7 @@ func errnoErr(e Errno) error {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal int
 
 func (s Signal) Signal() {}
@@ -257,7 +257,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 }
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type Sockaddr interface {

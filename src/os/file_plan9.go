@@ -33,8 +33,8 @@ type file struct {
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
 // If f is closed, the file descriptor becomes invalid.
 // If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see runtime.SetFinalizer for more information on when
-// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// making it invalid; see [runtime.SetFinalizer] for more information on when
+// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
 // methods to stop working.
 //
 // As an alternative, see the f.SyscallConn method.

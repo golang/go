@@ -59,7 +59,7 @@ type cell struct {
 // this may not be true in some fonts or if the string contains combining
 // characters.
 //
-// If DiscardEmptyColumns is set, empty columns that are terminated
+// If [DiscardEmptyColumns] is set, empty columns that are terminated
 // entirely by vertical (or "soft") tabs are discarded. Columns
 // terminated by horizontal (or "hard") tabs are not affected by
 // this flag.
@@ -68,24 +68,24 @@ type cell struct {
 // are passed through. The widths of tags and entities are
 // assumed to be zero (tags) and one (entities) for formatting purposes.
 //
-// A segment of text may be escaped by bracketing it with Escape
+// A segment of text may be escaped by bracketing it with [Escape]
 // characters. The tabwriter passes escaped text segments through
 // unchanged. In particular, it does not interpret any tabs or line
-// breaks within the segment. If the StripEscape flag is set, the
+// breaks within the segment. If the [StripEscape] flag is set, the
 // Escape characters are stripped from the output; otherwise they
 // are passed through as well. For the purpose of formatting, the
 // width of the escaped text is always computed excluding the Escape
 // characters.
 //
 // The formfeed character acts like a newline but it also terminates
-// all columns in the current line (effectively calling Flush). Tab-
+// all columns in the current line (effectively calling [Writer.Flush]). Tab-
 // terminated cells in the next line start new columns. Unless found
 // inside an HTML tag or inside an escaped text segment, formfeed
 // characters appear as newlines in the output.
 //
 // The Writer must buffer input internally, because proper spacing
 // of one line may depend on the cells in future lines. Clients must
-// call Flush when done calling Write.
+// call Flush when done calling [Writer.Write].
 type Writer struct {
 	// configuration
 	output   io.Writer
@@ -192,7 +192,7 @@ const (
 	Debug
 )
 
-// A Writer must be initialized with a call to Init. The first parameter (output)
+// A [Writer] must be initialized with a call to Init. The first parameter (output)
 // specifies the filter output. The remaining parameters control the formatting:
 //
 //	minwidth	minimal cell width including any padding
@@ -480,8 +480,8 @@ func (b *Writer) handlePanic(err *error, op string) {
 	}
 }
 
-// Flush should be called after the last call to Write to ensure
-// that any data buffered in the Writer is written to output. Any
+// Flush should be called after the last call to [Writer.Write] to ensure
+// that any data buffered in the [Writer] is written to output. Any
 // incomplete escape sequence at the end is considered
 // complete for formatting purposes.
 func (b *Writer) Flush() error {
@@ -593,7 +593,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 	return
 }
 
-// NewWriter allocates and initializes a new tabwriter.Writer.
+// NewWriter allocates and initializes a new [Writer].
 // The parameters are the same as for the Init function.
 func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)

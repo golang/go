@@ -139,7 +139,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = nilvalue
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	x.typ = typ

@@ -35,7 +35,6 @@ Scripts also have access to other environment variables, including:
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
-	GOROOT_FINAL=<actual GOROOT_FINAL>
 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
@@ -402,8 +401,6 @@ The available conditions are:
 	GO_BUILDER_NAME is non-empty
 [link]
 	testenv.HasLink()
-[mismatched-goroot]
-	test's GOROOT_FINAL does not match the real GOROOT
 [msan]
 	GOOS/GOARCH supports -msan
 [mustlinkext]

@@ -17,9 +17,9 @@ import (
 	"unsafe"
 )
 
-// N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
+// N.B. RawSyscall6 is provided via linkname by internal/runtime/syscall.
 //
-// Errno is uintptr and thus compatible with the runtime/internal/syscall
+// Errno is uintptr and thus compatible with the internal/runtime/syscall
 // definition.
 
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
@@ -1107,7 +1107,7 @@ func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, 
 //
 // AllThreadsSyscall is unaware of any threads that are launched
 // explicitly by cgo linked code, so the function always returns
-// ENOTSUP in binaries that use cgo.
+// [ENOTSUP] in binaries that use cgo.
 //
 //go:uintptrescapes
 func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
@@ -1118,7 +1118,7 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return r1, r2, Errno(errno)
 }
 
-// AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+// AllThreadsSyscall6 is like [AllThreadsSyscall], but extended to six
 // arguments.
 //
 //go:uintptrescapes

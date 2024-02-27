@@ -258,7 +258,11 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 		return Insert(s, i, v...)
 	}
 	if j == len(s) {
-		return append(s[:i], v...)
+		s2 := append(s[:i], v...)
+		if len(s2) < len(s) {
+			clear(s[len(s2):len(s)]) // zero/nil out the obsolete elements, for GC
+		}
+		return s2
 	}
 
 	tot := len(s[:i]) + len(v) + len(s[j:])

@@ -1074,7 +1074,7 @@ func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
 
 const startSize = 10 // The size at which to start a slice in the 'All' routines.
 
-// FindAll is the 'All' version of Find; it returns a slice of all successive
+// FindAll is the 'All' version of [Regexp.Find]; it returns a slice of all successive
 // matches of the expression, as defined by the 'All' description in the
 // package comment.
 // A return value of nil indicates no match.

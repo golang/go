@@ -1294,6 +1294,15 @@ func (p Prefix) compare(p2 Prefix) int {
 	return p.Addr().Compare(p2.Addr())
 }
 
+type parsePrefixError struct {
+	in  string // the string given to ParsePrefix
+	msg string // an explanation of the parse failure
+}
+
+func (err parsePrefixError) Error() string {
+	return "netip.ParsePrefix(" + strconv.Quote(err.in) + "): " + err.msg
+}
+
 // ParsePrefix parses s as an IP address prefix.
 // The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
@@ -1304,34 +1313,34 @@ func (p Prefix) compare(p2 Prefix) int {
 func ParsePrefix(s string) (Prefix, error) {
 	i := bytealg.LastIndexByteString(s, '/')
 	if i < 0 {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
+		return Prefix{}, parsePrefixError{in: s, msg: "no '/'"}
 	}
 	ip, err := ParseAddr(s[:i])
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
+		return Prefix{}, parsePrefixError{in: s, msg: err.Error()}
 	}
 	// IPv6 zones are not allowed: https://go.dev/issue/51899
 	if ip.Is6() && ip.z != z6noz {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+		return Prefix{}, parsePrefixError{in: s, msg: "IPv6 zones cannot be present in a prefix"}
 	}
 
 	bitsStr := s[i+1:]
 
 	// strconv.Atoi accepts a leading sign and leading zeroes, but we don't want that.
 	if len(bitsStr) > 1 && (bitsStr[0] < '1' || bitsStr[0] > '9') {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 	maxBits := 32
 	if ip.Is6() {
 		maxBits = 128
 	}
 	if bits < 0 || bits > maxBits {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): prefix length out of range")
+		return Prefix{}, parsePrefixError{in: s, msg: "prefix length out of range"}
 	}
 	return PrefixFrom(ip, bits), nil
 }

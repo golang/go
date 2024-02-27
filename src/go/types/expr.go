@@ -255,7 +255,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		// upon assignment or use.
 		if debug {
 			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
-			unreachable()
+			panic("unreachable")
 		}
 		return
 
@@ -301,7 +301,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// If the new type is not final and still untyped, just
@@ -524,7 +524,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// comparison is ok
@@ -1601,7 +1601,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			msg = "%s is not an expression"
 			code = NotAnExpr
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
 		x.mode = invalid

@@ -218,10 +218,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		}
 		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
 		decls = append(decls, n)
-		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
+		tag := dwarf.DW_TAG_variable
 		isReturnValue := (n.Class == ir.PPARAMOUT)
 		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
-			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+			tag = dwarf.DW_TAG_formal_parameter
 		}
 		if n.Esc() == ir.EscHeap {
 			// The variable in question has been promoted to the heap.
@@ -233,7 +233,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			if n.InlFormal() || n.InlLocal() {
 				inlIndex = posInlIndex(n.Pos()) + 1
 				if n.InlFormal() {
-					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+					tag = dwarf.DW_TAG_formal_parameter
 				}
 			}
 		}
@@ -241,7 +241,8 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		vars = append(vars, &dwarf.Var{
 			Name:          n.Sym().Name,
 			IsReturnValue: isReturnValue,
-			Abbrev:        abbrev,
+			Tag:           tag,
+			WithLoclist:   true,
 			StackOffset:   int32(n.FrameOffset()),
 			Type:          base.Ctxt.Lookup(typename),
 			DeclFile:      declpos.RelFilename(),
@@ -350,7 +351,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
 }
 
 func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
-	var abbrev int
+	var tag int
 	var offs int64
 
 	localAutoOffset := func() int64 {
@@ -367,9 +368,9 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	switch n.Class {
 	case ir.PAUTO:
 		offs = localAutoOffset()
-		abbrev = dwarf.DW_ABRV_AUTO
+		tag = dwarf.DW_TAG_variable
 	case ir.PPARAM, ir.PPARAMOUT:
-		abbrev = dwarf.DW_ABRV_PARAM
+		tag = dwarf.DW_TAG_formal_parameter
 		if n.IsOutputParamInRegisters() {
 			offs = localAutoOffset()
 		} else {
@@ -387,7 +388,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if n.InlFormal() || n.InlLocal() {
 			inlIndex = posInlIndex(n.Pos()) + 1
 			if n.InlFormal() {
-				abbrev = dwarf.DW_ABRV_PARAM
+				tag = dwarf.DW_TAG_formal_parameter
 			}
 		}
 	}
@@ -396,7 +397,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		Name:          n.Sym().Name,
 		IsReturnValue: n.Class == ir.PPARAMOUT,
 		IsInlFormal:   n.InlFormal(),
-		Abbrev:        abbrev,
+		Tag:           tag,
 		StackOffset:   int32(offs),
 		Type:          base.Ctxt.Lookup(typename),
 		DeclFile:      declpos.RelFilename(),
@@ -470,12 +471,12 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 	debug := fn.DebugInfo.(*ssa.FuncDebug)
 	n := debug.Vars[varID]
 
-	var abbrev int
+	var tag int
 	switch n.Class {
 	case ir.PAUTO:
-		abbrev = dwarf.DW_ABRV_AUTO_LOCLIST
+		tag = dwarf.DW_TAG_variable
 	case ir.PPARAM, ir.PPARAMOUT:
-		abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+		tag = dwarf.DW_TAG_formal_parameter
 	default:
 		return nil
 	}
@@ -488,7 +489,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		if n.InlFormal() || n.InlLocal() {
 			inlIndex = posInlIndex(n.Pos()) + 1
 			if n.InlFormal() {
-				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+				tag = dwarf.DW_TAG_formal_parameter
 			}
 		}
 	}
@@ -497,7 +498,8 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		Name:          n.Sym().Name,
 		IsReturnValue: n.Class == ir.PPARAMOUT,
 		IsInlFormal:   n.InlFormal(),
-		Abbrev:        abbrev,
+		Tag:           tag,
+		WithLoclist:   true,
 		Type:          base.Ctxt.Lookup(typename),
 		// The stack offset is used as a sorting key, so for decomposed
 		// variables just give it the first one. It's not used otherwise.

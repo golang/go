@@ -98,17 +98,18 @@ func (check *Checker) conversion(x *operand, T Type) {
 	// given a type explicitly by a constant declaration or conversion,...".
 	if isUntyped(x.typ) {
 		final := T
-		// - For conversions to interfaces, except for untyped nil arguments,
-		//   use the argument's default type.
+		// - For conversions to interfaces, except for untyped nil arguments
+		//   and isTypes2, use the argument's default type.
 		// - For conversions of untyped constants to non-constant types, also
 		//   use the default type (e.g., []byte("foo") should report string
 		//   not []byte as type for the constant "foo").
+		// - If !isTypes2, keep untyped nil for untyped nil arguments.
 		// - For constant integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if x.typ == Typ[UntypedNil] {
+		if isTypes2 && x.typ == Typ[UntypedNil] {
 			// ok
-		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) {
-			final = Default(x.typ)
+		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) || !isTypes2 && x.isNil() {
+			final = Default(x.typ) // default type of untyped nil is untyped nil
 		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
 			final = x.typ
 		}
@@ -227,7 +228,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return false
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
 			if *cause != "" {

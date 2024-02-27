@@ -2331,11 +2331,6 @@
 //		See src/internal/goexperiment/flags.go for currently valid values.
 //		Warning: This variable is provided for the development and testing
 //		of the Go toolchain itself. Use beyond that purpose is unsupported.
-//	GOROOT_FINAL
-//		The root of the installed Go tree, when it is
-//		installed in a location other than where it is built.
-//		File names in stack traces are rewritten from GOROOT to
-//		GOROOT_FINAL.
 //	GO_EXTLINK_ENABLED
 //		Whether the linker should use external linking mode
 //		when using -linkmode=auto with code that uses cgo.

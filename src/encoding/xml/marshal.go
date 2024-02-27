@@ -208,7 +208,6 @@ var (
 // EncodeToken allows writing a [ProcInst] with Target set to "xml" only as the first token
 // in the stream.
 func (enc *Encoder) EncodeToken(t Token) error {
-
 	p := &enc.p
 	switch t := t.(type) {
 	case StartElement:
@@ -228,11 +227,10 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString("<!--")
 		p.Write(t)
 		p.WriteString("-->")
-		return p.cachedWriteError()
 	case ProcInst:
 		// First token to be encoded which is also a ProcInst with target of xml
 		// is the xml declaration. The only ProcInst where target of xml is allowed.
-		if t.Target == "xml" && p.w.Buffered() != 0 {
+		if t.Target == "xml" && p.wroteNonWS {
 			return fmt.Errorf("xml: EncodeToken of ProcInst xml target only valid for xml declaration, first token encoded")
 		}
 		if !isNameString(t.Target) {
@@ -257,9 +255,30 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString(">")
 	default:
 		return fmt.Errorf("xml: EncodeToken of invalid token type")
-
 	}
-	return p.cachedWriteError()
+	if err := p.cachedWriteError(); err != nil || enc.p.wroteNonWS {
+		return err
+	}
+	enc.p.wroteNonWS = !isWhitespace(t)
+	return nil
+}
+
+// isWhitespace reports whether t is a CharData token consisting entirely of
+// XML whitespace.
+func isWhitespace(t Token) bool {
+	switch t := t.(type) {
+	case CharData:
+		for _, b := range t {
+			switch b {
+			case ' ', '\r', '\n', '\t':
+			default:
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // isValidDirective reports whether dir is a valid directive text,
@@ -329,6 +348,7 @@ type printer struct {
 	prefixes   []string
 	tags       []Name
 	closed     bool
+	wroteNonWS bool
 	err        error
 }
 

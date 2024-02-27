@@ -40,7 +40,6 @@ var (
 	goppc64          string
 	goriscv64        string
 	goroot           string
-	goroot_final     string
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
@@ -126,12 +125,6 @@ func xinit() {
 	// it will be found in the current directory and refuse to exec.
 	// All exec calls rewrite "go" into gorootBinGo.
 	gorootBinGo = pathf("%s/bin/go", goroot)
-
-	b = os.Getenv("GOROOT_FINAL")
-	if b == "" {
-		b = goroot
-	}
-	goroot_final = b
 
 	b = os.Getenv("GOOS")
 	if b == "" {
@@ -245,7 +238,6 @@ func xinit() {
 	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
-	os.Setenv("GOROOT_FINAL", goroot_final)
 
 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
@@ -1879,10 +1871,7 @@ func banner() {
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
 	xprintf("Installed commands in %s\n", gorootBin)
 
-	if !xsamefile(goroot_final, goroot) {
-		// If the files are to be moved, don't check that gobin
-		// is on PATH; assume they know what they are doing.
-	} else if gohostos == "plan9" {
+	if gohostos == "plan9" {
 		// Check that GOROOT/bin is bound before /bin.
 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
 		ns := fmt.Sprintf("/proc/%s/ns", pid)
@@ -1906,12 +1895,6 @@ func banner() {
 		if !strings.Contains(pathsep+path+pathsep, pathsep+gorootBin+pathsep) {
 			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
-	}
-
-	if !xsamefile(goroot_final, goroot) {
-		xprintf("\n"+
-			"The binaries expect %s to be copied or moved to %s\n",
-			goroot, goroot_final)
 	}
 }
 

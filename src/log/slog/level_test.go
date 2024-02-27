@@ -59,8 +59,8 @@ func TestLevelMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(data, wantData) {
-                t.Errorf("got %s, want %s", string(data), string(wantData))
-        }
+		t.Errorf("got %s, want %s", string(data), string(wantData))
+	}
 	var got Level
 	if err := got.UnmarshalJSON(data); err != nil {
 		t.Fatal(err)
@@ -78,8 +78,8 @@ func TestLevelMarshalText(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(data, wantData) {
-                t.Errorf("got %s, want %s", string(data), string(wantData))
-        }
+		t.Errorf("got %s, want %s", string(data), string(wantData))
+	}
 	var got Level
 	if err := got.UnmarshalText(data); err != nil {
 		t.Fatal(err)
