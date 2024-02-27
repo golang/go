@@ -1249,6 +1249,9 @@ func testClientTimeout(t *testing.T, mode testMode) {
 		} else if !ne.Timeout() {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
+		}
 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
 			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
 				testenv.SkipFlaky(t, 43120)
@@ -1291,6 +1294,9 @@ func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	}
 	if !ne.Timeout() {
 		t.Error("net.Error.Timeout = false; want true")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
 	}
 	if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
 		if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
@@ -1991,6 +1997,9 @@ func testClientDoCanceledVsTimeout(t *testing.T, mode testMode) {
 			}
 			if g, w := ue.Err, wantErr; g != w {
 				t.Errorf("url.Error.Err = %v; want %v", g, w)
+			}
+			if got := errors.Is(err, context.DeadlineExceeded); got != wantIsTimeout {
+				t.Errorf("errors.Is(err, context.DeadlineExceeded) = %v, want %v", got, wantIsTimeout)
 			}
 		})
 	}
