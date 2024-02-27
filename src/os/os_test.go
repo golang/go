@@ -2987,18 +2987,6 @@ func TestReaddirSmallSeek(t *testing.T) {
 	}
 }
 
-// isDeadlineExceeded reports whether err is or wraps ErrDeadlineExceeded.
-// We also check that the error has a Timeout method that returns true.
-func isDeadlineExceeded(err error) bool {
-	if !IsTimeout(err) {
-		return false
-	}
-	if !errors.Is(err, ErrDeadlineExceeded) {
-		return false
-	}
-	return true
-}
-
 // Test that opening a file does not change its permissions.  Issue 38225.
 func TestOpenFileKeepsPermissions(t *testing.T) {
 	t.Parallel()
