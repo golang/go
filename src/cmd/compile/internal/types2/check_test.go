@@ -398,7 +398,7 @@ func TestCheck(t *testing.T) {
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
 }
-func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 20, false) } // TODO(gri) narrow column tolerance
 func TestExamples(t *testing.T) {
 	testDirFiles(t, "../../../../internal/types/testdata/examples", 125, false)
 } // TODO(gri) narrow column tolerance

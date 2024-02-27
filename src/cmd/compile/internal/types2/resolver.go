@@ -405,7 +405,6 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
-				_ = len(s.TParamList) != 0 && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 

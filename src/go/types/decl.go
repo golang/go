@@ -563,37 +563,59 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName) {
 	assert(obj.typ == nil)
 
+	// Only report a version error if we have not reported one already.
+	versionErr := false
+
 	var rhs Type
 	check.later(func() {
 		if t := asNamed(obj.typ); t != nil { // type may be invalid
 			check.validType(t)
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+		_ = !versionErr && check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
 	}).describef(obj, "validType(%s)", obj.Name())
 
-	aliasDecl := tdecl.Assign.IsValid()
-	if aliasDecl && tdecl.TypeParams.NumFields() != 0 {
-		// The parser will ensure this but we may still get an invalid AST.
-		// Complain and continue as regular type definition.
-		check.error(atPos(tdecl.Assign), BadDecl, "generic type cannot be alias")
-		aliasDecl = false
+	// First type parameter, or nil.
+	var tparam0 *ast.Field
+	if tdecl.TypeParams.NumFields() > 0 {
+		tparam0 = tdecl.TypeParams.List[0]
 	}
 
 	// alias declaration
-	if aliasDecl {
-		check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type aliases")
+	if tdecl.Assign.IsValid() {
+		// Report highest version requirement first so that fixing a version issue
+		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.23).
+		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_23, "generic type alias") {
+			versionErr = true
+		}
+		if !versionErr && !check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type alias") {
+			versionErr = true
+		}
+
 		if check.enableAlias {
 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
 			//           the alias as incomplete. Currently this causes problems
 			//           with certain cycles. Investigate.
 			alias := check.newAlias(obj, Typ[Invalid])
 			setDefType(def, alias)
+
+			// handle type parameters even if not allowed (Alias type is supported)
+			if tparam0 != nil {
+				check.openScope(tdecl, "type parameters")
+				defer check.closeScope()
+				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
+			}
+
 			rhs = check.definedType(tdecl.Type, obj)
 			assert(rhs != nil)
 			alias.fromRHS = rhs
 			Unalias(alias) // resolve alias.actual
 		} else {
+			if !versionErr && tparam0 != nil {
+				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
+				versionErr = true
+			}
+
 			check.brokenAlias(obj)
 			rhs = check.typ(tdecl.Type)
 			check.validAlias(obj, rhs)
@@ -602,6 +624,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 	}
 
 	// type definition or generic type declaration
+	if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_18, "type parameter") {
+		versionErr = true
+	}
+
 	named := check.newNamed(obj, nil, nil)
 	setDefType(def, named)
 
