@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/version"
 	"internal/goversion"
-	"strings"
 )
 
 // A goVersion is a Go language version string of the form "go1.%d"
@@ -49,35 +48,6 @@ var (
 	// current (deployed) Go version
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
 )
-
-// langCompat reports an error if the representation of a numeric
-// literal is not compatible with the current language version.
-func (check *Checker) langCompat(lit *syntax.BasicLit) {
-	s := lit.Value
-	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
-		return
-	}
-	// len(s) > 2
-	if strings.Contains(s, "_") {
-		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
-		return
-	}
-	if s[0] != '0' {
-		return
-	}
-	radix := s[1]
-	if radix == 'b' || radix == 'B' {
-		check.versionErrorf(lit, go1_13, "binary literal")
-		return
-	}
-	if radix == 'o' || radix == 'O' {
-		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
-		return
-	}
-	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
-		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
-	}
-}
 
 // allowVersion reports whether the given package is allowed to use version v.
 func (check *Checker) allowVersion(pkg *Package, at poser, v goVersion) bool {

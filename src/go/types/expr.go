@@ -13,6 +13,7 @@ import (
 	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
+	"strings"
 )
 
 /*
@@ -1013,6 +1014,35 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 		check.errorf(x.expr, WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
 		x.mode = invalid
 		x.typ = Typ[Invalid]
+	}
+}
+
+// langCompat reports an error if the representation of a numeric
+// literal is not compatible with the current language version.
+func (check *Checker) langCompat(lit *ast.BasicLit) {
+	s := lit.Value
+	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
+		return
+	}
+	// len(s) > 2
+	if strings.Contains(s, "_") {
+		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+		return
+	}
+	if s[0] != '0' {
+		return
+	}
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
+		check.versionErrorf(lit, go1_13, "binary literal")
+		return
+	}
+	if radix == 'o' || radix == 'O' {
+		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+		return
+	}
+	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
+		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
 	}
 }
 
