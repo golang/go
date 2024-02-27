@@ -59,7 +59,7 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	}
 	// len(s) > 2
 	if strings.Contains(s, "_") {
-		check.versionErrorf(lit, go1_13, "underscores in numeric literals")
+		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
 		return
 	}
 	if s[0] != '0' {
@@ -67,15 +67,15 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	}
 	radix := s[1]
 	if radix == 'b' || radix == 'B' {
-		check.versionErrorf(lit, go1_13, "binary literals")
+		check.versionErrorf(lit, go1_13, "binary literal")
 		return
 	}
 	if radix == 'o' || radix == 'O' {
-		check.versionErrorf(lit, go1_13, "0o/0O-style octal literals")
+		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
 		return
 	}
 	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
-		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literals")
+		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
 	}
 }
 

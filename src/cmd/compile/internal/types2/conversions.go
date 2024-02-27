@@ -203,7 +203,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 				// check != nil
 				if cause != nil {
 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
-					*cause = "conversion of slices to arrays requires go1.20 or later"
+					*cause = "conversion of slice to array requires go1.20 or later"
 				}
 				return false
 			}
@@ -215,7 +215,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 					}
 					// check != nil
 					if cause != nil {
-						*cause = "conversion of slices to array pointers requires go1.17 or later"
+						*cause = "conversion of slice to array pointer requires go1.17 or later"
 					}
 					return false
 				}
