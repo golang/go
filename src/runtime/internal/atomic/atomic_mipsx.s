@@ -251,7 +251,7 @@ TEXT ·Or32(SB), NOSPLIT, $0-12
 	SC	R4, (R1)
 	BEQ	R4, -4(PC)
 	SYNC
-	MOVW R3, ret+8(FP)
+	MOVW	R3, ret+8(FP)
 	RET
 
 // func And32(addr *uint32, v uint32) old uint32
@@ -265,7 +265,7 @@ TEXT ·And32(SB), NOSPLIT, $0-12
 	SC	R4, (R1)
 	BEQ	R4, -4(PC)
 	SYNC
-	MOVW R3, ret+8(FP)
+	MOVW	R3, ret+8(FP)
 	RET
 
 // func Anduintptr(addr *uintptr, v uintptr) old uintptr
