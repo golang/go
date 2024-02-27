@@ -2035,7 +2035,7 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 		panic("reflect: bad size computation in MapOf")
 	}
 
-	if ktyp.PtrBytes != 0 || etyp.PtrBytes != 0 {
+	if ktyp.Pointers() || etyp.Pointers() {
 		nptr := (abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
 		n := (nptr + 7) / 8
 
@@ -2044,12 +2044,12 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 		mask := make([]byte, n)
 		base := uintptr(abi.MapBucketCount / goarch.PtrSize)
 
-		if ktyp.PtrBytes != 0 {
+		if ktyp.Pointers() {
 			emitGCMask(mask, base, ktyp, abi.MapBucketCount)
 		}
 		base += abi.MapBucketCount * ktyp.Size_ / goarch.PtrSize
 
-		if etyp.PtrBytes != 0 {
+		if etyp.Pointers() {
 			emitGCMask(mask, base, etyp, abi.MapBucketCount)
 		}
 		base += abi.MapBucketCount * etyp.Size_ / goarch.PtrSize
@@ -2729,7 +2729,7 @@ func ArrayOf(length int, elem Type) Type {
 		}
 	}
 	array.Size_ = typ.Size_ * uintptr(length)
-	if length > 0 && typ.PtrBytes != 0 {
+	if length > 0 && typ.Pointers() {
 		array.PtrBytes = typ.Size_*uintptr(length-1) + typ.PtrBytes
 	}
 	array.Align_ = typ.Align_
@@ -2738,7 +2738,7 @@ func ArrayOf(length int, elem Type) Type {
 	array.Slice = &(SliceOf(elem).(*rtype).t)
 
 	switch {
-	case typ.PtrBytes == 0 || array.Size_ == 0:
+	case !typ.Pointers() || array.Size_ == 0:
 		// No pointers.
 		array.GCData = nil
 		array.PtrBytes = 0
@@ -2938,7 +2938,7 @@ func (bv *bitVector) append(bit uint8) {
 }
 
 func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
-	if t.PtrBytes == 0 {
+	if !t.Pointers() {
 		return
 	}
 

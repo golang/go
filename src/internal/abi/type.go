@@ -172,6 +172,7 @@ func (t *Type) HasName() bool {
 	return t.TFlag&TFlagNamed != 0
 }
 
+// Pointers reports whether t contains pointers.
 func (t *Type) Pointers() bool { return t.PtrBytes != 0 }
 
 // IfaceIndir reports whether t is stored indirectly in an interface value.

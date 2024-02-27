@@ -351,7 +351,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size, t.PtrBytes == 0)
+	allocSize := roundupsize(size, !t.Pointers())
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}

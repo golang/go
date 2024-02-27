@@ -256,7 +256,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 		ovf = (*bmap)(newobject(t.Bucket))
 	}
 	h.incrnoverflow()
-	if t.Bucket.PtrBytes == 0 {
+	if !t.Bucket.Pointers() {
 		h.createOverflow()
 		*h.extra.overflow = append(*h.extra.overflow, ovf)
 	}
@@ -346,7 +346,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// used with this value of b.
 		nbuckets += bucketShift(b - 4)
 		sz := t.Bucket.Size_ * nbuckets
-		up := roundupsize(sz, t.Bucket.PtrBytes == 0)
+		up := roundupsize(sz, !t.Bucket.Pointers())
 		if up != sz {
 			nbuckets = up / t.Bucket.Size_
 		}
@@ -360,7 +360,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// but may not be empty.
 		buckets = dirtyalloc
 		size := t.Bucket.Size_ * nbuckets
-		if t.Bucket.PtrBytes != 0 {
+		if t.Bucket.Pointers() {
 			memclrHasPointers(buckets, size)
 		} else {
 			memclrNoHeapPointers(buckets, size)
@@ -741,13 +741,13 @@ search:
 			// Only clear key if there are pointers in it.
 			if t.IndirectKey() {
 				*(*unsafe.Pointer)(k) = nil
-			} else if t.Key.PtrBytes != 0 {
+			} else if t.Key.Pointers() {
 				memclrHasPointers(k, t.Key.Size_)
 			}
 			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 			if t.IndirectElem() {
 				*(*unsafe.Pointer)(e) = nil
-			} else if t.Elem.PtrBytes != 0 {
+			} else if t.Elem.Pointers() {
 				memclrHasPointers(e, t.Elem.Size_)
 			} else {
 				memclrNoHeapPointers(e, t.Elem.Size_)
@@ -824,7 +824,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	// grab snapshot of bucket state
 	it.B = h.B
 	it.buckets = h.buckets
-	if t.Bucket.PtrBytes == 0 {
+	if !t.Bucket.Pointers() {
 		// Allocate the current slice and remember pointers to both current and old.
 		// This preserves all relevant overflow buckets alive even if
 		// the table grows and/or overflow buckets are added to the table
@@ -1252,7 +1252,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/elem to help GC.
-		if h.flags&oldIterator == 0 && t.Bucket.PtrBytes != 0 {
+		if h.flags&oldIterator == 0 && t.Bucket.Pointers() {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.BucketSize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
