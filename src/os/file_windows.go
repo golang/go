@@ -115,11 +115,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		}
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
-	f, e := newFile(r, name, "file"), nil
-	if e != nil {
-		return nil, &PathError{Op: "open", Path: name, Err: e}
-	}
-	return f, nil
+	return newFile(r, name, "file"), nil
 }
 
 func (file *file) close() error {
