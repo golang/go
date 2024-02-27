@@ -323,7 +323,7 @@ func (t *rtype) OverflowComplex(x complex128) bool {
 	case Complex128:
 		return false
 	}
-	panic("reflect: OverflowComplexof non-complex type " + t.String())
+	panic("reflect: OverflowComplex of non-complex type " + t.String())
 }
 
 // OverflowFloat reports whether the float64 x cannot be represented by type t.
@@ -336,7 +336,7 @@ func (t *rtype) OverflowFloat(x float64) bool {
 	case Float64:
 		return false
 	}
-	panic("reflect: OverflowFloat non-float type " + t.String())
+	panic("reflect: OverflowFloat of non-float type " + t.String())
 }
 
 // OverflowInt reports whether the int64 x cannot be represented by type t.
@@ -349,7 +349,7 @@ func (t *rtype) OverflowInt(x int64) bool {
 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 		return x != trunc
 	}
-	panic("reflect: OverflowInt non-int type " + t.String())
+	panic("reflect: OverflowInt of non-int type " + t.String())
 }
 
 // OverflowUint reports whether the uint64 x cannot be represented by type t.
@@ -362,7 +362,7 @@ func (t *rtype) OverflowUint(x uint64) bool {
 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 		return x != trunc
 	}
-	panic("reflect: OverflowUint non-uint type " + t.String())
+	panic("reflect: OverflowUint of non-uint type " + t.String())
 }
 
 func (t *rtype) common() *abi.Type {
