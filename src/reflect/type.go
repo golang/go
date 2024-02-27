@@ -225,9 +225,6 @@ type Type interface {
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
 
-	common() *abi.Type
-	uncommon() *uncommonType
-
 	// OverflowComplex reports whether the complex128 x cannot be represented by type t.
 	// It panics if t's Kind is not Complex64 or Complex128.
 	OverflowComplex(x complex128) bool
@@ -243,6 +240,9 @@ type Type interface {
 	// OverflowUint reports whether the uint64 x cannot be represented by type t.
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
+
+	common() *abi.Type
+	uncommon() *uncommonType
 }
 
 // BUG(rsc): FieldByName and related functions consider struct field names to be equal
