@@ -227,6 +227,22 @@ type Type interface {
 
 	common() *abi.Type
 	uncommon() *uncommonType
+
+	// OverflowComplex reports whether the complex128 x cannot be represented by type t.
+	// It panics if t's Kind is not Complex64 or Complex128.
+	OverflowComplex(x complex128) bool
+
+	// OverflowFloat reports whether the float64 x cannot be represented by type t.
+	// It panics if t's Kind is not Float32 or Float64.
+	OverflowFloat(x float64) bool
+
+	// OverflowInt reports whether the int64 x cannot be represented by type t.
+	// It panics if t's Kind is not Int, Int8, Int16, Int32, or Int64.
+	OverflowInt(x int64) bool
+
+	// OverflowUint reports whether the uint64 x cannot be represented by type t.
+	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
+	OverflowUint(x uint64) bool
 }
 
 // BUG(rsc): FieldByName and related functions consider struct field names to be equal
@@ -295,6 +311,58 @@ type common struct {
 // It is embedded in other struct types.
 type rtype struct {
 	t abi.Type
+}
+
+// OverflowComplex reports whether the complex128 x cannot be represented by type t.
+// It panics if t's Kind is not Complex64 or Complex128.
+func (t *rtype) OverflowComplex(x complex128) bool {
+	k := t.Kind()
+	switch k {
+	case Complex64:
+		return overflowFloat32(real(x)) || overflowFloat32(imag(x))
+	case Complex128:
+		return false
+	}
+	panic("reflect: OverflowComplexof non-complex type " + t.String())
+}
+
+// OverflowFloat reports whether the float64 x cannot be represented by type t.
+// It panics if t's Kind is not Float32 or Float64.
+func (t *rtype) OverflowFloat(x float64) bool {
+	k := t.Kind()
+	switch k {
+	case Float32:
+		return overflowFloat32(x)
+	case Float64:
+		return false
+	}
+	panic("reflect: OverflowFloat non-float type " + t.String())
+}
+
+// OverflowInt reports whether the int64 x cannot be represented by type t.
+// It panics if t's Kind is not Int, Int8, Int16, Int32, or Int64.
+func (t *rtype) OverflowInt(x int64) bool {
+	k := t.Kind()
+	switch k {
+	case Int, Int8, Int16, Int32, Int64:
+		bitSize := t.Size() * 8
+		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+		return x != trunc
+	}
+	panic("reflect: OverflowInt non-int type " + t.String())
+}
+
+// OverflowUint reports whether the uint64 x cannot be represented by type t.
+// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
+func (t *rtype) OverflowUint(x uint64) bool {
+	k := t.Kind()
+	switch k {
+	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
+		bitSize := t.Size() * 8 // ok to use v.typ_ directly as Size doesn't escape
+		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+		return x != trunc
+	}
+	panic("reflect: OverflowUint non-uint type " + t.String())
 }
 
 func (t *rtype) common() *abi.Type {
