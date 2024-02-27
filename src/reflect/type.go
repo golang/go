@@ -358,7 +358,7 @@ func (t *rtype) OverflowUint(x uint64) bool {
 	k := t.Kind()
 	switch k {
 	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
-		bitSize := t.Size() * 8 // ok to use v.typ_ directly as Size doesn't escape
+		bitSize := t.Size() * 8
 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 		return x != trunc
 	}
