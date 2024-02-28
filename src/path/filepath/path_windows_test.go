@@ -530,6 +530,7 @@ func createMountPartition(t *testing.T, vhd string, args string) []byte {
 }
 
 var winsymlink = godebug.New("winsymlink")
+var winreadlinkvolume = godebug.New("winreadlinkvolume")
 
 func TestEvalSymlinksJunctionToVolumeID(t *testing.T) {
 	// Test that EvalSymlinks resolves a directory junction which
@@ -617,7 +618,11 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	}
 	var want string
 	if winsymlink.Value() == "0" {
-		want = vol + `\`
+		if winreadlinkvolume.Value() == "0" {
+			want = vol + `\`
+		} else {
+			want = target
+		}
 	} else {
 		want = dirlink
 	}
@@ -646,7 +651,12 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want = file
+
+	if winreadlinkvolume.Value() == "0" {
+		want = file
+	} else {
+		want = target
+	}
 	if got != want {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
 	}

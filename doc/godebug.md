@@ -139,6 +139,12 @@ At previous versions (`winsymlink=0`), mount points are treated as symlinks,
 and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
 (such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
 
+Go 1.23 changed [`os.Readlink`](/pkg/os#Readlink) and [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks)
+to avoid trying to normalize volumes to drive letters, which was not always even possible.
+This behavior is controlled by the `winreadlinkvolume` setting.
+For Go 1.23, it defaults to `winreadlinkvolume=1`.
+Previous versions default to `winreadlinkvolume=0`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
