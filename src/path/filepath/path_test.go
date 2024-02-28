@@ -1980,3 +1980,16 @@ func TestEscaping(t *testing.T) {
 		}
 	}
 }
+
+func TestEvalSymlinksTooManyLinks(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	dir := filepath.Join(t.TempDir(), "dir")
+	err := os.Symlink(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = filepath.EvalSymlinks(dir)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

@@ -126,6 +126,19 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.23
+
+Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+for reparse points, which can be controlled with the `winsymlink` setting.
+As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
+set, and reparse points that are not symlinks, Unix sockets, or dedup files now
+always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set. As a result of these changes,
+[`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
+mount points, which was a source of many inconsistencies and bugs.
+At previous versions (`winsymlink=0`), mount points are treated as symlinks,
+and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
+(such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
