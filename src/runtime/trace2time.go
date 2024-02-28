@@ -61,7 +61,7 @@ func traceClockNow() traceTime {
 func traceClockUnitsPerSecond() uint64 {
 	if osHasLowResClock {
 		// We're using cputicks as our clock, so we need a real estimate.
-		return uint64(ticksPerSecond())
+		return uint64(ticksPerSecond() / traceTimeDiv)
 	}
 	// Our clock is nanotime, so it's just the constant time division.
 	// (trace clock units / nanoseconds) * (1e9 nanoseconds / 1 second)
