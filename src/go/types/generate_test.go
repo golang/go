@@ -165,6 +165,7 @@ var filemap = map[string]action{
 	"termlist_test.go": nil,
 	"tuple.go":         nil,
 	"typelists.go":     nil,
+	"typeset.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"typeparam.go":     nil,
 	"typeterm_test.go": nil,
 	"typeterm.go":      nil,
