@@ -6,12 +6,14 @@
 
 package types
 
+import "go/token"
+
 // validType verifies that the given type does not "expand" indefinitely
 // producing a cycle in the type graph.
 // (Cycles involving alias types, as in "type A = [10]A" are detected
 // earlier, via the objDecl cycle detection mechanism.)
 func (check *Checker) validType(typ *Named) {
-	check.validType0(typ, nil, nil)
+	check.validType0(nopos, typ, nil, nil)
 }
 
 // validType0 checks if the given type is valid. If typ is a type parameter
@@ -24,8 +26,21 @@ func (check *Checker) validType(typ *Named) {
 // of) F in S, leading to the nest S->F. If a type appears in its own nest
 // (say S->F->S) we have an invalid recursive type. The path list is the full
 // path of named types in a cycle, it is only needed for error reporting.
-func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
-	switch t := Unalias(typ).(type) {
+func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) bool {
+	typ = Unalias(typ)
+
+	if check.conf._Trace {
+		if t, _ := typ.(*Named); t != nil && t.obj != nil /* obj should always exist but be conservative */ {
+			pos = t.obj.pos
+		}
+		check.indent++
+		check.trace(pos, "validType(%s) nest %v, path %v", typ, pathString(makeObjList(nest)), pathString(makeObjList(path)))
+		defer func() {
+			check.indent--
+		}()
+	}
+
+	switch t := typ.(type) {
 	case nil:
 		// We should never see a nil type but be conservative and panic
 		// only in debug mode.
@@ -34,25 +49,25 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		}
 
 	case *Array:
-		return check.validType0(t.elem, nest, path)
+		return check.validType0(pos, t.elem, nest, path)
 
 	case *Struct:
 		for _, f := range t.fields {
-			if !check.validType0(f.typ, nest, path) {
+			if !check.validType0(pos, f.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Union:
 		for _, t := range t.terms {
-			if !check.validType0(t.typ, nest, path) {
+			if !check.validType0(pos, t.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Interface:
 		for _, etyp := range t.embeddeds {
-			if !check.validType0(etyp, nest, path) {
+			if !check.validType0(pos, etyp, nest, path) {
 				return false
 			}
 		}
@@ -123,7 +138,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		// Every type added to nest is also added to path; thus every type that is in nest
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
-		if !check.validType0(t.Origin().fromRHS, append(nest, t), append(path, t)) {
+		if !check.validType0(pos, t.Origin().fromRHS, append(nest, t), append(path, t)) {
 			return false
 		}
 
@@ -148,7 +163,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 					// the current (instantiated) type (see the example
 					// at the end of this file).
 					// For error reporting we keep the full path.
-					return check.validType0(targ, nest[:len(nest)-1], path)
+					return check.validType0(pos, targ, nest[:len(nest)-1], path)
 				}
 			}
 		}
