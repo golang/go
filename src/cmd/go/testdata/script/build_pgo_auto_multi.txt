@@ -2,24 +2,21 @@
 
 go install -a -n -pgo=auto ./a ./b ./nopgo
 
-# a/default.pgo applies to package a and (transitive)
-# dependencies.
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a\.go'
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
-stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
+# a/default.pgo and b/default.pgo are both preprocessed
+stderr 'cp.*a(/|\\)default\.pgo'
+stderr 'cp.*b(/|\\)default\.pgo'
 
-# b/default.pgo applies to package b and (transitive)
-# dependencies.
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
-stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
+# a and b built once each with PGO.
+# Ideally we would check that the passed profile is the expected profile (here
+# and for dependencies). Unfortunately there is no nice way to map the expected
+# paths after preprocessing.
+stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)a\.go'
+stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)b\.go'
 
 # nopgo should be built without PGO.
 ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo\.go'
 
-# Dependencies should also be built without PGO.
+# Dependencies should also be built with and without PGO.
 # Here we want to match a compile action without -pgoprofile,
 # by matching 3 occurrences of "compile dep.go", among which
 # 2 of them have -pgoprofile (therefore one without).
@@ -39,17 +36,14 @@ stderr 'path\\ttest/b\\n.*build\\t-pgo=.*b(/|\\\\)default\.pgo'
 
 # go test works the same way
 go test -a -n -pgo=auto ./a ./b ./nopgo
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a_test\.go'
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)a_test\.go'
+stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)b_test\.go'
+stderr -count=2 'compile.*-pgoprofile=.*dep(/|\\\\)dep\.go'
 ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
 
 # test-only dependencies also have profiles attached
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
+stderr -count=2 'compile.*-pgoprofile=.*testdep(/|\\\\)testdep\.go'
+stderr -count=2 'compile.*-pgoprofile=.*testdep2(/|\\\\)testdep2\.go'
 
 # go list -deps prints packages built multiple times.
 go list -pgo=auto -deps ./a ./b ./nopgo

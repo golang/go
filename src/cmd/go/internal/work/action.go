@@ -461,6 +461,34 @@ func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return b.build(ctx, a)
 }
 
+// pgoActor implements the Actor interface for preprocessing PGO profiles.
+type pgoActor struct {
+	// input is the path to the original pprof profile.
+	input string
+}
+
+func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	// TODO(prattmic): Integrate with build cache to cache output.
+
+	sh := b.Shell(a)
+
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
+	// TODO(prattmic): This should use go tool preprofile to actually
+	// preprocess the profile. For now, this is a dummy implementation that
+	// simply copies the input to the output. This is technically a valid
+	// implementation because go tool compile -pgofile accepts either a
+	// pprof file or preprocessed file.
+	if err := sh.CopyFile(a.Target, p.input, 0644, false); err != nil {
+		return err
+	}
+
+	a.built = a.Target
+	return nil
+}
+
 // CompileAction returns the action for compiling and possibly installing
 // (according to mode) the given package. The resulting action is only
 // for building packages (archives), never for linking executables.
@@ -492,6 +520,20 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			for _, p1 := range p.Internal.Imports {
 				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
 			}
+		}
+
+		if p.Internal.PGOProfile != "" {
+			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
+				a := &Action{
+					Mode:    "preprocess PGO profile",
+					Actor:   &pgoActor{input: p.Internal.PGOProfile},
+					Objdir:  b.NewObjdir(),
+				}
+				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
+
+				return a
+			})
+			a.Deps = append(a.Deps, pgoAction)
 		}
 
 		if p.Standard {

@@ -9,7 +9,8 @@ go build triv.go
 # build with PGO, should trigger rebuild
 # starting with an empty profile (the compiler accepts it)
 go build -x -pgo=prof -o triv.exe triv.go
-stderr 'compile.*-pgoprofile=.*prof.*triv.go'
+stderr 'cp.*prof' # preprocess PGO profile
+stderr 'compile.*-pgoprofile=.*triv.go'
 
 # check that PGO appears in build info
 # N.B. we can't start the stdout check with -pgo because the script assumes that
@@ -33,9 +34,11 @@ cmp stdout list.out
 # overwrite the prof
 go run overwrite.go
 
-# build again, profile content changed, should trigger rebuild
+# build again, profile content changed, should trigger rebuild, including std
 go build -n -pgo=prof triv.go
-stderr 'compile.*-pgoprofile=.*prof.*p.go'
+stderr 'cp.*prof' # preprocess PGO profile
+stderr 'compile.*-pgoprofile=.*triv.go'
+stderr 'compile.*-p runtime.*-pgoprofile=.*'
 
 # check that the build ID is different
 go list -export -json=BuildID -pgo=prof triv.go
