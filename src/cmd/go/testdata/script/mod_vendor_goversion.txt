@@ -26,7 +26,7 @@ go mod vendor
 ! grep 1.17 vendor/modules.txt
 ! go build example.net/need117
 stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
-stderr 'conversion of slices to array pointers requires go1\.17 or later'
+stderr 'conversion of slice to array pointer requires go1\.17 or later'
 
 ! grep 1.13 vendor/modules.txt
 go build example.net/bad114
