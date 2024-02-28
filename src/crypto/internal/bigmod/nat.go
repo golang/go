@@ -40,14 +40,6 @@ func ctEq(x, y uint) choice {
 	return not(choice(c1 | c2))
 }
 
-// ctGeq returns 1 if x >= y, and 0 otherwise. The execution time of this
-// function does not depend on its inputs.
-func ctGeq(x, y uint) choice {
-	// If x < y, then x - y generates a carry.
-	_, carry := bits.Sub(x, y, 0)
-	return not(choice(carry))
-}
-
 // Nat represents an arbitrary natural number
 //
 // Each Nat has an announced length, which is the number of limbs it has stored.
