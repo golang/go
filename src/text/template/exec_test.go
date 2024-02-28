@@ -1755,6 +1755,12 @@ func TestFunctionCheckDuringCall(t *testing.T) {
 			data:    tVal,
 			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool",
 		},
+		{
+			name:    "call pipeline",
+			input:   `{{call (len "test")}}`,
+			data:    nil,
+			wantErr: "error calling call: non-function len \"test\" of type int",
+		},
 	}
 
 	for _, tc := range tests {
