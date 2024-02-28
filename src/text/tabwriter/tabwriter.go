@@ -12,6 +12,7 @@
 package tabwriter
 
 import (
+	"fmt"
 	"io"
 	"unicode/utf8"
 )
@@ -476,7 +477,7 @@ func (b *Writer) handlePanic(err *error, op string) {
 			*err = nerr.err
 			return
 		}
-		panic("tabwriter: panic during " + op)
+		panic(fmt.Sprintf("tabwriter: panic during %s (%v)", op, e))
 	}
 }
 
