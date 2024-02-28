@@ -137,6 +137,9 @@ func hasEmptyTypeset(t Type) bool {
 // TODO(gri) should we include signatures or assert that they are not present?
 func isGeneric(t Type) bool {
 	// A parameterized type is only generic if it doesn't have an instantiation already.
+	if alias, _ := t.(*Alias); alias != nil && alias.tparams != nil && alias.targs == nil {
+		return true
+	}
 	named := asNamed(t)
 	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
 }

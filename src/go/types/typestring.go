@@ -338,6 +338,10 @@ func (w *typeWriter) typ(typ Type) {
 
 	case *Alias:
 		w.typeName(t.obj)
+		if list := t.targs.list(); len(list) != 0 {
+			// instantiated type
+			w.typeList(list)
+		}
 		if w.ctxt != nil {
 			// TODO(gri) do we need to print the alias type name, too?
 			w.typ(Unalias(t.obj.typ))

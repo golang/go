@@ -21,11 +21,13 @@ type genericType interface {
 }
 
 // Instantiate instantiates the type orig with the given type arguments targs.
-// orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is an instantiated type of the same kind (either a *Named or
-// a *Signature). Methods attached to a *Named type are also instantiated, and
-// associated with a new *Func that has the same position as the original
-// method, but nil function scope.
+// orig must be an *Alias, *Named, or *Signature type. If there is no error,
+// the resulting Type is an instantiated type of the same kind (*Alias, *Named
+// or *Signature, respectively).
+//
+// Methods attached to a *Named type are also instantiated, and associated with
+// a new *Func that has the same position as the original method, but nil function
+// scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
@@ -35,10 +37,10 @@ type genericType interface {
 // not guarantee that identical instances are deduplicated in all cases.
 //
 // If validate is set, Instantiate verifies that the number of type arguments
-// and parameters match, and that the type arguments satisfy their
-// corresponding type constraints. If verification fails, the resulting error
-// may wrap an *ArgumentError indicating which type argument did not satisfy
-// its corresponding type parameter constraint, and why.
+// and parameters match, and that the type arguments satisfy their respective
+// type constraints. If verification fails, the resulting error may wrap an
+// *ArgumentError indicating which type argument did not satisfy its type parameter
+// constraint, and why.
 //
 // If validate is not set, Instantiate does not verify the type argument count
 // or whether the type arguments satisfy their constraints. Instantiate is
@@ -101,8 +103,9 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 		hashes[i] = ctxt.instanceHash(orig, targs)
 	}
 
-	// If local is non-nil, updateContexts return the type recorded in
-	// local.
+	// Record the result in all contexts.
+	// Prefer to re-use existing types from expanding context, if it exists, to reduce
+	// the memory pinned by the Named type.
 	updateContexts := func(res Type) Type {
 		for i := len(ctxts) - 1; i >= 0; i-- {
 			res = ctxts[i].update(hashes[i], orig, targs, res)
@@ -121,6 +124,21 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 	switch orig := orig.(type) {
 	case *Named:
 		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
+
+	case *Alias:
+		// TODO(gri) is this correct?
+		assert(expanding == nil) // Alias instances cannot be reached from Named types
+
+		tparams := orig.TypeParams()
+		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
+		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+			return Typ[Invalid]
+		}
+		if tparams.Len() == 0 {
+			return orig // nothing to do (minor optimization)
+		}
+
+		return check.newAliasInstance(pos, orig, targs, ctxt)
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types

@@ -453,6 +453,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		}()
 	}
 
+	defer func() {
+		setDefType(def, res)
+	}()
+
 	var cause string
 	gtyp := check.genericType(x, &cause)
 	if cause != "" {
@@ -462,21 +466,23 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		return gtyp // error already reported
 	}
 
+	// evaluate arguments
+	targs := check.typeList(xlist)
+	if targs == nil {
+		return Typ[Invalid]
+	}
+
+	if orig, _ := gtyp.(*Alias); orig != nil {
+		return check.instance(x.Pos(), orig, targs, nil, check.context())
+	}
+
 	orig := asNamed(gtyp)
 	if orig == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
 
-	// evaluate arguments
-	targs := check.typeList(xlist)
-	if targs == nil {
-		setDefType(def, Typ[Invalid]) // avoid errors later due to lazy instantiation
-		return Typ[Invalid]
-	}
-
 	// create the instance
 	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
-	setDefType(def, inst)
 
 	// orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {

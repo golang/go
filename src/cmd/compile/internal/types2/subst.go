@@ -96,16 +96,40 @@ func (subst *subster) typ(typ Type) Type {
 		// nothing to do
 
 	case *Alias:
-		rhs := subst.typ(t.fromRHS)
-		if rhs != t.fromRHS {
-			// This branch cannot be reached because the RHS of an alias
-			// may only contain type parameters of an enclosing function.
-			// Such function bodies are never "instantiated" and thus
-			// substitution is not called on locally declared alias types.
-			// TODO(gri) adjust once parameterized aliases are supported
-			panic("unreachable for unparameterized aliases")
-			// return subst.check.newAlias(t.obj, rhs)
+		// This code follows the code for *Named types closely.
+		// TODO(gri) try to factor better
+		orig := t.Origin()
+		n := orig.TypeParams().Len()
+		if n == 0 {
+			return t // type is not parameterized
 		}
+
+		// TODO(gri) do we need this for Alias types?
+		var newTArgs []Type
+		if t.TypeArgs().Len() != n {
+			return Typ[Invalid] // error reported elsewhere
+		}
+
+		// already instantiated
+		// For each (existing) type argument targ, determine if it needs
+		// to be substituted; i.e., if it is or contains a type parameter
+		// that has a type argument for it.
+		for i, targ := range t.TypeArgs().list() {
+			new_targ := subst.typ(targ)
+			if new_targ != targ {
+				if newTArgs == nil {
+					newTArgs = make([]Type, n)
+					copy(newTArgs, t.TypeArgs().list())
+				}
+				newTArgs[i] = new_targ
+			}
+		}
+
+		if newTArgs == nil {
+			return t // nothing to substitute
+		}
+
+		return subst.check.newAliasInstance(subst.pos, t.orig, newTArgs, subst.ctxt)
 
 	case *Array:
 		elem := subst.typOrNil(t.elem)
