@@ -2127,3 +2127,36 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 		t.Fatalf("server got body %q, want %q", gotBody, content)
 	}
 }
+
+func TestClientTimeoutReturnsContextDeadlineExceeded(t *testing.T) {
+	run(t, testClientTimeoutReturnsContextDeadlineExceededTimeouts)
+}
+func testClientTimeoutReturnsContextDeadlineExceededTimeouts(t *testing.T, mode testMode) {
+	runTimeSensitiveTest(t, []time.Duration{
+		5 * time.Millisecond,
+		10 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		500 * time.Millisecond,
+		time.Second,
+		5 * time.Second,
+	}, func(t *testing.T, d time.Duration) error {
+		return testClientTimeoutReturnsContextDeadlineExceeded(t, d, mode)
+	})
+}
+func testClientTimeoutReturnsContextDeadlineExceeded(t *testing.T, timeout time.Duration, mode testMode) error {
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-doneCh
+		w.WriteHeader(200)
+	}))
+	// check that, upon exceeding Client.Timeout, the returned error is context.DeadlineExceeded.
+	cst.c.Timeout = timeout
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	_, err := cst.c.Do(req)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("expected context.DeadlineExceeded, got %v", err)
+	}
+	return nil
+}
