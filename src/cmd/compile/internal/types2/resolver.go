@@ -316,7 +316,7 @@ func (check *Checker) collectObjects() {
 							if alt := fileScope.Lookup(name); alt != nil {
 								err := check.newError(DuplicateDecl)
 								err.addf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
-								err.recordAltDecl(alt)
+								err.addAltDecl(alt)
 								err.report()
 							} else {
 								fileScope.insert(name, obj)
@@ -474,11 +474,11 @@ func (check *Checker) collectObjects() {
 				err := check.newError(DuplicateDecl)
 				if pkg, ok := obj.(*PkgName); ok {
 					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
-					err.recordAltDecl(pkg)
+					err.addAltDecl(pkg)
 				} else {
 					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
-					// TODO(gri) dot-imported objects don't have a position; recordAltDecl won't print anything
-					err.recordAltDecl(obj)
+					// TODO(gri) dot-imported objects don't have a position; addAltDecl won't print anything
+					err.addAltDecl(obj)
 				}
 				err.report()
 			}

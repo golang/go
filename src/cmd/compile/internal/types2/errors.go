@@ -60,6 +60,16 @@ func (err *error_) addf(at poser, format string, args ...interface{}) {
 	err.desc = append(err.desc, errorDesc{atPos(at), err.check.sprintf(format, args...)})
 }
 
+// addAltDecl is a specialized form of addf reporting another declaration of obj.
+func (err *error_) addAltDecl(obj Object) {
+	if pos := obj.Pos(); pos.IsKnown() {
+		// We use "other" rather than "previous" here because
+		// the first declaration seen may not be textually
+		// earlier in the source.
+		err.addf(obj, "other declaration of %s", obj.Name())
+	}
+}
+
 func (err *error_) empty() bool {
 	return err.desc == nil
 }
@@ -136,6 +146,9 @@ func (err *error_) report() {
 	} else {
 		check.handleError(0, err.pos(), err.code, err.msg(), err.soft)
 	}
+
+	// make sure the error is not reported twice
+	err.desc = nil
 }
 
 // handleError should only be called by error_.report.

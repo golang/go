@@ -11,15 +11,6 @@ import (
 	. "internal/types/errors"
 )
 
-func (err *error_) recordAltDecl(obj Object) {
-	if pos := obj.Pos(); pos.IsKnown() {
-		// We use "other" rather than "previous" here because
-		// the first declaration seen may not be textually
-		// earlier in the source.
-		err.addf(pos, "other declaration of %s", obj.Name())
-	}
-}
-
 func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
 	// spec: "The blank identifier, represented by the underscore
 	// character _, may be used in a declaration like any other
@@ -29,7 +20,7 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 		if alt := scope.Insert(obj); alt != nil {
 			err := check.newError(DuplicateDecl)
 			err.addf(obj, "%s redeclared in this block", obj.Name())
-			err.recordAltDecl(alt)
+			err.addAltDecl(alt)
 			err.report()
 			return
 		}
@@ -743,7 +734,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 					// method, and the alt decl on the field.
 					err := check.newError(DuplicateFieldAndMethod)
 					err.addf(alt, "field and method with the same name %s", fld.name)
-					err.recordAltDecl(fld)
+					err.addAltDecl(fld)
 					err.report()
 				}
 			}

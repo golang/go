@@ -136,7 +136,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 					err := check.newError(DuplicateLabel)
 					err.soft = true
 					err.addf(lbl.pos, "label %s already declared", name)
-					err.recordAltDecl(alt)
+					err.addAltDecl(alt)
 					err.report()
 					// ok to continue
 				} else {
