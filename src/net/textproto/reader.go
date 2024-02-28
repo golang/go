@@ -803,6 +803,7 @@ func initCommonHeader() {
 		"Mime-Version",
 		"Pragma",
 		"Received",
+		"Referer",
 		"Return-Path",
 		"Server",
 		"Set-Cookie",
