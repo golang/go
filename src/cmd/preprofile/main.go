@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"cmd/internal/objabi"
 	"cmd/internal/pgo"
 	"flag"
 	"fmt"
@@ -67,6 +68,8 @@ func preprocess(profileFile string, outputFile string) error {
 }
 
 func main() {
+	objabi.AddVersionFlag()
+
 	log.SetFlags(0)
 	log.SetPrefix("preprofile: ")
 

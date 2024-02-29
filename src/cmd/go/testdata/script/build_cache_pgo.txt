@@ -1,0 +1,28 @@
+[short] skip
+
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Building trivial non-main package should run preprofile the first time.
+go build -x -pgo=default.pgo lib.go
+stderr 'preprofile.*default\.pgo'
+
+# ... but not again ...
+go build -x -pgo=default.pgo lib.go
+! stderr 'preprofile.*default\.pgo'
+
+# ... unless we use -a.
+go build -a -x -pgo=default.pgo lib.go
+stderr 'preprofile.*default\.pgo'
+
+# ... building a different package should not run preprofile again, instead using a profile from cache.
+go build -x -pgo=default.pgo lib2.go
+! stderr 'preprofile.*default\.pgo'
+stderr 'compile.*-pgoprofile=.*'$GOCACHE'.*lib2.go'
+
+-- lib.go --
+package lib
+-- lib2.go --
+package lib2
+-- default.pgo --

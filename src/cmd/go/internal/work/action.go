@@ -461,6 +461,17 @@ func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return b.build(ctx, a)
 }
 
+// pgoActionID computes the action ID for a preprocess PGO action.
+func (b *Builder) pgoActionID(input string) cache.ActionID {
+	h := cache.NewHash("preprocess PGO profile " + input)
+
+	fmt.Fprintf(h, "preprocess PGO profile\n")
+	fmt.Fprintf(h, "preprofile %s\n", b.toolID("preprofile"))
+	fmt.Fprintf(h, "input %q\n", b.fileHash(input))
+
+	return h.Sum()
+}
+
 // pgoActor implements the Actor interface for preprocessing PGO profiles.
 type pgoActor struct {
 	// input is the path to the original pprof profile.
@@ -468,7 +479,10 @@ type pgoActor struct {
 }
 
 func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
-	// TODO(prattmic): Integrate with build cache to cache output.
+	if b.useCache(a, b.pgoActionID(p.input), a.Target, !b.IsCmdList) || b.IsCmdList {
+		return nil
+	}
+	defer b.flushOutput(a)
 
 	sh := b.Shell(a)
 
@@ -480,7 +494,33 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
 		return err
 	}
 
+	// N.B. Builder.build looks for the out in a.built, regardless of
+	// whether this came from cache.
 	a.built = a.Target
+
+	if !cfg.BuildN {
+		// Cache the output.
+		//
+		// N.B. We don't use updateBuildID here, as preprocessed PGO profiles
+		// do not contain a build ID. updateBuildID is typically responsible
+		// for adding to the cache, thus we must do so ourselves instead.
+
+		r, err := os.Open(a.Target)
+		if err != nil {
+			return fmt.Errorf("error opening target for caching: %w", err)
+		}
+
+		c := cache.Default()
+		outputID, _, err := c.Put(a.actionID, r)
+		r.Close()
+		if err != nil {
+			return fmt.Errorf("error adding target to cache: %w", err)
+		}
+		if cfg.BuildX {
+			sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", a.Target, c.OutputFile(outputID))))
+		}
+	}
+
 	return nil
 }
 

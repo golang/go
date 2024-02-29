@@ -3,6 +3,10 @@
 
 [short] skip 'compiles and links executables'
 
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
 # build without PGO
 go build triv.go
 

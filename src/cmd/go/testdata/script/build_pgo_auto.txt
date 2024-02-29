@@ -2,6 +2,10 @@
 
 [short] skip 'compiles and links executables'
 
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
 # use default.pgo for a single main package
 go build -n -pgo=auto -o a1.exe ./a/a1
 stderr 'preprofile.*-i.*default\.pgo'
