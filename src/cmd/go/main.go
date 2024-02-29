@@ -90,6 +90,8 @@ func init() {
 
 var _ = go11tag
 
+var counterErrorGOPATHEntryRelative = base.NewCounter("cmd/go/error:gopath-entry-relative")
+
 func main() {
 	log.SetFlags(0)
 	TelemetryStart() // Open the telemetry counter file so counters can be written to it.
@@ -107,6 +109,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
+		counter.Inc("cmd/go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
 		help.Help(os.Stdout, args[1:])
 		return
 	}
@@ -145,6 +148,7 @@ func main() {
 					// Instead of dying, uninfer it.
 					cfg.BuildContext.GOPATH = ""
 				} else {
+					counterErrorGOPATHEntryRelative.Inc()
 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
 					os.Exit(2)
 				}

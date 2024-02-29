@@ -98,9 +98,12 @@ func (s *Switcher) Switch(ctx context.Context) {
 	}
 
 	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
+	counterSwitchExec.Inc()
 	Exec(tv)
 	panic("unreachable")
 }
+
+var counterSwitchExec = base.NewCounter("cmd/go/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).

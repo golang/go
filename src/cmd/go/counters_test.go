@@ -29,11 +29,22 @@ func TestCounterNamesUpToDate(t *testing.T) {
 	counters = append(counters, "cmd/go/flag:C", "cmd/go/subcommand:unknown")
 	counters = append(counters, flagscounters("cmd/go/flag:", *flag.CommandLine)...)
 
+	// Add help (without any arguments) as a special case. cmdcounters adds go help <cmd>
+	// for all subcommands, but it's also valid to invoke go help without any arguments.
+	counters = append(counters, "cmd/go/subcommand:help")
 	for _, cmd := range base.Go.Commands {
 		counters = append(counters, cmdcounters(nil, cmd)...)
 	}
-	cstr := []byte(strings.Join(counters, "\n") + "\n")
 
+	counters = append(counters, base.RegisteredCounterNames()...)
+	for _, c := range counters {
+		const counterPrefix = "cmd/go"
+		if !strings.HasPrefix(c, counterPrefix) {
+			t.Fatalf("registered counter %q does not start with %q", c, counterPrefix)
+		}
+	}
+
+	cstr := []byte(strings.Join(counters, "\n") + "\n")
 	const counterNamesFile = "testdata/counters.txt"
 	old, err := os.ReadFile(counterNamesFile)
 	if err != nil {

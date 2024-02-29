@@ -777,6 +777,8 @@ func rewriteVersionList(ctx context.Context, dir string) (err error) {
 var (
 	statCacheOnce sync.Once
 	statCacheErr  error
+
+	counterErrorGOMODCACHEEntryRelative = base.NewCounter("cmd/go/error:gomodcache-entry-relative")
 )
 
 // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
@@ -788,6 +790,7 @@ func checkCacheDir(ctx context.Context) error {
 		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
 	}
 	if !filepath.IsAbs(cfg.GOMODCACHE) {
+		counterErrorGOMODCACHEEntryRelative.Inc()
 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
 	}
 

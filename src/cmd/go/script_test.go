@@ -410,6 +410,11 @@ func checkCounters(t *testing.T, telemetryDir string) {
 		}
 	})
 	counters := readCounters(t, telemetryDir)
+	if _, ok := scriptGoInvoked.Load(testing.TB(t)); ok {
+		if len(counters) == 0 {
+			t.Fatal("go was invoked but no counters were incremented")
+		}
+	}
 	for name := range counters {
 		if !allowedCounters[name] {
 			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+

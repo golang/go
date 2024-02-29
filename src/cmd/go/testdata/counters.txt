@@ -40,6 +40,7 @@ cmd/go/flag:test.v
 cmd/go/flag:testsum
 cmd/go/flag:testwork
 cmd/go/flag:update
+cmd/go/subcommand:help
 cmd/go/subcommand:bug
 cmd/go/flag:bug-C
 cmd/go/flag:bug-v
@@ -659,3 +660,9 @@ cmd/go/subcommand:help-private
 cmd/go/subcommand:help-testflag
 cmd/go/subcommand:help-testfunc
 cmd/go/subcommand:help-vcs
+cmd/go/error:gomodcache-entry-relative
+cmd/go/error:gopath-entry-relative
+cmd/go/error:help-unknown-topic
+cmd/go/error:invalid-toolchain-in-file
+cmd/go/select-exec
+cmd/go/switch-exec
