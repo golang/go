@@ -354,6 +354,9 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
 func Open() func() {
+	if telemetry.DisabledOnPlatform {
+		return func() {}
+	}
 	if mode, _ := telemetry.Mode(); mode == "off" {
 		// Don't open the file when telemetry is off.
 		defaultFile.err = ErrDisabled

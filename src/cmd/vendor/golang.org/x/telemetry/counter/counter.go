@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.19 && !openbsd && !js && !wasip1 && !solaris && !android && !plan9 && !386
+//go:build go1.19
 
 package counter
 
@@ -31,6 +31,9 @@ func Add(name string, n int64) {
 // New can be called in global initializers and will be compiled down to
 // linker-initialized data. That is, calling New to initialize a global
 // has no cost at program startup.
+//
+// See "Counter Naming" in the package doc for a description of counter naming
+// conventions.
 func New(name string) *Counter {
 	// Note: not calling DefaultFile.New in order to keep this
 	// function something the compiler can inline and convert
@@ -61,12 +64,15 @@ func New(name string) *Counter {
 // multiple calls to Add, so it is more expensive and not recommended.
 type Counter = counter.Counter
 
-// a StackCounter is the in-memory knowledge about a stack counter.
+// A StackCounter is the in-memory knowledge about a stack counter.
 // StackCounters are more expensive to use than regular Counters,
 // requiring, at a minimum, a call to runtime.Callers.
 type StackCounter = counter.StackCounter
 
 // NewStack returns a new stack counter with the given name and depth.
+//
+// See "Counter Naming" in the package doc for a description of counter naming
+// conventions.
 func NewStack(name string, depth int) *StackCounter {
 	return counter.NewStack(name, depth)
 }

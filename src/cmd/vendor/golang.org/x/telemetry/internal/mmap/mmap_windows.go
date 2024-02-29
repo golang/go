@@ -25,22 +25,20 @@ func mmapFile(f *os.File, previous *Data) (Data, error) {
 	if size == 0 {
 		return Data{f, nil, nil}, nil
 	}
+	// set the min and max sizes to zero to map the whole file, as described in
+	// https://learn.microsoft.com/en-us/windows/win32/memory/creating-a-file-mapping-object#file-mapping-size
 	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, syscall.PAGE_READWRITE, 0, 0, nil)
 	if err != nil {
 		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
 	}
-
+	// the mapping extends from zero to the end of the file mapping
+	// https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile
 	addr, err := windows.MapViewOfFile(h, syscall.FILE_MAP_READ|syscall.FILE_MAP_WRITE, 0, 0, 0)
 	if err != nil {
 		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
 	}
-	var info windows.MemoryBasicInformation
-	err = windows.VirtualQuery(addr, &info, unsafe.Sizeof(info))
-	if err != nil {
-		return Data{}, fmt.Errorf("VirtualQuery %s: %w", f.Name(), err)
-	}
-	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), int(info.RegionSize))
-	return Data{f, data, h}, nil
+	// need to remember addr and h for unmapping
+	return Data{f, unsafe.Slice((*byte)(unsafe.Pointer(addr)), size), h}, nil
 }
 
 func munmapFile(d Data) error {

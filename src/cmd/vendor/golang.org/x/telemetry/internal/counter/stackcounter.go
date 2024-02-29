@@ -185,17 +185,18 @@ func eq(a, b []uintptr) bool {
 // This is the implementation of
 // golang.org/x/telemetry/counter/countertest.ReadStackCounter.
 func ReadStack(c *StackCounter) (map[string]uint64, error) {
-	pf, err := readFile(c.file)
-	if err != nil {
-		return nil, err
-	}
 	ret := map[string]uint64{}
-	prefix := c.name + "\n"
-
-	for k, v := range pf.Count {
-		if strings.HasPrefix(k, prefix) {
-			ret[k] = v
+	for _, ctr := range c.Counters() {
+		v, err := Read(ctr)
+		if err != nil {
+			return nil, err
 		}
+		ret[DecodeStack(ctr.Name())] = v
 	}
 	return ret, nil
+}
+
+// IsStackCounter reports whether the counter name is for a stack counter.
+func IsStackCounter(name string) bool {
+	return strings.Contains(name, "\n")
 }
