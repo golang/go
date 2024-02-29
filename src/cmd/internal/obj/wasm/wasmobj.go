@@ -465,9 +465,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,
@@ -521,9 +521,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,
