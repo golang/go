@@ -554,7 +554,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		}
 		// Capture stdout and stderr.
 		//
-		// The protoocol for these programs is that stdout contains the trace data
+		// The protocol for these programs is that stdout contains the trace data
 		// and stderr is an expectation in string format.
 		var traceBuf, errBuf bytes.Buffer
 		cmd.Stdout = &traceBuf
