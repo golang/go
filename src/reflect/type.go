@@ -313,8 +313,6 @@ type rtype struct {
 	t abi.Type
 }
 
-// OverflowComplex reports whether the complex128 x cannot be represented by type t.
-// It panics if t's Kind is not Complex64 or Complex128.
 func (t *rtype) OverflowComplex(x complex128) bool {
 	k := t.Kind()
 	switch k {
@@ -326,8 +324,6 @@ func (t *rtype) OverflowComplex(x complex128) bool {
 	panic("reflect: OverflowComplex of non-complex type " + t.String())
 }
 
-// OverflowFloat reports whether the float64 x cannot be represented by type t.
-// It panics if t's Kind is not Float32 or Float64.
 func (t *rtype) OverflowFloat(x float64) bool {
 	k := t.Kind()
 	switch k {
@@ -339,8 +335,6 @@ func (t *rtype) OverflowFloat(x float64) bool {
 	panic("reflect: OverflowFloat of non-float type " + t.String())
 }
 
-// OverflowInt reports whether the int64 x cannot be represented by type t.
-// It panics if t's Kind is not Int, Int8, Int16, Int32, or Int64.
 func (t *rtype) OverflowInt(x int64) bool {
 	k := t.Kind()
 	switch k {
@@ -352,8 +346,6 @@ func (t *rtype) OverflowInt(x int64) bool {
 	panic("reflect: OverflowInt of non-int type " + t.String())
 }
 
-// OverflowUint reports whether the uint64 x cannot be represented by type t.
-// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 func (t *rtype) OverflowUint(x uint64) bool {
 	k := t.Kind()
 	switch k {
