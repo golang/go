@@ -5435,7 +5435,7 @@ func (pp *p) init(id int32) {
 			pp.raceprocctx = raceproccreate()
 		}
 	}
-	lockInit(&pp.timers.lock, lockRankTimers)
+	lockInit(&pp.timers.mu, lockRankTimers)
 
 	// This P may get timers when it starts running. Set the mask here
 	// since the P may not go through pidleget (notably P 0 on startup).
