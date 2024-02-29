@@ -261,10 +261,14 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
 		return len
 	}
-	if isChanLen(n) {
+	if isChanLenCap(n) {
+		name := "chanlen"
+		if n.Op() == ir.OCAP {
+			name = "chancap"
+		}
 		// cannot use chanfn - closechan takes any, not chan any,
 		// because it accepts both send-only and recv-only channels.
-		fn := typecheck.LookupRuntime("chanlen", n.X.Type())
+		fn := typecheck.LookupRuntime(name, n.X.Type())
 		return mkcall1(fn, n.Type(), init, n.X)
 	}
 
@@ -892,9 +896,9 @@ func isByteCount(n ir.Node) bool {
 		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
 }
 
-// isChanLen reports whether n is of the form len(c) for a channel c.
+// isChanLenCap reports whether n is of the form len(c) or cap(c) for a channel c.
 // Note that this does not check for -n or instrumenting because this
 // is a correctness rewrite, not an optimization.
-func isChanLen(n ir.Node) bool {
-	return n.Op() == ir.OLEN && n.(*ir.UnaryExpr).X.Type().IsChan()
+func isChanLenCap(n ir.Node) bool {
+	return (n.Op() == ir.OLEN || n.Op() == ir.OCAP) && n.(*ir.UnaryExpr).X.Type().IsChan()
 }

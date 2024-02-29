@@ -6350,6 +6350,9 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	if n.X.Type().IsChan() && n.Op() == ir.OLEN {
 		s.Fatalf("cannot inline len(chan)") // must use runtime.chanlen now
 	}
+	if n.X.Type().IsChan() && n.Op() == ir.OCAP {
+		s.Fatalf("cannot inline cap(chan)") // must use runtime.chancap now
+	}
 	// if n == nil {
 	//   return 0
 	// } else {

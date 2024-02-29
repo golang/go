@@ -138,6 +138,7 @@ var runtimeDecls = [...]struct {
 	{"chansend1", funcTag, 103},
 	{"closechan", funcTag, 104},
 	{"chanlen", funcTag, 105},
+	{"chancap", funcTag, 105},
 	{"writeBarrier", varTag, 107},
 	{"typedmemmove", funcTag, 108},
 	{"typedmemclr", funcTag, 109},

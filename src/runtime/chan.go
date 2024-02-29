@@ -731,6 +731,13 @@ func chanlen(c *hchan) int {
 	return int(c.qcount)
 }
 
+func chancap(c *hchan) int {
+	if c == nil {
+		return 0
+	}
+	return int(c.dataqsiz)
+}
+
 //go:linkname reflect_chanlen reflect.chanlen
 func reflect_chanlen(c *hchan) int {
 	return chanlen(c)
@@ -743,10 +750,7 @@ func reflectlite_chanlen(c *hchan) int {
 
 //go:linkname reflect_chancap reflect.chancap
 func reflect_chancap(c *hchan) int {
-	if c == nil {
-		return 0
-	}
-	return int(c.dataqsiz)
+	return chancap(c)
 }
 
 //go:linkname reflect_chanclose reflect.chanclose
