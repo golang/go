@@ -1923,12 +1923,7 @@ func (c *conn) serve(ctx context.Context) {
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
-				if handler := c.server.TLSConfig.LooksLikeHttpResponseHandler; handler != nil {
-					// configurable error message for Client sent an HTTP request to an HTTPS server.
-					io.WriteString(re.Conn, handler(re.RecondBytes))
-				} else {
-					io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
-				}
+				c.httpOnHttpsPortErrorHandler(re.Conn, re.RecondBytes)
 				re.Conn.Close()
 				return
 			}
@@ -3845,4 +3840,74 @@ func MaxBytesHandler(h Handler, n int64) Handler {
 		r2.Body = MaxBytesReader(w, r.Body, n)
 		h.ServeHTTP(w, &r2)
 	})
+}
+
+// net/http: configurable error message for Client sent an HTTP request to an HTTPS server.
+// https://go.dev/issue/49310
+func (c *conn) httpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) {
+	// Read Response string
+	badRequestResponse := c.server.TLSConfig.HttpOnHttpsPortErrorResponse
+	if badRequestResponse == "" {
+		badRequestResponse = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n"
+	}
+
+	// Handler
+	if handler := c.server.TLSConfig.HttpOnHttpsPortErrorHandler; handler != nil {
+		handler(conn, recondBytes, badRequestResponse)
+		return
+	}
+
+	// Redirect
+	if c.server.TLSConfig.HttpOnHttpsPortErrorRedirect {
+		// Read Header
+		req, err := ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
+		if err != nil {
+			io.WriteString(conn, badRequestResponse)
+			return
+		}
+
+		// Send Redirect
+		io.WriteString(conn, fmt.Sprintf(
+			"HTTP/1.1 307 Temporary Redirect\r\nLocation: https://%s%s\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n",
+			req.Host, req.URL.Path,
+		))
+		return
+	}
+
+	// Send Response string
+	io.WriteString(conn, badRequestResponse)
+}
+
+func ReadRequestForHttpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) (*Request, error) {
+	req, err := ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
+	if err != nil || req.Host == "" {
+		// Content length may be insufficient, continue reading.
+		// Max 4KB
+		if len(recondBytes) >= 4096 {
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.New("missing required Host header")
+		}
+
+		// Set Timeout 1s
+		conn.SetReadDeadline(time.Now().Add(time.Duration(1 * time.Second)))
+		// Read bytes
+		b := make([]byte, 4096-len(recondBytes))
+		n, err := conn.Read(b)
+		if err != nil {
+			return nil, err
+		}
+		recondBytes = append(recondBytes, b[:n]...)
+
+		// Read Request
+		req, err = ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
+		if err != nil {
+			return nil, err
+		}
+		if req.Host == "" {
+			return nil, errors.New("missing required Host header")
+		}
+	}
+	return req, nil
 }

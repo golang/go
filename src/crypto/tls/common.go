@@ -786,9 +786,23 @@ type Config struct {
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
 
-	// If tlsRecordHeaderLooksLikeHTTP, call this function,
-	// then get return string to io.WriteString
-	LooksLikeHttpResponseHandler func(RecondBytes []byte) string
+	// HttpOnHttpsPortErrorResponseString is sent on an HTTPS connection
+	// which receives what looks like an HTTP request.
+	//   "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n"
+	HttpOnHttpsPortErrorResponse string
+
+	// HttpOnHttpsPortErrorRedirect is sent on an HTTPS connection
+	// which receives what looks like an HTTP request.
+	// If true, 307 redirect will be sent
+	HttpOnHttpsPortErrorRedirect bool
+
+	// HttpOnHttpsPortErrorHandler handles HTTP requests sent to an HTTPS port.
+	//
+	// WriteString use:
+	//   io.WriteString(conn, "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+	// Parse the request header use:
+	//   req, err := http.ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
+	HttpOnHttpsPortErrorHandler func(conn net.Conn, recondBytes []byte, badRequestResponse string)
 }
 
 const (
