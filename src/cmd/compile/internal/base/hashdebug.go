@@ -197,7 +197,7 @@ func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
 			break
 		}
 		if i == 0 {
-			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s", ev)))
+			hd.matches = append(hd.matches, toHashAndMask(s, ev))
 		} else {
 			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s%d", ev, i-1)))
 		}
