@@ -801,7 +801,7 @@ type Config struct {
 	// WriteString use:
 	//   io.WriteString(conn, "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
 	// Parse the request header use:
-	//   req, err := http.ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
+	//   http.ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
 	HttpOnHttpsPortErrorHandler func(conn net.Conn, recondBytes []byte, badRequestResponse string)
 }
 

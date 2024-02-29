@@ -3860,7 +3860,7 @@ func (c *conn) httpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) {
 	// Redirect
 	if c.server.TLSConfig.HttpOnHttpsPortErrorRedirect {
 		// Read Header
-		req, err := ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
+		req, _, err := ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
 		if err != nil {
 			io.WriteString(conn, badRequestResponse)
 			return
@@ -3878,36 +3878,31 @@ func (c *conn) httpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) {
 	io.WriteString(conn, badRequestResponse)
 }
 
-func ReadRequestForHttpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) (*Request, error) {
-	req, err := ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
-	if err != nil || req.Host == "" {
-		// Content length may be insufficient, continue reading.
-		// Max 4KB
-		if len(recondBytes) >= 4096 {
-			if err != nil {
-				return nil, err
-			}
-			return nil, errors.New("missing required Host header")
-		}
+func ReadRequestForHttpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) (req *Request, reqBytes []byte, err error) {
+	// Max 4KB
+	if len(recondBytes) > 4096 {
+		return nil, recondBytes, errors.New("recondBytes too long")
+	}
 
+	// Content length may be insufficient, continue reading.
+	if !bytes.Contains(recondBytes, []byte("\r\n\r\n")) {
+		b := make([]byte, 4096-len(recondBytes))
 		// Set Timeout 1s
 		conn.SetReadDeadline(time.Now().Add(time.Duration(1 * time.Second)))
-		// Read bytes
-		b := make([]byte, 4096-len(recondBytes))
 		n, err := conn.Read(b)
 		if err != nil {
-			return nil, err
+			return nil, recondBytes, err
 		}
 		recondBytes = append(recondBytes, b[:n]...)
-
-		// Read Request
-		req, err = ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
-		if err != nil {
-			return nil, err
-		}
-		if req.Host == "" {
-			return nil, errors.New("missing required Host header")
-		}
 	}
-	return req, nil
+
+	// Read Request
+	req, err = ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
+	if err != nil {
+		return nil, recondBytes, err
+	}
+	if req.Host == "" {
+		return nil, recondBytes, errors.New("missing required Host header")
+	}
+	return req, recondBytes, nil
 }
