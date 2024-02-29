@@ -313,50 +313,6 @@ type rtype struct {
 	t abi.Type
 }
 
-func (t *rtype) OverflowComplex(x complex128) bool {
-	k := t.Kind()
-	switch k {
-	case Complex64:
-		return overflowFloat32(real(x)) || overflowFloat32(imag(x))
-	case Complex128:
-		return false
-	}
-	panic("reflect: OverflowComplex of non-complex type " + t.String())
-}
-
-func (t *rtype) OverflowFloat(x float64) bool {
-	k := t.Kind()
-	switch k {
-	case Float32:
-		return overflowFloat32(x)
-	case Float64:
-		return false
-	}
-	panic("reflect: OverflowFloat of non-float type " + t.String())
-}
-
-func (t *rtype) OverflowInt(x int64) bool {
-	k := t.Kind()
-	switch k {
-	case Int, Int8, Int16, Int32, Int64:
-		bitSize := t.Size() * 8
-		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
-		return x != trunc
-	}
-	panic("reflect: OverflowInt of non-int type " + t.String())
-}
-
-func (t *rtype) OverflowUint(x uint64) bool {
-	k := t.Kind()
-	switch k {
-	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
-		bitSize := t.Size() * 8
-		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
-		return x != trunc
-	}
-	panic("reflect: OverflowUint of non-uint type " + t.String())
-}
-
 func (t *rtype) common() *abi.Type {
 	return &t.t
 }
@@ -870,6 +826,50 @@ func (t *rtype) IsVariadic() bool {
 	}
 	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return tt.IsVariadic()
+}
+
+func (t *rtype) OverflowComplex(x complex128) bool {
+	k := t.Kind()
+	switch k {
+	case Complex64:
+		return overflowFloat32(real(x)) || overflowFloat32(imag(x))
+	case Complex128:
+		return false
+	}
+	panic("reflect: OverflowComplex of non-complex type " + t.String())
+}
+
+func (t *rtype) OverflowFloat(x float64) bool {
+	k := t.Kind()
+	switch k {
+	case Float32:
+		return overflowFloat32(x)
+	case Float64:
+		return false
+	}
+	panic("reflect: OverflowFloat of non-float type " + t.String())
+}
+
+func (t *rtype) OverflowInt(x int64) bool {
+	k := t.Kind()
+	switch k {
+	case Int, Int8, Int16, Int32, Int64:
+		bitSize := t.Size() * 8
+		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+		return x != trunc
+	}
+	panic("reflect: OverflowInt of non-int type " + t.String())
+}
+
+func (t *rtype) OverflowUint(x uint64) bool {
+	k := t.Kind()
+	switch k {
+	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
+		bitSize := t.Size() * 8
+		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+		return x != trunc
+	}
+	panic("reflect: OverflowUint of non-uint type " + t.String())
 }
 
 // add returns p+x.
