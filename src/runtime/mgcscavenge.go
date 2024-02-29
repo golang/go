@@ -497,7 +497,7 @@ func (s *scavengerState) sleep(worked float64) {
 		// because we can't close over any variables without
 		// failing escape analysis.
 		start := nanotime()
-		resetTimer(s.timer, start+sleepTime)
+		s.timer.reset(start + sleepTime)
 
 		// Mark ourselves as asleep and go to sleep.
 		s.parked = true
@@ -512,7 +512,7 @@ func (s *scavengerState) sleep(worked float64) {
 		// reason we might fail is that we've already woken up, but the timer
 		// might be in the process of firing on some other P; essentially we're
 		// racing with it. That's totally OK. Double wake-ups are perfectly safe.
-		stopTimer(s.timer)
+		s.timer.stop()
 		unlock(&s.lock)
 	} else {
 		unlock(&s.lock)

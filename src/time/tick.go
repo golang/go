@@ -4,11 +4,18 @@
 
 package time
 
+import "unsafe"
+
+// Note: The runtime knows the layout of struct Ticker, since newTimer allocates it.
+// Note also that Ticker and Timer have the same layout, so that newTimer can handle both.
+// The initTimer and initTicker fields are named differently so that
+// users cannot convert between the two without unsafe.
+
 // A Ticker holds a channel that delivers “ticks” of a clock
 // at intervals.
 type Ticker struct {
-	C <-chan Time // The channel on which the ticks are delivered.
-	r runtimeTimer
+	C          <-chan Time // The channel on which the ticks are delivered.
+	initTicker bool
 }
 
 // NewTicker returns a new Ticker containing a channel that will send
@@ -25,16 +32,8 @@ func NewTicker(d Duration) *Ticker {
 	// If the client falls behind while reading, we drop ticks
 	// on the floor until the client catches up.
 	c := make(chan Time, 1)
-	t := &Ticker{
-		C: c,
-		r: runtimeTimer{
-			when:   when(d),
-			period: int64(d),
-			f:      sendTime,
-			arg:    c,
-		},
-	}
-	startTimer(&t.r)
+	t := (*Ticker)(unsafe.Pointer(newTimer(when(d), int64(d), sendTime, c)))
+	t.C = c
 	return t
 }
 
@@ -42,7 +41,13 @@ func NewTicker(d Duration) *Ticker {
 // Stop does not close the channel, to prevent a concurrent goroutine
 // reading from the channel from seeing an erroneous "tick".
 func (t *Ticker) Stop() {
-	stopTimer(&t.r)
+	if !t.initTicker {
+		// This is misuse, and the same for time.Timer would panic,
+		// but this didn't always panic, and we keep it not panicking
+		// to avoid breaking old programs. See issue 21874.
+		return
+	}
+	stopTimer((*Timer)(unsafe.Pointer(t)))
 }
 
 // Reset stops a ticker and resets its period to the specified duration.
@@ -52,10 +57,10 @@ func (t *Ticker) Reset(d Duration) {
 	if d <= 0 {
 		panic("non-positive interval for Ticker.Reset")
 	}
-	if t.r.f == nil {
+	if !t.initTicker {
 		panic("time: Reset called on uninitialized Ticker")
 	}
-	modTimer(&t.r, when(d), int64(d))
+	modTimer((*Timer)(unsafe.Pointer(t)), when(d), int64(d))
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking

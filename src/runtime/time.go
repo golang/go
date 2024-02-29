@@ -24,9 +24,6 @@ import (
 // The lock bit supports a manual cas-based spin lock that handles
 // contention by yielding the OS thread. The expectation is that critical
 // sections are very short and contention on the lock bit is low.
-//
-// Package time knows the layout of this structure.
-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
 type timer struct {
 	ts *timers
 
@@ -102,8 +99,7 @@ func (ts *timers) unlock() {
 }
 
 // Timer state field.
-// Note that state 0 must be "unlocked, not in heap" and usable,
-// at least for time.Timer.Stop. See go.dev/issue/21874.
+// Timers start zeroed, so the zero state should be "unlocked, not in heap".
 const (
 	// timerLocked is set when the timer is locked,
 	// meaning other goroutines cannot read or write mutable fields.
@@ -258,24 +254,38 @@ func resetForSleep(gp *g, ut unsafe.Pointer) bool {
 	return true
 }
 
-// startTimer adds t to the timer heap.
+// A timeTimer is a runtime-allocated time.Timer or time.Ticker
+// with the additional runtime state following it.
+// The runtime state is inaccessible to package time.
+type timeTimer struct {
+	c    unsafe.Pointer // <-chan time.Time
+	init bool
+	timer
+}
+
+// newTimer allocates and returns a new time.Timer or time.Ticker (same layout)
+// with the given parameters.
 //
-//go:linkname startTimer time.startTimer
-func startTimer(t *timer) {
+//go:linkname newTimer time.newTimer
+func newTimer(when, period int64, f func(any, uintptr), arg any) *timeTimer {
+	t := new(timeTimer)
+	t.when = when
+	t.period = period
+	t.f = f
+	t.arg = arg
 	if raceenabled {
-		racerelease(unsafe.Pointer(t))
-	}
-	if t.state.Load() != 0 {
-		throw("startTimer called with initialized timer")
+		racerelease(unsafe.Pointer(&t.timer))
 	}
 	t.reset(t.when)
+	t.init = true
+	return t
 }
 
 // stopTimer stops a timer.
 // It reports whether t was stopped before being run.
 //
 //go:linkname stopTimer time.stopTimer
-func stopTimer(t *timer) bool {
+func stopTimer(t *timeTimer) bool {
 	return t.stop()
 }
 
@@ -284,9 +294,9 @@ func stopTimer(t *timer) bool {
 // Reports whether the timer was modified before it was run.
 //
 //go:linkname resetTimer time.resetTimer
-func resetTimer(t *timer, when int64) bool {
+func resetTimer(t *timeTimer, when int64) bool {
 	if raceenabled {
-		racerelease(unsafe.Pointer(t))
+		racerelease(unsafe.Pointer(&t.timer))
 	}
 	return t.reset(when)
 }
@@ -294,9 +304,9 @@ func resetTimer(t *timer, when int64) bool {
 // modTimer modifies an existing timer.
 //
 //go:linkname modTimer time.modTimer
-func modTimer(t *timer, when, period int64) {
+func modTimer(t *timeTimer, when, period int64) {
 	if raceenabled {
-		racerelease(unsafe.Pointer(t))
+		racerelease(unsafe.Pointer(&t.timer))
 	}
 	t.modify(when, period, t.f, t.arg, t.seq)
 }

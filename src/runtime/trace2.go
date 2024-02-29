@@ -968,7 +968,7 @@ func newWakeableSleep() *wakeableSleep {
 // Must not be called by more than one goroutine at a time and
 // must not be called concurrently with close.
 func (s *wakeableSleep) sleep(ns int64) {
-	resetTimer(s.timer, nanotime()+ns)
+	s.timer.reset(nanotime() + ns)
 	lock(&s.lock)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&s.lock))
@@ -979,7 +979,7 @@ func (s *wakeableSleep) sleep(ns int64) {
 	}
 	unlock(&s.lock)
 	<-wakeup
-	stopTimer(s.timer)
+	s.timer.stop()
 }
 
 // wake awakens any goroutine sleeping on the timer.

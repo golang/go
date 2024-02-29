@@ -4,24 +4,11 @@
 
 package time
 
-import "unsafe"
+import _ "unsafe" // for go:linkname
 
 // Sleep pauses the current goroutine for at least the duration d.
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
-
-// Interface to timers implemented in package runtime.
-// Must be in sync with ../runtime/time.go:/^type timer
-type runtimeTimer struct {
-	ts       unsafe.Pointer
-	when     int64
-	period   int64
-	f        func(any, uintptr) // NOTE: must not be closure
-	arg      any
-	seq      uintptr
-	nextwhen int64
-	status   uint32
-}
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
 // It returns what the time will be, in nanoseconds, Duration d in the future.
@@ -40,18 +27,32 @@ func when(d Duration) int64 {
 	return t
 }
 
-func startTimer(*runtimeTimer)
-func stopTimer(*runtimeTimer) bool
-func resetTimer(*runtimeTimer, int64) bool
-func modTimer(t *runtimeTimer, when, period int64)
+// These functions are pushed to package time from package runtime.
+
+//go:linkname newTimer
+func newTimer(when, period int64, f func(any, uintptr), arg any) *Timer
+
+//go:linkname stopTimer
+func stopTimer(*Timer) bool
+
+//go:linkname resetTimer
+func resetTimer(*Timer, int64) bool
+
+//go:linkname modTimer
+func modTimer(t *Timer, when, period int64)
+
+// Note: The runtime knows the layout of struct Timer, since newTimer allocates it.
+// The runtime also knows that Ticker and Timer have the same layout.
+// There are extra fields after the channel, reserved for the runtime
+// and inaccessible to users.
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
 // unless the Timer was created by AfterFunc.
 // A Timer must be created with NewTimer or AfterFunc.
 type Timer struct {
-	C <-chan Time
-	r runtimeTimer
+	C         <-chan Time
+	initTimer bool
 }
 
 // Stop prevents the Timer from firing.
@@ -77,25 +78,18 @@ type Timer struct {
 // If the caller needs to know whether f is completed, it must coordinate
 // with f explicitly.
 func (t *Timer) Stop() bool {
-	if t.r.f == nil {
+	if !t.initTimer {
 		panic("time: Stop called on uninitialized Timer")
 	}
-	return stopTimer(&t.r)
+	return stopTimer(t)
 }
 
 // NewTimer creates a new Timer that will send
 // the current time on its channel after at least duration d.
 func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
-	t := &Timer{
-		C: c,
-		r: runtimeTimer{
-			when: when(d),
-			f:    sendTime,
-			arg:  c,
-		},
-	}
-	startTimer(&t.r)
+	t := (*Timer)(newTimer(when(d), 0, sendTime, c))
+	t.C = c
 	return t
 }
 
@@ -134,11 +128,11 @@ func NewTimer(d Duration) *Timer {
 // one. If the caller needs to know whether the prior execution of
 // f is completed, it must coordinate with f explicitly.
 func (t *Timer) Reset(d Duration) bool {
-	if t.r.f == nil {
+	if !t.initTimer {
 		panic("time: Reset called on uninitialized Timer")
 	}
 	w := when(d)
-	return resetTimer(&t.r, w)
+	return resetTimer(t, w)
 }
 
 // sendTime does a non-blocking send of the current time on c.
@@ -164,15 +158,7 @@ func After(d Duration) <-chan Time {
 // be used to cancel the call using its Stop method.
 // The returned Timer's C field is not used and will be nil.
 func AfterFunc(d Duration, f func()) *Timer {
-	t := &Timer{
-		r: runtimeTimer{
-			when: when(d),
-			f:    goFunc,
-			arg:  f,
-		},
-	}
-	startTimer(&t.r)
-	return t
+	return (*Timer)(newTimer(when(d), 0, goFunc, f))
 }
 
 func goFunc(arg any, seq uintptr) {
