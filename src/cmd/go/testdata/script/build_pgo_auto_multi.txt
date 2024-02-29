@@ -3,8 +3,8 @@
 go install -a -n -pgo=auto ./a ./b ./nopgo
 
 # a/default.pgo and b/default.pgo are both preprocessed
-stderr 'cp.*a(/|\\)default\.pgo'
-stderr 'cp.*b(/|\\)default\.pgo'
+stderr 'preprofile.*-i.*a(/|\\\\)default\.pgo'
+stderr 'preprofile.*-i.*b(/|\\\\)default\.pgo'
 
 # a and b built once each with PGO.
 # Ideally we would check that the passed profile is the expected profile (here

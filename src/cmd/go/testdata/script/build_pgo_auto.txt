@@ -4,7 +4,7 @@
 
 # use default.pgo for a single main package
 go build -n -pgo=auto -o a1.exe ./a/a1
-stderr 'cp.*default\.pgo' # preprocess PGO profile
+stderr 'preprofile.*-i.*default\.pgo'
 stderr 'compile.*-pgoprofile=.*a1.go'
 
 # check that pgo applied to dependencies

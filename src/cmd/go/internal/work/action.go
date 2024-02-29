@@ -476,12 +476,7 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
 		return err
 	}
 
-	// TODO(prattmic): This should use go tool preprofile to actually
-	// preprocess the profile. For now, this is a dummy implementation that
-	// simply copies the input to the output. This is technically a valid
-	// implementation because go tool compile -pgofile accepts either a
-	// pprof file or preprocessed file.
-	if err := sh.CopyFile(a.Target, p.input, 0644, false); err != nil {
+	if err := sh.run(".", p.input, nil, cfg.BuildToolexec, base.Tool("preprofile"), "-o", a.Target, "-i", p.input); err != nil {
 		return err
 	}
 
