@@ -24,7 +24,10 @@ func readServices() {
 
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
-		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+		i := bytealg.IndexByteString(line, '#')
+		if i == 0 {
+			continue
+		} else if i > 0 {
 			line = line[:i]
 		}
 		f := getFields(line)
