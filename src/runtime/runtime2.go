@@ -1156,13 +1156,17 @@ var (
 	forcegc    forcegcstate
 	sched      schedt
 	newprocs   int32
+)
 
+var (
 	// allpLock protects P-less reads and size changes of allp, idlepMask,
 	// and timerpMask, and all writes to allp.
 	allpLock mutex
+
 	// len(allp) == gomaxprocs; may change at safe points, otherwise
 	// immutable.
 	allp []*p
+
 	// Bitmask of Ps in _Pidle list, one bit per P. Reads and writes must
 	// be atomic. Length may change at safe points.
 	//
@@ -1174,10 +1178,37 @@ var (
 	//
 	// N.B., procresize takes ownership of all Ps in stopTheWorldWithSema.
 	idlepMask pMask
+
 	// Bitmask of Ps that may have a timer, one bit per P. Reads and writes
 	// must be atomic. Length may change at safe points.
+	//
+	// Ideally, the timer mask would be kept immediately consistent on any timer
+	// operations. Unfortunately, updating a shared global data structure in the
+	// timer hot path adds too much overhead in applications frequently switching
+	// between no timers and some timers.
+	//
+	// As a compromise, the timer mask is updated only on pidleget / pidleput. A
+	// running P (returned by pidleget) may add a timer at any time, so its mask
+	// must be set. An idle P (passed to pidleput) cannot add new timers while
+	// idle, so if it has no timers at that time, its mask may be cleared.
+	//
+	// Thus, we get the following effects on timer-stealing in findrunnable:
+	//
+	//   - Idle Ps with no timers when they go idle are never checked in findrunnable
+	//     (for work- or timer-stealing; this is the ideal case).
+	//   - Running Ps must always be checked.
+	//   - Idle Ps whose timers are stolen must continue to be checked until they run
+	//     again, even after timer expiration.
+	//
+	// When the P starts running again, the mask should be set, as a timer may be
+	// added at any time.
+	//
+	// TODO(prattmic): Additional targeted updates may improve the above cases.
+	// e.g., updating the mask when stealing a timer.
 	timerpMask pMask
+)
 
+var (
 	// Pool of GC parked background workers. Entries are type
 	// *gcBgMarkWorkerNode.
 	gcBgMarkWorkerPool lfstack

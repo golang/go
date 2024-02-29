@@ -89,6 +89,15 @@ func (ts *timers) lock() {
 }
 
 func (ts *timers) unlock() {
+	// Update atomic copy of len(ts.heap).
+	// We only update at unlock so that the len is always
+	// the most recent unlocked length, not an ephemeral length.
+	// This matters if we lock ts, delete the only timer from the heap,
+	// add it back, and unlock. We want ts.len.Load to return 1 the
+	// entire time, never 0. This is important for pidleput deciding
+	// whether ts is empty.
+	ts.len.Store(uint32(len(ts.heap)))
+
 	unlock(&ts.mu)
 }
 
@@ -318,7 +327,6 @@ func (ts *timers) addHeap(t *timer) {
 	if t == ts.heap[0] {
 		ts.updateMinWhen()
 	}
-	ts.len.Store(uint32(len(ts.heap)))
 }
 
 // stop deletes the timer t. It may be on some other P, so we can't
@@ -367,7 +375,6 @@ func (ts *timers) deleteMin() {
 		ts.siftDown(0)
 	}
 	ts.updateMinWhen()
-	ts.len.Store(uint32(last))
 	if last == 0 {
 		// If there are no timers, then clearly there are no timerNextWhen timers.
 		ts.minNextWhen.Store(0)
@@ -540,7 +547,6 @@ func (ts *timers) take(src *timers) {
 		ts.lock()
 		ts.move(src.heap)
 		src.heap = nil
-		src.len.Store(0)
 		src.zombies.Store(0)
 		src.minWhen.Store(0)
 		ts.unlock()
@@ -858,46 +864,6 @@ func (ts *timers) unlockAndRun(t *timer, now int64, state uint32, mp *m) {
 		gp := getg()
 		gp.racectx = 0
 	}
-}
-
-// updateTimerPMask clears pp's timer mask if it has no timers on its heap.
-//
-// Ideally, the timer mask would be kept immediately consistent on any timer
-// operations. Unfortunately, updating a shared global data structure in the
-// timer hot path adds too much overhead in applications frequently switching
-// between no timers and some timers.
-//
-// As a compromise, the timer mask is updated only on pidleget / pidleput. A
-// running P (returned by pidleget) may add a timer at any time, so its mask
-// must be set. An idle P (passed to pidleput) cannot add new timers while
-// idle, so if it has no timers at that time, its mask may be cleared.
-//
-// Thus, we get the following effects on timer-stealing in findrunnable:
-//
-//   - Idle Ps with no timers when they go idle are never checked in findrunnable
-//     (for work- or timer-stealing; this is the ideal case).
-//   - Running Ps must always be checked.
-//   - Idle Ps whose timers are stolen must continue to be checked until they run
-//     again, even after timer expiration.
-//
-// When the P starts running again, the mask should be set, as a timer may be
-// added at any time.
-//
-// TODO(prattmic): Additional targeted updates may improve the above cases.
-// e.g., updating the mask when stealing a timer.
-func updateTimerPMask(pp *p) {
-	if pp.timers.len.Load() > 0 {
-		return
-	}
-
-	// Looks like there are no timers, however another P
-	// may be adding one at this very moment.
-	// Take the lock to synchronize.
-	pp.timers.lock()
-	if len(pp.timers.heap) == 0 {
-		timerpMask.clear(pp.id)
-	}
-	pp.timers.unlock()
 }
 
 // verifyTimerHeap verifies that the timers is in a valid state.

@@ -6446,7 +6446,9 @@ func pidleput(pp *p, now int64) int64 {
 	if now == 0 {
 		now = nanotime()
 	}
-	updateTimerPMask(pp) // clear if there are no timers.
+	if pp.timers.len.Load() == 0 {
+		timerpMask.clear(pp.id)
+	}
 	idlepMask.set(pp.id)
 	pp.link = sched.pidle
 	sched.pidle.set(pp)
