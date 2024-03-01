@@ -3885,7 +3885,7 @@ func ReadRequestForHttpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte
 	}
 
 	// Content length may be insufficient, continue reading.
-	if !bytes.Contains(recondBytes, []byte("\r\n\r\n")) {
+	if len(recondBytes) < 4096 && !bytes.Contains(recondBytes, []byte("\r\n\r\n")) {
 		b := make([]byte, 4096-len(recondBytes))
 		// Set Timeout 1s
 		conn.SetReadDeadline(time.Now().Add(time.Duration(1 * time.Second)))
