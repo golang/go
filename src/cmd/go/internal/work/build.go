@@ -768,8 +768,6 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
 				// rebuilt and used directly from the build cache.
 				// A few targets (notably those using cgo) still do need to be installed
 				// in case the user's environment lacks a C compiler.
-			case p.Internal.GobinSubdir:
-				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
 			case p.Internal.CmdlineFiles:
 				base.Errorf("go: no install location for .go files listed on command line (GOBIN not set)")
 			case p.ConflictDir != "":
