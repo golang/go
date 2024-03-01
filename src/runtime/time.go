@@ -469,6 +469,7 @@ func (t *timer) needsAdd(state uint32) bool {
 func (t *timer) maybeAdd() {
 	ts := &getg().m.p.ptr().timers
 	ts.lock()
+	ts.cleanHead()
 	state, mp := t.lock()
 	when := int64(0)
 	if t.needsAdd(state) {
@@ -525,7 +526,6 @@ func (ts *timers) cleanHead() {
 		t.unlock(state, mp)
 		if !updated {
 			// Head of timers does not need adjustment.
-			t.unlock(state, mp)
 			return
 		}
 	}
