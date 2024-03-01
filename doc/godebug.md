@@ -128,7 +128,12 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.23
 
-TODO: `asynctimerchan` setting.
+Go 1.23 changed the channels created by package time to be unbuffered
+(synchronous), which makes correct use of the [`Timer.Stop`](/pkg/time/#Timer.Stop)
+and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
+The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
+There are no runtime metrics for this change,
+This setting may be removed in a future release, Go 1.27 at the earliest.
 
 Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
 for reparse points, which can be controlled with the `winsymlink` setting.

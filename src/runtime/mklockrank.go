@@ -55,9 +55,11 @@ NONE <
 # Test only
 NONE < testR, testW;
 
+NONE < timerSend;
+
 # Scheduler, timers, netpoll
 NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
-scavenge, sweep, testR, wakeableSleep < hchan;
+scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
   cpuprof,
   forcegc,
@@ -81,7 +83,7 @@ NONE < notifyList;
 hchan, notifyList < sudog;
 
 hchan, pollDesc, wakeableSleep < timers;
-timers < timer < netpollInit;
+timers, timerSend < timer < netpollInit;
 
 # Semaphores
 NONE < root;

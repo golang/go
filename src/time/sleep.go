@@ -27,6 +27,20 @@ func syncTimer(c chan Time) unsafe.Pointer {
 	}
 
 	// Otherwise pass to runtime.
+	// This handles asynctimerchan=0, which is the default Go 1.23 behavior,
+	// as well as asynctimerchan=2, which is like asynctimerchan=1
+	// but implemented entirely by the runtime.
+	// The only reason to use asynctimerchan=2 is for debugging
+	// a problem fixed by asynctimerchan=1: it enables the new
+	// GC-able timer channels (#61542) but not the sync channels (#37196).
+	//
+	// If we decide to roll back the sync channels, we will still have
+	// a fully tested async runtime implementation (asynctimerchan=2)
+	// and can make this function always return c.
+	//
+	// If we decide to keep the sync channels, we can delete all the
+	// handling of asynctimerchan in the runtime and keep just this
+	// function to handle asynctimerchan=1.
 	return *(*unsafe.Pointer)(unsafe.Pointer(&c))
 }
 
@@ -79,25 +93,22 @@ type Timer struct {
 // Stop prevents the Timer from firing.
 // It returns true if the call stops the timer, false if the timer has already
 // expired or been stopped.
-// Stop does not close the channel, to prevent a read from the channel succeeding
-// incorrectly.
 //
-// To ensure the channel is empty after a call to Stop, check the
-// return value and drain the channel.
-// For example, assuming the program has not received from t.C already:
-//
-//	if !t.Stop() {
-//		<-t.C
-//	}
-//
-// This cannot be done concurrent to other receives from the Timer's
-// channel or other calls to the Timer's Stop method.
-//
-// For a timer created with AfterFunc(d, f), if t.Stop returns false, then the timer
-// has already expired and the function f has been started in its own goroutine;
+// For a func-based timer created with AfterFunc(d, f),
+// if t.Stop returns false, then the timer has already expired
+// and the function f has been started in its own goroutine;
 // Stop does not wait for f to complete before returning.
-// If the caller needs to know whether f is completed, it must coordinate
-// with f explicitly.
+// If the caller needs to know whether f is completed,
+// it must coordinate with f explicitly.
+//
+// For a chan-based timer created with NewTimer(d), as of Go 1.23,
+// any receive from t.C after Stop has returned is guaranteed to block
+// rather than receive a stale time value from before the Stop;
+// if the program has not received from t.C already and the timer is
+// running, Stop is guaranteed to return true.
+// Before Go 1.23, the only safe way to use Stop was insert an extra
+// <-t.C if Stop returned false to drain a potential stale value.
+// See the [NewTimer] documentation for more details.
 func (t *Timer) Stop() bool {
 	if !t.initTimer {
 		panic("time: Stop called on uninitialized Timer")
@@ -116,6 +127,18 @@ func (t *Timer) Stop() bool {
 // timers, even if they haven't expired or been stopped.
 // The Stop method is no longer necessary to help the garbage collector.
 // (Code may of course still want to call Stop to stop the timer for other reasons.)
+//
+// Before Go 1.23, the channel assocated with a Timer was
+// asynchronous (buffered, capacity 1), which meant that
+// stale time values could be received even after [Timer.Stop]
+// or [Timer.Reset] returned.
+// As of Go 1.23, the channel is synchronous (unbuffered, capacity 0),
+// eliminating the possibility of those stale values.
+//
+// The GODEBUG setting asynctimerchan=1 restores both pre-Go 1.23
+// behaviors: when set, unexpired timers won't be garbage collected, and
+// channels will have buffered capacity. This setting may be removed
+// in Go 1.27 or later.
 func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
 	t := (*Timer)(newTimer(when(d), 0, sendTime, c, syncTimer(c)))
@@ -127,29 +150,7 @@ func NewTimer(d Duration) *Timer {
 // It returns true if the timer had been active, false if the timer had
 // expired or been stopped.
 //
-// For a Timer created with NewTimer, Reset should be invoked only on
-// stopped or expired timers with drained channels.
-//
-// If a program has already received a value from t.C, the timer is known
-// to have expired and the channel drained, so t.Reset can be used directly.
-// If a program has not yet received a value from t.C, however,
-// the timer must be stopped and—if Stop reports that the timer expired
-// before being stopped—the channel explicitly drained:
-//
-//	if !t.Stop() {
-//		<-t.C
-//	}
-//	t.Reset(d)
-//
-// This should not be done concurrent to other receives from the Timer's
-// channel.
-//
-// Note that it is not possible to use Reset's return value correctly, as there
-// is a race condition between draining the channel and the new timer expiring.
-// Reset should always be invoked on stopped or expired channels, as described above.
-// The return value exists to preserve compatibility with existing programs.
-//
-// For a Timer created with AfterFunc(d, f), Reset either reschedules
+// For a func-based timer created with AfterFunc(d, f), Reset either reschedules
 // when f will run, in which case Reset returns true, or schedules f
 // to run again, in which case it returns false.
 // When Reset returns false, Reset neither waits for the prior f to
@@ -157,6 +158,15 @@ func NewTimer(d Duration) *Timer {
 // goroutine running f does not run concurrently with the prior
 // one. If the caller needs to know whether the prior execution of
 // f is completed, it must coordinate with f explicitly.
+//
+// For a chan-based timer created with NewTimer, as of Go 1.23,
+// any receive from t.C after Reset has returned is guaranteed not
+// to receive a time value corresponding to the previous timer settings;
+// if the program has not received from t.C already and the timer is
+// running, Reset is guaranteed to return true.
+// Before Go 1.23, the only safe way to use Reset was to Stop and
+// explicitly drain the timer first.
+// See the [NewTimer] documentation for more details.
 func (t *Timer) Reset(d Duration) bool {
 	if !t.initTimer {
 		panic("time: Reset called on uninitialized Timer")

@@ -36,11 +36,18 @@ type timer struct {
 	// a well-behaved function and not block.
 	//
 	// The arg and seq are client-specified opaque arguments passed back to f.
-	// When used from package time, arg is a channel (for After, NewTicker)
-	// or the function to call (for AfterFunc) and seq is unused (0).
 	// When used from netpoll, arg and seq have meanings defined by netpoll
 	// and are completely opaque to this code; in that context, seq is a sequence
 	// number to recognize and squech stale function invocations.
+	// When used from package time, arg is a channel (for After, NewTicker)
+	// or the function to call (for AfterFunc) and seq is unused (0).
+	//
+	// Package time does not know about seq, but if this is a channel timer (t.isChan == true),
+	// this file uses t.seq as a sequence number to recognize and squelch
+	// sends that correspond to an earlier (stale) timer configuration,
+	// similar to its use in netpoll. In this usage (that is, when t.isChan == true),
+	// writes to seq are protected by both t.mu and t.sendLock,
+	// so reads are allowed when holding either of the two mutexes.
 	//
 	// The delay argument is nanotime() - t.when, meaning the delay in ns between
 	// when the timer should have gone off and now. Normally that amount is
@@ -69,6 +76,10 @@ type timer struct {
 	// Since writes to whenHeap are protected by two locks (t.mu and t.ts.mu),
 	// it is permitted to read whenHeap when holding either one.
 	whenHeap int64
+
+	// sendLock protects sends on the timer's channel.
+	// Not used for async (pre-Go 1.23) behavior when debug.asynctimerchan.Load() != 0.
+	sendLock mutex
 }
 
 // init initializes a newly allocated timer t.
@@ -167,7 +178,7 @@ func (t *timer) trace1(op string) {
 		return
 	}
 	bits := [4]string{"h", "m", "z", "c"}
-	for i := range bits {
+	for i := range 3 {
 		if t.state&(1<<i) == 0 {
 			bits[i] = "-"
 		}
@@ -197,6 +208,18 @@ func (t *timer) unlock() {
 	// Also let maybeRunChan know whether channel is in heap.
 	t.astate.Store(t.state)
 	unlock(&t.mu)
+}
+
+// hchan returns the channel in t.arg.
+// t must be a timer with a channel.
+func (t *timer) hchan() *hchan {
+	if !t.isChan {
+		badTimer()
+	}
+	// Note: t.arg is a chan time.Time,
+	// and runtime cannot refer to that type,
+	// so we cannot use a type assertion.
+	return (*hchan)(efaceOf(&t.arg).data)
 }
 
 // updateHeap updates t.whenHeap as directed by t.state, updating t.state
@@ -309,6 +332,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 		racerelease(unsafe.Pointer(&t.timer))
 	}
 	if c != nil {
+		lockInit(&t.sendLock, lockRankTimerSend)
 		t.isChan = true
 		c.timer = &t.timer
 		if c.dataqsiz == 0 {
@@ -372,23 +396,44 @@ func (ts *timers) addHeap(t *timer) {
 	}
 }
 
-// stop stops the timer t. It may be on some other P, so we can't
-// actually remove it from the timers heap. We can only mark it as stopped.
-// It will be removed in due course by the P whose heap it is on.
-// Reports whether the timer was stopped before it was run.
-func (t *timer) stop() bool {
-	t.lock()
-	t.trace("stop")
+// maybeRunAsync checks whether t needs to be triggered and runs it if so.
+// The caller is responsible for locking the timer and for checking that we
+// are running timers in async mode. If the timer needs to be run,
+// maybeRunAsync will unlock and re-lock it.
+// The timer is always locked on return.
+func (t *timer) maybeRunAsync() {
+	assertLockHeld(&t.mu)
 	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
 		// If timer should have triggered already (but nothing looked at it yet),
 		// trigger now, so that a receive after the stop sees the "old" value
 		// that should be there.
+		// (It is possible to have t.blocked > 0 if there is a racing receive
+		// in blockTimerChan, but timerHeaped not being set means
+		// it hasn't run t.maybeAdd yet; in that case, running the
+		// timer ourselves now is fine.)
 		if now := nanotime(); t.when <= now {
 			systemstack(func() {
 				t.unlockAndRun(now) // resets t.when
 			})
 			t.lock()
 		}
+	}
+}
+
+// stop stops the timer t. It may be on some other P, so we can't
+// actually remove it from the timers heap. We can only mark it as stopped.
+// It will be removed in due course by the P whose heap it is on.
+// Reports whether the timer was stopped before it was run.
+func (t *timer) stop() bool {
+	async := debug.asynctimerchan.Load() != 0
+	if !async && t.isChan {
+		lock(&t.sendLock)
+	}
+
+	t.lock()
+	t.trace("stop")
+	if async {
+		t.maybeRunAsync()
 	}
 	if t.state&timerHeaped != 0 {
 		t.state |= timerModified
@@ -399,7 +444,20 @@ func (t *timer) stop() bool {
 	}
 	pending := t.when > 0
 	t.when = 0
+
+	if !async && t.isChan {
+		// Stop any future sends with stale values.
+		// See timer.unlockAndRun.
+		t.seq++
+	}
 	t.unlock()
+	if !async && t.isChan {
+		unlock(&t.sendLock)
+		if timerchandrain(t.hchan()) {
+			pending = true
+		}
+	}
+
 	return pending
 }
 
@@ -439,28 +497,22 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 	if period < 0 {
 		throw("timer period must be non-negative")
 	}
+	async := debug.asynctimerchan.Load() != 0
+
+	if !async && t.isChan {
+		lock(&t.sendLock)
+	}
 
 	t.lock()
+	if async {
+		t.maybeRunAsync()
+	}
 	t.trace("modify")
 	t.period = period
 	if f != nil {
 		t.f = f
 		t.arg = arg
 		t.seq = seq
-	}
-
-	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
-		// This is a timer for an unblocked channel.
-		// Perhaps it should have expired already.
-		if now := nanotime(); t.when <= now {
-			// The timer should have run already,
-			// but nothing has checked it yet.
-			// Run it now.
-			systemstack(func() {
-				t.unlockAndRun(now) // resets t.when
-			})
-			t.lock()
-		}
 	}
 
 	wake := false
@@ -483,7 +535,20 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 	}
 
 	add := t.needsAdd()
+
+	if !async && t.isChan {
+		// Stop any future sends with stale values.
+		// See timer.unlockAndRun.
+		t.seq++
+	}
 	t.unlock()
+	if !async && t.isChan {
+		if timerchandrain(t.hchan()) {
+			pending = true
+		}
+		unlock(&t.sendLock)
+	}
+
 	if add {
 		t.maybeAdd()
 	}
@@ -936,7 +1001,35 @@ func (t *timer) unlockAndRun(now int64) {
 	if ts != nil {
 		ts.unlock()
 	}
+
+	async := debug.asynctimerchan.Load() != 0
+	if !async && t.isChan {
+		// For a timer channel, we want to make sure that no stale sends
+		// happen after a t.stop or t.modify, but we cannot hold t.mu
+		// during the actual send (which f does) due to lock ordering.
+		// It can happen that we are holding t's lock above, we decide
+		// it's time to send a time value (by calling f), grab the parameters,
+		// unlock above, and then a t.stop or t.modify changes the timer
+		// and returns. At that point, the send needs not to happen after all.
+		// The way we arrange for it not to happen is that t.stop and t.modify
+		// both increment t.seq while holding both t.mu and t.sendLock.
+		// We copied the seq value above while holding t.mu.
+		// Now we can acquire t.sendLock (which will be held across the send)
+		// and double-check that t.seq is still the seq value we saw above.
+		// If not, the timer has been updated and we should skip the send.
+		// We skip the send by reassigning f to a no-op function.
+		lock(&t.sendLock)
+		if t.seq != seq {
+			f = func(any, uintptr, int64) {}
+		}
+	}
+
 	f(arg, seq, delay)
+
+	if !async && t.isChan {
+		unlock(&t.sendLock)
+	}
+
 	if ts != nil {
 		ts.lock()
 	}

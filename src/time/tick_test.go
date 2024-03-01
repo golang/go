@@ -306,38 +306,52 @@ func TestTimerGC(t *testing.T) {
 	run(t, "NewTickerStop", func() { NewTicker(Hour).Stop() })
 }
 
-func TestTimerChan(t *testing.T) {
-	t.Parallel()
-	tick := &timer2{NewTimer(10000 * Second)}
-	testTimerChan(t, tick, tick.C)
+func TestChan(t *testing.T) {
+	for _, name := range []string{"0", "1", "2"} {
+		t.Run("asynctimerchan="+name, func(t *testing.T) {
+			t.Setenv("GODEBUG", "asynctimerchan="+name)
+			t.Run("Timer", func(t *testing.T) {
+				tim := NewTimer(10000 * Second)
+				testTimerChan(t, tim, tim.C, name == "0")
+			})
+			t.Run("Ticker", func(t *testing.T) {
+				tim := &tickerTimer{Ticker: NewTicker(10000 * Second)}
+				testTimerChan(t, tim, tim.C, name == "0")
+			})
+		})
+	}
 }
 
-func TestTickerChan(t *testing.T) {
-	t.Parallel()
-	tick := NewTicker(10000 * Second)
-	testTimerChan(t, tick, tick.C)
+type timer interface {
+	Stop() bool
+	Reset(Duration) bool
 }
 
-// timer2 is a Timer with Reset and Stop methods with no result,
-// to have the same signatures as Ticker.
-type timer2 struct {
-	*Timer
+// tickerTimer is a Timer with Reset and Stop methods that return bools,
+// to have the same signatures as Timer.
+type tickerTimer struct {
+	*Ticker
+	stopped bool
 }
 
-func (t *timer2) Stop() {
-	t.Timer.Stop()
+func (t *tickerTimer) Stop() bool {
+	pending := !t.stopped
+	t.stopped = true
+	t.Ticker.Stop()
+	return pending
 }
 
-func (t *timer2) Reset(d Duration) {
-	t.Timer.Reset(d)
+func (t *tickerTimer) Reset(d Duration) bool {
+	pending := !t.stopped
+	t.stopped = false
+	t.Ticker.Reset(d)
+	return pending
 }
 
-type ticker interface {
-	Stop()
-	Reset(Duration)
-}
+func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
+	_, isTimer := tim.(*Timer)
+	isTicker := !isTimer
 
-func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 	// Retry parameters. Enough to deflake even on slow machines.
 	// Windows in particular has very coarse timers so we have to
 	// wait 10ms just to make a timer go off.
@@ -357,7 +371,7 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 		select {
 		default:
 		case <-C:
-			t.Fatalf("extra tick")
+			t.Errorf("extra tick")
 		}
 	}
 	assertTick := func() {
@@ -375,10 +389,16 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 				return
 			}
 		}
-		t.Fatalf("missing tick")
+		t.Errorf("missing tick")
 	}
 	assertLen := func() {
 		t.Helper()
+		if synctimerchan {
+			if n := len(C); n != 0 {
+				t.Errorf("synctimer has len(C) = %d, want 0 (always)", n)
+			}
+			return
+		}
 		var n int
 		if n = len(C); n == 1 {
 			return
@@ -389,50 +409,58 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 				return
 			}
 		}
-		t.Fatalf("len(C)  = %d, want 1", n)
+		t.Errorf("len(C) = %d, want 1", n)
 	}
 
 	// Test simple stop; timer never in heap.
-	tick.Stop()
+	tim.Stop()
 	noTick()
 
 	// Test modify of timer not in heap.
-	tick.Reset(10000 * Second)
+	tim.Reset(10000 * Second)
 	noTick()
 
-	// Test modify of timer in heap.
-	tick.Reset(1)
-	assertTick()
+	if synctimerchan {
+		// Test modify of timer in heap.
+		tim.Reset(1)
+		Sleep(sched)
+		if l, c := len(C), cap(C); l != 0 || c != 0 {
+			//t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
+		}
+		assertTick()
+	} else {
+		// Test modify of timer in heap.
+		tim.Reset(1)
+		assertTick()
+		Sleep(sched)
+		tim.Reset(10000 * Second)
+		if isTicker {
+			assertTick()
+		}
+		noTick()
 
-	// Sleep long enough that a second tick must happen if this is a ticker.
-	// Test that Reset does not lose the tick that should have happened.
-	Sleep(sched)
-	tick.Reset(10000 * Second)
-	_, isTicker := tick.(*Ticker)
-	if isTicker {
+		// Test that len sees an immediate tick arrive
+		// for Reset of timer in heap.
+		tim.Reset(1)
+		assertLen()
+		assertTick()
+
+		// Test that len sees an immediate tick arrive
+		// for Reset of timer NOT in heap.
+		tim.Stop()
+		if !synctimerchan {
+			drain()
+		}
+		tim.Reset(1)
+		assertLen()
 		assertTick()
 	}
-	noTick()
-
-	// Test that len sees an immediate tick arrive
-	// for Reset of timer in heap.
-	tick.Reset(1)
-	assertLen()
-	assertTick()
-
-	// Test that len sees an immediate tick arrive
-	// for Reset of timer NOT in heap.
-	tick.Stop()
-	drain()
-	tick.Reset(1)
-	assertLen()
-	assertTick()
 
 	// Sleep long enough that a second tick must happen if this is a ticker.
 	// Test that Reset does not lose the tick that should have happened.
 	Sleep(sched)
-	tick.Reset(10000 * Second)
-	if isTicker {
+	tim.Reset(10000 * Second)
+	if !synctimerchan && isTicker {
 		assertLen()
 		assertTick()
 	}
@@ -461,8 +489,10 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 	}
 
 	// Reset timer in heap (already reset above, but just in case).
-	tick.Reset(10000 * Second)
-	drain()
+	tim.Reset(10000 * Second)
+	if !synctimerchan {
+		drain()
+	}
 
 	// Test stop while timer in heap (because goroutine is blocked on <-C).
 	done := make(chan bool)
@@ -475,12 +505,12 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 	notDone(done)
 
 	// Test reset far away while timer in heap.
-	tick.Reset(20000 * Second)
+	tim.Reset(20000 * Second)
 	Sleep(sched)
 	notDone(done)
 
 	// Test imminent reset while in heap.
-	tick.Reset(1)
+	tim.Reset(1)
 	waitDone(done)
 
 	// If this is a ticker, another tick should have come in already
@@ -491,14 +521,18 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 		noTick()
 	}
 
-	tick.Stop()
-	if isTicker {
+	tim.Stop()
+	if isTicker || !synctimerchan {
+		t.Logf("drain")
 		drain()
 	}
 	noTick()
 
 	// Again using select and with two goroutines waiting.
-	tick.Reset(10000 * Second)
+	tim.Reset(10000 * Second)
+	if !synctimerchan {
+		drain()
+	}
 	done = make(chan bool, 2)
 	done1 := make(chan bool)
 	done2 := make(chan bool)
@@ -521,10 +555,10 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 	}()
 	Sleep(sched)
 	notDone(done)
-	tick.Reset(sched / 2)
+	tim.Reset(sched / 2)
 	Sleep(sched)
 	waitDone(done)
-	tick.Stop()
+	tim.Stop()
 	close(stop)
 	waitDone(done1)
 	waitDone(done2)
@@ -560,6 +594,35 @@ func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
 	close(stop)
 	waitDone(done)
 	waitDone(done)
+
+	// Test that Stop and Reset block old values from being received.
+	// (Proposal go.dev/issue/37196.)
+	if synctimerchan {
+		tim.Reset(1)
+		Sleep(10 * Millisecond)
+		if pending := tim.Stop(); pending != true {
+			t.Errorf("tim.Stop() = %v, want true", pending)
+		}
+		noTick()
+
+		tim.Reset(Hour)
+		noTick()
+		if pending := tim.Reset(1); pending != true {
+			t.Errorf("tim.Stop() = %v, want true", pending)
+		}
+		assertTick()
+		Sleep(10 * Millisecond)
+		if isTicker {
+			assertTick()
+			Sleep(10 * Millisecond)
+		} else {
+			noTick()
+		}
+		if pending, want := tim.Reset(Hour), isTicker; pending != want {
+			t.Errorf("tim.Stop() = %v, want %v", pending, want)
+		}
+		noTick()
+	}
 }
 
 func TestManualTicker(t *testing.T) {
