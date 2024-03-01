@@ -455,10 +455,8 @@ commas. For example:
 
 // list of passes for the compiler
 var passes = [...]pass{
-	// TODO: combine phielim and copyelim into a single pass?
 	{name: "number lines", fn: numberLines, required: true},
-	{name: "early phielim", fn: phielim},
-	{name: "early copyelim", fn: copyelim},
+	{name: "early phielim and copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
@@ -496,8 +494,7 @@ var passes = [...]pass{
 	{name: "tighten tuple selectors", fn: tightenTupleSelectors, required: true},
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
-	{name: "late phielim", fn: phielim},
-	{name: "late copyelim", fn: copyelim},
+	{name: "late phielim and copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
