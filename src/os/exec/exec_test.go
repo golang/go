@@ -304,7 +304,7 @@ func cmdExit(args ...string) {
 }
 
 func cmdDescribeFiles(args ...string) {
-	f := os.NewFile(3, fmt.Sprintf("fd3"))
+	f := os.NewFile(3, "fd3")
 	ln, err := net.FileListener(f)
 	if err == nil {
 		fmt.Printf("fd3: listener %s\n", ln.Addr())
