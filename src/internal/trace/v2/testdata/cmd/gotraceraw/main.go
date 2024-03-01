@@ -69,11 +69,9 @@ func main() {
 		}
 		if err != nil {
 			log.Fatal(err)
-			break
 		}
 		if err := tw.WriteEvent(ev); err != nil {
 			log.Fatal(err)
-			break
 		}
 	}
 }
