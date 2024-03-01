@@ -295,6 +295,9 @@ func resetTimer(t *timer, when int64) bool {
 //
 //go:linkname modTimer time.modTimer
 func modTimer(t *timer, when, period int64) {
+	if raceenabled {
+		racerelease(unsafe.Pointer(t))
+	}
 	t.modify(when, period, t.f, t.arg, t.seq)
 }
 
