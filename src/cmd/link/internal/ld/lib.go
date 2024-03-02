@@ -1436,13 +1436,15 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	case objabi.Hopenbsd:
-		argv = append(argv, "-Wl,-nopie")
+		argv = append(argv, "-pthread")
+		if ctxt.BuildMode != BuildModePIE {
+			argv = append(argv, "-Wl,-nopie")
+		}
 		if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-z,nobtcfi") {
 			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
 			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
 			argv = append(argv, "-Wl,-z,nobtcfi")
 		}
-		argv = append(argv, "-pthread")
 		if ctxt.Arch.InFamily(sys.ARM64) {
 			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
 			// currently stores constants in the text section rather than in rodata.
