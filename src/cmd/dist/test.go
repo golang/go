@@ -1315,7 +1315,7 @@ func (t *tester) runPending(nextTest *distTest) {
 
 	// for runtime.NumCPU() > 4 , do not change maxbg.
 	// Because there is not enough CPU to parallel the testing of multiple packages.
-	if runtime.NumCPU() > 4 {
+	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
 		for _, w := range worklist {
 			// because GOMAXPROCS=2 runtime CPU usage is low,
 			// so increase maxbg to avoid slowing down execution with low CPU usage.
