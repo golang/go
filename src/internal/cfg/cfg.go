@@ -75,6 +75,7 @@ const KnownEnv = `
 	GOWORK
 	GO_EXTLINK_ENABLED
 	PKG_CONFIG
+	GODEBUG
 `
 
 func DefaultGOPATH() string {

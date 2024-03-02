@@ -477,7 +477,8 @@
 // of the named environment variables to the given values.
 //
 // The -changed flag output rusult of
-// query for non-defaults in the env
+// query for non-defaults in the env,
+// do not print GOOS and GOARCH.
 //
 // For more about environment variables, see 'go help environment'.
 //
