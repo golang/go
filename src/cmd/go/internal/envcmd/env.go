@@ -54,7 +54,8 @@ form NAME=VALUE and changes the default settings
 of the named environment variables to the given values.
 
 The -changed flag output rusult of
-query for non-defaults in the env
+query for non-defaults in the env,
+do not print GOOS and GOARCH.
 
 For more about environment variables, see 'go help environment'.
 	`,
@@ -108,7 +109,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
-		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+		{Name: "GODEBUG"},
 	}
 
 	// See go.dev/issue/34208
@@ -129,6 +130,8 @@ func MkEnv() []cfg.EnvVar {
 			if env[i].Value != "auto" {
 				env[i].Changed = true
 			}
+		case "GODEBUG":
+			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GODEBUG", "")
 		}
 	}
 
