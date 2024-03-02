@@ -399,8 +399,6 @@ var (
 	GOROOTpkg string
 	GOROOTsrc string
 
-	GOROOT_FINAL string
-
 	GOBIN                         = Getenv("GOBIN")
 	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
 
