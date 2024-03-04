@@ -1396,7 +1396,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 
 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		reportNoTestFiles := true
-		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+		if cfg.BuildCover && cfg.Experiment.CoverageRedesign && p.Internal.Cover.GenMeta {
 			if err := sh.Mkdir(a.Objdir); err != nil {
 				return err
 			}
