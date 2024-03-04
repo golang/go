@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	go tool preprofile [-v] [-o output] [-i (pprof)input]
+//	go tool preprofile [-v] [-o output] -i input
 //
 //
 
@@ -32,21 +32,26 @@ import (
 // in current Go Compiler.
 // The format of the pre-processed output is as follows.
 //
-//	Header
-//	caller_name
+//      Header
+//      caller_name
 //      callee_name
 //      "call site offset" "call edge weight"
 //      ...
-//	caller_name
+//      caller_name
 //      callee_name
 //      "call site offset" "call edge weight"
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "MUST have (pprof) input file \n")
-	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-v] [-o output] [-i (pprof)input] \n\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-v] [-o output] -i input\n\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
+
+var (
+	output  = flag.String("o", "", "output file path")
+	input   = flag.String("i", "", "input pprof file path")
+	verbose = flag.Bool("v", false, "enable verbose logging")
+)
 
 type NodeMapKey struct {
 	CallerName     string
@@ -54,23 +59,23 @@ type NodeMapKey struct {
 	CallSiteOffset int // Line offset from function start line.
 }
 
-func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
+func preprocess(profileFile string, outputFile string, verbose bool) error {
 	// open the pprof profile file
 	f, err := os.Open(profileFile)
 	if err != nil {
-		log.Fatal("failed to open file " + profileFile)
-		return false
+		return fmt.Errorf("error opening profile: %w", err)
 	}
 	defer f.Close()
 	p, err := profile.Parse(f)
 	if err != nil {
-		log.Fatal("failed to Parse profile file.")
-		return false
+		return fmt.Errorf("error parsing profile: %w", err)
 	}
 
 	if len(p.Sample) == 0 {
 		// We accept empty profiles, but there is nothing to do.
-		return false
+		//
+		// TODO(prattmic): write an "empty" preprocessed file.
+		return nil
 	}
 
 	valueIndex := -1
@@ -85,8 +90,7 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 	}
 
 	if valueIndex == -1 {
-		log.Fatal("failed to find CPU samples count or CPU nanoseconds value-types in profile.")
-		return false
+		return fmt.Errorf("failed to find CPU samples count or CPU nanoseconds value-types in profile.")
 	}
 
 	// The processing here is equivalent to cmd/compile/internal/pgo.createNamedEdgeMap.
@@ -131,7 +135,7 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 		dirPath := filepath.Dir(outputFile)
 		_, err := os.Stat(dirPath)
 		if err != nil {
-			log.Fatal("Directory does not exist: ", dirPath)
+			return fmt.Errorf("directory does not exist: %s", dirPath)
 		}
 		base := filepath.Base(outputFile)
 		outputFile = filepath.Join(dirPath, base)
@@ -139,8 +143,7 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 		// write out NodeMap to a file
 		fNodeMap, err = os.Create(outputFile)
 		if err != nil {
-			log.Fatal("Error creating output file:", err)
-			return false
+			return fmt.Errorf("Error creating output file: %w", err)
 		}
 
 		defer fNodeMap.Close() // Close the file when done writing
@@ -162,16 +165,8 @@ func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
 		count += 1
 	}
 
-	if TotalEdgeWeight == 0 {
-		return false
-	}
-
-	return true
+	return nil
 }
-
-var dumpCode = flag.String("o", "", "dump output file ")
-var input = flag.String("i", "", "input pprof file ")
-var verbose = flag.Bool("v", false, "verbose log")
 
 func main() {
 	log.SetFlags(0)
@@ -180,8 +175,11 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 	if *input == "" {
+		log.Print("Input pprof path required (-i)")
 		usage()
-	} else {
-		readPprofFile(*input, *dumpCode, *verbose)
+	}
+
+	if err := preprocess(*input, *output, *verbose); err != nil {
+		log.Fatal(err)
 	}
 }
