@@ -19,7 +19,6 @@ import (
 	"internal/profile"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -132,21 +131,11 @@ func preprocess(profileFile string, outputFile string, verbose bool) error {
 	if outputFile == "" {
 		fNodeMap = os.Stdout
 	} else {
-		dirPath := filepath.Dir(outputFile)
-		_, err := os.Stat(dirPath)
-		if err != nil {
-			return fmt.Errorf("directory does not exist: %s", dirPath)
-		}
-		base := filepath.Base(outputFile)
-		outputFile = filepath.Join(dirPath, base)
-
-		// write out NodeMap to a file
 		fNodeMap, err = os.Create(outputFile)
 		if err != nil {
 			return fmt.Errorf("Error creating output file: %w", err)
 		}
-
-		defer fNodeMap.Close() // Close the file when done writing
+		defer fNodeMap.Close()
 	}
 
 	w := bufio.NewWriter(fNodeMap)
