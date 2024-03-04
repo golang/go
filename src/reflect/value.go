@@ -3171,6 +3171,224 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	return chosen, recv, recvOK
 }
 
+// Select executes a select operation described by the list of cases.
+// Like the Go select statement, it blocks until at least one of the cases
+// can proceed, makes a uniform pseudo-random choice,
+// and then executes that case. It returns the index of the chosen case
+// and, if that case was a receive operation, the value received and a
+// boolean indicating whether the value corresponds to a send on the channel
+// (as opposed to a zero value received because the channel is closed).
+// Select supports a maximum of 65536 cases.
+func SelectFromMapKeys(cases map[*SelectCase]interface{}) (chosen int, recv Value, recvOK bool) {
+	if len(cases) > 65536 {
+		panic("reflect.Select: too many cases (max 65536)")
+	}
+	// NOTE: Do not trust that caller is not modifying cases data underfoot.
+	// The range is safe because the caller cannot modify our copy of the len
+	// and each iteration makes its own copy of the value c.
+	var runcases []runtimeSelect
+	if len(cases) > 4 {
+		// Slice is heap allocated due to runtime dependent capacity.
+		runcases = make([]runtimeSelect, len(cases))
+	} else {
+		// Slice can be stack allocated due to constant capacity.
+		runcases = make([]runtimeSelect, len(cases), 4)
+	}
+
+	haveDefault := false
+	i := 0
+	for c, _ := range cases {
+		rc := &runcases[i]
+		i++
+		rc.dir = c.Dir
+		switch c.Dir {
+		default:
+			panic("reflect.Select: invalid Dir")
+
+		case SelectDefault: // default
+			if haveDefault {
+				panic("reflect.Select: multiple default cases")
+			}
+			haveDefault = true
+			if c.Chan.IsValid() {
+				panic("reflect.Select: default case has Chan value")
+			}
+			if c.Send.IsValid() {
+				panic("reflect.Select: default case has Send value")
+			}
+
+		case SelectSend:
+			ch := c.Chan
+			if !ch.IsValid() {
+				break
+			}
+			ch.mustBe(Chan)
+			ch.mustBeExported()
+			tt := (*chanType)(unsafe.Pointer(ch.typ()))
+			if ChanDir(tt.Dir)&SendDir == 0 {
+				panic("reflect.Select: SendDir case using recv-only channel")
+			}
+			rc.ch = ch.pointer()
+			rc.typ = toRType(&tt.Type)
+			v := c.Send
+			if !v.IsValid() {
+				panic("reflect.Select: SendDir case missing Send value")
+			}
+			v.mustBeExported()
+			v = v.assignTo("reflect.Select", tt.Elem, nil)
+			if v.flag&flagIndir != 0 {
+				rc.val = v.ptr
+			} else {
+				rc.val = unsafe.Pointer(&v.ptr)
+			}
+			// The value to send needs to escape. See the comment at rselect for
+			// why we need forced escape.
+			escapes(rc.val)
+
+		case SelectRecv:
+			if c.Send.IsValid() {
+				panic("reflect.Select: RecvDir case has Send value")
+			}
+			ch := c.Chan
+			if !ch.IsValid() {
+				break
+			}
+			ch.mustBe(Chan)
+			ch.mustBeExported()
+			tt := (*chanType)(unsafe.Pointer(ch.typ()))
+			if ChanDir(tt.Dir)&RecvDir == 0 {
+				panic("reflect.Select: RecvDir case using send-only channel")
+			}
+			rc.ch = ch.pointer()
+			rc.typ = toRType(&tt.Type)
+			rc.val = unsafe_New(tt.Elem)
+		}
+	}
+
+	chosen, recvOK = rselect(runcases)
+	if runcases[chosen].dir == SelectRecv {
+		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
+		t := tt.Elem
+		p := runcases[chosen].val
+		fl := flag(t.Kind())
+		if t.IfaceIndir() {
+			recv = Value{t, p, fl | flagIndir}
+		} else {
+			recv = Value{t, *(*unsafe.Pointer)(p), fl}
+		}
+	}
+	return chosen, recv, recvOK
+}
+
+// Select executes a select operation described by the list of cases.
+// Like the Go select statement, it blocks until at least one of the cases
+// can proceed, makes a uniform pseudo-random choice,
+// and then executes that case. It returns the index of the chosen case
+// and, if that case was a receive operation, the value received and a
+// boolean indicating whether the value corresponds to a send on the channel
+// (as opposed to a zero value received because the channel is closed).
+// Select supports a maximum of 65536 cases.
+func SelectFromMapValues(cases map[interface{}]SelectCase) (chosen int, recv Value, recvOK bool) {
+	if len(cases) > 65536 {
+		panic("reflect.Select: too many cases (max 65536)")
+	}
+	// NOTE: Do not trust that caller is not modifying cases data underfoot.
+	// The range is safe because the caller cannot modify our copy of the len
+	// and each iteration makes its own copy of the value c.
+	var runcases []runtimeSelect
+	if len(cases) > 4 {
+		// Slice is heap allocated due to runtime dependent capacity.
+		runcases = make([]runtimeSelect, len(cases))
+	} else {
+		// Slice can be stack allocated due to constant capacity.
+		runcases = make([]runtimeSelect, len(cases), 4)
+	}
+
+	haveDefault := false
+	i := 0
+	for _, c := range cases {
+		rc := &runcases[i]
+		i++
+		rc.dir = c.Dir
+		switch c.Dir {
+		default:
+			panic("reflect.Select: invalid Dir")
+
+		case SelectDefault: // default
+			if haveDefault {
+				panic("reflect.Select: multiple default cases")
+			}
+			haveDefault = true
+			if c.Chan.IsValid() {
+				panic("reflect.Select: default case has Chan value")
+			}
+			if c.Send.IsValid() {
+				panic("reflect.Select: default case has Send value")
+			}
+
+		case SelectSend:
+			ch := c.Chan
+			if !ch.IsValid() {
+				break
+			}
+			ch.mustBe(Chan)
+			ch.mustBeExported()
+			tt := (*chanType)(unsafe.Pointer(ch.typ()))
+			if ChanDir(tt.Dir)&SendDir == 0 {
+				panic("reflect.Select: SendDir case using recv-only channel")
+			}
+			rc.ch = ch.pointer()
+			rc.typ = toRType(&tt.Type)
+			v := c.Send
+			if !v.IsValid() {
+				panic("reflect.Select: SendDir case missing Send value")
+			}
+			v.mustBeExported()
+			v = v.assignTo("reflect.Select", tt.Elem, nil)
+			if v.flag&flagIndir != 0 {
+				rc.val = v.ptr
+			} else {
+				rc.val = unsafe.Pointer(&v.ptr)
+			}
+			// The value to send needs to escape. See the comment at rselect for
+			// why we need forced escape.
+			escapes(rc.val)
+
+		case SelectRecv:
+			if c.Send.IsValid() {
+				panic("reflect.Select: RecvDir case has Send value")
+			}
+			ch := c.Chan
+			if !ch.IsValid() {
+				break
+			}
+			ch.mustBe(Chan)
+			ch.mustBeExported()
+			tt := (*chanType)(unsafe.Pointer(ch.typ()))
+			if ChanDir(tt.Dir)&RecvDir == 0 {
+				panic("reflect.Select: RecvDir case using send-only channel")
+			}
+			rc.ch = ch.pointer()
+			rc.typ = toRType(&tt.Type)
+			rc.val = unsafe_New(tt.Elem)
+		}
+	}
+
+	chosen, recvOK = rselect(runcases)
+	if runcases[chosen].dir == SelectRecv {
+		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
+		t := tt.Elem
+		p := runcases[chosen].val
+		fl := flag(t.Kind())
+		if t.IfaceIndir() {
+			recv = Value{t, p, fl | flagIndir}
+		} else {
+			recv = Value{t, *(*unsafe.Pointer)(p), fl}
+		}
+	}
+	return chosen, recv, recvOK
+}
+
 /*
  * constructors
  */
