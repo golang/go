@@ -44,6 +44,8 @@ import (
 	"cmd/internal/sys"
 
 	cmdgo "cmd/go"
+
+	"golang.org/x/telemetry/counter/countertest"
 )
 
 func init() {
@@ -89,10 +91,6 @@ func tooSlow(t *testing.T, reason string) {
 // build from this process's current GOROOT, but run from a different
 // (temp) directory.
 var testGOROOT string
-
-// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
-// have been built.
-var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
 
 var testGOCACHE string
 
@@ -155,6 +153,15 @@ func TestMain(m *testing.M) {
 					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
 			}
 			web.EnableTestHooks(interceptors)
+		}
+
+		cmdgo.TelemetryStart = func() {
+			// TODO(matloob): we'll ideally want to call telemetry.Start here
+			// but it calls counter.Open, which we don't want to do because
+			// we want to call countertest.Open.
+			if telemetryDir := os.Getenv("TESTGO_TELEMETRY_DIR"); telemetryDir != "" {
+				countertest.Open(telemetryDir)
+			}
 		}
 
 		cmdgo.Main()
@@ -223,10 +230,6 @@ func TestMain(m *testing.M) {
 		}
 		testGOROOT = goEnv("GOROOT")
 		os.Setenv("TESTGO_GOROOT", testGOROOT)
-		// Ensure that GOROOT is set explicitly.
-		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
-		// yet been moved to its final location, programs that invoke runtime.GOROOT
-		// may accidentally use the wrong path.
 		os.Setenv("GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH

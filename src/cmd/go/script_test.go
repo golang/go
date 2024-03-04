@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	_ "embed"
 	"flag"
 	"internal/testenv"
 	"internal/txtar"
@@ -21,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +31,8 @@ import (
 	"cmd/go/internal/script"
 	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/vcweb/vcstest"
+
+	"golang.org/x/telemetry/counter/countertest"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
@@ -124,7 +128,7 @@ func TestScript(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			initScriptDirs(t, s)
+			telemetryDir := initScriptDirs(t, s)
 			if err := s.ExtractFiles(a); err != nil {
 				t.Fatal(err)
 			}
@@ -154,6 +158,7 @@ func TestScript(t *testing.T) {
 			// will work better seeing the full path relative to cmd/go
 			// (where the "go test" command is usually run).
 			scripttest.Run(t, engine, s, file, bytes.NewReader(a.Comment))
+			checkCounters(t, telemetryDir)
 		})
 	}
 }
@@ -177,7 +182,7 @@ func tbFromContext(ctx context.Context) (testing.TB, bool) {
 
 // initScriptState creates the initial directory structure in s for unpacking a
 // cmd/go script.
-func initScriptDirs(t testing.TB, s *script.State) {
+func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
 	must := func(err error) {
 		if err != nil {
 			t.Helper()
@@ -188,6 +193,10 @@ func initScriptDirs(t testing.TB, s *script.State) {
 	work := s.Getwd()
 	must(s.Setenv("WORK", work))
 
+	telemetryDir = filepath.Join(work, "telemetry")
+	must(os.MkdirAll(telemetryDir, 0777))
+	must(s.Setenv("TESTGO_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
+
 	must(os.MkdirAll(filepath.Join(work, "tmp"), 0777))
 	must(s.Setenv(tempEnvName(), filepath.Join(work, "tmp")))
 
@@ -196,6 +205,7 @@ func initScriptDirs(t testing.TB, s *script.State) {
 	gopathSrc := filepath.Join(gopath, "src")
 	must(os.MkdirAll(gopathSrc, 0777))
 	must(s.Chdir(gopathSrc))
+	return telemetryDir
 }
 
 func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
@@ -223,7 +233,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
-		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
 		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
 		"TESTGO_GOROOT=" + testGOROOT,
@@ -357,4 +366,54 @@ func updateSum(t testing.TB, e *script.Engine, s *script.State, archive *txtar.A
 		archive.Files[gosumIdx].Data = newGosumData
 	}
 	return rewrite
+}
+
+func readCounters(t *testing.T, telemetryDir string) map[string]uint64 {
+	localDir := filepath.Join(telemetryDir, "local")
+	dirents, err := os.ReadDir(localDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // The Go command didn't ever run so the local dir wasn't created
+		}
+		t.Fatalf("reading telemetry local dir: %v", err)
+	}
+	totals := map[string]uint64{}
+	for _, dirent := range dirents {
+		if dirent.IsDir() || !strings.HasSuffix(dirent.Name(), ".count") {
+			// not a counter file
+			continue
+		}
+		counters, _, err := countertest.ReadFile(filepath.Join(localDir, dirent.Name()))
+		if err != nil {
+			t.Fatalf("reading counter file: %v", err)
+		}
+		for k, v := range counters {
+			totals[k] += v
+		}
+	}
+
+	return totals
+}
+
+//go:embed testdata/counters.txt
+var countersTxt string
+
+var (
+	allowedCountersOnce sync.Once
+	allowedCounters     = map[string]bool{} // Set of allowed counters.
+)
+
+func checkCounters(t *testing.T, telemetryDir string) {
+	allowedCountersOnce.Do(func() {
+		for _, counter := range strings.Fields(countersTxt) {
+			allowedCounters[counter] = true
+		}
+	})
+	counters := readCounters(t, telemetryDir)
+	for name := range counters {
+		if !allowedCounters[name] {
+			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+
+				"Please update counters_test.go to produce an entry for it.", name)
+		}
+	}
 }

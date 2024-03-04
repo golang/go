@@ -351,7 +351,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
 
 	// Round up the size to the size class to make the benchmark a little more
 	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size, t.PtrBytes == 0)
+	allocSize := roundupsize(size, !t.Pointers())
 	if s.npages*pageSize < allocSize {
 		panic("backing span not large enough for benchmark")
 	}
@@ -751,7 +751,7 @@ func MapTombstoneCheck(m map[int]int) {
 		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if b.tophash[i] != emptyRest {
 					n++
 				}
@@ -759,7 +759,7 @@ func MapTombstoneCheck(m map[int]int) {
 		}
 		k := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if k < n && b.tophash[i] == emptyRest {
 					panic("early emptyRest")
 				}

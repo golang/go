@@ -1,0 +1,17 @@
+.git
+.localstorage
+node_modules
+devtools
+.eslint*
+.gitignore
+.prettier*
+.stylelint*
+CONTRIBUTING.md
+LICENSE
+npm
+npx
+package-lock.json
+package.json
+PATENTS
+README.md
+tsconfig.json

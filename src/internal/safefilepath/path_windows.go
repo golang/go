@@ -5,36 +5,31 @@
 package safefilepath
 
 import (
+	"internal/bytealg"
 	"syscall"
-	"unicode/utf8"
 )
 
-func fromFS(path string) (string, error) {
-	if !utf8.ValidString(path) {
-		return "", errInvalidPath
-	}
-	for len(path) > 1 && path[0] == '/' && path[1] == '/' {
-		path = path[1:]
+func localize(path string) (string, error) {
+	for i := 0; i < len(path); i++ {
+		switch path[i] {
+		case ':', '\\', 0:
+			return "", errInvalidPath
+		}
 	}
 	containsSlash := false
 	for p := path; p != ""; {
 		// Find the next path element.
-		i := 0
-		for i < len(p) && p[i] != '/' {
-			switch p[i] {
-			case 0, '\\', ':':
-				return "", errInvalidPath
-			}
-			i++
-		}
-		part := p[:i]
-		if i < len(p) {
-			containsSlash = true
-			p = p[i+1:]
-		} else {
+		var element string
+		i := bytealg.IndexByteString(p, '/')
+		if i < 0 {
+			element = p
 			p = ""
+		} else {
+			containsSlash = true
+			element = p[:i]
+			p = p[i+1:]
 		}
-		if IsReservedName(part) {
+		if IsReservedName(element) {
 			return "", errInvalidPath
 		}
 	}

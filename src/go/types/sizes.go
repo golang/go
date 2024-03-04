@@ -96,7 +96,7 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 			return s.WordSize
 		}
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	a := s.Sizeof(T) // may be 0 or negative
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
@@ -223,7 +223,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return s.WordSize // catch-all
 }

@@ -68,17 +68,13 @@ func TestTCPEcho(t *testing.T) {
 	defer subProcess.Process.Kill()
 
 	var conn net.Conn
-	var err error
 	for {
+		var err error
 		conn, err = net.Dial("tcp", host)
 		if err == nil {
 			break
 		}
 		time.Sleep(500 * time.Millisecond)
-	}
-	if err != nil {
-		t.Log(b.String())
-		t.Fatal(err)
 	}
 	defer conn.Close()
 

@@ -2173,6 +2173,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // writes are done to w.
 // The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
+	w.Header().Del("Content-Length")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
@@ -2335,7 +2336,7 @@ func RedirectHandler(url string, code int) Handler {
 //	[METHOD ][HOST]/[PATH]
 //
 // All three parts are optional; "/" is a valid pattern.
-// If METHOD is present, it must be followed by a single space.
+// If METHOD is present, it must be followed by at least one space or tab.
 //
 // Literal (that is, non-wildcard) parts of a pattern match
 // the corresponding parts of a request case-sensitively.
@@ -2378,7 +2379,7 @@ func RedirectHandler(url string, code int) Handler {
 // There is one exception to this rule, for backwards compatibility:
 // if two patterns would otherwise conflict and one has a host while the other does not,
 // then the pattern with the host takes precedence.
-// If a pattern passed [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
+// If a pattern passed to [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
 // another pattern that is already registered, those functions panic.
 //
 // As an example of the general rule, "/images/thumbnails/" is more specific than "/images/",

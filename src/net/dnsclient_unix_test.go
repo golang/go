@@ -803,13 +803,25 @@ func TestIgnoreLameReferrals(t *testing.T) {
 					},
 				}
 			}
+		} else if s == "192.0.2.1:53" {
+			if q.Questions[0].Type == dnsmessage.TypeA && strings.HasPrefix(q.Questions[0].Name.String(), "empty.com.") {
+				var edns0Hdr dnsmessage.ResourceHeader
+				edns0Hdr.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false)
+
+				r.Additionals = []dnsmessage.Resource{
+					{
+						Header: edns0Hdr,
+						Body:   &dnsmessage.OPTResource{},
+					},
+				}
+			}
 		}
 
 		return r, nil
 	}}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	addrs, err := r.LookupIPAddr(context.Background(), "www.golang.org")
+	addrs, err := r.LookupIP(context.Background(), "ip4", "www.golang.org")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -820,6 +832,15 @@ func TestIgnoreLameReferrals(t *testing.T) {
 
 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
 		t.Fatalf("got address %v, want %v", got, want)
+	}
+
+	_, err = r.LookupIP(context.Background(), "ip4", "empty.com")
+	de, ok := err.(*DNSError)
+	if !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	}
+	if de.Err != errNoSuchHost.Error() {
+		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
 	}
 }
 

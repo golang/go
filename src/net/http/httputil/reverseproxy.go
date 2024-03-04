@@ -454,8 +454,19 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("User-Agent", "")
 	}
 
+	var (
+		roundTripMutex sync.Mutex
+		roundTripDone  bool
+	)
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			roundTripMutex.Lock()
+			defer roundTripMutex.Unlock()
+			if roundTripDone {
+				// If RoundTrip has returned, don't try to further modify
+				// the ResponseWriter's header map.
+				return nil
+			}
 			h := rw.Header()
 			copyHeader(h, http.Header(header))
 			rw.WriteHeader(code)
@@ -468,6 +479,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
 
 	res, err := transport.RoundTrip(outreq)
+	roundTripMutex.Lock()
+	roundTripDone = true
+	roundTripMutex.Unlock()
 	if err != nil {
 		p.getErrorHandler()(rw, outreq, err)
 		return

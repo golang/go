@@ -324,7 +324,13 @@ func vendorPkg(vdir, pkg string) {
 	}
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
-		base.Fatal(err)
+		format := "go: resolving embeds in %s: %v\n"
+		if vendorE {
+			fmt.Fprintf(os.Stderr, format, pkg, err)
+		} else {
+			base.Errorf(format, pkg, err)
+		}
+		return
 	}
 	for _, embed := range embeds {
 		embedDst := filepath.Join(dst, embed)
@@ -333,23 +339,30 @@ func vendorPkg(vdir, pkg string) {
 		}
 
 		// Copy the file as is done by copyDir below.
-		r, err := os.Open(filepath.Join(src, embed))
+		err := func() error {
+			r, err := os.Open(filepath.Join(src, embed))
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
+				return err
+			}
+			w, err := os.Create(embedDst)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(w, r); err != nil {
+				return err
+			}
+			r.Close()
+			return w.Close()
+		}()
 		if err != nil {
-			base.Fatal(err)
-		}
-		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
-			base.Fatal(err)
-		}
-		w, err := os.Create(embedDst)
-		if err != nil {
-			base.Fatal(err)
-		}
-		if _, err := io.Copy(w, r); err != nil {
-			base.Fatal(err)
-		}
-		r.Close()
-		if err := w.Close(); err != nil {
-			base.Fatal(err)
+			if vendorE {
+				fmt.Fprintf(os.Stderr, "go: %v\n", err)
+			} else {
+				base.Error(err)
+			}
 		}
 	}
 }

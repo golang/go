@@ -14,13 +14,10 @@ mkdir $WORK/new/bin/${GOOS}_${GOARCH}
 # In this test, we are specifically checking the logic for deriving
 # the value of GOROOT from os.Executable when runtime.GOROOT is
 # trimmed away.
-# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
-# so we explicitly clear it to remove it as a confounding variable.
-env GOROOT_FINAL=
 
 # $GOROOT/bin/go is whatever the user has already installed
 # (using make.bash or similar). We can't make assumptions about what
-# options it may have been built with, such as -trimpath or GOROOT_FINAL.
+# options it may have been built with, such as -trimpath or not.
 # Instead, we build a fresh copy of the binary with known settings.
 go build -trimpath -o $WORK/new/bin/go$GOEXE cmd/go &
 go build -trimpath -o $WORK/bin/check$GOEXE check.go &

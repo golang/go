@@ -1,0 +1,51 @@
+# Regression test for https://go.dev/issue/65339.
+# Unnecessary git tree object required
+
+[short] skip 'constructs a local git repo'
+[!git] skip
+
+env GIT_AUTHOR_NAME='Go Gopher'
+env GIT_AUTHOR_EMAIL='gopher@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+# Create 2 commit
+env GIT_COMMITTER_DATE=2024-01-30T10:52:00+08:00
+env GIT_AUTHOR_DATE=2024-01-30T10:52:00+08:00
+
+cd $WORK/repo
+exec git init
+exec git add go.mod main.go
+exec git commit -m 'initial commit'
+
+env GIT_COMMITTER_DATE=2024-01-30T10:53:00+08:00
+env GIT_AUTHOR_DATE=2024-01-30T10:53:00+08:00
+exec git add extra.go
+exec git commit -m 'add extra.go'
+
+# Assume the tree object from initial commit is not available (e.g. partial clone)
+exec git log --pretty=%T
+cmp stdout $WORK/.git-trees
+
+rm .git/objects/66/400c89b45cc96da36d232844dbf9ea5daa6bcf
+
+# Build the module, which should succeed
+go build -v -buildvcs=true -o test
+go version -m test
+stdout '^\tbuild\tvcs.revision=fe3c8204d2332a731166269932dd23760c1b576a$'
+
+-- $WORK/repo/go.mod --
+module github.com/golang/issue65339
+
+go 1.20
+-- $WORK/repo/main.go --
+package main
+
+func main() {
+	println("hello, world")
+}
+-- $WORK/repo/extra.go --
+package main
+-- $WORK/.git-trees --
+ac724c6e5e3f86815e057ff58a639cab613abf28
+66400c89b45cc96da36d232844dbf9ea5daa6bcf

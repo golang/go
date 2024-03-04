@@ -8,6 +8,7 @@
 // and cause a compiler warning. This results in a build failure since
 // cgo uses -Werror. See #65290.
 #pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Watomic-alignment"
 
 #include <pthread.h>

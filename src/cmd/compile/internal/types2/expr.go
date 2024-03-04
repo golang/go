@@ -12,6 +12,7 @@ import (
 	"go/constant"
 	"go/token"
 	. "internal/types/errors"
+	"strings"
 )
 
 /*
@@ -268,7 +269,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// upon assignment or use.
 		if debug {
 			check.dump("%v: found old type(%s): %s (new: %s)", atPos(x), x, old.typ, typ)
-			unreachable()
+			panic("unreachable")
 		}
 		return
 
@@ -337,7 +338,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// If the new type is not final and still untyped, just
@@ -546,7 +547,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// comparison is ok
@@ -1031,6 +1032,35 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 }
 
+// langCompat reports an error if the representation of a numeric
+// literal is not compatible with the current language version.
+func (check *Checker) langCompat(lit *syntax.BasicLit) {
+	s := lit.Value
+	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
+		return
+	}
+	// len(s) > 2
+	if strings.Contains(s, "_") {
+		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+		return
+	}
+	if s[0] != '0' {
+		return
+	}
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
+		check.versionErrorf(lit, go1_13, "binary literal")
+		return
+	}
+	if radix == 'o' || radix == 'O' {
+		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+		return
+	}
+	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
+		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
+	}
+}
+
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 // (See rawExpr for an explanation of the parameters.)
@@ -1042,7 +1072,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	switch e := e.(type) {
 	case nil:
-		unreachable()
+		panic("unreachable")
 
 	case *syntax.BadExpr:
 		goto Error // error was reported before
@@ -1654,7 +1684,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			msg = "%s is not an expression"
 			code = NotAnExpr
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
 		x.mode = invalid

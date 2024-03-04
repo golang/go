@@ -581,10 +581,10 @@ func TestPaxSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeSymlink
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeSymlink
 	// Force a PAX long linkname to be written
 	longLinkname := strings.Repeat("1234567890/1234567890", 10)
 	hdr.Linkname = longLinkname
@@ -761,10 +761,10 @@ func TestUSTARLongName(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeDir
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeDir
 	// Force a PAX long name to be written. The name was taken from a practical example
 	// that fails and replaced ever char through numbers to anonymize the sample.
 	longName := "/0000_0000000/00000-000000000/0000_0000000/00000-0000000000000/0000_0000000/00000-0000000-00000000/0000_0000000/00000000/0000_0000000/000/0000_0000000/00000000v00/0000_0000000/000000/0000_0000000/0000000/0000_0000000/00000y-00/0000/0000/00000000/0x000000/"

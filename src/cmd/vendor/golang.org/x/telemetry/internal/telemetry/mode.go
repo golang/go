@@ -20,7 +20,7 @@ import (
 // For convenience, each field is made to global
 // and they are not supposed to be changed.
 var (
-	// Default directory containing count files and local reports (not yet uploaded)
+	// Default directory containing count files, local reports (not yet uploaded), and logs
 	LocalDir string
 	// Default directory containing uploaded reports.
 	UploadDir string
@@ -124,9 +124,8 @@ const DisabledOnPlatform = false ||
 	runtime.GOOS == "openbsd" || // #60614
 	runtime.GOOS == "solaris" || // #60968 #60970
 	runtime.GOOS == "android" || // #60967
+	runtime.GOOS == "illumos" || // #65544
 	// These platforms fundamentally can't be supported:
 	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
-	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
-	// Work is in progress to support 386:
-	runtime.GOARCH == "386" // #60615 #60692 #60965 #60967
+	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639

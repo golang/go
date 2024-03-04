@@ -45,7 +45,8 @@ type Sym interface {
 // A Var represents a local variable or a function parameter.
 type Var struct {
 	Name          string
-	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
+	Tag           int // Either DW_TAG_variable or DW_TAG_formal_parameter
+	WithLoclist   bool
 	IsReturnValue bool
 	IsInlFormal   bool
 	DictIndex     uint16 // index of the dictionary entry describing the type of this variable
@@ -331,16 +332,6 @@ const (
 	DW_ABRV_INLINED_SUBROUTINE_RANGES
 	DW_ABRV_VARIABLE
 	DW_ABRV_INT_CONSTANT
-	DW_ABRV_AUTO
-	DW_ABRV_AUTO_LOCLIST
-	DW_ABRV_AUTO_ABSTRACT
-	DW_ABRV_AUTO_CONCRETE
-	DW_ABRV_AUTO_CONCRETE_LOCLIST
-	DW_ABRV_PARAM
-	DW_ABRV_PARAM_LOCLIST
-	DW_ABRV_PARAM_ABSTRACT
-	DW_ABRV_PARAM_CONCRETE
-	DW_ABRV_PARAM_CONCRETE_LOCLIST
 	DW_ABRV_LEXICAL_BLOCK_RANGES
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
@@ -361,7 +352,7 @@ const (
 	DW_ABRV_STRUCTTYPE
 	DW_ABRV_TYPEDECL
 	DW_ABRV_DICT_INDEX
-	DW_NABRV
+	DW_ABRV_PUTVAR_START
 )
 
 type dwAbbrev struct {
@@ -394,22 +385,23 @@ func expandPseudoForm(form uint8) uint8 {
 // expanding any DW_FORM pseudo-ops to real values.
 func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
-		return abbrevs[:]
+		return abbrevs
 	}
-	for i := 1; i < DW_NABRV; i++ {
+	abbrevs = append(abbrevs, putvarAbbrevs...)
+	for i := 1; i < len(abbrevs); i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
 			abbrevs[i].attr[j].form = expandPseudoForm(abbrevs[i].attr[j].form)
 		}
 	}
 	abbrevsFinalized = true
-	return abbrevs[:]
+	return abbrevs
 }
 
 // abbrevs is a raw table of abbrev entries; it needs to be post-processed
 // by the Abbrevs() function above prior to being consumed, to expand
 // the 'pseudo-form' entries below to real DWARF form values.
 
-var abbrevs = [DW_NABRV]dwAbbrev{
+var abbrevs = []dwAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
 	{0, 0, []dwAttrForm{}},
 
@@ -552,118 +544,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_const_value, DW_FORM_sdata},
-		},
-	},
-
-	/* AUTO */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* AUTO_LOCLIST */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* AUTO_ABSTRACT */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-		},
-	},
-
-	/* AUTO_CONCRETE */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* AUTO_CONCRETE_LOCLIST */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* PARAM */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* PARAM_LOCLIST */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* PARAM_ABSTRACT */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_type, DW_FORM_ref_addr},
-		},
-	},
-
-	/* PARAM_CONCRETE */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* PARAM_CONCRETE_LOCLIST */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
 		},
 	},
 
@@ -901,7 +781,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 func GetAbbrev() []byte {
 	abbrevs := Abbrevs()
 	var buf []byte
-	for i := 1; i < DW_NABRV; i++ {
+	for i := 1; i < len(abbrevs); i++ {
 		// See section 7.5.3
 		buf = AppendUleb128(buf, uint64(i))
 		buf = AppendUleb128(buf, uint64(abbrevs[i].tag))
@@ -1548,39 +1428,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 	return curscope
 }
 
-// Given a default var abbrev code, select corresponding concrete code.
-func concreteVarAbbrev(varAbbrev int) int {
-	switch varAbbrev {
-	case DW_ABRV_AUTO:
-		return DW_ABRV_AUTO_CONCRETE
-	case DW_ABRV_PARAM:
-		return DW_ABRV_PARAM_CONCRETE
-	case DW_ABRV_AUTO_LOCLIST:
-		return DW_ABRV_AUTO_CONCRETE_LOCLIST
-	case DW_ABRV_PARAM_LOCLIST:
-		return DW_ABRV_PARAM_CONCRETE_LOCLIST
-	default:
-		panic("should never happen")
-	}
-}
-
-// Pick the correct abbrev code for variable or parameter DIE.
-func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
-	abbrev := v.Abbrev
-
-	// If the variable was entirely optimized out, don't emit a location list;
-	// convert to an inline abbreviation and emit an empty location.
-	missing := false
-	switch {
-	case abbrev == DW_ABRV_AUTO_LOCLIST && v.PutLocationList == nil:
-		missing = true
-		abbrev = DW_ABRV_AUTO
-	case abbrev == DW_ABRV_PARAM_LOCLIST && v.PutLocationList == nil:
-		missing = true
-		abbrev = DW_ABRV_PARAM
-	}
-
-	// Determine whether to use a concrete variable or regular variable DIE.
+func concreteVar(fnabbrev int, v *Var) bool {
 	concrete := true
 	switch fnabbrev {
 	case DW_ABRV_FUNCTION, DW_ABRV_WRAPPER:
@@ -1596,64 +1444,44 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 	default:
 		panic("should never happen")
 	}
-
-	// Select proper abbrev based on concrete/non-concrete
-	if concrete {
-		abbrev = concreteVarAbbrev(abbrev)
-	}
-
-	return abbrev, missing, concrete
-}
-
-func abbrevUsesLoclist(abbrev int) bool {
-	switch abbrev {
-	case DW_ABRV_AUTO_LOCLIST, DW_ABRV_AUTO_CONCRETE_LOCLIST,
-		DW_ABRV_PARAM_LOCLIST, DW_ABRV_PARAM_CONCRETE_LOCLIST:
-		return true
-	default:
-		return false
-	}
+	return concrete
 }
 
 // Emit DWARF attributes for a variable belonging to an 'abstract' subprogram.
 func putAbstractVar(ctxt Context, info Sym, v *Var) {
-	// Remap abbrev
-	abbrev := v.Abbrev
-	switch abbrev {
-	case DW_ABRV_AUTO, DW_ABRV_AUTO_LOCLIST:
-		abbrev = DW_ABRV_AUTO_ABSTRACT
-	case DW_ABRV_PARAM, DW_ABRV_PARAM_LOCLIST:
-		abbrev = DW_ABRV_PARAM_ABSTRACT
-	}
-
+	// The contents of this functions are used to generate putAbstractVarAbbrev automatically, see TestPutVarAbbrevGenerator.
+	abbrev := putAbstractVarAbbrev(v)
 	Uleb128put(ctxt, info, int64(abbrev))
-	putattr(ctxt, info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name)
+	putattr(ctxt, info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name) // DW_AT_name
 
 	// Isreturn attribute if this is a param
-	if abbrev == DW_ABRV_PARAM_ABSTRACT {
+	if v.Tag == DW_TAG_formal_parameter {
 		var isReturn int64
 		if v.IsReturnValue {
 			isReturn = 1
 		}
-		putattr(ctxt, info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+		putattr(ctxt, info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil) // DW_AT_variable_parameter
 	}
 
 	// Line
-	if abbrev != DW_ABRV_PARAM_ABSTRACT {
+	if v.Tag == DW_TAG_variable {
 		// See issue 23374 for more on why decl line is skipped for abs params.
-		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil) // DW_AT_decl_line
 	}
 
 	// Type
-	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
 
 	// Var has no children => no terminator
 }
 
 func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int, encbuf []byte) {
-	// Remap abbrev according to parent DIE abbrev
-	abbrev, missing, concrete := determineVarAbbrev(v, fnabbrev)
+	// The contents of this functions are used to generate putvarAbbrev automatically, see TestPutVarAbbrevGenerator.
+	concrete := concreteVar(fnabbrev, v)
+	hasParametricType := !concrete && (v.DictIndex > 0 && s.dictIndexToOffset != nil && s.dictIndexToOffset[v.DictIndex-1] != 0)
+	withLoclist := v.WithLoclist && v.PutLocationList != nil
 
+	abbrev := putvarAbbrev(v, concrete, withLoclist)
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	// Abstract origin for concrete / inlined case
@@ -1662,35 +1490,35 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 		// function subprogram DIE. The child DIE has no LSym, so instead
 		// after the call to 'putattr' below we make a call to register
 		// the child DIE reference.
-		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, absfn)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, absfn) // DW_AT_abstract_origin
 		ctxt.RecordDclReference(s.Info, absfn, int(v.ChildIndex), inlIndex)
 	} else {
 		// Var name, line for abstract and default cases
 		n := v.Name
-		putattr(ctxt, s.Info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
-		if abbrev == DW_ABRV_PARAM || abbrev == DW_ABRV_PARAM_LOCLIST || abbrev == DW_ABRV_PARAM_ABSTRACT {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n) // DW_AT_name
+		if v.Tag == DW_TAG_formal_parameter {
 			var isReturn int64
 			if v.IsReturnValue {
 				isReturn = 1
 			}
-			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil) // DW_AT_variable_parameter
 		}
-		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
-		if v.DictIndex > 0 && s.dictIndexToOffset != nil && s.dictIndexToOffset[v.DictIndex-1] != 0 {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil) // DW_AT_decl_line
+		if hasParametricType {
 			// If the type of this variable is parametric use the entry emitted by putparamtypes
-			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info)
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info) // DW_AT_type
 		} else {
-			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
 		}
 	}
 
-	if abbrevUsesLoclist(abbrev) {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, ctxt.Size(s.Loc), s.Loc)
+	if withLoclist {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, ctxt.Size(s.Loc), s.Loc) // DW_AT_location
 		v.PutLocationList(s.Loc, s.StartPC)
 	} else {
 		loc := encbuf[:0]
 		switch {
-		case missing:
+		case v.WithLoclist:
 			break // no location
 		case v.StackOffset == 0:
 			loc = append(loc, DW_OP_call_frame_cfa)
@@ -1698,7 +1526,7 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 			loc = append(loc, DW_OP_fbreg)
 			loc = AppendSleb128(loc, int64(v.StackOffset))
 		}
-		putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc) // DW_AT_location
 	}
 
 	// Var has no children => no terminator

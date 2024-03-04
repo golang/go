@@ -1043,7 +1043,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	var span *mspan
 	var header **_type
 	var x unsafe.Pointer
-	noscan := typ == nil || typ.PtrBytes == 0
+	noscan := typ == nil || !typ.Pointers()
 	// In some cases block zeroing can profitably (for latency reduction purposes)
 	// be delayed till preemption is possible; delayedZeroing tracks that state.
 	delayedZeroing := false
@@ -1188,7 +1188,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				// Array allocation. If there are any
 				// pointers, GC has to scan to the last
 				// element.
-				if typ.PtrBytes != 0 {
+				if typ.Pointers() {
 					scanSize = dataSize - typ.Size_ + typ.PtrBytes
 				}
 			} else {

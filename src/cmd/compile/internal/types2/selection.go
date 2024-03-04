@@ -163,7 +163,7 @@ func SelectionString(s *Selection, qf Qualifier) string {
 	case MethodExpr:
 		k = "method expr "
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 	var buf bytes.Buffer
 	buf.WriteString(k)

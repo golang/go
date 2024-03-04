@@ -3620,6 +3620,57 @@ func usedLocals(body []ir.Node) ir.NameSet {
 }
 
 // @@@ Method wrappers
+//
+// Here we handle constructing "method wrappers," alternative entry
+// points that adapt methods to different calling conventions. Given a
+// user-declared method "func (T) M(i int) bool { ... }", there are a
+// few wrappers we may need to construct:
+//
+//	- Implicit dereferencing. Methods declared with a value receiver T
+//	  are also included in the method set of the pointer type *T, so
+//	  we need to construct a wrapper like "func (recv *T) M(i int)
+//	  bool { return (*recv).M(i) }".
+//
+//	- Promoted methods. If struct type U contains an embedded field of
+//	  type T or *T, we need to construct a wrapper like "func (recv U)
+//	  M(i int) bool { return recv.T.M(i) }".
+//
+//	- Method values. If x is an expression of type T, then "x.M" is
+//	  roughly "tmp := x; func(i int) bool { return tmp.M(i) }".
+//
+// At call sites, we always prefer to call the user-declared method
+// directly, if known, so wrappers are only needed for indirect calls
+// (for example, interface method calls that can't be devirtualized).
+// Consequently, we can save some compile time by skipping
+// construction of wrappers that are never needed.
+//
+// Alternatively, because the linker doesn't care which compilation
+// unit constructed a particular wrapper, we can instead construct
+// them as needed. However, if a wrapper is needed in multiple
+// downstream packages, we may end up needing to compile it multiple
+// times, costing us more compile time and object file size. (We mark
+// the wrappers as DUPOK, so the linker doesn't complain about the
+// duplicate symbols.)
+//
+// The current heuristics we use to balance these trade offs are:
+//
+//	- For a (non-parameterized) defined type T, we construct wrappers
+//	  for *T and any promoted methods on T (and *T) in the same
+//	  compilation unit as the type declaration.
+//
+//	- For a parameterized defined type, we construct wrappers in the
+//	  compilation units in which the type is instantiated. We
+//	  similarly handle wrappers for anonymous types with methods and
+//	  compilation units where their type literals appear in source.
+//
+//	- Method value expressions are relatively uncommon, so we
+//	  construct their wrappers in the compilation units that they
+//	  appear in.
+//
+// Finally, as an opportunistic compile-time optimization, if we know
+// a wrapper was constructed in any imported package's compilation
+// unit, then we skip constructing a duplicate one. However, currently
+// this is only done on a best-effort basis.
 
 // needWrapperTypes lists types for which we may need to generate
 // method wrappers.
@@ -3643,6 +3694,8 @@ type methodValueWrapper struct {
 	method *types.Field
 }
 
+// needWrapper records that wrapper methods may be needed at link
+// time.
 func (r *reader) needWrapper(typ *types.Type) {
 	if typ.IsPtr() {
 		return
@@ -3676,6 +3729,8 @@ func (r *reader) importedDef() bool {
 	return r.p != localPkgReader && !r.hasTypeParams()
 }
 
+// MakeWrappers constructs all wrapper methods needed for the target
+// compilation unit.
 func MakeWrappers(target *ir.Package) {
 	// always generate a wrapper for error.Error (#29304)
 	needWrapperTypes = append(needWrapperTypes, types.ErrorType)
@@ -3811,7 +3866,6 @@ func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Packa
 
 func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
 	sig := newWrapperType(wrapper, method)
-
 	fn := ir.NewFunc(pos, pos, sym, sig)
 	fn.DeclareParams(true)
 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?

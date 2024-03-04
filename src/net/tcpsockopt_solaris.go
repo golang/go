@@ -10,10 +10,30 @@ import (
 	"time"
 )
 
-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+	if d == 0 {
+		d = defaultTCPKeepAliveIdle
+	} else if d < 0 {
+		return nil
+	}
+
 	// The kernel expects milliseconds so round to next highest
 	// millisecond.
 	msecs := int(roundDurationUp(d, time.Millisecond))
+
+	// TODO(panjf2000): the system call here always returns an error of invalid argument,
+	//	 this was never discovered due to the lack of tests for TCP keep-alive on various
+	//	 platforms in Go's test suite. Try to dive deep and figure out the reason later.
+	// Check out https://go.dev/issue/64251 for more details.
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD, msecs)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
+func setKeepAliveInterval(_ *netFD, d time.Duration) error {
+	if d < 0 {
+		return nil
+	}
 
 	// Normally we'd do
 	//	syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs)
@@ -25,8 +45,12 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	// and do it anyway, like on Darwin, because Solaris might eventually
 	// allocate a constant with a different meaning for the value of
 	// TCP_KEEPINTVL on illumos.
+	return syscall.ENOPROTOOPT
+}
 
-	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD, msecs)
-	runtime.KeepAlive(fd)
-	return wrapSyscallError("setsockopt", err)
+func setKeepAliveCount(_ *netFD, n int) error {
+	if n < 0 {
+		return nil
+	}
+	return syscall.ENOPROTOOPT
 }

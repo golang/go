@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 // Based on the Linux Kernel with the following comment:
 // Algorithm based on https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=fb87127bcefc17efab757606e1b1e333fd614dd0
 // Originally written by Ard Biesheuvel <ard.biesheuvel@linaro.org>

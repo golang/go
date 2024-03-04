@@ -98,12 +98,12 @@ which in turn are made up of memory operations.
 A <i>memory operation</i> is modeled by four details:
 </p>
 <ul>
-<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
-or a <i>synchronizing operation</i> such as an atomic data access,
-a mutex operation, or a channel operation,
-<li>its location in the program,
-<li>the memory location or variable being accessed, and
-<li>the values read or written by the operation.
+	<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
+    or a <i>synchronizing operation</i> such as an atomic data access,
+	a mutex operation, or a channel operation,</li>
+	<li>its location in the program,</li>
+	<li>the memory location or variable being accessed, and</li>
+	<li>the values read or written by the operation.</li>
 </ul>
 <p>
 Some memory operations are <i>read-like</i>, including read, atomic read, mutex lock, and channel receive.
@@ -162,8 +162,8 @@ where visible means that both of the following hold:
 </p>
 
 <ol>
-<li><i>w</i> happens before <i>r</i>.
-<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.
+	<li><i>w</i> happens before <i>r</i>.</li>
+	<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.</li>
 </ol>
 
 <p>

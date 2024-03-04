@@ -1056,11 +1056,17 @@ func elfdynhash(ctxt *Link) {
 	}
 
 	s = ldr.CreateSymForUpdate(".dynamic", 0)
-	if ctxt.BuildMode == BuildModePIE {
-		// https://github.com/bminor/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/elf/elf.h#L986
-		const DTFLAGS_1_PIE = 0x08000000
-		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(DTFLAGS_1_PIE))
+
+	var dtFlags1 elf.DynFlag1
+	if *flagBindNow {
+		dtFlags1 |= elf.DF_1_NOW
+		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS, uint64(elf.DF_BIND_NOW))
 	}
+	if ctxt.BuildMode == BuildModePIE {
+		dtFlags1 |= elf.DF_1_PIE
+	}
+	Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(dtFlags1))
+
 	elfverneed = nfile
 	if elfverneed != 0 {
 		elfWriteDynEntSym(ctxt, s, elf.DT_VERNEED, gnuVersionR.Sym())
@@ -1107,6 +1113,7 @@ func elfphload(seg *sym.Segment) *ElfPhdr {
 func elfphrelro(seg *sym.Segment) {
 	ph := newElfPhdr()
 	ph.Type = elf.PT_GNU_RELRO
+	ph.Flags = elf.PF_R
 	ph.Vaddr = seg.Vaddr
 	ph.Paddr = seg.Vaddr
 	ph.Memsz = seg.Length
@@ -1556,7 +1563,11 @@ func (ctxt *Link) doelf() {
 
 		/* global offset table */
 		got := ldr.CreateSymForUpdate(".got", 0)
-		got.SetType(sym.SELFGOT) // writable
+		if ctxt.UseRelro() {
+			got.SetType(sym.SRODATARELRO)
+		} else {
+			got.SetType(sym.SELFGOT) // writable
+		}
 
 		/* ppc64 glink resolver */
 		if ctxt.IsPPC64() {
@@ -1569,7 +1580,11 @@ func (ctxt *Link) doelf() {
 		hash.SetType(sym.SELFROSECT)
 
 		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
-		gotplt.SetType(sym.SELFSECT) // writable
+		if ctxt.UseRelro() && *flagBindNow {
+			gotplt.SetType(sym.SRODATARELRO)
+		} else {
+			gotplt.SetType(sym.SELFSECT) // writable
+		}
 
 		plt := ldr.CreateSymForUpdate(".plt", 0)
 		if ctxt.IsPPC64() {
@@ -1591,9 +1606,12 @@ func (ctxt *Link) doelf() {
 
 		/* define dynamic elf table */
 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
-		if thearch.ELF.DynamicReadOnly {
+		switch {
+		case thearch.ELF.DynamicReadOnly:
 			dynamic.SetType(sym.SELFROSECT)
-		} else {
+		case ctxt.UseRelro():
+			dynamic.SetType(sym.SRODATARELRO)
+		default:
 			dynamic.SetType(sym.SELFSECT)
 		}
 

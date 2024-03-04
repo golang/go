@@ -764,7 +764,17 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadHeaderTimeout = -1 // don't time out while reading headers
 			ts.Config.ReadTimeout = timeout
+			t.Logf("Server.Config.ReadTimeout = %v", timeout)
 		})
+
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
+
 		pr, pw := io.Pipe()
 		res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
 		if err != nil {
@@ -792,7 +802,34 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 			errc <- err
 		}), func(ts *httptest.Server) {
 			ts.Config.WriteTimeout = timeout
+			t.Logf("Server.Config.WriteTimeout = %v", timeout)
 		})
+
+		// The server's WriteTimeout parameter also applies to reads during the TLS
+		// handshake. The client makes the last write during the handshake, and if
+		// the server happens to time out during the read of that write, the client
+		// may think that the connection was accepted even though the server thinks
+		// it timed out.
+		//
+		// The client only notices that the server connection is gone when it goes
+		// to actually write the request — and when that fails, it retries
+		// internally (the same as if the server had closed the connection due to a
+		// racing idle-timeout).
+		//
+		// With unlucky and very stable scheduling (as may be the case with the fake wasm
+		// net stack), this can result in an infinite retry loop that doesn't
+		// propagate the error up far enough for us to adjust the WriteTimeout.
+		//
+		// To avoid that problem, we explicitly forbid internal retries by rejecting
+		// them in a Proxy hook in the transport.
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
+
 		res, err := cst.c.Get(cst.ts.URL)
 		if err != nil {
 			// Probably caused by the write timeout expiring before the handler runs.
@@ -5778,9 +5815,18 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 			}
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = timeout
+			t.Logf("Server.Config.ReadTimeout = %v", timeout)
 		})
 		defer cst.close()
 		ts := cst.ts
+
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
 
 		c := ts.Client()
 
@@ -7004,5 +7050,26 @@ func testDisableContentLength(t *testing.T, mode testMode) {
 	}
 	if err := res.Body.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestErrorContentLength(t *testing.T) { run(t, testErrorContentLength) }
+func testErrorContentLength(t *testing.T, mode testMode) {
+	const errorBody = "an error occurred"
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "1000")
+		Error(w, errorBody, 400)
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatalf("Get(%q) = %v", cst.ts.URL, err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("io.ReadAll(res.Body) = %v", err)
+	}
+	if string(body) != errorBody+"\n" {
+		t.Fatalf("read body: %q, want %q", string(body), errorBody)
 	}
 }

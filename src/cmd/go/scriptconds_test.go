@@ -51,7 +51,6 @@ func scriptConditions() map[string]script.Cond {
 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
 	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
-	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
 	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
@@ -83,14 +82,6 @@ func ccIs(s *script.State, want string) (bool, error) {
 	GOOS, _ := s.LookupEnv("GOOS")
 	GOARCH, _ := s.LookupEnv("GOARCH")
 	return cfg.DefaultCC(GOOS, GOARCH) == want, nil
-}
-
-func isMismatchedGoroot(s *script.State) (bool, error) {
-	gorootFinal, _ := s.LookupEnv("GOROOT_FINAL")
-	if gorootFinal == "" {
-		gorootFinal, _ = s.LookupEnv("GOROOT")
-	}
-	return gorootFinal != testGOROOT, nil
 }
 
 func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {

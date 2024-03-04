@@ -6,6 +6,7 @@ package walk
 
 import (
 	"fmt"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -33,12 +34,6 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	lno := base.Pos
-
-	base.Pos = lno
-	if base.Errors() > errorsBefore {
-		return
-	}
 	walkStmtList(ir.CurFunc.Body)
 	if base.Flag.W != 0 {
 		s := fmt.Sprintf("after walk %v", ir.CurFunc.Sym())
@@ -189,8 +184,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Size() > 128 {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
