@@ -2402,9 +2402,6 @@ func TestConnMaxLifetime(t *testing.T) {
 	// Expire first conn
 	offset = 11 * time.Second
 	db.SetConnMaxLifetime(10 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	tx, err = db.Begin()
 	if err != nil {
