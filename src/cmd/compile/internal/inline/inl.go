@@ -1162,7 +1162,10 @@ func isIndexingCoverageCounter(n ir.Node) bool {
 		return false
 	}
 	nn := ixn.X.(*ir.Name)
-	return nn.CoverageCounter()
+	// CoverageAuxVar implies either a coverage counter or a package
+	// ID; since the cover tool never emits code to index into ID vars
+	// this is effectively testing whether nn is a coverage counter.
+	return nn.CoverageAuxVar()
 }
 
 // isAtomicCoverageCounterUpdate examines the specified node to
