@@ -878,7 +878,10 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.BuildCoverPkg != nil {
 		match := make([]func(*modload.Loader, *load.Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
-			match[i] = load.MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
+			match[i] = func(l *modload.Loader, p *load.Package) bool {
+				cwd := base.Cwd()
+				return load.MatchPackage(cfg.BuildCoverPkg[i], cwd)(l, p) && !isUnderSpecial(cwd, p.Dir)
+			}
 		}
 
 		// Select for coverage all dependencies matching the -coverpkg
@@ -2310,4 +2313,20 @@ func testBinaryName(p *load.Package) string {
 	}
 
 	return elem + ".test"
+}
+
+// isUnderSpecial checks whether dir is contained within a 'special' directory under 'cwd'.
+// A directory is special if it beings with "." or "_" , or is called "testdata"
+func isUnderSpecial(cwd string, dir string) bool {
+	rel, err := filepath.Rel(cwd, dir)
+	if err != nil {
+		return false
+	}
+
+	sep := string(filepath.Separator)
+	pathComponents := strings.Split(rel, sep)
+	shouldIgnoreElemt := func(elem string) bool {
+		return modload.IsIgnoredDirectory(elem) && elem != "." && elem != ".."
+	}
+	return slices.IndexFunc(pathComponents, shouldIgnoreElemt) != -1
 }
