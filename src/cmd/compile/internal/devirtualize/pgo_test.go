@@ -7,7 +7,7 @@ package devirtualize
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	pgoir "cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"

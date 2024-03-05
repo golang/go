@@ -12,14 +12,14 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/inline/inlheur"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"fmt"
 )
 
 // DevirtualizeAndInlinePackage interleaves devirtualization and inlining on
 // all functions within pkg.
-func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
+func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	if profile != nil && base.Debug.PGODevirtualize > 0 {
 		// TODO(mdempsky): Integrate into DevirtualizeAndInlineFunc below.
 		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
@@ -34,7 +34,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
 		inlheur.SetupScoreAdjustments()
 	}
 
-	var inlProfile *pgo.Profile // copy of profile for inlining
+	var inlProfile *pgoir.Profile // copy of profile for inlining
 	if base.Debug.PGOInline != 0 {
 		inlProfile = profile
 	}
@@ -66,7 +66,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
 
 // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
 // on a single function.
-func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgo.Profile) {
+func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 	ir.WithFunc(fn, func() {
 		if base.Flag.LowerL != 0 {
 			if inlheur.Enabled() && !fn.Wrapper() {

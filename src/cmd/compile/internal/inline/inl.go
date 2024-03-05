@@ -36,7 +36,7 @@ import (
 	"cmd/compile/internal/inline/inlheur"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
-	pgoir "cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"

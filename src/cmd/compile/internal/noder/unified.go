@@ -15,7 +15,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -175,7 +175,7 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
-	pgo.LookupFunc = LookupFunc
+	pgoir.LookupFunc = LookupFunc
 
 	data := writePkgStub(m, noders)
 
