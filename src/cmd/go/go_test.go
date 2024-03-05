@@ -2778,6 +2778,47 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.grepStdout("coverage: 100", "no coverage")
 }
 
+// regression test for github.com/golang/go/issues/66038
+func TestCoverpkgIngoresSpecialDirs(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no cover tool")
+	tooSlow(t, "links and runs a test binary with coverage enabled")
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	wd, err := os.Getwd()
+	tg.check(err)
+	tg.makeTempdir()
+	tg.check(os.Chdir(tg.path(".")))
+	defer func() { tg.check(os.Chdir(wd)) }()
+
+	tg.tempFile("a/a.go", `package a
+		import ( _ "b" )
+		func F(i int) int {
+			return i*i
+		}`)
+	tg.tempFile("a/a_test.go", `
+		package a
+		import ( "testing" )
+		func TestF(t *testing.T) { F(2) }
+	`)
+
+	for _, skipDir := range []string{".dir", "_dir", "testdata", "dir/testdata"} {
+		t.Run(skipDir, func(t *testing.T) {
+			tg.tempFile(fmt.Sprintf("%s/src/b/b.go", skipDir), `package b
+				func G(i int) int {
+					return i*i
+				}`)
+			tg.setenv("GOPATH", tg.path(skipDir))
+
+			tg.run("test", "-coverpkg=./...", "./...")
+
+			tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
+			tg.grepStdout("coverage: 100", "no coverage")
+		})
+	}
+}
+
 // Regression test for golang.org/issue/34499: version command should not crash
 // when executed in a deleted directory on Linux.
 func TestExecInDeletedDir(t *testing.T) {

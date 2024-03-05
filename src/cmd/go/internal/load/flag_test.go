@@ -92,6 +92,7 @@ var ppfTests = []ppfTest{
 	ppfDirTest("./...", 3, "/my/test/dir", "/my/test/dir/sub", "/my/test/dir/sub/sub", "/my/test/other", "/my/test/other/sub"),
 	ppfDirTest("../...", 4, "/my/test/dir", "/my/test/other", "/my/test/dir/sub", "/my/test/other/sub", "/my/other/test"),
 	ppfDirTest("../...sub...", 3, "/my/test/dir/sub", "/my/test/othersub", "/my/test/yellowsubmarine", "/my/other/test"),
+	ppfDirTest("./...", 1, "/my/test/dir", "/my/test/dir/.sub", "/test/dir/_sub", "/test/dir/testdata/sub"),
 }
 
 func ppfDirTest(pattern string, nmatch int, dirs ...string) ppfTest {
