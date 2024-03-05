@@ -9,10 +9,7 @@ package subtle
 // If dst does not have length at least n,
 // XORBytes panics without writing anything to dst.
 func XORBytes(dst, x, y []byte) int {
-	n := len(x)
-	if len(y) < n {
-		n = len(y)
-	}
+	n := min(len(x), len(y))
 	if n == 0 {
 		return 0
 	}

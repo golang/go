@@ -54,9 +54,6 @@ func checkGdbEnvironment(t *testing.T) {
 	case "plan9":
 		t.Skip("there is no gdb on Plan 9")
 	}
-	if final := os.Getenv("GOROOT_FINAL"); final != "" && testenv.GOROOT(t) != final {
-		t.Skip("gdb test can fail with GOROOT_FINAL pending")
-	}
 }
 
 func checkGdbVersion(t *testing.T) {
@@ -297,24 +294,6 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 
 	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
-	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
-	if string(firstLine) != "Loading Go Runtime support." {
-		// This can happen when using all.bash with
-		// GOROOT_FINAL set, because the tests are run before
-		// the final installation of the files.
-		cmd := exec.Command(testenv.GoToolPath(t), "env", "GOROOT")
-		cmd.Env = []string{}
-		out, err := cmd.CombinedOutput()
-		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
-			t.Skipf("skipping because GOROOT=%s does not exist", testenv.GOROOT(t))
-		}
-
-		_, file, _, _ := runtime.Caller(1)
-
-		t.Logf("package testing source file: %s", file)
-		t.Fatalf("failed to load Go runtime support: %s\n%s", firstLine, got)
-	}
-
 	// Extract named BEGIN...END blocks from output
 	partRe := regexp.MustCompile(`(?ms)^BEGIN ([^\n]*)\n(.*?)\nEND`)
 	blocks := map[string]string{}

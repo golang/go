@@ -120,7 +120,6 @@ Scripts also have access to other environment variables, including:
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
-	GOROOT_FINAL=<actual GOROOT_FINAL>
 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>

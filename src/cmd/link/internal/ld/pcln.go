@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -808,18 +807,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	return state
 }
 
-func gorootFinal() string {
-	root := buildcfg.GOROOT
-	if final := os.Getenv("GOROOT_FINAL"); final != "" {
-		root = final
-	}
-	return root
-}
-
 func expandGoroot(s string) string {
 	const n = len("$GOROOT")
 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
-		if final := gorootFinal(); final != "" {
+		if final := buildcfg.GOROOT; final != "" {
 			return filepath.ToSlash(filepath.Join(final, s[n:]))
 		}
 	}
@@ -827,9 +818,8 @@ func expandGoroot(s string) string {
 }
 
 const (
-	BUCKETSIZE    = 256 * abi.MINFUNC
 	SUBBUCKETS    = 16
-	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
+	SUBBUCKETSIZE = abi.FuncTabBucketSize / SUBBUCKETS
 	NOIDX         = 0x7fffffff
 )
 
@@ -847,7 +837,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 	// that map to that subbucket.
 	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
 
-	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
+	nbuckets := int32((max - min + abi.FuncTabBucketSize - 1) / abi.FuncTabBucketSize)
 
 	size := 4*int64(nbuckets) + int64(n)
 
@@ -878,7 +868,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 				q = ldr.SymValue(e)
 			}
 
-			//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
+			//fmt.Printf("%d: [%x %x] %s\n", idx, p, q, ldr.SymName(s))
 			for ; p < q; p += SUBBUCKETSIZE {
 				i = int((p - min) / SUBBUCKETSIZE)
 				if indexes[i] > idx {

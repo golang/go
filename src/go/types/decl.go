@@ -12,15 +12,6 @@ import (
 	. "internal/types/errors"
 )
 
-func (check *Checker) reportAltDecl(obj Object) {
-	if pos := obj.Pos(); pos.IsValid() {
-		// We use "other" rather than "previous" here because
-		// the first declaration seen may not be textually
-		// earlier in the source.
-		check.errorf(obj, DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
-	}
-}
-
 func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token.Pos) {
 	// spec: "The blank identifier, represented by the underscore
 	// character _, may be used in a declaration like any other
@@ -28,8 +19,10 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
-			check.reportAltDecl(alt)
+			err := check.newError(DuplicateDecl)
+			err.addf(obj, "%s redeclared in this block", obj.Name())
+			err.addAltDecl(alt)
+			err.report()
 			return
 		}
 		obj.setScopePos(pos)
@@ -160,7 +153,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 			}
 
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		assert(obj.Type() != nil)
 		return
@@ -169,7 +162,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	d := check.objMap[obj]
 	if d == nil {
 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
-		unreachable()
+		panic("unreachable")
 	}
 
 	// save/restore current environment and set up object environment
@@ -200,7 +193,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 }
 
@@ -214,7 +207,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
 		isPkgObj := obj.Parent() == check.pkg.scope
 		if isPkgObj != inObjMap {
 			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -264,7 +257,7 @@ loop:
 		case *Func:
 			// ignored for now
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
@@ -300,13 +293,12 @@ loop:
 		}
 	}
 
-	check.cycleError(cycle)
+	check.cycleError(cycle, firstInSrc(cycle))
 	return false
 }
 
-// cycleError reports a declaration cycle starting with
-// the object in cycle that is "first" in the source.
-func (check *Checker) cycleError(cycle []Object) {
+// cycleError reports a declaration cycle starting with the object at cycle[start].
+func (check *Checker) cycleError(cycle []Object, start int) {
 	// name returns the (possibly qualified) object name.
 	// This is needed because with generic types, cycles
 	// may refer to imported types. See go.dev/issue/50788.
@@ -315,11 +307,7 @@ func (check *Checker) cycleError(cycle []Object) {
 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
 	}
 
-	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
-	//           since that is the earliest point in the source where we start seeing the
-	//           cycle? That would be more consistent with other error messages.
-	i := firstInSrc(cycle)
-	obj := cycle[i]
+	obj := cycle[start]
 	objName := name(obj)
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
 	tname, _ := obj.(*TypeName)
@@ -341,13 +329,15 @@ func (check *Checker) cycleError(cycle []Object) {
 		return
 	}
 
+	err := check.newError(InvalidDeclCycle)
 	if tname != nil {
-		check.errorf(obj, InvalidDeclCycle, "invalid recursive type %s", objName)
+		err.addf(obj, "invalid recursive type %s", objName)
 	} else {
-		check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
+		err.addf(obj, "invalid cycle in declaration of %s", objName)
 	}
+	i := start
 	for range cycle {
-		check.errorf(obj, InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
+		err.addf(obj, "%s refers to", objName)
 		i++
 		if i >= len(cycle) {
 			i = 0
@@ -355,7 +345,8 @@ func (check *Checker) cycleError(cycle []Object) {
 		obj = cycle[i]
 		objName = name(obj)
 	}
-	check.errorf(obj, InvalidDeclCycle, "\t%s", objName)
+	err.addf(obj, "%s", objName)
+	err.report()
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -502,7 +493,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		// if any, would not be checked.
 		//
 		// TODO(gri) If we have no init expr, we should distribute
-		// a given type otherwise we need to re-evalate the type
+		// a given type otherwise we need to re-evaluate the type
 		// expr for each lhs variable, leading to duplicate work.
 	}
 
@@ -563,37 +554,59 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName) {
 	assert(obj.typ == nil)
 
+	// Only report a version error if we have not reported one already.
+	versionErr := false
+
 	var rhs Type
 	check.later(func() {
 		if t := asNamed(obj.typ); t != nil { // type may be invalid
 			check.validType(t)
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+		_ = !versionErr && check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
 	}).describef(obj, "validType(%s)", obj.Name())
 
-	aliasDecl := tdecl.Assign.IsValid()
-	if aliasDecl && tdecl.TypeParams.NumFields() != 0 {
-		// The parser will ensure this but we may still get an invalid AST.
-		// Complain and continue as regular type definition.
-		check.error(atPos(tdecl.Assign), BadDecl, "generic type cannot be alias")
-		aliasDecl = false
+	// First type parameter, or nil.
+	var tparam0 *ast.Field
+	if tdecl.TypeParams.NumFields() > 0 {
+		tparam0 = tdecl.TypeParams.List[0]
 	}
 
 	// alias declaration
-	if aliasDecl {
-		check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type aliases")
+	if tdecl.Assign.IsValid() {
+		// Report highest version requirement first so that fixing a version issue
+		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.23).
+		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_23, "generic type alias") {
+			versionErr = true
+		}
+		if !versionErr && !check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type alias") {
+			versionErr = true
+		}
+
 		if check.enableAlias {
 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
 			//           the alias as incomplete. Currently this causes problems
 			//           with certain cycles. Investigate.
 			alias := check.newAlias(obj, Typ[Invalid])
 			setDefType(def, alias)
+
+			// handle type parameters even if not allowed (Alias type is supported)
+			if tparam0 != nil {
+				check.openScope(tdecl, "type parameters")
+				defer check.closeScope()
+				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
+			}
+
 			rhs = check.definedType(tdecl.Type, obj)
 			assert(rhs != nil)
 			alias.fromRHS = rhs
 			Unalias(alias) // resolve alias.actual
 		} else {
+			if !versionErr && tparam0 != nil {
+				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
+				versionErr = true
+			}
+
 			check.brokenAlias(obj)
 			rhs = check.typ(tdecl.Type)
 			check.validAlias(obj, rhs)
@@ -602,6 +615,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 	}
 
 	// type definition or generic type declaration
+	if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_18, "type parameter") {
+		versionErr = true
+	}
+
 	named := check.newNamed(obj, nil, nil)
 	setDefType(def, named)
 
@@ -774,7 +791,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
 			if alt.Pos().IsValid() {
-				check.errorf(m, DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
+				check.errorf(m, DuplicateMethod, "method %s.%s already declared at %v", obj.Name(), m.name, alt.Pos())
 			} else {
 				check.errorf(m, DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
 			}
@@ -807,8 +824,10 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
-					check.errorf(alt, DuplicateFieldAndMethod, "field and method with the same name %s", fld.name)
-					check.reportAltDecl(fld)
+					err := check.newError(DuplicateFieldAndMethod)
+					err.addf(alt, "field and method with the same name %s", fld.name)
+					err.addAltDecl(fld)
+					err.report()
 				}
 			}
 		}

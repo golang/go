@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/race"
 	"internal/testenv"
 	"internal/trace/v2"
 	"internal/trace/v2/testtrace"
@@ -541,7 +542,11 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 	testName := progName
 	runTest := func(t *testing.T, stress bool) {
 		// Run the program and capture the trace, which is always written to stdout.
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "run", testPath)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
+		if race.Enabled {
+			cmd.Args = append(cmd.Args, "-race")
+		}
+		cmd.Args = append(cmd.Args, testPath)
 		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
 		if stress {
 			// Advance a generation constantly.
@@ -549,7 +554,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		}
 		// Capture stdout and stderr.
 		//
-		// The protoocol for these programs is that stdout contains the trace data
+		// The protocol for these programs is that stdout contains the trace data
 		// and stderr is an expectation in string format.
 		var traceBuf, errBuf bytes.Buffer
 		cmd.Stdout = &traceBuf

@@ -110,7 +110,8 @@ type Checker struct {
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+	// see TODO in validtype.go
+	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -513,7 +514,7 @@ func (check *Checker) recordUntyped() {
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
 			check.dump("%v: %s (type %s) is typed", atPos(x), x, info.typ)
-			unreachable()
+			panic("unreachable")
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
 	}
@@ -578,7 +579,7 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 		case *syntax.ParenExpr:
 			f = p.X
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 }

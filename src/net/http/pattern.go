@@ -76,7 +76,7 @@ type segment struct {
 //     a literal or a wildcard of the form "{name}", "{name...}", or "{$}".
 //
 // METHOD, HOST and PATH are all optional; that is, the string can be "/".
-// If METHOD is present, it must be followed by a single space.
+// If METHOD is present, it must be followed by at least one space or tab.
 // Wildcard names must be valid Go identifiers.
 // The "{$}" and "{name...}" wildcard must occur at the end of PATH.
 // PATH may end with a '/'.
@@ -92,7 +92,10 @@ func parsePattern(s string) (_ *pattern, err error) {
 		}
 	}()
 
-	method, rest, found := strings.Cut(s, " ")
+	method, rest, found := s, "", false
+	if i := strings.IndexAny(s, " \t"); i >= 0 {
+		method, rest, found = s[:i], strings.TrimLeft(s[i+1:], " \t"), true
+	}
 	if !found {
 		rest = method
 		method = ""

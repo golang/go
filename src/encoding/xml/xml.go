@@ -212,6 +212,7 @@ type Decoder struct {
 	line           int
 	linestart      int64
 	offset         int64
+	readNonWS      bool
 	unmarshalDepth int
 }
 
@@ -492,8 +493,12 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		d.err = d.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
+		ns := name.Space
+		if name.Space == "" {
+			ns = `""`
+		}
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			" closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + ns)
 		return false
 	}
 
@@ -559,6 +564,8 @@ func (d *Decoder) rawToken() (Token, error) {
 		return EndElement{d.toClose}, nil
 	}
 
+	readNonWS := d.readNonWS
+
 	b, ok := d.getc()
 	if !ok {
 		return nil, d.err
@@ -571,8 +578,12 @@ func (d *Decoder) rawToken() (Token, error) {
 		if data == nil {
 			return nil, d.err
 		}
+		if !d.readNonWS && !isWhitespace(CharData(data)) {
+			d.readNonWS = true
+		}
 		return CharData(data), nil
 	}
+	d.readNonWS = true
 
 	if b, ok = d.mustgetc(); !ok {
 		return nil, d.err
@@ -623,6 +634,11 @@ func (d *Decoder) rawToken() (Token, error) {
 		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
+			if readNonWS {
+				d.err = errors.New("xml: XML declaration after start of document")
+				return nil, d.err
+			}
+
 			content := string(data)
 			ver := procInst("version", content)
 			if ver != "" && ver != "1.0" {
@@ -2045,16 +2061,27 @@ func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
 	param = param + "="
-	_, v, _ := strings.Cut(s, param)
-	if v == "" {
+	lenp := len(param)
+	i := 0
+	var sep byte
+	for i < len(s) {
+		sub := s[i:]
+		k := strings.Index(sub, param)
+		if k < 0 || lenp+k >= len(sub) {
+			return ""
+		}
+		i += lenp + k + 1
+		if c := sub[lenp+k]; c == '\'' || c == '"' {
+			sep = c
+			break
+		}
+	}
+	if sep == 0 {
 		return ""
 	}
-	if v[0] != '\'' && v[0] != '"' {
+	j := strings.IndexByte(s[i:], sep)
+	if j < 0 {
 		return ""
 	}
-	unquote, _, ok := strings.Cut(v[1:], v[:1])
-	if !ok {
-		return ""
-	}
-	return unquote
+	return s[i : i+j]
 }

@@ -831,7 +831,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 	case *types2.TypeName:
 		if obj.IsAlias() {
 			w.pos(obj)
-			w.typ(obj.Type())
+			w.typ(types2.Unalias(obj.Type()))
 			return pkgbits.ObjAlias
 		}
 
@@ -1217,10 +1217,17 @@ func (w *writer) stmt(stmt syntax.Stmt) {
 func (w *writer) stmts(stmts []syntax.Stmt) {
 	dead := false
 	w.Sync(pkgbits.SyncStmts)
-	for _, stmt := range stmts {
-		if dead {
-			// Any statements after a terminating statement are safe to
-			// omit, at least until the next labeled statement.
+	var lastLabel = -1
+	for i, stmt := range stmts {
+		if _, ok := stmt.(*syntax.LabeledStmt); ok {
+			lastLabel = i
+		}
+	}
+	for i, stmt := range stmts {
+		if dead && i > lastLabel {
+			// Any statements after a terminating and last label statement are safe to omit.
+			// Otherwise, code after label statement may refer to dead stmts between terminating
+			// and label statement, see issue #65593.
 			if _, ok := stmt.(*syntax.LabeledStmt); !ok {
 				continue
 			}

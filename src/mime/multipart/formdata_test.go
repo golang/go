@@ -452,6 +452,48 @@ func TestReadFormLimits(t *testing.T) {
 	}
 }
 
+func TestReadFormEndlessHeaderLine(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		prefix string
+	}{{
+		name:   "name",
+		prefix: "X-",
+	}, {
+		name:   "value",
+		prefix: "X-Header: ",
+	}, {
+		name:   "continuation",
+		prefix: "X-Header: foo\r\n  ",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			const eol = "\r\n"
+			s := `--boundary` + eol
+			s += `Content-Disposition: form-data; name="a"` + eol
+			s += `Content-Type: text/plain` + eol
+			s += test.prefix
+			fr := io.MultiReader(
+				strings.NewReader(s),
+				neverendingReader('X'),
+			)
+			r := NewReader(fr, "boundary")
+			_, err := r.ReadForm(1 << 20)
+			if err != ErrMessageTooLarge {
+				t.Fatalf("ReadForm(1 << 20): %v, want ErrMessageTooLarge", err)
+			}
+		})
+	}
+}
+
+type neverendingReader byte
+
+func (r neverendingReader) Read(p []byte) (n int, err error) {
+	for i := range p {
+		p[i] = byte(r)
+	}
+	return len(p), nil
+}
+
 func BenchmarkReadForm(b *testing.B) {
 	for _, test := range []struct {
 		name string

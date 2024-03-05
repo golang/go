@@ -141,38 +141,29 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgo.Profile) {
 		PGOInlinePrologue(profile)
 	}
 
-	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
-		CanInlineSCC(list, recursive, profile)
-	})
-}
-
-// CanInlineSCC computes the inlinability of functions within an SCC
-// (strongly connected component).
-//
-// CanInlineSCC is designed to be used by ir.VisitFuncsBottomUp
-// callbacks.
-func CanInlineSCC(funcs []*ir.Func, recursive bool, profile *pgo.Profile) {
 	if base.Flag.LowerL == 0 {
 		return
 	}
 
-	numfns := numNonClosures(funcs)
+	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
+		numfns := numNonClosures(funcs)
 
-	for _, fn := range funcs {
-		if !recursive || numfns > 1 {
-			// We allow inlining if there is no
-			// recursion, or the recursion cycle is
-			// across more than one function.
-			CanInline(fn, profile)
-		} else {
-			if base.Flag.LowerM > 1 && fn.OClosure == nil {
-				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
+		for _, fn := range funcs {
+			if !recursive || numfns > 1 {
+				// We allow inlining if there is no
+				// recursion, or the recursion cycle is
+				// across more than one function.
+				CanInline(fn, profile)
+			} else {
+				if base.Flag.LowerM > 1 && fn.OClosure == nil {
+					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
+				}
+			}
+			if inlheur.Enabled() {
+				analyzeFuncProps(fn, profile)
 			}
 		}
-		if inlheur.Enabled() {
-			analyzeFuncProps(fn, profile)
-		}
-	}
+	})
 }
 
 // GarbageCollectUnreferencedHiddenClosures makes a pass over all the

@@ -15,13 +15,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
 var (
-	GOROOT    = runtime.GOROOT() // cached for efficiency
+	GOROOT    = os.Getenv("GOROOT") // cached for efficiency
 	GOARCH    = envOr("GOARCH", defaultGOARCH)
 	GOOS      = envOr("GOOS", defaultGOOS)
 	GO386     = envOr("GO386", defaultGO386)

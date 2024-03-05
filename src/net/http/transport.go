@@ -1478,6 +1478,7 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 	ctx := w.getCtxForDial()
 	if ctx == nil {
+		t.decConnsPerHost(w.key)
 		return
 	}
 
@@ -1761,6 +1762,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if t.OnProxyConnectResponse != nil {
 			err = t.OnProxyConnectResponse(ctx, cm.proxyURL, connectReq, resp)
 			if err != nil {
+				conn.Close()
 				return nil, err
 			}
 		}
@@ -2555,16 +2557,18 @@ type writeRequest struct {
 	continueCh <-chan struct{}
 }
 
-type httpError struct {
-	err     string
-	timeout bool
+// httpTimeoutError represents a timeout.
+// It implements net.Error and wraps context.DeadlineExceeded.
+type timeoutError struct {
+	err string
 }
 
-func (e *httpError) Error() string   { return e.err }
-func (e *httpError) Timeout() bool   { return e.timeout }
-func (e *httpError) Temporary() bool { return true }
+func (e *timeoutError) Error() string     { return e.err }
+func (e *timeoutError) Timeout() bool     { return true }
+func (e *timeoutError) Temporary() bool   { return true }
+func (e *timeoutError) Is(err error) bool { return err == context.DeadlineExceeded }
 
-var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+var errTimeout error = &timeoutError{"net/http: timeout awaiting response headers"}
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
 // testing.

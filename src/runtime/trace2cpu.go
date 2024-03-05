@@ -112,6 +112,9 @@ func traceStopReadCPU() {
 //
 // No more than one goroutine may be in traceReadCPU for the same
 // profBuf at a time.
+//
+// Must not run on the system stack because profBuf.read performs race
+// operations.
 func traceReadCPU(gen uintptr) bool {
 	var pcBuf [traceStackSize]uintptr
 
@@ -198,9 +201,6 @@ func traceReadCPU(gen uintptr) bool {
 //
 //go:systemstack
 func traceCPUFlush(gen uintptr) {
-	// Read everything out of the last gen's CPU profile buffer.
-	traceReadCPU(gen)
-
 	// Flush any remaining trace buffers containing CPU samples.
 	if buf := trace.cpuBuf[gen%2]; buf != nil {
 		lock(&trace.lock)
@@ -261,9 +261,7 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 	if gp != nil {
 		hdr[1] = gp.goid
 	}
-	if mp != nil {
-		hdr[2] = uint64(mp.procid)
-	}
+	hdr[2] = uint64(mp.procid)
 
 	// Allow only one writer at a time
 	for !trace.signalLock.CompareAndSwap(0, 1) {

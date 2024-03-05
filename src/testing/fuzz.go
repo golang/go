@@ -199,7 +199,7 @@ var supportedTypes = map[reflect.Type]bool{
 // the (*F).Fuzz function are (*F).Failed and (*F).Name.
 //
 // This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutatable input arguments, or pointers to them,
+// depend on shared state. No mutable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
 // modify the underlying data of the arguments provided by the fuzzing engine.

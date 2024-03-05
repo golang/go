@@ -597,6 +597,22 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 	}
 }
 
+// Test that we don't attempt trailing-slash redirect on a path that already has
+// a trailing slash.
+// See issue #65624.
+func TestMuxNoSlashRedirectWithTrailingSlash(t *testing.T) {
+	mux := NewServeMux()
+	mux.HandleFunc("/{x}/", func(w ResponseWriter, r *Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	w := httptest.NewRecorder()
+	req, _ := NewRequest("GET", "/", nil)
+	mux.ServeHTTP(w, req)
+	if g, w := w.Code, 404; g != w {
+		t.Errorf("got %d, want %d", g, w)
+	}
+}
+
 func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
 func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -748,7 +764,17 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadHeaderTimeout = -1 // don't time out while reading headers
 			ts.Config.ReadTimeout = timeout
+			t.Logf("Server.Config.ReadTimeout = %v", timeout)
 		})
+
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
+
 		pr, pw := io.Pipe()
 		res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
 		if err != nil {
@@ -776,7 +802,34 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 			errc <- err
 		}), func(ts *httptest.Server) {
 			ts.Config.WriteTimeout = timeout
+			t.Logf("Server.Config.WriteTimeout = %v", timeout)
 		})
+
+		// The server's WriteTimeout parameter also applies to reads during the TLS
+		// handshake. The client makes the last write during the handshake, and if
+		// the server happens to time out during the read of that write, the client
+		// may think that the connection was accepted even though the server thinks
+		// it timed out.
+		//
+		// The client only notices that the server connection is gone when it goes
+		// to actually write the request — and when that fails, it retries
+		// internally (the same as if the server had closed the connection due to a
+		// racing idle-timeout).
+		//
+		// With unlucky and very stable scheduling (as may be the case with the fake wasm
+		// net stack), this can result in an infinite retry loop that doesn't
+		// propagate the error up far enough for us to adjust the WriteTimeout.
+		//
+		// To avoid that problem, we explicitly forbid internal retries by rejecting
+		// them in a Proxy hook in the transport.
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
+
 		res, err := cst.c.Get(cst.ts.URL)
 		if err != nil {
 			// Probably caused by the write timeout expiring before the handler runs.
@@ -2659,7 +2712,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
 		{MethodHead, nil, "text/html; charset=utf-8", ""},
 		{MethodPost, nil, "", ""},
 		{MethodDelete, nil, "", ""},
@@ -4803,6 +4856,12 @@ func TestServerValidatesHeaders(t *testing.T) {
 		// See RFC 7230, Section 3.2.
 		{": empty key\r\n", 400},
 
+		// Requests with invalid Content-Length headers should be rejected
+		// regardless of the presence of a Transfer-Encoding header.
+		// Check out RFC 9110, Section 8.6 and RFC 9112, Section 6.3.3.
+		{"Content-Length: notdigits\r\n", 400},
+		{"Content-Length: notdigits\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", 400},
+
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
@@ -5756,9 +5815,18 @@ func testServerCancelsReadTimeoutWhenIdle(t *testing.T, mode testMode) {
 			}
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = timeout
+			t.Logf("Server.Config.ReadTimeout = %v", timeout)
 		})
 		defer cst.close()
 		ts := cst.ts
+
+		var retries atomic.Int32
+		cst.c.Transport.(*Transport).Proxy = func(*Request) (*url.URL, error) {
+			if retries.Add(1) != 1 {
+				return nil, errors.New("too many retries")
+			}
+			return nil, nil
+		}
 
 		c := ts.Client()
 
@@ -6982,5 +7050,26 @@ func testDisableContentLength(t *testing.T, mode testMode) {
 	}
 	if err := res.Body.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestErrorContentLength(t *testing.T) { run(t, testErrorContentLength) }
+func testErrorContentLength(t *testing.T, mode testMode) {
+	const errorBody = "an error occurred"
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "1000")
+		Error(w, errorBody, 400)
+	}))
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatalf("Get(%q) = %v", cst.ts.URL, err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("io.ReadAll(res.Body) = %v", err)
+	}
+	if string(body) != errorBody+"\n" {
+		t.Fatalf("read body: %q, want %q", string(body), errorBody)
 	}
 }

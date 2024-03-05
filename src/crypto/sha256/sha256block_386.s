@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 // SHA256 block routine. See sha256block.go for Go equivalent.
 //
 // The algorithm is detailed in FIPS 180-4:

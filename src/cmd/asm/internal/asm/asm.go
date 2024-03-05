@@ -16,6 +16,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"cmd/internal/sys"
 )
@@ -46,7 +47,11 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 				p.errorf("%v", err)
 				return
 			}
-
+		case sys.RISCV64:
+			if err := riscv.ParseSuffix(prog, cond); err != nil {
+				p.errorf("unrecognized suffix .%q", cond)
+				return
+			}
 		default:
 			p.errorf("unrecognized suffix .%q", cond)
 			return

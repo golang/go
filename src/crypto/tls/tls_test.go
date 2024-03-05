@@ -211,7 +211,7 @@ func TestDialTimeout(t *testing.T) {
 			t.Logf("Listener accepted a connection from %s", lconn.RemoteAddr())
 			lconn.Close()
 		}
-		// Close any spurious extra connecitions from the listener. (This is
+		// Close any spurious extra connections from the listener. (This is
 		// possible if there are, for example, stray Dial calls from other tests.)
 		for extraConn := range acceptc {
 			t.Logf("spurious extra connection from %s", extraConn.RemoteAddr())

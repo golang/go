@@ -6,6 +6,7 @@ package os
 
 import (
 	"errors"
+	"internal/godebug"
 	"internal/poll"
 	"internal/syscall/windows"
 	"runtime"
@@ -31,8 +32,8 @@ type file struct {
 // Fd returns the Windows handle referencing the open file.
 // If f is closed, the file descriptor becomes invalid.
 // If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see runtime.SetFinalizer for more information on when
-// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// making it invalid; see [runtime.SetFinalizer] for more information on when
+// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
 // methods to stop working.
 func (file *File) Fd() uintptr {
 	if file == nil {
@@ -115,11 +116,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		}
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
-	f, e := newFile(r, name, "file"), nil
-	if e != nil {
-		return nil, &PathError{Op: "open", Path: name, Err: e}
-	}
-	return f, nil
+	return newFile(r, name, "file"), nil
 }
 
 func (file *file) close() error {
@@ -353,6 +350,8 @@ func openSymlink(path string) (syscall.Handle, error) {
 	return h, nil
 }
 
+var winreadlinkvolume = godebug.New("winreadlinkvolume")
+
 // normaliseLinkPath converts absolute paths returned by
 // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
 // into paths acceptable by all Windows APIs.
@@ -360,7 +359,7 @@ func openSymlink(path string) (syscall.Handle, error) {
 //
 //	\??\C:\foo\bar into C:\foo\bar
 //	\??\UNC\foo\bar into \\foo\bar
-//	\??\Volume{abc}\ into C:\
+//	\??\Volume{abc}\ into \\?\Volume{abc}\
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
 		// unexpected path, return it as is
@@ -375,7 +374,10 @@ func normaliseLinkPath(path string) (string, error) {
 		return `\\` + s[4:], nil
 	}
 
-	// handle paths, like \??\Volume{abc}\...
+	// \??\Volume{abc}\
+	if winreadlinkvolume.Value() != "0" {
+		return `\\?\` + path[4:], nil
+	}
 
 	h, err := openSymlink(path)
 	if err != nil {

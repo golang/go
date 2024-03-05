@@ -15,24 +15,33 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/internal/atomic"
 	"strings"
 	"testing"
 	"time"
 )
 
-var regConfirmRun chan int
+var regConfirmRun atomic.Int32
 
 //go:registerparams
-func regFinalizerPointer(v *Tint) (int, float32, [10]byte) {
-	regConfirmRun <- *(*int)(v)
+func regFinalizerPointer(v *TintPointer) (int, float32, [10]byte) {
+	regConfirmRun.Store(int32(*(*int)(v.p)))
 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 }
 
 //go:registerparams
 func regFinalizerIface(v Tinter) (int, float32, [10]byte) {
-	regConfirmRun <- *(*int)(v.(*Tint))
+	regConfirmRun.Store(int32(*(*int)(v.(*TintPointer).p)))
 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 }
+
+// TintPointer has a pointer member to make sure that it isn't allocated by the
+// tiny allocator, so we know when its finalizer will run
+type TintPointer struct {
+	p *Tint
+}
+
+func (*TintPointer) m() {}
 
 func TestFinalizerRegisterABI(t *testing.T) {
 	testenv.MustHaveExec(t)
@@ -87,10 +96,8 @@ func TestFinalizerRegisterABI(t *testing.T) {
 	for i := range tests {
 		test := &tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			regConfirmRun = make(chan int)
-
-			x := new(Tint)
-			*x = (Tint)(test.confirmValue)
+			x := &TintPointer{p: new(Tint)}
+			*x.p = (Tint)(test.confirmValue)
 			runtime.SetFinalizer(x, test.fin)
 
 			runtime.KeepAlive(x)
@@ -99,13 +106,11 @@ func TestFinalizerRegisterABI(t *testing.T) {
 			runtime.GC()
 			runtime.GC()
 
-			select {
-			case <-time.After(time.Second):
+			if !runtime.BlockUntilEmptyFinalizerQueue(int64(time.Second)) {
 				t.Fatal("finalizer failed to execute")
-			case gotVal := <-regConfirmRun:
-				if gotVal != test.confirmValue {
-					t.Fatalf("wrong finalizer executed? got %d, want %d", gotVal, test.confirmValue)
-				}
+			}
+			if got := int(regConfirmRun.Load()); got != test.confirmValue {
+				t.Fatalf("wrong finalizer executed? got %d, want %d", got, test.confirmValue)
 			}
 		})
 	}

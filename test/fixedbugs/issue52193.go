@@ -32,7 +32,7 @@ func F(peerShare []byte) ([]byte, error) { // ERROR "leaking param: peerShare"
 
 func f() { // ERROR "can inline f"
 	var i interface{ m() } = T(0) // ERROR "T\(0\) does not escape"
-	i.m()                         // ERROR "devirtualizing i.m"
+	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m"
 }
 
 type T int

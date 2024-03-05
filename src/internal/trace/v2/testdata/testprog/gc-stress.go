@@ -39,7 +39,7 @@ func makeTree(depth int) *node {
 
 var trees [16]*node
 var ballast *[16]*[8192]*node
-var sink []byte
+var sink [][]byte
 
 func main() {
 	for i := range trees {
@@ -54,10 +54,15 @@ func main() {
 			}
 		}
 	}
-	for i := 0; i < runtime.GOMAXPROCS(-1); i++ {
+
+	procs := runtime.GOMAXPROCS(-1)
+	sink = make([][]byte, procs)
+
+	for i := 0; i < procs; i++ {
+		i := i
 		go func() {
 			for {
-				sink = make([]byte, rand.Intn(32<<10))
+				sink[i] = make([]byte, rand.Intn(32<<10))
 			}
 		}()
 	}

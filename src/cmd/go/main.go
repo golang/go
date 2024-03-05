@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
+//go:generate go test cmd/go -v -run=^TestCounterNamesUpToDate$ -update
 
 package main
 
@@ -91,12 +92,13 @@ var _ = go11tag
 
 func main() {
 	log.SetFlags(0)
-	counter.Open() // Open the telemetry counter file so counters can be written to it.
+	TelemetryStart() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
 	flag.Usage = base.Usage
 	flag.Parse()
+	counter.CountFlags("cmd/go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -160,6 +162,7 @@ func main() {
 		}
 		if args[used] == "help" {
 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+			counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
 			base.Exit()
 		}
@@ -171,10 +174,12 @@ func main() {
 		if cmdName == "" {
 			cmdName = args[0]
 		}
+		counter.Inc("cmd/go/subcommand:unknown")
 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+	counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -239,6 +244,7 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
+		counter.CountFlags("cmd/go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
 		args = cmd.Flag.Args()
 	}
 
@@ -323,6 +329,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
+	counter.Inc("cmd/go/flag:C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

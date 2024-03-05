@@ -44,64 +44,101 @@ func (c *StackCounter) Inc() {
 	pcs := make([]uintptr, c.depth)
 	n := runtime.Callers(2, pcs) // caller of Inc
 	pcs = pcs[:n]
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Existing counter?
+	var ctr *Counter
 	for _, s := range c.stacks {
 		if eq(s.pcs, pcs) {
 			if s.counter != nil {
-				s.counter.Inc()
+				ctr = s.counter
+				break
 			}
-			return
 		}
 	}
-	// have to create the new counter's name, and the new counter itself
-	locs := make([]string, 0, c.depth)
+
+	if ctr == nil {
+		// Create new counter.
+		ctr = &Counter{
+			name: EncodeStack(pcs, c.name),
+			file: c.file,
+		}
+		c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
+	}
+
+	ctr.Inc()
+}
+
+// EncodeStack returns the name of the counter to
+// use for the given stack of program counters.
+// The name encodes the stack.
+func EncodeStack(pcs []uintptr, prefix string) string {
+	var locs []string
 	lastImport := ""
 	frs := runtime.CallersFrames(pcs)
-	for i := 0; ; i++ {
+	for {
 		fr, more := frs.Next()
-		pcline := fr.Line
-		entryptr := fr.Entry
-		var locline string
-		path, fname := splitPath(fr.Function)
+		// TODO(adonovan): this CutLast(".") operation isn't
+		// appropriate for generic function symbols.
+		path, fname := cutLastDot(fr.Function)
 		if path == lastImport {
-			path = "\""
+			path = `"` // (a ditto mark)
 		} else {
 			lastImport = path
 		}
+		var loc string
 		if fr.Func != nil {
-			_, entryline := fr.Func.FileLine(entryptr)
-			if pcline >= entryline {
-				locline = fmt.Sprintf("%s.%s:%d", path, fname, pcline-entryline)
-			} else {
-				// unexpected
-				locline = fmt.Sprintf("%s.%s:??%d", path, fname, pcline)
-				lastImport = ""
-			}
+			// Use function-relative line numbering.
+			// f:+2 means two lines into function f.
+			// f:-1 should never happen, but be conservative.
+			_, entryLine := fr.Func.FileLine(fr.Entry)
+			loc = fmt.Sprintf("%s.%s:%+d", path, fname, fr.Line-entryLine)
 		} else {
-			// might happen if the function is non-Go code or is fully inlined.
-			locline = fmt.Sprintf("%s.%s:?%d", path, fname, pcline)
-			lastImport = ""
+			// The function is non-Go code or is fully inlined:
+			// use absolute line number within enclosing file.
+			loc = fmt.Sprintf("%s.%s:=%d", path, fname, fr.Line)
 		}
-		locs = append(locs, locline)
+		locs = append(locs, loc)
 		if !more {
 			break
 		}
 	}
 
-	name := c.name + "\n" + strings.Join(locs, "\n")
+	name := prefix + "\n" + strings.Join(locs, "\n")
 	if len(name) > maxNameLen {
 		const bad = "\ntruncated\n"
 		name = name[:maxNameLen-len(bad)] + bad
 	}
-	ctr := &Counter{name: name, file: c.file}
-	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
-	ctr.Inc()
+	return name
+}
+
+// DecodeStack expands the (compressed) stack encoded in the counter name.
+func DecodeStack(ename string) string {
+	if !strings.Contains(ename, "\n") {
+		return ename // not a stack counter
+	}
+	lines := strings.Split(ename, "\n")
+	var lastPath string // empty or ends with .
+	for i, line := range lines {
+		path, rest := cutLastDot(line)
+		if len(path) == 0 {
+			continue // unchanged
+		}
+		if len(path) == 1 && path[0] == '"' {
+			lines[i] = lastPath + rest
+		} else {
+			lastPath = path + "."
+			// line unchanged
+		}
+	}
+	return strings.Join(lines, "\n") // trailing \n?
 }
 
 // input is <import path>.<function name>
 // output is (import path, function name)
-func splitPath(x string) (string, string) {
+func cutLastDot(x string) (before, after string) {
 	i := strings.LastIndex(x, ".")
 	if i < 0 {
 		return "", x
@@ -148,17 +185,18 @@ func eq(a, b []uintptr) bool {
 // This is the implementation of
 // golang.org/x/telemetry/counter/countertest.ReadStackCounter.
 func ReadStack(c *StackCounter) (map[string]uint64, error) {
-	pf, err := readFile(c.file)
-	if err != nil {
-		return nil, err
-	}
 	ret := map[string]uint64{}
-	prefix := c.name + "\n"
-
-	for k, v := range pf.Count {
-		if strings.HasPrefix(k, prefix) {
-			ret[k] = v
+	for _, ctr := range c.Counters() {
+		v, err := Read(ctr)
+		if err != nil {
+			return nil, err
 		}
+		ret[DecodeStack(ctr.Name())] = v
 	}
 	return ret, nil
+}
+
+// IsStackCounter reports whether the counter name is for a stack counter.
+func IsStackCounter(name string) bool {
+	return strings.Contains(name, "\n")
 }

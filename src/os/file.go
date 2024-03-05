@@ -6,9 +6,9 @@
 // functionality. The design is Unix-like, although the error handling is
 // Go-like; failing calls return values of type error rather than error numbers.
 // Often, more information is available within the error. For example,
-// if a call that takes a file name fails, such as Open or Stat, the error
+// if a call that takes a file name fails, such as [Open] or [Stat], the error
 // will include the failing file name when printed and will be of type
-// *PathError, which may be unpacked for more information.
+// [*PathError], which may be unpacked for more information.
 //
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
@@ -747,10 +747,7 @@ func (dir dirFS) join(name string) (string, error) {
 	if dir == "" {
 		return "", errors.New("os: DirFS with empty root")
 	}
-	if !fs.ValidPath(name) {
-		return "", ErrInvalid
-	}
-	name, err := safefilepath.FromFS(name)
+	name, err := safefilepath.Localize(name)
 	if err != nil {
 		return "", ErrInvalid
 	}

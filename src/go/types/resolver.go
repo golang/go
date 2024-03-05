@@ -327,8 +327,10 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See go.dev/issue/32154.)
 							if alt := fileScope.Lookup(name); alt != nil {
-								check.errorf(d.spec.Name, DuplicateDecl, "%s redeclared in this block", alt.Name())
-								check.reportAltDecl(alt)
+								err := check.newError(DuplicateDecl)
+								err.addf(d.spec.Name, "%s redeclared in this block", alt.Name())
+								err.addAltDecl(alt)
+								err.report()
 							} else {
 								fileScope.insert(name, obj)
 								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
@@ -386,7 +388,6 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
-				_ = d.spec.TypeParams.NumFields() != 0 && check.verifyVersionf(d.spec.TypeParams.List[0], go1_18, "type parameter")
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
@@ -459,14 +460,16 @@ func (check *Checker) collectObjects() {
 		for name, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(name); alt != nil {
 				obj = resolve(name, obj)
+				err := check.newError(DuplicateDecl)
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt, DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
-					check.reportAltDecl(pkg)
+					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					err.addAltDecl(pkg)
 				} else {
-					check.errorf(alt, DuplicateDecl, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
-					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
-					check.reportAltDecl(obj)
+					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					// TODO(gri) dot-imported objects don't have a position; addAltDecl won't print anything
+					err.addAltDecl(obj)
 				}
+				err.report()
 			}
 		}
 	}

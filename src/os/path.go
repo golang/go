@@ -68,7 +68,7 @@ func MkdirAll(path string, perm FileMode) error {
 // It removes everything it can but returns the first error
 // it encounters. If the path does not exist, RemoveAll
 // returns nil (no error).
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func RemoveAll(path string) error {
 	return removeAll(path)
 }

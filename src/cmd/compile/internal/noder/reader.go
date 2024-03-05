@@ -663,9 +663,24 @@ func (pr *pkgReader) objInstIdx(info objInfo, dict *readerDict, shaped bool) ir.
 }
 
 // objIdx returns the specified object, instantiated with the given
-// type arguments, if any. If shaped is true, then the shaped variant
-// of the object is returned instead.
+// type arguments, if any.
+// If shaped is true, then the shaped variant of the object is returned
+// instead.
 func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) ir.Node {
+	n, err := pr.objIdxMayFail(idx, implicits, explicits, shaped)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
+	return n
+}
+
+// objIdxMayFail is equivalent to objIdx, but returns an error rather than
+// failing the build if this object requires type arguments and the incorrect
+// number of type arguments were passed.
+//
+// Other sources of internal failure (such as duplicate definitions) still fail
+// the build.
+func (pr *pkgReader) objIdxMayFail(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
@@ -674,22 +689,25 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		assert(!sym.IsBlank())
 		switch sym.Pkg {
 		case types.BuiltinPkg, types.UnsafePkg:
-			return sym.Def.(ir.Node)
+			return sym.Def.(ir.Node), nil
 		}
 		if pri, ok := objReader[sym]; ok {
-			return pri.pr.objIdx(pri.idx, nil, explicits, shaped)
+			return pri.pr.objIdxMayFail(pri.idx, nil, explicits, shaped)
 		}
 		if sym.Pkg.Path == "runtime" {
-			return typecheck.LookupRuntime(sym.Name)
+			return typecheck.LookupRuntime(sym.Name), nil
 		}
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
-	dict := pr.objDictIdx(sym, idx, implicits, explicits, shaped)
+	dict, err := pr.objDictIdx(sym, idx, implicits, explicits, shaped)
+	if err != nil {
+		return nil, err
+	}
 
 	sym = dict.baseSym
 	if !sym.IsBlank() && sym.Def != nil {
-		return sym.Def.(*ir.Name)
+		return sym.Def.(*ir.Name), nil
 	}
 
 	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
@@ -725,7 +743,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		name := do(ir.OTYPE, false)
 		setType(name, r.typ())
 		name.SetAlias(true)
-		return name
+		return name, nil
 
 	case pkgbits.ObjConst:
 		name := do(ir.OLITERAL, false)
@@ -733,7 +751,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		val := FixValue(typ, r.Value())
 		setType(name, typ)
 		setValue(name, val)
-		return name
+		return name, nil
 
 	case pkgbits.ObjFunc:
 		if sym.Name == "init" {
@@ -768,7 +786,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 		}
 
 		rext.funcExt(name, nil)
-		return name
+		return name, nil
 
 	case pkgbits.ObjType:
 		name := do(ir.OTYPE, true)
@@ -805,13 +823,13 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 			r.needWrapper(typ)
 		}
 
-		return name
+		return name, nil
 
 	case pkgbits.ObjVar:
 		name := do(ir.ONAME, false)
 		setType(name, r.typ())
 		rext.varExt(name)
-		return name
+		return name, nil
 	}
 }
 
@@ -908,7 +926,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 }
 
 // objDictIdx reads and returns the specified object dictionary.
-func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) *readerDict {
+func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	dict := readerDict{
@@ -919,7 +937,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 	nexplicits := r.Len()
 
 	if nimplicits > len(implicits) || nexplicits != len(explicits) {
-		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
+		return nil, fmt.Errorf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
 	}
 
 	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
@@ -984,7 +1002,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
 		dict.itabs[i] = itabInfo{typ: r.typInfo(), iface: r.typInfo()}
 	}
 
-	return &dict
+	return &dict, nil
 }
 
 func (r *reader) typeParamNames() {
@@ -2529,7 +2547,10 @@ func (pr *pkgReader) objDictName(idx pkgbits.Index, implicits, explicits []*type
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
-	dict := pr.objDictIdx(sym, idx, implicits, explicits, false)
+	dict, err := pr.objDictIdx(sym, idx, implicits, explicits, false)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
 
 	return pr.dictNameOf(dict)
 }
@@ -3599,6 +3620,57 @@ func usedLocals(body []ir.Node) ir.NameSet {
 }
 
 // @@@ Method wrappers
+//
+// Here we handle constructing "method wrappers," alternative entry
+// points that adapt methods to different calling conventions. Given a
+// user-declared method "func (T) M(i int) bool { ... }", there are a
+// few wrappers we may need to construct:
+//
+//	- Implicit dereferencing. Methods declared with a value receiver T
+//	  are also included in the method set of the pointer type *T, so
+//	  we need to construct a wrapper like "func (recv *T) M(i int)
+//	  bool { return (*recv).M(i) }".
+//
+//	- Promoted methods. If struct type U contains an embedded field of
+//	  type T or *T, we need to construct a wrapper like "func (recv U)
+//	  M(i int) bool { return recv.T.M(i) }".
+//
+//	- Method values. If x is an expression of type T, then "x.M" is
+//	  roughly "tmp := x; func(i int) bool { return tmp.M(i) }".
+//
+// At call sites, we always prefer to call the user-declared method
+// directly, if known, so wrappers are only needed for indirect calls
+// (for example, interface method calls that can't be devirtualized).
+// Consequently, we can save some compile time by skipping
+// construction of wrappers that are never needed.
+//
+// Alternatively, because the linker doesn't care which compilation
+// unit constructed a particular wrapper, we can instead construct
+// them as needed. However, if a wrapper is needed in multiple
+// downstream packages, we may end up needing to compile it multiple
+// times, costing us more compile time and object file size. (We mark
+// the wrappers as DUPOK, so the linker doesn't complain about the
+// duplicate symbols.)
+//
+// The current heuristics we use to balance these trade offs are:
+//
+//	- For a (non-parameterized) defined type T, we construct wrappers
+//	  for *T and any promoted methods on T (and *T) in the same
+//	  compilation unit as the type declaration.
+//
+//	- For a parameterized defined type, we construct wrappers in the
+//	  compilation units in which the type is instantiated. We
+//	  similarly handle wrappers for anonymous types with methods and
+//	  compilation units where their type literals appear in source.
+//
+//	- Method value expressions are relatively uncommon, so we
+//	  construct their wrappers in the compilation units that they
+//	  appear in.
+//
+// Finally, as an opportunistic compile-time optimization, if we know
+// a wrapper was constructed in any imported package's compilation
+// unit, then we skip constructing a duplicate one. However, currently
+// this is only done on a best-effort basis.
 
 // needWrapperTypes lists types for which we may need to generate
 // method wrappers.
@@ -3622,6 +3694,8 @@ type methodValueWrapper struct {
 	method *types.Field
 }
 
+// needWrapper records that wrapper methods may be needed at link
+// time.
 func (r *reader) needWrapper(typ *types.Type) {
 	if typ.IsPtr() {
 		return
@@ -3655,6 +3729,8 @@ func (r *reader) importedDef() bool {
 	return r.p != localPkgReader && !r.hasTypeParams()
 }
 
+// MakeWrappers constructs all wrapper methods needed for the target
+// compilation unit.
 func MakeWrappers(target *ir.Package) {
 	// always generate a wrapper for error.Error (#29304)
 	needWrapperTypes = append(needWrapperTypes, types.ErrorType)
@@ -3790,7 +3866,6 @@ func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Packa
 
 func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
 	sig := newWrapperType(wrapper, method)
-
 	fn := ir.NewFunc(pos, pos, sym, sig)
 	fn.DeclareParams(true)
 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?

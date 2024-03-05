@@ -541,7 +541,7 @@ const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned G
 // level, where Go pointers are allowed. Go pointers to pinned objects are
 // allowed as long as they don't reference other unpinned pointers.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
-	if t.PtrBytes == 0 || p == nil {
+	if !t.Pointers() || p == nil {
 		// If the type has no pointers there is nothing to do.
 		return
 	}
@@ -604,7 +604,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
-		if st.Elem.PtrBytes == 0 {
+		if !st.Elem.Pointers() {
 			return
 		}
 		for i := 0; i < s.cap; i++ {
@@ -629,7 +629,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		for _, f := range st.Fields {
-			if f.Typ.PtrBytes == 0 {
+			if !f.Typ.Pointers() {
 				continue
 			}
 			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)

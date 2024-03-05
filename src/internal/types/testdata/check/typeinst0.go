@@ -18,10 +18,6 @@ type T2[P any] struct {
 
 type List[P any] []P
 
-// Alias type declarations cannot have type parameters.
-// Issue #46477 proposes to change that.
-type A1[P any] = /* ERROR "cannot be alias" */ struct{}
-
 // Pending clarification of #46477 we disallow aliases
 // of generic types.
 type A2 = List // ERROR "cannot use generic type"

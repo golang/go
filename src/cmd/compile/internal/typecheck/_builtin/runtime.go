@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // NOTE: If you change this file you must run "go generate"
+// in cmd/compile/internal/typecheck
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
@@ -158,7 +159,8 @@ func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
-func closechan(hchan any)
+func closechan(hchan chan<- any)
+func chanlen(hchan any) int
 
 var writeBarrier struct {
 	enabled bool

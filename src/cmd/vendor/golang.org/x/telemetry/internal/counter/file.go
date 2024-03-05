@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -112,7 +111,7 @@ func (f *file) lookup(name string) counterPtr {
 }
 
 // ErrDisabled is the error returned when telemetry is disabled.
-var ErrDisabled = errors.New("counter: disabled by GOTELEMETRY=off")
+var ErrDisabled = errors.New("counter: disabled as Go telemetry is off")
 
 var (
 	errNoBuildInfo = errors.New("counter: missing build info")
@@ -277,12 +276,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 			return
 		}
 		// now it is safe to clean up the old mapping
-		if err := previous.f.Close(); err != nil {
-			log.Print(err)
-		}
-		if err := munmap(previous.mapping); err != nil {
-			log.Print(err)
-		}
+		// Quim Montel pointed out the previous coeanup was incomplete
+		previous.close()
 	}
 
 	name, expire, err := f.filename(counterTime())
@@ -359,6 +354,9 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
 func Open() func() {
+	if telemetry.DisabledOnPlatform {
+		return func() {}
+	}
 	if mode, _ := telemetry.Mode(); mode == "off" {
 		// Don't open the file when telemetry is off.
 		defaultFile.err = ErrDisabled
@@ -373,8 +371,7 @@ func Open() func() {
 			// telemetry might have been off
 			return
 		}
-		mmap.Munmap(mf.mapping)
-		mf.f.Close() // best effort
+		mf.close()
 	}
 }
 
@@ -406,6 +403,7 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 		f:    f,
 		meta: meta,
 	}
+	// without this files cannot be cleanedup on Windows (affects tests)
 	runtime.SetFinalizer(m, (*mappedFile).close)
 	defer func() {
 		if err != nil {

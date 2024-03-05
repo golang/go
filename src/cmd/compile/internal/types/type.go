@@ -657,6 +657,9 @@ func NewPtr(elem *Type) *Type {
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
+	if elem.Noalg() {
+		t.SetNoalg(true)
+	}
 	return t
 }
 

@@ -115,6 +115,7 @@ func bootstrapRandReseed() {
 }
 
 // rand32 is uint32(rand()), called from compiler-generated code.
+//
 //go:nosplit
 func rand32() uint32 {
 	return uint32(rand())
@@ -122,6 +123,7 @@ func rand32() uint32 {
 
 // rand returns a random uint64 from the per-m chacha8 state.
 // Do not change signature: used via linkname from other packages.
+//
 //go:nosplit
 //go:linkname rand
 func rand() uint64 {
@@ -159,6 +161,7 @@ func mrandinit(mp *m) {
 
 // randn is like rand() % n but faster.
 // Do not change signature: used via linkname from other packages.
+//
 //go:nosplit
 //go:linkname randn
 func randn(n uint32) uint32 {
@@ -174,6 +177,7 @@ func randn(n uint32) uint32 {
 // cheaprand must not be exported to other packages:
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
+//
 //go:nosplit
 func cheaprand() uint32 {
 	mp := getg().m
@@ -208,6 +212,7 @@ func cheaprand() uint32 {
 // cheaprand64 must not be exported to other packages:
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
+//
 //go:nosplit
 func cheaprand64() int64 {
 	return int64(cheaprand())<<31 ^ int64(cheaprand())
@@ -218,6 +223,7 @@ func cheaprand64() int64 {
 // cheaprandn must not be exported to other packages:
 // the rule is that other packages using runtime-provided
 // randomness must always use randn.
+//
 //go:nosplit
 func cheaprandn(n uint32) uint32 {
 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/

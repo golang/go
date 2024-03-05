@@ -26,7 +26,7 @@ type rwmutex struct {
 	readerCount atomic.Int32 // number of pending readers
 	readerWait  atomic.Int32 // number of departing readers
 
-	readRank  lockRank // semantic lock rank for read locking
+	readRank lockRank // semantic lock rank for read locking
 }
 
 // Lock ranking an rwmutex has two aspects:
@@ -50,13 +50,13 @@ type rwmutex struct {
 // acquire of readRank for the duration of a read lock.
 //
 // The lock ranking must document this ordering:
-// - readRankInternal is a leaf lock.
-// - readRank is taken before readRankInternal.
-// - writeRank is taken before readRankInternal.
-// - readRank is placed in the lock order wherever a read lock of this rwmutex
-//   belongs.
-// - writeRank is placed in the lock order wherever a write lock of this
-//   rwmutex belongs.
+//   - readRankInternal is a leaf lock.
+//   - readRank is taken before readRankInternal.
+//   - writeRank is taken before readRankInternal.
+//   - readRank is placed in the lock order wherever a read lock of this rwmutex
+//     belongs.
+//   - writeRank is placed in the lock order wherever a write lock of this
+//     rwmutex belongs.
 func (rw *rwmutex) init(readRank, readRankInternal, writeRank lockRank) {
 	rw.readRank = readRank
 

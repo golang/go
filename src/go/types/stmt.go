@@ -183,7 +183,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	case statement:
 		return
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
 }
@@ -257,8 +257,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if Identical(v.typ, vt.typ) {
-					check.errorf(&v, DuplicateCase, "duplicate case %s in expression switch", &v)
-					check.error(atPos(vt.pos), DuplicateCase, "\tprevious case") // secondary error, \t indented
+					err := check.newError(DuplicateCase)
+					err.addf(&v, "duplicate case %s in expression switch", &v)
+					err.addf(atPos(vt.pos), "previous case")
+					err.report()
 					continue L
 				}
 			}
@@ -301,8 +303,10 @@ L:
 				if T != nil {
 					Ts = TypeString(T, check.qualifier)
 				}
-				check.errorf(e, DuplicateCase, "duplicate case %s in type switch", Ts)
-				check.error(other, DuplicateCase, "\tprevious case") // secondary error, \t indented
+				err := check.newError(DuplicateCase)
+				err.addf(e, "duplicate case %s in type switch", Ts)
+				err.addf(other, "previous case")
+				err.report()
 				continue L
 			}
 		}
@@ -341,11 +345,10 @@ L:
 // 			if T != nil {
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
-// 			var err error_
-//			err.code = DuplicateCase
-// 			err.errorf(e, "duplicate case %s in type switch", Ts)
-// 			err.errorf(other, "previous case")
-// 			check.report(&err)
+// 			err := check.newError(_DuplicateCase)
+// 			err.addf(e, "duplicate case %s in type switch", Ts)
+// 			err.addf(other, "previous case")
+// 			err.report()
 // 			continue L
 // 		}
 // 		seen[hash] = e
@@ -511,8 +514,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// with the same name as a result parameter is in scope at the place of the return."
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
-					check.errorf(s, OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
-					check.errorf(alt, OutOfScopeResult, "\tinner declaration of %s", obj)
+					err := check.newError(OutOfScopeResult)
+					err.addf(s, "result parameter %s not in scope at return", obj.name)
+					err.addf(alt, "inner declaration of %s", obj)
+					err.report()
 					// ok to continue
 				}
 			}
@@ -837,7 +842,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	type identType = ast.Ident
 	identName := func(n *identType) string { return n.Name }
 	sKey, sValue := s.Key, s.Value
-	var sExtra ast.Expr = nil
+	var sExtra ast.Expr = nil // (used only in types2 fork)
 	isDef := s.Tok == token.DEFINE
 	rangeVar := s.X
 	noNewVarPos := inNode(s, s.TokPos)

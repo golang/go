@@ -3,15 +3,15 @@ module cmd
 go 1.23
 
 require (
-	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
 	golang.org/x/arch v0.7.0
-	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
-	golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
-	golang.org/x/term v0.16.0
-	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+	golang.org/x/sys v0.17.0
+	golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
+	golang.org/x/term v0.17.0
+	golang.org/x/tools v0.18.0
 )
 
 require (

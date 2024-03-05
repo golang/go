@@ -7,8 +7,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/syscall"
 	"runtime/internal/atomic"
-	"runtime/internal/syscall"
 	"unsafe"
 )
 

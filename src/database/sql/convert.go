@@ -192,7 +192,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 			}
 			goto nextCheck
 		default:
-			return nil, fmt.Errorf("sql: converting argument %s type: %v", describeNamedValue(nv), err)
+			return nil, fmt.Errorf("sql: converting argument %s type: %w", describeNamedValue(nv), err)
 		}
 	}
 

@@ -40,7 +40,6 @@ var (
 	goppc64          string
 	goriscv64        string
 	goroot           string
-	goroot_final     string
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
@@ -126,12 +125,6 @@ func xinit() {
 	// it will be found in the current directory and refuse to exec.
 	// All exec calls rewrite "go" into gorootBinGo.
 	gorootBinGo = pathf("%s/bin/go", goroot)
-
-	b = os.Getenv("GOROOT_FINAL")
-	if b == "" {
-		b = goroot
-	}
-	goroot_final = b
 
 	b = os.Getenv("GOOS")
 	if b == "" {
@@ -245,7 +238,6 @@ func xinit() {
 	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
-	os.Setenv("GOROOT_FINAL", goroot_final)
 
 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
@@ -902,6 +894,20 @@ func runInstall(pkg string, ch chan struct{}) {
 	if goarch == "riscv64" {
 		// Define GORISCV64_value from goriscv64
 		asmArgs = append(asmArgs, "-D", "GORISCV64_"+goriscv64)
+	}
+	if goarch == "arm" {
+		// Define GOARM_value from goarm, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(goarm, "7"):
+			asmArgs = append(asmArgs, "-D", "GOARM_7")
+			fallthrough
+		case strings.Contains(goarm, "6"):
+			asmArgs = append(asmArgs, "-D", "GOARM_6")
+			fallthrough
+		default:
+			asmArgs = append(asmArgs, "-D", "GOARM_5")
+		}
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 
@@ -1760,8 +1766,8 @@ var cgoEnabled = map[string]bool{
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
 var broken = map[string]bool{
-	"linux/sparc64":   true, // An incomplete port. See CL 132155.
-	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
+	"linux/sparc64":  true, // An incomplete port. See CL 132155.
+	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.
@@ -1865,10 +1871,7 @@ func banner() {
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
 	xprintf("Installed commands in %s\n", gorootBin)
 
-	if !xsamefile(goroot_final, goroot) {
-		// If the files are to be moved, don't check that gobin
-		// is on PATH; assume they know what they are doing.
-	} else if gohostos == "plan9" {
+	if gohostos == "plan9" {
 		// Check that GOROOT/bin is bound before /bin.
 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
 		ns := fmt.Sprintf("/proc/%s/ns", pid)
@@ -1892,12 +1895,6 @@ func banner() {
 		if !strings.Contains(pathsep+path+pathsep, pathsep+gorootBin+pathsep) {
 			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
-	}
-
-	if !xsamefile(goroot_final, goroot) {
-		xprintf("\n"+
-			"The binaries expect %s to be copied or moved to %s\n",
-			goroot, goroot_final)
 	}
 }
 

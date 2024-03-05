@@ -18,6 +18,9 @@ import (
 	"testing"
 )
 
+const profFile = "inline_hot.pprof"
+const preProfFile = "inline_hot.pprof.node_map"
+
 func buildPGOInliningTest(t *testing.T, dir string, gcflag string) []byte {
 	const pkg = "example.com/pgo/inline"
 
@@ -43,12 +46,7 @@ go 1.19
 }
 
 // testPGOIntendedInlining tests that specific functions are inlined.
-func testPGOIntendedInlining(t *testing.T, dir string, preprocessed ...bool) {
-	defaultPGOPackValue := false
-	if len(preprocessed) > 0 {
-		defaultPGOPackValue = preprocessed[0]
-	}
-
+func testPGOIntendedInlining(t *testing.T, dir string, profFile string) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
@@ -91,13 +89,7 @@ func testPGOIntendedInlining(t *testing.T, dir string, preprocessed ...bool) {
 
 	// Build the test with the profile. Use a smaller threshold to test.
 	// TODO: maybe adjust the test to work with default threshold.
-	var pprof string
-	if defaultPGOPackValue == false {
-		pprof = filepath.Join(dir, "inline_hot.pprof")
-	} else {
-		pprof = filepath.Join(dir, "inline_hot.pprof.node_map")
-	}
-	gcflag := fmt.Sprintf("-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+	gcflag := fmt.Sprintf("-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", profFile)
 	out := buildPGOInliningTest(t, dir, gcflag)
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -165,13 +157,13 @@ func TestPGOIntendedInlining(t *testing.T) {
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
 
-	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof"} {
+	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", profFile} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
 	}
 
-	testPGOIntendedInlining(t, dir)
+	testPGOIntendedInlining(t, dir, profFile)
 }
 
 // TestPGOIntendedInlining tests that specific functions are inlined when PGO
@@ -186,13 +178,13 @@ func TestPGOPreprocessInlining(t *testing.T) {
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
 
-	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof.node_map"} {
+	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", preProfFile} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
 	}
 
-	testPGOIntendedInlining(t, dir, true)
+	testPGOIntendedInlining(t, dir, preProfFile)
 }
 
 // TestPGOIntendedInlining tests that specific functions are inlined when PGO
@@ -208,7 +200,7 @@ func TestPGOIntendedInliningShiftedLines(t *testing.T) {
 	dir := t.TempDir()
 
 	// Copy most of the files unmodified.
-	for _, file := range []string{"inline_hot_test.go", "inline_hot.pprof"} {
+	for _, file := range []string{"inline_hot_test.go", profFile} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s : %v", file, err)
 		}
@@ -240,7 +232,7 @@ func TestPGOIntendedInliningShiftedLines(t *testing.T) {
 
 	dst.Close()
 
-	testPGOIntendedInlining(t, dir)
+	testPGOIntendedInlining(t, dir, profFile)
 }
 
 // TestPGOSingleIndex tests that the sample index can not be 1 and compilation
@@ -270,15 +262,15 @@ func TestPGOSingleIndex(t *testing.T) {
 			// Copy the module to a scratch location so we can add a go.mod.
 			dir := t.TempDir()
 
-			originalPprofFile, err := os.Open(filepath.Join(srcDir, "inline_hot.pprof"))
+			originalPprofFile, err := os.Open(filepath.Join(srcDir, profFile))
 			if err != nil {
-				t.Fatalf("error opening inline_hot.pprof: %v", err)
+				t.Fatalf("error opening %v: %v", profFile, err)
 			}
 			defer originalPprofFile.Close()
 
 			p, err := profile.Parse(originalPprofFile)
 			if err != nil {
-				t.Fatalf("error parsing inline_hot.pprof: %v", err)
+				t.Fatalf("error parsing %v: %v", profFile, err)
 			}
 
 			// Move the samples count value-type to the 0 index.
@@ -289,14 +281,14 @@ func TestPGOSingleIndex(t *testing.T) {
 				s.Value = []int64{s.Value[tc.originalIndex]}
 			}
 
-			modifiedPprofFile, err := os.Create(filepath.Join(dir, "inline_hot.pprof"))
+			modifiedPprofFile, err := os.Create(filepath.Join(dir, profFile))
 			if err != nil {
-				t.Fatalf("error creating inline_hot.pprof: %v", err)
+				t.Fatalf("error creating %v: %v", profFile, err)
 			}
 			defer modifiedPprofFile.Close()
 
 			if err := p.Write(modifiedPprofFile); err != nil {
-				t.Fatalf("error writing inline_hot.pprof: %v", err)
+				t.Fatalf("error writing %v: %v", profFile, err)
 			}
 
 			for _, file := range []string{"inline_hot.go", "inline_hot_test.go"} {
@@ -305,7 +297,7 @@ func TestPGOSingleIndex(t *testing.T) {
 				}
 			}
 
-			testPGOIntendedInlining(t, dir)
+			testPGOIntendedInlining(t, dir, profFile)
 		})
 	}
 }
@@ -343,13 +335,13 @@ func TestPGOHash(t *testing.T) {
 	// Copy the module to a scratch location so we can add a go.mod.
 	dir := t.TempDir()
 
-	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof"} {
+	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", profFile} {
 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
 			t.Fatalf("error copying %s: %v", file, err)
 		}
 	}
 
-	pprof := filepath.Join(dir, "inline_hot.pprof")
+	pprof := filepath.Join(dir, profFile)
 	// build with -trimpath so the source location (thus the hash)
 	// does not depend on the temporary directory path.
 	gcflag0 := fmt.Sprintf("-pgoprofile=%s -trimpath %s=>%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90,pgodebug=1", pprof, dir, pkg)

@@ -129,6 +129,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
 	}
 
 	linenumber := 0
+	columnnumber := 0
 	// The llvm-symbolizer outputs the <file_name>:<line_number>:<column_number>.
 	// When it cannot identify the source code location, it outputs "??:0:0".
 	// Older versions output just the filename and line number, so we check for
@@ -137,22 +138,27 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
 		fileline = ""
 	} else {
 		switch split := strings.Split(fileline, ":"); len(split) {
-		case 1:
-			// filename
-			fileline = split[0]
-		case 2, 3:
-			// filename:line , or
-			// filename:line:disc , or
-			fileline = split[0]
+		case 3:
+			// filename:line:column
+			if col, err := strconv.Atoi(split[2]); err == nil {
+				columnnumber = col
+			}
+			fallthrough
+		case 2:
+			// filename:line
 			if line, err := strconv.Atoi(split[1]); err == nil {
 				linenumber = line
 			}
+			fallthrough
+		case 1:
+			// filename
+			fileline = split[0]
 		default:
 			// Unrecognized, ignore
 		}
 	}
 
-	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber}, false
+	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber, Column: columnnumber}, false
 }
 
 // addrInfo returns the stack frame information for a specific program

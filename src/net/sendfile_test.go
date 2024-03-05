@@ -449,6 +449,12 @@ func BenchmarkSendfileZeroBytes(b *testing.B) {
 }
 
 func BenchmarkSendFile(b *testing.B) {
+	if runtime.GOOS == "windows" {
+		// TODO(panjf2000): Windows has not yet implemented FileConn,
+		//		remove this when it's implemented in https://go.dev/issues/9503.
+		b.Skipf("skipping on %s", runtime.GOOS)
+	}
+
 	b.Run("file-to-tcp", func(b *testing.B) { benchmarkSendFile(b, "tcp") })
 	b.Run("file-to-unix", func(b *testing.B) { benchmarkSendFile(b, "unix") })
 }

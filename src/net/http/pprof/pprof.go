@@ -8,6 +8,7 @@
 // The package is typically only imported for the side effect of
 // registering its HTTP handlers.
 // The handled paths all begin with /debug/pprof/.
+// As of Go 1.22, all the paths must be requested with GET.
 //
 // To use pprof, link this package into your program:
 //
@@ -75,6 +76,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"internal/godebug"
 	"internal/profile"
 	"io"
 	"log"
@@ -91,11 +93,15 @@ import (
 )
 
 func init() {
-	http.HandleFunc("/debug/pprof/", Index)
-	http.HandleFunc("/debug/pprof/cmdline", Cmdline)
-	http.HandleFunc("/debug/pprof/profile", Profile)
-	http.HandleFunc("/debug/pprof/symbol", Symbol)
-	http.HandleFunc("/debug/pprof/trace", Trace)
+	prefix := ""
+	if godebug.New("httpmuxgo121").Value() != "1" {
+		prefix = "GET "
+	}
+	http.HandleFunc(prefix+"/debug/pprof/", Index)
+	http.HandleFunc(prefix+"/debug/pprof/cmdline", Cmdline)
+	http.HandleFunc(prefix+"/debug/pprof/profile", Profile)
+	http.HandleFunc(prefix+"/debug/pprof/symbol", Symbol)
+	http.HandleFunc(prefix+"/debug/pprof/trace", Trace)
 }
 
 // Cmdline responds with the running program's

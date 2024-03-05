@@ -2304,7 +2304,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		}
 		if mi.Replace != nil {
 			dm.Replace = debugModFromModinfo(mi.Replace)
-		} else if mi.Version != "" {
+		} else if mi.Version != "" && cfg.BuildMod != "vendor" {
 			dm.Sum = modfetch.Sum(ctx, module.Version{Path: mi.Path, Version: mi.Version})
 		}
 		return dm
