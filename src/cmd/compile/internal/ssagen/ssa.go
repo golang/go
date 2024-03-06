@@ -4387,31 +4387,35 @@ func InitTables() {
 	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ, rtyp types.Kind, emit atomicOpEmitter) intrinsicBuilder {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			// Target Atomic feature is identified by dynamic detection
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
-			v := s.load(types.Types[types.TBOOL], addr)
-			b := s.endBlock()
-			b.Kind = ssa.BlockIf
-			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
-			b.AddEdgeTo(bTrue)
-			b.AddEdgeTo(bFalse)
-			b.Likely = ssa.BranchLikely
+			if buildcfg.GOARM64.LSE {
+				emit(s, n, args, op1, typ)
+			} else {
+				// Target Atomic feature is identified by dynamic detection
+				addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
+				v := s.load(types.Types[types.TBOOL], addr)
+				b := s.endBlock()
+				b.Kind = ssa.BlockIf
+				b.SetControl(v)
+				bTrue := s.f.NewBlock(ssa.BlockPlain)
+				bFalse := s.f.NewBlock(ssa.BlockPlain)
+				bEnd := s.f.NewBlock(ssa.BlockPlain)
+				b.AddEdgeTo(bTrue)
+				b.AddEdgeTo(bFalse)
+				b.Likely = ssa.BranchLikely
 
-			// We have atomic instructions - use it directly.
-			s.startBlock(bTrue)
-			emit(s, n, args, op1, typ)
-			s.endBlock().AddEdgeTo(bEnd)
+				// We have atomic instructions - use it directly.
+				s.startBlock(bTrue)
+				emit(s, n, args, op1, typ)
+				s.endBlock().AddEdgeTo(bEnd)
 
-			// Use original instruction sequence.
-			s.startBlock(bFalse)
-			emit(s, n, args, op0, typ)
-			s.endBlock().AddEdgeTo(bEnd)
+				// Use original instruction sequence.
+				s.startBlock(bFalse)
+				emit(s, n, args, op0, typ)
+				s.endBlock().AddEdgeTo(bEnd)
 
-			// Merge results.
-			s.startBlock(bEnd)
+				// Merge results.
+				s.startBlock(bEnd)
+			}
 			if rtyp == types.TNIL {
 				return nil
 			} else {

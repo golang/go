@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"internal/platform"
 	"io"
 	"log"
@@ -375,6 +376,13 @@ func asmArgs(a *Action, p *load.Package) []any {
 			fallthrough
 		default:
 			args = append(args, "-D", "GOARM_5")
+		}
+	}
+
+	if cfg.Goarch == "arm64" {
+		g, err := buildcfg.ParseGoarm64(cfg.GOARM64)
+		if err == nil && g.LSE {
+			args = append(args, "-D", "GOARM64_LSE")
 		}
 	}
 
