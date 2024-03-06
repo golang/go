@@ -1438,7 +1438,7 @@ func (t *tester) registerRaceTests() {
 		// Building cmd/cgo/internal/test takes a long time.
 		// There are already cgo-enabled packages being tested with the race detector.
 		// We shouldn't need to redo all of cmd/cgo/internal/test too.
-		// The race buildler will take care of this.
+		// The race builder will take care of this.
 		// t.registerTest(hdr, &goTest{variant: "race", race: true, env: []string{"GOTRACEBACK=2"}, pkg: "cmd/cgo/internal/test"})
 	}
 	if t.extLink() {
