@@ -71,8 +71,17 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
 		logger.Printf("error on Post: %v %q for %q", err, server, fname)
 		return false
 	}
+	// hope for a 200, remove file on a 4xx, otherwise it will be retried by another process
 	if resp.StatusCode != 200 {
 		logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			err := os.Remove(fname)
+			if err == nil {
+				logger.Printf("removed")
+			} else {
+				logger.Printf("error removing: %v", err)
+			}
+		}
 		return false
 	}
 	// put a copy in the uploaded directory
