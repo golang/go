@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"math"
 	"mime/multipart"
@@ -1535,6 +1536,9 @@ func TestSetPathValue(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
+	if godebug.New("httpmuxgo121").Value() == "1" {
+		t.Skip("skipping test in TestStatus when httpmuxgo121=1")
+	}
 	// The main purpose of this test is to check 405 responses and the Allow header.
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 	mux := NewServeMux()
