@@ -50,7 +50,7 @@ func TestSortFloat64sCompareSlicesSort(t *testing.T) {
 	slices.Sort(slice2)
 
 	// Compare for equality using cmp.Compare, which considers NaNs equal.
-	if !slices.EqualFunc(slice1, slice1, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+	if !slices.EqualFunc(slice1, slice2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
 		t.Errorf("mismatch between Sort and slices.Sort: got %v, want %v", slice1, slice2)
 	}
 }
