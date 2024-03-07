@@ -246,3 +246,59 @@ TEXT ·And(SB), NOSPLIT, $0-12
 	MOVW	val+8(FP), R4
 	LAN	R4, R6, 0(R3)        // R6 = *R3; *R3 &= R4; (atomic)
 	RET
+
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R4
+	MOVW	val+8(FP), R5
+	MOVW	(R4), R3
+repeat:
+	OR	R5, R3, R6
+	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	BNE	repeat
+	MOVW	R3, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOVD	ptr+0(FP), R4
+	MOVW	val+8(FP), R5
+	MOVW	(R4), R3
+repeat:
+	AND	R5, R3, R6
+	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	BNE	repeat
+	MOVW	R3, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R4
+	MOVD	val+8(FP), R5
+	MOVD	(R4), R3
+repeat:
+	OR	R5, R3, R6
+	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	BNE	repeat
+	MOVD	R3, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOVD	ptr+0(FP), R4
+	MOVD	val+8(FP), R5
+	MOVD	(R4), R3
+repeat:
+	AND	R5, R3, R6
+	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+	BNE	repeat
+	MOVD	R3, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	BR	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	BR	·Or64(SB)

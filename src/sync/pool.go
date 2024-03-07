@@ -43,7 +43,7 @@ import (
 // A Pool must not be copied after first use.
 //
 // In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
-// a call to Get returning that same value x.
+// a call to [Pool.Get] returning that same value x.
 // Similarly, a call to New returning x “synchronizes before”
 // a call to Get returning that same value x.
 type Pool struct {
@@ -76,7 +76,9 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrandn(n uint32) uint32
+//
+//go:linkname runtime_randn runtime.randn
+func runtime_randn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -97,7 +99,7 @@ func (p *Pool) Put(x any) {
 		return
 	}
 	if race.Enabled {
-		if fastrandn(4) == 0 {
+		if runtime_randn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}
@@ -116,10 +118,10 @@ func (p *Pool) Put(x any) {
 	}
 }
 
-// Get selects an arbitrary item from the Pool, removes it from the
+// Get selects an arbitrary item from the [Pool], removes it from the
 // Pool, and returns it to the caller.
 // Get may choose to ignore the pool and treat it as empty.
-// Callers should not assume any relation between values passed to Put and
+// Callers should not assume any relation between values passed to [Pool.Put] and
 // the values returned by Get.
 //
 // If Get would otherwise return nil and p.New is non-nil, Get returns

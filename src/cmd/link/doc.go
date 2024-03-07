@@ -43,10 +43,12 @@ Flags:
 		or initialized to a constant string expression. -X will not work if the initializer makes
 		a function call or refers to other variables.
 		Note that before Go 1.5 this option took two separate arguments.
-	-a
-		Disassemble output.
 	-asan
 		Link with C/C++ address sanitizer support.
+	-aslr
+		Enable ASLR for buildmode=c-shared on windows (default true).
+	-bindnow
+		Mark a dynamically linked ELF object for immediate function binding (default false).
 	-buildid id
 		Record id as Go toolchain build id.
 	-buildmode mode
@@ -64,8 +66,6 @@ Flags:
 		The dynamic header is on by default, even without any
 		references to dynamic libraries, because many common
 		system tools now assume the presence of the header.
-	-debugtramp int
-		Debug trampolines.
 	-dumpdep
 		Dump symbol dependency graph.
 	-extar ar
@@ -104,8 +104,6 @@ Flags:
 		Set runtime.MemProfileRate to rate.
 	-msan
 		Link with C/C++ memory sanitizer support.
-	-n
-		Dump symbol table.
 	-o file
 		Write output to file (default a.out, or a.out.exe on Windows).
 	-pluginpath path
@@ -116,13 +114,9 @@ Flags:
 		Link with race detection libraries.
 	-s
 		Omit the symbol table and debug information.
-	-shared
-		Generated shared object (implies -linkmode external; experimental).
 	-tmpdir dir
 		Write temporary files to dir.
 		Temporary files are only used in external linking mode.
-	-u
-		Reject unsafe packages.
 	-v
 		Print trace of linker operations.
 	-w

@@ -23,3 +23,6 @@ func UncommonSize() uint64 { return 4 + 2 + 2 + 4 + 4 }
 
 // TFlagOff returns the offset of Type.TFlag for a compilation target with a given ptrSize
 func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
+
+// ITabTypeOff returns the offset of ITab.Type for a compilation target with a given ptrSize
+func ITabTypeOff(ptrSize int) int { return ptrSize }

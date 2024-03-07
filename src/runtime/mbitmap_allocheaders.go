@@ -48,9 +48,9 @@
 // is zeroed, so the GC just observes nil pointers.
 // Note that this "tiled" bitmap isn't stored anywhere; it is generated on-the-fly.
 //
-// For objects without their own span, the type metadata is stored in the last
-// word of the allocation slot. For objects with their own span, the type metadata
-// is stored in the mspan.
+// For objects without their own span, the type metadata is stored in the first
+// word before the object at the beginning of the allocation slot. For objects
+// with their own span, the type metadata is stored in the mspan.
 //
 // The bitmap for small unallocated objects in scannable spans is not maintained
 // (can be junk).
@@ -167,7 +167,8 @@ func (span *mspan) typePointersOf(addr, size uintptr) typePointers {
 }
 
 // typePointersOfUnchecked is like typePointersOf, but assumes addr is the base
-// pointer of an object in span. It returns an iterator that generates all pointers
+// of an allocation slot in a span (the start of the object if no header, the
+// header otherwise). It returns an iterator that generates all pointers
 // in the range [addr, addr+span.elemsize).
 //
 // nosplit because it is used during write barriers and must not be preempted.
@@ -192,8 +193,9 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 	// All of these objects have a header.
 	var typ *_type
 	if spc.sizeclass() != 0 {
-		// Pull the allocation header from the last word of the object.
-		typ = *(**_type)(unsafe.Pointer(addr + span.elemsize - mallocHeaderSize))
+		// Pull the allocation header from the first word of the object.
+		typ = *(**_type)(unsafe.Pointer(addr))
+		addr += mallocHeaderSize
 	} else {
 		typ = span.largeType
 	}
@@ -881,12 +883,12 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
 			// We only need to write size, PtrBytes, and GCData, since that's all
 			// the GC cares about.
 			gctyp = (*_type)(unsafe.Pointer(progSpan.base()))
-			gctyp.Kind_ |= kindGCProg
 			gctyp.Size_ = typ.Size_
 			gctyp.PtrBytes = typ.PtrBytes
 			gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
+			gctyp.TFlag = abi.TFlagUnrolledBitmap
 
-			// Expand the GC program into space reserved at the end of the object.
+			// Expand the GC program into space reserved at the end of the new span.
 			runGCProg(addb(typ.GCData, 4), gctyp.GCData)
 		}
 
@@ -905,14 +907,14 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
 		if header == nil {
 			maxIterBytes = dataSize
 		}
-		off := alignUp(uintptr(fastrand())%dataSize, goarch.PtrSize)
+		off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
 		size := dataSize - off
 		if size == 0 {
 			off -= goarch.PtrSize
 			size += goarch.PtrSize
 		}
 		interior := x + off
-		size -= alignDown(uintptr(fastrand())%size, goarch.PtrSize)
+		size -= alignDown(uintptr(cheaprand())%size, goarch.PtrSize)
 		if size == 0 {
 			size = goarch.PtrSize
 		}

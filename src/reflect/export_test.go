@@ -63,7 +63,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	}
 
 	// Expand frame type's GC bitmap into byte-map.
-	ptrs = ft.PtrBytes != 0
+	ptrs = ft.Pointers()
 	if ptrs {
 		nptrs := ft.PtrBytes / goarch.PtrSize
 		gcdata := ft.GcSlice(0, (nptrs+7)/8)
@@ -166,3 +166,5 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
 var MethodValueCallCodePtr = methodValueCallCodePtr
 
 var InternalIsZero = isZero
+
+var IsRegularMemory = isRegularMemory

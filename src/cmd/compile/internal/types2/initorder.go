@@ -160,17 +160,16 @@ func (check *Checker) reportCycle(cycle []Object) {
 		return
 	}
 
-	var err error_
-	err.code = InvalidInitCycle
-	err.errorf(obj, "initialization cycle for %s", obj.Name())
+	err := check.newError(InvalidInitCycle)
+	err.addf(obj, "initialization cycle for %s", obj.Name())
 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
 	for i := len(cycle) - 1; i >= 0; i-- {
-		err.errorf(obj, "%s refers to", obj.Name())
+		err.addf(obj, "%s refers to", obj.Name())
 		obj = cycle[i]
 	}
 	// print cycle[0] again to close the cycle
-	err.errorf(obj, "%s", obj.Name())
-	check.report(&err)
+	err.addf(obj, "%s", obj.Name())
+	err.report()
 }
 
 // ----------------------------------------------------------------------------
@@ -315,11 +314,11 @@ func (a nodeQueue) Less(i, j int) bool {
 	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
-func (a *nodeQueue) Push(x interface{}) {
+func (a *nodeQueue) Push(x any) {
 	panic("unreachable")
 }
 
-func (a *nodeQueue) Pop() interface{} {
+func (a *nodeQueue) Pop() any {
 	n := len(*a)
 	x := (*a)[n-1]
 	x.index = -1 // for safety

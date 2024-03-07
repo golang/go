@@ -92,23 +92,22 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	}
 
 	// Check for anonymous interface cycles (#56103).
-	if base.Debug.InterfaceCycles == 0 {
-		var f cycleFinder
-		for _, file := range files {
-			syntax.Inspect(file, func(n syntax.Node) bool {
-				if n, ok := n.(*syntax.InterfaceType); ok {
-					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
-						base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+	// TODO(gri) move this code into the type checkers (types2 and go/types)
+	var f cycleFinder
+	for _, file := range files {
+		syntax.Inspect(file, func(n syntax.Node) bool {
+			if n, ok := n.(*syntax.InterfaceType); ok {
+				if f.hasCycle(types2.Unalias(n.GetTypeInfo().Type).(*types2.Interface)) {
+					base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
 
-						for typ := range f.cyclic {
-							f.cyclic[typ] = false // suppress duplicate errors
-						}
+					for typ := range f.cyclic {
+						f.cyclic[typ] = false // suppress duplicate errors
 					}
-					return false
 				}
-				return true
-			})
-		}
+				return false
+			}
+			return true
+		})
 	}
 	base.ExitIfErrors()
 
@@ -172,7 +171,7 @@ func (f *cycleFinder) hasCycle(typ *types2.Interface) bool {
 // visit recursively walks typ0 to check any referenced interface types.
 func (f *cycleFinder) visit(typ0 types2.Type) bool {
 	for { // loop for tail recursion
-		switch typ := typ0.(type) {
+		switch typ := types2.Unalias(typ0).(type) {
 		default:
 			base.Fatalf("unexpected type: %T", typ)
 

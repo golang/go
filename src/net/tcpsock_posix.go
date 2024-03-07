@@ -45,13 +45,20 @@ func (a *TCPAddr) toLocal(net string) sockaddr {
 }
 
 func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
-	if n, err, handled := splice(c.fd, r); handled {
+	if n, err, handled := spliceFrom(c.fd, r); handled {
 		return n, err
 	}
 	if n, err, handled := sendFile(c.fd, r); handled {
 		return n, err
 	}
 	return genericReadFrom(c, r)
+}
+
+func (c *TCPConn) writeTo(w io.Writer) (int64, error) {
+	if n, err, handled := spliceTo(w, c.fd); handled {
+		return n, err
+	}
+	return genericWriteTo(c, w)
 }
 
 func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
@@ -111,7 +118,7 @@ func (sd *sysDialer) doDialTCPProto(ctx context.Context, laddr, raddr *TCPAddr, 
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd, sd.Dialer.KeepAlive, testHookSetKeepAlive), nil
+	return newTCPConn(fd, sd.Dialer.KeepAlive, sd.Dialer.KeepAliveConfig, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
 }
 
 func selfConnect(fd *netFD, err error) bool {
@@ -153,7 +160,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd, ln.lc.KeepAlive, nil), nil
+	return newTCPConn(fd, ln.lc.KeepAlive, ln.lc.KeepAliveConfig, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
 }
 
 func (ln *TCPListener) close() error {

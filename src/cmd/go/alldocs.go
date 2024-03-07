@@ -1004,6 +1004,8 @@
 //	    Retracted  []string      // retraction information, if any (with -retracted or -u)
 //	    Deprecated string        // deprecation message, if any (with -u)
 //	    Error      *ModuleError  // error loading module
+//	    Sum        string        // checksum for path, version (as in go.sum)
+//	    GoModSum   string        // checksum for go.mod (as in go.sum)
 //	    Origin     any           // provenance of module
 //	    Reuse      bool          // reuse of old module info is safe
 //	}
@@ -1323,9 +1325,6 @@
 // module path argument is omitted, init will attempt to infer the module path
 // using import comments in .go files, vendoring tool configuration files (like
 // Gopkg.lock), and the current directory (if in GOPATH).
-//
-// If a configuration file for a vendoring tool is present, init will attempt to
-// import module requirements from it.
 //
 // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 //
@@ -1805,7 +1804,7 @@
 // The rule for a match in the cache is that the run involves the same
 // test binary and the flags on the command line come entirely from a
 // restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
-// -list, -parallel, -run, -short, -timeout, -failfast, and -v.
+// -list, -parallel, -run, -short, -timeout, -failfast, -fullpath and -v.
 // If a run of go test has any test or non-test flags outside this set,
 // the result is not cached. To disable test caching, use any test flag
 // or argument other than the cacheable flags. The idiomatic way to disable
@@ -1991,6 +1990,8 @@
 //     correspond to the amd64.v1, amd64.v2, and amd64.v3 feature build tags.
 //   - For GOARCH=arm, GOARM=5, 6, and 7
 //     correspond to the arm.5, arm.6, and arm.7 feature build tags.
+//   - For GOARCH=arm64, GOARM64=v8.{0-9} and v9.{0-5}
+//     correspond to the arm64.v8.{0-9} and arm64.v9.{0-5} feature build tags.
 //   - For GOARCH=mips or mipsle,
 //     GOMIPS=hardfloat and softfloat
 //     correspond to the mips.hardfloat and mips.softfloat
@@ -2004,10 +2005,13 @@
 //     ppc64.power8, ppc64.power9, and ppc64.power10
 //     (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
 //     feature build tags.
+//   - For GOARCH=riscv64,
+//     GORISCV64=rva20u64 and rva22u64 correspond to the riscv64.rva20u64
+//     and riscv64.rva22u64 build tags.
 //   - For GOARCH=wasm, GOWASM=satconv and signext
 //     correspond to the wasm.satconv and wasm.signext feature build tags.
 //
-// For GOARCH=amd64, arm, ppc64, and ppc64le, a particular feature level
+// For GOARCH=amd64, arm, ppc64, ppc64le, and riscv64, a particular feature level
 // sets the feature build tags for all previous levels as well.
 // For example, GOAMD64=v2 sets the amd64.v1 and amd64.v2 feature flags.
 // This ensures that code making use of v2 features continues to compile
@@ -2285,6 +2289,15 @@
 //	GOARM
 //		For GOARCH=arm, the ARM architecture for which to compile.
 //		Valid values are 5, 6, 7.
+//		The value can be followed by an option specifying how to implement floating point instructions.
+//		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+//	GOARM64
+//		For GOARCH=arm64, the ARM64 architecture for which to compile.
+//		Valid values are v8.0 (default), v8.{1-9}, v9.{0-5}.
+//		The value can be followed by an option specifying extensions implemented by target hardware.
+//		Valid options are ,lse and ,crypto.
+//		Note that some extensions are enabled by default starting from a certain GOARM64 version;
+//		for example, lse is enabled by default starting from v8.1.
 //	GO386
 //		For GOARCH=386, how to implement floating point instructions.
 //		Valid values are sse2 (default), softfloat.
@@ -2301,6 +2314,10 @@
 //	GOPPC64
 //		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
 //		Valid values are power8 (default), power9, power10.
+//	GORISCV64
+//		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+//		to compile. Valid values are rva20u64 (default), rva22u64.
+//		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
 //	GOWASM
 //		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 //		Valid values are satconv, signext.
@@ -2323,11 +2340,6 @@
 //		See src/internal/goexperiment/flags.go for currently valid values.
 //		Warning: This variable is provided for the development and testing
 //		of the Go toolchain itself. Use beyond that purpose is unsupported.
-//	GOROOT_FINAL
-//		The root of the installed Go tree, when it is
-//		installed in a location other than where it is built.
-//		File names in stack traces are rewritten from GOROOT to
-//		GOROOT_FINAL.
 //	GO_EXTLINK_ENABLED
 //		Whether the linker should use external linking mode
 //		when using -linkmode=auto with code that uses cgo.

@@ -712,7 +712,7 @@ func (c *gcControllerState) enlistWorker() {
 	}
 	myID := gp.m.p.ptr().id
 	for tries := 0; tries < 5; tries++ {
-		id := int32(fastrandn(uint32(gomaxprocs - 1)))
+		id := int32(cheaprandn(uint32(gomaxprocs - 1)))
 		if id >= myID {
 			id++
 		}
@@ -1377,7 +1377,7 @@ func (c *gcControllerState) needIdleMarkWorker() bool {
 	return n < max
 }
 
-// removeIdleMarkWorker must be called when an new idle mark worker stops executing.
+// removeIdleMarkWorker must be called when a new idle mark worker stops executing.
 func (c *gcControllerState) removeIdleMarkWorker() {
 	for {
 		old := c.idleMarkWorkers.Load()

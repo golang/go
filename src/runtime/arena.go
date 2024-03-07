@@ -482,7 +482,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	mp.mallocing = 1
 
 	var ptr unsafe.Pointer
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		// Allocate pointer-less objects from the tail end of the chunk.
 		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.Align_)
 		if ok {
@@ -504,7 +504,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 		throw("arena chunk needs zeroing, but should already be zeroed")
 	}
 	// Set up heap bitmap and do extra accounting.
-	if typ.PtrBytes != 0 {
+	if typ.Pointers() {
 		if cap >= 0 {
 			userArenaHeapBitsSetSliceType(typ, cap, ptr, s)
 		} else {
@@ -589,7 +589,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(span, span.base(), span.elemsize)
+		gcmarknewobject(span, span.base())
 	}
 
 	if raceenabled {
@@ -765,7 +765,7 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 		throw("invalid user arena span size")
 	}
 
-	// Mark the region as free to various santizers immediately instead
+	// Mark the region as free to various sanitizers immediately instead
 	// of handling them at sweep time.
 	if raceenabled {
 		racefree(unsafe.Pointer(s.base()), s.elemsize)

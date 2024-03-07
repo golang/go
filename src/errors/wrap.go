@@ -27,8 +27,8 @@ func Unwrap(err error) error {
 // Is reports whether any error in err's tree matches target.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly
-// calling [Unwrap]. When err wraps multiple errors, Is examines err followed by a
-// depth-first traversal of its children.
+// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
+// errors, Is examines err followed by a depth-first traversal of its children.
 //
 // An error is considered to match a target if it is equal to that target or if
 // it implements a method Is(error) bool such that Is(target) returns true.
@@ -81,8 +81,8 @@ func is(err, target error, targetComparable bool) bool {
 // target to that error value and returns true. Otherwise, it returns false.
 //
 // The tree consists of err itself, followed by the errors obtained by repeatedly
-// calling [Unwrap]. When err wraps multiple errors, As examines err followed by a
-// depth-first traversal of its children.
+// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
+// errors, As examines err followed by a depth-first traversal of its children.
 //
 // An error matches target if the error's concrete value is assignable to the value
 // pointed to by target, or if the error has a method As(interface{}) bool such that

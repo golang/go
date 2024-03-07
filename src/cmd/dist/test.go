@@ -691,6 +691,14 @@ func (t *tester) registerTests() {
 			})
 	}
 
+	// Check that all crypto packages compile with the purego build tag.
+	t.registerTest("crypto with tag purego", &goTest{
+		variant:  "purego",
+		tags:     []string{"purego"},
+		pkg:      "crypto/...",
+		runTests: "^$", // only ensure they compile
+	})
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
@@ -705,17 +713,30 @@ func (t *tester) registerTests() {
 
 	// Runtime CPU tests.
 	if !t.compileOnly && t.hasParallelism() {
-		t.registerTest("GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+		for i := 1; i <= 4; i *= 2 {
+			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
+				&goTest{
+					variant:   "cpu" + strconv.Itoa(i),
+					timeout:   300 * time.Second,
+					cpu:       strconv.Itoa(i),
+					short:     true,
+					testFlags: []string{"-quick"},
+					// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+					// creation of first goroutines and first garbage collections in the parallel setting.
+					env: []string{"GOMAXPROCS=2"},
+					pkg: "runtime",
+				})
+		}
+	}
+
+	// GOEXPERIMENT=rangefunc tests
+	if !t.compileOnly {
+		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
 			&goTest{
-				variant:   "cpu124",
-				timeout:   300 * time.Second,
-				cpu:       "1,2,4",
-				short:     true,
-				testFlags: []string{"-quick"},
-				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-				// creation of first goroutines and first garbage collections in the parallel setting.
-				env: []string{"GOMAXPROCS=2"},
-				pkg: "runtime",
+				variant: "iter",
+				short:   t.short,
+				env:     []string{"GOEXPERIMENT=rangefunc"},
+				pkg:     "iter",
 			})
 	}
 
@@ -891,8 +912,11 @@ func (t *tester) registerTests() {
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	//
+	// The same logic applies to the release notes that correspond to each api/next file.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 	}
 }
 
@@ -1414,7 +1438,7 @@ func (t *tester) registerRaceTests() {
 		// Building cmd/cgo/internal/test takes a long time.
 		// There are already cgo-enabled packages being tested with the race detector.
 		// We shouldn't need to redo all of cmd/cgo/internal/test too.
-		// The race buildler will take care of this.
+		// The race builder will take care of this.
 		// t.registerTest(hdr, &goTest{variant: "race", race: true, env: []string{"GOTRACEBACK=2"}, pkg: "cmd/cgo/internal/test"})
 	}
 	if t.extLink() {
@@ -1627,7 +1651,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "plugin":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
 			"android/amd64", "android/386",
 			"darwin/amd64", "darwin/arm64",
 			"freebsd/amd64":

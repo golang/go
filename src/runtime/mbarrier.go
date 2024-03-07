@@ -153,7 +153,7 @@ func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}
-	if writeBarrier.enabled && typ.PtrBytes != 0 {
+	if writeBarrier.enabled && typ.Pointers() {
 		// This always copies a full value of type typ so it's safe
 		// to pass typ along as an optimization. See the comment on
 		// bulkBarrierPreWrite.
@@ -232,7 +232,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //
 //go:nosplit
 func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
-	if writeBarrier.enabled && typ != nil && typ.PtrBytes != 0 && size >= goarch.PtrSize {
+	if writeBarrier.enabled && typ != nil && typ.Pointers() && size >= goarch.PtrSize {
 		// Pass nil for the type. dst does not point to value of type typ,
 		// but rather points into one, so applying the optimization is not
 		// safe. See the comment on this function.
@@ -305,7 +305,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
-	if elemType.PtrBytes == 0 {
+	if !elemType.Pointers() {
 		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.Size_)
 	}
 	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
@@ -323,7 +323,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
-	if writeBarrier.enabled && typ.PtrBytes != 0 {
+	if writeBarrier.enabled && typ.Pointers() {
 		// This always clears a whole value of type typ, so it's
 		// safe to pass a type here and apply the optimization.
 		// See the comment on bulkBarrierPreWrite.
@@ -339,7 +339,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 
 //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
 func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.enabled && typ.PtrBytes != 0 {
+	if writeBarrier.enabled && typ.Pointers() {
 		// Pass nil for the type. ptr does not point to value of type typ,
 		// but rather points into one so it's not safe to apply the optimization.
 		// See the comment on this function in the reflect package and the
@@ -352,7 +352,7 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
 //go:linkname reflect_typedarrayclear reflect.typedarrayclear
 func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
 	size := typ.Size_ * uintptr(len)
-	if writeBarrier.enabled && typ.PtrBytes != 0 {
+	if writeBarrier.enabled && typ.Pointers() {
 		// This always clears whole elements of an array, so it's
 		// safe to pass a type here. See the comment on bulkBarrierPreWrite.
 		bulkBarrierPreWrite(uintptr(ptr), 0, size, typ)

@@ -28,6 +28,7 @@ import (
 	"internal/abi"
 	"log"
 	"math/bits"
+	"strings"
 )
 
 func buildop(ctxt *obj.Link) {}
@@ -307,6 +308,12 @@ func setPCs(p *obj.Prog, pc int64) int64 {
 		p.Pc = pc
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
+		}
+
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(pc, alignedValue)
+			pc += int64(v)
 		}
 	}
 	return pc
@@ -733,6 +740,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
 				p.Link.To.Offset = low
 			}
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			if (alignedValue&(alignedValue-1) != 0) || 4 > alignedValue || alignedValue > 2048 {
+				ctxt.Diag("alignment value of an instruction must be a power of two and in the range [4, 2048], got %d\n", alignedValue)
+			}
+			// Update the current text symbol alignment value.
+			if int32(alignedValue) > cursym.Func().Align {
+				cursym.Func().Align = int32(alignedValue)
+			}
 		}
 	}
 
@@ -742,6 +759,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ins.validate(ctxt)
 		}
 	}
+}
+
+func pcAlignPadLength(pc int64, alignedValue int64) int {
+	return int(-pc & (alignedValue - 1))
 }
 
 func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgAlloc, framesize int64) *obj.Prog {
@@ -1708,6 +1729,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 	obj.ANOP:      pseudoOpEncoding,
 	obj.ADUFFZERO: pseudoOpEncoding,
 	obj.ADUFFCOPY: pseudoOpEncoding,
+	obj.APCALIGN:  pseudoOpEncoding,
 }
 
 // encodingForAs returns the encoding for an obj.As.
@@ -2252,8 +2274,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.imm = 0x0ff
 
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
-		// Set the rounding mode in funct3 to round to zero.
-		ins.funct3 = 1
+		// Set the default rounding mode in funct3 to round to zero.
+		if p.Scond&rmSuffixBit == 0 {
+			ins.funct3 = uint32(RM_RTZ)
+		} else {
+			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
+		}
 
 	case AFNES, AFNED:
 		// Replace FNE[SD] with FEQ[SD] and NOT.
@@ -2425,6 +2451,17 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			rel.Sym = addr.Sym
 			rel.Add = addr.Offset
 			rel.Type = rt
+
+		case obj.APCALIGN:
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(p.Pc, alignedValue)
+			offset := p.Pc
+			for ; v >= 4; v -= 4 {
+				// NOP
+				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0, 0, 0})
+				offset += 4
+			}
+			continue
 		}
 
 		offset := p.Pc
@@ -2444,6 +2481,14 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 func isUnsafePoint(p *obj.Prog) bool {
 	return p.Mark&USES_REG_TMP == USES_REG_TMP || p.From.Reg == REG_TMP || p.To.Reg == REG_TMP || p.Reg == REG_TMP
+}
+
+func ParseSuffix(prog *obj.Prog, cond string) (err error) {
+	switch prog.As {
+	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+		prog.Scond, err = rmSuffixEncode(strings.TrimPrefix(cond, "."))
+	}
+	return
 }
 
 var LinkRISCV64 = obj.LinkArch{

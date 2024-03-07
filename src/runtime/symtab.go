@@ -23,7 +23,7 @@ type Frames struct {
 	frameStore [2]Frame
 }
 
-// Frame is the information returned by Frames for each call frame.
+// Frame is the information returned by [Frames] for each call frame.
 type Frame struct {
 	// PC is the program counter for the location in this frame.
 	// For a frame that calls another frame, this will be the
@@ -79,15 +79,15 @@ func CallersFrames(callers []uintptr) *Frames {
 	return f
 }
 
-// Next returns a Frame representing the next call frame in the slice
+// Next returns a [Frame] representing the next call frame in the slice
 // of PC values. If it has already returned all call frames, Next
-// returns a zero Frame.
+// returns a zero [Frame].
 //
 // The more result indicates whether the next call to Next will return
-// a valid Frame. It does not necessarily indicate whether this call
+// a valid [Frame]. It does not necessarily indicate whether this call
 // returned one.
 //
-// See the Frames example for idiomatic usage.
+// See the [Frames] example for idiomatic usage.
 func (ci *Frames) Next() (frame Frame, more bool) {
 	for len(ci.frames) < 2 {
 		// Find the next frame.
@@ -497,9 +497,6 @@ type textsect struct {
 	baseaddr uintptr // relocated section address
 }
 
-const minfunc = 16                 // minimum function size
-const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
-
 // findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
 // Each subbucket represents 256 bytes of the text segment.
@@ -781,8 +778,8 @@ func findfunc(pc uintptr) funcInfo {
 	}
 
 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
-	b := x / pcbucketsize
-	i := x % pcbucketsize / (pcbucketsize / nsub)
+	b := x / abi.FuncTabBucketSize
+	i := x % abi.FuncTabBucketSize / (abi.FuncTabBucketSize / nsub)
 
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
@@ -931,7 +928,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 				cache.inUse++
 				if cache.inUse == 1 {
 					e := &cache.entries[ck]
-					ci := fastrandn(uint32(len(cache.entries[ck])))
+					ci := cheaprandn(uint32(len(cache.entries[ck])))
 					e[ci] = e[0]
 					e[0] = pcvalueCacheEnt{
 						targetpc: targetpc,

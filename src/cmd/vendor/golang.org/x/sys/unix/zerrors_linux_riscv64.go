@@ -227,6 +227,9 @@ const (
 	PPPIOCUNBRIDGECHAN               = 0x7434
 	PPPIOCXFERUNIT                   = 0x744e
 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
+	PTRACE_GETFDPIC                  = 0x21
+	PTRACE_GETFDPIC_EXEC             = 0x0
+	PTRACE_GETFDPIC_INTERP           = 0x1
 	RLIMIT_AS                        = 0x9
 	RLIMIT_MEMLOCK                   = 0x8
 	RLIMIT_NOFILE                    = 0x7
@@ -269,6 +272,9 @@ const (
 	SCM_TIMESTAMPNS                  = 0x23
 	SCM_TXTIME                       = 0x3d
 	SCM_WIFI_STATUS                  = 0x29
+	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
+	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
+	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
 	SFD_CLOEXEC                      = 0x80000
 	SFD_NONBLOCK                     = 0x800
 	SIOCATMARK                       = 0x8905

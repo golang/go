@@ -1,0 +1,45 @@
+The upload process converts count files into reports, and
+uploads reports. There will be only one report, named YYYY-MM-DD.json,
+for a given day.
+
+First phase. Look at the localdir (os.UserConfigdir()/go/telemetry/local)
+and find all .count and .json files. Find the count files that are no
+longer active by looking at their metadata.
+
+Second phase. Group the inactive count files by their expiry date, and
+for each date generate the local report and the upload report. (The upload
+report only contains the counters in the upload configuration.) The upload
+report is saved in the local directory with a name like YYYY-MM-DD.json, if
+there is no file already existing with that name.
+If the local report is different, it is saved in the local directory
+with a name like local.YYYY-MM-DD.json. The new upload report is
+added to the list of .json files from the first phase. At this point
+the count files are no longer needed and can be deleted.
+
+Third phase. Look at the .json files in the list from the first phase.
+If the name starts with local, skip it. If there is a file with the
+identical name in the upload directory, remove the one in the local directory.
+Otherwise try to upload the one in the local directory,
+If the upload succeeds, move the file to the uploaded directory.
+
+
+There are various error conditions.
+1. Several processes could look at localdir and see work to do.
+1A. They could see different sets of expired count files for some day.
+    This could happen if another process is removing count files. In this
+    case there is already a YYYY-MM-DD.json file either in localdir
+    or updatedir, so the process seeing fewer count files will not generate
+    a report.
+1B. They could see the same count files, and no report in either directory.
+    They will both generate (in memory) reports and check to see if there
+    is a YYYY-MM-DD.json file in either directory. They could both then
+    write two files with the same name, but different X values, but
+    otherwise the same contents. The X values are very close to the front
+    of the file. Assuming reasonable file system semantics one version of
+    the file will be written. To minimize this, just before writing reports
+    the code checks again to see if they exist.
+1C. Once there is an existing well-formed file YYYY-MM-DD.json in localdir
+    eventually the upload will succeed, and the file will be moved to updatedir.
+    It is possible that other processes will not see the file in updatedir and
+    upload it again and also move it to uploaddir. This is harmless as all
+    the uploaded files are identical.

@@ -61,15 +61,23 @@ func FanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname string) (
 }
 
 //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+//sys	fchmodat2(dirfd int, path string, mode uint32, flags int) (err error)
 
-func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
-	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
-	// and check the flags. Otherwise the mode would be applied to the symlink
-	// destination which is not what the user expects.
-	if flags&^AT_SYMLINK_NOFOLLOW != 0 {
-		return EINVAL
-	} else if flags&AT_SYMLINK_NOFOLLOW != 0 {
-		return EOPNOTSUPP
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	// Linux fchmodat doesn't support the flags parameter, but fchmodat2 does.
+	// Try fchmodat2 if flags are specified.
+	if flags != 0 {
+		err := fchmodat2(dirfd, path, mode, flags)
+		if err == ENOSYS {
+			// fchmodat2 isn't available. If the flags are known to be valid,
+			// return EOPNOTSUPP to indicate that fchmodat doesn't support them.
+			if flags&^(AT_SYMLINK_NOFOLLOW|AT_EMPTY_PATH) != 0 {
+				return EINVAL
+			} else if flags&(AT_SYMLINK_NOFOLLOW|AT_EMPTY_PATH) != 0 {
+				return EOPNOTSUPP
+			}
+		}
+		return err
 	}
 	return fchmodat(dirfd, path, mode)
 }
@@ -417,7 +425,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
@@ -1301,7 +1310,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 			return "", err
 		}
 	}
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
@@ -1840,6 +1849,105 @@ func Dup2(oldfd, newfd int) error {
 //sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
 //sys	Fsopen(fsName string, flags int) (fd int, err error)
 //sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
+
+//sys	fsconfig(fd int, cmd uint, key *byte, value *byte, aux int) (err error)
+
+func fsconfigCommon(fd int, cmd uint, key string, value *byte, aux int) (err error) {
+	var keyp *byte
+	if keyp, err = BytePtrFromString(key); err != nil {
+		return
+	}
+	return fsconfig(fd, cmd, keyp, value, aux)
+}
+
+// FsconfigSetFlag is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_FLAG.
+//
+// fd is the filesystem context to act upon.
+// key the parameter key to set.
+func FsconfigSetFlag(fd int, key string) (err error) {
+	return fsconfigCommon(fd, FSCONFIG_SET_FLAG, key, nil, 0)
+}
+
+// FsconfigSetString is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_STRING.
+//
+// fd is the filesystem context to act upon.
+// key the parameter key to set.
+// value is the parameter value to set.
+func FsconfigSetString(fd int, key string, value string) (err error) {
+	var valuep *byte
+	if valuep, err = BytePtrFromString(value); err != nil {
+		return
+	}
+	return fsconfigCommon(fd, FSCONFIG_SET_STRING, key, valuep, 0)
+}
+
+// FsconfigSetBinary is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_BINARY.
+//
+// fd is the filesystem context to act upon.
+// key the parameter key to set.
+// value is the parameter value to set.
+func FsconfigSetBinary(fd int, key string, value []byte) (err error) {
+	if len(value) == 0 {
+		return EINVAL
+	}
+	return fsconfigCommon(fd, FSCONFIG_SET_BINARY, key, &value[0], len(value))
+}
+
+// FsconfigSetPath is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_PATH.
+//
+// fd is the filesystem context to act upon.
+// key the parameter key to set.
+// path is a non-empty path for specified key.
+// atfd is a file descriptor at which to start lookup from or AT_FDCWD.
+func FsconfigSetPath(fd int, key string, path string, atfd int) (err error) {
+	var valuep *byte
+	if valuep, err = BytePtrFromString(path); err != nil {
+		return
+	}
+	return fsconfigCommon(fd, FSCONFIG_SET_PATH, key, valuep, atfd)
+}
+
+// FsconfigSetPathEmpty is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_PATH_EMPTY. The same as
+// FconfigSetPath but with AT_PATH_EMPTY implied.
+func FsconfigSetPathEmpty(fd int, key string, path string, atfd int) (err error) {
+	var valuep *byte
+	if valuep, err = BytePtrFromString(path); err != nil {
+		return
+	}
+	return fsconfigCommon(fd, FSCONFIG_SET_PATH_EMPTY, key, valuep, atfd)
+}
+
+// FsconfigSetFd is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_SET_FD.
+//
+// fd is the filesystem context to act upon.
+// key the parameter key to set.
+// value is a file descriptor to be assigned to specified key.
+func FsconfigSetFd(fd int, key string, value int) (err error) {
+	return fsconfigCommon(fd, FSCONFIG_SET_FD, key, nil, value)
+}
+
+// FsconfigCreate is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_CMD_CREATE.
+//
+// fd is the filesystem context to act upon.
+func FsconfigCreate(fd int) (err error) {
+	return fsconfig(fd, FSCONFIG_CMD_CREATE, nil, nil, 0)
+}
+
+// FsconfigReconfigure is equivalent to fsconfig(2) called
+// with cmd == FSCONFIG_CMD_RECONFIGURE.
+//
+// fd is the filesystem context to act upon.
+func FsconfigReconfigure(fd int) (err error) {
+	return fsconfig(fd, FSCONFIG_CMD_RECONFIGURE, nil, nil, 0)
+}
+
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
 

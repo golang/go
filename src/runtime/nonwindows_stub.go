@@ -12,6 +12,8 @@ package runtime
 // timer precision to keep the timer error acceptable.
 const osRelaxMinNS = 0
 
+var haveHighResSleep = true
+
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 func osRelax(relax bool) {}

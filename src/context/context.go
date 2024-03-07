@@ -231,7 +231,7 @@ type CancelFunc func()
 // or when the parent context's Done channel is closed, whichever happens first.
 //
 // Canceling this context releases resources associated with it, so code should
-// call cancel as soon as the operations running in this Context complete.
+// call cancel as soon as the operations running in this [Context] complete.
 func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	c := withCancel(parent)
 	return c, func() { c.cancel(true, Canceled, nil) }
@@ -740,13 +740,13 @@ func stringify(v any) string {
 	case string:
 		return s
 	}
-	return "<not Stringer>"
+	return reflectlite.TypeOf(v).String()
 }
 
 func (c *valueCtx) String() string {
-	return contextName(c.Context) + ".WithValue(type " +
-		reflectlite.TypeOf(c.key).String() +
-		", val " + stringify(c.val) + ")"
+	return contextName(c.Context) + ".WithValue(" +
+		stringify(c.key) + ", " +
+		stringify(c.val) + ")"
 }
 
 func (c *valueCtx) Value(key any) any {

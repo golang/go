@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -299,6 +300,27 @@ func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
 	return false
 }
 
+// blockUntilEmptyFinalizerQueue blocks until either the finalizer
+// queue is emptied (and the finalizers have executed) or the timeout
+// is reached. Returns true if the finalizer queue was emptied.
+// This is used by the runtime and sync tests.
+func blockUntilEmptyFinalizerQueue(timeout int64) bool {
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&finlock)
+		// We know the queue has been drained when both finq is nil
+		// and the finalizer g has stopped executing.
+		empty := finq == nil
+		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+		unlock(&finlock)
+		if empty {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}
+
 // SetFinalizer sets the finalizer associated with obj to the provided
 // finalizer function. When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
@@ -410,7 +432,7 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	// find the containing object
-	base, _, _ := findObject(uintptr(e.data), 0, 0)
+	base, span, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
 		if isGoPointerWithoutSpan(e.data) {
@@ -419,10 +441,15 @@ func SetFinalizer(obj any, finalizer any) {
 		throw("runtime.SetFinalizer: pointer not in allocated block")
 	}
 
+	// Move base forward if we've got an allocation header.
+	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+		base += mallocHeaderSize
+	}
+
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.Elem == nil || ot.Elem.PtrBytes != 0 || ot.Elem.Size_ >= maxTinySize {
+		if ot.Elem == nil || ot.Elem.Pointers() || ot.Elem.Size_ >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}

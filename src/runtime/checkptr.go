@@ -16,7 +16,7 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if elem.PtrBytes != 0 && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
+	if elem.Pointers() && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
 		throw("checkptr: misaligned pointer conversion")
 	}
 

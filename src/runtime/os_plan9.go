@@ -327,24 +327,8 @@ func crash() {
 }
 
 //go:nosplit
-func getRandomData(r []byte) {
-	// inspired by wyrand see hash32.go for detail
-	t := nanotime()
-	v := getg().m.procid ^ uint64(t)
-
-	for len(r) > 0 {
-		v ^= 0xa0761d6478bd642f
-		v *= 0xe7037ed1a0b428db
-		size := 8
-		if len(r) < 8 {
-			size = len(r)
-		}
-		for i := 0; i < size; i++ {
-			r[i] = byte(v >> (8 * i))
-		}
-		r = r[size:]
-		v = v>>32 | v<<32
-	}
+func readRandom(r []byte) int {
+	return 0
 }
 
 func initsig(preinit bool) {

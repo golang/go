@@ -748,6 +748,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type:"+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
+		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(objabi.KindPtr), 0)
 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
@@ -849,13 +850,6 @@ func mkinternaltypename(base string, arg1 string, arg2 string) string {
 	return fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
 }
 
-// synthesizemaptypes is way too closely married to runtime/hashmap.c
-const (
-	MaxKeySize = abi.MapMaxKeyBytes
-	MaxValSize = abi.MapMaxElemBytes
-	BucketSize = abi.MapBucketCount
-)
-
 func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f func(*dwarf.DWDie)) loader.Sym {
 	name := mkinternaltypename(typename, keyname, valname)
 	symname := dwarf.InfoPrefix + name
@@ -890,11 +884,11 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 
 		// compute size info like hashmap.c does.
 		indirectKey, indirectVal := false, false
-		if keysize > MaxKeySize {
+		if keysize > abi.MapMaxKeyBytes {
 			keysize = int64(d.arch.PtrSize)
 			indirectKey = true
 		}
-		if valsize > MaxValSize {
+		if valsize > abi.MapMaxElemBytes {
 			valsize = int64(d.arch.PtrSize)
 			indirectVal = true
 		}
@@ -902,28 +896,28 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 		// Construct type to represent an array of BucketSize keys
 		keyname := d.nameFromDIESym(keytype)
 		dwhks := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *dwarf.DWDie) {
-			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*keysize, 0)
+			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.MapBucketCount*keysize, 0)
 			t := keytype
 			if indirectKey {
 				t = d.defptrto(keytype)
 			}
 			d.newrefattr(dwhk, dwarf.DW_AT_type, t)
 			fld := d.newdie(dwhk, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, BucketSize, 0)
+			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.MapBucketCount, 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 		})
 
 		// Construct type to represent an array of BucketSize values
 		valname := d.nameFromDIESym(valtype)
 		dwhvs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *dwarf.DWDie) {
-			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*valsize, 0)
+			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.MapBucketCount*valsize, 0)
 			t := valtype
 			if indirectVal {
 				t = d.defptrto(valtype)
 			}
 			d.newrefattr(dwhv, dwarf.DW_AT_type, t)
 			fld := d.newdie(dwhv, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, BucketSize, 0)
+			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.MapBucketCount, 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 		})
 
@@ -935,20 +929,20 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 
 			fld := d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "keys")
 			d.newrefattr(fld, dwarf.DW_AT_type, dwhks)
-			newmemberoffsetattr(fld, BucketSize)
+			newmemberoffsetattr(fld, abi.MapBucketCount)
 			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "values")
 			d.newrefattr(fld, dwarf.DW_AT_type, dwhvs)
-			newmemberoffsetattr(fld, BucketSize+BucketSize*int32(keysize))
+			newmemberoffsetattr(fld, abi.MapBucketCount+abi.MapBucketCount*int32(keysize))
 			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow")
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.dtolsym(dwhb.Sym)))
-			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
+			newmemberoffsetattr(fld, abi.MapBucketCount+abi.MapBucketCount*(int32(keysize)+int32(valsize)))
 			if d.arch.RegSize > d.arch.PtrSize {
 				fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad")
 				d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
-				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
+				newmemberoffsetattr(fld, abi.MapBucketCount+abi.MapBucketCount*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
 			}
 
-			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(d.arch.RegSize), 0)
+			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.MapBucketCount+abi.MapBucketCount*keysize+abi.MapBucketCount*valsize+int64(d.arch.RegSize), 0)
 		})
 
 		// Construct hash<K,V>
@@ -1760,12 +1754,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// Some types that must exist to define other ones (uintptr in particular
 	// is needed for array size)
-	d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BARE_PTRTYPE, "unsafe.Pointer")
-	die := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
-	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
-	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
-	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
-	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym(d.lookupOrDiag("type:uintptr")))
+	unsafeptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BARE_PTRTYPE, "unsafe.Pointer")
+	newattr(unsafeptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:unsafe.Pointer")))
+	uintptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
+	newattr(uintptrDie, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+	newattr(uintptrDie, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
+	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
+	newattr(uintptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:uintptr")))
 
 	d.uintptrInfoSym = d.mustFind("uintptr")
 
@@ -1791,7 +1786,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		"type:internal/abi.SliceType",
 		"type:internal/abi.StructType",
 		"type:internal/abi.InterfaceType",
-		"type:runtime.itab",
+		"type:internal/abi.ITab",
 		"type:internal/abi.Imethod"} {
 		d.defgotype(d.lookupOrDiag(typ))
 	}

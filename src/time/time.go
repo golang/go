@@ -81,8 +81,9 @@
 //
 // Timer resolution varies depending on the Go runtime, the operating system
 // and the underlying hardware.
-// On Unix, the resolution is approximately 1ms.
-// On Windows, the default resolution is approximately 16ms, but
+// On Unix, the resolution is ~1ms.
+// On Windows version 1803 and newer, the resolution is ~0.5ms.
+// On older Windows versions, the default resolution is ~16ms, but
 // a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
 package time
 

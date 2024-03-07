@@ -14,7 +14,7 @@
 //
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
-// crypto/rand package.
+// [crypto/rand] package.
 package rand
 
 import (
@@ -250,20 +250,16 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 
 // globalRand is the source of random numbers for the top-level
 // convenience functions.
-var globalRand = &Rand{src: &fastSource{}}
+var globalRand = &Rand{src: &runtimeSource{}}
 
-//go:linkname fastrand64
-func fastrand64() uint64
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
 
-// fastSource is a Source that uses the runtime fastrand functions.
-type fastSource struct{}
+// runtimeSource is a Source that uses the runtime fastrand functions.
+type runtimeSource struct{}
 
-func (*fastSource) Int64() int64 {
-	return int64(fastrand64() << 1 >> 1)
-}
-
-func (*fastSource) Uint64() uint64 {
-	return fastrand64()
+func (*runtimeSource) Uint64() uint64 {
+	return runtime_rand()
 }
 
 // Int64 returns a non-negative pseudo-random 63-bit integer as an int64

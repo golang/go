@@ -207,6 +207,22 @@ var reqTests = []reqTest{
 		noError,
 	},
 
+	// Tests chunked body and an invalid Content-Length.
+	{
+		"POST / HTTP/1.1\r\n" +
+			"Host: foo.com\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"Content-Length: notdigits\r\n\r\n" + // raise an error
+			"3\r\nfoo\r\n" +
+			"3\r\nbar\r\n" +
+			"0\r\n" +
+			"\r\n",
+		nil,
+		noBodyStr,
+		noTrailer,
+		`bad Content-Length "notdigits"`,
+	},
+
 	// CONNECT request with domain name:
 	{
 		"CONNECT www.google.com:443 HTTP/1.1\r\n\r\n",

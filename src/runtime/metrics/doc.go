@@ -8,7 +8,7 @@
 /*
 Package metrics provides a stable interface to access implementation-defined
 metrics exported by the Go runtime. This package is similar to existing functions
-like [runtime.ReadMemStats] and [debug.ReadGCStats], but significantly more general.
+like [runtime.ReadMemStats] and [runtime/debug.ReadGCStats], but significantly more general.
 
 The set of metrics defined by this package may evolve as the runtime itself
 evolves, and also enables variation across Go implementations, whose relevant
@@ -28,7 +28,8 @@ encouraged to use build tags, and although metrics may be deprecated and removed
 users should consider this to be an exceptional and rare event, coinciding with a
 very large change in a particular Go implementation.
 
-Each metric key also has a "kind" that describes the format of the metric's value.
+Each metric key also has a "kind" (see [ValueKind]) that describes the format of the
+metric's value.
 In the interest of not breaking users of this package, the "kind" for a given metric
 is guaranteed not to change. If it must change, then a new metric will be introduced
 with a new key and a new "kind."
@@ -314,6 +315,18 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsrsakex=... setting.
 
+	/godebug/non-default-behavior/tlsunsafeekm:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+
+	/godebug/non-default-behavior/winreadlinkvolume:events
+		The number of non-default behaviors executed by the os package
+		due to a non-default GODEBUG=winreadlinkvolume=... setting.
+
+	/godebug/non-default-behavior/winsymlink:events
+		The number of non-default behaviors executed by the os package
+		due to a non-default GODEBUG=winsymlink=... setting.
+
 	/godebug/non-default-behavior/x509sha1:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509sha1=... setting.
@@ -321,6 +334,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/x509usefallbackroots:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509usefallbackroots=...
+		setting.
+
+	/godebug/non-default-behavior/x509usepolicies:events
+		The number of non-default behaviors executed by the crypto/x509
+		package due to a non-default GODEBUG=x509usepolicies=...
 		setting.
 
 	/godebug/non-default-behavior/zipinsecurepath:events
@@ -443,10 +461,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		monotonically.
 
 	/sync/mutex/wait/total:seconds
-		Approximate cumulative time goroutines have spent blocked
-		on a sync.Mutex or sync.RWMutex. This metric is useful for
-		identifying global changes in lock contention. Collect a mutex
-		or block profile using the runtime/pprof package for more
-		detailed contention data.
+		Approximate cumulative time goroutines have spent blocked on a
+		sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric
+		is useful for identifying global changes in lock contention.
+		Collect a mutex or block profile using the runtime/pprof package
+		for more detailed contention data.
 */
 package metrics

@@ -100,10 +100,11 @@ func (d domain) String() string {
 }
 
 type pair struct {
-	v, w *Value // a pair of values, ordered by ID.
+	// a pair of values, ordered by ID.
 	// v can be nil, to mean the zero value.
 	// for booleans the zero value (v == nil) is false.
-	d domain
+	v, w *Value
+	d    domain
 }
 
 // fact is a pair plus a relation for that pair.
@@ -165,7 +166,7 @@ type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
 
-	// order is a couple of partial order sets that record information
+	// order* is a couple of partial order sets that record information
 	// about relations between SSA values in the signed and unsigned
 	// domain.
 	orderS *poset
@@ -877,34 +878,17 @@ func prove(f *Func) {
 			continue
 		}
 
-		header := ind.Block
-		check := header.Controls[0]
-		if check == nil {
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
-		switch check.Op {
-		case OpLeq64, OpLeq32, OpLeq16, OpLeq8,
-			OpLess64, OpLess32, OpLess16, OpLess8:
-		default:
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
-		if !((check.Args[0] == ind && check.Args[1] == end) ||
-			(check.Args[1] == ind && check.Args[0] == end)) {
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
 		if end.Block == ind.Block {
 			// we can't rewrite loops where the condition depends on the loop body
 			// this simple check is forced to work because if this is true a Phi in ind.Block must exists
 			continue
 		}
 
+		check := ind.Block.Controls[0]
 		// invert the check
 		check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
 
-		// invert start and end in the loop
+		// swap start and end in the loop
 		for i, v := range check.Args {
 			if v != end {
 				continue

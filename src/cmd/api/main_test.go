@@ -851,6 +851,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 			buf.WriteByte('.')
 		}
 		buf.WriteString(typ.Obj().Name())
+		if targs := typ.TypeArgs(); targs.Len() > 0 {
+			buf.WriteByte('[')
+			for i := 0; i < targs.Len(); i++ {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				w.writeType(buf, targs.At(i))
+			}
+			buf.WriteByte(']')
+		}
 
 	case *types.TypeParam:
 		// Type parameter names may change, so use a placeholder instead.
@@ -957,16 +967,16 @@ func (w *Walker) emitType(obj *types.TypeName) {
 	if w.isDeprecated(obj) {
 		w.emitf("type %s //deprecated", name)
 	}
+	typ := obj.Type()
+	if obj.IsAlias() {
+		w.emitf("type %s = %s", name, w.typeString(typ))
+		return
+	}
 	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
 		var buf bytes.Buffer
 		buf.WriteString(name)
 		w.writeTypeParams(&buf, tparams, true)
 		name = buf.String()
-	}
-	typ := obj.Type()
-	if obj.IsAlias() {
-		w.emitf("type %s = %s", name, w.typeString(typ))
-		return
 	}
 	switch typ := typ.Underlying().(type) {
 	case *types.Struct:

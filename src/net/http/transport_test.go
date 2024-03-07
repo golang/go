@@ -730,6 +730,56 @@ func testTransportMaxConnsPerHost(t *testing.T, mode testMode) {
 	}
 }
 
+func TestTransportMaxConnsPerHostDialCancellation(t *testing.T) {
+	run(t, testTransportMaxConnsPerHostDialCancellation,
+		testNotParallel, // because test uses SetPendingDialHooks
+		[]testMode{http1Mode, https1Mode, http2Mode},
+	)
+}
+
+func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
+	CondSkipHTTP2(t)
+
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	})
+
+	cst := newClientServerTest(t, mode, h)
+	defer cst.close()
+	ts := cst.ts
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.MaxConnsPerHost = 1
+
+	// This request is cancelled when dial is queued, which preempts dialing.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	SetPendingDialHooks(cancel, nil)
+	defer SetPendingDialHooks(nil, nil)
+
+	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
+	_, err := c.Do(req)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected error %v, got %v", context.Canceled, err)
+	}
+
+	// This request should succeed.
+	SetPendingDialHooks(nil, nil)
+	req, _ = NewRequest("GET", ts.URL, nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	_, err = io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body failed: %v", err)
+	}
+}
+
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	run(t, testTransportRemovesDeadIdleConnections, []testMode{http1Mode})
 }
@@ -1523,6 +1573,24 @@ func TestOnProxyConnectResponse(t *testing.T) {
 
 		c := proxy.Client()
 
+		var (
+			dials  atomic.Int32
+			closes atomic.Int32
+		)
+		c.Transport.(*Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := net.Dial(network, addr)
+			if err != nil {
+				return nil, err
+			}
+			dials.Add(1)
+			return noteCloseConn{
+				Conn: conn,
+				closeFunc: func() {
+					closes.Add(1)
+				},
+			}, nil
+		}
+
 		c.Transport.(*Transport).Proxy = ProxyURL(pu)
 		c.Transport.(*Transport).OnProxyConnectResponse = func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error {
 			if proxyURL.String() != pu.String() {
@@ -1534,10 +1602,23 @@ func TestOnProxyConnectResponse(t *testing.T) {
 			}
 			return tcase.err
 		}
+		wantCloses := int32(0)
 		if _, err := c.Head(ts.URL); err != nil {
+			wantCloses = 1
 			if tcase.err != nil && !strings.Contains(err.Error(), tcase.err.Error()) {
 				t.Errorf("got %v, want %v", err, tcase.err)
 			}
+		} else {
+			if tcase.err != nil {
+				t.Errorf("got %v, want nil", err)
+			}
+		}
+		if got, want := dials.Load(), int32(1); got != want {
+			t.Errorf("got %v dials, want %v", got, want)
+		}
+		// #64804: If OnProxyConnectResponse returns an error, we should close the conn.
+		if got, want := closes.Load(), wantCloses; got != want {
+			t.Errorf("got %v closes, want %v", got, want)
 		}
 	}
 }
@@ -3499,6 +3580,7 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 		c net.Conn
 	}
 	var getOkay bool
+	var copying sync.WaitGroup
 	closeConn := func() {
 		sconn.Lock()
 		defer sconn.Unlock()
@@ -3510,7 +3592,10 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 			}
 		}
 	}
-	defer closeConn()
+	defer func() {
+		closeConn()
+		copying.Wait()
+	}()
 
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method == "GET" {
@@ -3522,7 +3607,12 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 		sconn.c = conn
 		sconn.Unlock()
 		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
-		go io.Copy(io.Discard, conn)
+
+		copying.Add(1)
+		go func() {
+			io.Copy(io.Discard, conn)
+			copying.Done()
+		}()
 	})).ts
 	c := ts.Client()
 

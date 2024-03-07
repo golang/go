@@ -66,7 +66,7 @@ func f32hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
 	default:
 		return memhash(p, h, 4)
 	}
@@ -78,7 +78,7 @@ func f64hash(p unsafe.Pointer, h uintptr) uintptr {
 	case f == 0:
 		return c1 * (c0 ^ h) // +0, -0
 	case f != f:
-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
 	default:
 		return memhash(p, h, 8)
 	}
@@ -100,7 +100,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	if tab == nil {
 		return h
 	}
-	t := tab._type
+	t := tab.Type
 	if t.Equal == nil {
 		// Check hashability here. We could do this check inside
 		// typehash, but we want to report the topmost type in
@@ -223,7 +223,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 			if a.tab == nil {
 				return nil
 			}
-			t = a.tab._type
+			t = a.tab.Type
 			pdata = &a.data
 		}
 
@@ -329,7 +329,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 	if tab == nil {
 		return true
 	}
-	t := tab._type
+	t := tab.Type
 	eq := t.Equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
@@ -390,17 +390,18 @@ func alginit() {
 		initAlgAES()
 		return
 	}
-	getRandomData((*[len(hashkey) * goarch.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
-	hashkey[0] |= 1 // make sure these numbers are odd
-	hashkey[1] |= 1
-	hashkey[2] |= 1
-	hashkey[3] |= 1
+	for i := range hashkey {
+		hashkey[i] = uintptr(rand()) | 1 // make sure these numbers are odd
+	}
 }
 
 func initAlgAES() {
 	useAeshash = true
 	// Initialize with random data so hash collisions will be hard to engineer.
-	getRandomData(aeskeysched[:])
+	key := (*[hashRandomBytes / 8]uint64)(unsafe.Pointer(&aeskeysched))
+	for i := range key {
+		key[i] = bootstrapRand()
+	}
 }
 
 // Note: These routines perform the read with a native endianness.

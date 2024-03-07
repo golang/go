@@ -441,7 +441,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 }
 
 // countAlloc returns the number of objects allocated in span s by
-// scanning the allocation bitmap.
+// scanning the mark bitmap.
 func (s *mspan) countAlloc() int {
 	count := 0
 	bytes := divRoundUp(uintptr(s.nelems), 8)

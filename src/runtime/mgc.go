@@ -378,8 +378,7 @@ type workType struct {
 	// markDoneSema protects transitions from mark to mark termination.
 	markDoneSema uint32
 
-	bgMarkReady note   // signal background mark worker has started
-	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
+	bgMarkDone uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
 
 	// mode is the concurrency mode of the current GC cycle.
@@ -1230,11 +1229,34 @@ func gcBgMarkStartWorkers() {
 	//
 	// Worker Gs don't exit if gomaxprocs is reduced. If it is raised
 	// again, we can reuse the old workers; no need to create new workers.
-	for gcBgMarkWorkerCount < gomaxprocs {
-		go gcBgMarkWorker()
+	if gcBgMarkWorkerCount >= gomaxprocs {
+		return
+	}
 
-		notetsleepg(&work.bgMarkReady, -1)
-		noteclear(&work.bgMarkReady)
+	// Increment mp.locks when allocating. We are called within gcStart,
+	// and thus must not trigger another gcStart via an allocation. gcStart
+	// bails when allocating with locks held, so simulate that for these
+	// allocations.
+	//
+	// TODO(prattmic): cleanup gcStart to use a more explicit "in gcStart"
+	// check for bailing.
+	mp := acquirem()
+	ready := make(chan struct{}, 1)
+	releasem(mp)
+
+	for gcBgMarkWorkerCount < gomaxprocs {
+		mp := acquirem() // See above, we allocate a closure here.
+		go gcBgMarkWorker(ready)
+		releasem(mp)
+
+		// N.B. we intentionally wait on each goroutine individually
+		// rather than starting all in a batch and then waiting once
+		// afterwards. By running one goroutine at a time, we can take
+		// advantage of runnext to bounce back and forth between
+		// workers and this goroutine. In an overloaded application,
+		// this can reduce GC start latency by prioritizing these
+		// goroutines rather than waiting on the end of the run queue.
+		<-ready
 		// The worker is now guaranteed to be added to the pool before
 		// its P's next findRunnableGCWorker.
 
@@ -1273,7 +1295,7 @@ type gcBgMarkWorkerNode struct {
 	m muintptr
 }
 
-func gcBgMarkWorker() {
+func gcBgMarkWorker(ready chan struct{}) {
 	gp := getg()
 
 	// We pass node to a gopark unlock function, so it can't be on
@@ -1286,7 +1308,8 @@ func gcBgMarkWorker() {
 	node.gp.set(gp)
 
 	node.m.set(acquirem())
-	notewakeup(&work.bgMarkReady)
+
+	ready <- struct{}{}
 	// After this point, the background mark worker is generally scheduled
 	// cooperatively by gcController.findRunnableGCWorker. While performing
 	// work on the P, preemption is disabled because we are working on
@@ -1299,10 +1322,10 @@ func gcBgMarkWorker() {
 	// fine; it will eventually gopark again for further scheduling via
 	// findRunnableGCWorker.
 	//
-	// Since we disable preemption before notifying bgMarkReady, we
-	// guarantee that this G will be in the worker pool for the next
-	// findRunnableGCWorker. This isn't strictly necessary, but it reduces
-	// latency between _GCmark starting and the workers starting.
+	// Since we disable preemption before notifying ready, we guarantee that
+	// this G will be in the worker pool for the next findRunnableGCWorker.
+	// This isn't strictly necessary, but it reduces latency between
+	// _GCmark starting and the workers starting.
 
 	for {
 		// Go to sleep until woken by

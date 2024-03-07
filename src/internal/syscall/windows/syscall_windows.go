@@ -10,6 +10,12 @@ import (
 	"unsafe"
 )
 
+// CanUseLongPaths is true when the OS supports opting into
+// proper long path handling without the need for fixups.
+//
+//go:linkname CanUseLongPaths
+var CanUseLongPaths bool
+
 // UTF16PtrToString is like UTF16ToString, but takes *uint16
 // as a parameter instead of []uint16.
 func UTF16PtrToString(p *uint16) string {
@@ -129,11 +135,22 @@ type SecurityAttributes struct {
 }
 
 type FILE_BASIC_INFO struct {
-	CreationTime   syscall.Filetime
-	LastAccessTime syscall.Filetime
-	LastWriteTime  syscall.Filetime
-	ChangedTime    syscall.Filetime
+	CreationTime   int64
+	LastAccessTime int64
+	LastWriteTime  int64
+	ChangedTime    int64
 	FileAttributes uint32
+
+	// Pad out to 8-byte alignment.
+	//
+	// Without this padding, TestChmod fails due to an argument validation error
+	// in SetFileInformationByHandle on windows/386.
+	//
+	// https://learn.microsoft.com/en-us/cpp/build/reference/zp-struct-member-alignment?view=msvc-170
+	// says that “The C/C++ headers in the Windows SDK assume the platform's
+	// default alignment is used.” What we see here is padding rather than
+	// alignment, but maybe it is related.
+	_ uint32
 }
 
 const (
@@ -150,7 +167,7 @@ const (
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
-//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
 //sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
 
@@ -224,6 +241,7 @@ type WSAMsg struct {
 }
 
 //sys	WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = ws2_32.WSASocketW
+//sys	WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
 
 func loadWSASendRecvMsg() error {
 	sendRecvMsgFunc.once.Do(func() {

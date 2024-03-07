@@ -15,15 +15,33 @@ import (
 	"sync/atomic"
 	"testing"
 	. "time"
+	_ "unsafe" // for go:linkname
 )
 
+// haveHighResSleep is true if the system supports at least ~1ms sleeps.
+//
+//go:linkname haveHighResSleep runtime.haveHighResSleep
+var haveHighResSleep bool
+
+// adjustDelay returns an adjusted delay based on the system sleep resolution.
 // Go runtime uses different Windows timers for time.Now and sleeping.
 // These can tick at different frequencies and can arrive out of sync.
 // The effect can be seen, for example, as time.Sleep(100ms) is actually
 // shorter then 100ms when measured as difference between time.Now before and
 // after time.Sleep call. This was observed on Windows XP SP3 (windows/386).
-// windowsInaccuracy is to ignore such errors.
-const windowsInaccuracy = 17 * Millisecond
+func adjustDelay(t *testing.T, delay Duration) Duration {
+	if haveHighResSleep {
+		return delay
+	}
+	t.Log("adjusting delay for low resolution sleep")
+	switch runtime.GOOS {
+	case "windows":
+		return delay - 17*Millisecond
+	default:
+		t.Fatal("adjustDelay unimplemented on " + runtime.GOOS)
+		return 0
+	}
+}
 
 func TestSleep(t *testing.T) {
 	const delay = 100 * Millisecond
@@ -33,10 +51,7 @@ func TestSleep(t *testing.T) {
 	}()
 	start := Now()
 	Sleep(delay)
-	delayadj := delay
-	if runtime.GOOS == "windows" {
-		delayadj -= windowsInaccuracy
-	}
+	delayadj := adjustDelay(t, delay)
 	duration := Now().Sub(start)
 	if duration < delayadj {
 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
@@ -81,6 +96,45 @@ func TestAfterStress(t *testing.T) {
 	}
 	ticker.Stop()
 	stop.Store(true)
+}
+
+func TestAfterFuncStarvation(t *testing.T) {
+	// Start two goroutines ping-ponging on a channel send.
+	// At any given time, at least one of these goroutines is runnable:
+	// if the channel buffer is full, the receiver is runnable,
+	// and if it is not full, the sender is runnable.
+	//
+	// In addition, the AfterFunc callback should become runnable after
+	// the indicated delay.
+	//
+	// Even if GOMAXPROCS=1, we expect the runtime to eventually schedule
+	// the AfterFunc goroutine instead of the runnable channel goroutine.
+	// However, in https://go.dev/issue/65178 this was observed to live-lock
+	// on wasip1/wasm and js/wasm after <10000 runs.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	var (
+		wg   sync.WaitGroup
+		stop atomic.Bool
+		c    = make(chan bool, 1)
+	)
+
+	wg.Add(2)
+	go func() {
+		for !stop.Load() {
+			c <- true
+		}
+		close(c)
+		wg.Done()
+	}()
+	go func() {
+		for range c {
+		}
+		wg.Done()
+	}()
+
+	AfterFunc(1*Microsecond, func() { stop.Store(true) })
+	wg.Wait()
 }
 
 func benchmark(b *testing.B, bench func(n int)) {
@@ -203,10 +257,7 @@ func TestAfter(t *testing.T) {
 	const delay = 100 * Millisecond
 	start := Now()
 	end := <-After(delay)
-	delayadj := delay
-	if runtime.GOOS == "windows" {
-		delayadj -= windowsInaccuracy
-	}
+	delayadj := adjustDelay(t, delay)
 	if duration := Now().Sub(start); duration < delayadj {
 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
 	}

@@ -133,7 +133,7 @@ const (
 
 var traceGoStopReasonStrings = [...]string{
 	traceGoStopGeneric:   "unspecified",
-	traceGoStopGoSched:   "runtime.GoSched",
+	traceGoStopGoSched:   "runtime.Gosched",
 	traceGoStopPreempted: "preempted",
 }
 
@@ -192,7 +192,12 @@ func traceAcquireEnabled() traceLocker {
 	// Prevent preemption.
 	mp := acquirem()
 
-	// Acquire the trace seqlock.
+	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
+	// until all Ms are observed to be outside of their seqlock critical section.
+	//
+	// Note: The seqlock is mutated here and also in traceCPUSample. If you update
+	// usage of the seqlock here, make sure to also look at what traceCPUSample is
+	// doing.
 	seq := mp.trace.seqlock.Add(1)
 	if debugTraceReentrancy && seq%2 != 1 {
 		throw("bad use of trace.seqlock or tracer is reentrant")
@@ -493,10 +498,10 @@ func (tl traceLocker) GoSysExit(lostP bool) {
 
 // ProcSteal indicates that our current M stole a P from another M.
 //
-// forMe indicates that the caller is stealing pp to wire it up to itself.
+// inSyscall indicates that we're stealing the P from a syscall context.
 //
 // The caller must have ownership of pp.
-func (tl traceLocker) ProcSteal(pp *p, forMe bool) {
+func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
 	// Grab the M ID we stole from.
 	mStolenFrom := pp.trace.mSyscallID
 	pp.trace.mSyscallID = -1
@@ -506,17 +511,20 @@ func (tl traceLocker) ProcSteal(pp *p, forMe bool) {
 	// the P just to get its attention (e.g. STW or sysmon retake) or we're trying to steal a P for
 	// ourselves specifically to keep running. The two contexts look different, but can be summarized
 	// fairly succinctly. In the former, we're a regular running goroutine and proc, if we have either.
-	// In the latter, we're a goroutine in a syscall,
+	// In the latter, we're a goroutine in a syscall.
 	goStatus := traceGoRunning
 	procStatus := traceProcRunning
-	if forMe {
+	if inSyscall {
 		goStatus = traceGoSyscall
 		procStatus = traceProcSyscallAbandoned
 	}
 	w := tl.eventWriter(goStatus, procStatus)
 
-	// Emit the status of the P we're stealing. We may have *just* done this, but we may not have,
-	// even if forMe is true, depending on whether we wired the P to ourselves already.
+	// Emit the status of the P we're stealing. We may have *just* done this when creating the event
+	// writer but it's not guaranteed, even if inSyscall is true. Although it might seem like from a
+	// syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
+	// it wouldn't be visible to eventWriter) or we may not even intend to wire it up to ourselves
+	// at all (e.g. entersyscall_gcwait).
 	if !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
 		// Careful: don't use the event writer. We never want status or in-progress events
 		// to trigger more in-progress events.

@@ -566,7 +566,7 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 	if errno == EISDIR && oflags == 0 && fdflags == 0 && ((rights & writeRights) == 0) {
 		// wasmtime and wasmedge will error if attempting to open a directory
 		// because we are asking for too many rights. However, we cannot
-		// determine ahread of time if the path we are about to open is a
+		// determine ahead of time if the path we are about to open is a
 		// directory, so instead we fallback to a second call to path_open with
 		// a more limited set of rights.
 		//

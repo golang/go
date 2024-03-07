@@ -304,7 +304,7 @@ func cmdExit(args ...string) {
 }
 
 func cmdDescribeFiles(args ...string) {
-	f := os.NewFile(3, fmt.Sprintf("fd3"))
+	f := os.NewFile(3, "fd3")
 	ln, err := net.FileListener(f)
 	if err == nil {
 		fmt.Printf("fd3: listener %s\n", ln.Addr())
@@ -1659,8 +1659,8 @@ func TestCancelErrors(t *testing.T) {
 		// This test should kill the child process after 1ms,
 		// To maximize compatibility with existing uses of exec.CommandContext, the
 		// resulting error should be an exec.ExitError without additional wrapping.
-		if ee, ok := err.(*exec.ExitError); !ok {
-			t.Errorf("Wait error = %v; want %T", err, *ee)
+		if _, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Wait error = %v; want *exec.ExitError", err)
 		}
 	})
 

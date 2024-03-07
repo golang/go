@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 
@@ -722,7 +723,7 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
 	typeAssertGen++
 	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
 	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
-	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
+	c.Field("Inter").WritePtr(reflectdata.TypeLinksym(target))
 	c.Field("CanFail").WriteBool(canFail)
 	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
 	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
@@ -825,7 +826,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > zeroValSize:
+	case t.Elem().Size() > abi.ZeroValSize:
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:

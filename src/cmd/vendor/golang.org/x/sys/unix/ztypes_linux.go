@@ -174,7 +174,8 @@ type FscryptPolicyV2 struct {
 	Contents_encryption_mode  uint8
 	Filenames_encryption_mode uint8
 	Flags                     uint8
-	_                         [4]uint8
+	Log2_data_unit_size       uint8
+	_                         [3]uint8
 	Master_key_identifier     [16]uint8
 }
 
@@ -455,60 +456,63 @@ type Ucred struct {
 }
 
 type TCPInfo struct {
-	State           uint8
-	Ca_state        uint8
-	Retransmits     uint8
-	Probes          uint8
-	Backoff         uint8
-	Options         uint8
-	Rto             uint32
-	Ato             uint32
-	Snd_mss         uint32
-	Rcv_mss         uint32
-	Unacked         uint32
-	Sacked          uint32
-	Lost            uint32
-	Retrans         uint32
-	Fackets         uint32
-	Last_data_sent  uint32
-	Last_ack_sent   uint32
-	Last_data_recv  uint32
-	Last_ack_recv   uint32
-	Pmtu            uint32
-	Rcv_ssthresh    uint32
-	Rtt             uint32
-	Rttvar          uint32
-	Snd_ssthresh    uint32
-	Snd_cwnd        uint32
-	Advmss          uint32
-	Reordering      uint32
-	Rcv_rtt         uint32
-	Rcv_space       uint32
-	Total_retrans   uint32
-	Pacing_rate     uint64
-	Max_pacing_rate uint64
-	Bytes_acked     uint64
-	Bytes_received  uint64
-	Segs_out        uint32
-	Segs_in         uint32
-	Notsent_bytes   uint32
-	Min_rtt         uint32
-	Data_segs_in    uint32
-	Data_segs_out   uint32
-	Delivery_rate   uint64
-	Busy_time       uint64
-	Rwnd_limited    uint64
-	Sndbuf_limited  uint64
-	Delivered       uint32
-	Delivered_ce    uint32
-	Bytes_sent      uint64
-	Bytes_retrans   uint64
-	Dsack_dups      uint32
-	Reord_seen      uint32
-	Rcv_ooopack     uint32
-	Snd_wnd         uint32
-	Rcv_wnd         uint32
-	Rehash          uint32
+	State                uint8
+	Ca_state             uint8
+	Retransmits          uint8
+	Probes               uint8
+	Backoff              uint8
+	Options              uint8
+	Rto                  uint32
+	Ato                  uint32
+	Snd_mss              uint32
+	Rcv_mss              uint32
+	Unacked              uint32
+	Sacked               uint32
+	Lost                 uint32
+	Retrans              uint32
+	Fackets              uint32
+	Last_data_sent       uint32
+	Last_ack_sent        uint32
+	Last_data_recv       uint32
+	Last_ack_recv        uint32
+	Pmtu                 uint32
+	Rcv_ssthresh         uint32
+	Rtt                  uint32
+	Rttvar               uint32
+	Snd_ssthresh         uint32
+	Snd_cwnd             uint32
+	Advmss               uint32
+	Reordering           uint32
+	Rcv_rtt              uint32
+	Rcv_space            uint32
+	Total_retrans        uint32
+	Pacing_rate          uint64
+	Max_pacing_rate      uint64
+	Bytes_acked          uint64
+	Bytes_received       uint64
+	Segs_out             uint32
+	Segs_in              uint32
+	Notsent_bytes        uint32
+	Min_rtt              uint32
+	Data_segs_in         uint32
+	Data_segs_out        uint32
+	Delivery_rate        uint64
+	Busy_time            uint64
+	Rwnd_limited         uint64
+	Sndbuf_limited       uint64
+	Delivered            uint32
+	Delivered_ce         uint32
+	Bytes_sent           uint64
+	Bytes_retrans        uint64
+	Dsack_dups           uint32
+	Reord_seen           uint32
+	Rcv_ooopack          uint32
+	Snd_wnd              uint32
+	Rcv_wnd              uint32
+	Rehash               uint32
+	Total_rto            uint16
+	Total_rto_recoveries uint16
+	Total_rto_time       uint32
 }
 
 type CanFilter struct {
@@ -551,7 +555,7 @@ const (
 	SizeofIPv6MTUInfo       = 0x20
 	SizeofICMPv6Filter      = 0x20
 	SizeofUcred             = 0xc
-	SizeofTCPInfo           = 0xf0
+	SizeofTCPInfo           = 0xf8
 	SizeofCanFilter         = 0x8
 	SizeofTCPRepairOpt      = 0x8
 )
@@ -832,6 +836,15 @@ const (
 	FSPICK_EMPTY_PATH       = 0x8
 
 	FSMOUNT_CLOEXEC = 0x1
+
+	FSCONFIG_SET_FLAG        = 0x0
+	FSCONFIG_SET_STRING      = 0x1
+	FSCONFIG_SET_BINARY      = 0x2
+	FSCONFIG_SET_PATH        = 0x3
+	FSCONFIG_SET_PATH_EMPTY  = 0x4
+	FSCONFIG_SET_FD          = 0x5
+	FSCONFIG_CMD_CREATE      = 0x6
+	FSCONFIG_CMD_RECONFIGURE = 0x7
 )
 
 type OpenHow struct {
@@ -1546,6 +1559,7 @@ const (
 	IFLA_DEVLINK_PORT                          = 0x3e
 	IFLA_GSO_IPV4_MAX_SIZE                     = 0x3f
 	IFLA_GRO_IPV4_MAX_SIZE                     = 0x40
+	IFLA_DPLL_PIN                              = 0x41
 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
@@ -1561,6 +1575,7 @@ const (
 	IFLA_INET6_ICMP6STATS                      = 0x6
 	IFLA_INET6_TOKEN                           = 0x7
 	IFLA_INET6_ADDR_GEN_MODE                   = 0x8
+	IFLA_INET6_RA_MTU                          = 0x9
 	IFLA_BR_UNSPEC                             = 0x0
 	IFLA_BR_FORWARD_DELAY                      = 0x1
 	IFLA_BR_HELLO_TIME                         = 0x2
@@ -1608,6 +1623,9 @@ const (
 	IFLA_BR_MCAST_MLD_VERSION                  = 0x2c
 	IFLA_BR_VLAN_STATS_PER_PORT                = 0x2d
 	IFLA_BR_MULTI_BOOLOPT                      = 0x2e
+	IFLA_BR_MCAST_QUERIER_STATE                = 0x2f
+	IFLA_BR_FDB_N_LEARNED                      = 0x30
+	IFLA_BR_FDB_MAX_LEARNED                    = 0x31
 	IFLA_BRPORT_UNSPEC                         = 0x0
 	IFLA_BRPORT_STATE                          = 0x1
 	IFLA_BRPORT_PRIORITY                       = 0x2
@@ -1645,6 +1663,14 @@ const (
 	IFLA_BRPORT_BACKUP_PORT                    = 0x22
 	IFLA_BRPORT_MRP_RING_OPEN                  = 0x23
 	IFLA_BRPORT_MRP_IN_OPEN                    = 0x24
+	IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT          = 0x25
+	IFLA_BRPORT_MCAST_EHT_HOSTS_CNT            = 0x26
+	IFLA_BRPORT_LOCKED                         = 0x27
+	IFLA_BRPORT_MAB                            = 0x28
+	IFLA_BRPORT_MCAST_N_GROUPS                 = 0x29
+	IFLA_BRPORT_MCAST_MAX_GROUPS               = 0x2a
+	IFLA_BRPORT_NEIGH_VLAN_SUPPRESS            = 0x2b
+	IFLA_BRPORT_BACKUP_NHID                    = 0x2c
 	IFLA_INFO_UNSPEC                           = 0x0
 	IFLA_INFO_KIND                             = 0x1
 	IFLA_INFO_DATA                             = 0x2
@@ -1666,6 +1692,9 @@ const (
 	IFLA_MACVLAN_MACADDR                       = 0x4
 	IFLA_MACVLAN_MACADDR_DATA                  = 0x5
 	IFLA_MACVLAN_MACADDR_COUNT                 = 0x6
+	IFLA_MACVLAN_BC_QUEUE_LEN                  = 0x7
+	IFLA_MACVLAN_BC_QUEUE_LEN_USED             = 0x8
+	IFLA_MACVLAN_BC_CUTOFF                     = 0x9
 	IFLA_VRF_UNSPEC                            = 0x0
 	IFLA_VRF_TABLE                             = 0x1
 	IFLA_VRF_PORT_UNSPEC                       = 0x0
@@ -1689,9 +1718,22 @@ const (
 	IFLA_XFRM_UNSPEC                           = 0x0
 	IFLA_XFRM_LINK                             = 0x1
 	IFLA_XFRM_IF_ID                            = 0x2
+	IFLA_XFRM_COLLECT_METADATA                 = 0x3
 	IFLA_IPVLAN_UNSPEC                         = 0x0
 	IFLA_IPVLAN_MODE                           = 0x1
 	IFLA_IPVLAN_FLAGS                          = 0x2
+	NETKIT_NEXT                                = -0x1
+	NETKIT_PASS                                = 0x0
+	NETKIT_DROP                                = 0x2
+	NETKIT_REDIRECT                            = 0x7
+	NETKIT_L2                                  = 0x0
+	NETKIT_L3                                  = 0x1
+	IFLA_NETKIT_UNSPEC                         = 0x0
+	IFLA_NETKIT_PEER_INFO                      = 0x1
+	IFLA_NETKIT_PRIMARY                        = 0x2
+	IFLA_NETKIT_POLICY                         = 0x3
+	IFLA_NETKIT_PEER_POLICY                    = 0x4
+	IFLA_NETKIT_MODE                           = 0x5
 	IFLA_VXLAN_UNSPEC                          = 0x0
 	IFLA_VXLAN_ID                              = 0x1
 	IFLA_VXLAN_GROUP                           = 0x2
@@ -1722,6 +1764,8 @@ const (
 	IFLA_VXLAN_GPE                             = 0x1b
 	IFLA_VXLAN_TTL_INHERIT                     = 0x1c
 	IFLA_VXLAN_DF                              = 0x1d
+	IFLA_VXLAN_VNIFILTER                       = 0x1e
+	IFLA_VXLAN_LOCALBYPASS                     = 0x1f
 	IFLA_GENEVE_UNSPEC                         = 0x0
 	IFLA_GENEVE_ID                             = 0x1
 	IFLA_GENEVE_REMOTE                         = 0x2
@@ -1736,6 +1780,7 @@ const (
 	IFLA_GENEVE_LABEL                          = 0xb
 	IFLA_GENEVE_TTL_INHERIT                    = 0xc
 	IFLA_GENEVE_DF                             = 0xd
+	IFLA_GENEVE_INNER_PROTO_INHERIT            = 0xe
 	IFLA_BAREUDP_UNSPEC                        = 0x0
 	IFLA_BAREUDP_PORT                          = 0x1
 	IFLA_BAREUDP_ETHERTYPE                     = 0x2
@@ -1748,6 +1793,8 @@ const (
 	IFLA_GTP_FD1                               = 0x2
 	IFLA_GTP_PDP_HASHSIZE                      = 0x3
 	IFLA_GTP_ROLE                              = 0x4
+	IFLA_GTP_CREATE_SOCKETS                    = 0x5
+	IFLA_GTP_RESTART_COUNT                     = 0x6
 	IFLA_BOND_UNSPEC                           = 0x0
 	IFLA_BOND_MODE                             = 0x1
 	IFLA_BOND_ACTIVE_SLAVE                     = 0x2
@@ -1777,6 +1824,9 @@ const (
 	IFLA_BOND_AD_ACTOR_SYSTEM                  = 0x1a
 	IFLA_BOND_TLB_DYNAMIC_LB                   = 0x1b
 	IFLA_BOND_PEER_NOTIF_DELAY                 = 0x1c
+	IFLA_BOND_AD_LACP_ACTIVE                   = 0x1d
+	IFLA_BOND_MISSED_MAX                       = 0x1e
+	IFLA_BOND_NS_IP6_TARGET                    = 0x1f
 	IFLA_BOND_AD_INFO_UNSPEC                   = 0x0
 	IFLA_BOND_AD_INFO_AGGREGATOR               = 0x1
 	IFLA_BOND_AD_INFO_NUM_PORTS                = 0x2
@@ -1792,6 +1842,7 @@ const (
 	IFLA_BOND_SLAVE_AD_AGGREGATOR_ID           = 0x6
 	IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE   = 0x7
 	IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE = 0x8
+	IFLA_BOND_SLAVE_PRIO                       = 0x9
 	IFLA_VF_INFO_UNSPEC                        = 0x0
 	IFLA_VF_INFO                               = 0x1
 	IFLA_VF_UNSPEC                             = 0x0
@@ -1850,8 +1901,16 @@ const (
 	IFLA_STATS_LINK_XSTATS_SLAVE               = 0x3
 	IFLA_STATS_LINK_OFFLOAD_XSTATS             = 0x4
 	IFLA_STATS_AF_SPEC                         = 0x5
+	IFLA_STATS_GETSET_UNSPEC                   = 0x0
+	IFLA_STATS_GET_FILTERS                     = 0x1
+	IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS     = 0x2
 	IFLA_OFFLOAD_XSTATS_UNSPEC                 = 0x0
 	IFLA_OFFLOAD_XSTATS_CPU_HIT                = 0x1
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO              = 0x2
+	IFLA_OFFLOAD_XSTATS_L3_STATS               = 0x3
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC       = 0x0
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST      = 0x1
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED         = 0x2
 	IFLA_XDP_UNSPEC                            = 0x0
 	IFLA_XDP_FD                                = 0x1
 	IFLA_XDP_ATTACHED                          = 0x2
@@ -1881,6 +1940,11 @@ const (
 	IFLA_RMNET_UNSPEC                          = 0x0
 	IFLA_RMNET_MUX_ID                          = 0x1
 	IFLA_RMNET_FLAGS                           = 0x2
+	IFLA_MCTP_UNSPEC                           = 0x0
+	IFLA_MCTP_NET                              = 0x1
+	IFLA_DSA_UNSPEC                            = 0x0
+	IFLA_DSA_CONDUIT                           = 0x1
+	IFLA_DSA_MASTER                            = 0x1
 )
 
 const (
@@ -2671,6 +2735,7 @@ const (
 	BPF_PROG_TYPE_LSM                          = 0x1d
 	BPF_PROG_TYPE_SK_LOOKUP                    = 0x1e
 	BPF_PROG_TYPE_SYSCALL                      = 0x1f
+	BPF_PROG_TYPE_NETFILTER                    = 0x20
 	BPF_CGROUP_INET_INGRESS                    = 0x0
 	BPF_CGROUP_INET_EGRESS                     = 0x1
 	BPF_CGROUP_INET_SOCK_CREATE                = 0x2
@@ -2715,6 +2780,11 @@ const (
 	BPF_PERF_EVENT                             = 0x29
 	BPF_TRACE_KPROBE_MULTI                     = 0x2a
 	BPF_LSM_CGROUP                             = 0x2b
+	BPF_STRUCT_OPS                             = 0x2c
+	BPF_NETFILTER                              = 0x2d
+	BPF_TCX_INGRESS                            = 0x2e
+	BPF_TCX_EGRESS                             = 0x2f
+	BPF_TRACE_UPROBE_MULTI                     = 0x30
 	BPF_LINK_TYPE_UNSPEC                       = 0x0
 	BPF_LINK_TYPE_RAW_TRACEPOINT               = 0x1
 	BPF_LINK_TYPE_TRACING                      = 0x2
@@ -2725,6 +2795,18 @@ const (
 	BPF_LINK_TYPE_PERF_EVENT                   = 0x7
 	BPF_LINK_TYPE_KPROBE_MULTI                 = 0x8
 	BPF_LINK_TYPE_STRUCT_OPS                   = 0x9
+	BPF_LINK_TYPE_NETFILTER                    = 0xa
+	BPF_LINK_TYPE_TCX                          = 0xb
+	BPF_LINK_TYPE_UPROBE_MULTI                 = 0xc
+	BPF_PERF_EVENT_UNSPEC                      = 0x0
+	BPF_PERF_EVENT_UPROBE                      = 0x1
+	BPF_PERF_EVENT_URETPROBE                   = 0x2
+	BPF_PERF_EVENT_KPROBE                      = 0x3
+	BPF_PERF_EVENT_KRETPROBE                   = 0x4
+	BPF_PERF_EVENT_TRACEPOINT                  = 0x5
+	BPF_PERF_EVENT_EVENT                       = 0x6
+	BPF_F_KPROBE_MULTI_RETURN                  = 0x1
+	BPF_F_UPROBE_MULTI_RETURN                  = 0x1
 	BPF_ANY                                    = 0x0
 	BPF_NOEXIST                                = 0x1
 	BPF_EXIST                                  = 0x2
@@ -2742,6 +2824,8 @@ const (
 	BPF_F_MMAPABLE                             = 0x400
 	BPF_F_PRESERVE_ELEMS                       = 0x800
 	BPF_F_INNER_MAP                            = 0x1000
+	BPF_F_LINK                                 = 0x2000
+	BPF_F_PATH_FD                              = 0x4000
 	BPF_STATS_RUN_TIME                         = 0x0
 	BPF_STACK_BUILD_ID_EMPTY                   = 0x0
 	BPF_STACK_BUILD_ID_VALID                   = 0x1
@@ -2762,6 +2846,7 @@ const (
 	BPF_F_ZERO_CSUM_TX                         = 0x2
 	BPF_F_DONT_FRAGMENT                        = 0x4
 	BPF_F_SEQ_NUMBER                           = 0x8
+	BPF_F_NO_TUNNEL_KEY                        = 0x10
 	BPF_F_TUNINFO_FLAGS                        = 0x10
 	BPF_F_INDEX_MASK                           = 0xffffffff
 	BPF_F_CURRENT_CPU                          = 0xffffffff
@@ -2778,6 +2863,8 @@ const (
 	BPF_F_ADJ_ROOM_ENCAP_L4_UDP                = 0x10
 	BPF_F_ADJ_ROOM_NO_CSUM_RESET               = 0x20
 	BPF_F_ADJ_ROOM_ENCAP_L2_ETH                = 0x40
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV4               = 0x80
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV6               = 0x100
 	BPF_ADJ_ROOM_ENCAP_L2_MASK                 = 0xff
 	BPF_ADJ_ROOM_ENCAP_L2_SHIFT                = 0x38
 	BPF_F_SYSCTL_BASE_NAME                     = 0x1
@@ -2866,6 +2953,8 @@ const (
 	BPF_DEVCG_DEV_CHAR                         = 0x2
 	BPF_FIB_LOOKUP_DIRECT                      = 0x1
 	BPF_FIB_LOOKUP_OUTPUT                      = 0x2
+	BPF_FIB_LOOKUP_SKIP_NEIGH                  = 0x4
+	BPF_FIB_LOOKUP_TBID                        = 0x8
 	BPF_FIB_LKUP_RET_SUCCESS                   = 0x0
 	BPF_FIB_LKUP_RET_BLACKHOLE                 = 0x1
 	BPF_FIB_LKUP_RET_UNREACHABLE               = 0x2
@@ -2901,6 +2990,7 @@ const (
 	BPF_CORE_ENUMVAL_EXISTS                    = 0xa
 	BPF_CORE_ENUMVAL_VALUE                     = 0xb
 	BPF_CORE_TYPE_MATCHES                      = 0xc
+	BPF_F_TIMER_ABS                            = 0x1
 )
 
 const (
@@ -2978,6 +3068,12 @@ type LoopInfo64 struct {
 	Crypt_name       [64]uint8
 	Encrypt_key      [32]uint8
 	Init             [2]uint64
+}
+type LoopConfig struct {
+	Fd   uint32
+	Size uint32
+	Info LoopInfo64
+	_    [8]uint64
 }
 
 type TIPCSocketAddr struct {
@@ -3367,7 +3463,7 @@ const (
 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
 	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x4
+	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x5
 )
 
 type FsverityDigest struct {
@@ -4151,7 +4247,8 @@ const (
 )
 
 type LandlockRulesetAttr struct {
-	Access_fs uint64
+	Access_fs  uint64
+	Access_net uint64
 }
 
 type LandlockPathBeneathAttr struct {
@@ -5102,7 +5199,7 @@ const (
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
-	NL80211_FREQUENCY_ATTR_MAX                              = 0x1b
+	NL80211_FREQUENCY_ATTR_MAX                              = 0x1c
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
@@ -5515,7 +5612,7 @@ const (
 	NL80211_REGDOM_TYPE_CUSTOM_WORLD                        = 0x2
 	NL80211_REGDOM_TYPE_INTERSECTION                        = 0x3
 	NL80211_REGDOM_TYPE_WORLD                               = 0x1
-	NL80211_REG_RULE_ATTR_MAX                               = 0x7
+	NL80211_REG_RULE_ATTR_MAX                               = 0x8
 	NL80211_REKEY_DATA_AKM                                  = 0x4
 	NL80211_REKEY_DATA_KCK                                  = 0x2
 	NL80211_REKEY_DATA_KEK                                  = 0x1

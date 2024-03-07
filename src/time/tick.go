@@ -55,7 +55,7 @@ func (t *Ticker) Reset(d Duration) {
 	if t.r.f == nil {
 		panic("time: Reset called on uninitialized Ticker")
 	}
-	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
+	modTimer(&t.r, when(d), int64(d))
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking

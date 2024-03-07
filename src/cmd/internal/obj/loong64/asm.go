@@ -349,6 +349,8 @@ var optab = []Optab{
 	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 40, 4, 0, 0},
 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
+	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
+
 	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 
@@ -676,6 +678,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SOREG
 			}
 			return C_LOREG
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 		}
 
 		return C_GOK
@@ -1602,7 +1607,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 
 		o2 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 		rel2 := obj.Addrel(c.cursym)
@@ -1610,7 +1615,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Siz = 4
 		rel2.Sym = p.To.Sym
 		rel2.Add = p.To.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 51: // mov addr,r ==> pcalau12i + lw
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
@@ -1619,14 +1624,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 52: // mov $lext, r
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1637,14 +1642,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 		o2 = OP_12IRR(c.opirr(add), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 53: // mov r, tlsvar ==>  lu12i.w + ori + add r2, regtmp + sw o(regtmp)
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1655,14 +1660,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.To.Sym
 		rel2.Add = p.To.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
@@ -1675,14 +1680,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
@@ -1695,14 +1700,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
@@ -1712,7 +1717,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = 0x0
-		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		rel.Type = objabi.R_LOONG64_TLS_IE_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
@@ -1730,7 +1735,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = 0x0
-		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		rel.Type = objabi.R_LOONG64_TLS_IE_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
@@ -1776,6 +1781,22 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
 		a := OP_TEN(8, 1334)
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_LOONG64_GOT_HI
+		rel.Add = 0x0
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Type = objabi.R_LOONG64_GOT_LO
+		rel2.Add = 0x0
 	}
 
 	out[0] = o1

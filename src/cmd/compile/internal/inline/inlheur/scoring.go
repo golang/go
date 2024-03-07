@@ -182,13 +182,14 @@ func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
 	return 0
 }
 
-// computeCallSiteScore takes a given call site whose ir node is 'call' and
-// callee function is 'callee' and with previously computed call site
-// properties 'csflags', then computes a score for the callsite that
-// combines the size cost of the callee with heuristics based on
-// previously parameter and function properties, then stores the score
-// and the adjustment mask in the appropriate fields in 'cs'
-func (cs *CallSite) computeCallSiteScore(calleeProps *FuncProps) {
+// computeCallSiteScore takes a given call site whose ir node is
+// 'call' and callee function is 'callee' and with previously computed
+// call site properties 'csflags', then computes a score for the
+// callsite that combines the size cost of the callee with heuristics
+// based on previously computed argument and function properties,
+// then stores the score and the adjustment mask in the appropriate
+// fields in 'cs'
+func (cs *CallSite) computeCallSiteScore(csa *callSiteAnalyzer, calleeProps *FuncProps) {
 	callee := cs.Callee
 	csflags := cs.Flags
 	call := cs.Call
@@ -353,7 +354,7 @@ func setupFlagToAdjMaps() {
 	}
 }
 
-// largestScoreAdjustment tries to estimate the largest possible
+// LargestNegativeScoreAdjustment tries to estimate the largest possible
 // negative score adjustment that could be applied to a call of the
 // function with the specified props. Example:
 //
@@ -372,7 +373,7 @@ func setupFlagToAdjMaps() {
 // given call _could_ be rescored down as much as -35 points-- thus if
 // the size of "bar" is 100 (for example) then there is at least a
 // chance that scoring will enable inlining.
-func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
+func LargestNegativeScoreAdjustment(fn *ir.Func, props *FuncProps) int {
 	if resultFlagToPositiveAdj == nil {
 		setupFlagToAdjMaps()
 	}
@@ -395,6 +396,14 @@ func largestScoreAdjustment(fn *ir.Func, props *FuncProps) int {
 	}
 
 	return score
+}
+
+// LargestPositiveScoreAdjustment tries to estimate the largest possible
+// positive score adjustment that could be applied to a given callsite.
+// At the moment we don't have very many positive score adjustments, so
+// this is just hard-coded, not table-driven.
+func LargestPositiveScoreAdjustment(fn *ir.Func) int {
+	return adjValues[panicPathAdj] + adjValues[initFuncAdj]
 }
 
 // callSiteTab contains entries for each call in the function
@@ -438,7 +447,12 @@ type scoreCallsCacheType struct {
 // after foo has been analyzed, but it's conceivable that CanInline
 // might visit bar before foo for this SCC.
 func ScoreCalls(fn *ir.Func) {
+	if len(fn.Body) == 0 {
+		return
+	}
 	enableDebugTraceIfEnv()
+
+	nameFinder := newNameFinder(fn)
 
 	if debugTrace&debugTraceScoring != 0 {
 		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
@@ -461,21 +475,25 @@ func ScoreCalls(fn *ir.Func) {
 			fmt.Fprintf(os.Stderr, "=-= building cstab for non-inl func %s\n",
 				ir.FuncName(fn))
 		}
-		cstab = computeCallSiteTable(fn, fn.Body, scoreCallsCache.tab, nil, 0)
+		cstab = computeCallSiteTable(fn, fn.Body, scoreCallsCache.tab, nil, 0,
+			nameFinder)
 	}
 
+	csa := makeCallSiteAnalyzer(fn)
 	const doCallResults = true
-	scoreCallsRegion(fn, fn.Body, cstab, doCallResults, nil)
+	csa.scoreCallsRegion(fn, fn.Body, cstab, doCallResults, nil)
+
+	disableDebugTrace()
 }
 
 // scoreCallsRegion assigns numeric scores to each of the callsites in
 // region 'region' within function 'fn'. This can be called on
 // an entire function, or with 'region' set to a chunk of
 // code corresponding to an inlined call.
-func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallResults bool, ic *ir.InlinedCallExpr) {
+func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallResults bool, ic *ir.InlinedCallExpr) {
 	if debugTrace&debugTraceScoring != 0 {
-		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s)\n",
-			ir.FuncName(fn), region[0].Op().String())
+		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s) len(cstab)=%d\n",
+			ir.FuncName(fn), region[0].Op().String(), len(cstab))
 	}
 
 	// Sort callsites to avoid any surprises with non deterministic
@@ -510,13 +528,13 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallRes
 				continue
 			}
 		}
-		cs.computeCallSiteScore(cprops)
+		cs.computeCallSiteScore(csa, cprops)
 
 		if doCallResults {
 			if debugTrace&debugTraceScoring != 0 {
 				fmt.Fprintf(os.Stderr, "=-= examineCallResults at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
 			}
-			resultNameTab = examineCallResults(cs, resultNameTab)
+			resultNameTab = csa.examineCallResults(cs, resultNameTab)
 		}
 
 		if debugTrace&debugTraceScoring != 0 {
@@ -525,7 +543,7 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallRes
 	}
 
 	if resultNameTab != nil {
-		rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
+		csa.rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
 	}
 
 	disableDebugTrace()
@@ -572,7 +590,7 @@ func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
 
 // BudgetExpansion returns the amount to relax/expand the base
 // inlining budget when the new inliner is turned on; the inliner
-// will add the returned value to the hairyness budget.
+// will add the returned value to the hairiness budget.
 //
 // Background: with the new inliner, the score for a given callsite
 // can be adjusted down by some amount due to heuristics, however we
@@ -599,7 +617,7 @@ var allCallSites CallSiteTab
 // along with info on call site scoring and the adjustments made to a
 // given score. Here profile is the PGO profile in use (may be
 // nil), budgetCallback is a callback that can be invoked to find out
-// the original pre-adjustment hairyness limit for the function, and
+// the original pre-adjustment hairiness limit for the function, and
 // inlineHotMaxBudget is the constant of the same name used in the
 // inliner. Sample output lines:
 //
@@ -611,7 +629,7 @@ var allCallSites CallSiteTab
 //
 // In the dump above, "Score" is the final score calculated for the
 // callsite, "Adjustment" is the amount added to or subtracted from
-// the original hairyness estimate to form the score. "Status" shows
+// the original hairiness estimate to form the score. "Status" shows
 // whether anything changed with the site -- did the adjustment bump
 // it down just below the threshold ("PROMOTED") or instead bump it
 // above the threshold ("DEMOTED"); this will be blank ("---") if no

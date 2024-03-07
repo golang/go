@@ -98,6 +98,23 @@ func TestParsePattern(t *testing.T) {
 			"/%61%62/%7b/%",
 			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
 		},
+		// Allow multiple spaces matching regexp '[ \t]+' between method and path.
+		{
+			"GET\t  /",
+			pattern{method: "GET", segments: []segment{multi("")}},
+		},
+		{
+			"POST \t  example.com/foo/{w}",
+			pattern{
+				method:   "POST",
+				host:     "example.com",
+				segments: []segment{lit("foo"), wild("w")},
+			},
+		},
+		{
+			"DELETE    \texample.com/a/{foo12}/{$}",
+			pattern{method: "DELETE", host: "example.com", segments: []segment{lit("a"), wild("foo12"), lit("/")}},
+		},
 	} {
 		got := mustParsePattern(t, test.in)
 		if !got.equal(&test.want) {

@@ -31,7 +31,7 @@ package coverage
 //    slot: 6 path='runtime/internal/math'  hard-coded id: 6
 //    slot: 7 path='internal/bytealg'  hard-coded id: 7
 //    slot: 8 path='internal/goexperiment'
-//    slot: 9 path='runtime/internal/syscall'  hard-coded id: 8
+//    slot: 9 path='internal/runtime/syscall'  hard-coded id: 8
 //    slot: 10 path='runtime'  hard-coded id: 9
 //    fatal error: runtime.addCovMeta
 //
@@ -49,12 +49,13 @@ var rtPkgs = [...]string{
 	"internal/goarch",
 	"runtime/internal/atomic",
 	"internal/goos",
+	"internal/chacha8rand",
 	"runtime/internal/sys",
 	"internal/abi",
 	"runtime/internal/math",
 	"internal/bytealg",
 	"internal/goexperiment",
-	"runtime/internal/syscall",
+	"internal/runtime/syscall",
 	"runtime",
 }
 

@@ -107,9 +107,6 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
 
 	name := ir.LinkFuncName(fn)
 
-	// Can't devirtualize go/defer calls. See comment in Static.
-	goDeferCall := make(map[*ir.CallExpr]bool)
-
 	var jsonW *json.Encoder
 	if base.Debug.PGODebug >= 3 {
 		jsonW = json.NewEncoder(os.Stdout)
@@ -119,12 +116,6 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
 	edit = func(n ir.Node) ir.Node {
 		if n == nil {
 			return n
-		}
-
-		if gds, ok := n.(*ir.GoDeferStmt); ok {
-			if call, ok := gds.Call.(*ir.CallExpr); ok {
-				goDeferCall[call] = true
-			}
 		}
 
 		ir.EditChildren(n, edit)
@@ -156,7 +147,7 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
 			fmt.Printf("%v: PGO devirtualize considering call %v\n", ir.Line(call), call)
 		}
 
-		if goDeferCall[call] {
+		if call.GoDefer {
 			if base.Debug.PGODebug >= 2 {
 				fmt.Printf("%v: can't PGO devirtualize go/defer call %v\n", ir.Line(call), call)
 			}
@@ -749,7 +740,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, e
 	}
 
 	if base.Debug.PGODebug >= 2 {
-		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
+		fmt.Printf("%v: call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
 	}
 	return hottest.Dst.AST, hottest.Weight
 }

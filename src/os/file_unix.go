@@ -67,11 +67,11 @@ type file struct {
 // Fd returns the integer Unix file descriptor referencing the open file.
 // If f is closed, the file descriptor becomes invalid.
 // If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see runtime.SetFinalizer for more information on when
-// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// making it invalid; see [runtime.SetFinalizer] for more information on when
+// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
 // methods to stop working.
 // Because file descriptors can be reused, the returned file descriptor may
-// only be closed through the Close method of f, or by its finalizer during
+// only be closed through the [File.Close] method of f, or by its finalizer during
 // garbage collection. Otherwise, during garbage collection the finalizer
 // may close an unrelated file descriptor with the same (reused) number.
 //
@@ -426,9 +426,7 @@ func Symlink(oldname, newname string) error {
 	return nil
 }
 
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
+func readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
 		var (

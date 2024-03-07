@@ -33,8 +33,8 @@ type file struct {
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
 // If f is closed, the file descriptor becomes invalid.
 // If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see runtime.SetFinalizer for more information on when
-// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// making it invalid; see [runtime.SetFinalizer] for more information on when
+// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
 // methods to stop working.
 //
 // As an alternative, see the f.SyscallConn method.
@@ -505,9 +505,7 @@ func Symlink(oldname, newname string) error {
 	return &LinkError{"symlink", oldname, newname, syscall.EPLAN9}
 }
 
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
+func readlink(name string) (string, error) {
 	return "", &PathError{Op: "readlink", Path: name, Err: syscall.EPLAN9}
 }
 
@@ -544,7 +542,6 @@ func tempDir() string {
 		dir = "/tmp"
 	}
 	return dir
-
 }
 
 // Chdir changes the current working directory to the file,

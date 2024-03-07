@@ -80,7 +80,11 @@ func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
 		return nil, fmt.Errorf("func sym %v missing objReader", sym)
 	}
 
-	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", sym, err)
+	}
+	name := node.(*ir.Name)
 	if name.Op() != ir.ONAME || name.Class != ir.PFUNC {
 		return nil, fmt.Errorf("func sym %v refers to non-function name: %v", sym, name)
 	}
@@ -105,7 +109,11 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 		return nil, fmt.Errorf("type sym %v missing objReader", typ)
 	}
 
-	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", typ, err)
+	}
+	name := node.(*ir.Name)
 	if name.Op() != ir.OTYPE {
 		return nil, fmt.Errorf("type sym %v refers to non-type name: %v", typ, name)
 	}
@@ -280,7 +288,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.InlineDecls(nil, inlDecls, false)
+		inline.CanInlineFuncs(inlDecls, nil)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {

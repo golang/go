@@ -621,19 +621,6 @@ func tcIndex(n *ir.IndexExpr) ir.Node {
 			return n
 		}
 
-		if !n.Bounded() && ir.IsConst(n.Index, constant.Int) {
-			x := n.Index.Val()
-			if constant.Sign(x) < 0 {
-				base.Errorf("invalid %s index %v (index must be non-negative)", why, n.Index)
-			} else if t.IsArray() && constant.Compare(x, token.GEQ, constant.MakeInt64(t.NumElem())) {
-				base.Errorf("invalid array index %v (out of bounds for %d-element array)", n.Index, t.NumElem())
-			} else if ir.IsConst(n.X, constant.String) && constant.Compare(x, token.GEQ, constant.MakeInt64(int64(len(ir.StringVal(n.X))))) {
-				base.Errorf("invalid string index %v (out of bounds for %d-byte string)", n.Index, len(ir.StringVal(n.X)))
-			} else if ir.ConstOverflow(x, types.Types[types.TINT]) {
-				base.Errorf("invalid %s index %v (index too large)", why, n.Index)
-			}
-		}
-
 	case types.TMAP:
 		n.Index = AssignConv(n.Index, t.Key(), "map index")
 		n.SetType(t.Elem())

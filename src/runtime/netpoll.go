@@ -399,14 +399,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			// if they differ the descriptor was reused or timers were reset.
 			pd.rt.arg = pd.makeArg()
 			pd.rt.seq = pd.rseq
-			resettimer(&pd.rt, pd.rd)
+			pd.rt.reset(pd.rd)
 		}
 	} else if pd.rd != rd0 || combo != combo0 {
 		pd.rseq++ // invalidate current timers
 		if pd.rd > 0 {
-			modtimer(&pd.rt, pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
+			pd.rt.modify(pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
 		} else {
-			deltimer(&pd.rt)
+			pd.rt.stop()
 			pd.rt.f = nil
 		}
 	}
@@ -415,14 +415,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			pd.wt.f = netpollWriteDeadline
 			pd.wt.arg = pd.makeArg()
 			pd.wt.seq = pd.wseq
-			resettimer(&pd.wt, pd.wd)
+			pd.wt.reset(pd.wd)
 		}
 	} else if pd.wd != wd0 || combo != combo0 {
 		pd.wseq++ // invalidate current timers
 		if pd.wd > 0 && !combo {
-			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
+			pd.wt.modify(pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
 		} else {
-			deltimer(&pd.wt)
+			pd.wt.stop()
 			pd.wt.f = nil
 		}
 	}
@@ -461,11 +461,11 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	rg = netpollunblock(pd, 'r', false, &delta)
 	wg = netpollunblock(pd, 'w', false, &delta)
 	if pd.rt.f != nil {
-		deltimer(&pd.rt)
+		pd.rt.stop()
 		pd.rt.f = nil
 	}
 	if pd.wt.f != nil {
-		deltimer(&pd.wt)
+		pd.wt.stop()
 		pd.wt.f = nil
 	}
 	unlock(&pd.lock)

@@ -11,6 +11,17 @@ func copyelim(f *Func) {
 	// of OpCopy) is a copy.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+
+			// This is an early place in SSA where all values are examined.
+			// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
+			if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
+				if t.IsStruct() {
+					v.reset(OpStructMake0)
+				} else {
+					v.reset(OpArrayMake0)
+				}
+			}
+
 			copyelimValue(v)
 		}
 	}

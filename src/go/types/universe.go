@@ -281,7 +281,7 @@ func def(obj Object) {
 		case *Builtin:
 			obj.pkg = Unsafe
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 	if scope.Insert(obj) != nil {

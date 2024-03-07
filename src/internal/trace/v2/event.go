@@ -203,8 +203,14 @@ type RangeAttribute struct {
 // are of the same type).
 type TaskID uint64
 
-// NoTask indicates the lack of a task.
-const NoTask = TaskID(0)
+const (
+	// NoTask indicates the lack of a task.
+	NoTask = TaskID(^uint64(0))
+
+	// BackgroundTask is the global task that events are attached to if there was
+	// no other task in the context at the point the event was emitted.
+	BackgroundTask = TaskID(0)
+)
 
 // Task provides details about a Task event.
 type Task struct {
@@ -258,7 +264,8 @@ func (s Stack) Frames(yield func(f StackFrame) bool) bool {
 		return true
 	}
 	stk := s.table.stacks.mustGet(s.id)
-	for _, f := range stk.frames {
+	for _, pc := range stk.pcs {
+		f := s.table.pcs[pc]
 		sf := StackFrame{
 			PC:   f.pc,
 			Func: s.table.strings.mustGet(f.funcID),
@@ -568,22 +575,28 @@ func (e Event) StateTransition() StateTransition {
 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
 	case go122.EvGoDestroy:
 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoDestroySyscall:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
 	case go122.EvGoStop:
 		s = goStateTransition(e.ctx.G, GoRunning, GoRunnable)
 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoBlock:
 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoUnblock:
 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
 	case go122.EvGoSyscallBegin:
 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoSyscallEnd:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
+		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoStatus:
 		// N.B. ordering.advance populates e.base.extra.
 		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])

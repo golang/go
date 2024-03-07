@@ -90,7 +90,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -111,7 +111,7 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -247,7 +247,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 //go:nowritebarrier
 //go:systemstack
 func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 

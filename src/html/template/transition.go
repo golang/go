@@ -414,7 +414,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			// If "</script" appears in a regex literal, the '/' should not
 			// close the regex literal, and it will later be escaped to
 			// "\x3C/script" in escapeText.
-			if i > 0 && i+7 <= len(s) && bytes.Compare(bytes.ToLower(s[i-1:i+7]), []byte("</script")) == 0 {
+			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1 : i+7]), []byte("</script")) {
 				i++
 			} else if !inCharset {
 				c.state, c.jsCtx = stateJS, jsCtxDivOp

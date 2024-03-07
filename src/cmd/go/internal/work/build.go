@@ -276,8 +276,6 @@ func (c buildCompiler) Set(value string) error {
 		return fmt.Errorf("unknown compiler %q", value)
 	}
 	cfg.BuildToolchainName = value
-	cfg.BuildToolchainCompiler = BuildToolchain.compiler
-	cfg.BuildToolchainLinker = BuildToolchain.linker
 	cfg.BuildContext.Compiler = value
 	return nil
 }

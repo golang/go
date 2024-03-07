@@ -5,6 +5,7 @@
 package template
 
 import (
+	"errors"
 	"math"
 	"strings"
 	"testing"
@@ -103,60 +104,71 @@ func TestNextJsCtx(t *testing.T) {
 	}
 }
 
+type jsonErrType struct{}
+
+func (e *jsonErrType) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("beep */ boop </script blip <!--")
+}
+
 func TestJSValEscaper(t *testing.T) {
 	tests := []struct {
-		x  any
-		js string
+		x        any
+		js       string
+		skipNest bool
 	}{
-		{int(42), " 42 "},
-		{uint(42), " 42 "},
-		{int16(42), " 42 "},
-		{uint16(42), " 42 "},
-		{int32(-42), " -42 "},
-		{uint32(42), " 42 "},
-		{int16(-42), " -42 "},
-		{uint16(42), " 42 "},
-		{int64(-42), " -42 "},
-		{uint64(42), " 42 "},
-		{uint64(1) << 53, " 9007199254740992 "},
+		{int(42), " 42 ", false},
+		{uint(42), " 42 ", false},
+		{int16(42), " 42 ", false},
+		{uint16(42), " 42 ", false},
+		{int32(-42), " -42 ", false},
+		{uint32(42), " 42 ", false},
+		{int16(-42), " -42 ", false},
+		{uint16(42), " 42 ", false},
+		{int64(-42), " -42 ", false},
+		{uint64(42), " 42 ", false},
+		{uint64(1) << 53, " 9007199254740992 ", false},
 		// ulp(1 << 53) > 1 so this loses precision in JS
 		// but it is still a representable integer literal.
-		{uint64(1)<<53 + 1, " 9007199254740993 "},
-		{float32(1.0), " 1 "},
-		{float32(-1.0), " -1 "},
-		{float32(0.5), " 0.5 "},
-		{float32(-0.5), " -0.5 "},
-		{float32(1.0) / float32(256), " 0.00390625 "},
-		{float32(0), " 0 "},
-		{math.Copysign(0, -1), " -0 "},
-		{float64(1.0), " 1 "},
-		{float64(-1.0), " -1 "},
-		{float64(0.5), " 0.5 "},
-		{float64(-0.5), " -0.5 "},
-		{float64(0), " 0 "},
-		{math.Copysign(0, -1), " -0 "},
-		{"", `""`},
-		{"foo", `"foo"`},
+		{uint64(1)<<53 + 1, " 9007199254740993 ", false},
+		{float32(1.0), " 1 ", false},
+		{float32(-1.0), " -1 ", false},
+		{float32(0.5), " 0.5 ", false},
+		{float32(-0.5), " -0.5 ", false},
+		{float32(1.0) / float32(256), " 0.00390625 ", false},
+		{float32(0), " 0 ", false},
+		{math.Copysign(0, -1), " -0 ", false},
+		{float64(1.0), " 1 ", false},
+		{float64(-1.0), " -1 ", false},
+		{float64(0.5), " 0.5 ", false},
+		{float64(-0.5), " -0.5 ", false},
+		{float64(0), " 0 ", false},
+		{math.Copysign(0, -1), " -0 ", false},
+		{"", `""`, false},
+		{"foo", `"foo"`, false},
 		// Newlines.
-		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
+		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`, false},
 		// "\v" == "v" on IE 6 so use "\u000b" instead.
-		{"\t\x0b", `"\t\u000b"`},
-		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
-		{[]any{}, "[]"},
-		{[]any{42, "foo", nil}, `[42,"foo",null]`},
-		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`},
-		{"<!--", `"\u003c!--"`},
-		{"-->", `"--\u003e"`},
-		{"<![CDATA[", `"\u003c![CDATA["`},
-		{"]]>", `"]]\u003e"`},
-		{"</script", `"\u003c/script"`},
-		{"\U0001D11E", "\"\U0001D11E\""}, // or "\uD834\uDD1E"
-		{nil, " null "},
+		{"\t\x0b", `"\t\u000b"`, false},
+		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`, false},
+		{[]any{}, "[]", false},
+		{[]any{42, "foo", nil}, `[42,"foo",null]`, false},
+		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`, false},
+		{"<!--", `"\u003c!--"`, false},
+		{"-->", `"--\u003e"`, false},
+		{"<![CDATA[", `"\u003c![CDATA["`, false},
+		{"]]>", `"]]\u003e"`, false},
+		{"</script", `"\u003c/script"`, false},
+		{"\U0001D11E", "\"\U0001D11E\"", false}, // or "\uD834\uDD1E"
+		{nil, " null ", false},
+		{&jsonErrType{}, " /* json: error calling MarshalJSON for type *template.jsonErrType: beep * / boop \\x3C/script blip \\x3C!-- */null ", true},
 	}
 
 	for _, test := range tests {
 		if js := jsValEscaper(test.x); js != test.js {
 			t.Errorf("%+v: want\n\t%q\ngot\n\t%q", test.x, test.js, js)
+		}
+		if test.skipNest {
+			continue
 		}
 		// Make sure that escaping corner cases are not broken
 		// by nesting.

@@ -29,7 +29,7 @@ func gen(t *testgen.Trace) {
 	b1 := g1.Batch(trace.ThreadID(0), 0)
 	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
 	b1.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
-	b1.Event("UserTaskBegin", trace.TaskID(2), trace.NoTask, "my task", testgen.NoStack)
+	b1.Event("UserTaskBegin", trace.TaskID(2), trace.TaskID(0) /* 0 means no parent, not background */, "my task", testgen.NoStack)
 
 	g2 := t.Generation(2)
 

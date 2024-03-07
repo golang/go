@@ -324,9 +324,9 @@ func traceRelease(tl traceLocker) {
 }
 
 // StartTrace enables tracing for the current process.
-// While tracing, the data will be buffered and available via ReadTrace.
+// While tracing, the data will be buffered and available via [ReadTrace].
 // StartTrace returns an error if tracing is already enabled.
-// Most clients should use the runtime/trace package or the testing package's
+// Most clients should use the [runtime/trace] package or the [testing] package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
 	// Stop the world so that we can take a consistent snapshot
@@ -577,6 +577,9 @@ func StopTrace() {
 		unlock(&trace.lock)
 	})
 }
+
+// traceAdvance is called from panic, it does nothing for the legacy tracer.
+func traceAdvance(stopTrace bool) {}
 
 // ReadTrace returns the next chunk of binary tracing data, blocking until data
 // is available. If tracing is turned off and all the data accumulated while it

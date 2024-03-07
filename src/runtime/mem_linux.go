@@ -170,4 +170,12 @@ func sysMapOS(v unsafe.Pointer, n uintptr) {
 		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
+
+	// Disable huge pages if the GODEBUG for it is set.
+	//
+	// Note that there are a few sysHugePage calls that can override this, but
+	// they're all for GC metadata.
+	if debug.disablethp != 0 {
+		sysNoHugePageOS(v, n)
+	}
 }

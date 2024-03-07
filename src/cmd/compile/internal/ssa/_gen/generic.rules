@@ -601,9 +601,49 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
-// Unsigned comparisons to zero.
-(Less(64U|32U|16U|8U) _ (Const(64|32|16|8) [0])) => (ConstBool [false])
-(Leq(64U|32U|16U|8U) (Const(64|32|16|8) [0]) _)  => (ConstBool [true])
+// Fold comparisons with numeric bounds
+(Less(64|32|16|8)U _ (Const(64|32|16|8) [0]))  => (ConstBool [false])
+(Leq(64|32|16|8)U (Const(64|32|16|8) [0]) _)   => (ConstBool [true])
+(Less(64|32|16|8)U (Const(64|32|16|8) [-1]) _) => (ConstBool [false])
+(Leq(64|32|16|8)U _ (Const(64|32|16|8) [-1]))  => (ConstBool [true])
+(Less64 _ (Const64 [math.MinInt64])) => (ConstBool [false])
+(Less32 _ (Const32 [math.MinInt32])) => (ConstBool [false])
+(Less16 _ (Const16 [math.MinInt16])) => (ConstBool [false])
+(Less8  _ (Const8  [math.MinInt8 ])) => (ConstBool [false])
+(Leq64 (Const64 [math.MinInt64]) _)  => (ConstBool [true])
+(Leq32 (Const32 [math.MinInt32]) _)  => (ConstBool [true])
+(Leq16 (Const16 [math.MinInt16]) _)  => (ConstBool [true])
+(Leq8  (Const8  [math.MinInt8 ]) _)  => (ConstBool [true])
+(Less64 (Const64 [math.MaxInt64]) _) => (ConstBool [false])
+(Less32 (Const32 [math.MaxInt32]) _) => (ConstBool [false])
+(Less16 (Const16 [math.MaxInt16]) _) => (ConstBool [false])
+(Less8  (Const8  [math.MaxInt8 ]) _) => (ConstBool [false])
+(Leq64 _ (Const64 [math.MaxInt64]))  => (ConstBool [true])
+(Leq32 _ (Const32 [math.MaxInt32]))  => (ConstBool [true])
+(Leq16 _ (Const16 [math.MaxInt16]))  => (ConstBool [true])
+(Leq8  _ (Const8  [math.MaxInt8 ]))  => (ConstBool [true])
+
+// Canonicalize <= on numeric bounds and < near numeric bounds to ==
+(Leq(64|32|16|8)U x c:(Const(64|32|16|8) [0]))     => (Eq(64|32|16|8) x c)
+(Leq(64|32|16|8)U c:(Const(64|32|16|8) [-1]) x)    => (Eq(64|32|16|8) x c)
+(Less(64|32|16|8)U x (Const(64|32|16|8) <t> [1]))  => (Eq(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Less(64|32|16|8)U (Const(64|32|16|8) <t> [-2]) x) => (Eq(64|32|16|8) x (Const(64|32|16|8) <t> [-1]))
+(Leq64 x c:(Const64 [math.MinInt64])) => (Eq64 x c)
+(Leq32 x c:(Const32 [math.MinInt32])) => (Eq32 x c)
+(Leq16 x c:(Const16 [math.MinInt16])) => (Eq16 x c)
+(Leq8  x c:(Const8  [math.MinInt8 ])) => (Eq8  x c)
+(Leq64 c:(Const64 [math.MaxInt64]) x) => (Eq64 x c)
+(Leq32 c:(Const32 [math.MaxInt32]) x) => (Eq32 x c)
+(Leq16 c:(Const16 [math.MaxInt16]) x) => (Eq16 x c)
+(Leq8  c:(Const8  [math.MaxInt8 ]) x) => (Eq8  x c)
+(Less64 x (Const64 <t> [math.MinInt64+1])) => (Eq64 x (Const64 <t> [math.MinInt64]))
+(Less32 x (Const32 <t> [math.MinInt32+1])) => (Eq32 x (Const32 <t> [math.MinInt32]))
+(Less16 x (Const16 <t> [math.MinInt16+1])) => (Eq16 x (Const16 <t> [math.MinInt16]))
+(Less8  x (Const8  <t> [math.MinInt8 +1])) => (Eq8  x (Const8  <t> [math.MinInt8 ]))
+(Less64 (Const64 <t> [math.MaxInt64-1]) x) => (Eq64 x (Const64 <t> [math.MaxInt64]))
+(Less32 (Const32 <t> [math.MaxInt32-1]) x) => (Eq32 x (Const32 <t> [math.MaxInt32]))
+(Less16 (Const16 <t> [math.MaxInt16-1]) x) => (Eq16 x (Const16 <t> [math.MaxInt16]))
+(Less8  (Const8  <t> [math.MaxInt8 -1]) x) => (Eq8  x (Const8  <t> [math.MaxInt8 ]))
 
 // Ands clear bits. Ors set bits.
 // If a subsequent Or will set all the bits

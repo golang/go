@@ -10,7 +10,7 @@
 // https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
-//go:build amd64 || arm64 || ppc64le || s390x
+//go:build (amd64 || arm64 || ppc64le || s390x) && !purego
 
 package nistec
 

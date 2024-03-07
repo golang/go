@@ -33,14 +33,12 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 
 	SUBQ	$(const_maxArgs*8), SP	// room for args
 
-	// Fast version, do not store args on the stack nor
-	// load them into registers.
-	CMPL	CX, $0
-	JE	docall
-
 	// Fast version, do not store args on the stack.
-	CMPL	CX, $4
-	JLE	loadregs
+	CMPL	CX, $0;	JE	_0args
+	CMPL	CX, $1;	JE	_1args
+	CMPL	CX, $2;	JE	_2args
+	CMPL	CX, $3;	JE	_3args
+	CMPL	CX, $4;	JE	_4args
 
 	// Check we have enough room for args.
 	CMPL	CX, $const_maxArgs
@@ -53,22 +51,25 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	REP; MOVSQ
 	MOVQ	SP, SI
 
-loadregs:
 	// Load first 4 args into correspondent registers.
-	MOVQ	0(SI), CX
-	MOVQ	8(SI), DX
-	MOVQ	16(SI), R8
-	MOVQ	24(SI), R9
 	// Floating point arguments are passed in the XMM
 	// registers. Set them here in case any of the arguments
 	// are floating point values. For details see
 	//	https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
-	MOVQ	CX, X0
-	MOVQ	DX, X1
-	MOVQ	R8, X2
+_4args:
+	MOVQ	24(SI), R9
 	MOVQ	R9, X3
+_3args:
+	MOVQ	16(SI), R8
+	MOVQ	R8, X2
+_2args:
+	MOVQ	8(SI), DX
+	MOVQ	DX, X1
+_1args:
+	MOVQ	0(SI), CX
+	MOVQ	CX, X0
+_0args:
 
-docall:
 	// Call stdcall function.
 	CALL	AX
 

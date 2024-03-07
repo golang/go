@@ -118,7 +118,7 @@ type readerDict struct {
 	// tparams is a slice of the constructed TypeParams for the element.
 	tparams []*types.TypeParam
 
-	// devived is a slice of types derived from tparams, which may be
+	// derived is a slice of types derived from tparams, which may be
 	// instantiated while reading the current element.
 	derived      []derivedInfo
 	derivedTypes []types.Type // lazily instantiated from derived

@@ -2402,9 +2402,6 @@ func TestConnMaxLifetime(t *testing.T) {
 	// Expire first conn
 	offset = 11 * time.Second
 	db.SetConnMaxLifetime(10 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	tx, err = db.Begin()
 	if err != nil {
@@ -4396,6 +4393,49 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 			t.Fatalf("Error %v does not contain %v", err, errTestScanWrap)
 		}
 	}
+}
+
+type alwaysErrValuer struct{}
+
+// errEmpty is returned when an empty value is found
+var errEmpty = errors.New("empty value")
+
+func (v alwaysErrValuer) Value() (driver.Value, error) {
+	return nil, errEmpty
+}
+
+// Issue 64707: Ensure that Stmt.Exec and Stmt.Query properly wraps underlying errors.
+func TestDriverArgsWrapsErrors(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	t.Run("exec", func(t *testing.T) {
+		_, err := db.Exec("INSERT|keys|dec1=?", alwaysErrValuer{})
+		if err == nil {
+			t.Fatal("expecting back an error")
+		}
+		if !errors.Is(err, errEmpty) {
+			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errEmpty)
+		}
+		// Ensure that error substring matching still correctly works.
+		if !strings.Contains(err.Error(), errEmpty.Error()) {
+			t.Fatalf("Error %v does not contain %v", err, errEmpty)
+		}
+	})
+
+	t.Run("query", func(t *testing.T) {
+		_, err := db.Query("INSERT|keys|dec1=?", alwaysErrValuer{})
+		if err == nil {
+			t.Fatal("expecting back an error")
+		}
+		if !errors.Is(err, errEmpty) {
+			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errEmpty)
+		}
+		// Ensure that error substring matching still correctly works.
+		if !strings.Contains(err.Error(), errEmpty.Error()) {
+			t.Fatalf("Error %v does not contain %v", err, errEmpty)
+		}
+	})
 }
 
 func TestContextCancelDuringRawBytesScan(t *testing.T) {

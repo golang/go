@@ -170,8 +170,8 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
-			if r.Type() != objabi.R_RISCV_PCREL_ITYPE && r.Type() != objabi.R_RISCV_PCREL_STYPE &&
-				r.Type() != objabi.R_RISCV_TLS_IE {
+			if r.Type() != objabi.R_RISCV_CALL && r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
+				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
 				continue
 			}
 			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {

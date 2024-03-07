@@ -14,23 +14,37 @@ import (
 )
 
 type callSiteAnalyzer struct {
+	fn *ir.Func
+	*nameFinder
+}
+
+type callSiteTableBuilder struct {
+	fn *ir.Func
+	*nameFinder
 	cstab    CallSiteTab
-	fn       *ir.Func
 	ptab     map[ir.Node]pstate
 	nstack   []ir.Node
 	loopNest int
 	isInit   bool
 }
 
-func makeCallSiteAnalyzer(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int) *callSiteAnalyzer {
-	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
+func makeCallSiteAnalyzer(fn *ir.Func) *callSiteAnalyzer {
 	return &callSiteAnalyzer{
-		fn:       fn,
-		cstab:    cstab,
-		ptab:     ptab,
-		isInit:   isInit,
-		loopNest: loopNestingLevel,
-		nstack:   []ir.Node{fn},
+		fn:         fn,
+		nameFinder: newNameFinder(fn),
+	}
+}
+
+func makeCallSiteTableBuilder(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int, nf *nameFinder) *callSiteTableBuilder {
+	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
+	return &callSiteTableBuilder{
+		fn:         fn,
+		cstab:      cstab,
+		ptab:       ptab,
+		isInit:     isInit,
+		loopNest:   loopNestingLevel,
+		nstack:     []ir.Node{fn},
+		nameFinder: nf,
 	}
 }
 
@@ -39,22 +53,22 @@ func makeCallSiteAnalyzer(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstat
 // specific subtree within the AST for a function. The main intended
 // use cases are for 'region' to be either A) an entire function body,
 // or B) an inlined call expression.
-func computeCallSiteTable(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int) CallSiteTab {
-	csa := makeCallSiteAnalyzer(fn, cstab, ptab, loopNestingLevel)
+func computeCallSiteTable(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int, nf *nameFinder) CallSiteTab {
+	cstb := makeCallSiteTableBuilder(fn, cstab, ptab, loopNestingLevel, nf)
 	var doNode func(ir.Node) bool
 	doNode = func(n ir.Node) bool {
-		csa.nodeVisitPre(n)
+		cstb.nodeVisitPre(n)
 		ir.DoChildren(n, doNode)
-		csa.nodeVisitPost(n)
+		cstb.nodeVisitPost(n)
 		return false
 	}
 	for _, n := range region {
 		doNode(n)
 	}
-	return csa.cstab
+	return cstb.cstab
 }
 
-func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
+func (cstb *callSiteTableBuilder) flagsForNode(call *ir.CallExpr) CSPropBits {
 	var r CSPropBits
 
 	if debugTrace&debugTraceCalls != 0 {
@@ -63,21 +77,21 @@ func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
 	}
 
 	// Set a bit if this call is within a loop.
-	if csa.loopNest > 0 {
+	if cstb.loopNest > 0 {
 		r |= CallSiteInLoop
 	}
 
 	// Set a bit if the call is within an init function (either
 	// compiler-generated or user-written).
-	if csa.isInit {
+	if cstb.isInit {
 		r |= CallSiteInInitFunc
 	}
 
 	// Decide whether to apply the panic path heuristic. Hack: don't
 	// apply this heuristic in the function "main.main" (mostly just
 	// to avoid annoying users).
-	if !isMainMain(csa.fn) {
-		r = csa.determinePanicPathBits(call, r)
+	if !isMainMain(cstb.fn) {
+		r = cstb.determinePanicPathBits(call, r)
 	}
 
 	return r
@@ -88,15 +102,15 @@ func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
 // panic/exit. Do this by walking back up the node stack to see if we
 // can find either A) an enclosing panic, or B) a statement node that
 // we've determined leads to a panic/exit.
-func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
-	csa.nstack = append(csa.nstack, call)
+func (cstb *callSiteTableBuilder) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
+	cstb.nstack = append(cstb.nstack, call)
 	defer func() {
-		csa.nstack = csa.nstack[:len(csa.nstack)-1]
+		cstb.nstack = cstb.nstack[:len(cstb.nstack)-1]
 	}()
 
-	for ri := range csa.nstack[:len(csa.nstack)-1] {
-		i := len(csa.nstack) - ri - 1
-		n := csa.nstack[i]
+	for ri := range cstb.nstack[:len(cstb.nstack)-1] {
+		i := len(cstb.nstack) - ri - 1
+		n := cstb.nstack[i]
 		_, isCallExpr := n.(*ir.CallExpr)
 		_, isStmt := n.(ir.Stmt)
 		if isCallExpr {
@@ -104,7 +118,7 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) 
 		}
 
 		if debugTrace&debugTraceCalls != 0 {
-			ps, inps := csa.ptab[n]
+			ps, inps := cstb.ptab[n]
 			fmt.Fprintf(os.Stderr, "=-= callpar %d op=%s ps=%s inptab=%v stmt=%v\n", i, n.Op().String(), ps.String(), inps, isStmt)
 		}
 
@@ -112,7 +126,7 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) 
 			r |= CallSiteOnPanicPath
 			break
 		}
-		if v, ok := csa.ptab[n]; ok {
+		if v, ok := cstb.ptab[n]; ok {
 			if v == psCallsPanic {
 				r |= CallSiteOnPanicPath
 				break
@@ -126,16 +140,15 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) 
 }
 
 // propsForArg returns property bits for a given call argument expression arg.
-func (csa *callSiteAnalyzer) propsForArg(arg ir.Node) ActualExprPropBits {
-	_, islit := isLiteral(arg)
-	if islit {
+func (cstb *callSiteTableBuilder) propsForArg(arg ir.Node) ActualExprPropBits {
+	if cval := cstb.constValue(arg); cval != nil {
 		return ActualExprConstant
 	}
-	if isConcreteConvIface(arg) {
+	if cstb.isConcreteConvIface(arg) {
 		return ActualExprIsConcreteConvIface
 	}
-	fname, isfunc, _ := isFuncName(arg)
-	if isfunc {
+	fname := cstb.funcName(arg)
+	if fname != nil {
 		if fn := fname.Func; fn != nil && typecheck.HaveInlineBody(fn) {
 			return ActualExprIsInlinableFunc
 		}
@@ -149,11 +162,11 @@ func (csa *callSiteAnalyzer) propsForArg(arg ir.Node) ActualExprPropBits {
 // expression; these will be stored in the CallSite object for a given
 // call and then consulted when scoring. If no arg has any interesting
 // properties we try to save some space and return a nil slice.
-func (csa *callSiteAnalyzer) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBits {
+func (cstb *callSiteTableBuilder) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBits {
 	rv := make([]ActualExprPropBits, len(ce.Args))
 	somethingInteresting := false
 	for idx := range ce.Args {
-		argProp := csa.propsForArg(ce.Args[idx])
+		argProp := cstb.propsForArg(ce.Args[idx])
 		somethingInteresting = somethingInteresting || (argProp != 0)
 		rv[idx] = argProp
 	}
@@ -163,9 +176,9 @@ func (csa *callSiteAnalyzer) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBi
 	return rv
 }
 
-func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
-	flags := csa.flagsForNode(call)
-	argProps := csa.argPropsForCall(call)
+func (cstb *callSiteTableBuilder) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+	flags := cstb.flagsForNode(call)
+	argProps := cstb.argPropsForCall(call)
 	if debugTrace&debugTraceCalls != 0 {
 		fmt.Fprintf(os.Stderr, "=-= props %+v for call %v\n", argProps, call)
 	}
@@ -173,12 +186,12 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 	cs := &CallSite{
 		Call:     call,
 		Callee:   callee,
-		Assign:   csa.containingAssignment(call),
+		Assign:   cstb.containingAssignment(call),
 		ArgProps: argProps,
 		Flags:    flags,
-		ID:       uint(len(csa.cstab)),
+		ID:       uint(len(cstb.cstab)),
 	}
-	if _, ok := csa.cstab[call]; ok {
+	if _, ok := cstb.cstab[call]; ok {
 		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
 			fmtFullPos(call.Pos()))
 		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
@@ -189,38 +202,38 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
 	// on heuristics.
 	cs.Score = int(callee.Inl.Cost)
 
-	if csa.cstab == nil {
-		csa.cstab = make(CallSiteTab)
+	if cstb.cstab == nil {
+		cstb.cstab = make(CallSiteTab)
 	}
-	csa.cstab[call] = cs
+	cstb.cstab[call] = cs
 	if debugTrace&debugTraceCalls != 0 {
 		fmt.Fprintf(os.Stderr, "=-= added callsite: caller=%v callee=%v n=%s\n",
-			csa.fn, callee, fmtFullPos(call.Pos()))
+			cstb.fn, callee, fmtFullPos(call.Pos()))
 	}
 }
 
-func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+func (cstb *callSiteTableBuilder) nodeVisitPre(n ir.Node) {
 	switch n.Op() {
 	case ir.ORANGE, ir.OFOR:
 		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
-			csa.loopNest++
+			cstb.loopNest++
 		}
 	case ir.OCALLFUNC:
 		ce := n.(*ir.CallExpr)
 		callee := pgo.DirectCallee(ce.Fun)
 		if callee != nil && callee.Inl != nil {
-			csa.addCallSite(callee, ce)
+			cstb.addCallSite(callee, ce)
 		}
 	}
-	csa.nstack = append(csa.nstack, n)
+	cstb.nstack = append(cstb.nstack, n)
 }
 
-func (csa *callSiteAnalyzer) nodeVisitPost(n ir.Node) {
-	csa.nstack = csa.nstack[:len(csa.nstack)-1]
+func (cstb *callSiteTableBuilder) nodeVisitPost(n ir.Node) {
+	cstb.nstack = cstb.nstack[:len(cstb.nstack)-1]
 	switch n.Op() {
 	case ir.ORANGE, ir.OFOR:
 		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
-			csa.loopNest--
+			cstb.loopNest--
 		}
 	}
 }
@@ -281,8 +294,8 @@ func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
 // call to a pair of auto-temps, then the second one assigning the
 // auto-temps to the user-visible vars. This helper will return the
 // second (outer) of these two.
-func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
-	parent := csa.nstack[len(csa.nstack)-1]
+func (cstb *callSiteTableBuilder) containingAssignment(n ir.Node) ir.Node {
+	parent := cstb.nstack[len(cstb.nstack)-1]
 
 	// assignsOnlyAutoTemps returns TRUE of the specified OAS2FUNC
 	// node assigns only auto-temps.
@@ -315,12 +328,12 @@ func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
 		// OAS1({x,y},OCONVNOP(OAS2FUNC({auto1,auto2},OCALLFUNC(bar))))
 		//
 		if assignsOnlyAutoTemps(parent) {
-			par2 := csa.nstack[len(csa.nstack)-2]
+			par2 := cstb.nstack[len(cstb.nstack)-2]
 			if par2.Op() == ir.OAS2 {
 				return par2
 			}
 			if par2.Op() == ir.OCONVNOP {
-				par3 := csa.nstack[len(csa.nstack)-3]
+				par3 := cstb.nstack[len(cstb.nstack)-3]
 				if par3.Op() == ir.OAS2 {
 					return par3
 				}
@@ -378,18 +391,23 @@ func UpdateCallsiteTable(callerfn *ir.Func, n *ir.CallExpr, ic *ir.InlinedCallEx
 		loopNestLevel = 1
 	}
 	ptab := map[ir.Node]pstate{ic: icp}
-	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel)
+	nf := newNameFinder(nil)
+	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel, nf)
 
 	// Record parent callsite. This is primarily for debug output.
 	for _, cs := range icstab {
 		cs.parent = oldcs
 	}
 
-	// Score the calls in the inlined body. Note the setting of "doCallResults"
-	// to false here: at the moment there isn't any easy way to localize
-	// or region-ize the work done by "rescoreBasedOnCallResultUses", which
-	// currently does a walk over the entire function to look for uses
-	// of a given set of results.
+	// Score the calls in the inlined body. Note the setting of
+	// "doCallResults" to false here: at the moment there isn't any
+	// easy way to localize or region-ize the work done by
+	// "rescoreBasedOnCallResultUses", which currently does a walk
+	// over the entire function to look for uses of a given set of
+	// results. Similarly we're passing nil to makeCallSiteAnalyzer,
+	// so as to run name finding without the use of static value &
+	// friends.
+	csa := makeCallSiteAnalyzer(nil)
 	const doCallResults = false
-	scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
+	csa.scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
 }

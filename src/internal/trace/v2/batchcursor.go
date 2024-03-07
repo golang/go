@@ -68,7 +68,7 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
 	// Get the event type.
 	typ := event.Type(b[0])
 	specs := go122.Specs()
-	if int(typ) > len(specs) {
+	if int(typ) >= len(specs) {
 		return 0, 0, fmt.Errorf("found invalid event type: %v", typ)
 	}
 	e.typ = typ
@@ -82,11 +82,17 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
 
 	// Read timestamp diff.
 	ts, nb := binary.Uvarint(b[n:])
+	if nb <= 0 {
+		return 0, 0, fmt.Errorf("found invalid uvarint for timestamp")
+	}
 	n += nb
 
 	// Read the rest of the arguments.
 	for i := 0; i < len(spec.Args)-1; i++ {
 		arg, nb := binary.Uvarint(b[n:])
+		if nb <= 0 {
+			return 0, 0, fmt.Errorf("found invalid uvarint")
+		}
 		e.args[i] = arg
 		n += nb
 	}

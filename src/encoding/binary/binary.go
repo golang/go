@@ -765,10 +765,7 @@ func (d *decoder) skip(v reflect.Value) {
 
 func (e *encoder) skip(v reflect.Value) {
 	n := dataSize(v)
-	zero := e.buf[e.offset : e.offset+n]
-	for i := range zero {
-		zero[i] = 0
-	}
+	clear(e.buf[e.offset : e.offset+n])
 	e.offset += n
 }
 

@@ -1500,6 +1500,12 @@ func TestIsZero(t *testing.T) {
 		{setField(struct{ _, a, _ func() }{}, 0*unsafe.Sizeof((func())(nil)), func() {}), true},
 		{setField(struct{ _, a, _ func() }{}, 1*unsafe.Sizeof((func())(nil)), func() {}), false},
 		{setField(struct{ _, a, _ func() }{}, 2*unsafe.Sizeof((func())(nil)), func() {}), true},
+		{struct{ a [256]S }{}, true},
+		{struct{ a [256]S }{a: [256]S{2: {i1: 1}}}, false},
+		{struct{ a [256]float32 }{}, true},
+		{struct{ a [256]float32 }{a: [256]float32{2: 1.0}}, false},
+		{struct{ _, a [256]S }{}, true},
+		{setField(struct{ _, a [256]S }{}, 0*unsafe.Sizeof(int64(0)), int64(1)), true},
 		// UnsafePointer
 		{(unsafe.Pointer)(nil), true},
 		{(unsafe.Pointer)(new(int)), false},
@@ -1541,7 +1547,7 @@ func TestIsZero(t *testing.T) {
 func TestInternalIsZero(t *testing.T) {
 	b := make([]byte, 512)
 	for a := 0; a < 8; a++ {
-		for i := 256 + 7; i <= 512-a; i++ {
+		for i := 1; i <= 512-a; i++ {
 			InternalIsZero(b[a : a+i])
 		}
 	}
@@ -4749,7 +4755,7 @@ func TestConvertSlice2Array(t *testing.T) {
 	// Converting a slice to non-empty array needs to return
 	// a non-addressable copy of the original memory.
 	if v.CanAddr() {
-		t.Fatalf("convert slice to non-empty array returns a addressable copy array")
+		t.Fatalf("convert slice to non-empty array returns an addressable copy array")
 	}
 	for i := range s {
 		ov.Index(i).Set(ValueOf(i + 1))
@@ -4821,7 +4827,7 @@ func TestComparable(t *testing.T) {
 	}
 }
 
-func TestOverflow(t *testing.T) {
+func TestValueOverflow(t *testing.T) {
 	if ovf := V(float64(0)).OverflowFloat(1e300); ovf {
 		t.Errorf("%v wrongly overflows float64", 1e300)
 	}
@@ -4856,6 +4862,45 @@ func TestOverflow(t *testing.T) {
 	}
 	ovfUint32 := uint64(1 << 32)
 	if ovf := V(uint32(0)).OverflowUint(ovfUint32); !ovf {
+		t.Errorf("%v should overflow uint32", ovfUint32)
+	}
+}
+
+func TestTypeOverflow(t *testing.T) {
+	if ovf := TypeFor[float64]().OverflowFloat(1e300); ovf {
+		t.Errorf("%v wrongly overflows float64", 1e300)
+	}
+
+	maxFloat32 := float64((1<<24 - 1) << (127 - 23))
+	if ovf := TypeFor[float32]().OverflowFloat(maxFloat32); ovf {
+		t.Errorf("%v wrongly overflows float32", maxFloat32)
+	}
+	ovfFloat32 := float64((1<<24-1)<<(127-23) + 1<<(127-52))
+	if ovf := TypeFor[float32]().OverflowFloat(ovfFloat32); !ovf {
+		t.Errorf("%v should overflow float32", ovfFloat32)
+	}
+	if ovf := TypeFor[float32]().OverflowFloat(-ovfFloat32); !ovf {
+		t.Errorf("%v should overflow float32", -ovfFloat32)
+	}
+
+	maxInt32 := int64(0x7fffffff)
+	if ovf := TypeFor[int32]().OverflowInt(maxInt32); ovf {
+		t.Errorf("%v wrongly overflows int32", maxInt32)
+	}
+	if ovf := TypeFor[int32]().OverflowInt(-1 << 31); ovf {
+		t.Errorf("%v wrongly overflows int32", -int64(1)<<31)
+	}
+	ovfInt32 := int64(1 << 31)
+	if ovf := TypeFor[int32]().OverflowInt(ovfInt32); !ovf {
+		t.Errorf("%v should overflow int32", ovfInt32)
+	}
+
+	maxUint32 := uint64(0xffffffff)
+	if ovf := TypeFor[uint32]().OverflowUint(maxUint32); ovf {
+		t.Errorf("%v wrongly overflows uint32", maxUint32)
+	}
+	ovfUint32 := uint64(1 << 32)
+	if ovf := TypeFor[uint32]().OverflowUint(ovfUint32); !ovf {
 		t.Errorf("%v should overflow uint32", ovfUint32)
 	}
 }
@@ -8021,6 +8066,7 @@ func TestValue_Comparable(t *testing.T) {
 	var a int
 	var s []int
 	var i interface{} = a
+	var iNil interface{}
 	var iSlice interface{} = s
 	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
 	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
@@ -8029,6 +8075,11 @@ func TestValue_Comparable(t *testing.T) {
 		comparable bool
 		deref      bool
 	}{
+		{
+			ValueOf(&iNil),
+			true,
+			true,
+		},
 		{
 			ValueOf(32),
 			true,

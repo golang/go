@@ -97,6 +97,18 @@ func (subst *subster) typ(typ Type) Type {
 	case *Basic:
 		// nothing to do
 
+	case *Alias:
+		rhs := subst.typ(t.fromRHS)
+		if rhs != t.fromRHS {
+			// This branch cannot be reached because the RHS of an alias
+			// may only contain type parameters of an enclosing function.
+			// Such function bodies are never "instantiated" and thus
+			// substitution is not called on locally declared alias types.
+			// TODO(gri) adjust once parameterized aliases are supported
+			panic("unreachable for unparameterized aliases")
+			// return subst.check.newAlias(t.obj, rhs)
+		}
+
 	case *Array:
 		elem := subst.typOrNil(t.elem)
 		if elem != t.elem {
@@ -171,6 +183,7 @@ func (subst *subster) typ(typ Type) Type {
 		if mcopied || ecopied {
 			iface := subst.check.newInterface()
 			iface.embeddeds = embeddeds
+			iface.embedPos = t.embedPos
 			iface.implicit = t.implicit
 			assert(t.complete) // otherwise we are copying incomplete data
 			iface.complete = t.complete
@@ -272,7 +285,7 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.smap.lookup(t)
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return typ

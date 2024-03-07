@@ -8,15 +8,18 @@ import (
 	"internal/bytealg"
 	"internal/itoa"
 	"sort"
+	_ "unsafe" // for go:linkname
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
 // provided by runtime
-func fastrandu() uint
+//
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
 
 func randInt() int {
-	return int(fastrandu() >> 1) // clear sign bit
+	return int(uint(runtime_rand()) >> 1) // clear sign bit
 }
 
 func randIntn(n int) int {

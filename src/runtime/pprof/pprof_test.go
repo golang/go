@@ -1605,7 +1605,11 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 
 	// The finalizer goroutine should show up when it's running user code.
 	t.Run("finalizer present", func(t *testing.T) {
-		obj := new(byte)
+		// T is a pointer type so it won't be allocated by the tiny
+		// allocator, which can lead to its finalizer not being called
+		// during this test
+		type T *byte
+		obj := new(T)
 		ch1, ch2 := make(chan int), make(chan int)
 		defer close(ch2)
 		runtime.SetFinalizer(obj, func(_ interface{}) {

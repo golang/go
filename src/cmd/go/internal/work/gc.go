@@ -29,9 +29,6 @@ import (
 // Tests can override this by setting $TESTGO_TOOLCHAIN_VERSION.
 var ToolchainVersion = runtime.Version()
 
-// The 'path' used for GOROOT_FINAL when -trimpath is specified
-const trimPathGoRootFinal string = "$GOROOT"
-
 // The Go toolchain.
 
 type gcToolchain struct{}
@@ -361,13 +358,19 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 	}
 
+	if cfg.Goarch == "riscv64" {
+		// Define GORISCV64_value from cfg.GORISCV64.
+		args = append(args, "-D", "GORISCV64_"+cfg.GORISCV64)
+	}
+
 	if cfg.Goarch == "arm" {
-		// Define GOARM_value from cfg.GOARM.
-		switch cfg.GOARM {
-		case "7":
+		// Define GOARM_value from cfg.GOARM, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(cfg.GOARM, "7"):
 			args = append(args, "-D", "GOARM_7")
 			fallthrough
-		case "6":
+		case strings.Contains(cfg.GOARM, "6"):
 			args = append(args, "-D", "GOARM_6")
 			fallthrough
 		default:
@@ -663,8 +666,11 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	}
 
 	env := []string{}
+	// When -trimpath is used, GOROOT is cleared
 	if cfg.BuildTrimpath {
-		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
+		env = append(env, "GOROOT=")
+	} else {
+		env = append(env, "GOROOT="+cfg.GOROOT)
 	}
 	return b.Shell(root).run(dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
 }

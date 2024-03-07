@@ -73,9 +73,7 @@ func gcMarkRootPrepare() {
 		if nDataRoots > work.nDataRoots {
 			work.nDataRoots = nDataRoots
 		}
-	}
 
-	for _, datap := range activeModules() {
 		nBSSRoots := nBlocks(datap.ebss - datap.bss)
 		if nBSSRoots > work.nBSSRoots {
 			work.nBSSRoots = nBSSRoots
@@ -1718,7 +1716,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 //
 //go:nowritebarrier
 //go:nosplit
-func gcmarknewobject(span *mspan, obj, size uintptr) {
+func gcmarknewobject(span *mspan, obj uintptr) {
 	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
@@ -1734,7 +1732,7 @@ func gcmarknewobject(span *mspan, obj, size uintptr) {
 	}
 
 	gcw := &getg().m.p.ptr().gcw
-	gcw.bytesMarked += uint64(size)
+	gcw.bytesMarked += uint64(span.elemsize)
 }
 
 // gcMarkTinyAllocs greys all active tiny alloc blocks.

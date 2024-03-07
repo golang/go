@@ -273,10 +273,6 @@ var (
 	symSize int32
 )
 
-const (
-	MINFUNC = 16 // minimum size for a function
-)
-
 // Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
 // are used, 0 otherwise.
 var abiInternalVer = sym.SymVerABIInternal
@@ -878,7 +874,17 @@ func (ctxt *Link) linksetup() {
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
-			sb.AddUint8(uint8(buildcfg.GOARM))
+			sb.AddUint8(uint8(buildcfg.GOARM.Version))
+
+			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
+			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
+			sb2.SetType(sym.SDATA)
+			sb2.SetSize(0)
+			if buildcfg.GOARM.SoftFloat {
+				sb2.AddUint8(1)
+			} else {
+				sb2.AddUint8(0)
+			}
 		}
 
 		// Set runtime.disableMemoryProfiling bool if
@@ -1593,12 +1599,16 @@ func (ctxt *Link) hostlink() {
 	}
 
 	var altLinker string
-	if ctxt.IsELF && ctxt.DynlinkingGo() {
-		// We force all symbol resolution to be done at program startup
+	if ctxt.IsELF && (ctxt.DynlinkingGo() || *flagBindNow) {
+		// For ELF targets, when producing dynamically linked Go code
+		// or when immediate binding is explicitly requested,
+		// we force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
 		argv = append(argv, "-Wl,-z,now")
+	}
 
+	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// Do not let the host linker generate COPY relocations. These
 		// can move symbols out of sections that rely on stable offsets
 		// from the beginning of the section (like sym.STYPE).
@@ -1868,9 +1878,10 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("\n")
 	}
 
-	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
+	cmd := exec.Command(argv[0], argv[1:]...)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+		Exitf("running %s failed: %v\n%s\n%s", argv[0], err, cmd, out)
 	}
 
 	// Filter out useless linker warnings caused by bugs outside Go.
@@ -1953,7 +1964,7 @@ func (ctxt *Link) hostlink() {
 			ctxt.Logf("\n")
 		}
 		if out, err := cmd.CombinedOutput(); err != nil {
-			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+			Exitf("%s: running dsymutil failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
@@ -1972,8 +1983,9 @@ func (ctxt *Link) hostlink() {
 			}
 			ctxt.Logf("\n")
 		}
-		if out, err := exec.Command(stripCmd, stripArgs...).CombinedOutput(); err != nil {
-			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
+		cmd = exec.Command(stripCmd, stripArgs...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {

@@ -60,7 +60,12 @@ func TestParseAddr(t *testing.T) {
 		// 4-in-6 with octet with leading zero
 		{
 			in:      "::ffff:1.2.03.4",
-			wantErr: `ParseAddr("::ffff:1.2.03.4"): ParseAddr("1.2.03.4"): IPv4 field has octet with leading zero (at "1.2.03.4")`,
+			wantErr: `ParseAddr("::ffff:1.2.03.4"): IPv4 field has octet with leading zero`,
+		},
+		// 4-in-6 with octet with unexpected character
+		{
+			in:      "::ffff:1.2.3.z",
+			wantErr: `ParseAddr("::ffff:1.2.3.z"): unexpected character (at "z")`,
 		},
 		// Basic zero IPv6 address.
 		{
@@ -269,6 +274,10 @@ func TestParseAddr(t *testing.T) {
 		"fe80:1?:1",
 		// IPv6 with truncated bytes after single colon.
 		"fe80:",
+		// IPv6 with 5 zeros in last group
+		"0:0:0:0:0:ffff:0:00000",
+		// IPv6 with 5 zeros in one group and embedded IPv4
+		"0:0:0:0:00000:ffff:127.1.2.3",
 	}
 
 	for _, s := range invalidIPs {
@@ -1242,7 +1251,6 @@ func TestIs4In6(t *testing.T) {
 		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
-		{mustIP("0:0:0:0:000000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::1"), false, mustIP("::1")},
 		{mustIP("1.2.3.4"), false, mustIP("1.2.3.4")},
@@ -1691,7 +1699,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 	}
 }
 
-func BenchmarkIPString(b *testing.B) {
+func BenchmarkAddrString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		b.Run(test.name, func(b *testing.B) {
@@ -1715,11 +1723,15 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 	}
 }
 
-func BenchmarkIPMarshalText(b *testing.B) {
-	b.ReportAllocs()
-	ip := MustParseAddr("66.55.44.33")
-	for i := 0; i < b.N; i++ {
-		sinkBytes, _ = ip.MarshalText()
+func BenchmarkAddrMarshalText(b *testing.B) {
+	for _, test := range parseBenchInputs {
+		ip := MustParseAddr(test.ip)
+		b.Run(test.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sinkBytes, _ = ip.MarshalText()
+			}
+		})
 	}
 }
 

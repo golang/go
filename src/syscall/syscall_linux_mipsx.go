@@ -9,11 +9,10 @@ package syscall
 import "unsafe"
 
 const (
-	_SYS_setgroups         = SYS_SETGROUPS
-	_SYS_clone3            = 4435
-	_SYS_faccessat2        = 4439
-	_SYS_pidfd_send_signal = 4424
-	_SYS_fchmodat2         = 4452
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 4435
+	_SYS_faccessat2 = 4439
+	_SYS_fchmodat2  = 4452
 )
 
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

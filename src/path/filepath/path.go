@@ -13,6 +13,7 @@ package filepath
 
 import (
 	"errors"
+	"internal/safefilepath"
 	"io/fs"
 	"os"
 	"slices"
@@ -73,7 +74,7 @@ const (
 // by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
-//  1. Replace multiple Separator elements with a single one.
+//  1. Replace multiple [Separator] elements with a single one.
 //  2. Eliminate each . path name element (the current directory).
 //  3. Eliminate each inner .. path name element (the parent directory)
 //     along with the non-.. element that precedes it.
@@ -211,6 +212,18 @@ func unixIsLocal(path string) bool {
 	return true
 }
 
+// Localize converts a slash-separated path into an operating system path.
+// The input path must be a valid path as reported by [io/fs.ValidPath].
+//
+// Localize returns an error if the path cannot be represented by the operating system.
+// For example, the path a\b is rejected on Windows, on which \ is a separator
+// character and cannot be part of a filename.
+//
+// The path returned by Localize will always be local, as reported by IsLocal.
+func Localize(path string) (string, error) {
+	return safefilepath.Localize(path)
+}
+
 // ToSlash returns the result of replacing each separator character
 // in path with a slash ('/') character. Multiple separators are
 // replaced by multiple slashes.
@@ -224,6 +237,9 @@ func ToSlash(path string) string {
 // FromSlash returns the result of replacing each slash ('/') character
 // in path with a separator character. Multiple slashes are replaced
 // by multiple separators.
+//
+// See also the Localize function, which converts a slash-separated path
+// as used by the io/fs package to an operating system path.
 func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
@@ -231,7 +247,7 @@ func FromSlash(path string) string {
 	return strings.ReplaceAll(path, "/", string(Separator))
 }
 
-// SplitList splits a list of paths joined by the OS-specific ListSeparator,
+// SplitList splits a list of paths joined by the OS-specific [ListSeparator],
 // usually found in PATH or GOPATH environment variables.
 // Unlike strings.Split, SplitList returns an empty slice when passed an empty
 // string.
@@ -239,7 +255,7 @@ func SplitList(path string) []string {
 	return splitList(path)
 }
 
-// Split splits path immediately following the final Separator,
+// Split splits path immediately following the final [Separator],
 // separating it into a directory and file name component.
 // If there is no Separator in path, Split returns an empty dir
 // and file set to path.
@@ -254,7 +270,7 @@ func Split(path string) (dir, file string) {
 }
 
 // Join joins any number of path elements into a single path,
-// separating them with an OS specific Separator. Empty elements
+// separating them with an OS specific [Separator]. Empty elements
 // are ignored. The result is Cleaned. However, if the argument
 // list is empty or all its elements are empty, Join returns
 // an empty string.
@@ -281,7 +297,7 @@ func Ext(path string) string {
 // links.
 // If path is relative the result will be relative to the current directory,
 // unless one of the components is an absolute symbolic link.
-// EvalSymlinks calls Clean on the result.
+// EvalSymlinks calls [Clean] on the result.
 func EvalSymlinks(path string) (string, error) {
 	return evalSymlinks(path)
 }
@@ -290,7 +306,7 @@ func EvalSymlinks(path string) (string, error) {
 // If the path is not absolute it will be joined with the current
 // working directory to turn it into an absolute path. The absolute
 // path name for a given file is not guaranteed to be unique.
-// Abs calls Clean on the result.
+// Abs calls [Clean] on the result.
 func Abs(path string) (string, error) {
 	return abs(path)
 }
@@ -308,12 +324,12 @@ func unixAbs(path string) (string, error) {
 
 // Rel returns a relative path that is lexically equivalent to targpath when
 // joined to basepath with an intervening separator. That is,
-// Join(basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
+// [Join](basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
 // On success, the returned path will always be relative to basepath,
 // even if basepath and targpath share no elements.
 // An error is returned if targpath can't be made relative to basepath or if
 // knowing the current working directory would be necessary to compute it.
-// Rel calls Clean on the result.
+// Rel calls [Clean] on the result.
 func Rel(basepath, targpath string) (string, error) {
 	baseVol := VolumeName(basepath)
 	targVol := VolumeName(targpath)
@@ -386,17 +402,17 @@ func Rel(basepath, targpath string) (string, error) {
 	return targ[t0:], nil
 }
 
-// SkipDir is used as a return value from WalkFuncs to indicate that
+// SkipDir is used as a return value from [WalkFunc] to indicate that
 // the directory named in the call is to be skipped. It is not returned
 // as an error by any function.
 var SkipDir error = fs.SkipDir
 
-// SkipAll is used as a return value from WalkFuncs to indicate that
+// SkipAll is used as a return value from [WalkFunc] to indicate that
 // all remaining files and directories are to be skipped. It is not returned
 // as an error by any function.
 var SkipAll error = fs.SkipAll
 
-// WalkFunc is the type of the function called by Walk to visit each
+// WalkFunc is the type of the function called by [Walk] to visit each
 // file or directory.
 //
 // The path argument contains the argument to Walk as a prefix.
@@ -412,9 +428,9 @@ var SkipAll error = fs.SkipAll
 // The info argument is the fs.FileInfo for the named path.
 //
 // The error result returned by the function controls how Walk continues.
-// If the function returns the special value SkipDir, Walk skips the
+// If the function returns the special value [SkipDir], Walk skips the
 // current directory (path if info.IsDir() is true, otherwise path's
-// parent directory). If the function returns the special value SkipAll,
+// parent directory). If the function returns the special value [SkipAll],
 // Walk skips all remaining files and directories. Otherwise, if the function
 // returns a non-nil error, Walk stops entirely and returns that error.
 //
@@ -425,14 +441,14 @@ var SkipAll error = fs.SkipAll
 //
 // Walk calls the function with a non-nil err argument in two cases.
 //
-// First, if an os.Lstat on the root directory or any directory or file
+// First, if an [os.Lstat] on the root directory or any directory or file
 // in the tree fails, Walk calls the function with path set to that
 // directory or file's path, info set to nil, and err set to the error
 // from os.Lstat.
 //
 // Second, if a directory's Readdirnames method fails, Walk calls the
 // function with path set to the directory's path, info, set to an
-// fs.FileInfo describing the directory, and err set to the error from
+// [fs.FileInfo] describing the directory, and err set to the error from
 // Readdirnames.
 type WalkFunc func(path string, info fs.FileInfo, err error) error
 
@@ -514,7 +530,7 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 // directory in the tree, including root.
 //
 // All errors that arise visiting files and directories are filtered by fn:
-// see the fs.WalkDirFunc documentation for details.
+// see the [fs.WalkDirFunc] documentation for details.
 //
 // The files are walked in lexical order, which makes the output deterministic
 // but requires WalkDir to read an entire directory into memory before proceeding
@@ -542,7 +558,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 // directory in the tree, including root.
 //
 // All errors that arise visiting files and directories are filtered by fn:
-// see the WalkFunc documentation for details.
+// see the [WalkFunc] documentation for details.
 //
 // The files are walked in lexical order, which makes the output deterministic
 // but requires Walk to read an entire directory into memory before proceeding
@@ -550,7 +566,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 //
 // Walk does not follow symbolic links.
 //
-// Walk is less efficient than WalkDir, introduced in Go 1.16,
+// Walk is less efficient than [WalkDir], introduced in Go 1.16,
 // which avoids calling os.Lstat on every visited file or directory.
 func Walk(root string, fn WalkFunc) error {
 	info, err := os.Lstat(root)
@@ -611,7 +627,7 @@ func Base(path string) string {
 }
 
 // Dir returns all but the last element of path, typically the path's directory.
-// After dropping the final element, Dir calls Clean on the path and trailing
+// After dropping the final element, Dir calls [Clean] on the path and trailing
 // slashes are removed.
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of separators, Dir returns a single separator.

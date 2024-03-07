@@ -179,7 +179,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 				// Ignore wrappers, unless we're at the outermost frame of u.
 				// A non-inlined wrapper frame always means we have a physical
 				// frame consisting entirely of wrappers, in which case we'll
-				// take a outermost wrapper over nothing.
+				// take an outermost wrapper over nothing.
 				continue
 			}
 

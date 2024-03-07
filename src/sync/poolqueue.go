@@ -198,7 +198,7 @@ type poolChain struct {
 
 	// tail is the poolDequeue to popTail from. This is accessed
 	// by consumers, so reads and writes must be atomic.
-	tail *poolChainElt
+	tail atomic.Pointer[poolChainElt]
 }
 
 type poolChainElt struct {
@@ -214,15 +214,7 @@ type poolChainElt struct {
 	// prev is written atomically by the consumer and read
 	// atomically by the producer. It only transitions from
 	// non-nil to nil.
-	next, prev *poolChainElt
-}
-
-func storePoolChainElt(pp **poolChainElt, v *poolChainElt) {
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(pp)), unsafe.Pointer(v))
-}
-
-func loadPoolChainElt(pp **poolChainElt) *poolChainElt {
-	return (*poolChainElt)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(pp))))
+	next, prev atomic.Pointer[poolChainElt]
 }
 
 func (c *poolChain) pushHead(val any) {
@@ -233,7 +225,7 @@ func (c *poolChain) pushHead(val any) {
 		d = new(poolChainElt)
 		d.vals = make([]eface, initSize)
 		c.head = d
-		storePoolChainElt(&c.tail, d)
+		c.tail.Store(d)
 	}
 
 	if d.pushHead(val) {
@@ -248,10 +240,11 @@ func (c *poolChain) pushHead(val any) {
 		newSize = dequeueLimit
 	}
 
-	d2 := &poolChainElt{prev: d}
+	d2 := &poolChainElt{}
+	d2.prev.Store(d)
 	d2.vals = make([]eface, newSize)
 	c.head = d2
-	storePoolChainElt(&d.next, d2)
+	d.next.Store(d2)
 	d2.pushHead(val)
 }
 
@@ -263,13 +256,13 @@ func (c *poolChain) popHead() (any, bool) {
 		}
 		// There may still be unconsumed elements in the
 		// previous dequeue, so try backing up.
-		d = loadPoolChainElt(&d.prev)
+		d = d.prev.Load()
 	}
 	return nil, false
 }
 
 func (c *poolChain) popTail() (any, bool) {
-	d := loadPoolChainElt(&c.tail)
+	d := c.tail.Load()
 	if d == nil {
 		return nil, false
 	}
@@ -281,7 +274,7 @@ func (c *poolChain) popTail() (any, bool) {
 		// the pop and the pop fails, then d is permanently
 		// empty, which is the only condition under which it's
 		// safe to drop d from the chain.
-		d2 := loadPoolChainElt(&d.next)
+		d2 := d.next.Load()
 
 		if val, ok := d.popTail(); ok {
 			return val, ok
@@ -297,12 +290,12 @@ func (c *poolChain) popTail() (any, bool) {
 		// to the next dequeue. Try to drop it from the chain
 		// so the next pop doesn't have to look at the empty
 		// dequeue again.
-		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c.tail)), unsafe.Pointer(d), unsafe.Pointer(d2)) {
+		if c.tail.CompareAndSwap(d, d2) {
 			// We won the race. Clear the prev pointer so
 			// the garbage collector can collect the empty
 			// dequeue and so popHead doesn't back up
 			// further than necessary.
-			storePoolChainElt(&d2.prev, nil)
+			d2.prev.Store(nil)
 		}
 		d = d2
 	}

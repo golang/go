@@ -95,15 +95,16 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), budgetForFunc func(*ir.F
 	// only after the closures it contains have been processed, so
 	// iterate through the list in reverse order. Once a function has
 	// been analyzed, revisit the question of whether it should be
-	// inlinable; if it is over the default hairyness limit and it
+	// inlinable; if it is over the default hairiness limit and it
 	// doesn't have any interesting properties, then we don't want
 	// the overhead of writing out its inline body.
+	nameFinder := newNameFinder(fn)
 	for i := len(funcs) - 1; i >= 0; i-- {
 		f := funcs[i]
 		if f.OClosure != nil && !f.InlinabilityChecked() {
 			canInline(f)
 		}
-		funcProps := analyzeFunc(f, inlineMaxBudget)
+		funcProps := analyzeFunc(f, inlineMaxBudget, nameFinder)
 		revisitInlinability(f, funcProps, budgetForFunc)
 		if f.Inl != nil {
 			f.Inl.Properties = funcProps.SerializeToString()
@@ -122,11 +123,11 @@ func TearDown() {
 	scoreCallsCache.csl = nil
 }
 
-func analyzeFunc(fn *ir.Func, inlineMaxBudget int) *FuncProps {
+func analyzeFunc(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) *FuncProps {
 	if funcInlHeur, ok := fpmap[fn]; ok {
 		return funcInlHeur.props
 	}
-	funcProps, fcstab := computeFuncProps(fn, inlineMaxBudget)
+	funcProps, fcstab := computeFuncProps(fn, inlineMaxBudget, nf)
 	file, line := fnFileLine(fn)
 	entry := fnInlHeur{
 		fname: fn.Sym().Name,
@@ -153,7 +154,7 @@ func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*
 	if fn.Inl == nil {
 		return
 	}
-	maxAdj := int32(largestScoreAdjustment(fn, funcProps))
+	maxAdj := int32(LargestNegativeScoreAdjustment(fn, funcProps))
 	budget := budgetForFunc(fn)
 	if fn.Inl.Cost+maxAdj > budget {
 		fn.Inl = nil
@@ -163,7 +164,7 @@ func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*
 // computeFuncProps examines the Go function 'fn' and computes for it
 // a function "properties" object, to be used to drive inlining
 // heuristics. See comments on the FuncProps type for more info.
-func computeFuncProps(fn *ir.Func, inlineMaxBudget int) (*FuncProps, CallSiteTab) {
+func computeFuncProps(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) (*FuncProps, CallSiteTab) {
 	if debugTrace&debugTraceFuncs != 0 {
 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
 			fn, fn)
@@ -171,13 +172,13 @@ func computeFuncProps(fn *ir.Func, inlineMaxBudget int) (*FuncProps, CallSiteTab
 	funcProps := new(FuncProps)
 	ffa := makeFuncFlagsAnalyzer(fn)
 	analyzers := []propAnalyzer{ffa}
-	analyzers = addResultsAnalyzer(fn, analyzers, funcProps, inlineMaxBudget)
-	analyzers = addParamsAnalyzer(fn, analyzers, funcProps)
+	analyzers = addResultsAnalyzer(fn, analyzers, funcProps, inlineMaxBudget, nf)
+	analyzers = addParamsAnalyzer(fn, analyzers, funcProps, nf)
 	runAnalyzersOnFunction(fn, analyzers)
 	for _, a := range analyzers {
 		a.setResults(funcProps)
 	}
-	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0)
+	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0, nf)
 	return funcProps, cstab
 }
 

@@ -8,8 +8,8 @@ TCP/IP, UDP, domain name resolution, and Unix domain sockets.
 
 Although the package provides access to low-level networking
 primitives, most clients will need only the basic interface provided
-by the Dial, Listen, and Accept functions and the associated
-Conn and Listener interfaces. The crypto/tls package uses
+by the [Dial], [Listen], and Accept functions and the associated
+[Conn] and [Listener] interfaces. The crypto/tls package uses
 the same interfaces and similar Dial and Listen functions.
 
 The Dial function connects to a server:
@@ -39,23 +39,26 @@ The Listen function creates servers:
 # Name Resolution
 
 The method for resolving domain names, whether indirectly with functions like Dial
-or directly with functions like LookupHost and LookupAddr, varies by operating system.
+or directly with functions like [LookupHost] and [LookupAddr], varies by operating system.
 
 On Unix systems, the resolver has two options for resolving names.
 It can use a pure Go resolver that sends DNS requests directly to the servers
 listed in /etc/resolv.conf, or it can use a cgo-based resolver that calls C
 library routines such as getaddrinfo and getnameinfo.
 
-By default the pure Go resolver is used, because a blocked DNS request consumes
-only a goroutine, while a blocked C call consumes an operating system thread.
+On Unix the pure Go resolver is preferred over the cgo resolver, because a blocked DNS
+request consumes only a goroutine, while a blocked C call consumes an operating system thread.
 When cgo is available, the cgo-based resolver is used instead under a variety of
 conditions: on systems that do not let programs make direct DNS requests (OS X),
 when the LOCALDOMAIN environment variable is present (even if empty),
 when the RES_OPTIONS or HOSTALIASES environment variable is non-empty,
 when the ASR_CONFIG environment variable is non-empty (OpenBSD only),
 when /etc/resolv.conf or /etc/nsswitch.conf specify the use of features that the
-Go resolver does not implement, and when the name being looked up ends in .local
-or is an mDNS name.
+Go resolver does not implement.
+
+On all systems (except Plan 9), when the cgo resolver is being used
+this package applies a concurrent cgo lookup limit to prevent the system
+from running out of system threads. Currently, it is limited to 500 concurrent lookups.
 
 The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
@@ -95,8 +98,8 @@ import (
 
 // Addr represents a network end point address.
 //
-// The two methods Network and String conventionally return strings
-// that can be passed as the arguments to Dial, but the exact form
+// The two methods [Addr.Network] and [Addr.String] conventionally return strings
+// that can be passed as the arguments to [Dial], but the exact form
 // and meaning of the strings is up to the implementation.
 type Addr interface {
 	Network() string // name of the network (for example, "tcp", "udp")
@@ -284,7 +287,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File.
+// File returns a copy of the underlying [os.File].
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
@@ -645,12 +648,12 @@ func (e *DNSError) Error() string {
 
 // Timeout reports whether the DNS lookup is known to have timed out.
 // This is not always known; a DNS lookup may fail due to a timeout
-// and return a DNSError for which Timeout returns false.
+// and return a [DNSError] for which Timeout returns false.
 func (e *DNSError) Timeout() bool { return e.IsTimeout }
 
 // Temporary reports whether the DNS error is known to be temporary.
 // This is not always known; a DNS lookup may fail due to a temporary
-// error and return a DNSError for which Temporary returns false.
+// error and return a [DNSError] for which Temporary returns false.
 func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
 
 // errClosed exists just so that the docs for ErrClosed don't mention
@@ -664,15 +667,53 @@ var errClosed = poll.ErrNetClosing
 // errors.Is(err, net.ErrClosed).
 var ErrClosed error = errClosed
 
-type writerOnly struct {
-	io.Writer
+// noReadFrom can be embedded alongside another type to
+// hide the ReadFrom method of that other type.
+type noReadFrom struct{}
+
+// ReadFrom hides another ReadFrom method.
+// It should never be called.
+func (noReadFrom) ReadFrom(io.Reader) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutReadFrom implements all the methods of *TCPConn other
+// than ReadFrom. This is used to permit ReadFrom to call io.Copy
+// without leading to a recursive call to ReadFrom.
+type tcpConnWithoutReadFrom struct {
+	noReadFrom
+	*TCPConn
 }
 
 // Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
 // applicable.
-func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+func genericReadFrom(c *TCPConn, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
-	return io.Copy(writerOnly{w}, r)
+	return io.Copy(tcpConnWithoutReadFrom{TCPConn: c}, r)
+}
+
+// noWriteTo can be embedded alongside another type to
+// hide the WriteTo method of that other type.
+type noWriteTo struct{}
+
+// WriteTo hides another WriteTo method.
+// It should never be called.
+func (noWriteTo) WriteTo(io.Writer) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutWriteTo implements all the methods of *TCPConn other
+// than WriteTo. This is used to permit WriteTo to call io.Copy
+// without leading to a recursive call to WriteTo.
+type tcpConnWithoutWriteTo struct {
+	noWriteTo
+	*TCPConn
+}
+
+// Fallback implementation of io.WriterTo's WriteTo, when zero-copy isn't applicable.
+func genericWriteTo(c *TCPConn, w io.Writer) (n int64, err error) {
+	// Use wrapper to hide existing w.WriteTo from io.Copy.
+	return io.Copy(w, tcpConnWithoutWriteTo{TCPConn: c})
 }
 
 // Limit the number of concurrent cgo-using goroutines, because
@@ -685,11 +726,16 @@ var threadLimit chan struct{}
 
 var threadOnce sync.Once
 
-func acquireThread() {
+func acquireThread(ctx context.Context) error {
 	threadOnce.Do(func() {
 		threadLimit = make(chan struct{}, concurrentThreadsLimit())
 	})
-	threadLimit <- struct{}{}
+	select {
+	case threadLimit <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func releaseThread() {
@@ -718,7 +764,7 @@ var (
 
 // WriteTo writes contents of the buffers to w.
 //
-// WriteTo implements io.WriterTo for Buffers.
+// WriteTo implements [io.WriterTo] for [Buffers].
 //
 // WriteTo modifies the slice v as well as v[i] for 0 <= i < len(v),
 // but does not modify v[i][j] for any i, j.
@@ -740,7 +786,7 @@ func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 
 // Read from the buffers.
 //
-// Read implements io.Reader for Buffers.
+// Read implements [io.Reader] for [Buffers].
 //
 // Read modifies the slice v as well as v[i] for 0 <= i < len(v),
 // but does not modify v[i][j] for any i, j.

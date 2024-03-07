@@ -141,11 +141,17 @@ Diff:
 		// Turn relative (PC) into absolute (PC) automatically,
 		// so that most branch instructions don't need comments
 		// giving the absolute form.
-		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
-			last := f[len(f)-1]
-			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
+		if len(f) > 0 && strings.Contains(printed, "(PC)") {
+			index := len(f) - 1
+			suf := "(PC)"
+			for !strings.HasSuffix(f[index], suf) {
+				index--
+				suf = "(PC),"
+			}
+			str := f[index]
+			n, err := strconv.Atoi(str[:len(str)-len(suf)])
 			if err == nil {
-				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
+				f[index] = fmt.Sprintf("%d%s", seq+n, suf)
 			}
 		}
 
@@ -372,10 +378,10 @@ func Test386EndToEnd(t *testing.T) {
 }
 
 func TestARMEndToEnd(t *testing.T) {
-	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
+	defer func(old int) { buildcfg.GOARM.Version = old }(buildcfg.GOARM.Version)
 	for _, goarm := range []int{5, 6, 7} {
 		t.Logf("GOARM=%d", goarm)
-		buildcfg.GOARM = goarm
+		buildcfg.GOARM.Version = goarm
 		testEndToEnd(t, "arm", "arm")
 		if goarm == 6 {
 			testEndToEnd(t, "arm", "armv6")

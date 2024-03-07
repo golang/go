@@ -207,6 +207,16 @@ func hasNil(t Type) bool {
 	return false
 }
 
+// samePkg reports whether packages a and b are the same.
+func samePkg(a, b *Package) bool {
+	// package is nil for objects in universe scope
+	if a == nil || b == nil {
+		return a == b
+	}
+	// a != nil && b != nil
+	return a.path == b.path
+}
+
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
 type ifacePair struct {
 	x, y *Interface
@@ -271,7 +281,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 					g := y.fields[i]
 					if f.embedded != g.embedded ||
 						!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
-						!f.sameId(g.pkg, g.name) ||
+						!f.sameId(g.pkg, g.name, false) ||
 						!c.identical(f.typ, g.typ, p) {
 						return false
 					}
@@ -469,7 +479,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return false

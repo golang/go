@@ -126,6 +126,25 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.23
+
+Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+for reparse points, which can be controlled with the `winsymlink` setting.
+As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
+set, and reparse points that are not symlinks, Unix sockets, or dedup files now
+always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set. As a result of these changes,
+[`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
+mount points, which was a source of many inconsistencies and bugs.
+At previous versions (`winsymlink=0`), mount points are treated as symlinks,
+and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
+(such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
+
+Go 1.23 changed [`os.Readlink`](/pkg/os#Readlink) and [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks)
+to avoid trying to normalize volumes to drive letters, which was not always even possible.
+This behavior is controlled by the `winreadlinkvolume` setting.
+For Go 1.23, it defaults to `winreadlinkvolume=1`.
+Previous versions default to `winreadlinkvolume=0`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
@@ -148,7 +167,7 @@ for the explicit representation of [type aliases](/ref/spec#Type_declarations).
 Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
-For Go 1.23, `gotypealias=1` will become the default.
+For Go 1.23, `gotypesalias=1` will become the default.
 This setting will be removed in a future release, Go 1.24 at the earliest.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
@@ -158,6 +177,41 @@ and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
 Go 1.22 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing the cipher suites which used RSA based key
 exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 disabled
+[`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
+when the connection supports neither TLS 1.3 nor Extended Master Secret
+(implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
+setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
+
+Go 1.22 changed how the runtime interacts with transparent huge pages on Linux.
+In particular, a common default Linux kernel configuration can result in
+significant memory overheads, and Go 1.22 no longer works around this default.
+To work around this issue without adjusting kernel settings, transparent huge
+pages can be disabled for Go memory with the
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+This behavior was backported to Go 1.21.1, but the setting is only available
+starting with Go 1.21.6.
+This setting may be removed in a future release, and users impacted by this issue
+should adjust their Linux configuration according to the recommendations in the
+[GC guide](/doc/gc-guide#Linux_transparent_huge_pages), or switch to a Linux
+distribution that disables transparent huge pages altogether.
+
+Go 1.22 added contention on runtime-internal locks to the [`mutex`
+profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
+reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
+runtime locks can be enabled with the [`runtimecontentionstacks`
+setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+non-standard semantics, see setting documentation for details.
+
+Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
+field, [`Policies`](/pkg/crypto/x509/#Certificate.Policies), which supports
+certificate policy OIDs with components larger than 31 bits. By default this
+field is only used during parsing, when it is populated with policy OIDs, but
+not used during marshaling. It can be used to marshal these larger OIDs, instead
+of the existing PolicyIdentifiers field, by using the
+[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
+
 
 ### Go 1.21
 

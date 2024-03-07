@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -325,7 +326,7 @@ func TestFileServerCleans(t *testing.T) {
 
 func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
 func testFileServerEscapesNames(t *testing.T, mode testMode) {
-	const dirListPrefix = "<pre>\n"
+	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n"
 	const dirListSuffix = "\n</pre>\n"
 	tests := []struct {
 		name, escaped string
@@ -1666,5 +1667,92 @@ func (grw gzipResponseWriter) Flush() {
 	grw.w.Flush()
 	if fw, ok := grw.ResponseWriter.(http.Flusher); ok {
 		fw.Flush()
+	}
+}
+
+// Issue 63769
+func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
+func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+	testDirFile := func(t *testing.T, h Handler) {
+		ts := newClientServerTest(t, mode, h).ts
+		defer ts.Close()
+
+		res, err := ts.Client().Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := res.StatusCode, StatusInternalServerError; g != w {
+			t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
+		}
+		res.Body.Close()
+	}
+
+	t.Run("FileServer", func(t *testing.T) {
+		testDirFile(t, FileServer(Dir("testdata/index.html")))
+	})
+
+	t.Run("FileServerFS", func(t *testing.T) {
+		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
+	})
+}
+
+func TestServeContentHeadersWithError(t *testing.T) {
+	contents := []byte("content")
+	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Etag", `"abcdefgh"`)
+		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+		w.Header().Set("Cache-Control", "immutable")
+		w.Header().Set("Other-Header", "test")
+		ServeContent(w, r, "", time.Time{}, bytes.NewReader(contents))
+	})).ts
+	defer ts.Close()
+
+	req, err := NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Range", "bytes=100-10000")
+
+	c := ts.Client()
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+
+	if g, e := res.StatusCode, 416; g != e {
+		t.Errorf("got status = %d; want %d", g, e)
+	}
+	if g, e := string(out), "invalid range: failed to overlap\n"; g != e {
+		t.Errorf("got body = %q; want %q", g, e)
+	}
+	if g, e := res.Header.Get("Content-Type"), "text/plain; charset=utf-8"; g != e {
+		t.Errorf("got content-type = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Content-Length"), strconv.Itoa(len(out)); g != e {
+		t.Errorf("got content-length = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
+		t.Errorf("got content-encoding = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Etag"), ""; g != e {
+		t.Errorf("got etag = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Last-Modified"), ""; g != e {
+		t.Errorf("got last-modified = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Cache-Control"), "no-cache"; g != e {
+		t.Errorf("got cache-control = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Content-Range"), "bytes */7"; g != e {
+		t.Errorf("got content-range = %q, want %q", g, e)
+	}
+	if g, e := res.Header.Get("Other-Header"), "test"; g != e {
+		t.Errorf("got other-header = %q, want %q", g, e)
 	}
 }

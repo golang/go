@@ -39,6 +39,14 @@ go test -coverprofile=baz.p -coverpkg=./a,./d,./f ./b ./f
 stdout '^ok\s+M/b\s+\S+\s+coverage: 83.3% of statements in ./a, ./d, ./f'
 stdout '^\s*M/f\s+coverage: 0.0% of statements'
 
+# This sub-test inspired by issue 65653: if package P is is matched
+# via the package pattern supplied as the argument to "go test -cover"
+# but P is not part of "-coverpkg", then we don't want coverage for P
+# (including the specific case where P has no test files).
+go test -coverpkg=./a ./...
+stdout '^ok\s+M/a\s+\S+\s+coverage: 100.0% of statements in ./a'
+stdout '^\s*\?\s+M/f\s+\[no test files\]'
+
 -- a/a.go --
 package a
 

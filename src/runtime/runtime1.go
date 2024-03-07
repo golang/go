@@ -307,26 +307,28 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	cgocheck           int32
-	clobberfree        int32
-	dontfreezetheworld int32
-	efence             int32
-	gccheckmark        int32
-	gcpacertrace       int32
-	gcshrinkstackoff   int32
-	gcstoptheworld     int32
-	gctrace            int32
-	invalidptr         int32
-	madvdontneed       int32 // for Linux; issue 28466
-	scavtrace          int32
-	scheddetail        int32
-	schedtrace         int32
-	tracebackancestors int32
-	asyncpreemptoff    int32
-	harddecommit       int32
-	adaptivestackstart int32
-	tracefpunwindoff   int32
-	traceadvanceperiod int32
+	cgocheck                int32
+	clobberfree             int32
+	disablethp              int32
+	dontfreezetheworld      int32
+	efence                  int32
+	gccheckmark             int32
+	gcpacertrace            int32
+	gcshrinkstackoff        int32
+	gcstoptheworld          int32
+	gctrace                 int32
+	invalidptr              int32
+	madvdontneed            int32 // for Linux; issue 28466
+	runtimeContentionStacks atomic.Int32
+	scavtrace               int32
+	scheddetail             int32
+	schedtrace              int32
+	tracebackancestors      int32
+	asyncpreemptoff         int32
+	harddecommit            int32
+	adaptivestackstart      int32
+	tracefpunwindoff        int32
+	traceadvanceperiod      int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -343,6 +345,7 @@ var dbgvars = []*dbgVar{
 	{name: "allocfreetrace", value: &debug.allocfreetrace},
 	{name: "clobberfree", value: &debug.clobberfree},
 	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
@@ -352,6 +355,7 @@ var dbgvars = []*dbgVar{
 	{name: "gctrace", value: &debug.gctrace},
 	{name: "invalidptr", value: &debug.invalidptr},
 	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
@@ -619,7 +623,6 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return toRType((*_type)(rtype)).textOff(textOff(off))
-
 }
 
 // reflectlite_resolveNameOff resolves a name offset from a base pointer.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/abi"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -152,9 +153,7 @@ func walkClear(n *ir.UnaryExpr) ir.Node {
 
 // walkClose walks an OCLOSE node.
 func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
-	// cannot use chanfn - closechan takes any, not chan any
-	fn := typecheck.LookupRuntime("closechan", n.X.Type())
-	return mkcall1(fn, nil, init, n.X)
+	return mkcall1(chanfn("closechan", 1, n.X.Type()), nil, init, n.X)
 }
 
 // Lower copy(a, b) to a memmove call or a runtime call.
@@ -262,6 +261,12 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
 		return len
 	}
+	if isChanLen(n) {
+		// cannot use chanfn - closechan takes any, not chan any,
+		// because it accepts both send-only and recv-only channels.
+		fn := typecheck.LookupRuntime("chanlen", n.X.Type())
+		return mkcall1(fn, n.Type(), init, n.X)
+	}
 
 	n.X = walkExpr(n.X, init)
 
@@ -321,7 +326,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// Maximum key and elem size is 128 bytes, larger objects
 		// are stored with an indirection. So max bucket size is 2048+eps.
 		if !ir.IsConst(hint, constant.Int) ||
-			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(reflectdata.BUCKETSIZE)) {
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapBucketCount)) {
 
 			// In case hint is larger than BUCKETSIZE runtime.makemap
 			// will allocate the buckets on the heap, see #20184
@@ -332,7 +337,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			//     h.buckets = b
 			// }
 
-			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, reflectdata.BUCKETSIZE)), nil, nil)
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.MapBucketCount)), nil, nil)
 			nif.Likely = true
 
 			// var bv bmap
@@ -347,7 +352,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
-	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(reflectdata.BUCKETSIZE)) {
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapBucketCount)) {
 		// Handling make(map[any]any) and
 		// make(map[any]any, hint) where hint <= BUCKETSIZE
 		// special allows for faster map initialization and
@@ -358,8 +363,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		if n.Esc() == ir.EscNone {
 			// Only need to initialize h.hash0 since
 			// hmap h has been allocated on the stack already.
-			// h.hash0 = fastrand()
-			rand := mkcall("fastrand", types.Types[types.TUINT32], init)
+			// h.hash0 = rand32()
+			rand := mkcall("rand32", types.Types[types.TUINT32], init)
 			hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
 			return typecheck.ConvNop(h, t)
@@ -885,4 +890,11 @@ func isRuneCount(n ir.Node) bool {
 func isByteCount(n ir.Node) bool {
 	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN &&
 		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
+}
+
+// isChanLen reports whether n is of the form len(c) for a channel c.
+// Note that this does not check for -n or instrumenting because this
+// is a correctness rewrite, not an optimization.
+func isChanLen(n ir.Node) bool {
+	return n.Op() == ir.OLEN && n.(*ir.UnaryExpr).X.Type().IsChan()
 }

@@ -538,6 +538,7 @@ func TestInsertOverlap(t *testing.T) {
 
 func TestInsertPanics(t *testing.T) {
 	a := [3]int{}
+	b := [1]int{}
 	for _, test := range []struct {
 		name string
 		s    []int
@@ -549,8 +550,14 @@ func TestInsertPanics(t *testing.T) {
 		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
 		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
 		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
+
+		// There are values.
+		{"with negative index", a[:1:1], -1, b[:]},
+		{"with out-of-bounds index and > cap", a[:1:1], 2, b[:]},
+		{"with out-of-bounds index and = cap", a[:1:2], 2, b[:]},
+		{"with out-of-bounds index and < cap", a[:1:3], 2, b[:]},
 	} {
-		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
+		if !panics(func() { _ = Insert(test.s, test.i, test.v...) }) {
 			t.Errorf("Insert %s: got no panic, want panic", test.name)
 		}
 	}
@@ -672,10 +679,12 @@ func TestDeletePanics(t *testing.T) {
 		{"with negative second index", []int{42}, 1, -1},
 		{"with out-of-bounds first index", []int{42}, 2, 3},
 		{"with out-of-bounds second index", []int{42}, 0, 2},
+		{"with out-of-bounds both indexes", []int{42}, 2, 2},
 		{"with invalid i>j", []int{42}, 1, 0},
 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
+		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
 	} {
-		if !panics(func() { Delete(test.s, test.i, test.j) }) {
+		if !panics(func() { _ = Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
 		}
 	}
@@ -897,10 +906,10 @@ func TestGrow(t *testing.T) {
 	}
 
 	// Test number of allocations.
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)) }); n != 0 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)) }); n != 0 {
 		t.Errorf("Grow should not allocate when given sufficient capacity; allocated %v times", n)
 	}
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
 		if race.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
@@ -912,7 +921,7 @@ func TestGrow(t *testing.T) {
 	var gotPanic bool
 	func() {
 		defer func() { gotPanic = recover() != nil }()
-		Grow(s1, -1)
+		_ = Grow(s1, -1)
 	}()
 	if !gotPanic {
 		t.Errorf("Grow(-1) did not panic; expected a panic")
@@ -1028,7 +1037,7 @@ func TestReplacePanics(t *testing.T) {
 		{"s[i:j] is valid and j > len(s)", s, nil, 0, 4},
 	} {
 		ss, vv := Clone(test.s), Clone(test.v)
-		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {
+		if !panics(func() { _ = Replace(ss, test.i, test.j, vv...) }) {
 			t.Errorf("Replace %s: should have panicked", test.name)
 		}
 	}
@@ -1108,6 +1117,19 @@ func TestReplaceOverlap(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestReplaceEndClearTail(t *testing.T) {
+	s := []int{11, 22, 33}
+	v := []int{99}
+	// case when j == len(s)
+	i, j := 1, 3
+	s = Replace(s, i, j, v...)
+
+	x := s[:3][2]
+	if want := 0; x != want {
+		t.Errorf("TestReplaceEndClearTail: obsolete element is %d, want %d", x, want)
 	}
 }
 

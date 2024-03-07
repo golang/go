@@ -23,12 +23,15 @@ var compareTests = []testCase2[string, string, int]{
 	{"go1.19", "go1.19.0", 0},
 	{"go1.19rc1", "go1.19", -1},
 	{"go1.20", "go1.20.0", 0},
+	{"go1.20", "go1.20.0-bigcorp", 0},
 	{"go1.20rc1", "go1.20", -1},
 	{"go1.21", "go1.21.0", -1},
+	{"go1.21", "go1.21.0-bigcorp", -1},
 	{"go1.21", "go1.21rc1", -1},
 	{"go1.21rc1", "go1.21.0", -1},
 	{"go1.6", "go1.19", -1},
 	{"go1.19", "go1.19.1", -1},
+	{"go1.19rc1", "go1.19", -1},
 	{"go1.19rc1", "go1.19", -1},
 	{"go1.19rc1", "go1.19.1", -1},
 	{"go1.19rc1", "go1.19rc2", -1},
@@ -48,6 +51,7 @@ var langTests = []testCase1[string, string]{
 	{"go1.2.3", "go1.2"},
 	{"go1.2", "go1.2"},
 	{"go1", "go1"},
+	{"go222", "go222.0"},
 	{"go1.999testmod", "go1.999"},
 }
 

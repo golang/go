@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/race"
 	"internal/testenv"
 	"internal/trace/v2"
 	"internal/trace/v2/testtrace"
@@ -35,7 +36,7 @@ func TestTraceAnnotations(t *testing.T) {
 			{trace.EventRegionEnd, trace.TaskID(1), []string{"region0"}},
 			{trace.EventTaskEnd, trace.TaskID(1), []string{"task0"}},
 			//  Currently, pre-existing region is not recorded to avoid allocations.
-			{trace.EventRegionBegin, trace.NoTask, []string{"post-existing region"}},
+			{trace.EventRegionBegin, trace.BackgroundTask, []string{"post-existing region"}},
 		}
 		r, err := trace.NewReader(bytes.NewReader(tb))
 		if err != nil {
@@ -213,7 +214,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 		// Check to make sure that no goroutine in the "special" trace region
 		// ends up blocking, unblocking, then immediately blocking again.
 		//
-		// The goroutines are careful to call runtime.GoSched in between blocking,
+		// The goroutines are careful to call runtime.Gosched in between blocking,
 		// so there should never be a clean block/unblock on the goroutine unless
 		// the runtime was generating extraneous events.
 		const (
@@ -521,17 +522,31 @@ func TestTraceManyStartStop(t *testing.T) {
 	testTraceProg(t, "many-start-stop.go", nil)
 }
 
+func TestTraceWaitOnPipe(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		testTraceProg(t, "wait-on-pipe.go", nil)
+		return
+	}
+	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
+}
+
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
 	testenv.MustHaveGoRun(t)
 
 	// Check if we're on a builder.
 	onBuilder := testenv.Builder() != ""
+	onOldBuilder := !strings.Contains(testenv.Builder(), "gotip") && !strings.Contains(testenv.Builder(), "go1")
 
 	testPath := filepath.Join("./testdata/testprog", progName)
 	testName := progName
 	runTest := func(t *testing.T, stress bool) {
 		// Run the program and capture the trace, which is always written to stdout.
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "run", testPath)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
+		if race.Enabled {
+			cmd.Args = append(cmd.Args, "-race")
+		}
+		cmd.Args = append(cmd.Args, testPath)
 		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
 		if stress {
 			// Advance a generation constantly.
@@ -539,7 +554,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		}
 		// Capture stdout and stderr.
 		//
-		// The protoocol for these programs is that stdout contains the trace data
+		// The protocol for these programs is that stdout contains the trace data
 		// and stderr is an expectation in string format.
 		var traceBuf, errBuf bytes.Buffer
 		cmd.Stdout = &traceBuf
@@ -567,7 +582,18 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			// data is critical for debugging and this is the only way
 			// we can currently make sure it's retained.
 			t.Log("found bad trace; dumping to test log...")
-			t.Log(dumpTraceToText(t, tb))
+			s := dumpTraceToText(t, tb)
+			if onOldBuilder && len(s) > 1<<20+512<<10 {
+				// The old build infrastructure truncates logs at ~2 MiB.
+				// Let's assume we're the only failure and give ourselves
+				// up to 1.5 MiB to dump the trace.
+				//
+				// TODO(mknyszek): Remove this when we've migrated off of
+				// the old infrastructure.
+				t.Logf("text trace too large to dump (%d bytes)", len(s))
+			} else {
+				t.Log(s)
+			}
 		} else if t.Failed() || *dumpTraces {
 			// We asked to dump the trace or failed. Write the trace to a file.
 			t.Logf("wrote trace to file: %s", dumpTraceToFile(t, testName, stress, tb))

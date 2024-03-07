@@ -10,14 +10,13 @@ import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
 	"strings"
-	"unicode"
 )
 
 // funcInst type-checks a function instantiation.
 // The incoming x must be a generic function.
 // If inst != nil, it provides some or all of the type arguments (inst.Index).
-// If target type tsig != nil, the signature may be used to infer missing type
-// arguments of x, if any. At least one of tsig or inst must be provided.
+// If target != nil, it may be used to infer missing type arguments of x, if any.
+// At least one of T or inst must be provided.
 //
 // There are two modes of operation:
 //
@@ -32,12 +31,13 @@ import (
 //
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
-func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) ([]Type, []syntax.Expr) {
-	assert(tsig != nil || inst != nil)
+func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) ([]Type, []syntax.Expr) {
+	assert(T != nil || inst != nil)
 
 	var instErrPos poser
 	if inst != nil {
 		instErrPos = inst.Pos()
+		x.expr = inst // if we don't have an index expression, keep the existing expression of x
 	} else {
 		instErrPos = pos
 	}
@@ -51,7 +51,6 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
-			x.expr = inst
 			return nil, nil
 		}
 		assert(len(targs) == len(xlist))
@@ -66,7 +65,6 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 		// Providing too many type arguments is always an error.
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
-		x.expr = inst
 		return nil, nil
 	}
 
@@ -87,7 +85,8 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 		//
 		var args []*operand
 		var params []*Var
-		if tsig != nil && sig.tparams != nil {
+		var reverse bool
+		if T != nil && sig.tparams != nil {
 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
 				if inst != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
@@ -100,19 +99,22 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
-			expr := syntax.NewName(x.Pos(), "variable in assignment")
-			args = []*operand{{mode: value, expr: expr, typ: tsig}}
+			expr := syntax.NewName(x.Pos(), T.desc)
+			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
+			reverse = true
 		}
 
 		// Rename type parameters to avoid problems with recursive instantiations.
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args)
+		err := check.newError(CannotInferTypeArgs)
+		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse, err)
 		if targs == nil {
-			// error was already reported
+			if !err.empty() {
+				err.report()
+			}
 			x.mode = invalid
-			x.expr = inst
 			return nil, nil
 		}
 		got = len(targs)
@@ -120,15 +122,10 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 	assert(got == want)
 
 	// instantiate function signature
-	expr := x.expr // if we don't have an index expression, keep the existing expression of x
-	if inst != nil {
-		expr = inst
-	}
-	sig = check.instantiateSignature(x.Pos(), expr, sig, targs, xlist)
+	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
 
 	x.typ = sig
 	x.mode = value
-	x.expr = expr
 	return nil, nil
 }
 
@@ -211,7 +208,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 						break
 					}
 				}
-				if call.HasDots {
+				if hasDots(call) {
 					check.errorf(call.ArgList[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
@@ -470,7 +467,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.HasDots
+	ddd := hasDots(call)
 
 	// set up parameters
 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -530,12 +527,11 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		if sig.params != nil {
 			params = sig.params.vars
 		}
-		var err error_
-		err.code = WrongArgCount
-		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
-		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
-		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
-		check.report(&err)
+		err := check.newError(WrongArgCount)
+		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.report()
 		return
 	}
 
@@ -608,13 +604,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		targs = check.infer(call.Pos(), tparams, targs, sigParams, args)
+		err := check.newError(CannotInferTypeArgs)
+		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false, err)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
-			return // error already reported
+			if !err.empty() {
+				check.errorf(err.pos(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg())
+			}
+			return
 		}
 
 		// update result signature: instantiate if needed
@@ -755,7 +755,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 				x.id = exp.id
 			default:
 				check.dump("%v: unexpected object %v", atPos(e.Sel), exp)
-				unreachable()
+				panic("unreachable")
 			}
 			x.expr = e
 			return
@@ -767,7 +767,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 	case typexpr:
 		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && def.typ == x.typ {
-			check.cycleError([]Object{def})
+			check.cycleError([]Object{def}, 0)
 			goto Error
 		}
 	case builtin:
@@ -796,7 +796,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		goto Error
 	}
 
-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(under(x.typ)) {
@@ -822,21 +822,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		if isInterfacePtr(x.typ) {
 			why = check.interfacePtrError(x.typ)
 		} else {
-			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
-			// Check if capitalization of sel matters and provide better error message in that case.
-			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
-			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
-			if len(sel) > 0 {
-				var changeCase string
-				if r := rune(sel[0]); unicode.IsUpper(r) {
-					changeCase = string(unicode.ToLower(r)) + sel[1:]
-				} else {
-					changeCase = string(unicode.ToUpper(r)) + sel[1:]
-				}
-				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					why += ", but does have " + changeCase
-				}
-			}
+			alt, _, _ := lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
@@ -851,7 +838,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
 			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
@@ -922,7 +908,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 			check.addDeclDep(obj)
 
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 

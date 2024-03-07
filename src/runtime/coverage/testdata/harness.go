@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"internal/coverage/slicewriter"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime/coverage"
 	"strings"
@@ -27,7 +27,7 @@ func emitToWriter() {
 		log.Fatalf("error: WriteMeta returns %v", err)
 	}
 	mf := filepath.Join(*outdirflag, "covmeta.0abcdef")
-	if err := ioutil.WriteFile(mf, slwm.BytesWritten(), 0666); err != nil {
+	if err := os.WriteFile(mf, slwm.BytesWritten(), 0666); err != nil {
 		log.Fatalf("error: writing %s: %v", mf, err)
 	}
 	var slwc slicewriter.WriteSeeker
@@ -35,7 +35,7 @@ func emitToWriter() {
 		log.Fatalf("error: WriteCounters returns %v", err)
 	}
 	cf := filepath.Join(*outdirflag, "covcounters.0abcdef.99.77")
-	if err := ioutil.WriteFile(cf, slwc.BytesWritten(), 0666); err != nil {
+	if err := os.WriteFile(cf, slwc.BytesWritten(), 0666); err != nil {
 		log.Fatalf("error: writing %s: %v", cf, err)
 	}
 }
