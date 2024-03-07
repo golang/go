@@ -2181,8 +2181,10 @@ func Error(w ResponseWriter, error string, code int) {
 	h.Del("Etag")
 	h.Del("Last-Modified")
 	// There might be cache control headers set for some other content,
-	// but we reset it to no-cache for the error content.
-	h.Set("Cache-Control", "no-cache")
+	// but we reset it to no-cache for the error content if presents.
+	if h.has("Cache-Control") {
+		h.Set("Cache-Control", "no-cache")
+	}
 	// There might be content type already set, but we reset it to
 	// text/plain for the error message.
 	h.Set("Content-Type", "text/plain; charset=utf-8")
