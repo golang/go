@@ -75,7 +75,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		}
 
 	case OpLiteral, OpCharClass:
-		if len(x.Rune) != len(y.Rune) {
+		if x.Flags&FoldCase != y.Flags&FoldCase || len(x.Rune) != len(y.Rune) {
 			return false
 		}
 		for i, r := range x.Rune {
