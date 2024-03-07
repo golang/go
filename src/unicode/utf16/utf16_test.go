@@ -22,6 +22,26 @@ func TestConstants(t *testing.T) {
 	}
 }
 
+func TestRuneLen(t *testing.T) {
+	for _, tt := range []struct {
+		r      rune
+		length int
+	}{
+		{0, 1},
+		{Surr1 - 1, 1},
+		{Surr3, 1},
+		{SurrSelf - 1, 1},
+		{SurrSelf, 2},
+		{MaxRune, 2},
+		{MaxRune + 1, -1},
+		{-1, -1},
+	} {
+		if length := RuneLen(tt.r); length != tt.length {
+			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, length, tt.length)
+		}
+	}
+}
+
 type encodeTest struct {
 	in  []rune
 	out []uint16
