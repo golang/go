@@ -643,7 +643,12 @@ func (o *orderState) stmt(n ir.Node) {
 			indexLHS.Index = o.cheapExpr(indexLHS.Index)
 
 			call := n.Y.(*ir.CallExpr)
-			indexRHS := call.Args[0].(*ir.IndexExpr)
+			arg0 := call.Args[0]
+			// ir.SameSafeExpr skips OCONVNOPs, so we must do the same here (#66096).
+			for arg0.Op() == ir.OCONVNOP {
+				arg0 = arg0.(*ir.ConvExpr).X
+			}
+			indexRHS := arg0.(*ir.IndexExpr)
 			indexRHS.X = indexLHS.X
 			indexRHS.Index = indexLHS.Index
 
