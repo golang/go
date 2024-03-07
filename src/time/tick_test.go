@@ -7,6 +7,7 @@ package time_test
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"testing"
 	. "time"
 )
@@ -145,6 +146,83 @@ func TestTickerResetLtZeroDuration(t *testing.T) {
 	tk.Reset(0)
 }
 
+func TestLongAdjustTimers(t *testing.T) {
+	t.Parallel()
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// Build up the timer heap.
+	const count = 5000
+	wg.Add(count)
+	for range count {
+		go func() {
+			defer wg.Done()
+			Sleep(10 * Microsecond)
+		}()
+	}
+	for range count {
+		Sleep(1 * Microsecond)
+	}
+
+	// Give ourselves 60 seconds to complete.
+	// This used to reliably fail on a Mac M3 laptop,
+	// which needed 77 seconds.
+	// Trybots are slower, so it will fail even more reliably there.
+	// With the fix, the code runs in under a second.
+	done := make(chan bool)
+	AfterFunc(60*Second, func() { close(done) })
+
+	// Set up a queing goroutine to ping pong through the scheduler.
+	inQ := make(chan func())
+	outQ := make(chan func())
+
+	defer close(inQ)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(outQ)
+		var q []func()
+		for {
+			var sendTo chan func()
+			var send func()
+			if len(q) > 0 {
+				sendTo = outQ
+				send = q[0]
+			}
+			select {
+			case sendTo <- send:
+				q = q[1:]
+			case f, ok := <-inQ:
+				if !ok {
+					return
+				}
+				q = append(q, f)
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	for i := range 50000 {
+		const try = 20
+		for range try {
+			inQ <- func() {}
+		}
+		for range try {
+			select {
+			case _, ok := <-outQ:
+				if !ok {
+					t.Fatal("output channel is closed")
+				}
+			case <-After(5 * Second):
+				t.Fatalf("failed to read work, iteration %d", i)
+			case <-done:
+				t.Fatal("timer expired")
+			}
+		}
+	}
+}
 func BenchmarkTicker(b *testing.B) {
 	benchmark(b, func(n int) {
 		ticker := NewTicker(Nanosecond)

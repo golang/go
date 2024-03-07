@@ -66,7 +66,7 @@ type timers struct {
 	len atomic.Uint32
 
 	// zombies is the number of deleted timers left in heap.
-	zombies atomic.Uint32
+	zombies atomic.Int32
 
 	// raceCtx is the race context used while executing timer functions.
 	raceCtx uintptr
