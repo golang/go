@@ -4003,6 +4003,21 @@ func rewriteValuePPC64_OpPPC64ADDE(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (ADDE (MOVDconst [0]) y c)
+	// result: (ADDZE y c)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
+				continue
+			}
+			y := v_1
+			c := v_2
+			v.reset(OpPPC64ADDZE)
+			v.AddArg2(y, c)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {

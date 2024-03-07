@@ -710,6 +710,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
+	case ssa.OpPPC64ADDZE:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssa.OpPPC64ADDZEzero, ssa.OpPPC64SUBZEzero:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

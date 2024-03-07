@@ -107,6 +107,7 @@
 (ADDE x y (Select1 <typ.UInt64> (ADDCconst (MOVDconst [0]) [-1]))) => (ADDC x y)
 // Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
 (Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
+(ADDE (MOVDconst [0]) y c) => (ADDZE y c)
 
 // Borrowing subtraction.
 (Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
