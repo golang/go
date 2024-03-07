@@ -27,7 +27,7 @@ func Tool(toolName string) string {
 	return toolPath
 }
 
-// Tool returns the path at which we expect to find the named tool
+// ToolPath returns the path at which we expect to find the named tool
 // (for example, "vet"), and the error (if any) from statting that path.
 func ToolPath(toolName string) (string, error) {
 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
