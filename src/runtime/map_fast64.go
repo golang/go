@@ -309,7 +309,7 @@ search:
 					memclrHasPointers(k, 8)
 				}
 			}
-      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
+			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
 			if t.Elem.Pointers() {
 				memclrHasPointers(e, t.Elem.Size_)
 			} else {
