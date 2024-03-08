@@ -9,10 +9,10 @@ import (
 	_ "unsafe" // for linkname
 )
 
-// Version retrieves the major, minor, and build version numbers
+// version retrieves the major, minor, and build version numbers
 // of the current Windows OS from the RtlGetNtVersionNumbers API
 // and parse the results properly.
-func Version() (major, minor, build uint32) {
+func version() (major, minor, build uint32) {
 	rtlGetNtVersionNumbers(&major, &minor, &build)
 	build &= 0x7fff
 	return
@@ -23,24 +23,25 @@ func Version() (major, minor, build uint32) {
 func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
 
 // SupportFullTCPKeepAlive indicates whether the current Windows version
-// supports the full TCP keep-alive configurations, the minimal requirement
-// is Windows 10, version 1709.
+// supports the full TCP keep-alive configurations.
+// The minimal requirement is Windows 10.0.16299.
 var SupportFullTCPKeepAlive = sync.OnceValue(func() bool {
-	major, _, build := Version()
+	major, _, build := version()
 	return major >= 10 && build >= 16299
 })
 
 // SupportTCPInitialRTONoSYNRetransmissions indicates whether the current
-// Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS, the
-// minimal requirement is Windows 10.0.16299.
+// Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS.
+// The minimal requirement is Windows 10.0.16299.
 var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
-	major, _, build := Version()
+	major, _, build := version()
 	return major >= 10 && build >= 16299
 })
 
 // SupportUnixSocket indicates whether the current Windows version supports
-// Unix Domain Sockets, the minimal requirement is Windows 10, build 17063.
+// Unix Domain Sockets.
+// The minimal requirement is Windows 10.0.17063.
 var SupportUnixSocket = sync.OnceValue(func() bool {
-	major, _, build := Version()
+	major, _, build := version()
 	return major >= 10 && build >= 17063
 })
