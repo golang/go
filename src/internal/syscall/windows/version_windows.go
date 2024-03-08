@@ -6,7 +6,8 @@ package windows
 
 import (
 	"sync"
-	_ "unsafe" // for linkname
+	"syscall"
+	"unsafe"
 )
 
 // version retrieves the major, minor, and build version numbers
@@ -42,6 +43,21 @@ var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
 // Unix Domain Sockets.
 // The minimal requirement is Windows 10.0.17063.
 var SupportUnixSocket = sync.OnceValue(func() bool {
-	major, _, build := version()
-	return major >= 10 && build >= 17063
+	var size uint32
+	// First call to get the required buffer size in bytes.
+	// Ignore the error, it will always fail.
+	_, _ = syscall.WSAEnumProtocols(nil, nil, &size)
+	n := int32(size) / int32(unsafe.Sizeof(syscall.WSAProtocolInfo{}))
+	// Second call to get the actual protocols.
+	buf := make([]syscall.WSAProtocolInfo, n)
+	n, err := syscall.WSAEnumProtocols(nil, &buf[0], &size)
+	if err != nil {
+		return false
+	}
+	for i := int32(0); i < n; i++ {
+		if buf[i].AddressFamily == syscall.AF_UNIX {
+			return true
+		}
+	}
+	return false
 })

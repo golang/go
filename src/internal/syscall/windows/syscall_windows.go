@@ -201,7 +201,9 @@ const (
 	WSA_FLAG_OVERLAPPED        = 0x01
 	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
 
-	WSAEMSGSIZE syscall.Errno = 10040
+	WSAEINVAL       syscall.Errno = 10022
+	WSAEMSGSIZE     syscall.Errno = 10040
+	WSAEAFNOSUPPORT syscall.Errno = 10047
 
 	MSG_PEEK   = 0x2
 	MSG_TRUNC  = 0x0100
