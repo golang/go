@@ -21,7 +21,7 @@ const (
 )
 
 func setKeepAliveIdle(fd *netFD, d time.Duration) error {
-	if !windows.SupportFullTCPKeepAlive() {
+	if !windows.SupportTCPKeepAliveIdle() {
 		return setKeepAliveIdleAndInterval(fd, d, -1)
 	}
 
@@ -38,7 +38,7 @@ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
 }
 
 func setKeepAliveInterval(fd *netFD, d time.Duration) error {
-	if !windows.SupportFullTCPKeepAlive() {
+	if !windows.SupportTCPKeepAliveInterval() {
 		return setKeepAliveIdleAndInterval(fd, -1, d)
 	}
 
@@ -59,15 +59,6 @@ func setKeepAliveCount(fd *netFD, n int) error {
 		n = defaultTCPKeepAliveCount
 	} else if n < 0 {
 		return nil
-	}
-
-	// This value is not capable to be changed on old versions of Windows.
-	if !windows.SupportFullTCPKeepAlive() {
-		return syscall.WSAENOPROTOOPT
-	}
-	// It is illegal to set TCP_KEEPCNT to a value greater than 255.
-	if n > 255 {
-		return syscall.EINVAL
 	}
 
 	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPCNT, n)
