@@ -114,8 +114,9 @@ type Transport struct {
 	// request is aborted with the provided error.
 	//
 	// The proxy type is determined by the URL scheme. "http",
-	// "https", and "socks5" are supported. If the scheme is empty,
+	// "https", "socks5", and "socks5h" are supported. If the scheme is empty,
 	// "http" is assumed.
+	// "socks5" is treated the same as "socks5h".
 	//
 	// If the proxy URL contains a userinfo subcomponent,
 	// the proxy request will pass the username and password
@@ -440,7 +441,6 @@ func (t *Transport) onceSetNextProtoDefaults() {
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed.
-// The schemes "http", "https", and "socks5" are supported.
 // An error is returned if the value is a different form.
 //
 // A nil URL and nil error are returned if no proxy is defined in the
@@ -1676,7 +1676,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing. Not using a proxy.
-	case cm.proxyURL.Scheme == "socks5":
+	case cm.proxyURL.Scheme == "socks5" || cm.proxyURL.Scheme == "socks5h":
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
 		if u := cm.proxyURL.User; u != nil {
@@ -2777,9 +2777,10 @@ func (pc *persistConn) closeLocked(err error) {
 }
 
 var portMap = map[string]string{
-	"http":   "80",
-	"https":  "443",
-	"socks5": "1080",
+	"http":    "80",
+	"https":   "443",
+	"socks5":  "1080",
+	"socks5h": "1080",
 }
 
 func idnaASCIIFromURL(url *url.URL) string {
