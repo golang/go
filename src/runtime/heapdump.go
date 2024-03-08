@@ -735,9 +735,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 		tmpbuf = (*[1 << 30]byte)(p)[:n]
 	}
 	// Convert heap bitmap to pointer bitmap.
-	for i := uintptr(0); i < nptr/8+1; i++ {
-		tmpbuf[i] = 0
-	}
+	clear(tmpbuf[:nptr/8+1])
 	if goexperiment.AllocHeaders {
 		s := spanOf(p)
 		tp := s.typePointersOf(p, size)
