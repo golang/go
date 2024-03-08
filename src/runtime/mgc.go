@@ -747,9 +747,8 @@ func gcStart(trigger gcTrigger) {
 		work.pauseNS += now - stw.start
 		work.tMark = now
 
-		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
-		work.cpuStats.gcPauseTime += sweepTermCpu
-		work.cpuStats.gcTotalTime += sweepTermCpu
+		// Update the CPU stats pause time.
+		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.stwprocs)
 
 		// Release the CPU limiter.
 		gcCPULimiter.finishGCTransition(now)
@@ -1017,13 +1016,10 @@ func gcMarkTermination(stw worldStop) {
 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
 	memstats.pause_total_ns += uint64(work.pauseNS)
 
-	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
-	work.cpuStats.gcPauseTime += markTermCpu
-	work.cpuStats.gcTotalTime += markTermCpu
-
 	// Accumulate CPU stats.
 	//
 	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
+	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.stwprocs)
 	work.cpuStats.accumulate(now, true)
 
 	// Compute overall GC CPU utilization.
@@ -1166,7 +1162,7 @@ func gcMarkTermination(stw worldStop) {
 			gcController.assistTime.Load(),
 			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load(),
 			gcController.idleMarkTime.Load(),
-			markTermCpu,
+			int64(work.stwprocs) * (work.tEnd - work.tMarkTerm),
 		} {
 			if i == 2 || i == 3 {
 				// Separate mark time components with /.

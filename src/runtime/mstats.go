@@ -921,6 +921,16 @@ type cpuStats struct {
 	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
 }
 
+// accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
+// the actual time spent paused, for orthogonality. stwProcs should be GOMAXPROCS,
+// not work.stwprocs, since this number must be comparable to a total time computed
+// from GOMAXPROCS.
+func (s *cpuStats) accumulateGCPauseTime(dt int64, stwProcs int32) {
+	cpu := dt * int64(stwProcs)
+	s.gcPauseTime += cpu
+	s.gcTotalTime += cpu
+}
+
 // accumulate takes a cpuStats and adds in the current state of all GC CPU
 // counters.
 //
