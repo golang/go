@@ -3733,7 +3733,10 @@ func (p *http2pipe) Read(d []byte) (n int, err error) {
 	}
 }
 
-var http2errClosedPipeWrite = errors.New("write on closed buffer")
+var (
+	http2errClosedPipeWrite        = errors.New("write on closed buffer")
+	http2errUninitializedPipeWrite = errors.New("write on uninitialized buffer")
+)
 
 // Write copies bytes from p into the buffer and wakes a reader.
 // It is an error to write more data than the buffer can hold.
@@ -3746,6 +3749,12 @@ func (p *http2pipe) Write(d []byte) (n int, err error) {
 	defer p.c.Signal()
 	if p.err != nil || p.breakErr != nil {
 		return 0, http2errClosedPipeWrite
+	}
+	// pipe.setBuffer is never invoked, leaving the buffer uninitialized.
+	// We shouldn't try to write to an uninitialized pipe,
+	// but returning an error is better than panicking.
+	if p.b == nil {
+		return 0, http2errUninitializedPipeWrite
 	}
 	return p.b.Write(d)
 }
@@ -4213,7 +4222,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 	// passes the connection off to us with the deadline already set.
 	// Write deadlines are set per stream in serverConn.newStream.
 	// Disarm the net.Conn write deadline here.
-	if sc.hs.WriteTimeout != 0 {
+	if sc.hs.WriteTimeout > 0 {
 		sc.conn.SetWriteDeadline(time.Time{})
 	}
 
@@ -5801,7 +5810,7 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
 	// similar to how the http1 server works. Here it's
 	// technically more like the http1 Server's ReadHeaderTimeout
 	// (in Go 1.8), though. That's a more sane option anyway.
-	if sc.hs.ReadTimeout != 0 {
+	if sc.hs.ReadTimeout > 0 {
 		sc.conn.SetReadDeadline(time.Time{})
 		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout, st.onReadTimeout)
 	}
@@ -5822,7 +5831,7 @@ func (sc *http2serverConn) upgradeRequest(req *Request) {
 
 	// Disable any read deadline set by the net/http package
 	// prior to the upgrade.
-	if sc.hs.ReadTimeout != 0 {
+	if sc.hs.ReadTimeout > 0 {
 		sc.conn.SetReadDeadline(time.Time{})
 	}
 
@@ -5900,7 +5909,7 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
 	st.flow.conn = &sc.flow // link to conn-level counter
 	st.flow.add(sc.initialStreamSendWindowSize)
 	st.inflow.init(sc.srv.initialStreamRecvWindowSize())
-	if sc.hs.WriteTimeout != 0 {
+	if sc.hs.WriteTimeout > 0 {
 		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
 	}
 
