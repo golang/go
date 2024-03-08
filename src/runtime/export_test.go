@@ -429,6 +429,12 @@ func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
 
+type CPUStats = cpuStats
+
+func ReadCPUStats() CPUStats {
+	return work.cpuStats
+}
+
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
 	stw := stopTheWorld(stwForTestReadMetricsSlow)
 

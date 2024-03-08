@@ -357,11 +357,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 		if cpu.idle <= 0 {
 			t.Errorf("found no idle time: %f", cpu.idle)
 		}
-		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.01) {
-			t.Errorf("calculated total GC CPU not within 1%% of sampled total: %f vs. %f", total, cpu.gcTotal)
+		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.001) {
+			t.Errorf("calculated total GC CPU time not within %%0.1 of total: %f vs. %f", total, cpu.gcTotal)
 		}
-		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.01) {
-			t.Errorf("calculated total scavenge CPU not within 1%% of sampled total: %f vs. %f", total, cpu.scavengeTotal)
+		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.001) {
+			t.Errorf("calculated total scavenge CPU not within %%0.1 of total: %f vs. %f", total, cpu.scavengeTotal)
 		}
 		if cpu.total <= 0 {
 			t.Errorf("found no total CPU time passed")
@@ -369,8 +369,8 @@ func TestReadMetricsConsistency(t *testing.T) {
 		if cpu.user <= 0 {
 			t.Errorf("found no user time passed")
 		}
-		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.02) {
-			t.Errorf("calculated total CPU not within 2%% of sampled total: %f vs. %f", total, cpu.total)
+		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.001) {
+			t.Errorf("calculated total CPU not within %%0.1 of total: %f vs. %f", total, cpu.total)
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
@@ -1288,5 +1288,41 @@ func (w *contentionWorker) run() {
 	w.before()
 
 	for w.fn() {
+	}
+}
+
+func TestCPUStats(t *testing.T) {
+	// Run a few GC cycles to get some of the stats to be non-zero.
+	runtime.GC()
+	runtime.GC()
+	runtime.GC()
+
+	// Set GOMAXPROCS high then sleep briefly to ensure we generate
+	// some idle time.
+	oldmaxprocs := runtime.GOMAXPROCS(10)
+	time.Sleep(time.Millisecond)
+	runtime.GOMAXPROCS(oldmaxprocs)
+
+	stats := runtime.ReadCPUStats()
+	gcTotal := stats.GCAssistTime + stats.GCDedicatedTime + stats.GCIdleTime + stats.GCPauseTime
+	if gcTotal != stats.GCTotalTime {
+		t.Errorf("manually computed total does not match GCTotalTime: %d cpu-ns vs. %d cpu-ns", gcTotal, stats.GCTotalTime)
+	}
+	scavTotal := stats.ScavengeAssistTime + stats.ScavengeBgTime
+	if scavTotal != stats.ScavengeTotalTime {
+		t.Errorf("manually computed total does not match ScavengeTotalTime: %d cpu-ns vs. %d cpu-ns", scavTotal, stats.ScavengeTotalTime)
+	}
+	total := gcTotal + scavTotal + stats.IdleTime + stats.UserTime
+	if total != stats.TotalTime {
+		t.Errorf("manually computed overall total does not match TotalTime: %d cpu-ns vs. %d cpu-ns", total, stats.TotalTime)
+	}
+	if total == 0 {
+		t.Error("total time is zero")
+	}
+	if gcTotal == 0 {
+		t.Error("GC total time is zero")
+	}
+	if stats.IdleTime == 0 {
+		t.Error("idle time is zero")
 	}
 }

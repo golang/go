@@ -417,7 +417,10 @@ type workType struct {
 	stwprocs, maxprocs                 int32
 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
 
-	pauseNS int64 // total STW time this cycle
+	// pauseNS is the total STW time this cycle, measured as the time between
+	// when stopping began (just before trying to stop Ps) and just after the
+	// world started again.
+	pauseNS int64
 
 	// debug.gctrace heap sizes for this cycle.
 	heap0, heap1, heap2 uint64
@@ -741,18 +744,18 @@ func gcStart(trigger gcTrigger) {
 	// returns, so make sure we're not preemptible.
 	mp = acquirem()
 
+	// Update the CPU stats pause time.
+	//
+	// Use maxprocs instead of stwprocs here because the total time
+	// computed in the CPU stats is based on maxprocs, and we want them
+	// to be comparable.
+	work.cpuStats.accumulateGCPauseTime(nanotime()-work.tSweepTerm, work.maxprocs)
+
 	// Concurrent mark.
 	systemstack(func() {
 		now = startTheWorldWithSema(0, stw)
 		work.pauseNS += now - stw.start
 		work.tMark = now
-
-		// Update the CPU stats pause time.
-		//
-		// Use maxprocs instead of stwprocs here because the total time
-		// computed in the CPU stats is based on maxprocs, and we want them
-		// to be comparable.
-		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.maxprocs)
 
 		// Release the CPU limiter.
 		gcCPULimiter.finishGCTransition(now)
@@ -1033,7 +1036,7 @@ func gcMarkTermination(stw worldStop) {
 
 	// Compute overall GC CPU utilization.
 	// Omit idle marking time from the overall utilization here since it's "free".
-	memstats.gc_cpu_fraction = float64(work.cpuStats.gcTotalTime-work.cpuStats.gcIdleTime) / float64(work.cpuStats.totalTime)
+	memstats.gc_cpu_fraction = float64(work.cpuStats.GCTotalTime-work.cpuStats.GCIdleTime) / float64(work.cpuStats.TotalTime)
 
 	// Reset assist time and background time stats.
 	//
