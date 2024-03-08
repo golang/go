@@ -922,11 +922,11 @@ type cpuStats struct {
 }
 
 // accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
-// the actual time spent paused, for orthogonality. stwProcs should be GOMAXPROCS,
+// the actual time spent paused, for orthogonality. maxProcs should be GOMAXPROCS,
 // not work.stwprocs, since this number must be comparable to a total time computed
 // from GOMAXPROCS.
-func (s *cpuStats) accumulateGCPauseTime(dt int64, stwProcs int32) {
-	cpu := dt * int64(stwProcs)
+func (s *cpuStats) accumulateGCPauseTime(dt int64, maxProcs int32) {
+	cpu := dt * int64(maxProcs)
 	s.gcPauseTime += cpu
 	s.gcTotalTime += cpu
 }

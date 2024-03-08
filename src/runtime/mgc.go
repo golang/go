@@ -748,7 +748,11 @@ func gcStart(trigger gcTrigger) {
 		work.tMark = now
 
 		// Update the CPU stats pause time.
-		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.stwprocs)
+		//
+		// Use maxprocs instead of stwprocs here because the total time
+		// computed in the CPU stats is based on maxprocs, and we want them
+		// to be comparable.
+		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.maxprocs)
 
 		// Release the CPU limiter.
 		gcCPULimiter.finishGCTransition(now)
@@ -1018,8 +1022,13 @@ func gcMarkTermination(stw worldStop) {
 
 	// Accumulate CPU stats.
 	//
-	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
-	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.stwprocs)
+	// Use maxprocs instead of stwprocs for GC pause time because the total time
+	// computed in the CPU stats is based on maxprocs, and we want them to be
+	// comparable.
+	//
+	// Pass gcMarkPhase=true to accumulate so we can get all the latest GC CPU stats
+	// in there too.
+	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.maxprocs)
 	work.cpuStats.accumulate(now, true)
 
 	// Compute overall GC CPU utilization.
