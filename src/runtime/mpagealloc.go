@@ -511,10 +511,7 @@ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 		// either totally allocated or freed.
 		whole := p.summary[len(p.summary)-1][sc+1 : ec]
 		if alloc {
-			// Should optimize into a memclr.
-			for i := range whole {
-				whole[i] = 0
-			}
+			clear(whole)
 		} else {
 			for i := range whole {
 				whole[i] = freeChunkSum
