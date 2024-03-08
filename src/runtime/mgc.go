@@ -749,12 +749,12 @@ func gcStart(trigger gcTrigger) {
 	// Use maxprocs instead of stwprocs here because the total time
 	// computed in the CPU stats is based on maxprocs, and we want them
 	// to be comparable.
-	work.cpuStats.accumulateGCPauseTime(nanotime()-work.tSweepTerm, work.maxprocs)
+	work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
 
 	// Concurrent mark.
 	systemstack(func() {
 		now = startTheWorldWithSema(0, stw)
-		work.pauseNS += now - stw.start
+		work.pauseNS += now - stw.startedStopping
 		work.tMark = now
 
 		// Release the CPU limiter.
@@ -895,7 +895,7 @@ top:
 		getg().m.preemptoff = ""
 		systemstack(func() {
 			now := startTheWorldWithSema(0, stw)
-			work.pauseNS += now - stw.start
+			work.pauseNS += now - stw.startedStopping
 		})
 		semrelease(&worldsema)
 		goto top
@@ -1015,7 +1015,7 @@ func gcMarkTermination(stw worldStop) {
 	now := nanotime()
 	sec, nsec, _ := time_now()
 	unixNow := sec*1e9 + int64(nsec)
-	work.pauseNS += now - stw.start
+	work.pauseNS += now - stw.startedStopping
 	work.tEnd = now
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
@@ -1031,7 +1031,7 @@ func gcMarkTermination(stw worldStop) {
 	//
 	// Pass gcMarkPhase=true to accumulate so we can get all the latest GC CPU stats
 	// in there too.
-	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.maxprocs)
+	work.cpuStats.accumulateGCPauseTime(now-stw.finishedStopping, work.maxprocs)
 	work.cpuStats.accumulate(now, true)
 
 	// Compute overall GC CPU utilization.

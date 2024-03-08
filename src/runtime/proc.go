@@ -1322,8 +1322,9 @@ var stwReasonStrings = [...]string{
 // worldStop provides context from the stop-the-world required by the
 // start-the-world.
 type worldStop struct {
-	reason stwReason
-	start  int64
+	reason           stwReason
+	startedStopping  int64
+	finishedStopping int64
 }
 
 // Temporary variable for stopTheWorld, when it can't write to the stack.
@@ -1522,7 +1523,8 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 		}
 	}
 
-	startTime := nanotime() - start
+	finish := nanotime()
+	startTime := finish - start
 	if reason.isGC() {
 		sched.stwStoppingTimeGC.record(startTime)
 	} else {
@@ -1554,7 +1556,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 
 	worldStopped()
 
-	return worldStop{reason: reason, start: start}
+	return worldStop{reason: reason, startedStopping: start, finishedStopping: finish}
 }
 
 // reason is the same STW reason passed to stopTheWorld. start is the start
@@ -1610,7 +1612,7 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
 	if now == 0 {
 		now = nanotime()
 	}
-	totalTime := now - w.start
+	totalTime := now - w.startedStopping
 	if w.reason.isGC() {
 		sched.stwTotalTimeGC.record(totalTime)
 	} else {
