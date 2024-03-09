@@ -361,10 +361,10 @@ func (s *scavengerState) init() {
 	s.g = getg()
 
 	s.timer = new(timer)
-	s.timer.arg = s
-	s.timer.f = func(s any, _ uintptr) {
+	f := func(s any, _ uintptr) {
 		s.(*scavengerState).wake()
 	}
+	s.timer.init(f, s)
 
 	// input: fraction of CPU time actually used.
 	// setpoint: ideal CPU fraction.
@@ -497,7 +497,7 @@ func (s *scavengerState) sleep(worked float64) {
 		// because we can't close over any variables without
 		// failing escape analysis.
 		start := nanotime()
-		s.timer.reset(start + sleepTime)
+		s.timer.reset(start+sleepTime, 0)
 
 		// Mark ourselves as asleep and go to sleep.
 		s.parked = true

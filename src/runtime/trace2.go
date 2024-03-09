@@ -955,10 +955,10 @@ func newWakeableSleep() *wakeableSleep {
 	lockInit(&s.lock, lockRankWakeableSleep)
 	s.wakeup = make(chan struct{}, 1)
 	s.timer = new(timer)
-	s.timer.arg = s
-	s.timer.f = func(s any, _ uintptr) {
+	f := func(s any, _ uintptr) {
 		s.(*wakeableSleep).wake()
 	}
+	s.timer.init(f, s)
 	return s
 }
 
@@ -968,7 +968,7 @@ func newWakeableSleep() *wakeableSleep {
 // Must not be called by more than one goroutine at a time and
 // must not be called concurrently with close.
 func (s *wakeableSleep) sleep(ns int64) {
-	s.timer.reset(nanotime() + ns)
+	s.timer.reset(nanotime()+ns, 0)
 	lock(&s.lock)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&s.lock))

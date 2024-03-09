@@ -36,10 +36,7 @@ func newTimer(when, period int64, f func(any, uintptr), arg any) *Timer
 func stopTimer(*Timer) bool
 
 //go:linkname resetTimer
-func resetTimer(*Timer, int64) bool
-
-//go:linkname modTimer
-func modTimer(t *Timer, when, period int64)
+func resetTimer(t *Timer, when, period int64) bool
 
 // Note: The runtime knows the layout of struct Timer, since newTimer allocates it.
 // The runtime also knows that Ticker and Timer have the same layout.
@@ -132,7 +129,7 @@ func (t *Timer) Reset(d Duration) bool {
 		panic("time: Reset called on uninitialized Timer")
 	}
 	w := when(d)
-	return resetTimer(t, w)
+	return resetTimer(t, w, 0)
 }
 
 // sendTime does a non-blocking send of the current time on c.
