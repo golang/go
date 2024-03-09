@@ -96,7 +96,7 @@ func (mux *serveMux121) handleFunc(pattern string, handler func(ResponseWriter, 
 	mux.handle(pattern, HandlerFunc(handler))
 }
 
-// Formerly ServeMux.Handler.
+// Formerly ServeMux.findHandler.
 func (mux *serveMux121) findHandler(r *Request) (h Handler, pattern string) {
 
 	// CONNECT requests are not canonicalized.
