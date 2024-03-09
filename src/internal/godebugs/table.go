@@ -29,14 +29,14 @@ var All = []Info{
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
 	{Name: "gocacheverify", Package: "cmd/go"},
-	{Name: "gotypesalias", Package: "go/types"},
+	{Name: "gotypesalias", Package: "go/types", Opaque: true}, // bug #66216: remove Opaque
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},
 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "installgoroot", Package: "go/build"},
-	{Name: "jstmpllitinterp", Package: "html/template"},
+	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
 	//{Name: "multipartfiles", Package: "mime/multipart"},
 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
 	{Name: "multipartmaxparts", Package: "mime/multipart"},
@@ -49,8 +49,8 @@ var All = []Info{
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
-	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
-	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0", Opaque: true}, // bug #66215: remove Opaque
+	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0", Opaque: true},        // bug #66215: remove Opaque
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509"},

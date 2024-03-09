@@ -246,10 +246,6 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=gocacheverify=... setting.
 
-	/godebug/non-default-behavior/gotypesalias:events
-		The number of non-default behaviors executed by the go/types
-		package due to a non-default GODEBUG=gotypesalias=... setting.
-
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.
@@ -270,11 +266,6 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
-
-	/godebug/non-default-behavior/jstmpllitinterp:events
-		The number of non-default behaviors executed by
-		the html/template package due to a non-default
-		GODEBUG=jstmpllitinterp=... setting.
 
 	/godebug/non-default-behavior/multipartmaxheaders:events
 		The number of non-default behaviors executed by
@@ -318,14 +309,6 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/tlsunsafeekm:events
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
-
-	/godebug/non-default-behavior/winreadlinkvolume:events
-		The number of non-default behaviors executed by the os package
-		due to a non-default GODEBUG=winreadlinkvolume=... setting.
-
-	/godebug/non-default-behavior/winsymlink:events
-		The number of non-default behaviors executed by the os package
-		due to a non-default GODEBUG=winsymlink=... setting.
 
 	/godebug/non-default-behavior/x509sha1:events
 		The number of non-default behaviors executed by the crypto/x509

@@ -347,15 +347,15 @@ type Reader struct {
 // including header keys, values, and map overhead.
 const maxMIMEHeaderSize = 10 << 20
 
-// multipartMaxHeaders is the maximum number of header entries NextPart will return,
+// multipartmaxheaders is the maximum number of header entries NextPart will return,
 // as well as the maximum combined total of header entries Reader.ReadForm will return
 // in FileHeaders.
-var multipartMaxHeaders = godebug.New("multipartmaxheaders")
+var multipartmaxheaders = godebug.New("multipartmaxheaders")
 
 func maxMIMEHeaders() int64 {
-	if s := multipartMaxHeaders.Value(); s != "" {
+	if s := multipartmaxheaders.Value(); s != "" {
 		if v, err := strconv.ParseInt(s, 10, 64); err == nil && v >= 0 {
-			multipartMaxHeaders.IncNonDefault()
+			multipartmaxheaders.IncNonDefault()
 			return v
 		}
 	}

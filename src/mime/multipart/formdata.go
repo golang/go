@@ -34,8 +34,8 @@ func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
 }
 
 var (
-	multipartFiles    = godebug.New("#multipartfiles") // TODO: document and remove #
-	multipartMaxParts = godebug.New("multipartmaxparts")
+	multipartfiles    = godebug.New("#multipartfiles") // TODO: document and remove #
+	multipartmaxparts = godebug.New("multipartmaxparts")
 )
 
 func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
@@ -46,15 +46,15 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	)
 	numDiskFiles := 0
 	combineFiles := true
-	if multipartFiles.Value() == "distinct" {
+	if multipartfiles.Value() == "distinct" {
 		combineFiles = false
-		// multipartFiles.IncNonDefault() // TODO: uncomment after documenting
+		// multipartfiles.IncNonDefault() // TODO: uncomment after documenting
 	}
 	maxParts := 1000
-	if s := multipartMaxParts.Value(); s != "" {
+	if s := multipartmaxparts.Value(); s != "" {
 		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
 			maxParts = v
-			multipartMaxParts.IncNonDefault()
+			multipartmaxparts.IncNonDefault()
 		}
 	}
 	maxHeaders := maxMIMEHeaders()
