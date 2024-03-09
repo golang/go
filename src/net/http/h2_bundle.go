@@ -7172,6 +7172,12 @@ type http2Transport struct {
 	// waiting for their turn.
 	StrictMaxConcurrentStreams bool
 
+	// IdleConnTimeout is the maximum amount of time an idle
+	// (keep-alive) connection will remain idle before closing
+	// itself.
+	// Zero means no limit.
+	IdleConnTimeout time.Duration
+
 	// ReadIdleTimeout is the timeout after which a health check using ping
 	// frame will be carried out if no frame is received on the connection.
 	// Note that a ping response will is considered a received frame, so if
@@ -9938,6 +9944,15 @@ func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame
 		fl = &cs.flow
 	}
 	if !fl.add(int32(f.Increment)) {
+		// For stream, the sender sends RST_STREAM with an error code of FLOW_CONTROL_ERROR
+		if cs != nil {
+			rl.endStreamError(cs, http2StreamError{
+				StreamID: f.StreamID,
+				Code:     http2ErrCodeFlowControl,
+			})
+			return nil
+		}
+
 		return http2ConnectionError(http2ErrCodeFlowControl)
 	}
 	cc.cond.Broadcast()
@@ -10171,9 +10186,17 @@ func (rt http2noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
 }
 
 func (t *http2Transport) idleConnTimeout() time.Duration {
+	// to keep things backwards compatible, we use non-zero values of
+	// IdleConnTimeout, followed by using the IdleConnTimeout on the underlying
+	// http1 transport, followed by 0
+	if t.IdleConnTimeout != 0 {
+		return t.IdleConnTimeout
+	}
+
 	if t.t1 != nil {
 		return t.t1.IdleConnTimeout
 	}
+
 	return 0
 }
 
