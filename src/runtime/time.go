@@ -133,13 +133,43 @@ const (
 	timerZombie
 )
 
+// timerDebug enables printing a textual debug trace of all timer operations to stderr.
+const timerDebug = false
+
+func (t *timer) trace(op string) {
+	if timerDebug {
+		t.trace1(op)
+	}
+}
+
+func (t *timer) trace1(op string) {
+	if !timerDebug {
+		return
+	}
+	bits := [3]string{"h", "m", "z"}
+	for i := range bits {
+		if t.state&(1<<i) == 0 {
+			bits[i] = "-"
+		}
+	}
+	print("T ", t, " ", bits[0], bits[1], bits[2], " ", op, "\n")
+}
+
+func (ts *timers) trace(op string) {
+	if timerDebug {
+		println("TS", ts, op)
+	}
+}
+
 // lock locks the timer, allowing reading or writing any of the timer fields.
 func (t *timer) lock() {
 	lock(&t.mu)
+	t.trace("lock")
 }
 
 // unlock updates t.astate and unlocks the timer.
 func (t *timer) unlock() {
+	t.trace("unlock")
 	// Let heap fast paths know whether t.whenHeap is accurate.
 	t.astate.Store(t.state)
 	unlock(&t.mu)
@@ -154,6 +184,7 @@ func (t *timer) unlock() {
 // temporarily not maintaining its invariant, such as during timers.adjust).
 func (t *timer) updateHeap(ts *timers) (updated bool) {
 	assertWorldStoppedOrLockHeld(&t.mu)
+	t.trace("updateHeap")
 	if ts != nil {
 		if t.ts != ts || t != ts.heap[0] {
 			badTimer()
@@ -249,6 +280,7 @@ type timeTimer struct {
 func newTimer(when, period int64, f func(any, uintptr), arg any) *timeTimer {
 	t := new(timeTimer)
 	t.timer.init(nil, nil)
+	t.trace("new")
 	if raceenabled {
 		racerelease(unsafe.Pointer(&t.timer))
 	}
@@ -315,6 +347,7 @@ func (ts *timers) addHeap(t *timer) {
 // Reports whether the timer was stopped before it was run.
 func (t *timer) stop() bool {
 	t.lock()
+	t.trace("stop")
 	if t.state&timerHeaped != 0 {
 		t.state |= timerModified
 		if t.state&timerZombie == 0 {
@@ -366,6 +399,7 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 	}
 
 	t.lock()
+	t.trace("modify")
 	t.period = period
 	if f != nil {
 		t.f = f
@@ -408,7 +442,13 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
 // t must be locked.
 func (t *timer) needsAdd() bool {
 	assertLockHeld(&t.mu)
-	return t.state&timerHeaped == 0 && t.when > 0
+	need := t.state&timerHeaped == 0 && t.when > 0
+	if need {
+		t.trace("needsAdd+")
+	} else {
+		t.trace("needsAdd-")
+	}
+	return need
 }
 
 // maybeAdd adds t to the local timers heap if it needs to be in a heap.
@@ -434,6 +474,7 @@ func (t *timer) maybeAdd() {
 	ts.lock()
 	ts.cleanHead()
 	t.lock()
+	t.trace("maybeAdd")
 	when := int64(0)
 	if t.needsAdd() {
 		t.state |= timerHeaped
@@ -459,6 +500,7 @@ func (t *timer) reset(when, period int64) bool {
 // slows down heap operations.
 // The caller must have locked ts.
 func (ts *timers) cleanHead() {
+	ts.trace("cleanHead")
 	assertLockHeld(&ts.mu)
 	gp := getg()
 	for {
@@ -500,6 +542,7 @@ func (ts *timers) cleanHead() {
 // The caller must not have locked either timers.
 // For now this is only called when the world is stopped.
 func (ts *timers) take(src *timers) {
+	ts.trace("take")
 	assertWorldStopped()
 	if len(src.heap) > 0 {
 		// The world is stopped, so we ignore the locking of ts and src here.
@@ -535,6 +578,7 @@ func (ts *timers) move(timers []*timer) {
 // it also moves timers that have been modified to run later,
 // and removes deleted timers. The caller must have locked ts.
 func (ts *timers) adjust(now int64, force bool) {
+	ts.trace("adjust")
 	assertLockHeld(&ts.mu)
 	// If we haven't yet reached the time of the earliest modified
 	// timer, don't do anything. This speeds up programs that adjust
@@ -664,6 +708,7 @@ func (ts *timers) wakeTime() int64 {
 //
 //go:yeswritebarrierrec
 func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
+	ts.trace("check")
 	// If it's not yet time for the first timer, or the first adjusted
 	// timer, then there is nothing to do.
 	next := ts.wakeTime()
@@ -718,6 +763,7 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 //
 //go:systemstack
 func (ts *timers) run(now int64) int64 {
+	ts.trace("run")
 	assertLockHeld(&ts.mu)
 Redo:
 	if len(ts.heap) == 0 {
@@ -763,6 +809,7 @@ Redo:
 //
 //go:systemstack
 func (t *timer) unlockAndRun(now int64) {
+	t.trace("unlockAndRun")
 	assertLockHeld(&t.mu)
 	if t.ts != nil {
 		assertLockHeld(&t.ts.mu)
