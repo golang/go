@@ -259,7 +259,7 @@ func BenchmarkReset(b *testing.B) {
 			t.Stop()
 		})
 	})
-	b.Run("impl=chan", func(b *testing.B) {
+	b.Run("impl=func", func(b *testing.B) {
 		benchmark(b, func(n int) {
 			t := newTimerFunc(Hour)
 			for i := 0; i < n; i++ {
