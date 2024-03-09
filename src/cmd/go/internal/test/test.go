@@ -1859,6 +1859,8 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
 func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
+	// The runtime always looks at GODEBUG, without telling us in the testlog.
+	fmt.Fprintf(h, "env GODEBUG %x\n", hashGetenv("GODEBUG"))
 	pwd := a.Package.Dir
 	for _, line := range bytes.Split(testlog, []byte("\n")) {
 		if len(line) == 0 {

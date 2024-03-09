@@ -23,6 +23,14 @@ go test testcache -run=TestLookupEnv
 go test testcache -run=TestLookupEnv
 stdout '\(cached\)'
 
+# GODEBUG is always read
+env GODEBUG=asdf=1
+go test testcache -run=TestLookupEnv
+! stdout '\(cached\)'
+go test testcache -run=TestLookupEnv
+stdout '\(cached\)'
+env GODEBUG=
+
 env TESTKEY=y
 go test testcache -run=TestLookupEnv
 ! stdout '\(cached\)'
