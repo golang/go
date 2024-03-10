@@ -28,7 +28,6 @@ func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	if !ok {
 		return nil
 	}
-
 	h.Uid = int(sys.Uid)
 	h.Gid = int(sys.Gid)
 	if doNameLookups {
