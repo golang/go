@@ -792,6 +792,51 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
+func TestServerNoReadTimeout(t *testing.T) { run(t, testServerNoReadTimeout) }
+func testServerNoReadTimeout(t *testing.T, mode testMode) {
+	reqBody := "Hello, Gophers!"
+	resBody := "Hi, Gophers!"
+	for _, timeout := range []time.Duration{0, -1} {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			ctl := NewResponseController(res)
+			ctl.EnableFullDuplex()
+			res.WriteHeader(StatusOK)
+			// Flush the headers before processing the request body
+			// to unblock the client from the RoundTrip.
+			if err := ctl.Flush(); err != nil {
+				t.Errorf("server flush response: %v", err)
+				return
+			}
+			got, err := io.ReadAll(req.Body)
+			if string(got) != reqBody || err != nil {
+				t.Errorf("server read request body: %v; got %q, want %q", err, got, reqBody)
+			}
+			res.Write([]byte(resBody))
+		}), func(ts *httptest.Server) {
+			ts.Config.ReadTimeout = timeout
+			ts.Config.IdleTimeout = 10 * time.Millisecond
+			t.Logf("Server.Config.ReadTimeout = %d", timeout)
+		})
+
+		pr, pw := io.Pipe()
+		res, err := cst.c.Post(cst.ts.URL, "text/plain", pr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+
+		// TODO(panjf2000): sleep is not so robust, maybe find a better way to test this?
+		time.Sleep(10 * time.Millisecond) // stall sending body to server to test server doesn't time out
+		pw.Write([]byte(reqBody))
+		pw.Close()
+
+		got, err := io.ReadAll(res.Body)
+		if string(got) != resBody || err != nil {
+			t.Errorf("client read response body: %v; got %v, want %q", err, got, resBody)
+		}
+	}
+}
+
 func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout) }
 func testServerWriteTimeout(t *testing.T, mode testMode) {
 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
@@ -853,6 +898,29 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 			// The write timeout expired before the handler started.
 			t.Logf("handler didn't run, retrying")
 			cst.close()
+		}
+	}
+}
+
+func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
+func testServerNoWriteTimeout(t *testing.T, mode testMode) {
+	for _, timeout := range []time.Duration{0, -1} {
+		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			_, err := io.Copy(res, neverEnding('a'))
+			t.Logf("server write response: %v", err)
+		}), func(ts *httptest.Server) {
+			ts.Config.WriteTimeout = timeout
+			t.Logf("Server.Config.WriteTimeout = %d", timeout)
+		})
+
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		n, err := io.CopyN(io.Discard, res.Body, 1<<20) // 1MB should be sufficient to prove the point
+		if n != 1<<20 || err != nil {
+			t.Errorf("client read response body: %d, %v", n, err)
 		}
 	}
 }
