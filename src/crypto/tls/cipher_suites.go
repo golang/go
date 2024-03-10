@@ -328,6 +328,10 @@ var disabledCipherSuites = map[uint16]bool{
 	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:   true,
 	TLS_RSA_WITH_AES_128_CBC_SHA256:         true,
 
+	// 3DES
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       true,
+
 	// RC4
 	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA: true,
 	TLS_ECDHE_RSA_WITH_RC4_128_SHA:   true,
