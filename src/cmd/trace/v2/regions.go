@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// UserTasksHandlerFunc returns a HandlerFunc that reports all regions found in the trace.
+// UserRegionsHandlerFunc returns a HandlerFunc that reports all regions found in the trace.
 func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Summarize all the regions.
