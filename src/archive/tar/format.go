@@ -258,13 +258,8 @@ func (h *headerV7) linkName() []byte { return h[157:][:100] }
 
 type headerGNU [blockSize]byte
 
-func (h *headerGNU) v7() *headerV7       { return (*headerV7)(h) }
 func (h *headerGNU) magic() []byte       { return h[257:][:6] }
 func (h *headerGNU) version() []byte     { return h[263:][:2] }
-func (h *headerGNU) userName() []byte    { return h[265:][:32] }
-func (h *headerGNU) groupName() []byte   { return h[297:][:32] }
-func (h *headerGNU) devMajor() []byte    { return h[329:][:8] }
-func (h *headerGNU) devMinor() []byte    { return h[337:][:8] }
 func (h *headerGNU) accessTime() []byte  { return h[345:][:12] }
 func (h *headerGNU) changeTime() []byte  { return h[357:][:12] }
 func (h *headerGNU) sparse() sparseArray { return sparseArray(h[386:][:24*4+1]) }
@@ -272,13 +267,8 @@ func (h *headerGNU) realSize() []byte    { return h[483:][:12] }
 
 type headerSTAR [blockSize]byte
 
-func (h *headerSTAR) v7() *headerV7      { return (*headerV7)(h) }
 func (h *headerSTAR) magic() []byte      { return h[257:][:6] }
 func (h *headerSTAR) version() []byte    { return h[263:][:2] }
-func (h *headerSTAR) userName() []byte   { return h[265:][:32] }
-func (h *headerSTAR) groupName() []byte  { return h[297:][:32] }
-func (h *headerSTAR) devMajor() []byte   { return h[329:][:8] }
-func (h *headerSTAR) devMinor() []byte   { return h[337:][:8] }
 func (h *headerSTAR) prefix() []byte     { return h[345:][:131] }
 func (h *headerSTAR) accessTime() []byte { return h[476:][:12] }
 func (h *headerSTAR) changeTime() []byte { return h[488:][:12] }
@@ -286,7 +276,6 @@ func (h *headerSTAR) trailer() []byte    { return h[508:][:4] }
 
 type headerUSTAR [blockSize]byte
 
-func (h *headerUSTAR) v7() *headerV7     { return (*headerV7)(h) }
 func (h *headerUSTAR) magic() []byte     { return h[257:][:6] }
 func (h *headerUSTAR) version() []byte   { return h[263:][:2] }
 func (h *headerUSTAR) userName() []byte  { return h[265:][:32] }
