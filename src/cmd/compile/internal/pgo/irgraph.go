@@ -241,7 +241,7 @@ func processProto(r io.Reader) (*Profile, error) {
 	}, nil
 }
 
-// processPreprof generates a profile-graph from the pre-procesed profile.
+// processPreprof generates a profile-graph from the pre-processed profile.
 func processPreprof(r io.Reader) (*Profile, error) {
 	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(r)
 	if err != nil {
