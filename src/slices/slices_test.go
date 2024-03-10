@@ -1335,3 +1335,49 @@ func TestConcat_too_large(t *testing.T) {
 		}
 	}
 }
+
+var uniqueTests = []struct {
+	name string
+	s    []int
+	want []int
+}{
+	{
+		"nil",
+		nil,
+		nil,
+	},
+	{
+		"one",
+		[]int{1},
+		[]int{1},
+	},
+	{
+		"sorted",
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+	},
+	{
+		"1 item",
+		[]int{1, 1, 2},
+		[]int{1, 2},
+	},
+	{
+		"unsorted",
+		[]int{1, 2, 1},
+		[]int{1, 2},
+	},
+	{
+		"many",
+		[]int{1, 2, 2, 3, 3, 4},
+		[]int{1, 2, 3, 4},
+	},
+}
+
+func TestUnique(t *testing.T) {
+	for _, test := range uniqueTests {
+		sliceCopy := Clone(test.s)
+		if got := Unique(sliceCopy); !Equal(got, test.want) {
+			t.Errorf("Unique(%v) = %v, want %v", test.s, got, test.want)
+		}
+	}
+}

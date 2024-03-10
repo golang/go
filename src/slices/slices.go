@@ -474,3 +474,15 @@ func Concat[S ~[]E, E any](slices ...S) S {
 	}
 	return newslice
 }
+
+// Unique replaces runs of equal elements with a single copy.
+// Unique modifies the contents of the slice s and returns the modified slice,
+// which may have a smaller length.
+func Unique[S ~[]E, E comparable](s S) S {
+	for i := len(s) - 1; i > 0; i-- {
+		if Index(s, s[i]) != i {
+			s = Delete(s, i, i+1)
+		}
+	}
+	return s
+}
