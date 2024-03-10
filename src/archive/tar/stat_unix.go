@@ -28,6 +28,9 @@ func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	if !ok {
 		return nil
 	}
+
+	h.Uid = int(sys.Uid)
+	h.Gid = int(sys.Gid)
 	if doNameLookups {
 		// Best effort at populating Uname and Gname.
 		// The os/user functions may fail for any number of reasons
@@ -45,9 +48,6 @@ func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 			groupMap.Store(h.Gid, h.Gname)
 		}
 	}
-
-	h.Uid = int(sys.Uid)
-	h.Gid = int(sys.Gid)
 	h.AccessTime = statAtime(sys)
 	h.ChangeTime = statCtime(sys)
 

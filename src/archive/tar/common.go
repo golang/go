@@ -641,7 +641,7 @@ const (
 // to provide the full path name of the file.
 //
 // If fi implements [FileInfoNames]
-// the Gname and Uname of the header are
+// Header.Gname and Header.Uname
 // provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
@@ -734,9 +734,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	return h, nil
 }
 
-// FileInfoNames extends [fs.FileInfo]
+// FileInfoNames extends [fs.FileInfo].
 // Passing an instance of this to [FileInfoHeader] permits the caller
-// to control Gname and Uname set.
+// to avoid asystem-dependent name lookup by specifying the Uname and Gname directly.
 type FileInfoNames interface {
 	fs.FileInfo
 	// Uname should give a user name.
