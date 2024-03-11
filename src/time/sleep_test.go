@@ -148,8 +148,7 @@ func TestAfterFuncStarvation(t *testing.T) {
 	wg.Wait()
 }
 
-func benchmark(b *testing.B, bench func(n int)) {
-
+func benchmark(b *testing.B, bench func(*testing.PB)) {
 	// Create equal number of garbage timers on each P before starting
 	// the benchmark.
 	var wg sync.WaitGroup
@@ -168,11 +167,7 @@ func benchmark(b *testing.B, bench func(n int)) {
 	wg.Wait()
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			bench(1000)
-		}
-	})
+	b.RunParallel(bench)
 	b.StopTimer()
 
 	for _, garbage := range garbageAll {
@@ -182,27 +177,29 @@ func benchmark(b *testing.B, bench func(n int)) {
 	}
 }
 
-func BenchmarkAfterFunc(b *testing.B) {
-	benchmark(b, func(n int) {
-		c := make(chan bool)
-		var f func()
-		f = func() {
-			n--
-			if n >= 0 {
-				AfterFunc(0, f)
-			} else {
-				c <- true
+func BenchmarkAfterFunc1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			n := 1000
+			c := make(chan bool)
+			var f func()
+			f = func() {
+				n--
+				if n >= 0 {
+					AfterFunc(0, f)
+				} else {
+					c <- true
+				}
 			}
+			AfterFunc(0, f)
+			<-c
 		}
-
-		AfterFunc(0, f)
-		<-c
 	})
 }
 
 func BenchmarkAfter(b *testing.B) {
-	benchmark(b, func(n int) {
-		for i := 0; i < n; i++ {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
 			<-After(1)
 		}
 	})
@@ -210,59 +207,65 @@ func BenchmarkAfter(b *testing.B) {
 
 func BenchmarkStop(b *testing.B) {
 	b.Run("impl=chan", func(b *testing.B) {
-		benchmark(b, func(n int) {
-			for i := 0; i < n; i++ {
+		benchmark(b, func(pb *testing.PB) {
+			for pb.Next() {
 				NewTimer(1 * Second).Stop()
 			}
 		})
 	})
 	b.Run("impl=func", func(b *testing.B) {
-		benchmark(b, func(n int) {
-			for i := 0; i < n; i++ {
+		benchmark(b, func(pb *testing.PB) {
+			for pb.Next() {
 				newTimerFunc(1 * Second).Stop()
 			}
 		})
 	})
 }
 
-func BenchmarkSimultaneousAfterFunc(b *testing.B) {
-	benchmark(b, func(n int) {
-		var wg sync.WaitGroup
-		wg.Add(n)
-		for i := 0; i < n; i++ {
-			AfterFunc(0, wg.Done)
+func BenchmarkSimultaneousAfterFunc1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			n := 1000
+			var wg sync.WaitGroup
+			wg.Add(n)
+			for range n {
+				AfterFunc(0, wg.Done)
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 	})
 }
 
-func BenchmarkStartStop(b *testing.B) {
-	benchmark(b, func(n int) {
-		timers := make([]*Timer, n)
-		for i := 0; i < n; i++ {
-			timers[i] = AfterFunc(Hour, nil)
-		}
+func BenchmarkStartStop1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const N = 1000
+			timers := make([]*Timer, N)
+			for i := range timers {
+				timers[i] = AfterFunc(Hour, nil)
+			}
 
-		for i := 0; i < n; i++ {
-			timers[i].Stop()
+			for i := range timers {
+				timers[i].Stop()
+			}
 		}
 	})
 }
 
 func BenchmarkReset(b *testing.B) {
 	b.Run("impl=chan", func(b *testing.B) {
-		benchmark(b, func(n int) {
+		benchmark(b, func(pb *testing.PB) {
 			t := NewTimer(Hour)
-			for i := 0; i < n; i++ {
+			for pb.Next() {
 				t.Reset(Hour)
 			}
 			t.Stop()
 		})
 	})
 	b.Run("impl=func", func(b *testing.B) {
-		benchmark(b, func(n int) {
+		benchmark(b, func(pb *testing.PB) {
 			t := newTimerFunc(Hour)
-			for i := 0; i < n; i++ {
+			for pb.Next() {
 				t.Reset(Hour)
 			}
 			t.Stop()
@@ -270,17 +273,20 @@ func BenchmarkReset(b *testing.B) {
 	})
 }
 
-func BenchmarkSleep(b *testing.B) {
-	benchmark(b, func(n int) {
-		var wg sync.WaitGroup
-		wg.Add(n)
-		for i := 0; i < n; i++ {
-			go func() {
-				Sleep(Nanosecond)
-				wg.Done()
-			}()
+func BenchmarkSleep1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const N = 1000
+			var wg sync.WaitGroup
+			wg.Add(N)
+			for range N {
+				go func() {
+					Sleep(Nanosecond)
+					wg.Done()
+				}()
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 	})
 }
 

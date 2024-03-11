@@ -227,9 +227,9 @@ func TestLongAdjustTimers(t *testing.T) {
 	}
 }
 func BenchmarkTicker(b *testing.B) {
-	benchmark(b, func(n int) {
+	benchmark(b, func(pb *testing.PB) {
 		ticker := NewTicker(Nanosecond)
-		for i := 0; i < n; i++ {
+		for pb.Next() {
 			<-ticker.C
 		}
 		ticker.Stop()
@@ -237,9 +237,9 @@ func BenchmarkTicker(b *testing.B) {
 }
 
 func BenchmarkTickerReset(b *testing.B) {
-	benchmark(b, func(n int) {
+	benchmark(b, func(pb *testing.PB) {
 		ticker := NewTicker(Nanosecond)
-		for i := 0; i < n; i++ {
+		for pb.Next() {
 			ticker.Reset(Nanosecond * 2)
 		}
 		ticker.Stop()
@@ -247,9 +247,9 @@ func BenchmarkTickerReset(b *testing.B) {
 }
 
 func BenchmarkTickerResetNaive(b *testing.B) {
-	benchmark(b, func(n int) {
+	benchmark(b, func(pb *testing.PB) {
 		ticker := NewTicker(Nanosecond)
-		for i := 0; i < n; i++ {
+		for pb.Next() {
 			ticker.Stop()
 			ticker = NewTicker(Nanosecond * 2)
 		}
