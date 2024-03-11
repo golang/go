@@ -103,7 +103,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 	panic("unreachable")
 }
 
-var counterSwitchExec = base.NewCounter("cmd/go/switch-exec")
+var counterSwitchExec = base.NewCounter("go/toolchain/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).

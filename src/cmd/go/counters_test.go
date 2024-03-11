@@ -24,21 +24,21 @@ func TestCounterNamesUpToDate(t *testing.T) {
 	var counters []string
 	// -C is a special case because it's handled by handleChdirFlag rather than
 	// standard flag processing with FlagSets.
-	// cmd/go/subcommand:unknown is also a special case: it's used when the subcommand
+	// go/subcommand:unknown is also a special case: it's used when the subcommand
 	// doesn't match any of the known commands.
-	counters = append(counters, "cmd/go/flag:C", "cmd/go/subcommand:unknown")
-	counters = append(counters, flagscounters("cmd/go/flag:", *flag.CommandLine)...)
+	counters = append(counters, "go/flag:C", "go/subcommand:unknown")
+	counters = append(counters, flagscounters("go/flag:", *flag.CommandLine)...)
 
 	// Add help (without any arguments) as a special case. cmdcounters adds go help <cmd>
 	// for all subcommands, but it's also valid to invoke go help without any arguments.
-	counters = append(counters, "cmd/go/subcommand:help")
+	counters = append(counters, "go/subcommand:help")
 	for _, cmd := range base.Go.Commands {
 		counters = append(counters, cmdcounters(nil, cmd)...)
 	}
 
 	counters = append(counters, base.RegisteredCounterNames()...)
 	for _, c := range counters {
-		const counterPrefix = "cmd/go"
+		const counterPrefix = "go/"
 		if !strings.HasPrefix(c, counterPrefix) {
 			t.Fatalf("registered counter %q does not start with %q", c, counterPrefix)
 		}
@@ -77,8 +77,8 @@ func flagscounters(prefix string, flagSet flag.FlagSet) []string {
 }
 
 func cmdcounters(previous []string, cmd *base.Command) []string {
-	const subcommandPrefix = "cmd/go/subcommand:"
-	const flagPrefix = "cmd/go/flag:"
+	const subcommandPrefix = "go/subcommand:"
+	const flagPrefix = "go/flag:"
 	var counters []string
 	previousComponent := strings.Join(previous, "-")
 	if len(previousComponent) > 0 {

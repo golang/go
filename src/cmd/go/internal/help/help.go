@@ -18,7 +18,7 @@ import (
 	"cmd/go/internal/base"
 )
 
-var counterErrorHelpUnknownTopic = base.NewCounter("cmd/go/error:help-unknown-topic")
+var counterErrorsHelpUnknownTopic = base.NewCounter("go/errors:help-unknown-topic")
 
 // Help implements the 'help' command.
 func Help(w io.Writer, args []string) {
@@ -59,7 +59,7 @@ Args:
 		if i > 0 {
 			helpSuccess += " " + strings.Join(args[:i], " ")
 		}
-		counterErrorHelpUnknownTopic.Inc()
+		counterErrorsHelpUnknownTopic.Inc()
 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
 		base.SetExitStatus(2) // failed at 'go help cmd'
 		base.Exit()

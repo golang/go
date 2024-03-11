@@ -90,7 +90,7 @@ func init() {
 
 var _ = go11tag
 
-var counterErrorGOPATHEntryRelative = base.NewCounter("cmd/go/error:gopath-entry-relative")
+var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-relative")
 
 func main() {
 	log.SetFlags(0)
@@ -100,7 +100,7 @@ func main() {
 
 	flag.Usage = base.Usage
 	flag.Parse()
-	counter.CountFlags("cmd/go/flag:", *flag.CommandLine)
+	counter.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -109,7 +109,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		counter.Inc("cmd/go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
+		counter.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
 		help.Help(os.Stdout, args[1:])
 		return
 	}
@@ -148,7 +148,7 @@ func main() {
 					// Instead of dying, uninfer it.
 					cfg.BuildContext.GOPATH = ""
 				} else {
-					counterErrorGOPATHEntryRelative.Inc()
+					counterErrorsGOPATHEntryRelative.Inc()
 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
 					os.Exit(2)
 				}
@@ -166,7 +166,7 @@ func main() {
 		}
 		if args[used] == "help" {
 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
-			counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
+			counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
 			base.Exit()
 		}
@@ -178,12 +178,12 @@ func main() {
 		if cmdName == "" {
 			cmdName = args[0]
 		}
-		counter.Inc("cmd/go/subcommand:unknown")
+		counter.Inc("go/subcommand:unknown")
 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -248,7 +248,7 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		counter.CountFlags("cmd/go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
+		counter.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
 		args = cmd.Flag.Args()
 	}
 
@@ -333,7 +333,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
-	counter.Inc("cmd/go/flag:C")
+	counter.Inc("go/flag:C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

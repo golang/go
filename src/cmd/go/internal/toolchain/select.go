@@ -81,7 +81,7 @@ func FilterEnv(env []string) []string {
 	return out
 }
 
-var counterErrorInvalidToolchainInFile = base.NewCounter("cmd/go/error:invalid-toolchain-in-file")
+var counterErrorsInvalidToolchainInFile = base.NewCounter("go/errors:invalid-toolchain-in-file")
 
 // Select invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
@@ -176,7 +176,7 @@ func Select() {
 				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
 				toolVers := gover.FromToolchain(toolchain)
 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
-					counterErrorInvalidToolchainInFile.Inc()
+					counterErrorsInvalidToolchainInFile.Inc()
 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
 				}
 				if gover.Compare(toolVers, minVers) > 0 {
@@ -237,7 +237,7 @@ func Select() {
 	Exec(gotoolchain)
 }
 
-var counterSelectExec = base.NewCounter("cmd/go/select-exec")
+var counterSelectExec = base.NewCounter("go/toolchain/select-exec")
 
 // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
 // Valid settings are:
