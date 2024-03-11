@@ -1078,9 +1078,7 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 		// Recycle the quantization error buffers.
 		if floydSteinberg {
 			quantErrorCurr, quantErrorNext = quantErrorNext, quantErrorCurr
-			for i := range quantErrorNext {
-				quantErrorNext[i] = [4]int32{}
-			}
+			clear(quantErrorNext)
 		}
 	}
 }
