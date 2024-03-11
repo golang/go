@@ -480,8 +480,17 @@ var structSize sync.Map // map[reflect.Type]int
 func dataSize(v reflect.Value) int {
 	switch v.Kind() {
 	case reflect.Slice:
-		if s := sizeof(v.Type().Elem()); s >= 0 {
-			return s * v.Len()
+		t := v.Type().Elem()
+		if size, ok := structSize.Load(t); ok {
+			return size.(int) * v.Len()
+		}
+
+		size := sizeof(t)
+		if size >= 0 {
+			if t.Kind() == reflect.Struct {
+				structSize.Store(t, size)
+			}
+			return size * v.Len()
 		}
 
 	case reflect.Struct:
