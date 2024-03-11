@@ -612,11 +612,11 @@ type m struct {
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
-	libcall   libcall
-	libcallpc uintptr // for cpu profiler
-	libcallsp uintptr
-	libcallg  guintptr
-	syscall   libcall // stores syscall parameters on windows
+	libcall    libcall
+	libcallpc  uintptr // for cpu profiler
+	libcallsp  uintptr
+	libcallg   guintptr
+	winsyscall winlibcall // stores syscall parameters on windows
 
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call

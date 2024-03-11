@@ -214,6 +214,8 @@ func asmstdcall(fn unsafe.Pointer)
 
 var asmstdcallAddr unsafe.Pointer
 
+type winlibcall libcall
+
 func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	if name[len(name)-1] != 0 {
 		throw("usage")

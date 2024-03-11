@@ -181,7 +181,13 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 	osPreemptExtExit(mp)
 
+	// Save current syscall parameters, so m.winsyscall can be
+	// used again if callback decide to make syscall.
+	winsyscall := mp.winsyscall
+
 	exitsyscall()
+
+	getg().m.winsyscall = winsyscall
 
 	// Note that raceacquire must be called only after exitsyscall has
 	// wired this M to a P.
@@ -297,9 +303,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 
 	checkm := gp.m
 
-	// Save current syscall parameters, so m.syscall can be
+	// Save current syscall parameters, so m.winsyscall can be
 	// used again if callback decide to make syscall.
-	syscall := gp.m.syscall
+	winsyscall := gp.m.winsyscall
 
 	// entersyscall saves the caller's SP to allow the GC to trace the Go
 	// stack. However, since we're returning to an earlier stack frame and
@@ -340,7 +346,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// going back to cgo call
 	reentersyscall(savedpc, uintptr(savedsp))
 
-	gp.m.syscall = syscall
+	gp.m.winsyscall = winsyscall
 }
 
 func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {

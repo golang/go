@@ -500,16 +500,18 @@ func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	}
 
 	// The cgocall parameters are stored in m instead of in
-	// the stack because the stack can move during if fn
+	// the stack because the stack can move during fn if it
 	// calls back into Go.
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
+	c := &getg().m.winsyscall
 	c.fn = fn
 	c.n = uintptr(len(args))
 	if c.n != 0 {
 		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	// cgocall may reschedule us on to a different M,
+	// but it copies the return values into the new M's
+	// so we can read them from there.
+	c = &getg().m.winsyscall
 	return c.r1, c.r2, c.err
 }
