@@ -52,6 +52,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/quoted",
 	"cmd/internal/src",
 	"cmd/internal/sys",
+	"cmd/internal/telemetry",
 	"cmd/link",
 	"cmd/link/internal/...",
 	"compress/flate",
