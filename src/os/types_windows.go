@@ -161,10 +161,19 @@ func (fs *fileStat) Size() int64 {
 
 var winsymlink = godebug.New("winsymlink")
 
-func (fs *fileStat) Mode() (m FileMode) {
+func (fs *fileStat) Mode() FileMode {
+	m := fs.mode()
 	if winsymlink.Value() == "0" {
-		return fs.modePreGo1_23()
+		old := fs.modePreGo1_23()
+		if old != m {
+			winsymlink.IncNonDefault()
+			m = old
+		}
 	}
+	return m
+}
+
+func (fs *fileStat) mode() (m FileMode) {
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
