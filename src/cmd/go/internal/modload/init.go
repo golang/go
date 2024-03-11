@@ -1001,8 +1001,14 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 }
 
 func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
-	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work lists go %s; to update it:\n\tgo work use",
-		base.ShortPath(filepath.Dir(gomod)), goVers, gover.FromGoWork(wf))
+	verb := "lists"
+	if wf == nil || wf.Go == nil {
+		// A go.work file implicitly requires go1.18
+		// even when it doesn't list any version.
+		verb = "implicitly requires"
+	}
+	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work %s go %s; to update it:\n\tgo work use",
+		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf))
 }
 
 // CreateModFile initializes a new module by creating a go.mod file.
