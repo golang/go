@@ -182,7 +182,7 @@ func parseIPv4Slow(s string) (Addr, error) {
 // parseWord converts a 16-bit hex string into its corresponding
 // two-byte value.
 func parseWord(s string) (byte, byte, error) {
-	if(len(s) > 4) {
+	if len(s) > 4 {
 		return 0, 0, fmt.Errorf("parseWord(%q): invalid word", s)
 	}
 	ret, err := strconv.ParseUint(s, 16, 16)
