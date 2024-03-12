@@ -45,9 +45,30 @@ func Is(err, target error) bool {
 	if target == nil {
 		return err == target
 	}
-
+	defer func() {
+		recover()
+	}()
 	isComparable := reflectlite.TypeOf(target).Comparable()
-	return is(err, target, isComparable)
+	if isComparable && err == target {
+		return true
+	}
+	switch x := err.(type) {
+	case interface{ Is(error) bool }:
+		return x.Is(target)
+	case interface{ Unwrap() error }:
+		err = x.Unwrap()
+		if err == nil {
+			return false
+		}
+		return is(err, target, isComparable)
+	case interface{ Unwrap() []error }:
+		for _, err := range x.Unwrap() {
+			if is(err, target, isComparable) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func is(err, target error, targetComparable bool) bool {
@@ -55,22 +76,21 @@ func is(err, target error, targetComparable bool) bool {
 		if targetComparable && err == target {
 			return true
 		}
-		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
-			return true
-		}
 		switch x := err.(type) {
+		case interface{ Is(error) bool }:
+			return x.Is(target)
 		case interface{ Unwrap() error }:
 			err = x.Unwrap()
 			if err == nil {
 				return false
 			}
+			return is(err, target, targetComparable)
 		case interface{ Unwrap() []error }:
 			for _, err := range x.Unwrap() {
 				if is(err, target, targetComparable) {
 					return true
 				}
 			}
-			return false
 		default:
 			return false
 		}
