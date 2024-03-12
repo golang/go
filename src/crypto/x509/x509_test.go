@@ -19,6 +19,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -3997,5 +3998,15 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
 
 	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+	}
+}
+
+func TestGob(t *testing.T) {
+	// Test that gob does not reject Certificate.
+	// See go.dev/issue/65633.
+	cert := new(Certificate)
+	err := gob.NewEncoder(io.Discard).Encode(cert)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
