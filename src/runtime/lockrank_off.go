@@ -27,6 +27,16 @@ func lockWithRank(l *mutex, rank lockRank) {
 // This function may be called in nosplit context and thus must be nosplit.
 //
 //go:nosplit
+func acquireLockRankAndM(rank lockRank) {
+	acquirem()
+}
+
+// This function may be called in nosplit context and thus must be nosplit.
+//
+// Deprecated: use acquireLockRankAndM instead to ensure that m.locks!=0 while
+// appearing (to the static lock rank checker) to hold locks.
+//
+//go:nosplit
 func acquireLockRank(rank lockRank) {
 }
 
@@ -35,6 +45,16 @@ func unlockWithRank(l *mutex) {
 }
 
 // This function may be called in nosplit context and thus must be nosplit.
+//
+//go:nosplit
+func releaseLockRankAndM(rank lockRank) {
+	releasem(getg().m)
+}
+
+// This function may be called in nosplit context and thus must be nosplit.
+//
+// Deprecated: use releaseLockRankAndM instead to ensure that m.locks!=0 while
+// appearing (to the static lock rank checker) to hold locks.
 //
 //go:nosplit
 func releaseLockRank(rank lockRank) {

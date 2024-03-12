@@ -104,7 +104,22 @@ func printHeldLocks(gp *g) {
 	}
 }
 
+// acquireLockRankAndM acquires a rank which is not associated with a mutex
+// lock. To maintain the invariant that an M with m.locks==0 does not hold any
+// lock-like resources, it also acquires the M.
+//
+// This function may be called in nosplit context and thus must be nosplit.
+//
+//go:nosplit
+func acquireLockRankAndM(rank lockRank) {
+	acquirem()
+	acquireLockRank(rank)
+}
+
 // acquireLockRank acquires a rank which is not associated with a mutex lock
+//
+// Deprecated: use acquireLockRankAndM instead to ensure that m.locks!=0 while
+// appearing (to the static lock rank checker) to hold locks.
 //
 // This function may be called in nosplit context and thus must be nosplit.
 //
@@ -189,7 +204,22 @@ func unlockWithRank(l *mutex) {
 	})
 }
 
+// releaseLockRankAndM releases a rank which is not associated with a mutex
+// lock. To maintain the invariant that an M with m.locks==0 does not hold any
+// lock-like resources, it also releases the M.
+//
+// This function may be called in nosplit context and thus must be nosplit.
+//
+//go:nosplit
+func releaseLockRankAndM(rank lockRank) {
+	releaseLockRank(rank)
+	releasem(getg().m)
+}
+
 // releaseLockRank releases a rank which is not associated with a mutex lock
+//
+// Deprecated: use releaseLockRankAndM instead to ensure that m.locks!=0 while
+// appearing (to the static lock rank checker) to hold locks.
 //
 // This function may be called in nosplit context and thus must be nosplit.
 //
