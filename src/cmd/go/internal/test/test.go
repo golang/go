@@ -353,6 +353,7 @@ profile the tests during execution:
 
 	-benchmem
 	    Print memory allocation statistics for benchmarks.
+	    Allocations made in C or using C.malloc are not counted.
 
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
