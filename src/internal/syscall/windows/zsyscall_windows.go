@@ -42,6 +42,7 @@ var (
 	modiphlpapi         = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32         = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
 	modnetapi32         = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+	modntdll            = syscall.NewLazyDLL(sysdll.Add("ntdll.dll"))
 	modpsapi            = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 	moduserenv          = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modws2_32           = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
@@ -82,6 +83,7 @@ var (
 	procNetShareAdd                       = modnetapi32.NewProc("NetShareAdd")
 	procNetShareDel                       = modnetapi32.NewProc("NetShareDel")
 	procNetUserGetLocalGroups             = modnetapi32.NewProc("NetUserGetLocalGroups")
+	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
@@ -388,6 +390,11 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
 	if r0 != 0 {
 		neterr = syscall.Errno(r0)
 	}
+	return
+}
+
+func rtlGetVersion(info *_OSVERSIONINFOW) {
+	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
 	return
 }
 

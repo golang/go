@@ -11,18 +11,27 @@ import (
 	"unsafe"
 )
 
-// version retrieves the major, minor, and build version numbers
-// of the current Windows OS from the RtlGetNtVersionNumbers API
-// and parse the results properly.
-func version() (major, minor, build uint32) {
-	rtlGetNtVersionNumbers(&major, &minor, &build)
-	build &= 0x7fff
-	return
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
+type _OSVERSIONINFOW struct {
+	osVersionInfoSize uint32
+	majorVersion      uint32
+	minorVersion      uint32
+	buildNumber       uint32
+	platformId        uint32
+	csdVersion        [128]uint16
 }
 
-//go:linkname rtlGetNtVersionNumbers syscall.rtlGetNtVersionNumbers
-//go:noescape
-func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
+// According to documentation, RtlGetVersion function always succeeds.
+//sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
+
+// version retrieves the major, minor, and build version numbers
+// of the current Windows OS from the RtlGetVersion API.
+func version() (major, minor, build uint32) {
+	info := _OSVERSIONINFOW{}
+	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+	rtlGetVersion(&info)
+	return info.majorVersion, info.minorVersion, info.buildNumber
+}
 
 var (
 	supportTCPKeepAliveIdle     bool
