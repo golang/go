@@ -800,7 +800,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		argv[i] = s.validateType(final, t)
 	}
 
-	// Special case for builtin call
+	// Special case for the "call" builtin.
 	// Insert the name of the callee function as the first argument.
 	if isBuiltin && name == "call" {
 		calleeName := args[0].String()
