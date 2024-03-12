@@ -1036,7 +1036,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 // literal is not compatible with the current language version.
 func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
+	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
 		return
 	}
 	// len(s) > 2
