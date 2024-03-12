@@ -38,6 +38,7 @@ import (
 	"internal/buildcfg"
 	"log"
 	"math/bits"
+	"strings"
 )
 
 // Test if this value can encoded as a mask for
@@ -71,6 +72,22 @@ func encodePPC64RLDCMask(mask int64) (mb, me int) {
 	}
 	// Note, me is inclusive.
 	return mb, me - 1
+}
+
+// Is this a symbol which should never have a TOC prologue generated?
+// These are special functions which should not have a TOC regeneration
+// prologue.
+func isNOTOCfunc(name string) bool {
+	switch {
+	case name == "runtime.duffzero":
+		return true
+	case name == "runtime.duffcopy":
+		return true
+	case strings.HasPrefix(name, "runtime.elf_"):
+		return true
+	default:
+		return false
+	}
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -794,7 +811,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			q = p
 
-			if NeedTOCpointer(c.ctxt) && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
+			if NeedTOCpointer(c.ctxt) && !isNOTOCfunc(c.cursym.Name) {
 				// When compiling Go into PIC, without PCrel support, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//
