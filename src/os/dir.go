@@ -115,7 +115,7 @@ var testingForceReadDirLstat bool
 // ReadDir returns the entries it was able to read before the error,
 // along with the error.
 func ReadDir(name string) ([]DirEntry, error) {
-	f, err := Open(name)
+	f, err := openDir(name)
 	if err != nil {
 		return nil, err
 	}

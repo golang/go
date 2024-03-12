@@ -139,6 +139,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	return NewFile(uintptr(fd), name), nil
 }
 
+func openDirNolog(name string) (*File, error) {
+	return openFileNolog(name, O_RDONLY, 0)
+}
+
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an ErrClosed error.

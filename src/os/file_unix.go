@@ -157,7 +157,7 @@ const (
 	kindNonBlock
 	// kindNoPoll means that we should not put the descriptor into
 	// non-blocking mode, because we know it is not a pipe or FIFO.
-	// Used by openFdAt for directories.
+	// Used by openFdAt and openDirNolog for directories.
 	kindNoPoll
 )
 
@@ -256,7 +256,7 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
-// Changes here should be reflected in openFdAt, if relevant.
+// Changes here should be reflected in openFdAt and openDirNolog, if relevant.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -299,6 +299,32 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	f := newFile(r, name, kind)
+	f.pfd.SysFile = s
+	return f, nil
+}
+
+func openDirNolog(name string) (*File, error) {
+	var r int
+	var s poll.SysFile
+	for {
+		var e error
+		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
+		if e == nil {
+			break
+		}
+
+		if e == syscall.EINTR {
+			continue
+		}
+
+		return nil, &PathError{Op: "open", Path: name, Err: e}
+	}
+
+	if !supportsCloseOnExec {
+		syscall.CloseOnExec(r)
+	}
+
+	f := newFile(r, name, kindNoPoll)
 	f.pfd.SysFile = s
 	return f, nil
 }

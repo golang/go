@@ -119,6 +119,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	return newFile(r, name, "file"), nil
 }
 
+func openDirNolog(name string) (*File, error) {
+	return openFileNolog(name, O_RDONLY, 0)
+}
+
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
