@@ -780,6 +780,7 @@ type Certificate struct {
 	PolicyIdentifiers []asn1.ObjectIdentifier
 
 	// Policies contains all policy identifiers included in the certificate.
+	// In Go 1.22, encoding/gob cannot handle and ignores this field.
 	Policies []OID
 }
 
