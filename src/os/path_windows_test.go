@@ -16,10 +16,14 @@ import (
 )
 
 func TestFixLongPath(t *testing.T) {
-	if windows.CanUseLongPaths {
-		return
-	}
-	t.Parallel()
+	// Test fixLongPath even if long path are supported by the system,
+	// else the function might not be tested at all when the test builders
+	// support long paths.
+	old := windows.CanUseLongPaths
+	windows.CanUseLongPaths = false
+	t.Cleanup(func() {
+		windows.CanUseLongPaths = old
+	})
 
 	// 248 is long enough to trigger the longer-than-248 checks in
 	// fixLongPath, but short enough not to make a path component
@@ -38,19 +42,20 @@ func TestFixLongPath(t *testing.T) {
 		// cases below where it doesn't.
 		{`C:\long\foo.txt`, `\\?\C:\long\foo.txt`},
 		{`C:/long/foo.txt`, `\\?\C:\long\foo.txt`},
-		{`C:\long\foo\\bar\.\baz\\`, `\\?\C:\long\foo\bar\baz`},
-		{`\\unc\path`, `\\unc\path`},
+		{`C:\long\foo\\bar\.\baz\\`, `\\?\C:\long\foo\bar\baz\`},
+		{`\\server\path\long`, `\\?\UNC\server\path\long`},
 		{`long.txt`, `long.txt`},
 		{`C:long.txt`, `C:long.txt`},
-		{`c:\long\..\bar\baz`, `c:\long\..\bar\baz`},
+		{`c:\long\..\bar\baz`, `\\?\c:\bar\baz`},
 		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
 		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
+		{`\??\c:\long/foo.txt`, `\??\c:\long/foo.txt`},
 	} {
 		in := strings.ReplaceAll(test.in, "long", veryLong)
 		want := strings.ReplaceAll(test.want, "long", veryLong)
 		if got := os.FixLongPath(in); got != want {
 			got = strings.ReplaceAll(got, veryLong, "long")
-			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
+			t.Errorf("fixLongPath(%#q) = %#q; want %#q", test.in, got, test.want)
 		}
 	}
 }
@@ -154,4 +159,12 @@ func TestMkdirAllVolumeNameAtRoot(t *testing.T) {
 	}
 	volName := syscall.UTF16ToString(buf[:])
 	testMkdirAllAtRoot(t, volName)
+}
+
+func BenchmarkLongPath(b *testing.B) {
+	veryLong := `C:\l` + strings.Repeat("o", 248) + "ng"
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		os.FixLongPath(veryLong)
+	}
 }

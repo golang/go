@@ -4,7 +4,10 @@
 
 package os
 
-import "internal/syscall/windows"
+import (
+	"internal/syscall/windows"
+	"syscall"
+)
 
 const (
 	PathSeparator     = '\\' // OS-specific path separator
@@ -132,10 +135,8 @@ func dirname(path string) string {
 
 // fixLongPath returns the extended-length (\\?\-prefixed) form of
 // path when needed, in order to avoid the default 260 character file
-// path limit imposed by Windows. If path is not easily converted to
-// the extended-length form (for example, if path is a relative path
-// or contains .. elements), or is short enough, fixLongPath returns
-// path unmodified.
+// path limit imposed by Windows. If the path is short enough or is relative,
+// fixLongPath returns path unmodified.
 //
 // See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
 func fixLongPath(path string) string {
@@ -159,19 +160,8 @@ func fixLongPath(path string) string {
 		return path
 	}
 
-	// The extended form begins with \\?\, as in
-	// \\?\c:\windows\foo.txt or \\?\UNC\server\share\foo.txt.
-	// The extended form disables evaluation of . and .. path
-	// elements and disables the interpretation of / as equivalent
-	// to \. The conversion here rewrites / to \ and elides
-	// . elements as well as trailing or duplicate separators. For
-	// simplicity it avoids the conversion entirely for relative
-	// paths or paths containing .. elements. For now,
-	// \\server\share paths are not converted to
-	// \\?\UNC\server\share paths because the rules for doing so
-	// are less well-specified.
-	if len(path) >= 2 && path[:2] == `\\` {
-		// Don't canonicalize UNC paths.
+	if prefix := path[:4]; prefix == `\\.\` || prefix == `\\?\` || prefix == `\??\` {
+		// Don't fix. Device path or extended path form.
 		return path
 	}
 	if !isAbs(path) {
@@ -179,36 +169,37 @@ func fixLongPath(path string) string {
 		return path
 	}
 
-	const prefix = `\\?`
+	var prefix []uint16
+	var isUNC bool
+	if path[:2] == `\\` {
+		// UNC path, prepend the \\?\UNC\ prefix.
+		prefix = []uint16{'\\', '\\', '?', '\\', 'U', 'N', 'C', '\\'}
+		isUNC = true
+	} else {
+		prefix = []uint16{'\\', '\\', '?', '\\'}
+	}
 
-	pathbuf := make([]byte, len(prefix)+len(path)+len(`\`))
-	copy(pathbuf, prefix)
-	n := len(path)
-	r, w := 0, len(prefix)
-	for r < n {
-		switch {
-		case IsPathSeparator(path[r]):
-			// empty block
-			r++
-		case path[r] == '.' && (r+1 == n || IsPathSeparator(path[r+1])):
-			// /./
-			r++
-		case r+1 < n && path[r] == '.' && path[r+1] == '.' && (r+2 == n || IsPathSeparator(path[r+2])):
-			// /../ is currently unhandled
+	p, err := syscall.UTF16FromString(path)
+	if err != nil {
+		return path
+	}
+	n := uint32(len(p))
+	var buf []uint16
+	for {
+		buf = make([]uint16, n+uint32(len(prefix)))
+		n, err = syscall.GetFullPathName(&p[0], n, &buf[len(prefix)], nil)
+		if err != nil {
 			return path
-		default:
-			pathbuf[w] = '\\'
-			w++
-			for ; r < n && !IsPathSeparator(path[r]); r++ {
-				pathbuf[w] = path[r]
-				w++
-			}
+		}
+		if n <= uint32(len(buf)-len(prefix)) {
+			buf = buf[:n+uint32(len(prefix))]
+			break
 		}
 	}
-	// A drive's root directory needs a trailing \
-	if w == len(`\\?\c:`) {
-		pathbuf[w] = '\\'
-		w++
+	if isUNC {
+		// Remove leading \\.
+		buf = buf[2:]
 	}
-	return string(pathbuf[:w])
+	copy(buf, prefix)
+	return syscall.UTF16ToString(buf)
 }
