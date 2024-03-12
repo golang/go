@@ -65,7 +65,7 @@ const (
 	EventRangeActive
 	EventRangeEnd
 
-	// EvTaskBegin and EvTaskEnd are a pair of events representing a runtime/trace.Task.
+	// EventTaskBegin and EventTaskEnd are a pair of events representing a runtime/trace.Task.
 	EventTaskBegin
 	EventTaskEnd
 
@@ -190,7 +190,7 @@ type Range struct {
 	Scope ResourceID
 }
 
-// RangeAttributes provides attributes about a completed Range.
+// RangeAttribute provides attributes about a completed Range.
 type RangeAttribute struct {
 	// Name is the human-readable name for the range.
 	Name string
