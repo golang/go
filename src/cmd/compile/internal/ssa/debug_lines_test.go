@@ -81,7 +81,7 @@ func TestDebugLinesPushback(t *testing.T) {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
+	case "arm64", "amd64", "loong64": // register ABI
 		fn := "(*List[go.shape.int]).PushBack"
 		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
@@ -94,7 +94,7 @@ func TestDebugLinesConvert(t *testing.T) {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
+	case "arm64", "amd64", "loong64": // register ABI
 		fn := "G[go.shape.int]"
 		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
