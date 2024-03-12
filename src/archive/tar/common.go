@@ -642,7 +642,7 @@ const (
 //
 // If fi implements [FileInfoNames]
 // Header.Gname and Header.Uname
-// provided by the methods of the interface.
+// are provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
