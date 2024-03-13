@@ -656,6 +656,13 @@ func TestZeroTimer(t *testing.T) {
 	t.Run("impl=func", func(t *testing.T) {
 		testZeroTimer(t, newTimerFunc)
 	})
+	t.Run("impl=cache", func(t *testing.T) {
+		timer := newTimerFunc(Hour)
+		testZeroTimer(t, func(d Duration) *Timer {
+			timer.Reset(d)
+			return timer
+		})
+	})
 }
 
 func testZeroTimer(t *testing.T, newTimer func(Duration) *Timer) {

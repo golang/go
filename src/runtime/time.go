@@ -526,7 +526,17 @@ func (t *timer) needsAdd() bool {
 // may result in concurrent calls to t.maybeAdd,
 // so we cannot assume that t is not in a heap on entry to t.maybeAdd.
 func (t *timer) maybeAdd() {
-	ts := &getg().m.p.ptr().timers
+	// Note: Not holding any locks on entry to t.maybeAdd,
+	// so the current g can be rescheduled to a different M and P
+	// at any time, including between the ts := assignment and the
+	// call to ts.lock. If a reschedule happened then, we would be
+	// adding t to some other P's timers, perhaps even a P that the scheduler
+	// has marked as idle with no timers, in which case the timer could
+	// go unnoticed until long after t.when.
+	// Calling acquirem instead of using getg().m makes sure that
+	// we end up locking and inserting into the current P's timers.
+	mp := acquirem()
+	ts := &mp.p.ptr().timers
 	ts.lock()
 	ts.cleanHead()
 	t.lock()
@@ -539,6 +549,7 @@ func (t *timer) maybeAdd() {
 	}
 	t.unlock()
 	ts.unlock()
+	releasem(mp)
 	if when > 0 {
 		wakeNetPoller(when)
 	}
