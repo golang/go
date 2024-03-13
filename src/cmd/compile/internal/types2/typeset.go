@@ -255,8 +255,9 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	allTerms := allTermlist
 	allComparable := false
 	for i, typ := range ityp.embeddeds {
-		// The embedding position is nil for imported interfaces.
-		// We don't need to do version checks in those cases.
+		// The embedding position is nil for imported interfaces
+		// and also for interface copies after substitution (but
+		// in that case we don't need to report errors again).
 		var pos syntax.Pos // embedding position
 		if ityp.embedPos != nil {
 			pos = (*ityp.embedPos)[i]
@@ -269,7 +270,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
-			if pos.IsKnown() && check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(pos, go1_18, "embedding constraint interface %s", typ) {
+			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(pos, go1_18, "embedding constraint interface %s", typ) {
 				continue
 			}
 			comparable = tset.comparable
@@ -278,7 +279,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			terms = tset.terms
 		case *Union:
-			if pos.IsKnown() && check != nil && !check.verifyVersionf(pos, go1_18, "embedding interface element %s", u) {
+			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding interface element %s", u) {
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -292,7 +293,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			if u == Typ[Invalid] {
 				continue
 			}
-			if pos.IsKnown() && check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
+			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
 				continue
 			}
 			terms = termlist{{false, typ}}
