@@ -167,6 +167,10 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
+	{"-Wl,-z,relro"},
+	{"-Wl,-z,relro,-z,now"},
+	{"-Wl,-z,now"},
+	{"-Wl,-z,noexecstack"},
 	{"libcgotbdtest.tbd"},
 	{"./libcgotbdtest.tbd"},
 }
