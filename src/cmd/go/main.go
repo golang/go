@@ -8,6 +8,7 @@
 package main
 
 import (
+	"cmd/internal/telemetry"
 	"context"
 	"flag"
 	"fmt"
@@ -43,8 +44,6 @@ import (
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 	"cmd/go/internal/workcmd"
-
-	"golang.org/x/telemetry/counter"
 )
 
 func init() {
@@ -94,13 +93,13 @@ var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-r
 
 func main() {
 	log.SetFlags(0)
-	TelemetryStart() // Open the telemetry counter file so counters can be written to it.
+	telemetry.StartWithUpload() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
 	flag.Usage = base.Usage
 	flag.Parse()
-	counter.CountFlags("go/flag:", *flag.CommandLine)
+	telemetry.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -109,7 +108,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		counter.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
+		telemetry.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
 		help.Help(os.Stdout, args[1:])
 		return
 	}
@@ -166,7 +165,7 @@ func main() {
 		}
 		if args[used] == "help" {
 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
-			counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
+			telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
 			base.Exit()
 		}
@@ -178,12 +177,12 @@ func main() {
 		if cmdName == "" {
 			cmdName = args[0]
 		}
-		counter.Inc("go/subcommand:unknown")
+		telemetry.Inc("go/subcommand:unknown")
 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -248,7 +247,7 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		counter.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
+		telemetry.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
 		args = cmd.Flag.Args()
 	}
 
@@ -333,7 +332,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
-	counter.Inc("go/flag:C")
+	telemetry.Inc("go/flag:C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

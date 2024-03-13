@@ -195,7 +195,7 @@ func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
 
 	telemetryDir = filepath.Join(work, "telemetry")
 	must(os.MkdirAll(telemetryDir, 0777))
-	must(s.Setenv("TESTGO_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
+	must(s.Setenv("TEST_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
 
 	must(os.MkdirAll(filepath.Join(work, "tmp"), 0777))
 	must(s.Setenv(tempEnvName(), filepath.Join(work, "tmp")))

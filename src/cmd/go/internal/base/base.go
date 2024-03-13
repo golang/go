@@ -7,6 +7,7 @@
 package base
 
 import (
+	"cmd/internal/telemetry"
 	"context"
 	"flag"
 	"fmt"
@@ -20,8 +21,6 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
-
-	"golang.org/x/telemetry/counter"
 )
 
 // A Command is an implementation of a go command
@@ -227,14 +226,18 @@ var Usage func()
 
 var counterNames = map[string]bool{}
 
+type Counter interface {
+	Inc()
+}
+
 // NewCounter registers a new counter. It must be called from an init function
 // or global variable initializer.
-func NewCounter(name string) *counter.Counter {
+func NewCounter(name string) Counter {
 	if counterNames[name] {
 		panic(fmt.Errorf("counter %q initialized twice", name))
 	}
 	counterNames[name] = true
-	return counter.New(name)
+	return telemetry.NewCounter(name)
 }
 
 func RegisteredCounterNames() []string {
