@@ -56,7 +56,7 @@ NONE <
 NONE < testR, testW;
 
 # Scheduler, timers, netpoll
-NONE < allocmW, execW, cpuprof, pollDesc, wakeableSleep;
+NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
 scavenge, sweep, testR, wakeableSleep < hchan;
 assistQueue,
   cpuprof,
@@ -158,6 +158,7 @@ gscan < hchanLeaf;
 defer,
   gscan,
   mspanSpecial,
+  pollCache,
   sudog,
   timer
 # Anything that can have write barriers can acquire WB.

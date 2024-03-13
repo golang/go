@@ -213,6 +213,7 @@ func poll_runtime_pollServerInit() {
 func netpollGenericInit() {
 	if netpollInited.Load() == 0 {
 		lockInit(&netpollInitLock, lockRankNetpollInit)
+		lockInit(&pollcache.lock, lockRankPollCache)
 		lock(&netpollInitLock)
 		if netpollInited.Load() == 0 {
 			netpollinit()
