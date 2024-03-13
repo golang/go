@@ -719,7 +719,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", sel, pkg.name)
+					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
 					// ok to continue
 				}
 			}

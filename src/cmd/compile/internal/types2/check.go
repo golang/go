@@ -298,7 +298,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file, MismatchedPkgName, "package %s; expected %s", name, pkg.name)
+			check.errorf(file, MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
 			// ignore this file
 		}
 	}
