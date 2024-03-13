@@ -238,9 +238,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			// error message.
 			if check != nil {
 				check.later(func() {
-					// ignore version check if method is from a different package
-					// TODO(gri) this seems incorrect - see go.dev/issue/66285
-					if check.pkg == m.pkg && pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
 						err := check.newError(DuplicateDecl)
 						err.addf(atPos(pos), "duplicate method %s", m.name)
 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
