@@ -495,7 +495,7 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 }
 
 // checkPathCollisions will fail if case-insensitive collisions are present.
-// The reason why we do this check in go mod vendor is to keep consistentcy
+// The reason why we do this check in go mod vendor is to keep consistency
 // with go build. If modifying, consider changing load() in
 // src/cmd/go/internal/load/pkg.go
 func checkPathCollisions(modpkgs map[module.Version][]string) {
