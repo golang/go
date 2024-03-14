@@ -1200,12 +1200,7 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 func (u *URL) JoinPath(elem ...string) *URL {
 	elem = append([]string{u.EscapedPath()}, elem...)
 	var p string
-	if elem[0] == "" {
-		// RequestURI converts an empty Path to /, so do the same
-		// here for consistency. See #58605.
-		elem[0] = "/"
-		p = path.Join(elem...)
-	} else if !strings.HasPrefix(elem[0], "/") {
+	if !strings.HasPrefix(elem[0], "/") {
 		// Return a relative path if u is relative,
 		// but ensure that it contains no ../ elements.
 		elem[0] = "/" + elem[0]
