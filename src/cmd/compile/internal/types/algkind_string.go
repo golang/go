@@ -22,22 +22,23 @@ func _() {
 	_ = x[AFLOAT64-11]
 	_ = x[ACPLX64-12]
 	_ = x[ACPLX128-13]
+	_ = x[ANOALG-14]
 	_ = x[AMEM-100]
 	_ = x[ASPECIAL - -1]
 }
 
 const (
-	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128"
+	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128NOALG"
 	_AlgKind_name_1 = "MEM"
 )
 
 var (
-	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86}
+	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86, 91}
 )
 
 func (i AlgKind) String() string {
 	switch {
-	case -1 <= i && i <= 13:
+	case -1 <= i && i <= 14:
 		i -= -1
 		return _AlgKind_name_0[_AlgKind_index_0[i]:_AlgKind_index_0[i+1]]
 	case i == 100:

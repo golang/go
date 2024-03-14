@@ -27,6 +27,7 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
+	ANOALG // implies ANOEQ, and in addition has a part that is marked Noalg
 
 	// Type can be compared/hashed as regular memory.
 	AMEM AlgKind = 100
@@ -36,71 +37,66 @@ const (
 )
 
 // AlgType returns the AlgKind used for comparing and hashing Type t.
-// If it returns ANOEQ, it also returns the component type of t that
-// makes it incomparable.
-func AlgType(t *Type) (AlgKind, *Type) {
+func AlgType(t *Type) AlgKind {
 	if t.Noalg() {
-		return ANOEQ, t
+		return ANOALG
 	}
 
 	switch t.Kind() {
 	case TANY, TFORW:
 		// will be defined later.
-		return ANOEQ, t
+		return ANOEQ
 
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
 		TBOOL, TPTR,
 		TCHAN, TUNSAFEPTR:
-		return AMEM, nil
+		return AMEM
 
 	case TFUNC, TMAP:
-		return ANOEQ, t
+		return ANOEQ
 
 	case TFLOAT32:
-		return AFLOAT32, nil
+		return AFLOAT32
 
 	case TFLOAT64:
-		return AFLOAT64, nil
+		return AFLOAT64
 
 	case TCOMPLEX64:
-		return ACPLX64, nil
+		return ACPLX64
 
 	case TCOMPLEX128:
-		return ACPLX128, nil
+		return ACPLX128
 
 	case TSTRING:
-		return ASTRING, nil
+		return ASTRING
 
 	case TINTER:
 		if t.IsEmptyInterface() {
-			return ANILINTER, nil
+			return ANILINTER
 		}
-		return AINTER, nil
+		return AINTER
 
 	case TSLICE:
-		return ANOEQ, t
+		return ANOEQ
 
 	case TARRAY:
-		a, bad := AlgType(t.Elem())
-		switch a {
-		case AMEM:
-			return AMEM, nil
-		case ANOEQ:
-			return ANOEQ, bad
+		a := AlgType(t.Elem())
+		if a == AMEM || a == ANOEQ || a == ANOALG {
+			return a
 		}
 
 		switch t.NumElem() {
 		case 0:
 			// We checked above that the element type is comparable.
-			return AMEM, nil
+			return AMEM
 		case 1:
 			// Single-element array is same as its lone element.
-			return a, nil
+			return a
 		}
 
-		return ASPECIAL, nil
+		return ASPECIAL
 
 	case TSTRUCT:
 		fields := t.Fields()
@@ -113,9 +109,9 @@ func AlgType(t *Type) (AlgKind, *Type) {
 		ret := AMEM
 		for i, f := range fields {
 			// All fields must be comparable.
-			a, bad := AlgType(f.Type)
-			if a == ANOEQ {
-				return ANOEQ, bad
+			a := AlgType(f.Type)
+			if a == ANOEQ || a == ANOALG {
+				return a
 			}
 
 			// Blank fields, padded fields, fields with non-memory
@@ -125,24 +121,23 @@ func AlgType(t *Type) (AlgKind, *Type) {
 			}
 		}
 
-		return ret, nil
+		return ret
 	}
 
 	base.Fatalf("AlgType: unexpected type %v", t)
-	return 0, nil
+	return 0
 }
 
 // TypeHasNoAlg reports whether t does not have any associated hash/eq
 // algorithms because t, or some component of t, is marked Noalg.
 func TypeHasNoAlg(t *Type) bool {
-	a, bad := AlgType(t)
-	return a == ANOEQ && bad.Noalg()
+	return AlgType(t) == ANOALG
 }
 
 // IsComparable reports whether t is a comparable type.
 func IsComparable(t *Type) bool {
-	a, _ := AlgType(t)
-	return a != ANOEQ
+	a := AlgType(t)
+	return a != ANOEQ && a != ANOALG
 }
 
 // IncomparableField returns an incomparable Field of struct Type t, if any.
