@@ -6,6 +6,7 @@
 package tool
 
 import (
+	"cmd/internal/telemetry"
 	"context"
 	"encoding/json"
 	"flag"
@@ -57,6 +58,7 @@ func init() {
 
 func runTool(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
+		telemetry.Inc("go/subcommand:tool")
 		listTools()
 		return
 	}
@@ -82,12 +84,19 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 			//
 			// If the dist tool does not exist, impersonate this command.
 			if impersonateDistList(args[2:]) {
+				// If it becomes necessary, we could increment an additional counter to indicate
+				// that we're impersonating dist list if knowing that becomes important?
+				telemetry.Inc("go/subcommand:tool-dist")
 				return
 			}
 		}
 
+		telemetry.Inc("go/subcommand:tool-unknown")
 		// Emit the usual error for the missing tool.
 		_ = base.Tool(toolName)
+	} else {
+		// Increment a counter for the tool subcommand with the tool name.
+		telemetry.Inc("go/subcommand:tool-" + toolName)
 	}
 
 	if toolN {

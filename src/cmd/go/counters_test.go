@@ -6,7 +6,9 @@ package main_test
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"flag"
+	"go/build"
 	"internal/diff"
 	"os"
 	"slices"
@@ -33,7 +35,11 @@ func TestCounterNamesUpToDate(t *testing.T) {
 	// for all subcommands, but it's also valid to invoke go help without any arguments.
 	counters = append(counters, "go/subcommand:help")
 	for _, cmd := range base.Go.Commands {
-		counters = append(counters, cmdcounters(nil, cmd)...)
+		cmdcounters, err := cmdcounters(nil, cmd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		counters = append(counters, cmdcounters...)
 	}
 
 	counters = append(counters, base.RegisteredCounterNames()...)
@@ -76,7 +82,7 @@ func flagscounters(prefix string, flagSet flag.FlagSet) []string {
 	return counters
 }
 
-func cmdcounters(previous []string, cmd *base.Command) []string {
+func cmdcounters(previous []string, cmd *base.Command) ([]string, error) {
 	const subcommandPrefix = "go/subcommand:"
 	const flagPrefix = "go/flag:"
 	var counters []string
@@ -85,6 +91,19 @@ func cmdcounters(previous []string, cmd *base.Command) []string {
 		previousComponent += "-"
 	}
 	if cmd.Runnable() {
+		if cmd.Name() == "tool" {
+			// TODO(matloob): Do we expect the same tools to be present on all
+			// platforms/configurations? Should we only run this on certain
+			// platforms?
+			tools, err := toolNames()
+			if err != nil {
+				return nil, err
+			}
+			for _, t := range tools {
+				counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-"+t)
+			}
+			counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-unknown")
+		}
 		counters = append(counters, subcommandPrefix+previousComponent+cmd.Name())
 	}
 	counters = append(counters, flagscounters(flagPrefix+previousComponent+cmd.Name()+"-", cmd.Flag)...)
@@ -94,7 +113,28 @@ func cmdcounters(previous []string, cmd *base.Command) []string {
 	counters = append(counters, subcommandPrefix+"help-"+previousComponent+cmd.Name())
 
 	for _, subcmd := range cmd.Commands {
-		counters = append(counters, cmdcounters(append(slices.Clone(previous), cmd.Name()), subcmd)...)
+		subcmdcounters, err := cmdcounters(append(slices.Clone(previous), cmd.Name()), subcmd)
+		if err != nil {
+			return nil, err
+		}
+		counters = append(counters, subcmdcounters...)
 	}
-	return counters
+	return counters, nil
+}
+
+// toolNames returns the list of basenames of executables in the tool dir.
+func toolNames() ([]string, error) {
+	entries, err := os.ReadDir(build.ToolDir)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), cfg.ToolExeSuffix())
+		names = append(names, name)
+	}
+	return names, nil
 }
