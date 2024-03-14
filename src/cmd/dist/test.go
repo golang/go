@@ -1313,6 +1313,7 @@ func (t *tester) runPending(nextTest *distTest) {
 		}(w)
 	}
 
+	maxbg := maxbg
 	// for runtime.NumCPU() < 4 ||  runtime.GOMAXPROCS(0) == 1, do not change maxbg.
 	// Because there is not enough CPU to parallel the testing of multiple packages.
 	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
