@@ -993,24 +993,12 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 			}
 			print(")\n")
 			print("\t", file, ":", line)
-			// The contract between Callers and CallersFrames uses
-			// return addresses, which are +1 relative to the CALL
-			// instruction. Follow that convention.
-			pc := uf.pc + 1
-			if !iu.isInlined(uf) && pc > f.entry() {
-				// Func-relative PCs make no sense for inlined
-				// frames because there is no actual entry.
-				print(" +", hex(pc-f.entry()))
-			}
-			if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
-				if !iu.isInlined(uf) {
-					// The stack information makes no sense for inline frames.
-					print(" fp=", hex(u.frame.fp), " sp=", hex(u.frame.sp), " pc=", hex(pc))
-				} else {
-					// The PC for an inlined frame is a special marker NOP,
-					// but crash monitoring tools may still parse the PCs
-					// and feed them to CallersFrames.
-					print(" pc=", hex(pc))
+			if !iu.isInlined(uf) {
+				if u.frame.pc > f.entry() {
+					print(" +", hex(u.frame.pc-f.entry()))
+				}
+				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+					print(" fp=", hex(u.frame.fp), " sp=", hex(u.frame.sp), " pc=", hex(u.frame.pc))
 				}
 			}
 			print("\n")
