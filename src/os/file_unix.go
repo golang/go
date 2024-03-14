@@ -265,20 +265,17 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		}
 	}
 
-	var r int
-	var s poll.SysFile
-	for {
-		var e error
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	// We have to check EINTR here, per issues 11180 and 39237.
+	ignoringEINTR(func() error {
 		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-		if e == nil {
-			break
-		}
-
-		// We have to check EINTR here, per issues 11180 and 39237.
-		if e == syscall.EINTR {
-			continue
-		}
-
+		return e
+	})
+	if e != nil {
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
@@ -304,19 +301,16 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 }
 
 func openDirNolog(name string) (*File, error) {
-	var r int
-	var s poll.SysFile
-	for {
-		var e error
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	ignoringEINTR(func() error {
 		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
-		if e == nil {
-			break
-		}
-
-		if e == syscall.EINTR {
-			continue
-		}
-
+		return e
+	})
+	if e != nil {
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
