@@ -632,8 +632,11 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 				skip--
 			} else {
 				// Callers expect the pc buffer to contain return addresses
-				// and do the -1 themselves, so we add 1 to the call PC to
-				// create a return PC.
+				// and do the -1 themselves, so we add 1 to the call pc to
+				// create a "return pc". Since there is no actual call, here
+				// "return pc" just means a pc you subtract 1 from to get
+				// the pc of the "call". The actual no-op we insert may or
+				// may not be 1 byte.
 				pcBuf[n] = uf.pc + 1
 				n++
 			}
