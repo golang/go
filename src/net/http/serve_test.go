@@ -2712,7 +2712,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
 		wantCT   string
 		wantBody string
 	}{
-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
+		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
 		{MethodHead, nil, "text/html; charset=utf-8", ""},
 		{MethodPost, nil, "", ""},
 		{MethodDelete, nil, "", ""},
