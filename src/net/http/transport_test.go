@@ -3282,6 +3282,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
 	{env: "socks5://127.0.0.1", want: "socks5://127.0.0.1"},
+	{env: "socks5h://127.0.0.1", want: "socks5h://127.0.0.1"},
 
 	// Don't use secure for http
 	{req: "http://insecure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://http.proxy.tld"},

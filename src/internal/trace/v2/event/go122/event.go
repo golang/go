@@ -41,7 +41,7 @@ const (
 	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
-	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, status]
+	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
 
 	// STW.
 	EvSTWBegin // STW start [timestamp, kind]
@@ -66,7 +66,7 @@ const (
 	EvUserTaskEnd     // end of a task [timestamp, internal task ID, stack ID]
 	EvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	EvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
-	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, stack, value string ID]
+	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, value string ID, stack]
 )
 
 // EventString returns the name of a Go 1.22 event.
@@ -108,7 +108,7 @@ var specs = [...]event.Spec{
 	},
 	EvCPUSample: event.Spec{
 		Name: "CPUSample",
-		Args: []string{"time", "p", "g", "m", "stack"},
+		Args: []string{"time", "m", "p", "g", "stack"},
 		// N.B. There's clearly a timestamp here, but these Events
 		// are special in that they don't appear in the regular
 		// M streams.

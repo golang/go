@@ -858,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(check.pkg, x.expr, v)
+			return check.allowVersion(x.expr, v)
 		})
 		switch {
 		case !ok && cause != "":

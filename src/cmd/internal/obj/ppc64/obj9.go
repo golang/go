@@ -35,6 +35,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
+	"internal/buildcfg"
 	"log"
 	"math/bits"
 )
@@ -203,17 +204,48 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 
 	case ASUB:
-		if p.From.Type == obj.TYPE_CONST {
-			p.From.Offset = -p.From.Offset
-			p.As = AADD
+		if p.From.Type != obj.TYPE_CONST {
+			break
 		}
+		// Rewrite SUB $const,... into ADD $-const,...
+		p.From.Offset = -p.From.Offset
+		p.As = AADD
+		// This is now an ADD opcode, try simplifying it below.
+		fallthrough
 
 	// Rewrite ADD/OR/XOR/ANDCC $const,... forms into ADDIS/ORIS/XORIS/ANDISCC
 	case AADD:
-		// AADD can encode signed 34b values, ensure it is a valid signed 32b integer too.
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset&0xFFFF == 0 && int64(int32(p.From.Offset)) == p.From.Offset && p.From.Offset != 0 {
+		// Don't rewrite if this is not adding a constant value, or is not an int32
+		if p.From.Type != obj.TYPE_CONST || p.From.Offset == 0 || int64(int32(p.From.Offset)) != p.From.Offset {
+			break
+		}
+		if p.From.Offset&0xFFFF == 0 {
+			// The constant can be added using ADDIS
 			p.As = AADDIS
 			p.From.Offset >>= 16
+		} else if buildcfg.GOPPC64 >= 10 {
+			// Let the assembler generate paddi for large constants.
+			break
+		} else if (p.From.Offset < -0x8000 && int64(int32(p.From.Offset)) == p.From.Offset) || (p.From.Offset > 0xFFFF && p.From.Offset < 0x7FFF8000) {
+			// For a constant x, 0xFFFF (UINT16_MAX) < x < 0x7FFF8000 or -0x80000000 (INT32_MIN) <= x < -0x8000 (INT16_MIN)
+			// This is not done for 0x7FFF < x < 0x10000; the assembler will generate a slightly faster instruction sequence.
+			//
+			// The constant x can be rewritten as ADDIS + ADD as follows:
+			//     ADDIS $x>>16 + (x>>15)&1, rX, rY
+			//     ADD   $int64(int16(x)), rY, rY
+			// The range is slightly asymmetric as 0x7FFF8000 and above overflow the sign bit, whereas for
+			// negative values, this would happen with constant values between -1 and -32768 which can
+			// assemble into a single addi.
+			is := p.From.Offset>>16 + (p.From.Offset>>15)&1
+			i := int64(int16(p.From.Offset))
+			p.As = AADDIS
+			p.From.Offset = is
+			q := obj.Appendp(p, c.newprog)
+			q.As = AADD
+			q.From.SetConst(i)
+			q.Reg = p.To.Reg
+			q.To = p.To
+			p = q
 		}
 	case AOR:
 		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset)&0xFFFFFFFF0000FFFF == 0 && p.From.Offset != 0 {

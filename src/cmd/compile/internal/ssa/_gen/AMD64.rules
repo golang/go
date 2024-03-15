@@ -1020,10 +1020,6 @@
 (MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
 (MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
 
-(MOVLQZX x) && zeroUpper32Bits(x,3) => x
-(MOVWQZX x) && zeroUpper48Bits(x,3) => x
-(MOVBQZX x) && zeroUpper56Bits(x,3) => x
-
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVBQZX x)
 (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVWQZX x)

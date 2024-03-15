@@ -17,9 +17,11 @@ import (
 func TestSizeof(t *testing.T) {
 	const _64bit = unsafe.Sizeof(uintptr(0)) == 8
 
-	g32bit := uintptr(256)
+	g32bit := uintptr(264)
 	if goexperiment.ExecTracer2 {
-		g32bit = uintptr(260)
+		// gTraceState changed from 2 uint64, 1 pointer, 1 bool to 2 uint64, 3 uint32.
+		// On 32-bit, that's one extra word.
+		g32bit += 4
 	}
 
 	var tests = []struct {
@@ -27,7 +29,7 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
-		{runtime.G{}, g32bit, 424}, // g, but exported for testing
+		{runtime.G{}, g32bit, 432}, // g, but exported for testing
 		{runtime.Sudog{}, 56, 88},  // sudog, but exported for testing
 	}
 

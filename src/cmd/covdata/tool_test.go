@@ -294,7 +294,7 @@ func runToolOp(t *testing.T, s state, op string, args []string) []string {
 	cmd := testenv.Command(t, s.tool, args...)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, string(b))
+		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, b)
 		t.Fatalf("%q run error: %v", op, err)
 	}
 	output := strings.TrimSpace(string(b))

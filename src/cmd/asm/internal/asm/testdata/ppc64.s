@@ -192,8 +192,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//      this is OK since r0 == $0, but the latter is preferred.
 	ADD $0, R6, R5             	// 7ca60214
 
-	ADD $1234567, R5                // 641f001263ffd6877cbf2a14 or 0600001238a5d687
-	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14 or 0600001238c5d687
+        //TODO: the assembler rewrites these into ADDIS $19, R5, Rx and ADD $-10617, Rx, Rx, but the test only sees the first ADDIS
+	ADD $1234567, R5                // 3ca50013 or 0600001238a5d687
+	ADD $1234567, R5, R6            // 3cc50013 or 0600001238c5d687
+
 	ADDEX R3, R5, $3, R6            // 7cc32f54
 	ADDEX R3, $3, R5, R6            // 7cc32f54
 	ADDIS $8, R3                    // 3c630008

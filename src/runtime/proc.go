@@ -5435,7 +5435,7 @@ func (pp *p) init(id int32) {
 			pp.raceprocctx = raceproccreate()
 		}
 	}
-	lockInit(&pp.timers.lock, lockRankTimers)
+	lockInit(&pp.timers.mu, lockRankTimers)
 
 	// This P may get timers when it starts running. Set the mask here
 	// since the P may not go through pidleget (notably P 0 on startup).
@@ -6446,7 +6446,9 @@ func pidleput(pp *p, now int64) int64 {
 	if now == 0 {
 		now = nanotime()
 	}
-	updateTimerPMask(pp) // clear if there are no timers.
+	if pp.timers.len.Load() == 0 {
+		timerpMask.clear(pp.id)
+	}
 	idlepMask.set(pp.id)
 	pp.link = sched.pidle
 	sched.pidle.set(pp)

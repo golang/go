@@ -62,6 +62,7 @@ type Var struct {
 	InlIndex        int32 // subtract 1 to form real index into InlTree
 	ChildIndex      int32 // child DIE index in abstract function
 	IsInAbstract    bool  // variable exists in abstract function
+	ClosureOffset   int64 // if non-zero this is the offset of this variable in the closure struct
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -312,8 +313,9 @@ const (
 	DW_AT_go_embedded_field = 0x2903
 	DW_AT_go_runtime_type   = 0x2904
 
-	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
-	DW_AT_go_dict_index   = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
+	DW_AT_go_package_name   = 0x2905 // Attribute for DW_TAG_compile_unit
+	DW_AT_go_dict_index     = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
+	DW_AT_go_closure_offset = 0x2907 // Attribute for DW_TAG_variable, offset in the closure struct where this captured variable resides
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
@@ -1509,6 +1511,10 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info) // DW_AT_type
 		} else {
 			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
+		}
+
+		if v.ClosureOffset > 0 {
+			putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, v.ClosureOffset, nil) // DW_AT_go_closure_offset
 		}
 	}
 

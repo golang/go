@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("go 1.11 trace\x00\x00\x00A00\x020$0")

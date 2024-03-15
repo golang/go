@@ -2356,9 +2356,6 @@ func TestProcInstEncodeToken(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 
-	if err := enc.EncodeToken(CharData(" \n\r\t")); err != nil {
-		t.Fatal("enc.EncodeToken: expected to be able to encode whitespace as first token")
-	}
 	if err := enc.EncodeToken(ProcInst{"xml", []byte("Instruction")}); err != nil {
 		t.Fatalf("enc.EncodeToken: expected to be able to encode xml target ProcInst as first token, %s", err)
 	}

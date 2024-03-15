@@ -52,6 +52,19 @@ func EncodeRune(r rune) (r1, r2 rune) {
 	return surr1 + (r>>10)&0x3ff, surr2 + r&0x3ff
 }
 
+// RuneLen returns the number of 16-bit words in the UTF-16 encoding of the rune.
+// It returns -1 if the rune is not a valid value to encode in UTF-16.
+func RuneLen(r rune) int {
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		return 1
+	case surrSelf <= r && r <= maxRune:
+		return 2
+	default:
+		return -1
+	}
+}
+
 // Encode returns the UTF-16 encoding of the Unicode code point sequence s.
 func Encode(s []rune) []uint16 {
 	n := len(s)
@@ -64,13 +77,11 @@ func Encode(s []rune) []uint16 {
 	a := make([]uint16, n)
 	n = 0
 	for _, v := range s {
-		switch {
-		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
-			// normal rune
+		switch RuneLen(v) {
+		case 1: // normal rune
 			a[n] = uint16(v)
 			n++
-		case surrSelf <= v && v <= maxRune:
-			// needs surrogate sequence
+		case 2: // needs surrogate sequence
 			r1, r2 := EncodeRune(v)
 			a[n] = uint16(r1)
 			a[n+1] = uint16(r2)

@@ -493,34 +493,20 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 	}
 }
 
-// bsearch16 returns the smallest i such that a[i] >= x.
-// If there is no such i, bsearch16 returns len(a).
-func bsearch16(a []uint16, x uint16) int {
-	i, j := 0, len(a)
+// bsearch is semantically the same as [slices.BinarySearch] (without NaN checks)
+// We copied this function because we can not import "slices" here.
+func bsearch[S ~[]E, E ~uint16 | ~uint32](s S, v E) (int, bool) {
+	n := len(s)
+	i, j := 0, n
 	for i < j {
 		h := i + (j-i)>>1
-		if a[h] < x {
+		if s[h] < v {
 			i = h + 1
 		} else {
 			j = h
 		}
 	}
-	return i
-}
-
-// bsearch32 returns the smallest i such that a[i] >= x.
-// If there is no such i, bsearch32 returns len(a).
-func bsearch32(a []uint32, x uint32) int {
-	i, j := 0, len(a)
-	for i < j {
-		h := i + (j-i)>>1
-		if a[h] < x {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	return i
+	return i, i < n && s[i] == v
 }
 
 // TODO: IsPrint is a local implementation of unicode.IsPrint, verified by the tests
@@ -554,16 +540,16 @@ func IsPrint(r rune) bool {
 
 	if 0 <= r && r < 1<<16 {
 		rr, isPrint, isNotPrint := uint16(r), isPrint16, isNotPrint16
-		i := bsearch16(isPrint, rr)
+		i, _ := bsearch(isPrint, rr)
 		if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
 			return false
 		}
-		j := bsearch16(isNotPrint, rr)
-		return j >= len(isNotPrint) || isNotPrint[j] != rr
+		_, found := bsearch(isNotPrint, rr)
+		return !found
 	}
 
 	rr, isPrint, isNotPrint := uint32(r), isPrint32, isNotPrint32
-	i := bsearch32(isPrint, rr)
+	i, _ := bsearch(isPrint, rr)
 	if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
 		return false
 	}
@@ -571,8 +557,8 @@ func IsPrint(r rune) bool {
 		return true
 	}
 	r -= 0x10000
-	j := bsearch16(isNotPrint, uint16(r))
-	return j >= len(isNotPrint) || isNotPrint[j] != uint16(r)
+	_, found := bsearch(isNotPrint, uint16(r))
+	return !found
 }
 
 // IsGraphic reports whether the rune is defined as a Graphic by Unicode. Such
@@ -593,7 +579,6 @@ func isInGraphicList(r rune) bool {
 	if r > 0xFFFF {
 		return false
 	}
-	rr := uint16(r)
-	i := bsearch16(isGraphic, rr)
-	return i < len(isGraphic) && rr == isGraphic[i]
+	_, found := bsearch(isGraphic, uint16(r))
+	return found
 }

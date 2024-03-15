@@ -16,11 +16,20 @@ import (
 type Version uint32
 
 const (
+	Go111   Version = 11
+	Go119   Version = 19
+	Go121   Version = 21
 	Go122   Version = 22
 	Current         = Go122
 )
 
 var versions = map[Version][]event.Spec{
+	// Go 1.11–1.21 use a different parser and are only set here for the sake of
+	// Version.Valid.
+	Go111: nil,
+	Go119: nil,
+	Go121: nil,
+
 	Go122: go122.Specs(),
 }
 

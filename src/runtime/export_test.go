@@ -63,6 +63,8 @@ var MapValues = values
 
 var LockPartialOrder = lockPartialOrder
 
+type TimeTimer = timeTimer
+
 type LockRank lockRank
 
 func (l LockRank) String() string {

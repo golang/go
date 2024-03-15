@@ -273,7 +273,7 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
 		// so that ordinary, non-type parameter interfaces implement comparable.
 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(check.pkg, atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
 				return true
 			}
 			if cause != nil {

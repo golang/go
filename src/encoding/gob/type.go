@@ -538,7 +538,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		idToTypeSlice[st.id()] = st
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if !isSent(&f) {
+			if !isSent(t, &f) {
 				continue
 			}
 			typ := userType(f.Type).base
@@ -576,7 +576,7 @@ func isExported(name string) bool {
 // isSent reports whether this struct field is to be transmitted.
 // It will be transmitted only if it is exported and not a chan or func field
 // or pointer to chan or func.
-func isSent(field *reflect.StructField) bool {
+func isSent(struct_ reflect.Type, field *reflect.StructField) bool {
 	if !isExported(field.Name) {
 		return false
 	}
@@ -589,6 +589,17 @@ func isSent(field *reflect.StructField) bool {
 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
 		return false
 	}
+
+	// Special case for Go 1.22: the x509.Certificate.Policies
+	// field is unencodable but also unused by default.
+	// Ignore it, so that x509.Certificate continues to be encodeable.
+	// Go 1.23 will add the right methods so that gob can
+	// handle the Policies field, and then we can remove this check.
+	// See go.dev/issue/65633.
+	if field.Name == "Policies" && struct_.PkgPath() == "crypto/x509" && struct_.Name() == "Certificate" {
+		return false
+	}
+
 	return true
 }
 

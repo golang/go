@@ -378,6 +378,7 @@ func normaliseLinkPath(path string) (string, error) {
 	if winreadlinkvolume.Value() != "0" {
 		return `\\?\` + path[4:], nil
 	}
+	winreadlinkvolume.IncNonDefault()
 
 	h, err := openSymlink(path)
 	if err != nil {

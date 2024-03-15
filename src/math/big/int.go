@@ -533,10 +533,8 @@ func (x *Int) Bytes() []byte {
 //
 // If the absolute value of x doesn't fit in buf, FillBytes will panic.
 func (x *Int) FillBytes(buf []byte) []byte {
-	// Clear whole buffer. (This gets optimized into a memclr.)
-	for i := range buf {
-		buf[i] = 0
-	}
+	// Clear whole buffer.
+	clear(buf)
 	x.abs.bytes(buf)
 	return buf
 }

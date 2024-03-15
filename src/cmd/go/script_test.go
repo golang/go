@@ -195,7 +195,7 @@ func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
 
 	telemetryDir = filepath.Join(work, "telemetry")
 	must(os.MkdirAll(telemetryDir, 0777))
-	must(s.Setenv("TESTGO_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
+	must(s.Setenv("TEST_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
 
 	must(os.MkdirAll(filepath.Join(work, "tmp"), 0777))
 	must(s.Setenv(tempEnvName(), filepath.Join(work, "tmp")))
@@ -410,6 +410,11 @@ func checkCounters(t *testing.T, telemetryDir string) {
 		}
 	})
 	counters := readCounters(t, telemetryDir)
+	if _, ok := scriptGoInvoked.Load(testing.TB(t)); ok {
+		if !disabledOnPlatform && len(counters) == 0 {
+			t.Fatal("go was invoked but no counters were incremented")
+		}
+	}
 	for name := range counters {
 		if !allowedCounters[name] {
 			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+
@@ -417,3 +422,19 @@ func checkCounters(t *testing.T, telemetryDir string) {
 		}
 	}
 }
+
+// Copied from https://go.googlesource.com/telemetry/+/5f08a0cbff3f/internal/telemetry/mode.go#122
+// TODO(go.dev/issues/66205): replace this with the public API once it becomes available.
+//
+// disabledOnPlatform indicates whether telemetry is disabled
+// due to bugs in the current platform.
+const disabledOnPlatform = false ||
+	// The following platforms could potentially be supported in the future:
+	runtime.GOOS == "openbsd" || // #60614
+	runtime.GOOS == "solaris" || // #60968 #60970
+	runtime.GOOS == "android" || // #60967
+	runtime.GOOS == "illumos" || // #65544
+	// These platforms fundamentally can't be supported:
+	runtime.GOOS == "js" || // #60971
+	runtime.GOOS == "wasip1" || // #60971
+	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639

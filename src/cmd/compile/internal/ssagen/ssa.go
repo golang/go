@@ -514,16 +514,14 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Populate closure variables.
 	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
-		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
-		for _, n := range fn.ClosureVars {
-			typ := n.Type()
-			if !n.Byval() {
-				typ = types.NewPtr(typ)
+		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
+		for {
+			n, typ, offset := csiter.Next()
+			if n == nil {
+				break
 			}
 
-			offset = types.RoundUp(offset, typ.Alignment())
 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
-			offset += typ.Size()
 
 			// If n is a small variable captured by value, promote
 			// it to PAUTO so it can be converted to SSA.
@@ -6351,6 +6349,9 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	}
 	if n.X.Type().IsChan() && n.Op() == ir.OLEN {
 		s.Fatalf("cannot inline len(chan)") // must use runtime.chanlen now
+	}
+	if n.X.Type().IsChan() && n.Op() == ir.OCAP {
+		s.Fatalf("cannot inline cap(chan)") // must use runtime.chancap now
 	}
 	// if n == nil {
 	//   return 0

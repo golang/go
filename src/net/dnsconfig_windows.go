@@ -25,16 +25,19 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 	if err != nil {
 		return
 	}
-	// TODO(bradfitz): this just collects all the DNS servers on all
-	// the interfaces in some random order. It should order it by
-	// default route, or only use the default route(s) instead.
-	// In practice, however, it mostly works.
+
 	for _, aa := range aas {
+		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
+		if aa.OperStatus != windows.IfOperStatusUp {
+			continue
+		}
+
+		// Only take interfaces which have at least one gateway
+		if aa.FirstGatewayAddress == nil {
+			continue
+		}
+
 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
-			// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
-			if aa.OperStatus != windows.IfOperStatusUp {
-				continue
-			}
 			sa, err := dns.Address.Sockaddr.Sockaddr()
 			if err != nil {
 				continue
@@ -47,9 +50,11 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
 				ip = make(IP, IPv6len)
 				copy(ip, sa.Addr[:])
 				if ip[0] == 0xfe && ip[1] == 0xc0 {
-					// Ignore these fec0/10 ones. Windows seems to
-					// populate them as defaults on its misc rando
-					// interfaces.
+					// fec0/10 IPv6 addresses are site local anycast DNS
+					// addresses Microsoft sets by default if no other
+					// IPv6 DNS address is set. Site local anycast is
+					// deprecated since 2004, see
+					// https://datatracker.ietf.org/doc/html/rfc3879
 					continue
 				}
 			default:

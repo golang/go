@@ -251,6 +251,10 @@ func parseIPv6(in string) (Addr, error) {
 			} else {
 				break
 			}
+			if off > 3 {
+				//more than 4 digits in group, fail.
+				return Addr{}, parseAddrError{in: in, msg: "each group must have 4 or less digits", at: s}
+			}
 			if acc > math.MaxUint16 {
 				// Overflow, fail.
 				return Addr{}, parseAddrError{in: in, msg: "IPv6 field has value >=2^16", at: s}
@@ -331,9 +335,7 @@ func parseIPv6(in string) (Addr, error) {
 		for j := i - 1; j >= ellipsis; j-- {
 			ip[j+n] = ip[j]
 		}
-		for j := ellipsis + n - 1; j >= ellipsis; j-- {
-			ip[j] = 0
-		}
+		clear(ip[ellipsis : ellipsis+n])
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
 		return Addr{}, parseAddrError{in: in, msg: "the :: must expand to at least one field of zeros"}

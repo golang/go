@@ -172,7 +172,7 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			wantType = fs.ModeSymlink
 		}
 		if tp := fi2.Mode().Type(); tp != wantType {
-			t.Errorf("Lstat(%q) is type %v; want %v", link, tp, fs.ModeDir)
+			t.Errorf("Lstat(%q) is type %v; want %v", link, tp, wantType)
 		}
 	}
 }

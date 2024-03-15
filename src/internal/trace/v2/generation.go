@@ -328,7 +328,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 // sample contained therein to the provided samples list.
 func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	if !b.isCPUSamplesBatch() {
-		return nil, fmt.Errorf("internal error: addStrings called on non-string batch")
+		return nil, fmt.Errorf("internal error: addCPUSamples called on non-CPU-sample batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.

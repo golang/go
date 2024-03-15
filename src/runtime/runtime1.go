@@ -339,12 +339,25 @@ var debug struct {
 	sbrk           int32
 
 	panicnil atomic.Int32
+
+	// asynctimerchan controls whether timer channels
+	// behave asynchronously (as in Go 1.22 and earlier)
+	// instead of their Go 1.23+ synchronous behavior.
+	// The value can change at any time (in response to os.Setenv("GODEBUG"))
+	// and affects all extant timer channels immediately.
+	// Programs wouldn't normally change over an execution,
+	// but allowing it is convenient for testing and for programs
+	// that do an os.Setenv in main.init or main.main.
+	asynctimerchan atomic.Int32
 }
 
 var dbgvars = []*dbgVar{
+	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
 	{name: "allocfreetrace", value: &debug.allocfreetrace},
-	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "clobberfree", value: &debug.clobberfree},
 	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "efence", value: &debug.efence},
@@ -353,21 +366,19 @@ var dbgvars = []*dbgVar{
 	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
 	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
 	{name: "gctrace", value: &debug.gctrace},
+	{name: "harddecommit", value: &debug.harddecommit},
+	{name: "inittrace", value: &debug.inittrace},
 	{name: "invalidptr", value: &debug.invalidptr},
 	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
-	{name: "tracebackancestors", value: &debug.tracebackancestors},
-	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
-	{name: "inittrace", value: &debug.inittrace},
-	{name: "harddecommit", value: &debug.harddecommit},
-	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
-	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
-	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 }
 
 func parsedebugvars() {

@@ -131,7 +131,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
-	versions      map[*ast.File]string      // maps files to version strings (each file has an entry)
+	versions      map[*ast.File]string      // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type

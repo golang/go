@@ -50,31 +50,29 @@ var (
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
 )
 
-// allowVersion reports whether the given package is allowed to use version v.
-func (check *Checker) allowVersion(pkg *Package, at positioner, v goVersion) bool {
-	// We assume that imported packages have all been checked,
-	// so we only have to check for the local package.
-	if pkg != check.pkg {
-		return true
+// allowVersion reports whether the current package at the given position
+// is allowed to use version v. If the position is unknown, the specified
+// module version (Config.GoVersion) is used. If that version is invalid,
+// allowVersion returns true.
+func (check *Checker) allowVersion(at positioner, v goVersion) bool {
+	fileVersion := check.conf.GoVersion
+	if pos := at.Pos(); pos.IsValid() {
+		fileVersion = check.versions[check.fileFor(pos)]
 	}
 
-	// If no explicit file version is specified,
-	// fileVersion corresponds to the module version.
-	var fileVersion goVersion
-	if pos := at.Pos(); pos.IsValid() {
-		// We need version.Lang below because file versions
-		// can be (unaltered) Config.GoVersion strings that
-		// may contain dot-release information.
-		fileVersion = asGoVersion(check.versions[check.fileFor(pos)])
-	}
-	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
+	// We need asGoVersion (which calls version.Lang) below
+	// because fileVersion may be the (unaltered) Config.GoVersion
+	// string which may contain dot-release information.
+	version := asGoVersion(fileVersion)
+
+	return !version.isValid() || version.cmp(v) >= 0
 }
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
 // which are used to report a version error if allowVersion returns false. It uses the
 // current package.
 func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
-	if !check.allowVersion(check.pkg, at, v) {
+	if !check.allowVersion(at, v) {
 		check.versionErrorf(at, v, format, args...)
 		return false
 	}

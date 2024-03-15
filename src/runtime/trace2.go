@@ -98,6 +98,20 @@ var trace struct {
 	goStopReasons    [2][len(traceGoStopReasonStrings)]traceArg
 	goBlockReasons   [2][len(traceBlockReasonStrings)]traceArg
 
+	// enabled indicates whether tracing is enabled, but it is only an optimization,
+	// NOT the source of truth on whether tracing is enabled. Tracing is only truly
+	// enabled if gen != 0. This is used as an optimistic fast path check.
+	//
+	// Transitioning this value from true -> false is easy (once gen is 0)
+	// because it's OK for enabled to have a stale "true" value. traceAcquire will
+	// always double-check gen.
+	//
+	// Transitioning this value from false -> true is harder. We need to make sure
+	// this is observable as true strictly before gen != 0. To maintain this invariant
+	// we only make this transition with the world stopped and use the store to gen
+	// as a publication barrier.
+	enabled bool
+
 	// Trace generation counter.
 	gen            atomic.Uintptr
 	lastNonZeroGen uintptr // last non-zero value of gen
@@ -211,8 +225,19 @@ func StartTrace() error {
 
 	// Start tracing.
 	//
-	// After this executes, other Ms may start creating trace buffers and emitting
+	// Set trace.enabled. This is *very* subtle. We need to maintain the invariant that if
+	// trace.gen != 0, then trace.enabled is always observed as true. Simultaneously, for
+	// performance, we need trace.enabled to be read without any synchronization.
+	//
+	// We ensure this is safe by stopping the world, which acts a global barrier on almost
+	// every M, and explicitly synchronize with any other Ms that could be running concurrently
+	// with us. Today, there are only two such cases:
+	// - sysmon, which we synchronized with by acquiring sysmonlock.
+	// - goroutines exiting syscalls, which we synchronize with via trace.exitingSyscall.
+	//
+	// After trace.gen is updated, other Ms may start creating trace buffers and emitting
 	// data into them.
+	trace.enabled = true
 	trace.gen.Store(firstGen)
 
 	// Wait for exitingSyscall to drain.
@@ -222,8 +247,9 @@ func StartTrace() error {
 	// goroutines to run on.
 	//
 	// Because we set gen before checking this, and because exitingSyscall is always incremented
-	// *after* traceAcquire (which checks gen), we can be certain that when exitingSyscall is zero
-	// that any goroutine that goes to exit a syscall from then on *must* observe the new gen.
+	// *before* traceAcquire (which checks gen), we can be certain that when exitingSyscall is zero
+	// that any goroutine that goes to exit a syscall from then on *must* observe the new gen as
+	// well as trace.enabled being set to true.
 	//
 	// The critical section on each goroutine here is going to be quite short, so the likelihood
 	// that we observe a zero value is high.
@@ -376,6 +402,10 @@ func traceAdvance(stopTrace bool) {
 			trace.shutdown.Store(true)
 			trace.gen.Store(0)
 			unlock(&trace.lock)
+
+			// Clear trace.enabled. It is totally OK for this value to be stale,
+			// because traceAcquire will always double-check gen.
+			trace.enabled = false
 		})
 	} else {
 		trace.gen.Store(traceNextGen(gen))
@@ -535,7 +565,22 @@ func traceAdvance(stopTrace bool) {
 		unlock(&trace.lock)
 	})
 
+	// Perform status reset on dead Ps because they just appear as idle.
+	//
+	// Preventing preemption is sufficient to access allp safely. allp is only
+	// mutated by GOMAXPROCS calls, which require a STW.
+	//
+	// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
+	// events to indicate whether a P exists, rather than just making its
+	// existence implicit.
+	mp = acquirem()
+	for _, pp := range allp[len(allp):cap(allp)] {
+		pp.trace.readyNextGen(traceNextGen(gen))
+	}
+	releasem(mp)
+
 	if stopTrace {
+		// Acquire the shutdown sema to begin the shutdown process.
 		semacquire(&traceShutdownSema)
 
 		// Finish off CPU profile reading.
@@ -556,16 +601,6 @@ func traceAdvance(stopTrace bool) {
 			}
 			traceRelease(tl)
 		})
-		// Perform status reset on dead Ps because they just appear as idle.
-		//
-		// Holding worldsema prevents allp from changing.
-		//
-		// TODO(mknyszek): Consider explicitly emitting ProcCreate and ProcDestroy
-		// events to indicate whether a P exists, rather than just making its
-		// existence implicit.
-		for _, pp := range allp[len(allp):cap(allp)] {
-			pp.trace.readyNextGen(traceNextGen(gen))
-		}
 		semrelease(&worldsema)
 	}
 
@@ -920,10 +955,10 @@ func newWakeableSleep() *wakeableSleep {
 	lockInit(&s.lock, lockRankWakeableSleep)
 	s.wakeup = make(chan struct{}, 1)
 	s.timer = new(timer)
-	s.timer.arg = s
-	s.timer.f = func(s any, _ uintptr) {
+	f := func(s any, _ uintptr, _ int64) {
 		s.(*wakeableSleep).wake()
 	}
+	s.timer.init(f, s)
 	return s
 }
 
@@ -933,7 +968,7 @@ func newWakeableSleep() *wakeableSleep {
 // Must not be called by more than one goroutine at a time and
 // must not be called concurrently with close.
 func (s *wakeableSleep) sleep(ns int64) {
-	resetTimer(s.timer, nanotime()+ns)
+	s.timer.reset(nanotime()+ns, 0)
 	lock(&s.lock)
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&s.lock))
@@ -944,7 +979,7 @@ func (s *wakeableSleep) sleep(ns int64) {
 	}
 	unlock(&s.lock)
 	<-wakeup
-	stopTimer(s.timer)
+	s.timer.stop()
 }
 
 // wake awakens any goroutine sleeping on the timer.

@@ -139,10 +139,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		var err error
 		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
 			// TODO(matloob): Better action descriptions
-			desc := "Executing action "
+			desc := "Executing action (" + a.Mode
 			if a.Package != nil {
-				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+				desc += " " + a.Package.Desc()
 			}
+			desc += ")"
 			ctx, span := trace.StartSpan(ctx, desc)
 			a.traceSpan = span
 			for _, d := range a.Deps {

@@ -111,6 +111,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)
 	}
+	checkPathCollisions(modpkgs)
 
 	includeAllReplacements := false
 	includeGoVersions := false
@@ -489,6 +490,22 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 		r.Close()
 		if err := w.Close(); err != nil {
 			base.Fatal(err)
+		}
+	}
+}
+
+// checkPathCollisions will fail if case-insensitive collisions are present.
+// The reason why we do this check in go mod vendor is to keep consistency
+// with go build. If modifying, consider changing load() in
+// src/cmd/go/internal/load/pkg.go
+func checkPathCollisions(modpkgs map[module.Version][]string) {
+	var foldPath = make(map[string]string, len(modpkgs))
+	for m := range modpkgs {
+		fold := str.ToFold(m.Path)
+		if other := foldPath[fold]; other == "" {
+			foldPath[fold] = m.Path
+		} else if other != m.Path {
+			base.Fatalf("go.mod: case-insensitive import collision: %q and %q", m.Path, other)
 		}
 	}
 }

@@ -647,9 +647,9 @@ type DynamicTimezoneinformation struct {
 }
 
 var (
-	kernel32DLL = syscall.NewLazyDLL("kernel32")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procGetDynamicTimeZoneInformation = kernel32DLL.NewProc("GetDynamicTimeZoneInformation")
+	procGetDynamicTimeZoneInformation = modkernel32.NewProc("GetDynamicTimeZoneInformation")
 )
 
 func GetDynamicTimeZoneInformation(dtzi *DynamicTimezoneinformation) (rc uint32, err error) {

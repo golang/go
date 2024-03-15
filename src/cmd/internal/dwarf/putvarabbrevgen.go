@@ -45,6 +45,28 @@ var putvarAbbrevs = []dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_closure_offset, DW_FORM_udata},
+			{DW_AT_location, DW_FORM_sec_offset},
+		},
+	},
+	{
+		DW_TAG_variable,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_closure_offset, DW_FORM_udata},
+			{DW_AT_location, DW_FORM_block1},
+		},
+	},
+	{
+		DW_TAG_variable,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_decl_line, DW_FORM_udata},
+			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_location, DW_FORM_sec_offset},
 		},
 	},
@@ -71,6 +93,30 @@ var putvarAbbrevs = []dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_abstract_origin, DW_FORM_ref_addr},
+			{DW_AT_location, DW_FORM_block1},
+		},
+	},
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_variable_parameter, DW_FORM_flag},
+			{DW_AT_decl_line, DW_FORM_udata},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_closure_offset, DW_FORM_udata},
+			{DW_AT_location, DW_FORM_sec_offset},
+		},
+	},
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_variable_parameter, DW_FORM_flag},
+			{DW_AT_decl_line, DW_FORM_udata},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_closure_offset, DW_FORM_udata},
 			{DW_AT_location, DW_FORM_block1},
 		},
 	},
@@ -115,24 +161,40 @@ func putvarAbbrev(v *Var, concrete, withLoclist bool) int {
 				return DW_ABRV_PUTVAR_START + 3
 			}
 		} else {
-			if withLoclist {
-				return DW_ABRV_PUTVAR_START + 4
+			if v.ClosureOffset > 0 {
+				if withLoclist {
+					return DW_ABRV_PUTVAR_START + 4
+				} else {
+					return DW_ABRV_PUTVAR_START + 5
+				}
 			} else {
-				return DW_ABRV_PUTVAR_START + 5
+				if withLoclist {
+					return DW_ABRV_PUTVAR_START + 6
+				} else {
+					return DW_ABRV_PUTVAR_START + 7
+				}
 			}
 		}
 	} else {
 		if concrete {
 			if withLoclist {
-				return DW_ABRV_PUTVAR_START + 6
-			} else {
-				return DW_ABRV_PUTVAR_START + 7
-			}
-		} else {
-			if withLoclist {
 				return DW_ABRV_PUTVAR_START + 8
 			} else {
 				return DW_ABRV_PUTVAR_START + 9
+			}
+		} else {
+			if v.ClosureOffset > 0 {
+				if withLoclist {
+					return DW_ABRV_PUTVAR_START + 10
+				} else {
+					return DW_ABRV_PUTVAR_START + 11
+				}
+			} else {
+				if withLoclist {
+					return DW_ABRV_PUTVAR_START + 12
+				} else {
+					return DW_ABRV_PUTVAR_START + 13
+				}
 			}
 		}
 	}

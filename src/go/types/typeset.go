@@ -240,7 +240,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			// error message.
 			if check != nil {
 				check.later(func() {
-					if !check.allowVersion(m.pkg, atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+					if pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
 						err := check.newError(DuplicateDecl)
 						err.addf(atPos(pos), "duplicate method %s", m.name)
 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
@@ -259,9 +259,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 	allTerms := allTermlist
 	allComparable := false
 	for i, typ := range ityp.embeddeds {
-		// The embedding position is nil for imported interfaces
-		// and also for interface copies after substitution (but
-		// in that case we don't need to report errors again).
+		// The embedding position is nil for imported interfaces.
+		// We don't need to do version checks in those cases.
 		var pos token.Pos // embedding position
 		if ityp.embedPos != nil {
 			pos = (*ityp.embedPos)[i]
@@ -274,7 +273,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
+			if pos.IsValid() && check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
 				continue
 			}
 			comparable = tset.comparable
@@ -283,7 +282,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			}
 			terms = tset.terms
 		case *Union:
-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
+			if pos.IsValid() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -297,7 +296,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			if !isValid(u) {
 				continue
 			}
-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
+			if pos.IsValid() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
 				continue
 			}
 			terms = termlist{{false, typ}}

@@ -158,8 +158,8 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		// A type parameter stands for the type (argument) it was instantiated with.
 		// Check the corresponding type argument for validity if we are in an
 		// instantiated type.
-		if len(nest) > 0 {
-			inst := nest[len(nest)-1] // the type instance
+		if d := len(nest) - 1; d >= 0 {
+			inst := nest[d] // the type instance
 			// Find the corresponding type argument for the type parameter
 			// and proceed with checking that type argument.
 			for i, tparam := range inst.TypeParams().list() {
@@ -173,7 +173,12 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 					// the current (instantiated) type (see the example
 					// at the end of this file).
 					// For error reporting we keep the full path.
-					return check.validType0(pos, targ, nest[:len(nest)-1], path)
+					res := check.validType0(pos, targ, nest[:d], path)
+					// The check.validType0 call with nest[:d] may have
+					// overwritten the entry at the current depth d.
+					// Restore the entry (was issue go.dev/issue/66323).
+					nest[d] = inst
+					return res
 				}
 			}
 		}

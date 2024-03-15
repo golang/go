@@ -1665,9 +1665,7 @@ func gcResetMarkState() {
 	unlock(&mheap_.lock)
 	for _, ai := range arenas {
 		ha := mheap_.arenas[ai.l1()][ai.l2()]
-		for i := range ha.pageMarks {
-			ha.pageMarks[i] = 0
-		}
+		clear(ha.pageMarks[:])
 	}
 
 	work.bytesMarked = 0

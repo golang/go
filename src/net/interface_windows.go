@@ -20,7 +20,8 @@ func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
 	l := uint32(15000) // recommended initial size
 	for {
 		b = make([]byte, l)
-		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, windows.GAA_FLAG_INCLUDE_PREFIX, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
+		const flags = windows.GAA_FLAG_INCLUDE_PREFIX | windows.GAA_FLAG_INCLUDE_GATEWAYS
+		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, flags, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
 		if err == nil {
 			if l == 0 {
 				return nil, nil

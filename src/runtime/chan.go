@@ -36,6 +36,7 @@ type hchan struct {
 	buf      unsafe.Pointer // points to an array of dataqsiz elements
 	elemsize uint16
 	closed   uint32
+	timer    *timer // timer feeding this chan
 	elemtype *_type // element type
 	sendx    uint   // send index
 	recvx    uint   // receive index
@@ -322,6 +323,35 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	goready(gp, skip+1)
 }
 
+// timerchandrain removes all elements in channel c's buffer.
+// It reports whether any elements were removed.
+// Because it is only intended for timers, it does not
+// handle waiting senders at all (all timer channels
+// use non-blocking sends to fill the buffer).
+func timerchandrain(c *hchan) bool {
+	// Note: Cannot use empty(c) because we are called
+	// while holding c.timer.sendLock, and empty(c) will
+	// call c.timer.maybeRunChan, which will deadlock.
+	// We are emptying the channel, so we only care about
+	// the count, not about potentially filling it up.
+	if atomic.Loaduint(&c.qcount) == 0 {
+		return false
+	}
+	lock(&c.lock)
+	any := false
+	for c.qcount > 0 {
+		any = true
+		typedmemclr(c.elemtype, chanbuf(c, c.recvx))
+		c.recvx++
+		if c.recvx == c.dataqsiz {
+			c.recvx = 0
+		}
+		c.qcount--
+	}
+	unlock(&c.lock)
+	return any
+}
+
 // Sends and receives on unbuffered or empty-buffered channels are the
 // only operations where one running goroutine writes to the stack of
 // another running goroutine. The GC assumes that stack writes only
@@ -426,11 +456,18 @@ func closechan(c *hchan) {
 }
 
 // empty reports whether a read from c would block (that is, the channel is
-// empty).  It uses a single atomic read of mutable state.
+// empty).  It is atomically correct and sequentially consistent at the moment
+// it returns, but since the channel is unlocked, the channel may become
+// non-empty immediately afterward.
 func empty(c *hchan) bool {
 	// c.dataqsiz is immutable.
 	if c.dataqsiz == 0 {
 		return atomic.Loadp(unsafe.Pointer(&c.sendq.first)) == nil
+	}
+	// c.timer is also immutable (it is set after make(chan) but before any channel operations).
+	// All timer channels have dataqsiz > 0.
+	if c.timer != nil {
+		c.timer.maybeRunChan()
 	}
 	return atomic.Loaduint(&c.qcount) == 0
 }
@@ -468,6 +505,10 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		}
 		gopark(nil, nil, waitReasonChanReceiveNilChan, traceBlockForever, 2)
 		throw("unreachable")
+	}
+
+	if c.timer != nil {
+		c.timer.maybeRunChan()
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -570,11 +611,16 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.elem = ep
 	mysg.waitlink = nil
 	gp.waiting = mysg
+
 	mysg.g = gp
 	mysg.isSelect = false
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
+	if c.timer != nil {
+		blockTimerChan(c)
+	}
+
 	// Signal to anyone trying to shrink our stack that we're about
 	// to park on a channel. The window between when this G's status
 	// changes and when we set gp.activeStackChans is not safe for
@@ -585,6 +631,9 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	// someone woke us up
 	if mysg != gp.waiting {
 		throw("G waiting list is corrupted")
+	}
+	if c.timer != nil {
+		unblockTimerChan(c)
 	}
 	gp.waiting = nil
 	gp.activeStackChans = false
@@ -728,7 +777,34 @@ func chanlen(c *hchan) int {
 	if c == nil {
 		return 0
 	}
+	async := debug.asynctimerchan.Load() != 0
+	if c.timer != nil && async {
+		c.timer.maybeRunChan()
+	}
+	if c.timer != nil && !async {
+		// timer channels have a buffered implementation
+		// but present to users as unbuffered, so that we can
+		// undo sends without users noticing.
+		return 0
+	}
 	return int(c.qcount)
+}
+
+func chancap(c *hchan) int {
+	if c == nil {
+		return 0
+	}
+	if c.timer != nil {
+		async := debug.asynctimerchan.Load() != 0
+		if async {
+			return int(c.dataqsiz)
+		}
+		// timer channels have a buffered implementation
+		// but present to users as unbuffered, so that we can
+		// undo sends without users noticing.
+		return 0
+	}
+	return int(c.dataqsiz)
 }
 
 //go:linkname reflect_chanlen reflect.chanlen
@@ -743,10 +819,7 @@ func reflectlite_chanlen(c *hchan) int {
 
 //go:linkname reflect_chancap reflect.chancap
 func reflect_chancap(c *hchan) int {
-	if c == nil {
-		return 0
-	}
-	return int(c.dataqsiz)
+	return chancap(c)
 }
 
 //go:linkname reflect_chanclose reflect.chanclose

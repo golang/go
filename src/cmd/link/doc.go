@@ -47,8 +47,6 @@ Flags:
 		Link with C/C++ address sanitizer support.
 	-aslr
 		Enable ASLR for buildmode=c-shared on windows (default true).
-	-bindnow
-		Mark a dynamically linked ELF object for immediate function binding (default false).
 	-buildid id
 		Record id as Go toolchain build id.
 	-buildmode mode

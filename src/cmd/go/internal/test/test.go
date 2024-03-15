@@ -353,6 +353,7 @@ profile the tests during execution:
 
 	-benchmem
 	    Print memory allocation statistics for benchmarks.
+	    Allocations made in C or using C.malloc are not counted.
 
 	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
@@ -1859,6 +1860,8 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
 func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
+	// The runtime always looks at GODEBUG, without telling us in the testlog.
+	fmt.Fprintf(h, "env GODEBUG %x\n", hashGetenv("GODEBUG"))
 	pwd := a.Package.Dir
 	for _, line := range bytes.Split(testlog, []byte("\n")) {
 		if len(line) == 0 {

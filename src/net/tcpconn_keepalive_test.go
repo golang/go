@@ -2,21 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || freebsd || linux || netbsd || dragonfly || darwin || solaris || windows
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || solaris || windows
 
 package net
 
-import (
-	"runtime"
-	"testing"
-)
+import "testing"
 
-func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
 		testPreHookSetKeepAlive = func(*netFD) {}
@@ -26,7 +19,7 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
 	}
 
 	handler := func(ls *localServer, ln Listener) {
@@ -66,19 +59,15 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfigListener(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
 		testPreHookSetKeepAlive = func(*netFD) {}
@@ -88,7 +77,7 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
 	}
 
 	ch := make(chan Conn, 1)
@@ -125,19 +114,15 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestTCPConnSetKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfig(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	handler := func(ls *localServer, ln Listener) {
 		for {
@@ -174,7 +159,7 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
 			oldCfg  KeepAliveConfig
 		)
 		if err := sc.Control(func(fd uintptr) {
-			oldCfg, errHook = getCurrentKeepAliveSettings(int(fd))
+			oldCfg, errHook = getCurrentKeepAliveSettings(fdType(fd))
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -187,7 +172,7 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
 		}
 
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}

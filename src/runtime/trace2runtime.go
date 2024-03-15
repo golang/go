@@ -141,7 +141,7 @@ var traceGoStopReasonStrings = [...]string{
 //
 //go:nosplit
 func traceEnabled() bool {
-	return trace.gen.Load() != 0
+	return trace.enabled
 }
 
 // traceShuttingDown returns true if the trace is currently shutting down.
