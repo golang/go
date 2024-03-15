@@ -551,17 +551,17 @@ func traceAdvance(stopTrace bool) {
 	// Read everything out of the last gen's CPU profile buffer.
 	traceReadCPU(gen)
 
-	systemstack(func() {
-		// Flush CPU samples, stacks, and strings for the last generation. This is safe,
-		// because we're now certain no M is writing to the last generation.
-		//
-		// Ordering is important here. traceCPUFlush may generate new stacks and dumping
-		// stacks may generate new strings.
-		traceCPUFlush(gen)
-		trace.stackTab[gen%2].dump(gen)
-		trace.stringTab[gen%2].reset(gen)
+	// Flush CPU samples, stacks, and strings for the last generation. This is safe,
+	// because we're now certain no M is writing to the last generation.
+	//
+	// Ordering is important here. traceCPUFlush may generate new stacks and dumping
+	// stacks may generate new strings.
+	traceCPUFlush(gen)
+	trace.stackTab[gen%2].dump(gen)
+	trace.stringTab[gen%2].reset(gen)
 
-		// That's it. This generation is done producing buffers.
+	// That's it. This generation is done producing buffers.
+	systemstack(func() {
 		lock(&trace.lock)
 		trace.flushedGen.Store(gen)
 		unlock(&trace.lock)
