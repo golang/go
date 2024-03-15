@@ -427,7 +427,7 @@ racecallatomic_ignore:
 // void runtime·racecall(void(*f)(...), ...)
 // Calls C function f from race runtime and passes up to 4 arguments to it.
 // The arguments are never heap-object-preserving pointers, so we pretend there are no arguments.
-TEXT	runtime·racecall<>(SB), NOSPLIT, $0-0
+TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg0+8(FP), RARG0
 	MOVQ	arg1+16(FP), RARG1
