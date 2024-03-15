@@ -540,7 +540,7 @@ func TestAndInt32(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j int32
-	for mask := int32(1); mask&mask > mask; mask += mask {
+	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := AndInt32(&x.i, mask)
 		j &= mask
@@ -562,7 +562,7 @@ func TestAndInt32Method(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j int32
-	for mask := int32(1); mask&mask > 0; mask += mask {
+	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.And(mask)
 		j &= mask
@@ -584,7 +584,7 @@ func TestAndUint32(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j uint32
-	for mask := uint32(1); mask&mask > 0; mask += mask {
+	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := AndUint32(&x.i, mask)
 		j &= mask
@@ -606,7 +606,7 @@ func TestAndUint32Method(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j uint32
-	for mask := uint32(1); mask&mask > 0; mask += mask {
+	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.And(mask)
 		j &= mask
@@ -629,7 +629,7 @@ func TestAndInt64(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j int64
-	for mask := int64(1); mask&mask > 0; mask += mask {
+	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := AndInt64(&x.i, mask)
 		j &= mask
@@ -652,7 +652,7 @@ func TestAndInt64Method(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j int64
-	for mask := int64(1); mask&mask > 0; mask += mask {
+	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.And(mask)
 		j &= mask
@@ -675,7 +675,7 @@ func TestAndUint64(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j uint64
-	for mask := uint64(1); mask&mask > 0; mask += mask {
+	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := AndUint64(&x.i, mask)
 		j &= mask
@@ -698,7 +698,7 @@ func TestAndUint64Method(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j uint64
-	for mask := uint64(1); mask&mask > 0; mask += mask {
+	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.And(mask)
 		j &= mask
@@ -722,7 +722,7 @@ func TestAndUintptr(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	var j uintptr
-	for mask := uintptr(1); mask&mask > 0; mask += mask {
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := AndUintptr(&x.i, mask)
 		j &= mask
@@ -746,7 +746,7 @@ func TestAndUintptrMethod(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	var j uintptr
-	for mask := uintptr(1); mask&mask > 0; mask += mask {
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.And(mask)
 		j &= mask
