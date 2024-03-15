@@ -2173,22 +2173,9 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // writes are done to w.
 // The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
-	h := w.Header()
-	// We delete headers which might be valid for some other content,
-	// but not anymore for the error content.
-	h.Del("Content-Length")
-	h.Del("Content-Encoding")
-	h.Del("Etag")
-	h.Del("Last-Modified")
-	// There might be cache control headers set for some other content,
-	// but we reset it to no-cache for the error content if presents.
-	if h.has("Cache-Control") {
-		h.Set("Cache-Control", "no-cache")
-	}
-	// There might be content type already set, but we reset it to
-	// text/plain for the error message.
-	h.Set("Content-Type", "text/plain; charset=utf-8")
-	h.Set("X-Content-Type-Options", "nosniff")
+	w.Header().Del("Content-Length")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }
