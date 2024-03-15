@@ -203,6 +203,11 @@ type Type struct {
 	flags bitset8
 	alg   AlgKind // valid if Align > 0
 
+	// size of prefix of object that contains all pointers. valid if Align > 0.
+	// Note that for pointers, this is always PtrSize even if the element type
+	// is NotInHeap. See size.go:PtrDataSize for details.
+	ptrBytes int64
+
 	// For defined (named) generic types, a pointer to the list of type params
 	// (in order) of this type that need to be instantiated. For instantiated
 	// generic types, this is the targs used to instantiate them. These targs
@@ -549,6 +554,9 @@ func NewArray(elem *Type, bound int64) *Type {
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
+	if elem.NotInHeap() {
+		t.SetNotInHeap(true)
+	}
 	return t
 }
 
@@ -663,6 +671,9 @@ func NewPtr(elem *Type) *Type {
 		t.SetNoalg(true)
 		t.alg = ANOALG
 	}
+	// Note: we can't check elem.NotInHeap here because it might
+	// not be set yet. See size.go:PtrDataSize.
+	t.ptrBytes = int64(PtrSize)
 	return t
 }
 
@@ -1634,9 +1645,17 @@ func init() {
 func NewNamed(obj Object) *Type {
 	t := newType(TFORW)
 	t.obj = obj
-	if obj.Sym().Pkg == ShapePkg {
+	sym := obj.Sym()
+	if sym.Pkg == ShapePkg {
 		t.SetIsShape(true)
 		t.SetHasShape(true)
+	}
+	if sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
+		// Recognize the special not-in-heap type. Any type including
+		// this type will also be not-in-heap.
+		// This logic is duplicated in go/types and
+		// cmd/compile/internal/types2.
+		t.SetNotInHeap(true)
 	}
 	return t
 }
@@ -1664,6 +1683,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	t.width = underlying.width
 	t.align = underlying.align
 	t.alg = underlying.alg
+	t.ptrBytes = underlying.ptrBytes
 	t.intRegs = underlying.intRegs
 	t.floatRegs = underlying.floatRegs
 	t.underlying = underlying.underlying
@@ -1772,6 +1792,13 @@ func NewStruct(fields []*Field) *Type {
 	if fieldsHasShape(fields) {
 		t.SetHasShape(true)
 	}
+	for _, f := range fields {
+		if f.Type.NotInHeap() {
+			t.SetNotInHeap(true)
+			break
+		}
+	}
+
 	return t
 }
 

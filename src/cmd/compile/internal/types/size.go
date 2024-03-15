@@ -202,7 +202,8 @@ func isAtomicStdPkg(p *Pkg) bool {
 	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
 }
 
-// CalcSize calculates and stores the size, alignment, and eq/hash algorithm for t.
+// CalcSize calculates and stores the size, alignment, eq/hash algorithm,
+// and ptrBytes for t.
 // If CalcSizeDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
@@ -247,6 +248,7 @@ func CalcSize(t *Type) {
 	t.width = -2
 	t.align = 0  // 0 means use t.Width, below
 	t.alg = AMEM // default
+	// default t.ptrBytes is 0.
 	if t.Noalg() {
 		t.setAlg(ANOALG)
 	}
@@ -314,10 +316,12 @@ func CalcSize(t *Type) {
 		w = int64(PtrSize)
 		t.intRegs = 1
 		CheckSize(t.Elem())
+		t.ptrBytes = int64(PtrSize) // See PtrDataSize
 
 	case TUNSAFEPTR:
 		w = int64(PtrSize)
 		t.intRegs = 1
+		t.ptrBytes = int64(PtrSize)
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(PtrSize)
@@ -329,10 +333,12 @@ func CalcSize(t *Type) {
 		} else {
 			t.setAlg(AINTER)
 		}
+		t.ptrBytes = int64(2 * PtrSize)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
 		t.intRegs = 1
+		t.ptrBytes = int64(PtrSize)
 
 		CheckSize(t.Elem())
 
@@ -360,6 +366,7 @@ func CalcSize(t *Type) {
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
 		t.setAlg(ANOEQ)
+		t.ptrBytes = int64(PtrSize)
 
 	case TFORW: // should have been filled in
 		base.Fatalf("invalid recursive type %v", t)
@@ -375,6 +382,7 @@ func CalcSize(t *Type) {
 		t.align = uint8(PtrSize)
 		t.intRegs = 2
 		t.setAlg(ASTRING)
+		t.ptrBytes = int64(PtrSize)
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -420,6 +428,12 @@ func CalcSize(t *Type) {
 				t.setAlg(ASPECIAL)
 			}
 		}
+		if t.NumElem() > 0 {
+			x := PtrDataSize(t.Elem())
+			if x > 0 {
+				t.ptrBytes = t.Elem().width*(t.NumElem()-1) + x
+			}
+		}
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -430,6 +444,9 @@ func CalcSize(t *Type) {
 		t.align = uint8(PtrSize)
 		t.intRegs = 3
 		t.setAlg(ANOEQ)
+		if !t.Elem().NotInHeap() {
+			t.ptrBytes = int64(PtrSize)
+		}
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -446,6 +463,7 @@ func CalcSize(t *Type) {
 		w = int64(PtrSize) // width of func type is pointer
 		t.intRegs = 1
 		t.setAlg(ANOEQ)
+		t.ptrBytes = int64(PtrSize)
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
@@ -490,8 +508,6 @@ func CalcStructSize(t *Type) {
 		switch {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
-		case sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih":
-			t.SetNotInHeap(true)
 		}
 	}
 
@@ -558,6 +574,14 @@ func CalcStructSize(t *Type) {
 				a = ASPECIAL
 			}
 			t.setAlg(a)
+		}
+	}
+	// Compute ptrBytes.
+	for i := len(fields) - 1; i >= 0; i-- {
+		f := fields[i]
+		if size := PtrDataSize(f.Type); size > 0 {
+			t.ptrBytes = f.Offset + size
+			break
 		}
 	}
 }
@@ -630,67 +654,13 @@ func ResumeCheckSize() {
 // PtrDataSize is only defined for actual Go types. It's an error to
 // use it on compiler-internal types (e.g., TSSA, TRESULTS).
 func PtrDataSize(t *Type) int64 {
-	switch t.Kind() {
-	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
-		TUINT32, TINT64, TUINT64, TINT, TUINT,
-		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
-		return 0
-
-	case TPTR:
-		if t.Elem().NotInHeap() {
-			return 0
-		}
-		return int64(PtrSize)
-
-	case TUNSAFEPTR, TFUNC, TCHAN, TMAP:
-		return int64(PtrSize)
-
-	case TSTRING:
-		// struct { byte *str; intgo len; }
-		return int64(PtrSize)
-
-	case TINTER:
-		// struct { Itab *tab;	void *data; } or
-		// struct { Type *type; void *data; }
-		// Note: see comment in typebits.Set
-		return 2 * int64(PtrSize)
-
-	case TSLICE:
-		if t.Elem().NotInHeap() {
-			return 0
-		}
-		// struct { byte *array; uintgo len; uintgo cap; }
-		return int64(PtrSize)
-
-	case TARRAY:
-		if t.NumElem() == 0 {
-			return 0
-		}
-		// t.NumElem() > 0
-		size := PtrDataSize(t.Elem())
-		if size == 0 {
-			return 0
-		}
-		return (t.NumElem()-1)*t.Elem().Size() + size
-
-	case TSTRUCT:
-		// Find the last field that has pointers, if any.
-		fs := t.Fields()
-		for i := len(fs) - 1; i >= 0; i-- {
-			if size := PtrDataSize(fs[i].Type); size > 0 {
-				return fs[i].Offset + size
-			}
-		}
-		return 0
-
-	case TSSA:
-		if t != TypeInt128 {
-			base.Fatalf("PtrDataSize: unexpected ssa type %v", t)
-		}
-		return 0
-
-	default:
-		base.Fatalf("PtrDataSize: unexpected type, %v", t)
-		return 0
+	CalcSize(t)
+	x := t.ptrBytes
+	if t.Kind() == TPTR && t.Elem().NotInHeap() {
+		// Note: this is done here instead of when we're setting
+		// the ptrBytes field, because at that time (in NewPtr, usually)
+		// the NotInHeap bit of the element type might not be set yet.
+		x = 0
 	}
+	return x
 }
