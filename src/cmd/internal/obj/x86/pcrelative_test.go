@@ -93,7 +93,7 @@ LOOP:
 		data := bytes.Split(objout, []byte("\n"))
 		for idx := len(data) - 1; idx >= 0; idx-- {
 			// check that RET wasn't overwritten.
-			if bytes.Index(data[idx], []byte("RET")) != -1 {
+			if bytes.Contains(data[idx], []byte("RET")) {
 				if testing.Short() {
 					break LOOP
 				}
