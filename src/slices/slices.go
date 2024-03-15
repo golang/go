@@ -474,3 +474,12 @@ func Concat[S ~[]E, E any](slices ...S) S {
 	}
 	return newslice
 }
+
+// Map returns a new slice containing the result of applying fn to each element of s.
+func Map[S ~[]E, E, R any](s S, fn func(E) R) []R {
+	var result []R
+	for _, item := range s {
+		result = append(result, fn(item))
+	}
+	return result
+}

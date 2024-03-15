@@ -10,6 +10,7 @@ import (
 	"internal/testenv"
 	"math"
 	. "slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -1333,5 +1334,31 @@ func TestConcat_too_large(t *testing.T) {
 			t.Errorf("slices.Concat(lens(%v)) got panic == %v",
 				tc.lengths, didPanic)
 		}
+	}
+}
+
+func TestMap(t *testing.T) {
+	s1 := []int{1, 2, 3, 4, 5}
+	got1 := Map(s1, func(n int) int { return n * 2 })
+	want1 := []int{2, 4, 6, 8, 10}
+	if !Equal(want1, got1) {
+		t.Errorf("Map(%v) = %v, want %v", s1, got1, want1)
+	}
+
+	s2 := []int{1, 2, 3, 4, 5}
+	got2 := Map(s2, strconv.Itoa)
+	want2 := []string{"1", "2", "3", "4", "5"}
+	if !Equal(want2, got2) {
+		t.Errorf("Map(%v) = %v, want %v", s2, got2, want2)
+	}
+
+	s3 := []string{"1", "2", "3", "4", "5"}
+	type T struct {
+		A string
+	}
+	got3 := Map(s3, func(s string) T { return T{s} })
+	want3 := []T{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}}
+	if !Equal(want3, got3) {
+		t.Errorf("Map(%v) = %v, want %v", s3, got3, want3)
 	}
 }
