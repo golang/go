@@ -201,6 +201,7 @@ type Type struct {
 	intRegs, floatRegs uint8 // registers needed for ABIInternal
 
 	flags bitset8
+	alg   AlgKind // valid if Align > 0
 
 	// For defined (named) generic types, a pointer to the list of type params
 	// (in order) of this type that need to be instantiated. For instantiated
@@ -657,8 +658,10 @@ func NewPtr(elem *Type) *Type {
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
+	t.alg = AMEM
 	if elem.Noalg() {
 		t.SetNoalg(true)
+		t.alg = ANOALG
 	}
 	return t
 }
@@ -1660,6 +1663,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	t.extra = underlying.extra
 	t.width = underlying.width
 	t.align = underlying.align
+	t.alg = underlying.alg
 	t.intRegs = underlying.intRegs
 	t.floatRegs = underlying.floatRegs
 	t.underlying = underlying.underlying

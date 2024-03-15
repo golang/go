@@ -8,42 +8,33 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ANOEQ-0]
-	_ = x[AMEM0-1]
-	_ = x[AMEM8-2]
-	_ = x[AMEM16-3]
-	_ = x[AMEM32-4]
-	_ = x[AMEM64-5]
-	_ = x[AMEM128-6]
-	_ = x[ASTRING-7]
-	_ = x[AINTER-8]
-	_ = x[ANILINTER-9]
-	_ = x[AFLOAT32-10]
-	_ = x[AFLOAT64-11]
-	_ = x[ACPLX64-12]
-	_ = x[ACPLX128-13]
-	_ = x[ANOALG-14]
-	_ = x[AMEM-100]
-	_ = x[ASPECIAL - -1]
+	_ = x[AUNK-0]
+	_ = x[ANOEQ-1]
+	_ = x[ANOALG-2]
+	_ = x[AMEM-3]
+	_ = x[AMEM0-4]
+	_ = x[AMEM8-5]
+	_ = x[AMEM16-6]
+	_ = x[AMEM32-7]
+	_ = x[AMEM64-8]
+	_ = x[AMEM128-9]
+	_ = x[ASTRING-10]
+	_ = x[AINTER-11]
+	_ = x[ANILINTER-12]
+	_ = x[AFLOAT32-13]
+	_ = x[AFLOAT64-14]
+	_ = x[ACPLX64-15]
+	_ = x[ACPLX128-16]
+	_ = x[ASPECIAL-17]
 }
 
-const (
-	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128NOALG"
-	_AlgKind_name_1 = "MEM"
-)
+const _AlgKind_name = "UNKNOEQNOALGMEMMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128SPECIAL"
 
-var (
-	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86, 91}
-)
+var _AlgKind_index = [...]uint8{0, 3, 7, 12, 15, 19, 23, 28, 33, 38, 44, 50, 55, 63, 70, 77, 83, 90, 97}
 
 func (i AlgKind) String() string {
-	switch {
-	case -1 <= i && i <= 14:
-		i -= -1
-		return _AlgKind_name_0[_AlgKind_index_0[i]:_AlgKind_index_0[i+1]]
-	case i == 100:
-		return _AlgKind_name_1
-	default:
+	if i < 0 || i >= AlgKind(len(_AlgKind_index)-1) {
 		return "AlgKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _AlgKind_name[_AlgKind_index[i]:_AlgKind_index[i+1]]
 }

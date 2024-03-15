@@ -202,7 +202,7 @@ func isAtomicStdPkg(p *Pkg) bool {
 	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
 }
 
-// CalcSize calculates and stores the size and alignment for t.
+// CalcSize calculates and stores the size, alignment, and eq/hash algorithm for t.
 // If CalcSizeDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
@@ -245,7 +245,11 @@ func CalcSize(t *Type) {
 	}
 
 	t.width = -2
-	t.align = 0 // 0 means use t.Width, below
+	t.align = 0  // 0 means use t.Width, below
+	t.alg = AMEM // default
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
 
 	et := t.Kind()
 	switch et {
@@ -286,21 +290,25 @@ func CalcSize(t *Type) {
 	case TFLOAT32:
 		w = 4
 		t.floatRegs = 1
+		t.setAlg(AFLOAT32)
 
 	case TFLOAT64:
 		w = 8
 		t.align = uint8(RegSize)
 		t.floatRegs = 1
+		t.setAlg(AFLOAT64)
 
 	case TCOMPLEX64:
 		w = 8
 		t.align = 4
 		t.floatRegs = 2
+		t.setAlg(ACPLX64)
 
 	case TCOMPLEX128:
 		w = 16
 		t.align = uint8(RegSize)
 		t.floatRegs = 2
+		t.setAlg(ACPLX128)
 
 	case TPTR:
 		w = int64(PtrSize)
@@ -316,6 +324,11 @@ func CalcSize(t *Type) {
 		t.align = uint8(PtrSize)
 		t.intRegs = 2
 		expandiface(t)
+		if len(t.allMethods.Slice()) == 0 {
+			t.setAlg(ANILINTER)
+		} else {
+			t.setAlg(AINTER)
+		}
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
@@ -346,6 +359,7 @@ func CalcSize(t *Type) {
 		t.intRegs = 1
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
+		t.setAlg(ANOEQ)
 
 	case TFORW: // should have been filled in
 		base.Fatalf("invalid recursive type %v", t)
@@ -360,6 +374,7 @@ func CalcSize(t *Type) {
 		w = StringSize
 		t.align = uint8(PtrSize)
 		t.intRegs = 2
+		t.setAlg(ASTRING)
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -390,6 +405,21 @@ func CalcSize(t *Type) {
 			t.intRegs = math.MaxUint8
 			t.floatRegs = math.MaxUint8
 		}
+		switch a := t.Elem().alg; a {
+		case AMEM, ANOEQ, ANOALG:
+			t.setAlg(a)
+		default:
+			switch t.NumElem() {
+			case 0:
+				// We checked above that the element type is comparable.
+				t.setAlg(AMEM)
+			case 1:
+				// Single-element array is same as its lone element.
+				t.setAlg(a)
+			default:
+				t.setAlg(ASPECIAL)
+			}
+		}
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -399,6 +429,7 @@ func CalcSize(t *Type) {
 		CheckSize(t.Elem())
 		t.align = uint8(PtrSize)
 		t.intRegs = 3
+		t.setAlg(ANOEQ)
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -414,6 +445,7 @@ func CalcSize(t *Type) {
 		CheckSize(t1)
 		w = int64(PtrSize) // width of func type is pointer
 		t.intRegs = 1
+		t.setAlg(ANOEQ)
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
@@ -502,6 +534,32 @@ func CalcStructSize(t *Type) {
 	t.align = maxAlign
 	t.intRegs = uint8(intRegs)
 	t.floatRegs = uint8(floatRegs)
+
+	// Compute eq/hash algorithm type.
+	t.alg = AMEM // default
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
+	if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+		// One-field struct is same as that one field alone.
+		t.setAlg(fields[0].Type.alg)
+	} else {
+		for i, f := range fields {
+			a := f.Type.alg
+			switch a {
+			case ANOEQ, ANOALG:
+			case AMEM:
+				// Blank fields and padded fields need a special compare.
+				if f.Sym.IsBlank() || IsPaddedField(t, i) {
+					a = ASPECIAL
+				}
+			default:
+				// Fields with non-memory equality need a special compare.
+				a = ASPECIAL
+			}
+			t.setAlg(a)
+		}
+	}
 }
 
 func (t *Type) widthCalculated() bool {

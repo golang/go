@@ -8,13 +8,16 @@ import "cmd/compile/internal/base"
 
 // AlgKind describes the kind of algorithms used for comparing and
 // hashing a Type.
-type AlgKind int
+type AlgKind int8
 
 //go:generate stringer -type AlgKind -trimprefix A alg.go
 
 const (
-	ANOEQ AlgKind = iota
-	AMEM0
+	AUNK   AlgKind = iota
+	ANOEQ          // Types cannot be compared
+	ANOALG         // implies ANOEQ, and in addition has a part that is marked Noalg
+	AMEM           // Type can be compared/hashed as regular memory.
+	AMEM0          // Specific subvariants of AMEM (TODO: move to ../reflectdata?)
 	AMEM8
 	AMEM16
 	AMEM32
@@ -27,105 +30,30 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	ANOALG // implies ANOEQ, and in addition has a part that is marked Noalg
-
-	// Type can be compared/hashed as regular memory.
-	AMEM AlgKind = 100
-
-	// Type needs special comparison/hashing functions.
-	ASPECIAL AlgKind = -1
+	ASPECIAL // Type needs special comparison/hashing functions.
 )
+
+// Most kinds are priority 0. Higher numbers are higher priority, in that
+// the higher priority kinds override lower priority kinds.
+var algPriority = [ASPECIAL + 1]int8{ASPECIAL: 1, ANOEQ: 2, ANOALG: 3, AMEM: -1}
+
+// setAlg sets the algorithm type of t to a, if it is of higher
+// priority to the current algorithm type.
+func (t *Type) setAlg(a AlgKind) {
+	if t.alg == AUNK {
+		base.Fatalf("setAlg(%v,%s) starting with unknown priority", t, a)
+	}
+	if algPriority[a] > algPriority[t.alg] {
+		t.alg = a
+	} else if a != t.alg && algPriority[a] == algPriority[t.alg] {
+		base.Fatalf("ambiguous priority %s and %s", a, t.alg)
+	}
+}
 
 // AlgType returns the AlgKind used for comparing and hashing Type t.
 func AlgType(t *Type) AlgKind {
-	if t.Noalg() {
-		return ANOALG
-	}
-
-	switch t.Kind() {
-	case TANY, TFORW:
-		// will be defined later.
-		return ANOEQ
-
-	case TINT8, TUINT8, TINT16, TUINT16,
-		TINT32, TUINT32, TINT64, TUINT64,
-		TINT, TUINT, TUINTPTR,
-		TBOOL, TPTR,
-		TCHAN, TUNSAFEPTR:
-		return AMEM
-
-	case TFUNC, TMAP:
-		return ANOEQ
-
-	case TFLOAT32:
-		return AFLOAT32
-
-	case TFLOAT64:
-		return AFLOAT64
-
-	case TCOMPLEX64:
-		return ACPLX64
-
-	case TCOMPLEX128:
-		return ACPLX128
-
-	case TSTRING:
-		return ASTRING
-
-	case TINTER:
-		if t.IsEmptyInterface() {
-			return ANILINTER
-		}
-		return AINTER
-
-	case TSLICE:
-		return ANOEQ
-
-	case TARRAY:
-		a := AlgType(t.Elem())
-		if a == AMEM || a == ANOEQ || a == ANOALG {
-			return a
-		}
-
-		switch t.NumElem() {
-		case 0:
-			// We checked above that the element type is comparable.
-			return AMEM
-		case 1:
-			// Single-element array is same as its lone element.
-			return a
-		}
-
-		return ASPECIAL
-
-	case TSTRUCT:
-		fields := t.Fields()
-
-		// One-field struct is same as that one field alone.
-		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
-			return AlgType(fields[0].Type)
-		}
-
-		ret := AMEM
-		for i, f := range fields {
-			// All fields must be comparable.
-			a := AlgType(f.Type)
-			if a == ANOEQ || a == ANOALG {
-				return a
-			}
-
-			// Blank fields, padded fields, fields with non-memory
-			// equality need special compare.
-			if a != AMEM || f.Sym.IsBlank() || IsPaddedField(t, i) {
-				ret = ASPECIAL
-			}
-		}
-
-		return ret
-	}
-
-	base.Fatalf("AlgType: unexpected type %v", t)
-	return 0
+	CalcSize(t)
+	return t.alg
 }
 
 // TypeHasNoAlg reports whether t does not have any associated hash/eq
