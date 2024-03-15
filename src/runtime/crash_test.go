@@ -909,18 +909,22 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
-	var seen bool
+	var seen, seenSync bool
 	i := 1
 loop:
 	for ; ; i++ {
 		ev, err := r.ReadEvent()
 		if err != nil {
+			// We may have a broken tail to the trace -- that's OK.
+			// We'll make sure we saw at least one complete generation.
 			if err != io.EOF {
-				t.Errorf("error at event %d: %v", i, err)
+				t.Logf("error at event %d: %v", i, err)
 			}
 			break loop
 		}
 		switch ev.Kind() {
+		case tracev2.EventSync:
+			seenSync = true
 		case tracev2.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
@@ -933,6 +937,9 @@ loop:
 	}
 	if err := cmd.Wait(); err == nil {
 		t.Error("the process should have panicked")
+	}
+	if !seenSync {
+		t.Errorf("expected at least one full generation to have been emitted before the trace was considered broken")
 	}
 	if !seen {
 		t.Errorf("expected one matching log event matching, but none of the %d received trace events match", i)
