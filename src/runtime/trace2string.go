@@ -95,9 +95,5 @@ func (t *traceStringTable) reset(gen uintptr) {
 	}
 
 	// Reset the table.
-	systemstack(func() {
-		lock(&t.tab.lock)
-		t.tab.reset()
-		unlock(&t.tab.lock)
-	})
+	t.tab.reset()
 }

@@ -4,43 +4,54 @@
 
 //go:build goexperiment.exectracer2
 
-// Simple hash table for tracing. Provides a mapping
-// between variable-length data and a unique ID. Subsequent
-// puts of the same data will return the same ID.
+// Simple append-only thread-safe hash map for tracing.
+// Provides a mapping between variable-length data and a
+// unique ID. Subsequent puts of the same data will return
+// the same ID. The zero value is ready to use.
 //
-// Uses a region-based allocation scheme and assumes that the
-// table doesn't ever grow very big.
+// Uses a region-based allocation scheme internally, and
+// reset clears the whole map.
 //
-// This is definitely not a general-purpose hash table! It avoids
-// doing any high-level Go operations so it's safe to use even in
-// sensitive contexts.
+// It avoids doing any high-level Go operations so it's safe
+// to use even in sensitive contexts.
 
 package runtime
 
 import (
+	"internal/cpu"
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
 type traceMap struct {
-	lock mutex // Must be acquired on the system stack
+	root atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
+	_    cpu.CacheLinePad
 	seq  atomic.Uint64
+	_    cpu.CacheLinePad
 	mem  traceRegionAlloc
-	tab  [1 << 13]atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
 }
 
+// traceMapNode is an implementation of a lock-free append-only hash-trie
+// (a trie of the hash bits).
+//
+// Key features:
+//   - 4-ary trie. Child nodes are indexed by the upper 2 (remaining) bits of the hash.
+//     For example, top level uses bits [63:62], next level uses [61:60] and so on.
+//   - New nodes are placed at the first empty level encountered.
+//   - When the first child is added to a node, the existing value is not moved into a child.
+//     This means that you must check the key at each level, not just at the leaf.
+//   - No deletion or rebalancing.
+//   - Intentionally devolves into a linked list on hash collisions (the hash bits will all
+//     get shifted out during iteration, and new nodes will just be appended to the 0th child).
 type traceMapNode struct {
-	_    sys.NotInHeap
-	link atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
-	hash uintptr
-	id   uint64
-	data []byte
-}
+	_ sys.NotInHeap
 
-// next is a type-safe wrapper around link.
-func (n *traceMapNode) next() *traceMapNode {
-	return (*traceMapNode)(n.link.Load())
+	children [4]atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
+	hash     uintptr
+	id       uint64
+	data     []byte
 }
 
 // stealID steals an ID from the table, ensuring that it will not
@@ -51,7 +62,7 @@ func (tab *traceMap) stealID() uint64 {
 
 // put inserts the data into the table.
 //
-// It's always safe to noescape data because its bytes are always copied.
+// It's always safe for callers to noescape data because put copies its bytes.
 //
 // Returns a unique ID for the data and whether this is the first time
 // the data has been added to the map.
@@ -60,59 +71,47 @@ func (tab *traceMap) put(data unsafe.Pointer, size uintptr) (uint64, bool) {
 		return 0, false
 	}
 	hash := memhash(data, 0, size)
-	// First, search the hashtable w/o the mutex.
-	if id := tab.find(data, size, hash); id != 0 {
-		return id, false
-	}
-	// Now, double check under the mutex.
-	// Switch to the system stack so we can acquire tab.lock
-	var id uint64
-	var added bool
-	systemstack(func() {
-		lock(&tab.lock)
-		if id = tab.find(data, size, hash); id != 0 {
-			unlock(&tab.lock)
-			return
+
+	var newNode *traceMapNode
+	m := &tab.root
+	hashIter := hash
+	for {
+		n := (*traceMapNode)(m.Load())
+		if n == nil {
+			// Try to insert a new map node. We may end up discarding
+			// this node if we fail to insert because it turns out the
+			// value is already in the map.
+			//
+			// The discard will only happen if two threads race on inserting
+			// the same value. Both might create nodes, but only one will
+			// succeed on insertion. If two threads race to insert two
+			// different values, then both nodes will *always* get inserted,
+			// because the equality checking below will always fail.
+			//
+			// Performance note: contention on insertion is likely to be
+			// higher for small maps, but since this data structure is
+			// append-only, either the map stays small because there isn't
+			// much activity, or the map gets big and races to insert on
+			// the same node are much less likely.
+			if newNode == nil {
+				newNode = tab.newTraceMapNode(data, size, hash, tab.seq.Add(1))
+			}
+			if m.CompareAndSwapNoWB(nil, unsafe.Pointer(newNode)) {
+				return newNode.id, true
+			}
+			// Reload n. Because pointers are only stored once,
+			// we must have lost the race, and therefore n is not nil
+			// anymore.
+			n = (*traceMapNode)(m.Load())
 		}
-		// Create new record.
-		id = tab.seq.Add(1)
-		vd := tab.newTraceMapNode(data, size, hash, id)
-
-		// Insert it into the table.
-		//
-		// Update the link first, since the node isn't published yet.
-		// Then, store the node in the table as the new first node
-		// for the bucket.
-		part := int(hash % uintptr(len(tab.tab)))
-		vd.link.StoreNoWB(tab.tab[part].Load())
-		tab.tab[part].StoreNoWB(unsafe.Pointer(vd))
-		unlock(&tab.lock)
-
-		added = true
-	})
-	return id, added
-}
-
-// find looks up data in the table, assuming hash is a hash of data.
-//
-// Returns 0 if the data is not found, and the unique ID for it if it is.
-func (tab *traceMap) find(data unsafe.Pointer, size, hash uintptr) uint64 {
-	part := int(hash % uintptr(len(tab.tab)))
-	for vd := tab.bucket(part); vd != nil; vd = vd.next() {
-		// Synchronization not necessary. Once published to the table, these
-		// values are immutable.
-		if vd.hash == hash && uintptr(len(vd.data)) == size {
-			if memequal(unsafe.Pointer(&vd.data[0]), data, size) {
-				return vd.id
+		if n.hash == hash && uintptr(len(n.data)) == size {
+			if memequal(unsafe.Pointer(&n.data[0]), data, size) {
+				return n.id, false
 			}
 		}
+		m = &n.children[hashIter>>(8*goarch.PtrSize-2)]
+		hashIter <<= 2
 	}
-	return 0
-}
-
-// bucket is a type-safe wrapper for looking up a value in tab.tab.
-func (tab *traceMap) bucket(part int) *traceMapNode {
-	return (*traceMapNode)(tab.tab[part].Load())
 }
 
 func (tab *traceMap) newTraceMapNode(data unsafe.Pointer, size, hash uintptr, id uint64) *traceMapNode {
@@ -134,18 +133,10 @@ func (tab *traceMap) newTraceMapNode(data unsafe.Pointer, size, hash uintptr, id
 
 // reset drops all allocated memory from the table and resets it.
 //
-// tab.lock must be held. Must run on the system stack because of this.
-//
-//go:systemstack
+// The caller must ensure that there are no put operations executing concurrently
+// with this function.
 func (tab *traceMap) reset() {
-	assertLockHeld(&tab.lock)
-	tab.mem.drop()
+	tab.root.Store(nil)
 	tab.seq.Store(0)
-	// Clear table without write barriers. The table consists entirely
-	// of notinheap pointers, so this is fine.
-	//
-	// Write barriers may theoretically call into the tracer and acquire
-	// the lock again, and this lock ordering is expressed in the static
-	// lock ranking checker.
-	memclrNoHeapPointers(unsafe.Pointer(&tab.tab), unsafe.Sizeof(tab.tab))
+	tab.mem.drop()
 }

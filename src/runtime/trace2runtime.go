@@ -56,11 +56,11 @@ func traceLockInit() {
 	// Sharing a lock rank here is fine because they should never be accessed
 	// together. If they are, we want to find out immediately.
 	lockInit(&trace.stringTab[0].lock, lockRankTraceStrings)
-	lockInit(&trace.stringTab[0].tab.lock, lockRankTraceStrings)
+	lockInit(&trace.stringTab[0].tab.mem.lock, lockRankTraceStrings)
 	lockInit(&trace.stringTab[1].lock, lockRankTraceStrings)
-	lockInit(&trace.stringTab[1].tab.lock, lockRankTraceStrings)
-	lockInit(&trace.stackTab[0].tab.lock, lockRankTraceStackTab)
-	lockInit(&trace.stackTab[1].tab.lock, lockRankTraceStackTab)
+	lockInit(&trace.stringTab[1].tab.mem.lock, lockRankTraceStrings)
+	lockInit(&trace.stackTab[0].tab.mem.lock, lockRankTraceStackTab)
+	lockInit(&trace.stackTab[1].tab.mem.lock, lockRankTraceStackTab)
 	lockInit(&trace.lock, lockRankTrace)
 }
 

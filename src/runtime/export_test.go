@@ -1874,3 +1874,15 @@ func UnsafePoint(pc uintptr) bool {
 		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
 	}
 }
+
+type TraceMap struct {
+	traceMap
+}
+
+func (m *TraceMap) PutString(s string) (uint64, bool) {
+	return m.traceMap.put(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
+}
+
+func (m *TraceMap) Reset() {
+	m.traceMap.reset()
+}

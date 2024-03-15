@@ -9,16 +9,18 @@
 package runtime
 
 import (
-	"internal/goarch"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
-// traceRegionAlloc is a non-thread-safe region allocator.
+// traceRegionAlloc is a thread-safe region allocator.
 // It holds a linked list of traceRegionAllocBlock.
 type traceRegionAlloc struct {
-	head *traceRegionAllocBlock
-	off  uintptr
+	lock     mutex
+	dropping atomic.Bool          // For checking invariants.
+	current  atomic.UnsafePointer // *traceRegionAllocBlock
+	full     *traceRegionAllocBlock
 }
 
 // traceRegionAllocBlock is a block in traceRegionAlloc.
@@ -27,36 +29,84 @@ type traceRegionAlloc struct {
 // contain heap pointers. Writes to pointers to traceRegionAllocBlocks do
 // not need write barriers.
 type traceRegionAllocBlock struct {
-	_    sys.NotInHeap
-	next *traceRegionAllocBlock
-	data [64<<10 - goarch.PtrSize]byte
+	_ sys.NotInHeap
+	traceRegionAllocBlockHeader
+	data [traceRegionAllocBlockData]byte
 }
 
-// alloc allocates n-byte block.
+type traceRegionAllocBlockHeader struct {
+	next *traceRegionAllocBlock
+	off  atomic.Uintptr
+}
+
+const traceRegionAllocBlockData = 64<<10 - unsafe.Sizeof(traceRegionAllocBlockHeader{})
+
+// alloc allocates n-byte block. The block is always aligned to 8 bytes, regardless of platform.
 func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
-	n = alignUp(n, goarch.PtrSize)
-	if a.head == nil || a.off+n > uintptr(len(a.head.data)) {
-		if n > uintptr(len(a.head.data)) {
-			throw("traceRegion: alloc too large")
-		}
-		block := (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys))
-		if block == nil {
-			throw("traceRegion: out of memory")
-		}
-		block.next = a.head
-		a.head = block
-		a.off = 0
+	n = alignUp(n, 8)
+	if n > traceRegionAllocBlockData {
+		throw("traceRegion: alloc too large")
 	}
-	p := &a.head.data[a.off]
-	a.off += n
-	return (*notInHeap)(unsafe.Pointer(p))
+	if a.dropping.Load() {
+		throw("traceRegion: alloc with concurrent drop")
+	}
+
+	// Try to bump-pointer allocate into the current block.
+	block := (*traceRegionAllocBlock)(a.current.Load())
+	if block != nil {
+		r := block.off.Add(n)
+		if r <= uintptr(len(block.data)) {
+			return (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+		}
+	}
+
+	// Try to install a new block.
+	lock(&a.lock)
+
+	// Check block again under the lock. Someone may
+	// have gotten here first.
+	block = (*traceRegionAllocBlock)(a.current.Load())
+	if block != nil {
+		r := block.off.Add(n)
+		if r <= uintptr(len(block.data)) {
+			unlock(&a.lock)
+			return (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+		}
+
+		// Add the existing block to the full list.
+		block.next = a.full
+		a.full = block
+	}
+
+	// Allocate a new block.
+	block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys))
+	if block == nil {
+		throw("traceRegion: out of memory")
+	}
+
+	// Allocate space for our current request, so we always make
+	// progress.
+	block.off.Store(n)
+	x := (*notInHeap)(unsafe.Pointer(&block.data[0]))
+
+	// Publish the new block.
+	a.current.Store(unsafe.Pointer(block))
+	unlock(&a.lock)
+	return x
 }
 
 // drop frees all previously allocated memory and resets the allocator.
+//
+// drop is not safe to call concurrently with other calls to drop or with calls to alloc. The caller
+// must ensure that it is not possible for anything else to be using the same structure.
 func (a *traceRegionAlloc) drop() {
-	for a.head != nil {
-		block := a.head
-		a.head = block.next
+	a.dropping.Store(true)
+	for a.full != nil {
+		block := a.full
+		a.full = block.next
 		sysFree(unsafe.Pointer(block), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
 	}
+	sysFree(a.current.Load(), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
+	a.current.Store(nil)
+	a.dropping.Store(false)
 }

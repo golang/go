@@ -140,62 +140,55 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
 // can guarantee that there are no more writers to the table.
 func (t *traceStackTable) dump(gen uintptr) {
 	w := unsafeTraceWriter(gen, nil)
-
-	// Iterate over the table.
-	//
-	// Do not acquire t.tab.lock. There's a conceptual lock cycle between acquiring this lock
-	// here and allocation-related locks. Specifically, this lock may be acquired when an event
-	// is emitted in allocation paths. Simultaneously, we might allocate here with the lock held,
-	// creating a cycle. In practice, this cycle is never exercised. Because the table is only
-	// dumped once there are no more writers, it's not possible for the cycle to occur. However
-	// the lockrank mode is not sophisticated enough to identify this, and if it's not possible
-	// for that cycle to happen, then it's also not possible for this to race with writers to
-	// the table.
-	for i := range t.tab.tab {
-		stk := t.tab.bucket(i)
-		for ; stk != nil; stk = stk.next() {
-			stack := unsafe.Slice((*uintptr)(unsafe.Pointer(&stk.data[0])), uintptr(len(stk.data))/unsafe.Sizeof(uintptr(0)))
-
-			// N.B. This might allocate, but that's OK because we're not writing to the M's buffer,
-			// but one we're about to create (with ensure).
-			frames := makeTraceFrames(gen, fpunwindExpand(stack))
-
-			// Returns the maximum number of bytes required to hold the encoded stack, given that
-			// it contains N frames.
-			maxBytes := 1 + (2+4*len(frames))*traceBytesPerNumber
-
-			// Estimate the size of this record. This
-			// bound is pretty loose, but avoids counting
-			// lots of varint sizes.
-			//
-			// Add 1 because we might also write traceEvStacks.
-			var flushed bool
-			w, flushed = w.ensure(1 + maxBytes)
-			if flushed {
-				w.byte(byte(traceEvStacks))
-			}
-
-			// Emit stack event.
-			w.byte(byte(traceEvStack))
-			w.varint(uint64(stk.id))
-			w.varint(uint64(len(frames)))
-			for _, frame := range frames {
-				w.varint(uint64(frame.PC))
-				w.varint(frame.funcID)
-				w.varint(frame.fileID)
-				w.varint(frame.line)
-			}
-		}
+	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
+		w = dumpStacksRec(root, w)
 	}
-	// Still, hold the lock over reset. The callee expects it, even though it's
-	// not strictly necessary.
-	systemstack(func() {
-		lock(&t.tab.lock)
-		t.tab.reset()
-		unlock(&t.tab.lock)
-	})
-
 	w.flush().end()
+	t.tab.reset()
+}
+
+func dumpStacksRec(node *traceMapNode, w traceWriter) traceWriter {
+	stack := unsafe.Slice((*uintptr)(unsafe.Pointer(&node.data[0])), uintptr(len(node.data))/unsafe.Sizeof(uintptr(0)))
+
+	// N.B. This might allocate, but that's OK because we're not writing to the M's buffer,
+	// but one we're about to create (with ensure).
+	frames := makeTraceFrames(w.gen, fpunwindExpand(stack))
+
+	// The maximum number of bytes required to hold the encoded stack, given that
+	// it contains N frames.
+	maxBytes := 1 + (2+4*len(frames))*traceBytesPerNumber
+
+	// Estimate the size of this record. This
+	// bound is pretty loose, but avoids counting
+	// lots of varint sizes.
+	//
+	// Add 1 because we might also write traceEvStacks.
+	var flushed bool
+	w, flushed = w.ensure(1 + maxBytes)
+	if flushed {
+		w.byte(byte(traceEvStacks))
+	}
+
+	// Emit stack event.
+	w.byte(byte(traceEvStack))
+	w.varint(uint64(node.id))
+	w.varint(uint64(len(frames)))
+	for _, frame := range frames {
+		w.varint(uint64(frame.PC))
+		w.varint(frame.funcID)
+		w.varint(frame.fileID)
+		w.varint(frame.line)
+	}
+
+	// Recursively walk all child nodes.
+	for i := range node.children {
+		child := node.children[i].Load()
+		if child == nil {
+			continue
+		}
+		w = dumpStacksRec((*traceMapNode)(child), w)
+	}
+	return w
 }
 
 // makeTraceFrames returns the frames corresponding to pcs. It may
