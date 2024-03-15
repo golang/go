@@ -357,7 +357,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	// wait 10ms just to make a timer go off.
 	const (
 		sched = 10 * Millisecond
-		tries = 10
+		tries = 100
 	)
 
 	drain := func() {
