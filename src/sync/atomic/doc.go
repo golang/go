@@ -162,7 +162,7 @@ func AndUint64(addr *uint64, mask uint64) (old uint64)
 // AndUintptr atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
 // and returns the old value.
 // Consider using the more ergonomic and less error-prone [Uintptr.And] instead.
-func AndUintptr(addr *uintptr, mask uintptr) (new uintptr)
+func AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
 
 // OrInt32 atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
 // and returns the old value.
