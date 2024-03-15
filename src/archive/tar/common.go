@@ -736,7 +736,7 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 
 // FileInfoNames extends [fs.FileInfo].
 // Passing an instance of this to [FileInfoHeader] permits the caller
-// to avoid asystem-dependent name lookup by specifying the Uname and Gname directly.
+// to avoid a system-dependent name lookup by specifying the Uname and Gname directly.
 type FileInfoNames interface {
 	fs.FileInfo
 	// Uname should give a user name.
