@@ -1335,3 +1335,77 @@ func TestConcat_too_large(t *testing.T) {
 		}
 	}
 }
+
+func TestRepeat(t *testing.T) {
+	// normal cases
+	for _, tc := range []struct {
+		x     []int
+		count int
+		want  []int
+	}{
+		{x: []int(nil), count: 0, want: []int{}},
+		{x: []int(nil), count: 1, want: []int{}},
+		{x: []int(nil), count: math.MaxInt, want: []int{}},
+		{x: []int{}, count: 0, want: []int{}},
+		{x: []int{}, count: 1, want: []int{}},
+		{x: []int{}, count: math.MaxInt, want: []int{}},
+		{x: []int{0}, count: 0, want: []int{}},
+		{x: []int{0}, count: 1, want: []int{0}},
+		{x: []int{0}, count: 2, want: []int{0, 0}},
+		{x: []int{0}, count: 3, want: []int{0, 0, 0}},
+		{x: []int{0}, count: 4, want: []int{0, 0, 0, 0}},
+		{x: []int{0, 1}, count: 0, want: []int{}},
+		{x: []int{0, 1}, count: 1, want: []int{0, 1}},
+		{x: []int{0, 1}, count: 2, want: []int{0, 1, 0, 1}},
+		{x: []int{0, 1}, count: 3, want: []int{0, 1, 0, 1, 0, 1}},
+		{x: []int{0, 1}, count: 4, want: []int{0, 1, 0, 1, 0, 1, 0, 1}},
+		{x: []int{0, 1, 2}, count: 0, want: []int{}},
+		{x: []int{0, 1, 2}, count: 1, want: []int{0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 2, want: []int{0, 1, 2, 0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 3, want: []int{0, 1, 2, 0, 1, 2, 0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 4, want: []int{0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2}},
+	} {
+		if got := Repeat(tc.x, tc.count); got == nil || cap(got) != cap(tc.want) || !Equal(got, tc.want) {
+			t.Errorf("Repeat(%v, %v): got: %v, want: %v, (got == nil): %v, cap(got): %v, cap(want): %v",
+				tc.x, tc.count, got, tc.want, got == nil, cap(got), cap(tc.want))
+		}
+	}
+
+	// big slices
+	for _, tc := range []struct {
+		x     []struct{}
+		count int
+		want  []struct{}
+	}{
+		{x: make([]struct{}, math.MaxInt/1-0), count: 1, want: make([]struct{}, 1*(math.MaxInt/1-0))},
+		{x: make([]struct{}, math.MaxInt/2-1), count: 2, want: make([]struct{}, 2*(math.MaxInt/2-1))},
+		{x: make([]struct{}, math.MaxInt/3-2), count: 3, want: make([]struct{}, 3*(math.MaxInt/3-2))},
+		{x: make([]struct{}, math.MaxInt/4-3), count: 4, want: make([]struct{}, 4*(math.MaxInt/4-3))},
+		{x: make([]struct{}, math.MaxInt/5-4), count: 5, want: make([]struct{}, 5*(math.MaxInt/5-4))},
+		{x: make([]struct{}, math.MaxInt/6-5), count: 6, want: make([]struct{}, 6*(math.MaxInt/6-5))},
+		{x: make([]struct{}, math.MaxInt/7-6), count: 7, want: make([]struct{}, 7*(math.MaxInt/7-6))},
+		{x: make([]struct{}, math.MaxInt/8-7), count: 8, want: make([]struct{}, 8*(math.MaxInt/8-7))},
+		{x: make([]struct{}, math.MaxInt/9-8), count: 9, want: make([]struct{}, 9*(math.MaxInt/9-8))},
+	} {
+		if got := Repeat(tc.x, tc.count); got == nil || len(got) != len(tc.want) || cap(got) != cap(tc.want) {
+			t.Errorf("Repeat(make([]struct{}, %v), %v): (got == nil): %v, len(got): %v, len(want): %v, cap(got): %v, cap(want): %v",
+				len(tc.x), tc.count, got == nil, len(got), len(tc.want), cap(got), cap(tc.want))
+		}
+	}
+}
+
+func TestRepeatPanics(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		x     []struct{}
+		count int
+	}{
+		{name: "cannot be negative", x: make([]struct{}, 0), count: -1},
+		{name: "the result of (len(x) * count) overflows, hi > 0", x: make([]struct{}, 3), count: math.MaxInt},
+		{name: "the result of (len(x) * count) overflows, lo > maxInt", x: make([]struct{}, 2), count: 1 + math.MaxInt/2},
+	} {
+		if !panics(func() { _ = Repeat(test.x, test.count) }) {
+			t.Errorf("Repeat %s: got no panic, want panic", test.name)
+		}
+	}
+}
