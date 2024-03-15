@@ -1018,7 +1018,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
 		// Decls).
 		//
 		// However, non-trivial closures in Decls are ignored, and are
-		// insteaded enqueued when walk of the calling function
+		// instead enqueued when walk of the calling function
 		// discovers them.
 		//
 		// This presents a problem for direct calls to closures.
