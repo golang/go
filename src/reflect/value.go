@@ -3297,6 +3297,18 @@ func New(typ Type) Value {
 	return Value{pt, ptr, fl}
 }
 
+// SliceAt returns a Value representing
+// a slice whose underlying data starts at p,
+// with length and capacity equal to len.
+// This is like unsafe.Slice.
+func SliceAt(typ Type, p unsafe.Pointer, len int) Value {
+	fl := flag(Slice)
+	st := SliceOf(typ)
+	s := &unsafeheader.Slice{Data: p, Len: len, Cap: len}
+	t := &st.(*rtype).t
+	return Value{t, unsafe.Pointer(s), fl}
+}
+
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {

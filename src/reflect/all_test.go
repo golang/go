@@ -8512,3 +8512,19 @@ func TestClear(t *testing.T) {
 		})
 	}
 }
+
+func TestSliceAt(t *testing.T) {
+	s := make([]string, 10)
+	et := TypeOf(s).Elem()
+	len := 5
+	v := SliceAt(et, unsafe.Pointer(unsafe.SliceData(s)), len)
+	if v.Len() != len {
+		t.Fatalf("Value.Len() got %d, want %d", v.Len(), len)
+	}
+	if v.Cap() != len {
+		t.Fatalf("Value.Cap() got %d, want %d", v.Cap(), len)
+	}
+	if v.UnsafePointer() != unsafe.Pointer(unsafe.SliceData(s)) {
+		t.Fatalf("v.UnsafePointer(%p) != unsafe.SliceData(%p)", v.UnsafePointer(), unsafe.SliceData(s))
+	}
+}
