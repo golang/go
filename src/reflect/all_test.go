@@ -8512,3 +8512,15 @@ func TestClear(t *testing.T) {
 		})
 	}
 }
+
+func TestValueStringPtr(t *testing.T) {
+	s := "value"
+	sp := unsafe.Pointer(unsafe.StringData(s))
+	v := ValueOf(s)
+	if v.Pointer() != uintptr(sp) {
+		t.Fatal("v.Pointer() not return correct string pointer")
+	}
+	if v.UnsafePointer() != sp {
+		t.Fatal("v.UnsafePointer() not return correct string pointer")
+	}
+}

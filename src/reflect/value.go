@@ -2235,6 +2235,8 @@ func (v Value) Pointer() uintptr {
 
 	case Slice:
 		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
+	case String:
+		return uintptr((*unsafeheader.String)(v.ptr).Data)
 	}
 	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
 }
@@ -2815,6 +2817,8 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 
 	case Slice:
 		return (*unsafeheader.Slice)(v.ptr).Data
+	case String:
+		return (*unsafeheader.String)(v.ptr).Data
 	}
 	panic(&ValueError{"reflect.Value.UnsafePointer", v.kind()})
 }
