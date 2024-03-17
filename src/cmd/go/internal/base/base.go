@@ -145,7 +145,7 @@ func Errorf(format string, args ...any) {
 }
 
 func ExitIfErrors() {
-	if exitStatus != 0 {
+	if GetExitStatus() != 0 {
 		Exit()
 	}
 }
@@ -184,6 +184,8 @@ func SetExitStatus(n int) {
 }
 
 func GetExitStatus() int {
+	exitMu.Lock()
+	defer exitMu.Unlock()
 	return exitStatus
 }
 

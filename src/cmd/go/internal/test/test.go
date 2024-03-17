@@ -2087,7 +2087,7 @@ func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) erro
 // (see CL 350156 and https://golang.org/issue/46312),
 // so there is no possibility of scrolling off and no need
 // to print the final status.
-func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
+func printExitStatus(*work.Builder, context.Context, *work.Action) error {
 	if !testJSON && testFuzz == "" && len(pkgArgs) != 0 {
 		if base.GetExitStatus() != 0 {
 			fmt.Println("FAIL")
