@@ -27,6 +27,7 @@ package binary
 import (
 	"errors"
 	"io"
+	"math/bits"
 )
 
 // MaxVarintLenN is the maximum length of a varint-encoded N-bit integer.
@@ -163,4 +164,20 @@ func ReadVarint(r io.ByteReader) (int64, error) {
 		x = ^x
 	}
 	return x, err
+}
+
+// SizeUvarint returns the encoded size of a unsigned varint.
+// The size is guaranteed to be within 1 and 10, inclusive.
+func SizeUvarint(x uint64) int {
+	return int(9*uint32(bits.Len64(x))+64) / 64
+}
+
+// SizeVarint returns the encoded size of a signed varint.
+// The size is guaranteed to be within 1 and 10, inclusive.
+func SizeVarint(x int64) int {
+	ux := uint64(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return SizeUvarint(ux)
 }
