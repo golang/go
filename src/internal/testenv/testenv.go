@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"std/internal/goarch"
 	"strconv"
 	"strings"
 	"sync"
@@ -517,9 +518,9 @@ func SyscallIsNotSupported(err error) bool {
 //
 // know that there are no parallel cases:
 //
-//   - in GOARCH=386 may raise OOM (see go.dev/issue/65823)
+//   - in 32-bit machine may raise OOM (see go.dev/issue/65823)
 func Parallel(t *testing.T) {
-	if runtime.GOARCH == "386" {
+	if goarch.PtrSize == 4 {
 		return
 	}
 	t.Parallel()
