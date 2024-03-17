@@ -208,7 +208,7 @@ variable for future go command invocations.
 }
 
 var (
-	getD        = CmdGet.Flag.Bool("d", true, "")
+	getD        = CmdGet.Flag.Bool("d", false, "")
 	getF        = CmdGet.Flag.Bool("f", false, "")
 	getFix      = CmdGet.Flag.Bool("fix", false, "")
 	getM        = CmdGet.Flag.Bool("m", false, "")
@@ -255,9 +255,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	default:
 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
-	// TODO(#43684): in the future (Go 1.20), warn that -d is a no-op.
-	if !*getD {
-		base.Fatalf("go: -d flag may not be disabled")
+	if *getD {
+		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op after Go 1.17\n")
 	}
 	if *getF {
 		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
