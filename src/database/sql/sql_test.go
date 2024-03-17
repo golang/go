@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2983,7 +2984,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 						return
 					}
 					db.mu.Lock()
-					ct := len(db.connRequests)
+					ct := db.connRequests.Len()
 					db.mu.Unlock()
 					if ct > 0 {
 						return
@@ -4801,5 +4802,106 @@ func BenchmarkGrabConn(b *testing.B) {
 			b.Fatal(err)
 		}
 		release(nil)
+	}
+}
+
+func TestConnRequestSet(t *testing.T) {
+	var s connRequestSet
+	wantLen := func(want int) {
+		t.Helper()
+		if got := s.Len(); got != want {
+			t.Errorf("Len = %d; want %d", got, want)
+		}
+		if want == 0 && !t.Failed() {
+			if _, ok := s.TakeRandom(); ok {
+				t.Fatalf("TakeRandom returned result when empty")
+			}
+		}
+	}
+	reset := func() { s = connRequestSet{} }
+
+	t.Run("add-delete", func(t *testing.T) {
+		reset()
+		wantLen(0)
+		dh := s.Add(nil)
+		wantLen(1)
+		if !s.Delete(dh) {
+			t.Fatal("failed to delete")
+		}
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("delete worked twice")
+		}
+		wantLen(0)
+	})
+	t.Run("take-before-delete", func(t *testing.T) {
+		reset()
+		ch1 := make(chan connRequest)
+		dh := s.Add(ch1)
+		wantLen(1)
+		if got, ok := s.TakeRandom(); !ok || got != ch1 {
+			t.Fatalf("wrong take; ok=%v", ok)
+		}
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("unexpected delete after take")
+		}
+	})
+	t.Run("get-take-many", func(t *testing.T) {
+		reset()
+		m := map[chan connRequest]bool{}
+		const N = 100
+		var inOrder, backOut []chan connRequest
+		for range N {
+			c := make(chan connRequest)
+			m[c] = true
+			s.Add(c)
+			inOrder = append(inOrder, c)
+		}
+		if s.Len() != N {
+			t.Fatalf("Len = %v; want %v", s.Len(), N)
+		}
+		for s.Len() > 0 {
+			c, ok := s.TakeRandom()
+			if !ok {
+				t.Fatal("failed to take when non-empty")
+			}
+			if !m[c] {
+				t.Fatal("returned item not in remaining set")
+			}
+			delete(m, c)
+			backOut = append(backOut, c)
+		}
+		if len(m) > 0 {
+			t.Error("items remain in expected map")
+		}
+		if slices.Equal(inOrder, backOut) { // N! chance of flaking; N=100 is fine
+			t.Error("wasn't random")
+		}
+	})
+}
+
+func BenchmarkConnRequestSet(b *testing.B) {
+	var s connRequestSet
+	for range b.N {
+		for range 16 {
+			s.Add(nil)
+		}
+		for range 8 {
+			if _, ok := s.TakeRandom(); !ok {
+				b.Fatal("want ok")
+			}
+		}
+		for range 8 {
+			s.Add(nil)
+		}
+		for range 16 {
+			if _, ok := s.TakeRandom(); !ok {
+				b.Fatal("want ok")
+			}
+		}
+		if _, ok := s.TakeRandom(); ok {
+			b.Fatal("unexpected ok")
+		}
 	}
 }

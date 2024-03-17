@@ -321,8 +321,9 @@ var depsRules = `
 	# databases
 	FMT
 	< database/sql/internal
-	< database/sql/driver
-	< database/sql;
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
 
 	# images
 	FMT, compress/lzw, compress/zlib
