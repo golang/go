@@ -511,3 +511,16 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
 func SyscallIsNotSupported(err error) bool {
 	return syscallIsNotSupported(err)
 }
+
+// Parallel call t.Parallel()
+// unless there is a case that cannot be parallel.
+//
+// know that there are no parallel cases:
+//
+//   - in GOARCH=386 may raise OOM (see go.dev/issue/65823)
+func Parallel(t *testing.T) {
+	if runtime.GOARCH == "386" {
+		return
+	}
+	t.Parallel()
+}
