@@ -134,7 +134,7 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
-	// Alias types are enabled by default
+	// Alias types are enabled by default.
 	testFilesImpl(t, filenames, srcs, manual, opts...)
 	if !manual {
 		t.Setenv("GODEBUG", "gotypesalias=0")

@@ -607,6 +607,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 			alias.fromRHS = rhs
 			Unalias(alias) // resolve alias.actual
 		} else {
+			// With Go1.23, the default behavior is to use Alias nodes,
+			// reflected by check.enableAlias. Signal non-default behavior.
+			gotypesalias.IncNonDefault()
+
 			if !versionErr && tparam0 != nil {
 				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")
 				versionErr = true
