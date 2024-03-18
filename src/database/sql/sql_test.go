@@ -267,6 +267,7 @@ func TestQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
+	defer rows.Close()
 	type row struct {
 		age  int
 		name string
