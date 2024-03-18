@@ -355,9 +355,7 @@ func (bz2 *reader) readBlock() (err error) {
 	repeatPower := 0
 
 	// The `C' array (used by the inverse BWT) needs to be zero initialized.
-	for i := range bz2.c {
-		bz2.c[i] = 0
-	}
+	clear(bz2.c[:])
 
 	decoded := 0 // counts the number of symbols decoded by the current tree.
 	for {
