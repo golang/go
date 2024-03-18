@@ -675,7 +675,7 @@ const (
 	// Example:
 	//  import "reflect"
 	//
-	//  type _ reflect.flag
+	//  type _ reflect.rtype
 	UnexportedName
 
 	// UndeclaredName occurs when an identifier is not declared in the current

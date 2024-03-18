@@ -11,8 +11,8 @@ import (
 // Field returns the i'th field of the struct v.
 // It panics if v's Kind is not Struct or i is out of range.
 func Field(v Value, i int) Value {
-	if v.kind() != Struct {
-		panic(&ValueError{"reflect.Value.Field", v.kind()})
+	if v.Kind() != Struct {
+		panic(&ValueError{"reflect.Value.Field", v.Kind()})
 	}
 	tt := (*structType)(unsafe.Pointer(v.typ()))
 	if uint(i) >= uint(len(tt.Fields)) {
@@ -22,13 +22,13 @@ func Field(v Value, i int) Value {
 	typ := field.Typ
 
 	// Inherit permission bits from v, but clear flagEmbedRO.
-	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
+	fl := v.Flag&(FlagStickyRO|FlagIndir|FlagAddr) | Flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if !field.Name.IsExported() {
 		if field.Embedded() {
-			fl |= flagEmbedRO
+			fl |= FlagEmbedRO
 		} else {
-			fl |= flagStickyRO
+			fl |= FlagStickyRO
 		}
 	}
 	// Either flagIndir is set and v.ptr points at struct,
@@ -69,9 +69,9 @@ func Zero(typ Type) Value {
 		panic("reflect: Zero(nil)")
 	}
 	t := typ.common()
-	fl := flag(t.Kind())
+	fl := Flag(t.Kind())
 	if ifaceIndir(t) {
-		return Value{t, unsafe_New(t), fl | flagIndir}
+		return Value{t, unsafe_New(t), fl | FlagIndir}
 	}
 	return Value{t, nil, fl}
 }

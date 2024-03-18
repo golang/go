@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"internal/abi"
 	"internal/goarch"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"math"
@@ -370,7 +371,7 @@ func TestMapIterSet(t *testing.T) {
 		}
 	}
 
-	if testenv.OptimizationOff() {
+	if testenv.OptimizationOff() || race.Enabled {
 		return // no inlining with the noopt builder
 	}
 

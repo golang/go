@@ -54,38 +54,13 @@ type Value struct {
 	// The remaining 23+ bits give a method number for method values.
 	// If flag.kind() != Func, code can assume that flagMethod is unset.
 	// If ifaceIndir(typ), code can assume that flagIndir is set.
-	flag
+	Flag
 
 	// A method value represents a curried method invocation
 	// like r.Read for some receiver r. The typ+val+flag bits describe
 	// the receiver r, but the flag's Kind bits say Func (methods are
 	// functions), and the top bits of the flag give the method number
 	// in r's type's method table.
-}
-
-type flag uintptr
-
-const (
-	flagKindWidth        = 5 // there are 27 kinds
-	flagKindMask    flag = 1<<flagKindWidth - 1
-	flagStickyRO    flag = 1 << 5
-	flagEmbedRO     flag = 1 << 6
-	flagIndir       flag = 1 << 7
-	flagAddr        flag = 1 << 8
-	flagMethod      flag = 1 << 9
-	flagMethodShift      = 10
-	flagRO          flag = flagStickyRO | flagEmbedRO
-)
-
-func (f flag) kind() Kind {
-	return Kind(f & flagKindMask)
-}
-
-func (f flag) ro() flag {
-	if f&flagRO != 0 {
-		return flagStickyRO
-	}
-	return 0
 }
 
 func (v Value) typ() *abi.Type {
@@ -103,7 +78,7 @@ func (v Value) pointer() unsafe.Pointer {
 	if v.typ().Size() != goarch.PtrSize || !v.typ().Pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
-	if v.flag&flagIndir != 0 {
+	if v.Flag&FlagIndir != 0 {
 		return *(*unsafe.Pointer)(v.ptr)
 	}
 	return v.ptr
@@ -117,18 +92,18 @@ func packEface(v Value) any {
 	// First, fill in the data portion of the interface.
 	switch {
 	case ifaceIndir(t):
-		if v.flag&flagIndir == 0 {
+		if v.Flag&FlagIndir == 0 {
 			panic("bad indir")
 		}
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
-		if v.flag&flagAddr != 0 {
+		if v.Flag&FlagAddr != 0 {
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
 		}
 		e.word = ptr
-	case v.flag&flagIndir != 0:
+	case v.Flag&FlagIndir != 0:
 		// Value is indirect, but interface is direct. We need
 		// to load the data at v.ptr into the interface data word.
 		e.word = *(*unsafe.Pointer)(v.ptr)
@@ -152,26 +127,11 @@ func unpackEface(i any) Value {
 	if t == nil {
 		return Value{}
 	}
-	f := flag(t.Kind())
+	f := Flag(t.Kind())
 	if ifaceIndir(t) {
-		f |= flagIndir
+		f |= FlagIndir
 	}
 	return Value{t, e.word, f}
-}
-
-// A ValueError occurs when a Value method is invoked on
-// a Value that does not support it. Such cases are documented
-// in the description of each method.
-type ValueError struct {
-	Method string
-	Kind   Kind
-}
-
-func (e *ValueError) Error() string {
-	if e.Kind == 0 {
-		return "reflect: call of " + e.Method + " on zero Value"
-	}
-	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
 }
 
 // methodName returns the name of the calling method,
@@ -191,40 +151,13 @@ type emptyInterface struct {
 	word unsafe.Pointer
 }
 
-// mustBeExported panics if f records that the value was obtained using
-// an unexported field.
-func (f flag) mustBeExported() {
-	if f == 0 {
-		panic(&ValueError{methodName(), 0})
-	}
-	if f&flagRO != 0 {
-		panic("reflect: " + methodName() + " using value obtained using unexported field")
-	}
-}
-
-// mustBeAssignable panics if f records that the value is not assignable,
-// which is to say that either it was obtained using an unexported field
-// or it is not addressable.
-func (f flag) mustBeAssignable() {
-	if f == 0 {
-		panic(&ValueError{methodName(), abi.Invalid})
-	}
-	// Assignable if addressable and not read-only.
-	if f&flagRO != 0 {
-		panic("reflect: " + methodName() + " using value obtained using unexported field")
-	}
-	if f&flagAddr == 0 {
-		panic("reflect: " + methodName() + " using unaddressable value")
-	}
-}
-
 // CanSet reports whether the value of v can be changed.
 // A Value can be changed only if it is addressable and was not
 // obtained by the use of unexported struct fields.
 // If CanSet returns false, calling Set or any type-specific
 // setter (e.g., SetBool, SetInt) will panic.
 func (v Value) CanSet() bool {
-	return v.flag&(flagAddr|flagRO) == flagAddr
+	return v.Flag&(FlagAddr|FlagRO) == FlagAddr
 }
 
 // Elem returns the value that the interface v contains
@@ -232,7 +165,7 @@ func (v Value) CanSet() bool {
 // It panics if v's Kind is not Interface or Pointer.
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
-	k := v.kind()
+	k := v.Kind()
 	switch k {
 	case abi.Interface:
 		var eface any
@@ -244,13 +177,13 @@ func (v Value) Elem() Value {
 			})(v.ptr))
 		}
 		x := unpackEface(eface)
-		if x.flag != 0 {
-			x.flag |= v.flag.ro()
+		if x.Flag != 0 {
+			x.Flag |= v.Flag.Ro()
 		}
 		return x
 	case abi.Pointer:
 		ptr := v.ptr
-		if v.flag&flagIndir != 0 {
+		if v.Flag&FlagIndir != 0 {
 			ptr = *(*unsafe.Pointer)(ptr)
 		}
 		// The returned value's address is v's value.
@@ -259,19 +192,19 @@ func (v Value) Elem() Value {
 		}
 		tt := (*ptrType)(unsafe.Pointer(v.typ()))
 		typ := tt.Elem
-		fl := v.flag&flagRO | flagIndir | flagAddr
-		fl |= flag(typ.Kind())
+		fl := v.Flag&FlagRO | FlagIndir | FlagAddr
+		fl |= Flag(typ.Kind())
 		return Value{typ, ptr, fl}
 	}
-	panic(&ValueError{"reflectlite.Value.Elem", v.kind()})
+	panic(&ValueError{"reflectlite.Value.Elem", v.Kind()})
 }
 
 func valueInterface(v Value) any {
-	if v.flag == 0 {
+	if v.Flag == 0 {
 		panic(&ValueError{"reflectlite.Value.Interface", 0})
 	}
 
-	if v.kind() == abi.Interface {
+	if v.Kind() == abi.Interface {
 		// Special case: return the element inside the interface.
 		// Empty interface has one layout, all interfaces with
 		// methods have a second layout.
@@ -294,14 +227,14 @@ func valueInterface(v Value) any {
 // i==nil will be true but v.IsNil will panic as v will be the zero
 // Value.
 func (v Value) IsNil() bool {
-	k := v.kind()
+	k := v.Kind()
 	switch k {
 	case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
 		// if v.flag&flagMethod != 0 {
 		// 	return false
 		// }
 		ptr := v.ptr
-		if v.flag&flagIndir != 0 {
+		if v.Flag&FlagIndir != 0 {
 			ptr = *(*unsafe.Pointer)(ptr)
 		}
 		return ptr == nil
@@ -310,7 +243,7 @@ func (v Value) IsNil() bool {
 		// Both are always bigger than a word; assume flagIndir.
 		return *(*unsafe.Pointer)(v.ptr) == nil
 	}
-	panic(&ValueError{"reflectlite.Value.IsNil", v.kind()})
+	panic(&ValueError{"reflectlite.Value.IsNil", v.Kind()})
 }
 
 // IsValid reports whether v represents a value.
@@ -319,13 +252,13 @@ func (v Value) IsNil() bool {
 // Most functions and methods never return an invalid Value.
 // If one does, its documentation states the conditions explicitly.
 func (v Value) IsValid() bool {
-	return v.flag != 0
+	return v.Flag != 0
 }
 
 // Kind returns v's Kind.
 // If v is the zero Value (IsValid returns false), Kind returns Invalid.
 func (v Value) Kind() Kind {
-	return v.kind()
+	return v.Flag.Kind()
 }
 
 // implemented in runtime:
@@ -339,7 +272,7 @@ func maplen(unsafe.Pointer) int
 // Len returns v's length.
 // It panics if v's Kind is not Array, Chan, Map, Slice, or String.
 func (v Value) Len() int {
-	k := v.kind()
+	k := v.Kind()
 	switch k {
 	case abi.Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ()))
@@ -355,7 +288,7 @@ func (v Value) Len() int {
 		// String is bigger than a word; assume flagIndir.
 		return (*unsafeheader.String)(v.ptr).Len
 	}
-	panic(&ValueError{"reflect.Value.Len", v.kind()})
+	panic(&ValueError{"reflect.Value.Len", v.Kind()})
 }
 
 // NumMethod returns the number of exported methods in the value's method set.
@@ -370,14 +303,14 @@ func (v Value) numMethod() int {
 // It panics if CanSet returns false.
 // As in Go, x's value must be assignable to v's type.
 func (v Value) Set(x Value) {
-	v.mustBeAssignable()
-	x.mustBeExported() // do not let unexported x leak
+	v.MustBeAssignable()
+	x.MustBeExported() // do not let unexported x leak
 	var target unsafe.Pointer
-	if v.kind() == abi.Interface {
+	if v.Kind() == abi.Interface {
 		target = v.ptr
 	}
 	x = x.assignTo("reflectlite.Set", v.typ(), target)
-	if x.flag&flagIndir != 0 {
+	if x.Flag&FlagIndir != 0 {
 		typedmemmove(v.typ(), v.ptr, x.ptr)
 	} else {
 		*(*unsafe.Pointer)(v.ptr) = x.ptr
@@ -386,7 +319,7 @@ func (v Value) Set(x Value) {
 
 // Type returns v's type.
 func (v Value) Type() Type {
-	f := v.flag
+	f := v.Flag
 	if f == 0 {
 		panic(&ValueError{"reflectlite.Value.Type", abi.Invalid})
 	}
@@ -424,8 +357,8 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
 	case directlyAssignable(dst, v.typ()):
 		// Overwrite type so that they match.
 		// Same memory layout, so no harm done.
-		fl := v.flag&(flagAddr|flagIndir) | v.flag.ro()
-		fl |= flag(dst.Kind())
+		fl := v.Flag&(FlagAddr|FlagIndir) | v.Flag.Ro()
+		fl |= Flag(dst.Kind())
 		return Value{dst, v.ptr, fl}
 
 	case implements(dst, v.typ()):
@@ -436,7 +369,7 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
 			// A nil ReadWriter passed to nil Reader is OK,
 			// but using ifaceE2I below will panic.
 			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
-			return Value{dst, nil, flag(abi.Interface)}
+			return Value{dst, nil, Flag(abi.Interface)}
 		}
 		x := valueInterface(v)
 		if dst.NumMethod() == 0 {
@@ -444,7 +377,7 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
 		} else {
 			ifaceE2I(dst, x, target)
 		}
-		return Value{dst, target, flagIndir | flag(abi.Interface)}
+		return Value{dst, target, FlagIndir | Flag(Interface)}
 	}
 
 	// Failed.
@@ -487,4 +420,131 @@ var dummy struct {
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
+}
+
+type Flag uintptr
+
+const (
+	FlagKindWidth   Flag = 5 // there are 27 kinds
+	FlagKindMask    Flag = 1<<FlagKindWidth - 1
+	FlagStickyRO    Flag = 1 << 5
+	FlagEmbedRO     Flag = 1 << 6
+	FlagIndir       Flag = 1 << 7
+	FlagAddr        Flag = 1 << 8
+	FlagMethod      Flag = 1 << 9
+	FlagMethodShift Flag = 10
+	FlagRO          Flag = FlagStickyRO | FlagEmbedRO
+)
+
+func (f Flag) Kind() Kind {
+	return Kind(f & FlagKindMask)
+}
+
+func (f Flag) Ro() Flag {
+	if f&FlagRO != 0 {
+		return FlagStickyRO
+	}
+	return 0
+}
+
+func MustBe(f Flag, expected Kind) {
+	if f.Kind() != expected {
+		panicMustBe(f)
+	}
+}
+
+//go:noinline
+func panicMustBe(f Flag) {
+	panic(NewValueError(valueMethodName(), f.Kind()))
+}
+
+// mustBeExported panics if f records that the value was obtained using
+// an unexported field.
+func (f Flag) MustBeExported() {
+	if f == 0 || f&FlagRO != 0 {
+		f.MustBeExportedSlow()
+	}
+}
+
+func (f Flag) MustBeExportedSlow() {
+	if f == 0 {
+		panic(NewValueError(valueMethodName(), abi.Invalid))
+	}
+	if f&FlagRO != 0 {
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
+	}
+}
+
+// mustBeAssignable panics if f records that the value is not assignable,
+// which is to say that either it was obtained using an unexported field
+// or it is not addressable.
+func (f Flag) MustBeAssignable() {
+	if f&FlagRO != 0 || f&FlagAddr == 0 {
+		f.MustBeAssignableSlow()
+	}
+}
+
+func (f Flag) MustBeAssignableSlow() {
+	if f == 0 {
+		panic(NewValueError(valueMethodName(), abi.Invalid))
+	}
+	// Assignable if addressable and not read-only.
+	if f&FlagRO != 0 {
+		panic("reflect: " + valueMethodName() + " using value obtained using unexported field")
+	}
+	if f&FlagAddr == 0 {
+		panic("reflect: " + valueMethodName() + " using unaddressable value")
+	}
+}
+
+// Force slow panicking path not inlined, so it won't add to the
+// inlining budget of the caller.
+// TODO: undo when the inliner is no longer bottom-up only.
+//
+//go:noinline
+func (f Flag) PanicNotMap() {
+	MustBe(f, abi.Map)
+}
+
+// A ValueError occurs when a Value method is invoked on
+// a [Value] that does not support it. Such cases are documented
+// in the description of each method.
+type ValueError struct {
+	Method string
+	Kind   Kind
+}
+
+func (e *ValueError) Error() string {
+	if e.Kind == 0 {
+		return "reflect: call of " + e.Method + " on zero Value"
+	}
+	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
+}
+
+// valueMethodName returns the name of the exported calling method on Value.
+func valueMethodName() string {
+	var pc [5]uintptr
+	n := runtime.Callers(1,
+		(*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:],
+	)
+	frames := runtime.CallersFrames((*(*[5]uintptr)(noescape(unsafe.Pointer(&pc[0]))))[:n])
+	var frame runtime.Frame
+	for more := true; more; {
+		const prefix = "reflect.Value."
+		frame, more = frames.Next()
+		name := frame.Function
+		if len(name) > len(prefix) && name[:len(prefix)] == prefix {
+			methodName := name[len(prefix):]
+			if len(methodName) > 0 && 'A' <= methodName[0] && methodName[0] <= 'Z' {
+				return name
+			}
+		}
+	}
+	return "unknown method"
+}
+
+// NewValueError default return [ValueError].
+// When reflect is imported, return [reflect.ValueError].
+var NewValueError func(Method string, Kind abi.Kind) any = func(Method string, Kind abi.Kind) any {
+	return &ValueError{Method: Method, Kind: Kind}
 }

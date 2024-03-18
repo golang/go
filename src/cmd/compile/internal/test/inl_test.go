@@ -169,11 +169,6 @@ func TestIntendedInlining(t *testing.T) {
 			"Value.pointer",
 			"add",
 			"align",
-			"flag.mustBe",
-			"flag.mustBeAssignable",
-			"flag.mustBeExported",
-			"flag.kind",
-			"flag.ro",
 		},
 		"regexp": {
 			"(*bitState).push",
@@ -234,6 +229,13 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Load",
 			"(*Pointer[go.shape.int]).Store",
 			"(*Pointer[go.shape.int]).Swap",
+		},
+		"internal/reflectlite": {
+			"MustBe",
+			"Flag.MustBeAssignable",
+			"Flag.MustBeExported",
+			"Flag.Kind",
+			"Flag.Ro",
 		},
 	}
 
