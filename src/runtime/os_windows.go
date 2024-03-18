@@ -304,21 +304,6 @@ func monitorSuspendResume() {
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
 }
 
-//go:nosplit
-func getLoadLibrary() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryW))
-}
-
-//go:nosplit
-func getLoadLibraryEx() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryExW))
-}
-
-//go:nosplit
-func getGetProcAddress() uintptr {
-	return uintptr(unsafe.Pointer(_GetProcAddress))
-}
-
 func getproccount() int32 {
 	var mask, sysmask uintptr
 	ret := stdcall3(_GetProcessAffinityMask, currentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))

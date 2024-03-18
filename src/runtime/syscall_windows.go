@@ -414,10 +414,8 @@ func callbackWrap(a *callbackArgs) {
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
-//go:nosplit
 func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
-	fn := getLoadLibraryEx()
-	handle, _, err = syscall_SyscallN(fn, uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryExW)), uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 	KeepAlive(filename)
 	if handle != 0 {
 		err = 0
@@ -426,10 +424,8 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 }
 
 //go:linkname syscall_loadlibrary syscall.loadlibrary
-//go:nosplit
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
-	fn := getLoadLibrary()
-	handle, _, err = syscall_SyscallN(fn, uintptr(unsafe.Pointer(filename)))
+	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryW)), uintptr(unsafe.Pointer(filename)))
 	KeepAlive(filename)
 	if handle != 0 {
 		err = 0
@@ -438,10 +434,8 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 }
 
 //go:linkname syscall_getprocaddress syscall.getprocaddress
-//go:nosplit
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
-	fn := getGetProcAddress()
-	outhandle, _, err = syscall_SyscallN(fn, handle, uintptr(unsafe.Pointer(procname)))
+	outhandle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_GetProcAddress)), handle, uintptr(unsafe.Pointer(procname)))
 	KeepAlive(procname)
 	if outhandle != 0 {
 		err = 0
