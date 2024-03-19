@@ -2505,17 +2505,29 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
 
-	case AROL, AROLW, AROR, ARORW, ARORI, ARORIW:
+	case AROL, AROLW, AROR, ARORW:
+		inss = instructionsForRotate(p, ins)
+
+	case ARORI:
+		if ins.imm < 0 || ins.imm > 63 {
+			p.Ctxt.Diag("%v: immediate out of range 0 to 63", p)
+		}
+		inss = instructionsForRotate(p, ins)
+
+	case ARORIW:
+		if ins.imm < 0 || ins.imm > 31 {
+			p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
+		}
 		inss = instructionsForRotate(p, ins)
 
 	case ASLLI, ASRLI, ASRAI:
 		if ins.imm < 0 || ins.imm > 63 {
-			p.Ctxt.Diag("%v: shift amount out of range 0 to 63", p)
+			p.Ctxt.Diag("%v: immediate out of range 0 to 63", p)
 		}
 
 	case ASLLIW, ASRLIW, ASRAIW:
 		if ins.imm < 0 || ins.imm > 31 {
-			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
+			p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
 		}
 
 	case ACLZ, ACLZW, ACTZ, ACTZW, ACPOP, ACPOPW, ASEXTB, ASEXTH, AZEXTH:
