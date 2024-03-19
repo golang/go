@@ -9,6 +9,7 @@ const (
 	SYS_EPOLL_CTL     = 21
 	SYS_EPOLL_PWAIT   = 22
 	SYS_FCNTL         = 25
+	SYS_MPROTECT      = 226
 	SYS_EPOLL_PWAIT2  = 441
 	SYS_EVENTFD2      = 19
 

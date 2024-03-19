@@ -891,3 +891,9 @@ func (c *sigctxt) sigFromUser() bool {
 	code := int32(c.sigcode())
 	return code == _SI_USER || code == _SI_TKILL
 }
+
+//go:nosplit
+func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
+	r, _, err := syscall.Syscall6(syscall.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
+	return int32(r), int32(err)
+}

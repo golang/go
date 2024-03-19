@@ -8,6 +8,7 @@ package syscall
 
 const (
 	SYS_FCNTL         = 55
+	SYS_MPROTECT      = 125
 	SYS_EPOLL_CTL     = 237
 	SYS_EPOLL_PWAIT   = 303
 	SYS_EPOLL_CREATE1 = 315
