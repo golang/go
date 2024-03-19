@@ -256,13 +256,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
 	if *getD {
-		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op after Go 1.17\n")
+		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op\n")
 	}
 	if *getF {
-		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op\n")
 	}
 	if *getFix {
-		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op\n")
 	}
 	if *getM {
 		base.Fatalf("go: -m flag is no longer supported")
