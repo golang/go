@@ -7031,3 +7031,42 @@ func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
 		return true
 	})
 }
+
+func TestValidateClientRequestTrailers(t *testing.T) {
+	run(t, testValidateClientRequestTrailers)
+}
+
+func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		rw.Write([]byte("Hello"))
+	})).ts
+
+	cases := []struct {
+		trailer Header
+		wantErr string
+	}{
+		{Header{"Trx": {"x\r\nX-Another-One"}}, `invalid trailer field value for "Trx"`},
+		{Header{"\r\nTrx": {"X-Another-One"}}, `invalid trailer field name "\r\nTrx"`},
+	}
+
+	for i, tt := range cases {
+		testName := fmt.Sprintf("%s%d", mode, i)
+		t.Run(testName, func(t *testing.T) {
+			req, err := NewRequest("GET", cst.URL, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Trailer = tt.trailer
+			res, err := cst.Client().Do(req)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+			if g, w := err.Error(), tt.wantErr; !strings.Contains(g, w) {
+				t.Fatalf("Mismatched error\n\t%q\ndoes not contain\n\t%q", g, w)
+			}
+			if res != nil {
+				t.Fatal("Unexpected non-nil response")
+			}
+		})
+	}
+}

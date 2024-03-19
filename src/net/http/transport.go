@@ -513,6 +513,22 @@ func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 	return altProto[req.URL.Scheme]
 }
 
+func validateHeaders(hdrs Header) string {
+	for k, vv := range hdrs {
+		if !httpguts.ValidHeaderFieldName(k) {
+			return fmt.Sprintf("field name %q", k)
+		}
+		for _, v := range vv {
+			if !httpguts.ValidHeaderFieldValue(v) {
+				// Don't include the value in the error,
+				// because it may be sensitive.
+				return fmt.Sprintf("field value for %q", k)
+			}
+		}
+	}
+	return ""
+}
+
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
@@ -530,18 +546,16 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	scheme := req.URL.Scheme
 	isHTTP := scheme == "http" || scheme == "https"
 	if isHTTP {
-		for k, vv := range req.Header {
-			if !httpguts.ValidHeaderFieldName(k) {
-				req.closeBody()
-				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
-			}
-			for _, v := range vv {
-				if !httpguts.ValidHeaderFieldValue(v) {
-					req.closeBody()
-					// Don't include the value in the error, because it may be sensitive.
-					return nil, fmt.Errorf("net/http: invalid header field value for %q", k)
-				}
-			}
+		// Validate the outgoing headers.
+		if err := validateHeaders(req.Header); err != "" {
+			req.closeBody()
+			return nil, fmt.Errorf("net/http: invalid header %s", err)
+		}
+
+		// Validate the outgoing trailers too.
+		if err := validateHeaders(req.Trailer); err != "" {
+			req.closeBody()
+			return nil, fmt.Errorf("net/http: invalid trailer %s", err)
 		}
 	}
 
