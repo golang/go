@@ -1124,6 +1124,13 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 			url.RawFragment = u.RawFragment
 		}
 	}
+	if ref.Path == "" && u.Opaque != "" {
+		url.Opaque = u.Opaque
+		url.User = nil
+		url.Host = ""
+		url.Path = ""
+		return &url
+	}
 	// The "abs_path" or "rel_path" cases.
 	url.Host = u.Host
 	url.User = u.User
