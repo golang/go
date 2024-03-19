@@ -93,18 +93,28 @@ loop:
 	MOVW	(5*4)(R1), R8
 	MOVW	R6, R9
 
+#define ROUND3FIRST(a, b, c, d, index, const, shift) \
+	MOVW	d, R9; \
+	EORW	c, R9; \
+	EORW	b, R9; \
+	ADDW	$const, a; \
+	ADDW	R8, a; \
+	MOVW	(index*4)(R1),R8; \
+	ADDW	R9, a; \
+	RORW	$(32-shift), a; \
+	ADDW	b, a
+
 #define ROUND3(a, b, c, d, index, const, shift) \
+	EORW	a, R9; \
+	EORW	b, R9; \
 	ADDW	$const, a; \
 	ADDW	R8, a; \
 	MOVW	(index*4)(R1), R8; \
-	EORW	d, R9; \
-	EORW	b, R9; \
 	ADDW	R9, a; \
 	RORW	$(32-shift), a; \
-	MOVW	b, R9; \
 	ADDW	b, a
 
-	ROUND3(R4,R5,R6,R7, 8,0xfffa3942, 4);
+	ROUND3FIRST(R4,R5,R6,R7, 8,0xfffa3942, 4);
 	ROUND3(R7,R4,R5,R6,11,0x8771f681,11);
 	ROUND3(R6,R7,R4,R5,14,0x6d9d6122,16);
 	ROUND3(R5,R6,R7,R4, 1,0xfde5380c,23);
