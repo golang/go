@@ -193,7 +193,7 @@ func Read(fd int, p []byte) (n int, err error) {
 		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	if asan.Enabled && n > 0 {
-		asan.Write(unsafe.Pointer(&p[0]), n)
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -217,7 +217,7 @@ func Write(fd int, p []byte) (n int, err error) {
 		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	if asan.Enabled && n > 0 {
-		asan.Read(unsafe.Pointer(&p[0]), n)
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -236,7 +236,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
 		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	if asan.Enabled && n > 0 {
-		asan.Write(unsafe.Pointer(&p[0]), n)
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -253,7 +253,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	if asan.Enabled && n > 0 {
-		asan.Read(unsafe.Pointer(&p[0]), n)
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }

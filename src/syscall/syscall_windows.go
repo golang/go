@@ -452,7 +452,7 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
 		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	if asan.Enabled && *done > 0 {
-		asan.Write(unsafe.Pointer(&p[0]), int(*done))
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }
@@ -469,7 +469,7 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error 
 		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	if asan.Enabled && *done > 0 {
-		asan.Read(unsafe.Pointer(&p[0]), int(*done))
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }
