@@ -2291,6 +2291,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 
 // instructionsForRotate returns the machine instructions for a bitwise rotation.
 func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
+	if buildcfg.GORISCV64 >= 22 {
+		// Rotation instructions are supported natively.
+		return []*instruction{ins}
+	}
+
 	switch ins.as {
 	case AROL, AROLW, AROR, ARORW:
 		// ROL -> OR (SLL x y) (SRL x (NEG y))
