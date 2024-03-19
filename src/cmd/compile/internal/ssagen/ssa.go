@@ -3152,7 +3152,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		// In theory, we should set b.Likely here based on context.
 		// However, gc only gives us likeliness hints
 		// in a single place, for plain OIF statements,
-		// and passing around context is finnicky, so don't bother for now.
+		// and passing around context is finicky, so don't bother for now.
 
 		bRight := s.f.NewBlock(ssa.BlockPlain)
 		bResult := s.f.NewBlock(ssa.BlockPlain)
