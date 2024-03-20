@@ -92,6 +92,18 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 		}
 		return
 	}
+
+	// After a successful MADV_FREE operation, the pages are
+	// marked as lazyfree but remain unreclaimed, which means
+	// the actual *freeing* could be delayed until memory
+	// pressure occurs.
+	//
+	// We need to ensure that the region is zeroed after
+	// sysUsedOS is called.
+	if debug.madvdontneed == 0 &&
+		atomic.Load(&adviseUnused) != madviseUnsupported {
+		madvise(v, n, _MADV_DONTNEED)
+	}
 }
 
 func sysHugePageOS(v unsafe.Pointer, n uintptr) {
