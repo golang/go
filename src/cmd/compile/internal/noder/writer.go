@@ -2304,7 +2304,6 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 				elem = kv.Value
 			}
 		}
-		w.pos(elem)
 		w.implicitConvExpr(elemType, elem)
 	}
 }
