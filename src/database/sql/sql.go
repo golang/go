@@ -2684,6 +2684,8 @@ func (s *Stmt) removeClosedStmtLocked() {
 	for i := 0; i < len(s.css); i++ {
 		if s.css[i].dc.dbmuClosed {
 			s.css[i] = s.css[len(s.css)-1]
+			// Zero out the last element (for GC) before shrinking the slice.
+			s.css[len(s.css)-1] = connStmt{}
 			s.css = s.css[:len(s.css)-1]
 			i--
 		}
