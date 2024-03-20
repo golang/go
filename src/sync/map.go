@@ -393,7 +393,7 @@ func (m *Map) Swap(key, value any) (previous any, loaded bool) {
 // CompareAndSwap swaps the old and new values for key
 // if the value stored in the map is equal to old.
 // The old value must be of a comparable type.
-func (m *Map) CompareAndSwap(key, old, new any) bool {
+func (m *Map) CompareAndSwap(key, old, new any) (swapped bool) {
 	read := m.loadReadOnly()
 	if e, ok := read.m[key]; ok {
 		return e.tryCompareAndSwap(old, new)
@@ -404,7 +404,7 @@ func (m *Map) CompareAndSwap(key, old, new any) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	read = m.loadReadOnly()
-	swapped := false
+	swapped = false
 	if e, ok := read.m[key]; ok {
 		swapped = e.tryCompareAndSwap(old, new)
 	} else if e, ok := m.dirty[key]; ok {
