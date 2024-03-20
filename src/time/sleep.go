@@ -128,7 +128,7 @@ func (t *Timer) Stop() bool {
 // The Stop method is no longer necessary to help the garbage collector.
 // (Code may of course still want to call Stop to stop the timer for other reasons.)
 //
-// Before Go 1.23, the channel assocated with a Timer was
+// Before Go 1.23, the channel associated with a Timer was
 // asynchronous (buffered, capacity 1), which meant that
 // stale time values could be received even after [Timer.Stop]
 // or [Timer.Reset] returned.
