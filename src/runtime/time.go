@@ -778,6 +778,11 @@ func (ts *timers) adjust(now int64, force bool) {
 			throw("bad ts")
 		}
 
+		if t.astate.Load()&(timerModified|timerZombie) == 0 {
+			// Does not need adjustment.
+			continue
+		}
+
 		t.lock()
 		if t.state&timerHeaped == 0 {
 			badTimer()
