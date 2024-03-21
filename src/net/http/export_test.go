@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -111,7 +111,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	for key := range t.idleConn {
 		keys = append(keys, key.String())
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return
 }
 
@@ -130,7 +130,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
 	}
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 
@@ -150,7 +150,7 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 		}
 	}
 
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 

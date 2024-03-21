@@ -16,7 +16,7 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -318,7 +318,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 			keys = append(keys, k)
 		}
 		if len(keys) > 0 {
-			sort.Strings(keys)
+			slices.Sort(keys)
 			// TODO: could do better allocation-wise here, but trailers are rare,
 			// so being lazy for now.
 			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {
