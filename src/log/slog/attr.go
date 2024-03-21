@@ -5,7 +5,6 @@
 package slog
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -92,7 +91,7 @@ func (a Attr) Equal(b Attr) bool {
 }
 
 func (a Attr) String() string {
-	return fmt.Sprintf("%s=%s", a.Key, a.Value)
+	return a.Key + "=" + a.Value.String()
 }
 
 // isEmpty reports whether a has an empty key and a nil value.
