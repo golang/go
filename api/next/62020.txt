@@ -1,4 +1,0 @@
-pkg testing, type TB interface, SetGOMAXPROCS(int) #62020
-pkg testing, method (*T) SetGOMAXPROCS(int) #62020
-pkg testing, method (*B) SetGOMAXPROCS(int) #62020
-pkg testing, method (*F) SetGOMAXPROCS(int) #62020

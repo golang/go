@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -255,102 +254,6 @@ func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
 			}()
 
 			t.Setenv("GO_TEST_KEY_1", "value")
-		})
-	})
-}
-
-func TestSetGOMAXPROCS(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("not supported on wasm yet")
-	}
-	tests := []struct {
-		name string
-		newP int
-	}{
-		{
-			name: "overriding value",
-			newP: 1,
-		},
-	}
-
-	for _, test := range tests {
-		p := runtime.GOMAXPROCS(0)
-		t.Run(test.name, func(t *testing.T) {
-			t.SetGOMAXPROCS(test.newP + 1)
-			if runtime.GOMAXPROCS(0) != test.newP+1 {
-				t.Fatalf("unexpected value after t.SetGOMAXPROCS: got %d, want %d", runtime.GOMAXPROCS(0), test.newP+1)
-			}
-		})
-		if runtime.GOMAXPROCS(0) != p {
-			t.Fatalf("unexpected value after t.SetGOMAXPROCS cleanup: got %d, want %d", runtime.GOMAXPROCS(0), p)
-		}
-	}
-}
-
-func TestSetGOMAXPROCSWithParallelAfterSetGOMAXPROCS(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("not supported on wasm yet")
-	}
-	defer func() {
-		want := "testing: t.Parallel called after t.SetGOMAXPROCS; cannot set GOMAXPROCS in parallel tests"
-		if got := recover(); got != want {
-			t.Fatalf("expected panic; got %#v want %q", got, want)
-		}
-	}()
-	p := runtime.GOMAXPROCS(0)
-	t.SetGOMAXPROCS(p + 1)
-	t.Parallel()
-}
-
-func TestSetGOMAXPROCSWithParallelBeforeSetGOMAXPROCS(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("not supported on wasm yet")
-	}
-	defer func() {
-		want := "testing: t.SetGOMAXPROCS called after t.Parallel; cannot set GOMAXPROCS in parallel tests"
-		if got := recover(); got != want {
-			t.Fatalf("expected panic; got %#v want %q", got, want)
-		}
-	}()
-	t.Parallel()
-	p := runtime.GOMAXPROCS(0)
-	t.SetGOMAXPROCS(p + 1)
-}
-
-func TestSetGOMAXPROCSWithParallelParentBeforeSetGOMAXPROCS(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("not supported on wasm yet")
-	}
-	t.Parallel()
-	t.Run("child", func(t *testing.T) {
-		defer func() {
-			want := "testing: t.SetGOMAXPROCS called after t.Parallel; cannot set GOMAXPROCS in parallel tests"
-			if got := recover(); got != want {
-				t.Fatalf("expected panic; got %#v want %q", got, want)
-			}
-		}()
-
-		p := runtime.GOMAXPROCS(0)
-		t.SetGOMAXPROCS(p + 1)
-	})
-}
-
-func TestSetGOMAXPROCSWithParallelGrandParentBeforeSetGOMAXPROCS(t *testing.T) {
-	if runtime.GOARCH == "wasm" {
-		t.Skip("not supported on wasm yet")
-	}
-	t.Parallel()
-	t.Run("child", func(t *testing.T) {
-		t.Run("grand-child", func(t *testing.T) {
-			defer func() {
-				want := "testing: t.SetGOMAXPROCS called after t.Parallel; cannot set GOMAXPROCS in parallel tests"
-				if got := recover(); got != want {
-					t.Fatalf("expected panic; got %#v want %q", got, want)
-				}
-			}()
-
-			p := runtime.GOMAXPROCS(0)
-			t.SetGOMAXPROCS(p + 1)
 		})
 	})
 }

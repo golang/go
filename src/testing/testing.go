@@ -890,7 +890,6 @@ type TB interface {
 	Logf(format string, args ...any)
 	Name() string
 	Setenv(key, value string)
-	SetGOMAXPROCS(n int)
 	Skip(args ...any)
 	SkipNow()
 	Skipf(format string, args ...any)
@@ -917,9 +916,8 @@ var _ TB = (*B)(nil)
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	isEnvSet        bool
-	isGOMAXPROCSSet bool
-	context         *testContext // For running tests and subtests.
+	isEnvSet bool
+	context  *testContext // For running tests and subtests.
 }
 
 func (c *common) private() {}
@@ -1308,19 +1306,6 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// SetGOMAXPROCS calls runtime.GOMAXPROCS(n) and uses Cleanup to
-// restore the value of GOMAXPROCS after the test.
-//
-// Because GOMAXPROCS affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
-func (c *common) SetGOMAXPROCS(n int) {
-	c.checkFuzzFn("SetGOMAXPROCS")
-	prev := runtime.GOMAXPROCS(n)
-	c.Cleanup(func() {
-		runtime.GOMAXPROCS(prev)
-	})
-}
-
 // panicHanding controls the panic handling used by runCleanup.
 type panicHandling int
 
@@ -1461,9 +1446,6 @@ func (t *T) Parallel() {
 	if t.isEnvSet {
 		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
 	}
-	if t.isGOMAXPROCSSet {
-		panic("testing: t.Parallel called after t.SetGOMAXPROCS; cannot set GOMAXPROCS in parallel tests")
-	}
 	t.isParallel = true
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
@@ -1543,33 +1525,6 @@ func (t *T) Setenv(key, value string) {
 	t.isEnvSet = true
 
 	t.common.Setenv(key, value)
-}
-
-// SetGOMAXPROCS calls runtime.GOMAXPROCS(n) and uses Cleanup to
-// restore the value of GOMAXPROCS after the test.
-//
-// Because GOMAXPROCS affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
-func (t *T) SetGOMAXPROCS(n int) {
-	// Non-parallel subtests that have parallel ancestors may still
-	// run in parallel with other tests: they are only non-parallel
-	// with respect to the other subtests of the same parent.
-	// Since SetGOMAXPROCS affects the whole process, we need to disallow it
-	// if the current test or any parent is parallel.
-	isParallel := false
-	for c := &t.common; c != nil; c = c.parent {
-		if c.isParallel {
-			isParallel = true
-			break
-		}
-	}
-	if isParallel {
-		panic("testing: t.SetGOMAXPROCS called after t.Parallel; cannot set GOMAXPROCS in parallel tests")
-	}
-
-	t.isGOMAXPROCSSet = true
-
-	t.common.SetGOMAXPROCS(n)
 }
 
 // InternalTest is an internal type but exported because it is cross-package;
