@@ -261,6 +261,7 @@ func invoke(cmd *base.Command, args []string) {
 		}
 		defer func() {
 			rtrace.Stop()
+			f.Close()
 		}()
 	}
 
