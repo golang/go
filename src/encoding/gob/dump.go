@@ -24,6 +24,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "dump: %s\n", err)
 			os.Exit(1)
 		}
+		defer file.Close()
 	}
 	gob.Debug(file)
 }
