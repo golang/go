@@ -32,7 +32,7 @@ import (
 )
 
 var CmdEnv = &base.Command{
-	UsageLine: "go env [-json] [-u] [-w] [var ...]",
+	UsageLine: "go env [-json] [-changed] [-u] [-w] [var ...]",
 	Short:     "print Go environment information",
 	Long: `
 Env prints Go environment information.
@@ -53,6 +53,10 @@ The -w flag requires one or more arguments of the
 form NAME=VALUE and changes the default settings
 of the named environment variables to the given values.
 
+The -changed flag output rusult of
+query for non-defaults in the env,
+do not print GOOS and GOARCH.
+
 For more about environment variables, see 'go help environment'.
 	`,
 }
@@ -64,19 +68,20 @@ func init() {
 }
 
 var (
-	envJson = CmdEnv.Flag.Bool("json", false, "")
-	envU    = CmdEnv.Flag.Bool("u", false, "")
-	envW    = CmdEnv.Flag.Bool("w", false, "")
+	envJson    = CmdEnv.Flag.Bool("json", false, "")
+	envU       = CmdEnv.Flag.Bool("u", false, "")
+	envW       = CmdEnv.Flag.Bool("w", false, "")
+	envChanged = CmdEnv.Flag.Bool("changed", false, "")
 )
 
 func MkEnv() []cfg.EnvVar {
-	envFile, _ := cfg.EnvFile()
+	envFile, envFileChanged, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
 		{Name: "GOARCH", Value: cfg.Goarch},
 		{Name: "GOBIN", Value: cfg.GOBIN},
-		{Name: "GOCACHE", Value: cache.DefaultDir()},
-		{Name: "GOENV", Value: envFile},
+		{Name: "GOCACHE"},
+		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
 
 		// List the raw value of GOEXPERIMENT, not the cleaned one.
@@ -90,48 +95,76 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
-		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE},
-		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
-		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
+		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE, Changed: cfg.GOMODCACHEChanged},
+		{Name: "GONOPROXY", Value: cfg.GONOPROXY, Changed: cfg.GONOPROXYChanged},
+		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB, Changed: cfg.GONOSUMDBChanged},
 		{Name: "GOOS", Value: cfg.Goos},
-		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
+		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
-		{Name: "GOPROXY", Value: cfg.GOPROXY},
+		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
 		{Name: "GOROOT", Value: cfg.GOROOT},
-		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
+		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
-		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+		{Name: "GODEBUG"},
+	}
+
+	// See go.dev/issue/34208
+	// GOOS and GOARCH are deliberately not set Changed
+	for i := range env {
+		switch env[i].Name {
+		case "GO111MODULE":
+			if env[i].Value != "on" && env[i].Value != "" {
+				env[i].Changed = true
+			}
+		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPRIVATE", "GOTMPDIR", "GOVCS":
+			if env[i].Value != "" {
+				env[i].Changed = true
+			}
+		case "GOCACHE":
+			env[i].Value, env[i].Changed = cache.DefaultDir()
+		case "GOTOOLCHAIN":
+			if env[i].Value != "auto" {
+				env[i].Changed = true
+			}
+		case "GODEBUG":
+			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GODEBUG", "")
+		}
 	}
 
 	if work.GccgoBin != "" {
-		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin})
+		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin, Changed: true})
 	} else {
 		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName})
 	}
 
-	key, val := cfg.GetArchEnv()
+	key, val, changde := cfg.GetArchEnv()
 	if key != "" {
-		env = append(env, cfg.EnvVar{Name: key, Value: val})
+		env = append(env, cfg.EnvVar{Name: key, Value: val, Changed: changde})
 	}
 
 	cc := cfg.Getenv("CC")
+	ccChanged := true
 	if cc == "" {
+		ccChanged = false
 		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	}
 	cxx := cfg.Getenv("CXX")
+	cxxChanged := true
 	if cxx == "" {
+		cxxChanged = false
 		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	}
-	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
-	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
-	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx})
+	ar, arChanged := cfg.EnvOrAndChanged("AR", "ar")
+	env = append(env, cfg.EnvVar{Name: "AR", Value: ar, Changed: arChanged})
+	env = append(env, cfg.EnvVar{Name: "CC", Value: cc, Changed: ccChanged})
+	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx, Changed: cxxChanged})
 
 	if cfg.BuildContext.CgoEnabled {
-		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1"})
+		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1", Changed: true})
 	} else {
 		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "0"})
 	}
@@ -139,12 +172,13 @@ func MkEnv() []cfg.EnvVar {
 	return env
 }
 
-func envOr(name, def string) string {
-	val := cfg.Getenv(name)
-	if val != "" {
-		return val
+func findCfgEnv(env []cfg.EnvVar, name string) cfg.EnvVar {
+	for _, e := range env {
+		if e.Name == name {
+			return e
+		}
 	}
-	return def
+	return cfg.EnvVar{}
 }
 
 func findEnv(env []cfg.EnvVar, name string) string {
@@ -206,7 +240,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 		return q
 	}
 
-	return []cfg.EnvVar{
+	ret := []cfg.EnvVar{
 		// Note: Update the switch in runEnv below when adding to this list.
 		{Name: "CGO_CFLAGS", Value: join(cflags)},
 		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
@@ -216,6 +250,27 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
 		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
 	}
+
+	for i := range ret {
+		switch ret[i].Name {
+		// GOGCCFLAGS cannot be modified
+		case "GOGCCFLAGS":
+		case "CGO_CPPFLAGS":
+			if ret[i].Value != "" {
+				ret[i].Changed = true
+			}
+		case "PKG_CONFIG":
+			if ret[i].Value != cfg.DefaultPkgConfig {
+				ret[i].Changed = true
+			}
+		default:
+			if ret[i].Value != work.DefaultCFlags {
+				ret[i].Changed = true
+			}
+		}
+	}
+
+	return ret
 }
 
 // argKey returns the KEY part of the arg KEY=VAL, or else arg itself.
@@ -296,6 +351,24 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
+	if *envChanged {
+		if len(args) > 0 {
+			var es []cfg.EnvVar
+			for _, name := range args {
+				es = append(es, findCfgEnv(env, name))
+			}
+			env = es
+		}
+
+		if *envJson {
+			printEnvAsJSON(env, true)
+			return
+		}
+
+		PrintEnv(os.Stdout, env, true)
+		return
+	}
+
 	if len(args) > 0 {
 		if *envJson {
 			var es []cfg.EnvVar
@@ -303,7 +376,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
 				es = append(es, e)
 			}
-			printEnvAsJSON(es)
+			printEnvAsJSON(es, false)
 		} else {
 			for _, name := range args {
 				fmt.Printf("%s\n", findEnv(env, name))
@@ -313,11 +386,11 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if *envJson {
-		printEnvAsJSON(env)
+		printEnvAsJSON(env, false)
 		return
 	}
 
-	PrintEnv(os.Stdout, env)
+	PrintEnv(os.Stdout, env, false)
 }
 
 func runEnvW(args []string) {
@@ -423,11 +496,14 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
 }
 
 // PrintEnv prints the environment variables to w.
-func PrintEnv(w io.Writer, env []cfg.EnvVar) {
+func PrintEnv(w io.Writer, env []cfg.EnvVar, onlyChanged bool) {
 	for _, e := range env {
 		if e.Name != "TERM" {
 			if runtime.GOOS != "plan9" && bytes.Contains([]byte(e.Value), []byte{0}) {
 				base.Fatalf("go: internal error: encountered null byte in environment variable %s on non-plan9 platform", e.Name)
+			}
+			if onlyChanged && !e.Changed {
+				continue
 			}
 			switch runtime.GOOS {
 			default:
@@ -503,10 +579,13 @@ func batchEscape(s string) string {
 	return b.String()
 }
 
-func printEnvAsJSON(env []cfg.EnvVar) {
+func printEnvAsJSON(env []cfg.EnvVar, onlyChanged bool) {
 	m := make(map[string]string)
 	for _, e := range env {
 		if e.Name == "TERM" {
+			continue
+		}
+		if onlyChanged && !e.Changed {
 			continue
 		}
 		m[e.Name] = e.Value
@@ -591,7 +670,7 @@ func checkEnvWrite(key, val string) error {
 }
 
 func readEnvFileLines(mustExist bool) []string {
-	file, err := cfg.EnvFile()
+	file, _, err := cfg.EnvFile()
 	if file == "" {
 		if mustExist {
 			base.Fatalf("go: cannot find go env config: %v", err)
@@ -655,7 +734,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		}
 	}
 
-	file, err := cfg.EnvFile()
+	file, _, err := cfg.EnvFile()
 	if file == "" {
 		base.Fatalf("go: cannot find go env config: %v", err)
 	}

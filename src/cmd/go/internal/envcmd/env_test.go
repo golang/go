@@ -56,7 +56,7 @@ func FuzzPrintEnvEscape(f *testing.F) {
 		if runtime.GOOS == "windows" {
 			b.WriteString("@echo off\n")
 		}
-		PrintEnv(&b, []cfg.EnvVar{{Name: "var", Value: s}})
+		PrintEnv(&b, []cfg.EnvVar{{Name: "var", Value: s}}, false)
 		var want string
 		if runtime.GOOS == "windows" {
 			fmt.Fprintf(&b, "echo \"%%var%%\"\n")

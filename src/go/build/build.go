@@ -13,6 +13,7 @@ import (
 	"go/doc"
 	"go/token"
 	"internal/buildcfg"
+	"internal/cfg"
 	"internal/godebug"
 	"internal/goroot"
 	"internal/goversion"
@@ -286,25 +287,6 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
-func defaultGOPATH() string {
-	env := "HOME"
-	if runtime.GOOS == "windows" {
-		env = "USERPROFILE"
-	} else if runtime.GOOS == "plan9" {
-		env = "home"
-	}
-	if home := os.Getenv(env); home != "" {
-		def := filepath.Join(home, "go")
-		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
-			// Don't set the default GOPATH to GOROOT,
-			// as that will trigger warnings from the go tool.
-			return ""
-		}
-		return def
-	}
-	return ""
-}
-
 var defaultToolTags, defaultReleaseTags []string
 
 func defaultContext() Context {
@@ -315,7 +297,7 @@ func defaultContext() Context {
 	if goroot := runtime.GOROOT(); goroot != "" {
 		c.GOROOT = filepath.Clean(goroot)
 	}
-	c.GOPATH = envOr("GOPATH", defaultGOPATH())
+	c.GOPATH = envOr("GOPATH", cfg.DefaultGOPATH())
 	c.Compiler = runtime.Compiler
 	c.ToolTags = append(c.ToolTags, buildcfg.ToolTags...)
 
