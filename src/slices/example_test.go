@@ -318,3 +318,69 @@ func ExampleSortStableFunc() {
 	// Output:
 	// [{Alice 20} {Alice 55} {Bob 24} {Gopher 13}]
 }
+
+func ExampleClone() {
+	numbers := []int{0, 42, -10, 8}
+	clone := slices.Clone(numbers)
+	fmt.Println(clone)
+	clone[2] = 10
+	fmt.Println(numbers)
+	// Output:
+	// [0 42 -10 8]
+	// [0 42 -10 8]
+}
+
+func ExampleGrow() {
+	numbers := []int{0, 42, -10, 8}
+	grow := slices.Grow(numbers, 2)
+	fmt.Println(cap(numbers))
+	fmt.Println(grow)
+	fmt.Println(len(grow))
+	fmt.Println(cap(grow))
+	// Output:
+	// 4
+	// [0 42 -10 8]
+	// 4
+	// 8
+}
+
+func ExampleClip() {
+	a := [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	s := a[:4:10]
+	clip := slices.Clip(s)
+	fmt.Println(cap(s))
+	fmt.Println(clip)
+	fmt.Println(len(clip))
+	fmt.Println(cap(clip))
+	// Output:
+	// 10
+	// [0 1 2 3]
+	// 4
+	// 4
+}
+
+func ExampleConcat() {
+	s1 := []int{0, 1, 2, 3}
+	s2 := []int{4, 5, 6}
+	concat := slices.Concat(s1, s2)
+	fmt.Println(concat)
+	// Output:
+	// [0 1 2 3 4 5 6]
+}
+
+func ExampleContains() {
+	numbers := []int{0, 1, 2, 3}
+	fmt.Println(slices.Contains(numbers, 2))
+	fmt.Println(slices.Contains(numbers, 4))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleRepeat() {
+	numbers := []int{0, 1, 2, 3}
+	repeat := slices.Repeat(numbers, 2)
+	fmt.Println(repeat)
+	// Output:
+	// [0 1 2 3 0 1 2 3]
+}
