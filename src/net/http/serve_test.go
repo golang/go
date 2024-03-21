@@ -814,7 +814,6 @@ func testServerNoReadTimeout(t *testing.T, mode testMode) {
 			res.Write([]byte(resBody))
 		}), func(ts *httptest.Server) {
 			ts.Config.ReadTimeout = timeout
-			ts.Config.IdleTimeout = 10 * time.Millisecond
 			t.Logf("Server.Config.ReadTimeout = %d", timeout)
 		})
 
