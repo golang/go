@@ -46,6 +46,29 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 		mp = getg().m
 		gp = mp.curg
 	}
+
+	// Double-check that we own the stack we're about to trace.
+	if debug.traceCheckStackOwnership != 0 && gp != nil {
+		status := readgstatus(gp)
+		// If the scan bit is set, assume we're the ones that acquired it.
+		if status&_Gscan == 0 {
+			// Use the trace status to check this. There are a number of cases
+			// where a running goroutine might be in _Gwaiting, and these cases
+			// are totally fine for taking a stack trace. They're captured
+			// correctly in goStatusToTraceGoStatus.
+			switch goStatusToTraceGoStatus(status, gp.waitreason) {
+			case traceGoRunning, traceGoSyscall:
+				if getg() == gp || mp.curg == gp {
+					break
+				}
+				fallthrough
+			default:
+				print("runtime: gp=", unsafe.Pointer(gp), " gp.goid=", gp.goid, " status=", gStatusStrings[status], "\n")
+				throw("attempted to trace stack of a goroutine this thread does not own")
+			}
+		}
+	}
+
 	if gp != nil && mp == nil {
 		// We're getting the backtrace for a G that's not currently executing.
 		// It may still have an M, if it's locked to some M.

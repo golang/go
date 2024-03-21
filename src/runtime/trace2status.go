@@ -146,13 +146,7 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
 		// emit an event, and we want these goroutines to appear in
 		// the final trace as if they're running, not blocked.
 		tgs = traceGoWaiting
-		if status == _Gwaiting &&
-			wr == waitReasonStoppingTheWorld ||
-			wr == waitReasonGCMarkTermination ||
-			wr == waitReasonGarbageCollection ||
-			wr == waitReasonTraceProcStatus ||
-			wr == waitReasonPageTraceFlush ||
-			wr == waitReasonGCWorkerActive {
+		if status == _Gwaiting && wr.isWaitingForGC() {
 			tgs = traceGoRunning
 		}
 	case _Gdead:

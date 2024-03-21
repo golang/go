@@ -307,28 +307,29 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	cgocheck                int32
-	clobberfree             int32
-	disablethp              int32
-	dontfreezetheworld      int32
-	efence                  int32
-	gccheckmark             int32
-	gcpacertrace            int32
-	gcshrinkstackoff        int32
-	gcstoptheworld          int32
-	gctrace                 int32
-	invalidptr              int32
-	madvdontneed            int32 // for Linux; issue 28466
-	runtimeContentionStacks atomic.Int32
-	scavtrace               int32
-	scheddetail             int32
-	schedtrace              int32
-	tracebackancestors      int32
-	asyncpreemptoff         int32
-	harddecommit            int32
-	adaptivestackstart      int32
-	tracefpunwindoff        int32
-	traceadvanceperiod      int32
+	cgocheck                 int32
+	clobberfree              int32
+	disablethp               int32
+	dontfreezetheworld       int32
+	efence                   int32
+	gccheckmark              int32
+	gcpacertrace             int32
+	gcshrinkstackoff         int32
+	gcstoptheworld           int32
+	gctrace                  int32
+	invalidptr               int32
+	madvdontneed             int32 // for Linux; issue 28466
+	runtimeContentionStacks  atomic.Int32
+	scavtrace                int32
+	scheddetail              int32
+	schedtrace               int32
+	tracebackancestors       int32
+	asyncpreemptoff          int32
+	harddecommit             int32
+	adaptivestackstart       int32
+	tracefpunwindoff         int32
+	traceadvanceperiod       int32
+	traceCheckStackOwnership int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -377,6 +378,7 @@ var dbgvars = []*dbgVar{
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 }

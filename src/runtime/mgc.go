@@ -942,7 +942,7 @@ func gcMarkTermination(stw worldStop) {
 	// N.B. The execution tracer is not aware of this status
 	// transition and handles it specially based on the
 	// wait reason.
-	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
+	casGToWaitingForGC(curgp, _Grunning, waitReasonGarbageCollection)
 
 	// Run gc on the g0 stack. We do this so that the g stack
 	// we're currently running on will no longer change. Cuts
@@ -1402,7 +1402,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			// N.B. The execution tracer is not aware of this status
 			// transition and handles it specially based on the
 			// wait reason.
-			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
+			casGToWaitingForGC(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")

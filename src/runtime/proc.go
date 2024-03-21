@@ -1208,6 +1208,17 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
 	casgstatus(gp, old, _Gwaiting)
 }
 
+// casGToWaitingForGC transitions gp from old to _Gwaiting, and sets the wait reason.
+// The wait reason must be a valid isWaitingForGC wait reason.
+//
+// Use this over casgstatus when possible to ensure that a waitreason is set.
+func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
+	if !reason.isWaitingForGC() {
+		throw("casGToWaitingForGC with non-isWaitingForGC wait reason")
+	}
+	casGToWaiting(gp, old, reason)
+}
+
 // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
 // Returns old status. Cannot call casgstatus directly, because we are racing with an
 // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
@@ -1356,7 +1367,7 @@ func stopTheWorld(reason stwReason) worldStop {
 		// N.B. The execution tracer is not aware of this status
 		// transition and handles it specially based on the
 		// wait reason.
-		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
+		casGToWaitingForGC(gp, _Grunning, waitReasonStoppingTheWorld)
 		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
@@ -1903,7 +1914,7 @@ func forEachP(reason waitReason, fn func(*p)) {
 		// N.B. The execution tracer is not aware of this status
 		// transition and handles it specially based on the
 		// wait reason.
-		casGToWaiting(gp, _Grunning, reason)
+		casGToWaitingForGC(gp, _Grunning, reason)
 		forEachPInternal(fn)
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
@@ -3961,11 +3972,16 @@ func park_m(gp *g) {
 
 	trace := traceAcquire()
 
+	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
+		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
+	}
 	// N.B. Not using casGToWaiting here because the waitreason is
 	// set by park_m's caller.
 	casgstatus(gp, _Grunning, _Gwaiting)
 	if trace.ok() {
-		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
 		traceRelease(trace)
 	}
 
@@ -3995,13 +4011,18 @@ func goschedImpl(gp *g, preempted bool) {
 		dumpgstatus(gp)
 		throw("bad g status")
 	}
-	casgstatus(gp, _Grunning, _Grunnable)
 	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
 		if preempted {
 			trace.GoPreempt()
 		} else {
 			trace.GoSched()
 		}
+	}
+	casgstatus(gp, _Grunning, _Grunnable)
+	if trace.ok() {
 		traceRelease(trace)
 	}
 
@@ -4104,9 +4125,14 @@ func goyield() {
 func goyield_m(gp *g) {
 	trace := traceAcquire()
 	pp := gp.m.p.ptr()
+	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
+		trace.GoPreempt()
+	}
 	casgstatus(gp, _Grunning, _Grunnable)
 	if trace.ok() {
-		trace.GoPreempt()
 		traceRelease(trace)
 	}
 	dropg()
@@ -5613,7 +5639,7 @@ func procresize(nprocs int32) *p {
 			if trace.ok() {
 				// Pretend that we were descheduled
 				// and then scheduled again to keep
-				// the trace sane.
+				// the trace consistent.
 				trace.GoSched()
 				trace.ProcStop(gp.m.p.ptr())
 				traceRelease(trace)

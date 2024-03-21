@@ -167,9 +167,14 @@ func debugCallWrap(dispatch uintptr) {
 
 		// Park the calling goroutine.
 		trace := traceAcquire()
+		if trace.ok() {
+			// Trace the event before the transition. It may take a
+			// stack trace, but we won't own the stack after the
+			// transition anymore.
+			trace.GoPark(traceBlockDebugCall, 1)
+		}
 		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
 		if trace.ok() {
-			trace.GoPark(traceBlockDebugCall, 1)
 			traceRelease(trace)
 		}
 		dropg()
@@ -228,9 +233,14 @@ func debugCallWrap1() {
 		// the scheduler will schedule us again and we'll
 		// finish exiting.
 		trace := traceAcquire()
+		if trace.ok() {
+			// Trace the event before the transition. It may take a
+			// stack trace, but we won't own the stack after the
+			// transition anymore.
+			trace.GoSched()
+		}
 		casgstatus(gp, _Grunning, _Grunnable)
 		if trace.ok() {
-			trace.GoSched()
 			traceRelease(trace)
 		}
 		dropg()

@@ -552,10 +552,14 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		}
 		cmd.Args = append(cmd.Args, testPath)
 		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2", "GOEXPERIMENT=rangefunc")
+		// Add a stack ownership check. This is cheap enough for testing.
+		godebug := "tracecheckstackownership=1"
 		if stress {
-			// Advance a generation constantly.
-			cmd.Env = append(cmd.Env, "GODEBUG=traceadvanceperiod=0")
+			// Advance a generation constantly to stress the tracer.
+			godebug += ",traceadvanceperiod=0"
 		}
+		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
+
 		// Capture stdout and stderr.
 		//
 		// The protocol for these programs is that stdout contains the trace data
