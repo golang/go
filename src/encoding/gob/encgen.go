@@ -170,6 +170,9 @@ func main() {
 	if _, err := fd.Write(source); err != nil {
 		log.Fatal(err)
 	}
+	if err := fd.Close(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func printMaps(b *bytes.Buffer, upperClass string) {
