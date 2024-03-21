@@ -3916,6 +3916,7 @@ type http2Server struct {
 	// IdleTimeout specifies how long until idle clients should be
 	// closed with a GOAWAY frame. PING frames are not considered
 	// activity for the purposes of IdleTimeout.
+	// If zero or negative, there is no timeout.
 	IdleTimeout time.Duration
 
 	// MaxUploadBufferPerConnection is the size of the initial flow
@@ -4719,7 +4720,7 @@ func (sc *http2serverConn) serve() {
 	sc.setConnState(StateActive)
 	sc.setConnState(StateIdle)
 
-	if sc.srv.IdleTimeout != 0 {
+	if sc.srv.IdleTimeout > 0 {
 		sc.idleTimer = time.AfterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
 		defer sc.idleTimer.Stop()
 	}
@@ -5434,7 +5435,7 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
 	delete(sc.streams, st.id)
 	if len(sc.streams) == 0 {
 		sc.setConnState(StateIdle)
-		if sc.srv.IdleTimeout != 0 {
+		if sc.srv.IdleTimeout > 0 {
 			sc.idleTimer.Reset(sc.srv.IdleTimeout)
 		}
 		if http2h1ServerKeepAlivesDisabled(sc.hs) {
