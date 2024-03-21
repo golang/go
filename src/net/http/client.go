@@ -20,7 +20,7 @@ import (
 	"net/http/internal/ascii"
 	"net/url"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -787,7 +787,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 						ss = append(ss, c.Name+"="+c.Value)
 					}
 				}
-				sort.Strings(ss) // Ensure deterministic headers
+				slices.Sort(ss) // Ensure deterministic headers
 				ireqhdr.Set("Cookie", strings.Join(ss, "; "))
 			}
 		}

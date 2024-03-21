@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -50,7 +50,7 @@ func interestingGoroutines() (gs []string) {
 		}
 		gs = append(gs, stack)
 	}
-	sort.Strings(gs)
+	slices.Sort(gs)
 	return
 }
 
