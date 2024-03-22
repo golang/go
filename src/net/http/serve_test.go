@@ -922,6 +922,10 @@ func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 		if n != 1<<20 || err != nil {
 			t.Errorf("client read response body: %d, %v", n, err)
 		}
+		// This shutdown really should be automatic, but it isn't right now.
+		// Shutdown (rather than Close) ensures the handler is done before we return.
+		res.Body.Close()
+		cst.ts.Config.Shutdown(context.Background())
 	}
 }
 
