@@ -1040,7 +1040,7 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 }
 
 // writeHandshakeRecord writes a handshake message to the connection and updates
-// the record layer state. If transcript is non-nil the marshalled message is
+// the record layer state. If transcript is non-nil the marshaled message is
 // written to it.
 func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptHash) (int, error) {
 	c.out.Lock()

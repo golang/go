@@ -47,7 +47,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
 	}
 }
 
-// benchFnPass runs passFunc across a function with b.N blocks.
+// benchFnBlock runs passFunc across a function with b.N blocks.
 func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
 	b.ReportAllocs()
 	c := testConfig(b)

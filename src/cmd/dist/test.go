@@ -1592,7 +1592,7 @@ func raceDetectorSupported(goos, goarch string) bool {
 	}
 }
 
-// buildModeSupports is a copy of the function
+// buildModeSupported is a copy of the function
 // internal/platform.BuildModeSupported, which can't be used here
 // because cmd/dist can not import internal packages during bootstrap.
 func buildModeSupported(compiler, buildmode, goos, goarch string) bool {

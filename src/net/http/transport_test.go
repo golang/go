@@ -754,7 +754,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 	tr := c.Transport.(*Transport)
 	tr.MaxConnsPerHost = 1
 
-	// This request is cancelled when dial is queued, which preempts dialing.
+	// This request is canceled when dial is queued, which preempts dialing.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	SetPendingDialHooks(cancel, nil)

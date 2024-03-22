@@ -1306,7 +1306,7 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// panicHanding controls the panic handling used by runCleanup.
+// panicHandling controls the panic handling used by runCleanup.
 type panicHandling int
 
 const (

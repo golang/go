@@ -1064,7 +1064,7 @@ func TestAfterFuncNotCalledAfterStop(t *testing.T) {
 	}
 }
 
-// This test verifies that cancelling a context does not block waiting for AfterFuncs to finish.
+// This test verifies that canceling a context does not block waiting for AfterFuncs to finish.
 func TestAfterFuncCalledAsynchronously(t *testing.T) {
 	ctx, cancel := WithCancel(Background())
 	donec := make(chan struct{})

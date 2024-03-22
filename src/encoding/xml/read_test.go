@@ -1093,7 +1093,7 @@ func TestUnmarshalIntoNil(t *testing.T) {
 	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
 
 	if err == nil {
-		t.Fatalf("no error in unmarshalling")
+		t.Fatalf("no error in unmarshaling")
 	}
 
 }

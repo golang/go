@@ -1366,7 +1366,7 @@ func TestWaitInterrupt(t *testing.T) {
 	})
 
 	// With a very long WaitDelay and no Cancel function, we should wait for the
-	// process to exit even if the command's Context is cancelled.
+	// process to exit even if the command's Context is canceled.
 	t.Run("WaitDelay", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
@@ -1404,7 +1404,7 @@ func TestWaitInterrupt(t *testing.T) {
 		}
 	})
 
-	// If the context is cancelled and the Cancel function sends os.Kill,
+	// If the context is canceled and the Cancel function sends os.Kill,
 	// the process should be terminated immediately, and its output
 	// pipes should be closed (causing Wait to return) after WaitDelay
 	// even if a child process is still writing to them.
