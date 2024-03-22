@@ -398,10 +398,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	// Noescape so this doesn't make i to escape. See the comment
-	// at Value.typ for why this is safe.
-	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
+	return toType(abi.TypeOf(i))
 }
 
 func (t rtype) Implements(u Type) bool {

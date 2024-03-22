@@ -99,7 +99,7 @@ func (v Value) typ() *abi.Type {
 	// types, held in the central map). So there is no need to
 	// escape types. noescape here help avoid unnecessary escape
 	// of v.
-	return (*abi.Type)(noescape(unsafe.Pointer(v.typ_)))
+	return (*abi.Type)(abi.NoEscape(unsafe.Pointer(v.typ_)))
 }
 
 // pointer returns the underlying pointer represented by v.
@@ -119,7 +119,7 @@ func (v Value) pointer() unsafe.Pointer {
 func packEface(v Value) any {
 	t := v.typ()
 	var i any
-	e := (*emptyInterface)(unsafe.Pointer(&i))
+	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
 	case t.IfaceIndir():
@@ -133,28 +133,28 @@ func packEface(v Value) any {
 			typedmemmove(t, c, ptr)
 			ptr = c
 		}
-		e.word = ptr
+		e.Data = ptr
 	case v.flag&flagIndir != 0:
 		// Value is indirect, but interface is direct. We need
 		// to load the data at v.ptr into the interface data word.
-		e.word = *(*unsafe.Pointer)(v.ptr)
+		e.Data = *(*unsafe.Pointer)(v.ptr)
 	default:
 		// Value is direct, and so is the interface.
-		e.word = v.ptr
+		e.Data = v.ptr
 	}
 	// Now, fill in the type portion. We're very careful here not
 	// to have any operation between the e.word and e.typ assignments
 	// that would let the garbage collector observe the partially-built
 	// interface value.
-	e.typ = t
+	e.Type = t
 	return i
 }
 
 // unpackEface converts the empty interface i to a Value.
 func unpackEface(i any) Value {
-	e := (*emptyInterface)(unsafe.Pointer(&i))
+	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
-	t := e.typ
+	t := e.Type
 	if t == nil {
 		return Value{}
 	}
@@ -162,7 +162,7 @@ func unpackEface(i any) Value {
 	if t.IfaceIndir() {
 		f |= flagIndir
 	}
-	return Value{t, e.word, f}
+	return Value{t, e.Data, f}
 }
 
 // A ValueError occurs when a Value method is invoked on
@@ -198,12 +198,6 @@ func valueMethodName() string {
 		}
 	}
 	return "unknown method"
-}
-
-// emptyInterface is the header for an interface{} value.
-type emptyInterface struct {
-	typ  *abi.Type
-	word unsafe.Pointer
 }
 
 // nonEmptyInterface is the header for an interface value with methods.
@@ -1597,7 +1591,7 @@ func (v Value) IsZero() bool {
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
-			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
 			// For some types where the zero value is a value where all bits of this type are 0
@@ -1623,7 +1617,7 @@ func (v Value) IsZero() bool {
 		// If the type is comparable, then compare directly with zero.
 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// See noescape justification above.
-			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
 			// For some types where the zero value is a value where all bits of this type are 0
@@ -1736,7 +1730,7 @@ func (v Value) SetZero() {
 	case Slice:
 		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
 	case Interface:
-		*(*emptyInterface)(v.ptr) = emptyInterface{}
+		*(*abi.EmptyInterface)(v.ptr) = abi.EmptyInterface{}
 	case Chan, Func, Map, Pointer, UnsafePointer:
 		*(*unsafe.Pointer)(v.ptr) = nil
 	case Array, Struct:
@@ -4015,8 +4009,12 @@ func contentEscapes(x unsafe.Pointer) {
 	}
 }
 
+// This is just a wrapper around abi.NoEscape. The inlining heuristics are
+// finnicky and for whatever reason treat the local call to noescape as much
+// lower cost with respect to the inliner budget. (That is, replacing calls to
+// noescape with abi.NoEscape will cause inlining tests to fail.)
+//
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+	return abi.NoEscape(p)
 }
