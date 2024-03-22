@@ -3698,8 +3698,15 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		// string comparisons during walk, not ssagen.
 
 		if typ.IsFloat() {
+			hasIntrinsic := false
 			switch Arch.LinkArch.Family {
 			case sys.AMD64, sys.ARM64, sys.RISCV64:
+				hasIntrinsic = true
+			case sys.PPC64:
+				hasIntrinsic = buildcfg.GOPPC64 >= 9
+			}
+
+			if hasIntrinsic {
 				var op ssa.Op
 				switch {
 				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:

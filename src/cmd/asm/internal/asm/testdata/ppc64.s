@@ -1133,7 +1133,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100
-	VCLZLSBB V1, R2			// 10400e02
-	VCTZLSBB V1, R2			// 10410e02
+	VCLZLSBB V1,R2                  // 10400e02
+	VCTZLSBB V1,R2                  // 10410e02
+
+	XSMAXJDP VS1,VS2,VS3            // f0611480
+	XSMINJDP VS1,VS2,VS3            // f06114c0
 
 	RET

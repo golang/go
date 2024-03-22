@@ -340,6 +340,14 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValuePPC64_OpLsh8x8(v)
+	case OpMax32F:
+		return rewriteValuePPC64_OpMax32F(v)
+	case OpMax64F:
+		return rewriteValuePPC64_OpMax64F(v)
+	case OpMin32F:
+		return rewriteValuePPC64_OpMin32F(v)
+	case OpMin64F:
+		return rewriteValuePPC64_OpMin64F(v)
 	case OpMod16:
 		return rewriteValuePPC64_OpMod16(v)
 	case OpMod16u:
@@ -3295,6 +3303,78 @@ func rewriteValuePPC64_OpLsh8x8(v *Value) bool {
 		v.AddArg3(v0, v2, v3)
 		return true
 	}
+}
+func rewriteValuePPC64_OpMax32F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Max32F x y)
+	// cond: buildcfg.GOPPC64 >= 9
+	// result: (XSMAXJDP x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64XSMAXJDP)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpMax64F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Max64F x y)
+	// cond: buildcfg.GOPPC64 >= 9
+	// result: (XSMAXJDP x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64XSMAXJDP)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpMin32F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Min32F x y)
+	// cond: buildcfg.GOPPC64 >= 9
+	// result: (XSMINJDP x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64XSMINJDP)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpMin64F(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Min64F x y)
+	// cond: buildcfg.GOPPC64 >= 9
+	// result: (XSMINJDP x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64XSMINJDP)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
 }
 func rewriteValuePPC64_OpMod16(v *Value) bool {
 	v_1 := v.Args[1]

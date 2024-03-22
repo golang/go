@@ -165,6 +165,8 @@ func Float64Min(a, b float64) float64 {
 	// amd64:"MINSD"
 	// arm64:"FMIND"
 	// riscv64:"FMIN"
+	// ppc64/power9:"XSMINJDP"
+	// ppc64/power10:"XSMINJDP"
 	return min(a, b)
 }
 
@@ -172,6 +174,8 @@ func Float64Max(a, b float64) float64 {
 	// amd64:"MINSD"
 	// arm64:"FMAXD"
 	// riscv64:"FMAX"
+	// ppc64/power9:"XSMAXJDP"
+	// ppc64/power10:"XSMAXJDP"
 	return max(a, b)
 }
 
@@ -179,6 +183,8 @@ func Float32Min(a, b float32) float32 {
 	// amd64:"MINSS"
 	// arm64:"FMINS"
 	// riscv64:"FMINS"
+	// ppc64/power9:"XSMINJDP"
+	// ppc64/power10:"XSMINJDP"
 	return min(a, b)
 }
 
@@ -186,5 +192,7 @@ func Float32Max(a, b float32) float32 {
 	// amd64:"MINSS"
 	// arm64:"FMAXS"
 	// riscv64:"FMAXS"
+	// ppc64/power9:"XSMAXJDP"
+	// ppc64/power10:"XSMAXJDP"
 	return max(a, b)
 }
