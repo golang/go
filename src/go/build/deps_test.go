@@ -147,6 +147,9 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
+	RUNTIME, math/rand/v2
+	< internal/concurrent;
+
 	MATH, unicode/utf8
 	< strconv;
 
