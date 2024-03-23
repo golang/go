@@ -711,24 +711,6 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// Runtime CPU tests.
-	if !t.compileOnly && t.hasParallelism() {
-		for i := 1; i <= 4; i *= 2 {
-			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
-				&goTest{
-					variant:   "cpu" + strconv.Itoa(i),
-					timeout:   300 * time.Second,
-					cpu:       strconv.Itoa(i),
-					short:     true,
-					testFlags: []string{"-quick"},
-					// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
-					// creation of first goroutines and first garbage collections in the parallel setting.
-					env: []string{"GOMAXPROCS=2"},
-					pkg: "runtime",
-				})
-		}
-	}
-
 	// GOEXPERIMENT=rangefunc tests
 	if !t.compileOnly {
 		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
@@ -864,10 +846,6 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	if t.raceDetectorSupported() {
-		t.registerRaceTests()
-	}
-
 	const cgoHeading = "Testing cgo"
 	if t.cgoEnabled {
 		t.registerCgoTests(cgoHeading)
@@ -881,6 +859,40 @@ func (t *tester) registerTests() {
 				timeout:   1 * time.Minute,
 				runOnHost: true,
 			})
+	}
+
+	// Only run the API check on fast development platforms.
+	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
+	// so we really only need to run this check once anywhere to get adequate coverage.
+	// To help developers avoid trybot-only failures, we try to run on typical developer machines
+	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	//
+	// The same logic applies to the release notes that correspond to each api/next file.
+	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
+		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
+		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+	}
+
+	// Runtime CPU tests.
+	if !t.compileOnly && t.hasParallelism() {
+		for i := 1; i <= 4; i *= 2 {
+			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
+				&goTest{
+					variant:   "cpu" + strconv.Itoa(i),
+					timeout:   300 * time.Second,
+					cpu:       strconv.Itoa(i),
+					short:     true,
+					testFlags: []string{"-quick"},
+					// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+					// creation of first goroutines and first garbage collections in the parallel setting.
+					env: []string{"GOMAXPROCS=2"},
+					pkg: "runtime",
+				})
+		}
+	}
+
+	if t.raceDetectorSupported() {
+		t.registerRaceTests()
 	}
 
 	if goos != "android" && !t.iOS() {
@@ -906,17 +918,6 @@ func (t *tester) registerTests() {
 				},
 			)
 		}
-	}
-	// Only run the API check on fast development platforms.
-	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
-	// so we really only need to run this check once anywhere to get adequate coverage.
-	// To help developers avoid trybot-only failures, we try to run on typical developer machines
-	// which is darwin,linux,windows/amd64 and darwin/arm64.
-	//
-	// The same logic applies to the release notes that correspond to each api/next file.
-	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
-		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
-		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 	}
 }
 
@@ -1311,6 +1312,23 @@ func (t *tester) runPending(nextTest *distTest) {
 			timelog("end", w.dt.name)
 			w.end <- struct{}{}
 		}(w)
+	}
+
+	maxbg := maxbg
+	// for runtime.NumCPU() < 4 ||  runtime.GOMAXPROCS(0) == 1, do not change maxbg.
+	// Because there is not enough CPU to parallel the testing of multiple packages.
+	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
+		for _, w := range worklist {
+			// See go.dev/issue/65164
+			// because GOMAXPROCS=2 runtime CPU usage is low,
+			// so increase maxbg to avoid slowing down execution with low CPU usage.
+			// This makes testing a single package slower,
+			// but testing multiple packages together faster.
+			if strings.Contains(w.dt.heading, "GOMAXPROCS=2 runtime") {
+				maxbg = runtime.NumCPU()
+				break
+			}
+		}
 	}
 
 	started := 0
