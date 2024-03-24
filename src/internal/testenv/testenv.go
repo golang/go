@@ -516,7 +516,7 @@ func SyscallIsNotSupported(err error) bool {
 // Parallel call t.Parallel()
 // unless there is a case that cannot be parallel.
 //
-// know that there are no parallel cases:
+// know that there are cannot parallel cases:
 //
 //   - in 32-bit machine may raise OOM (see go.dev/issue/65823)
 func Parallel(t *testing.T) {
