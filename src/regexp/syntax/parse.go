@@ -249,9 +249,7 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
 		size = int64(re.Max)*sub + int64(re.Max-re.Min)
 	}
 
-	if size < 1 {
-		size = 1
-	}
+	size = max(1, size)
 	p.size[re] = size
 	return size
 }
