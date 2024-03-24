@@ -57,13 +57,14 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 				return false
 			}
 
-			if relToWorkingDir == "." || hasAnyPrefix(relToWorkingDir, ".."+string(filepath.Separator)) {
+			sep := filepath.Separator
+			if relToWorkingDir == "." || hasAnyPrefix(relToWorkingDir, ".."+string(sep)) {
 				// Not a special directory so can return immediately
 				return matchPath(rel)
 			}
 
 			// Otherwise avoid special directories "testdata" or beginning with ".", "_".
-			pathComponents := strings.Split(relToWorkingDir, string(filepath.Separator))
+			pathComponents := strings.Split(relToWorkingDir, string(sep))
 			for _, elem := range pathComponents {
 				if hasAnyPrefix(elem, ".", "_") || elem == "testdata" {
 					return false
