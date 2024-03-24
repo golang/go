@@ -424,7 +424,7 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
 	// to recreate the problem in the issue (#59041).
 	ttyFD, err := syscall.Open(ttyName, syscall.O_RDWR, 0)
 	if err != nil {
-		t.Skipf("skipping test becaused failed to open tty: %v", err)
+		t.Skipf("skipping test because failed to open tty: %v", err)
 	}
 	defer syscall.Close(ttyFD)
 
