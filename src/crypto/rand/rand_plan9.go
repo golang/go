@@ -44,6 +44,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 			r.seedErr = err
 			return
 		}
+		defer entropy.Close()
 		_, r.seedErr = io.ReadFull(entropy, r.key[:])
 	})
 	if r.seedErr != nil {
