@@ -1926,7 +1926,7 @@ func (c *conn) serve(ctx context.Context) {
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
 				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
 				re.Conn.Close()
-				reason = "client sent an HTTP requset to an HTTPS server"
+				reason = "client sent an HTTP request to an HTTPS server"
 			} else {
 				reason = err.Error()
 			}
