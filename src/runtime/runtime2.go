@@ -763,6 +763,9 @@ type p struct {
 	// scheduler ASAP (regardless of what G is running on it).
 	preempt bool
 
+	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
+	gcStopTime int64
+
 	// pageTraceBuf is a buffer for writing out page allocation/free/scavenge traces.
 	//
 	// Used only if GOEXPERIMENT=pagetrace.

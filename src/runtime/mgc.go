@@ -682,6 +682,10 @@ func gcStart(trigger gcTrigger) {
 	systemstack(func() {
 		stw = stopTheWorldWithSema(stwGCSweepTerm)
 	})
+
+	// Accumulate fine-grained stopping time.
+	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
+
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
 		finishsweep_m()
@@ -872,6 +876,9 @@ top:
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
 
+	// Accumulate fine-grained stopping time.
+	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
+
 	// There is sometimes work left over when we enter mark termination due
 	// to write barriers performed after the completion barrier above.
 	// Detect this and resume concurrent mark. This is obviously
@@ -894,6 +901,10 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
+			// Accumulate the time we were stopped before we had to start again.
+			work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
+
+			// Start the world again.
 			now := startTheWorldWithSema(0, stw)
 			work.pauseNS += now - stw.startedStopping
 		})
