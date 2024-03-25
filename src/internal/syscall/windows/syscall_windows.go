@@ -473,3 +473,18 @@ const (
 //sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
 //sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
 //sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW
+
+func FinalPath(h syscall.Handle, flags uint32) (string, error) {
+	buf := make([]uint16, 100)
+	for {
+		n, err := GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), flags)
+		if err != nil {
+			return "", err
+		}
+		if n < uint32(len(buf)) {
+			break
+		}
+		buf = make([]uint16, n)
+	}
+	return syscall.UTF16ToString(buf), nil
+}

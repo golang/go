@@ -21,6 +21,7 @@ type dirInfo struct {
 	// buf to dirBufPool.
 	buf   *[]byte // buffer for directory I/O
 	bufp  int     // location of next record in buf
+	h     syscall.Handle
 	vol   uint32
 	class uint32 // type of entries in buf
 	path  string // absolute directory path, empty if the file system supports FILE_ID_BOTH_DIR_INFO
@@ -45,6 +46,7 @@ var dirBufPool = sync.Pool{
 }
 
 func (d *dirInfo) close() {
+	d.h = 0
 	if d.buf != nil {
 		dirBufPool.Put(d.buf)
 		d.buf = nil
@@ -56,41 +58,44 @@ func (d *dirInfo) close() {
 // Useful for testing purposes.
 var allowReadDirFileID = true
 
+func (d *dirInfo) init(h syscall.Handle) {
+	d.h = h
+	d.class = windows.FileFullDirectoryRestartInfo
+	// The previous settings are enough to read the directory entries.
+	// The following code is only needed to support os.SameFile.
+
+	// It is safe to query d.vol once and reuse the value.
+	// Hard links are not allowed to reference files in other volumes.
+	// Junctions and symbolic links can reference files and directories in other volumes,
+	// but the reparse point should still live in the parent volume.
+	var flags uint32
+	err := windows.GetVolumeInformationByHandle(h, nil, 0, &d.vol, nil, &flags, nil, 0)
+	if err != nil {
+		d.vol = 0 // Set to zero in case Windows writes garbage to it.
+		// If we can't get the volume information, we can't use os.SameFile,
+		// but we can still read the directory entries.
+		return
+	}
+	if flags&windows.FILE_SUPPORTS_OBJECT_IDS == 0 {
+		// The file system does not support object IDs, no need to continue.
+		return
+	}
+	if allowReadDirFileID && flags&windows.FILE_SUPPORTS_OPEN_BY_FILE_ID != 0 {
+		// Use FileIdBothDirectoryRestartInfo if available as it returns the file ID
+		// without the need to open the file.
+		d.class = windows.FileIdBothDirectoryRestartInfo
+	} else {
+		// If FileIdBothDirectoryRestartInfo is not available but objects IDs are supported,
+		// get the directory path so that os.SameFile can use it to open the file
+		// and retrieve the file ID.
+		d.path, _ = windows.FinalPath(h, windows.FILE_NAME_OPENED)
+	}
+}
+
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
-		// vol is used by os.SameFile.
-		// It is safe to query it once and reuse the value.
-		// Hard links are not allowed to reference files in other volumes.
-		// Junctions and symbolic links can reference files and directories in other volumes,
-		// but the reparse point should still live in the parent volume.
-		var vol, flags uint32
-		err = windows.GetVolumeInformationByHandle(file.pfd.Sysfd, nil, 0, &vol, nil, &flags, nil, 0)
-		runtime.KeepAlive(file)
-		if err != nil {
-			err = &PathError{Op: "readdir", Path: file.name, Err: err}
-			return
-		}
 		file.dirinfo = new(dirInfo)
-		file.dirinfo.vol = vol
-		if allowReadDirFileID && flags&windows.FILE_SUPPORTS_OPEN_BY_FILE_ID != 0 {
-			file.dirinfo.class = windows.FileIdBothDirectoryRestartInfo
-		} else {
-			file.dirinfo.class = windows.FileFullDirectoryRestartInfo
-			// Set the directory path for use by os.SameFile, as it is possible that
-			// the file system supports retrieving the file ID using GetFileInformationByHandle.
-			file.dirinfo.path = file.name
-			if !isAbs(file.dirinfo.path) {
-				// If the path is relative, we need to convert it to an absolute path
-				// in case the current directory changes between this call and a
-				// call to os.SameFile.
-				file.dirinfo.path, err = syscall.FullPath(file.dirinfo.path)
-				if err != nil {
-					err = &PathError{Op: "readdir", Path: file.name, Err: err}
-					return
-				}
-			}
-		}
+		file.dirinfo.init(file.pfd.Sysfd)
 	}
 	d := file.dirinfo
 	if d.buf == nil {
@@ -172,11 +177,13 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 					f = newFileStatFromFileIDBothDirInfo((*windows.FILE_ID_BOTH_DIR_INFO)(entry))
 				} else {
 					f = newFileStatFromFileFullDirInfo((*windows.FILE_FULL_DIR_INFO)(entry))
-					// Defer appending the entry name to the parent directory path until
-					// it is really needed, to avoid allocating a string that may not be used.
-					// It is currently only used in os.SameFile.
-					f.appendNameToPath = true
-					f.path = d.path
+					if d.path != "" {
+						// Defer appending the entry name to the parent directory path until
+						// it is really needed, to avoid allocating a string that may not be used.
+						// It is currently only used in os.SameFile.
+						f.appendNameToPath = true
+						f.path = d.path
+					}
 				}
 				f.name = name
 				f.vol = d.vol
