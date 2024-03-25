@@ -6,7 +6,7 @@ package regexp
 
 import (
 	"regexp/syntax"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -282,13 +282,6 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 	return p
 }
 
-// runeSlice exists to permit sorting the case-folded rune sets.
-type runeSlice []rune
-
-func (p runeSlice) Len() int           { return len(p) }
-func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
 var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
 var anyRune = []rune{0, unicode.MaxRune}
 
@@ -383,7 +376,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
 					runes = append(runes, r1, r1)
 				}
-				sort.Sort(runeSlice(runes))
+				slices.Sort(runes)
 			} else {
 				runes = append(runes, inst.Rune...)
 			}
@@ -407,7 +400,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
 					runes = append(runes, r1, r1)
 				}
-				sort.Sort(runeSlice(runes))
+				slices.Sort(runes)
 			} else {
 				runes = append(runes, inst.Rune[0], inst.Rune[0])
 			}
