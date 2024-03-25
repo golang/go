@@ -72,7 +72,6 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			return
 		}
 		file.dirinfo = new(dirInfo)
-		file.dirinfo.buf = dirBufPool.Get().(*[]byte)
 		file.dirinfo.vol = vol
 		if allowReadDirFileID && flags&windows.FILE_SUPPORTS_OPEN_BY_FILE_ID != 0 {
 			file.dirinfo.class = windows.FileIdBothDirectoryRestartInfo
@@ -94,6 +93,9 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		}
 	}
 	d := file.dirinfo
+	if d.buf == nil {
+		d.buf = dirBufPool.Get().(*[]byte)
+	}
 	wantAll := n <= 0
 	if wantAll {
 		n = -1
@@ -105,6 +107,9 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			runtime.KeepAlive(file)
 			if err != nil {
 				if err == syscall.ERROR_NO_MORE_FILES {
+					// Optimization: we can return the buffer to the pool, there is nothing else to read.
+					dirBufPool.Put(d.buf)
+					d.buf = nil
 					break
 				}
 				if err == syscall.ERROR_FILE_NOT_FOUND &&

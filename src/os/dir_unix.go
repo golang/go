@@ -46,9 +46,11 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {
 		f.dirinfo = new(dirInfo)
-		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
 	}
 	d := f.dirinfo
+	if d.buf == nil {
+		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
+	}
 
 	// Change the meaning of n for the implementation below.
 	//
@@ -74,6 +76,9 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 				return names, dirents, infos, &PathError{Op: "readdirent", Path: f.name, Err: errno}
 			}
 			if d.nbuf <= 0 {
+				// Optimization: we can return the buffer to the pool, there is nothing else to read.
+				dirBufPool.Put(d.buf)
+				d.buf = nil
 				break // EOF
 			}
 		}
