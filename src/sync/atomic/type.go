@@ -87,6 +87,14 @@ func (x *Int32) CompareAndSwap(old, new int32) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Int32) Add(delta int32) (new int32) { return AddInt32(&x.v, delta) }
 
+// And atomically performs a bitwise AND operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Int32) And(mask int32) (old int32) { return AndInt32(&x.v, mask) }
+
+// Or atomically performs a bitwise OR operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Int32) Or(mask int32) (old int32) { return OrInt32(&x.v, mask) }
+
 // An Int64 is an atomic int64. The zero value is zero.
 type Int64 struct {
 	_ noCopy
@@ -111,6 +119,14 @@ func (x *Int64) CompareAndSwap(old, new int64) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Int64) Add(delta int64) (new int64) { return AddInt64(&x.v, delta) }
 
+// And atomically performs a bitwise AND operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Int64) And(mask int64) (old int64) { return AndInt64(&x.v, mask) }
+
+// Or atomically performs a bitwise OR operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Int64) Or(mask int64) (old int64) { return OrInt64(&x.v, mask) }
+
 // A Uint32 is an atomic uint32. The zero value is zero.
 type Uint32 struct {
 	_ noCopy
@@ -133,6 +149,14 @@ func (x *Uint32) CompareAndSwap(old, new uint32) (swapped bool) {
 
 // Add atomically adds delta to x and returns the new value.
 func (x *Uint32) Add(delta uint32) (new uint32) { return AddUint32(&x.v, delta) }
+
+// And atomically performs a bitwise AND operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Uint32) And(mask uint32) (old uint32) { return AndUint32(&x.v, mask) }
+
+// Or atomically performs a bitwise OR operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Uint32) Or(mask uint32) (new uint32) { return OrUint32(&x.v, mask) }
 
 // A Uint64 is an atomic uint64. The zero value is zero.
 type Uint64 struct {
@@ -158,6 +182,14 @@ func (x *Uint64) CompareAndSwap(old, new uint64) (swapped bool) {
 // Add atomically adds delta to x and returns the new value.
 func (x *Uint64) Add(delta uint64) (new uint64) { return AddUint64(&x.v, delta) }
 
+// And atomically performs a bitwise AND operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Uint64) And(mask uint64) (old uint64) { return AndUint64(&x.v, mask) }
+
+// Or atomically performs a bitwise OR operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Uint64) Or(mask uint64) (new uint64) { return OrUint64(&x.v, mask) }
+
 // A Uintptr is an atomic uintptr. The zero value is zero.
 type Uintptr struct {
 	_ noCopy
@@ -180,6 +212,14 @@ func (x *Uintptr) CompareAndSwap(old, new uintptr) (swapped bool) {
 
 // Add atomically adds delta to x and returns the new value.
 func (x *Uintptr) Add(delta uintptr) (new uintptr) { return AddUintptr(&x.v, delta) }
+
+// And atomically performs a bitwise AND operation on x using the bitmask
+// provided as mask and returns the old value.
+func (x *Uintptr) And(mask uintptr) (old uintptr) { return AndUintptr(&x.v, mask) }
+
+// Or atomically performs a bitwise OR operation on x using the bitmask
+// provided as mask and returns the updated value after the OR operation.
+func (x *Uintptr) Or(mask uintptr) (old uintptr) { return OrUintptr(&x.v, mask) }
 
 // noCopy may be added to structs which must not be copied
 // after the first use.

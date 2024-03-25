@@ -162,7 +162,7 @@ data:
 	JAE	ret
 call:
 	MOVQ	AX, AX		// w/o this 6a miscompiles this function
-	JMP	racecall<>(SB)
+	JMP	racecall(SB)
 ret:
 	RET
 
@@ -180,8 +180,8 @@ TEXT	racefuncenter<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
-	// racecall<> preserves BX
-	CALL	racecall<>(SB)
+	// racecall preserves BX
+	CALL	racecall(SB)
 	MOVQ	BX, DX	// restore function entry context
 	RET
 
@@ -191,7 +191,7 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// void __tsan_func_exit(ThreadState *thr);
 	MOVQ	$__tsan_func_exit(SB), AX
-	JMP	racecall<>(SB)
+	JMP	racecall(SB)
 
 // Atomic operations for sync/atomic package.
 
@@ -303,6 +303,59 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
+
+// For OpenBSD, see race_openbsd_amd64.s for implementation.
+#ifndef GOOS_openbsd
+// And
+TEXT	sync∕atomic·AndInt32(SB), NOSPLIT|NOFRAME, $0-20
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic32_fetch_and(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndInt64(SB), NOSPLIT|NOFRAME, $0-24
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic64_fetch_and(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT|NOFRAME, $0-20
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic32_fetch_or(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT|NOFRAME, $0-24
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic64_fetch_or(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+#endif
+
+TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·AndInt32(SB)
+
+TEXT	sync∕atomic·AndUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·OrInt32(SB)
+
+TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
+TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT|NOFRAME, $0-17
 	GO_ARGS
@@ -350,7 +403,7 @@ racecallatomic_ok:
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
 	LEAQ	16(SP), RARG3	// arguments
-	JMP	racecall<>(SB)	// does not return
+	JMP	racecall(SB)	// does not return
 racecallatomic_ignore:
 	// Addr is outside the good range.
 	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
@@ -358,18 +411,18 @@ racecallatomic_ignore:
 	MOVQ	AX, BX	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	CALL	racecall<>(SB)
+	CALL	racecall(SB)
 	MOVQ	BX, AX	// restore the original function
 	// Call the atomic function.
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
 	LEAQ	16(SP), RARG3	// arguments
-	CALL	racecall<>(SB)
+	CALL	racecall(SB)
 	// Call __tsan_go_ignore_sync_end.
 	MOVQ	$__tsan_go_ignore_sync_end(SB), AX
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	JMP	racecall<>(SB)
+	JMP	racecall(SB)
 
 // void runtime·racecall(void(*f)(...), ...)
 // Calls C function f from race runtime and passes up to 4 arguments to it.
@@ -380,10 +433,10 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 	MOVQ	arg1+16(FP), RARG1
 	MOVQ	arg2+24(FP), RARG2
 	MOVQ	arg3+32(FP), RARG3
-	JMP	racecall<>(SB)
+	JMP	racecall(SB)
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
-TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+TEXT	racecall(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
