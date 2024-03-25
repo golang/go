@@ -119,7 +119,8 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 // counterCryptASM implements counterCrypt which then allows the loop to
 // be unrolled and optimized.
 func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
-	counterCryptASM(len(g.cipher.enc)/4-1, out, in, counter, &g.cipher.enc[0])
+	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
+
 }
 
 // increments the rightmost 32-bits of the count value by 1.
