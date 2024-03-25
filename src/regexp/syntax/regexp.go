@@ -8,6 +8,7 @@ package syntax
 // In this package, re is always a *Regexp and r is always a rune.
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -75,24 +76,10 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		}
 
 	case OpLiteral, OpCharClass:
-		if len(x.Rune) != len(y.Rune) {
-			return false
-		}
-		for i, r := range x.Rune {
-			if r != y.Rune[i] {
-				return false
-			}
-		}
+		return slices.Equal(x.Rune, y.Rune)
 
 	case OpAlternate, OpConcat:
-		if len(x.Sub) != len(y.Sub) {
-			return false
-		}
-		for i, sub := range x.Sub {
-			if !sub.Equal(y.Sub[i]) {
-				return false
-			}
-		}
+		return slices.EqualFunc(x.Sub, y.Sub, func(a, b *Regexp) bool { return a.Equal(b) })
 
 	case OpStar, OpPlus, OpQuest:
 		if x.Flags&NonGreedy != y.Flags&NonGreedy || !x.Sub[0].Equal(y.Sub[0]) {
