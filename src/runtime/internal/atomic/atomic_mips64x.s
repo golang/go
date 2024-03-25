@@ -310,6 +310,70 @@ TEXT ·And(SB), NOSPLIT, $0-12
 	SYNC
 	RET
 
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-20
+	MOVV	ptr+0(FP), R1
+	MOVW	val+8(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	OR	R2, R3, R4
+	SC	R4, (R1)
+	BEQ	R4, -3(PC)
+	SYNC
+	MOVW	R3, ret+16(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-20
+	MOVV	ptr+0(FP), R1
+	MOVW	val+8(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	AND	R2, R3, R4
+	SC	R4, (R1)
+	BEQ	R4, -3(PC)
+	SYNC
+	MOVW	R3, ret+16(FP)
+	RET
+
+// func Or64(addr *uint64, v uint64) old uint64
+TEXT ·Or64(SB), NOSPLIT, $0-24
+	MOVV	ptr+0(FP), R1
+	MOVV	val+8(FP), R2
+
+	SYNC
+	LLV	(R1), R3
+	OR	R2, R3, R4
+	SCV	R4, (R1)
+	BEQ	R4, -3(PC)
+	SYNC
+	MOVV	R3, ret+16(FP)
+	RET
+
+// func And64(addr *uint64, v uint64) old uint64
+TEXT ·And64(SB), NOSPLIT, $0-24
+	MOVV	ptr+0(FP), R1
+	MOVV	val+8(FP), R2
+
+	SYNC
+	LLV	(R1), R3
+	AND	R2, R3, R4
+	SCV	R4, (R1)
+	BEQ	R4, -3(PC)
+	SYNC
+	MOVV	R3, ret+16(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-24
+	JMP	·And64(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+	JMP	·Or64(SB)
+
 // uint32 ·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOVV	ptr+0(FP), R1

@@ -240,6 +240,42 @@ TEXT ·And(SB), NOSPLIT, $0-8
 	SYNC
 	RET
 
+// func Or32(addr *uint32, v uint32) old uint32
+TEXT ·Or32(SB), NOSPLIT, $0-12
+	MOVW	ptr+0(FP), R1
+	MOVW	val+4(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	OR	R2, R3, R4
+	SC	R4, (R1)
+	BEQ	R4, -4(PC)
+	SYNC
+	MOVW	R3, ret+8(FP)
+	RET
+
+// func And32(addr *uint32, v uint32) old uint32
+TEXT ·And32(SB), NOSPLIT, $0-12
+	MOVW	ptr+0(FP), R1
+	MOVW	val+4(FP), R2
+
+	SYNC
+	LL	(R1), R3
+	AND	R2, R3, R4
+	SC	R4, (R1)
+	BEQ	R4, -4(PC)
+	SYNC
+	MOVW	R3, ret+8(FP)
+	RET
+
+// func Anduintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Anduintptr(SB), NOSPLIT, $0-12
+	JMP	·And32(SB)
+
+// func Oruintptr(addr *uintptr, v uintptr) old uintptr
+TEXT ·Oruintptr(SB), NOSPLIT, $0-12
+	JMP	·Or32(SB)
+
 TEXT ·spinLock(SB),NOSPLIT,$0-4
 	MOVW	state+0(FP), R1
 	MOVW	$1, R2

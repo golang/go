@@ -104,6 +104,26 @@ func Store64(addr *uint64, val uint64) {
 	return
 }
 
+//go:nosplit
+func Or64(addr *uint64, val uint64) (old uint64) {
+	for {
+		old = *addr
+		if Cas64(addr, old, old|val) {
+			return old
+		}
+	}
+}
+
+//go:nosplit
+func And64(addr *uint64, val uint64) (old uint64) {
+	for {
+		old = *addr
+		if Cas64(addr, old, old&val) {
+			return old
+		}
+	}
+}
+
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32
 
@@ -142,6 +162,18 @@ func And(ptr *uint32, val uint32)
 
 //go:noescape
 func Or(ptr *uint32, val uint32)
+
+//go:noescape
+func And32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func Or32(ptr *uint32, val uint32) uint32
+
+//go:noescape
+func Anduintptr(ptr *uintptr, val uintptr) uintptr
+
+//go:noescape
+func Oruintptr(ptr *uintptr, val uintptr) uintptr
 
 //go:noescape
 func Store(ptr *uint32, val uint32)
