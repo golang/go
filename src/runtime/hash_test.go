@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	. "runtime"
+	"slices"
 	"strings"
 	"testing"
 	"unsafe"
@@ -83,16 +84,14 @@ func TestSmhasherSanity(t *testing.T) {
 }
 
 type HashSet struct {
-	m map[uintptr]struct{} // set of hashes added
-	n int                  // number of hashes added
+	list []uintptr // list of hashes added
 }
 
 func newHashSet() *HashSet {
-	return &HashSet{make(map[uintptr]struct{}), 0}
+	return &HashSet{list: make([]uintptr, 0, 1024)}
 }
 func (s *HashSet) add(h uintptr) {
-	s.m[h] = struct{}{}
-	s.n++
+	s.list = append(s.list, h)
 }
 func (s *HashSet) addS(x string) {
 	s.add(StringHash(x, 0))
@@ -104,9 +103,19 @@ func (s *HashSet) addS_seed(x string, seed uintptr) {
 	s.add(StringHash(x, seed))
 }
 func (s *HashSet) check(t *testing.T) {
+	list := s.list
+	slices.Sort(list)
+
+	collisions := 0
+	for i := 1; i < len(list); i++ {
+		if list[i] == list[i-1] {
+			collisions++
+		}
+	}
+	n := len(list)
+
 	const SLOP = 50.0
-	collisions := s.n - len(s.m)
-	pairs := int64(s.n) * int64(s.n-1) / 2
+	pairs := int64(n) * int64(n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
 	if float64(collisions) > expected+SLOP*(3*stddev+1) {

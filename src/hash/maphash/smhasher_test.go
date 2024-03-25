@@ -11,6 +11,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"unsafe"
@@ -71,16 +72,14 @@ func randBytes(r *rand.Rand, b []byte) {
 
 // A hashSet measures the frequency of hash collisions.
 type hashSet struct {
-	m map[uint64]struct{} // set of hashes added
-	n int                 // number of hashes added
+	list []uint64 // list of hashes added
 }
 
 func newHashSet() *hashSet {
-	return &hashSet{make(map[uint64]struct{}), 0}
+	return &hashSet{list: make([]uint64, 0, 1024)}
 }
 func (s *hashSet) add(h uint64) {
-	s.m[h] = struct{}{}
-	s.n++
+	s.list = append(s.list, h)
 }
 func (s *hashSet) addS(x string) {
 	s.add(stringHash(x))
@@ -95,9 +94,19 @@ func (s *hashSet) addS_seed(x string, seed Seed) {
 	s.add(h.Sum64())
 }
 func (s *hashSet) check(t *testing.T) {
+	list := s.list
+	slices.Sort(list)
+
+	collisions := 0
+	for i := 1; i < len(list); i++ {
+		if list[i] == list[i-1] {
+			collisions++
+		}
+	}
+	n := len(list)
+
 	const SLOP = 10.0
-	collisions := s.n - len(s.m)
-	pairs := int64(s.n) * int64(s.n-1) / 2
+	pairs := int64(n) * int64(n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
 	if float64(collisions) > expected+SLOP*(3*stddev+1) {
