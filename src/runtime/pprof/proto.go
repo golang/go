@@ -367,8 +367,8 @@ func (b *profileBuilder) build() {
 		var labels func()
 		if e.tag != nil {
 			labels = func() {
-				for k, v := range *(*labelMap)(e.tag) {
-					b.pbLabel(tagSample_Label, k, v, 0)
+				for _, lbl := range (*labelMap)(e.tag).list {
+					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
 				}
 			}
 		}

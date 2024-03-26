@@ -93,16 +93,18 @@ func TestLabelMapStringer(t *testing.T) {
 			expected: "{}",
 		}, {
 			m: labelMap{
-				"foo": "bar",
+				Labels("foo", "bar"),
 			},
 			expected: `{"foo":"bar"}`,
 		}, {
 			m: labelMap{
-				"foo":             "bar",
-				"key1":            "value1",
-				"key2":            "value2",
-				"key3":            "value3",
-				"key4WithNewline": "\nvalue4",
+				Labels(
+					"foo", "bar",
+					"key1", "value1",
+					"key2", "value2",
+					"key3", "value3",
+					"key4WithNewline", "\nvalue4",
+				),
 			},
 			expected: `{"foo":"bar", "key1":"value1", "key2":"value2", "key3":"value3", "key4WithNewline":"\nvalue4"}`,
 		},

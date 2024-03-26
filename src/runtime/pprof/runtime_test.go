@@ -92,5 +92,9 @@ func getProfLabel() map[string]string {
 	if l == nil {
 		return map[string]string{}
 	}
-	return *l
+	m := make(map[string]string, len(l.list))
+	for _, lbl := range l.list {
+		m[lbl.key] = lbl.value
+	}
+	return m
 }
