@@ -355,12 +355,11 @@ func appendTwoDigits(dst []byte, v int) []byte {
 }
 
 func appendFourDigits(dst []byte, v int) []byte {
-	var bytes [4]byte
-	for i := range bytes {
-		bytes[3-i] = '0' + byte(v%10)
-		v /= 10
-	}
-	return append(dst, bytes[:]...)
+	return append(dst,
+		byte('0'+(v/1000)%10),
+		byte('0'+(v/100)%10),
+		byte('0'+(v/10)%10),
+		byte('0'+v%10))
 }
 
 func outsideUTCRange(t time.Time) bool {
