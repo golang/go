@@ -519,6 +519,10 @@ func startProfile() {
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
 			}
+			// Close the file after writing the profile.
+			if err := f.Close(); err != nil {
+				log.Fatalf("could not close %v: %v", *memprofile, err)
+			}
 		})
 	}
 }
