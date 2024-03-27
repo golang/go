@@ -904,9 +904,7 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //	type zeros struct{}
 //
 //	func (zeros) Read(b []byte) (int, error) {
-//		for i := range b {
-//			b[i] = 0
-//		}
+//		clear(b)
 //		return len(b), nil
 //	}
 //

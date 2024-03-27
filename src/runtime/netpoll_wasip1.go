@@ -205,9 +205,7 @@ func netpoll(delay int64) (gList, int32) {
 	}
 
 	evts = evts[:len(pollsubs)]
-	for i := range evts {
-		evts[i] = event{}
-	}
+	clear(evts)
 
 retry:
 	var nevents size

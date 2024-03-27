@@ -544,9 +544,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
 func (s *mspan) initHeapBits(forceClear bool) {
 	if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
 		b := s.heapBits()
-		for i := range b {
-			b[i] = 0
-		}
+		clear(b)
 	}
 }
 

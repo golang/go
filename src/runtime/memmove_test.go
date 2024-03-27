@@ -240,9 +240,7 @@ func TestMemmoveAtomicity(t *testing.T) {
 				for i := range src {
 					src[i] = &x
 				}
-				for i := range dst {
-					dst[i] = nil
-				}
+				clear(dst)
 
 				var ready atomic.Uint32
 				go func() {
