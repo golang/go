@@ -286,7 +286,7 @@ func TestSmhasherPermutation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
-	t.Parallel()
+	testenv.Parallel(t)
 	h := newHashSet()
 	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
 	permutation(t, h, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
