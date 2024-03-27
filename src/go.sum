@@ -1,7 +1,7 @@
 golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d h1:LiA25/KWKuXfIq5pMIBq1s5hz3HQxhJJSu/SUGlD+SM=
 golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d/go.mod h1:xgJhtzW8F9jGdVFWZESrid1U1bjeNy4zgy5cRr/CIio=
-golang.org/x/net v0.12.1-0.20231027154334-5ca955b1789c h1:d+VvAxu4S13DWtf73R5eY//VaCk3aUcVdyYjM1SX7zw=
-golang.org/x/net v0.12.1-0.20231027154334-5ca955b1789c/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
+golang.org/x/net v0.12.1-0.20240327214420-1a2eef3ba536 h1:QEPT0Le4+itOUqHbs7yUz5y7FoAOuK1ibDlfTcVguHM=
+golang.org/x/net v0.12.1-0.20240327214420-1a2eef3ba536/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
 golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
 golang.org/x/sys v0.10.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/text v0.11.0 h1:LAntKIrcmeSKERyiOh0XMV39LXS8IE9UL2yP7+f5ij4=
