@@ -316,8 +316,7 @@ func bootstrapFixImports(srcFile string) string {
 			inBlock = false
 			continue
 		}
-		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"") || strings.HasPrefix(line, "\trtabi \"") || strings.HasPrefix(line, "\tpgoir \"")) {
+		if strings.HasPrefix(line, `import `) || inBlock {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {
