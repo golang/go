@@ -273,6 +273,12 @@ func TestLogicalCompareZero(x *[64]uint64) {
 		x[12] = uint64(c)
 	}
 
+	// ppc64x:"MULHDUCC",^"MULHDU"
+	hi, _ := bits.Mul64(x[13], x[14])
+	if hi != 0 {
+		x[14] = hi
+	}
+
 }
 
 func constantWrite(b bool, p *bool) {

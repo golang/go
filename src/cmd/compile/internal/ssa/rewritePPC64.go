@@ -14498,6 +14498,18 @@ func rewriteValuePPC64_OpSelect0(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (Select0 (Mul64uover x y))
+	// result: (MULLD x y)
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpPPC64MULLD)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select0 (Add64carry x y c))
 	// result: (Select0 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1]))))
 	for {
@@ -14556,6 +14568,24 @@ func rewriteValuePPC64_OpSelect1(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpPPC64MULLD)
 		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select1 (Mul64uover x y))
+	// result: (SETBCR [2] (CMPconst [0] (MULHDU <x.Type> x y)))
+	for {
+		if v_0.Op != OpMul64uover {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpPPC64SETBCR)
+		v.AuxInt = int32ToAuxInt(2)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPconst, types.TypeFlags)
+		v0.AuxInt = int64ToAuxInt(0)
+		v1 := b.NewValue0(v.Pos, OpPPC64MULHDU, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Select1 (Add64carry x y c))

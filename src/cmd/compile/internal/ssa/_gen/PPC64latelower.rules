@@ -43,13 +43,13 @@
 //   2. Rewrite (CMPconst [0] (Select0 (OpCC ...))) into (Select1 (OpCC...))
 // Note: to minimize potentially expensive regeneration of CC opcodes during the flagalloc pass, only rewrite if
 //       both ops are in the same block.
-(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR|MULHDU) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 (CMPconst [0] z:((NEG|CNTLZD|RLDICL) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 // Note: ADDCCconst only assembles to 1 instruction for int16 constants.
 (CMPconst [0] z:(ADDconst [c] x)) && int64(int16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 (CMPconst [0] z:(ANDconst [c] x)) && int64(uint16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 // And finally, fixup the flag user.
-(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR)CC x y))) => (Select1 <t> z)
+(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR|MULHDU)CC x y))) => (Select1 <t> z)
 (CMPconst <t> [0] (Select0 z:((ADDCCconst|ANDCCconst|NEGCC|CNTLZDCC|RLDICLCC) y))) => (Select1 <t> z)
 
 // After trying to convert ANDconst to ANDCCconst above, if the CC result is not needed, try to avoid using

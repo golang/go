@@ -40,6 +40,8 @@
 (Mul(32|16|8) ...) => (MULLW ...)
 (Select0 (Mul64uhilo x y)) => (MULHDU x y)
 (Select1 (Mul64uhilo x y)) => (MULLD x y)
+(Select0 (Mul64uover x y)) => (MULLD x y)
+(Select1 (Mul64uover x y)) => (SETBCR [2] (CMPconst [0] (MULHDU <x.Type> x y)))
 
 (Div64 [false] x y) => (DIVD x y)
 (Div64u ...) => (DIVDU ...)

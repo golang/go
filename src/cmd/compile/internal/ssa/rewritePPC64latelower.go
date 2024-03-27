@@ -296,6 +296,25 @@ func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
 		v.AddArg(convertPPC64OpToOpCC(z))
 		return true
 	}
+	// match: (CMPconst [0] z:(MULHDU x y))
+	// cond: v.Block == z.Block
+	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		z := v_0
+		if z.Op != OpPPC64MULHDU {
+			break
+		}
+		if !(v.Block == z.Block) {
+			break
+		}
+		v.reset(OpPPC64CMPconst)
+		v.AuxInt = int64ToAuxInt(0)
+		v.AddArg(convertPPC64OpToOpCC(z))
+		return true
+	}
 	// match: (CMPconst [0] z:(NEG x))
 	// cond: v.Block == z.Block
 	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
@@ -498,6 +517,22 @@ func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
 		}
 		z := v_0.Args[0]
 		if z.Op != OpPPC64XORCC {
+			break
+		}
+		v.reset(OpSelect1)
+		v.Type = t
+		v.AddArg(z)
+		return true
+	}
+	// match: (CMPconst <t> [0] (Select0 z:(MULHDUCC x y)))
+	// result: (Select1 <t> z)
+	for {
+		t := v.Type
+		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpPPC64MULHDUCC {
 			break
 		}
 		v.reset(OpSelect1)
