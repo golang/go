@@ -419,7 +419,7 @@ func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 
 func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
 	// We don't technically need to lock here since we're returning an error
-	// uncondititonally, but doing so anyway will help to avoid baking in
+	// unconditionally, but doing so anyway will help to avoid baking in
 	// lock-inversion bugs.
 	unlock, err := r.mu.Lock()
 	if err != nil {
