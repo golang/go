@@ -337,6 +337,11 @@ func Chdir(dir string) error {
 		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
+	if runtime.GOOS == "windows" {
+		getwdCache.Lock()
+		getwdCache.dir = dir
+		getwdCache.Unlock()
+	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
 		if err == nil {
