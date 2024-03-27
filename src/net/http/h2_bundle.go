@@ -9712,7 +9712,7 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 		})
 		return nil
 	}
-	if !cs.firstByte {
+	if !cs.pastHeaders {
 		cc.logf("protocol error: received DATA before a HEADERS frame")
 		rl.endStreamError(cs, http2StreamError{
 			StreamID: f.StreamID,
