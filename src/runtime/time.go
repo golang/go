@@ -526,6 +526,9 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		// See comment in type timer above and in timers.adjust below.
 		if when < t.whenHeap {
 			wake = true
+			// Force timerModified bit out to t.astate before updating t.minWhenModified,
+			// to synchronize with t.ts.adjust. See comment in adjust.
+			t.astate.Store(t.state)
 			t.ts.updateMinWhenModified(when)
 		}
 	}
@@ -785,6 +788,15 @@ func (ts *timers) adjust(now int64, force bool) {
 	// The wakeTime method implementation reads minWhenModified *before* minWhenHeap,
 	// so that if the minWhenModified is observed to be 0, that means the minWhenHeap that
 	// follows will include the information that was zeroed out of it.
+	//
+	// Originally Step 3 locked every timer, which made sure any timer update that was
+	// already in progress during Steps 1+2 completed and was observed by Step 3.
+	// All that locking was too expensive, so now we do an atomic load of t.astate to
+	// decide whether we need to do a full lock. To make sure that we still observe any
+	// timer update already in progress during Steps 1+2, t.modify sets timerModified
+	// in t.astate *before* calling t.updateMinWhenModified. That ensures that the
+	// overwrite in Step 2 cannot lose an update: if it does overwrite an update, Step 3
+	// will see the timerModified and do a full lock.
 	ts.minWhenHeap.Store(ts.wakeTime())
 	ts.minWhenModified.Store(0)
 
