@@ -79,7 +79,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		return slices.Equal(x.Rune, y.Rune)
 
 	case OpAlternate, OpConcat:
-		return slices.EqualFunc(x.Sub, y.Sub, func(a, b *Regexp) bool { return a.Equal(b) })
+		return slices.EqualFunc(x.Sub, y.Sub, (*Regexp).Equal)
 
 	case OpStar, OpPlus, OpQuest:
 		if x.Flags&NonGreedy != y.Flags&NonGreedy || !x.Sub[0].Equal(y.Sub[0]) {
