@@ -77,6 +77,7 @@ func startProfile() {
 			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
 				base.Fatalf("%v", err)
 			}
+			f.Close()
 		})
 	} else {
 		// Not doing memory profiling; disable it entirely.
