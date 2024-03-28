@@ -4,6 +4,10 @@
 
 package strconv
 
+import (
+	"internal/bytealg"
+)
+
 const fnParseComplex = "ParseComplex"
 
 // convErr splits an error returned by parseFloatPrefix
@@ -11,7 +15,7 @@ const fnParseComplex = "ParseComplex"
 func convErr(err error, s string) (syntax, range_ error) {
 	if x, ok := err.(*NumError); ok {
 		x.Func = fnParseComplex
-		x.Num = cloneString(s)
+		x.Num = bytealg.CloneString(s)
 		if x.Err == ErrRange {
 			return nil, x
 		}
