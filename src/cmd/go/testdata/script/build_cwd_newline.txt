@@ -44,11 +44,11 @@ go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
 # The cgo tool should only accept the source file if the working directory
 # is not written in line directives in the resulting files.
 
-[cgo] ! go tool cgo main.go
+[cgo] ! go tool cgo -objdir _obj main.go
 [cgo] stderr 'cgo: input path contains newline character: .*uh-oh'
 [cgo] ! exists _obj
 
-[cgo] go tool cgo -trimpath=$PWD main.go
+[cgo] go tool cgo -objdir _obj -trimpath=$PWD main.go
 [cgo] grep '//line main\.go:1:1' _obj/main.cgo1.go
 [cgo] ! grep 'uh-oh' _obj/main.cgo1.go
 [cgo] rm _obj
