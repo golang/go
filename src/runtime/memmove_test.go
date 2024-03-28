@@ -451,9 +451,7 @@ func BenchmarkGoMemclr(b *testing.B) {
 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		for i := 0; i < b.N; i++ {
-			for j := range x {
-				x[j] = 0
-			}
+			clear(x)
 		}
 	})
 }

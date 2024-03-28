@@ -339,9 +339,7 @@ type BytesKey struct {
 }
 
 func (k *BytesKey) clear() {
-	for i := range k.b {
-		k.b[i] = 0
-	}
+	clear(k.b)
 }
 func (k *BytesKey) random(r *rand.Rand) {
 	randBytes(r, k.b)
