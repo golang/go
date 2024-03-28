@@ -39,7 +39,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
 
 	ws := &workerServer{
-		fuzzFn:     func(_ CorpusEntry) (time.Duration, error) { return time.Second, nil },
+		fuzzFn:     func(_ CorpusEntry) (time.Duration, bool, error) { return time.Second, false, nil },
 		workerComm: workerComm{memMu: make(chan *sharedMem, 1)},
 	}
 
@@ -153,7 +153,7 @@ func newWorkerForTest(tb testing.TB) *worker {
 func runBenchmarkWorker() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	fn := func(CorpusEntry) error { return nil }
+	fn := func(CorpusEntry) (bool, error) { return false, nil }
 	if err := RunFuzzWorker(ctx, fn); err != nil && err != ctx.Err() {
 		panic(err)
 	}
@@ -190,12 +190,12 @@ func BenchmarkWorkerMinimize(b *testing.B) {
 		ws.memMu <- mem
 		b.Run(strconv.Itoa(sz), func(b *testing.B) {
 			i := 0
-			ws.fuzzFn = func(_ CorpusEntry) (time.Duration, error) {
+			ws.fuzzFn = func(_ CorpusEntry) (time.Duration, bool, error) {
 				if i == 0 {
 					i++
-					return time.Second, errors.New("initial failure for deflake")
+					return time.Second, false, errors.New("initial failure for deflake")
 				}
-				return time.Second, nil
+				return time.Second, false, nil
 			}
 			for i := 0; i < b.N; i++ {
 				b.SetBytes(int64(sz))
