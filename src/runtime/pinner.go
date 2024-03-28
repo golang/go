@@ -24,7 +24,8 @@ type Pinner struct {
 // contains pointers to Go objects, these objects must be pinned separately if they
 // are going to be accessed from C code.
 //
-// The argument must be a pointer of any type or an [unsafe.Pointer].
+// The argument must be a pointer of any type, an [unsafe.Pointer] ,
+// a string, or a slice of any type.
 // It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
@@ -107,14 +108,23 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	if etyp == nil {
 		panic(errorString("runtime.Pinner: argument is nil"))
 	}
-	if kind := etyp.Kind_ & kindMask; kind != kindPtr && kind != kindUnsafePointer {
-		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
+	var data unsafe.Pointer
+	kind := etyp.Kind_ & kindMask
+	switch kind {
+	case kindPtr, kindUnsafePointer:
+		data = e.data
+	case kindString:
+		data = unsafe.Pointer(unsafe.StringData(*(*string)(e.data)))
+	case kindSlice:
+		data = ((*slice)(e.data)).array
+	default:
+		panic(errorString("runtime.Pinner: argument is not a pointer, string, or slice: " + toRType(etyp).string()))
 	}
 	if inUserArenaChunk(uintptr(e.data)) {
 		// Arena-allocated objects are not eligible for pinning.
 		panic(errorString("runtime.Pinner: object was allocated into an arena"))
 	}
-	return e.data
+	return data
 }
 
 // isPinned checks if a Go pointer is pinned.
