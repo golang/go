@@ -115,6 +115,7 @@ var res = []int32{0x01020304, 0x05060708}
 var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
 func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want any) {
+	t.Helper()
 	if err != nil {
 		t.Errorf("%v %v: %v", dir, order, err)
 		return
@@ -125,12 +126,14 @@ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, wan
 }
 
 func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
+	t.Helper()
 	var s2 Struct
 	err := Read(bytes.NewReader(b), order, &s2)
 	checkResult(t, "Read", order, err, s2, s1)
 }
 
 func testWrite(t *testing.T, order ByteOrder, b []byte, s1 any) {
+	t.Helper()
 	buf := new(bytes.Buffer)
 	err := Write(buf, order, s1)
 	checkResult(t, "Write", order, err, buf.Bytes(), b)
