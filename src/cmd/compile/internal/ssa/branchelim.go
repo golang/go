@@ -424,6 +424,14 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 	}
 }
 
+func isAccessMemory(v *Value) bool {
+	if v.Op == OpPhi || v.Type.IsMemory() ||
+		v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
+		return true
+	}
+	return false
+}
+
 // canSpeculativelyExecute reports whether every value in the block can
 // be evaluated without causing any observable side effects (memory
 // accesses, panics and so on) except for execution time changes. It
@@ -436,8 +444,8 @@ func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
-		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) || v.Type.IsMemory() ||
-			v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
+		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
+			isAccessMemory(v) {
 			return false
 		}
 	}

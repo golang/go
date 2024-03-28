@@ -1242,12 +1242,17 @@ func (s *regAllocState) regalloc(f *Func) {
 		// we get the right behavior for a block which branches to itself.
 		for _, e := range b.Succs {
 			succ := e.b
+			pidx := e.i
+			if succ.Kind == BlockPlain && len(succ.Values) == 0 {
+				ne := succ.Succs[0]
+				succ = ne.b
+				pidx = ne.i
+			}
 			// TODO: prioritize likely successor?
 			for _, x := range s.startRegs[succ.ID] {
 				desired.add(x.v.ID, x.r)
 			}
 			// Process phi ops in succ.
-			pidx := e.i
 			for _, v := range succ.Values {
 				if v.Op != OpPhi {
 					break

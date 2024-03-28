@@ -23,11 +23,7 @@ func tighten(f *Func) {
 	defer f.Cache.freeBoolSlice(canMove)
 
 	// Compute the memory states of each block.
-	startMem := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(startMem)
-	endMem := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(endMem)
-	memState(f, startMem, endMem)
+	startMem, _ := memState(f)
 
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -214,7 +210,9 @@ func phiTighten(f *Func) {
 //  3. The algorithm first obtains the memory state of some blocks in the tree
 //     in the first step. Then floods the known memory state to other nodes in
 //     the second step.
-func memState(f *Func, startMem, endMem []*Value) {
+func memState(f *Func) ([]*Value, []*Value) {
+	startMem := make([]*Value, f.NumBlocks())
+	endMem := make([]*Value, f.NumBlocks())
 	// This slice contains the set of blocks that have had their startMem set but this
 	// startMem value has not yet been propagated to the endMem of its predecessors
 	changed := make([]*Block, 0)
@@ -266,4 +264,5 @@ func memState(f *Func, startMem, endMem []*Value) {
 			}
 		}
 	}
+	return startMem, endMem
 }

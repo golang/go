@@ -35,6 +35,8 @@ func phielim(f *Func) {
 			break
 		}
 	}
+
+	copyelim(f)
 }
 
 // phielimValue tries to convert the phi v to a copy.

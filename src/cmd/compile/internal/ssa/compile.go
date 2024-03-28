@@ -453,12 +453,13 @@ commas. For example:
 	return fmt.Sprintf("Did not find a phase matching %s in -d=ssa/... debug option", phase)
 }
 
+var EnableLoopOpts = buildcfg.Experiment.LoopOpts
+
 // list of passes for the compiler
 var passes = [...]pass{
-	// TODO: combine phielim and copyelim into a single pass?
+	// Generic Optimizations
 	{name: "number lines", fn: numberLines, required: true},
 	{name: "early phielim", fn: phielim},
-	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
@@ -484,9 +485,18 @@ var passes = [...]pass{
 	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},
-	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+	// Loop Optimizations
+	{name: "loop deadcode", fn: deadcode, disabled: !EnableLoopOpts},          // remove dead blocks before loop opts to avoid extra work
+	{name: "loop invariant code motion", fn: licm, disabled: !EnableLoopOpts}, // hoist loop invariant code out of loops
+	{name: "lcssa destruct", fn: phielim, disabled: !EnableLoopOpts},          // eliminate LCSSA proxy phi to restore general SSA form
+	{name: "loop sccp", fn: sccp, disabled: !EnableLoopOpts},                  // optimize loop guard conditional test
+	{name: "loop opt", fn: opt, disabled: !EnableLoopOpts},                    // further optimize loop guard conditional test
+	{name: "loop deadcode late", fn: deadcode, disabled: !EnableLoopOpts},     // remove dead loop guard to simplify cfg
+	{name: "loop nilcheckelim", fn: nilcheckelim, disabled: !EnableLoopOpts},  // remove duplicated nil check in loop guard
+	{name: "writebarrier", fn: writebarrier, required: true},                  // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+	// Code Generation
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "late lower", fn: lateLower, required: true},
@@ -497,7 +507,6 @@ var passes = [...]pass{
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
-	{name: "late copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
@@ -508,7 +517,7 @@ var passes = [...]pass{
 	{name: "late nilcheck", fn: nilcheckelim2},
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
-	{name: "loop rotate", fn: loopRotate},
+	{name: "layout loop", fn: layoutLoop},
 	{name: "trim", fn: trim}, // remove empty blocks
 }
 
@@ -577,8 +586,8 @@ var passOrder = [...]constraint{
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.
 	{"flagalloc", "regalloc"},
-	// loopRotate will confuse regalloc.
-	{"regalloc", "loop rotate"},
+	// layout loop will confuse regalloc.
+	{"regalloc", "layout loop"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
 	// memcombine works better if fuse happens first, to help merge stores.

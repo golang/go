@@ -11,6 +11,7 @@ import (
 	"sort"
 )
 
+// Larger numbers are scheduled closer to the end of the block.
 const (
 	ScorePhi       = iota // towards top of block
 	ScoreArg              // must occur at the top of the entry block
@@ -204,6 +205,13 @@ func schedule(f *Func) {
 				continue
 			}
 			score[c.ID] = ScoreControl
+			// schedule arguments of control values closer if they are defined
+			// in the same block and not compute score yet.
+			for _, arg := range c.Args {
+				if arg.Block == b && score[arg.ID] == ScoreDefault {
+					score[arg.ID] = ScoreControl - 1
+				}
+			}
 		}
 	}
 	priq.score = score
@@ -390,6 +398,9 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	hasNilCheck := false
 	sset.clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
+		if v.Op == OpInvalid {
+			continue
+		}
 		if v.Type.IsMemory() {
 			stores = append(stores, v)
 			if v.Op == OpInitMem || v.Op == OpPhi {

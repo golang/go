@@ -105,6 +105,13 @@ func (v *Value) AuxInt32() int32 {
 	return int32(v.AuxInt)
 }
 
+func (v *Value) AuxInt64() int64 {
+	if opcodeTable[v.Op].auxType != auxInt64 {
+		v.Fatalf("op %s doesn't have an int64 aux field", v.Op)
+	}
+	return int64(v.AuxInt)
+}
+
 // AuxUnsigned returns v.AuxInt as an unsigned value for OpConst*.
 // v.AuxInt is always sign-extended to 64 bits, even if the
 // represented value is unsigned. This undoes that sign extension.
