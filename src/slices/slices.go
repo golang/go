@@ -498,3 +498,20 @@ func Repeat[S ~[]E, E any](x S, count int) S {
 	}
 	return newslice
 }
+
+// Map applies the function f to each element of the input slice
+// and returns a new slice with the results. If the input slice is
+// nil, Map returns nil. This function can be used to easily cast
+// a slice of one type to a slice of another type.
+func Map[S ~[]E1, E1, E2 any](s S, f func(E1) E2) []E2 {
+	// If the input slice is nil, return nil.
+	if s == nil {
+		return nil
+	}
+
+	mapped := make([]E2, 0, len(s))
+	for _, v := range s {
+		mapped = append(mapped, f(v))
+	}
+	return mapped
+}

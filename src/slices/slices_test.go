@@ -1409,3 +1409,111 @@ func TestRepeatPanics(t *testing.T) {
 		}
 	}
 }
+
+func TestMap(t *testing.T) {
+	type TA interface {
+		DoA()
+	}
+
+	type TB interface {
+		DoB()
+	}
+
+	type T interface {
+		TA
+		TB
+	}
+
+	for _, tc := range []struct {
+		name string
+		in   any
+		out  any
+	}{
+		{
+			name: "int to int, nil slice",
+			in:   Map([]int(nil), func(i int) int { return i }),
+			out:  []int(nil),
+		},
+		{
+			name: "int to int",
+			in:   Map([]int{1, 2, 3}, func(i int) int { return i }),
+			out:  []int{1, 2, 3},
+		},
+		{
+			name: "int to int * 2",
+			in:   Map([]int{1, 2, 3}, func(i int) int { return i * 2 }),
+			out:  []int{2, 4, 6},
+		},
+		{
+			name: "int to int64, nil slice",
+			in:   Map([]int(nil), func(i int) int64 { return int64(i) }),
+			out:  []int64(nil),
+		},
+		{
+			name: "int to int64",
+			in:   Map([]int{1, 2, 3}, func(i int) int64 { return int64(i) }),
+			out:  []int64{1, 2, 3},
+		},
+		{
+			name: "int to float64",
+			in:   Map([]int{1, 2, 3}, func(i int) float64 { return float64(i) }),
+			out:  []float64{1, 2, 3},
+		},
+		{
+			name: "int to string",
+			in:   Map([]int{1, 2, 3}, func(i int) string { return fmt.Sprintf("%d", i) }),
+			out:  []string{"1", "2", "3"},
+		},
+		{
+			name: "int to interface{}",
+			in:   Map([]int{1, 2, 3}, func(i int) interface{} { return i }),
+			out:  []interface{}{1, 2, 3},
+		},
+		{
+			name: "interface{} to int",
+			in: Map([]interface{}{1, 2, 3}, func(i interface{}) int {
+				// This might panic, in case the type assertion fails.
+				// For that reason, Map might not be the best choice
+				// for casting slices of interface{} to a specific type.
+				// Instead, consider writing a custom loop with error
+				// handling.
+				return i.(int)
+			}),
+			out: []int{1, 2, 3},
+		},
+		{
+			name: "T{} to TA",
+			in:   Map([]T{}, func(i T) TA { return i }),
+			out:  []TA{},
+		},
+		{
+			name: "T{} to TB",
+			in:   Map([]T{}, func(i T) TB { return i }),
+			out:  []TB{},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			inValue := reflect.ValueOf(tc.in)
+			outValue := reflect.ValueOf(tc.out)
+
+			inIsNil := inValue.IsNil()
+			outIsNil := outValue.IsNil()
+
+			if (inIsNil || outIsNil) && inIsNil != outIsNil {
+				t.Fatalf("%s: got %v, want %v", tc.name, inIsNil, outIsNil)
+			}
+
+			if inValue.Len() != outValue.Len() {
+				t.Fatal("length mismatch")
+			}
+
+			nrElements := inValue.Len()
+			for i := 0; i < nrElements; i++ {
+				if !inValue.Index(i).Equal(outValue.Index(i)) {
+					t.Fatalf("%s: got %v, want %v", tc.name, inValue.Index(i).Interface(), outValue.Index(i).Interface())
+				}
+			}
+		})
+	}
+}
