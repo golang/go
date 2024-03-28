@@ -127,7 +127,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 	// to the column converter.
 	nvc, ok := si.(driver.NamedValueChecker)
 	if !ok {
-		nvc, ok = ci.(driver.NamedValueChecker)
+		nvc, _ = ci.(driver.NamedValueChecker)
 	}
 	cci, ok := si.(driver.ColumnConverter)
 	if ok {
@@ -136,7 +136,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 
 	// Loop through all the arguments, checking each one.
 	// If no error is returned simply increment the index
-	// and continue. However if driver.ErrRemoveArgument
+	// and continue. However, if driver.ErrRemoveArgument
 	// is returned the argument is not included in the query
 	// argument list.
 	var err error
