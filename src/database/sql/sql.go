@@ -24,7 +24,7 @@ import (
 	"math/rand/v2"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -69,7 +69,7 @@ func Drivers() []string {
 	for name := range drivers {
 		list = append(list, name)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -2427,11 +2427,8 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 		stmt.removeClosedStmtLocked()
 		// See if the statement has already been prepared on this connection,
 		// and reuse it if possible.
-		for _, v := range stmt.css {
-			if v.dc == dc {
-				si = v.ds.si
-				break
-			}
+		if idx := slices.IndexFunc(stmt.css, func(cs connStmt) bool { return cs.dc == dc }); idx != -1 {
+			si = stmt.css[idx].ds.si
 		}
 
 		stmt.mu.Unlock()
@@ -2728,11 +2725,10 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	}
 
 	s.mu.Lock()
-	for _, v := range s.css {
-		if v.dc == dc {
-			s.mu.Unlock()
-			return dc, dc.releaseConn, v.ds, nil
-		}
+	if idx := slices.IndexFunc(s.css, func(cs connStmt) bool { return cs.dc == dc }); idx != -1 {
+		ds := s.css[idx].ds // prevent data race
+		s.mu.Unlock()
+		return dc, dc.releaseConn, ds, nil
 	}
 	s.mu.Unlock()
 
@@ -3364,12 +3360,10 @@ func (rs *Rows) closemuRUnlockIfHeldByScan() {
 }
 
 func scanArgsContainRawBytes(args []any) bool {
-	for _, a := range args {
-		if _, ok := a.(*RawBytes); ok {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(args, func(arg any) bool {
+		_, ok := arg.(*RawBytes)
+		return ok
+	})
 }
 
 // rowsCloseHook returns a function so tests may install the
@@ -3452,10 +3446,8 @@ func (r *Row) Scan(dest ...any) error {
 	// they were obtained from the network anyway) But for now we
 	// don't care.
 	defer r.rows.Close()
-	for _, dp := range dest {
-		if _, ok := dp.(*RawBytes); ok {
-			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
-		}
+	if scanArgsContainRawBytes(dest) {
+		return errors.New("sql: RawBytes isn't allowed on Row.Scan")
 	}
 
 	if !r.rows.Next() {
