@@ -4095,7 +4095,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 	if s.TLSNextProto == nil {
 		s.TLSNextProto = map[string]func(*Server, *tls.Conn, Handler){}
 	}
-	protoHandler := func(hs *Server, c *tls.Conn, h Handler) {
+	s.h2ProtoHandler = func(hs *Server, c tlsConn, h Handler) {
 		if http2testHookOnConn != nil {
 			http2testHookOnConn()
 		}
@@ -4117,7 +4117,9 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 			BaseConfig: hs,
 		})
 	}
-	s.TLSNextProto[http2NextProtoTLS] = protoHandler
+	s.TLSNextProto[http2NextProtoTLS] = func(s *Server, c *tls.Conn, h Handler) {
+		s.h2ProtoHandler(s, c, h)
+	}
 	return nil
 }
 
