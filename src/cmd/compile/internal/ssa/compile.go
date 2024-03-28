@@ -508,8 +508,7 @@ var passes = [...]pass{
 	{name: "late nilcheck", fn: nilcheckelim2},
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
-	{name: "loop rotate", fn: loopRotate},
-	{name: "trim", fn: trim}, // remove empty blocks
+	{name: "trim", fn: trim},                           // remove empty blocks
 }
 
 // Double-check phase ordering constraints.
@@ -577,8 +576,6 @@ var passOrder = [...]constraint{
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.
 	{"flagalloc", "regalloc"},
-	// loopRotate will confuse regalloc.
-	{"regalloc", "loop rotate"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
 	// memcombine works better if fuse happens first, to help merge stores.
