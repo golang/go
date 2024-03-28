@@ -52,6 +52,63 @@ func (s *Sym) nameWithoutInst() string {
 	return s.Name[0:start] + s.Name[end+1:]
 }
 
+// packageEnd return the end index of the package part of the symbol name.
+func (s *Sym) packageEnd() int {
+	name := s.nameWithoutInst()
+
+	// find the last slash not inside parentheses or brackets
+	// see cmd/compile/internal/ir:MethodSymSuffix
+	paren := 0
+	bracket := 0
+	pathend := 0
+loop:
+	for i := len(name) - 1; i >= 0; i-- {
+		switch name[i] {
+		case ')':
+			paren++
+		case '(':
+			paren--
+		case ']':
+			bracket++
+		case '[':
+			bracket--
+		case '/':
+			if paren == 0 && bracket == 0 {
+				pathend = i
+				break loop
+			}
+		}
+	}
+	if i := strings.Index(name[pathend:], "."); i != -1 {
+		return pathend + i
+	}
+	return -1
+}
+
+// method start return the start index of the method part of the symbol name.
+func (s *Sym) baseStart(name string) int {
+	// Find the last dot not in the parentheses or brackets.
+	paren := 0
+	bracket := 0
+	for i := len(name) - 1; i >= 0; i-- {
+		switch name[i] {
+		case ')':
+			paren++
+		case '(':
+			paren--
+		case ']':
+			bracket++
+		case '[':
+			bracket--
+		case '.':
+			if paren == 0 && bracket == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
 func (s *Sym) PackageName() string {
@@ -65,18 +122,14 @@ func (s *Sym) PackageName() string {
 		return ""
 	}
 
-	// For go1.18 and below, the prefix are "type." and "go." instead.
+	// For go1.18 and below, the prefix is "type." and "go." instead.
 	if s.goVersion <= ver118 && (strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.")) {
 		return ""
 	}
 
-	pathend := strings.LastIndex(name, "/")
-	if pathend < 0 {
-		pathend = 0
-	}
-
-	if i := strings.Index(name[pathend:], "."); i != -1 {
-		return name[:pathend+i]
+	end := s.packageEnd()
+	if end >= 0 {
+		return name[:end]
 	}
 	return ""
 }
@@ -85,46 +138,36 @@ func (s *Sym) PackageName() string {
 // or the empty string if there is none.  A receiver name is only detected in
 // the case that s.Name is fully-specified with a package name.
 func (s *Sym) ReceiverName() string {
-	name := s.nameWithoutInst()
-	// If we find a slash in name, it should precede any bracketed expression
-	// that was removed, so pathend will apply correctly to name and s.Name.
-	pathend := strings.LastIndex(name, "/")
-	if pathend < 0 {
-		pathend = 0
+	// Find the end of the package (or from the beginning, if there was
+	// no slash in package name).
+	l := s.packageEnd()
+	if l < 0 {
+		l = 0
 	}
-	// Find the first dot after pathend (or from the beginning, if there was
-	// no slash in name).
-	l := strings.Index(name[pathend:], ".")
-	// Find the last dot after pathend (or the beginning).
-	r := strings.LastIndex(name[pathend:], ".")
-	if l == -1 || r == -1 || l == r {
-		// There is no receiver if we didn't find two distinct dots after pathend.
+
+	r := s.baseStart(s.Name)
+	if r < 0 {
 		return ""
 	}
-	// Given there is a trailing '.' that is in name, find it now in s.Name.
-	// pathend+l should apply to s.Name, because it should be the dot in the
-	// package name.
-	r = strings.LastIndex(s.Name[pathend:], ".")
-	return s.Name[pathend+l+1 : pathend+r]
+
+	if l == r {
+		return ""
+	}
+
+	return s.Name[l+1 : r]
 }
 
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
 	name := s.nameWithoutInst()
-	if i := strings.LastIndex(name, "."); i != -1 {
-		if s.Name != name {
-			brack := strings.Index(s.Name, "[")
-			if i > brack {
-				// BaseName is a method name after the brackets, so
-				// recalculate for s.Name. Otherwise, i applies
-				// correctly to s.Name, since it is before the
-				// brackets.
-				i = strings.LastIndex(s.Name, ".")
-			}
-		}
-		return s.Name[i+1:]
+
+	l := s.baseStart(s.Name)
+	name = s.Name[l+1:]
+	if len(name) > 2 && name[0] == '(' && name[len(name)-1] == ')' {
+		return name[1 : len(name)-1]
 	}
-	return s.Name
+
+	return name
 }
 
 // A Func collects information about a single function.

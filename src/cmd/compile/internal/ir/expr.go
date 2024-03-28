@@ -1183,18 +1183,19 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 		fmt.Fprintf(&b, "%-S", recv)
 	}
 
+	b.WriteString(".") // separate receiver type from method name
+
 	// A particular receiver type may have multiple non-exported
 	// methods with the same name. To disambiguate them, include a
 	// package qualifier for names that came from a different
 	// package than the receiver type.
+	// Wrap the full name in parentheses to allow precious parsing
 	if !types.IsExported(msym.Name) && msym.Pkg != rpkg {
-		b.WriteString(".")
-		b.WriteString(msym.Pkg.Prefix)
+		fmt.Fprintf(&b, "(%s.%s%s)", msym.Pkg.Prefix, msym.Name, suffix)
+	} else {
+		fmt.Fprintf(&b, "%s%s", msym.Name, suffix)
 	}
 
-	b.WriteString(".")
-	b.WriteString(msym.Name)
-	b.WriteString(suffix)
 	return rpkg.LookupBytes(b.Bytes())
 }
 
@@ -1213,8 +1214,11 @@ func LookupMethodSelector(pkg *types.Pkg, name string) (typ, meth *types.Sym, er
 		// the base type name.
 		typeName = typeName[2 : len(typeName)-1]
 	}
-
 	typ = pkg.Lookup(typeName)
+
+	if len(methName) > 2 && methName[0] == '(' && methName[len(methName)-1] == ')' {
+		methName = methName[1 : len(methName)-1]
+	}
 	meth = pkg.Selector(methName)
 	return typ, meth, nil
 }
