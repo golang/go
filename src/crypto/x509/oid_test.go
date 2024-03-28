@@ -101,6 +101,64 @@ func TestOID(t *testing.T) {
 	}
 }
 
+func TestOIDEqual(t *testing.T) {
+	var cases = []struct {
+		oid  OID
+		oid2 OID
+		eq   bool
+	}{
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 3}), eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 4}), eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 3, 4}), eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 22}), oid2: mustNewOIDFromInts(t, []uint64{2, 33, 23}), eq: false},
+		{oid: OID{}, oid2: OID{}, eq: true},
+		{oid: OID{}, oid2: mustNewOIDFromInts(t, []uint64{2, 33, 23}), eq: false},
+	}
+
+	for _, tt := range cases {
+		if eq := tt.oid.Equal(tt.oid2); eq != tt.eq {
+			t.Errorf("(%v).Equal(%v) = %v, want %v", tt.oid, tt.oid2, eq, tt.eq)
+		}
+	}
+}
+
+func TestOIDEqualASN1OID(t *testing.T) {
+	var cases = []struct {
+		oid  OID
+		oid2 asn1.ObjectIdentifier
+		eq   bool
+	}{
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 4}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3, 4}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 22}), oid2: asn1.ObjectIdentifier{1, 33, 23}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 23}), oid2: asn1.ObjectIdentifier{1, 33, 22}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 127}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 255}), oid2: asn1.ObjectIdentifier{1, 33, 255}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 257}), oid2: asn1.ObjectIdentifier{2, 33, 256}, eq: false},
+		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 256}), oid2: asn1.ObjectIdentifier{2, 33, 257}, eq: false},
+
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: true},
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, math.MaxInt32 + 1}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32 + 1}, eq: false}, // component larger than 31 bits
+
+		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{}, eq: false},
+		{oid: OID{}, oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: false},
+		{oid: OID{}, oid2: asn1.ObjectIdentifier{}, eq: false},
+	}
+
+	for _, tt := range cases {
+		if eq := tt.oid.EqualASN1OID(tt.oid2); eq != tt.eq {
+			t.Errorf("(%v).Equal(%v) = %v, want %v", tt.oid, tt.oid2, eq, tt.eq)
+		}
+	}
+}
+
 func mustNewOIDFromInts(t *testing.T, ints []uint64) OID {
 	oid, err := OIDFromInts(ints)
 	if err != nil {
