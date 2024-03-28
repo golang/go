@@ -891,7 +891,7 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 
 	ts.lock()
 	if len(ts.heap) > 0 {
-		ts.adjust(now, force)
+		ts.adjust(now, false)
 		for len(ts.heap) > 0 {
 			// Note that runtimer may temporarily unlock ts.
 			if tw := ts.run(now); tw != 0 {
@@ -901,6 +901,16 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
 				break
 			}
 			ran = true
+		}
+
+		// Note: Delaying the forced adjustment until after the ts.run
+		// (as opposed to calling ts.adjust(now, force) above)
+		// is significantly faster under contention, such as in
+		// package time's BenchmarkTimerAdjust10000,
+		// though we do not fully understand why.
+		force = ts == &getg().m.p.ptr().timers && int(ts.zombies.Load()) > int(ts.len.Load())/4
+		if force {
+			ts.adjust(now, true)
 		}
 	}
 	ts.unlock()
