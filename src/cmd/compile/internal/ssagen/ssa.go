@@ -245,7 +245,7 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 			return abi1
 		}
 		base.Fatalf("function %v has unknown ABI %v", fn, fn.ABI)
-		panic("not reachable")
+		panic("unreachable")
 	}
 
 	a := abi0

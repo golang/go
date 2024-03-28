@@ -530,7 +530,7 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		return reflect.ValueOf(word.Text)
 	}
 	s.errorf("can't evaluate command %q", firstWord)
-	panic("not reached")
+	panic("unreachable")
 }
 
 // idealConstant is called to return the value of a number in a context where
@@ -704,7 +704,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		}
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
-	panic("not reached")
+	panic("unreachable")
 }
 
 var (
@@ -908,7 +908,7 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 		return s.evalUnsignedInteger(typ, n)
 	}
 	s.errorf("can't handle %s for arg of type %s", n, typ)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalBool(typ reflect.Type, n parse.Node) reflect.Value {
@@ -919,7 +919,7 @@ func (s *state) evalBool(typ reflect.Type, n parse.Node) reflect.Value {
 		return value
 	}
 	s.errorf("expected bool; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalString(typ reflect.Type, n parse.Node) reflect.Value {
@@ -930,7 +930,7 @@ func (s *state) evalString(typ reflect.Type, n parse.Node) reflect.Value {
 		return value
 	}
 	s.errorf("expected string; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalInteger(typ reflect.Type, n parse.Node) reflect.Value {
@@ -941,7 +941,7 @@ func (s *state) evalInteger(typ reflect.Type, n parse.Node) reflect.Value {
 		return value
 	}
 	s.errorf("expected integer; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalUnsignedInteger(typ reflect.Type, n parse.Node) reflect.Value {
@@ -952,7 +952,7 @@ func (s *state) evalUnsignedInteger(typ reflect.Type, n parse.Node) reflect.Valu
 		return value
 	}
 	s.errorf("expected unsigned integer; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
@@ -963,7 +963,7 @@ func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
 		return value
 	}
 	s.errorf("expected float; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
@@ -973,7 +973,7 @@ func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
 		return value
 	}
 	s.errorf("expected complex; found %s", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Value {
@@ -1000,7 +1000,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 		return s.evalPipeline(dot, n)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
-	panic("not reached")
+	panic("unreachable")
 }
 
 // indirect returns the item at the end of indirection, and a bool to indicate

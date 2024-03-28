@@ -2076,7 +2076,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")
-		panic("not reached")
+		panic("unreachable")
 	}
 }
 
