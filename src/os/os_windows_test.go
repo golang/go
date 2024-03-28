@@ -81,9 +81,6 @@ func TestSameWindowsFile(t *testing.T) {
 	}
 
 	p := filepath.VolumeName(path) + filepath.Base(path)
-	if err != nil {
-		t.Fatal(err)
-	}
 	ia3, err := os.Stat(p)
 	if err != nil {
 		t.Fatal(err)
