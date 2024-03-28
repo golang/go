@@ -1158,3 +1158,25 @@ func TestBigGOMAXPROCS(t *testing.T) {
 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
 	}
 }
+
+func TestIssue64894(t *testing.T) {
+	runtime.NetpollGenericInit()
+
+	takeTime := 10 * time.Hour.Nanoseconds()
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			t.Logf("starting G-%d", i)
+			for {
+				runtime.Netpoll(takeTime)
+				time.Sleep(5 * time.Second)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}

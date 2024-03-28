@@ -100,7 +100,8 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 }
 
 func block() {
-	gopark(nil, nil, waitReasonSelectNoCases, traceBlockForever, 1) // forever
+	//FIXME: just to simulate
+	gopark(nil, nil, waitReasonIOWait, traceBlockForever, 1) // forever
 }
 
 // selectgo implements the select statement.
