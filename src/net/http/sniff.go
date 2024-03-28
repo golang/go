@@ -190,7 +190,7 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
 
 	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
-
+	&exactSig{[]byte("FLV"), "video/x-flv"},
 	textSig{}, // should be last
 }
 
