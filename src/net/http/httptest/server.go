@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/internal/testcert"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -92,12 +93,7 @@ func init() {
 }
 
 func strSliceContainsPrefix(v []string, pre string) bool {
-	for _, s := range v {
-		if strings.HasPrefix(s, pre) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(v, func(s string) bool { return strings.HasPrefix(s, pre) })
 }
 
 // NewServer starts and returns a new [Server].
