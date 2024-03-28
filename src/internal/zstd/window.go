@@ -19,7 +19,11 @@ type window struct {
 
 // reset clears stored data and configures window size.
 func (w *window) reset(size int) {
-	w.data = w.data[:0]
+	b := w.data[:0]
+	if cap(b) < size {
+		b = make([]byte, 0, size)
+	}
+	w.data = b
 	w.off = 0
 	w.size = size
 }
