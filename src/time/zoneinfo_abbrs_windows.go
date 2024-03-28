@@ -58,7 +58,7 @@ var abbrs = map[string]abbr{
 	"Newfoundland Standard Time":      {"NST", "NDT"},     // America/St_Johns
 	"Pacific Standard Time (Mexico)":  {"PST", "PDT"},     // America/Tijuana
 	"Yukon Standard Time":             {"MST", "MST"},     // America/Whitehorse
-	"Central Asia Standard Time":      {"+06", "+06"},     // Asia/Almaty
+	"Central Asia Standard Time":      {"+06", "+05"},     // Asia/Almaty
 	"Jordan Standard Time":            {"+03", "+03"},     // Asia/Amman
 	"Arabic Standard Time":            {"+03", "+03"},     // Asia/Baghdad
 	"Azerbaijan Standard Time":        {"+04", "+04"},     // Asia/Baku
