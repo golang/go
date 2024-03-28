@@ -454,9 +454,45 @@ var listCache sync.Map // map[string]listImports, keyed by contextName
 // list' has its own internal concurrency, so we use a hard-coded constant (to
 // allow the I/O-intensive phases of 'go list' to overlap) instead of scaling
 // all the way up to GOMAXPROCS.
-var listSem = make(chan semToken, 2)
+var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
 
 type semToken struct{}
+
+var outonce struct {
+	sync.RWMutex
+	b map[string][]byte
+}
+
+func init() {
+	outonce.b = make(map[string][]byte)
+}
+
+func out(w *Walker) []byte {
+	contexts := &strings.Builder{}
+	for _, s := range listEnv(w.context) {
+		contexts.WriteString(s)
+	}
+	outonce.RLock()
+	if ret, ok := outonce.b[contexts.String()]; ok {
+		outonce.RUnlock()
+		return ret
+	}
+	outonce.RUnlock()
+	cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
+	cmd.Env = listEnv(w.context)
+	if w.context.Dir != "" {
+		cmd.Dir = w.context.Dir
+	}
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatalf("loading imports: %v\n%s", err, out)
+	}
+	outonce.Lock()
+	defer outonce.Unlock()
+	outonce.b[contexts.String()] = out
+	return out
+}
 
 // loadImports populates w with information about the packages in the standard
 // library and the packages they themselves import in w's build context.
@@ -482,20 +518,7 @@ func (w *Walker) loadImports() {
 
 	imports, ok := listCache.Load(name)
 	if !ok {
-		listSem <- semToken{}
-		defer func() { <-listSem }()
-
-		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
-		cmd.Env = listEnv(w.context)
-		if w.context.Dir != "" {
-			cmd.Dir = w.context.Dir
-		}
-		cmd.Stderr = os.Stderr
-		out, err := cmd.Output()
-		if err != nil {
-			log.Fatalf("loading imports: %v\n%s", err, out)
-		}
-
+		out := out(w)
 		var stdPackages []string
 		importMap := make(map[string]map[string]string)
 		importDir := make(map[string]string)
