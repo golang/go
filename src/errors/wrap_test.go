@@ -58,6 +58,7 @@ func TestIs(t *testing.T) {
 		{multiErr{poser}, err1, true},
 		{multiErr{poser}, err3, true},
 		{multiErr{nil}, nil, false},
+		{errorIfaceUncomparable{f: []string{}}, errorIfaceUncomparable{f: []string{}}, false},
 	}
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
@@ -308,4 +309,13 @@ func (errorUncomparable) Error() string {
 func (errorUncomparable) Is(target error) bool {
 	_, ok := target.(errorUncomparable)
 	return ok
+}
+
+type errorIfaceUncomparable struct {
+	// there are uncomparable values in the interface.
+	f interface{}
+}
+
+func (errorIfaceUncomparable) Error() string {
+	return "uncomparable error"
 }
