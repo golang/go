@@ -943,10 +943,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			}
 			v.SetBytes(b[:n])
 		case reflect.String:
-			if v.Type() == numberType && !isValidNumber(string(s)) {
+			t := string(s)
+			if v.Type() == numberType && !isValidNumber(t) {
 				return fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item)
 			}
-			v.SetString(string(s))
+			v.SetString(t)
 		case reflect.Interface:
 			if v.NumMethod() == 0 {
 				v.Set(reflect.ValueOf(string(s)))
