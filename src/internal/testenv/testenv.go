@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/cfg"
+	"internal/goarch"
 	"internal/platform"
 	"os"
 	"os/exec"
@@ -510,4 +511,17 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
 // not supported by the current platform or execution environment.
 func SyscallIsNotSupported(err error) bool {
 	return syscallIsNotSupported(err)
+}
+
+// Parallel call t.Parallel()
+// unless there is a case that cannot be parallel.
+//
+// know that there are cannot parallel cases:
+//
+//   - in 32-bit machine may raise OOM (see go.dev/issue/65823)
+func Parallel(t *testing.T) {
+	if goarch.PtrSize == 4 {
+		return
+	}
+	t.Parallel()
 }
