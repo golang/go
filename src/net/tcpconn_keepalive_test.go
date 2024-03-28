@@ -138,18 +138,15 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	ra, err := ResolveTCPAddr("tcp", ls.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, cfg := range testConfigs {
-		c, err := DialTCP("tcp", nil, ra)
+		d := Dialer{KeepAlive: -1} // avoid setting default values before the test
+		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer c.Close()
 
-		sc, err := c.SyscallConn()
+		sc, err := c.(*TCPConn).SyscallConn()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -167,7 +164,7 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
 			t.Fatal(errHook)
 		}
 
-		if err := c.SetKeepAliveConfig(cfg); err != nil {
+		if err := c.(*TCPConn).SetKeepAliveConfig(cfg); err != nil {
 			t.Fatal(err)
 		}
 

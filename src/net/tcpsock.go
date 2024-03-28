@@ -126,6 +126,13 @@ type TCPConn struct {
 // By contrast, if only one of Idle and Interval is set to a non-negative value,
 // the other will be set to the system default value, and ultimately,
 // set both Idle and Interval to negative values if you want to leave them unchanged.
+//
+// Also note that on illumos distributions like OmniOS that support TCP Keep-Alive,
+// setting only one of Idle and Interval to a non-negative value along with the
+// negative other one will result in the negative one being recalculated as the
+// quotient of tcp_keepalive_abort_interval(eight minutes as default) and the
+// non-negative one. Thus, you may as well set the other one to a non-negative
+// value if you've already set one of Idle and Interval.
 type KeepAliveConfig struct {
 	// If Enable is true, keep-alive probes are enabled.
 	Enable bool
