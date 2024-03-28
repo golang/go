@@ -105,7 +105,12 @@ func TestStack(t *testing.T) {
 	}
 	filePrefix := ""
 	if fileGoroot != "" {
-		filePrefix = filepath.ToSlash(fileGoroot) + "/src/"
+		fileGoroot = filepath.ToSlash(filepath.Clean(fileGoroot))
+		if fileGoroot == "/" {
+			filePrefix = "/src/"
+		} else {
+			filePrefix = fileGoroot + "/src/"
+		}
 	}
 
 	n := 0
