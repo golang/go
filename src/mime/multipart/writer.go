@@ -165,6 +165,16 @@ func (w *Writer) WriteField(fieldname, value string) error {
 	return err
 }
 
+// WriteFile calls CreateFormFile and adds the given stream to the multipart form directly from an io.Reader.
+func (w *Writer) WriteFile(fieldname, filename string, src io.Reader) error {
+	p, err := w.CreateFormFile(fieldname, filename)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(p, src)
+	return err
+}
+
 // Close finishes the multipart message and writes the trailing
 // boundary end line to the output.
 func (w *Writer) Close() error {
