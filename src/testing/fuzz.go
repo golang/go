@@ -21,8 +21,8 @@ func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz test matching `regexp`")
 	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
 	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a failing input")
-
 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored (for use only by cmd/go)")
+	testOld = flag.Bool("test.old", false, "whether to test the old corpus")
 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values (for use only by cmd/go)")
 }
 
@@ -32,7 +32,7 @@ var (
 	minimizeDuration = durationOrCountFlag{d: 60 * time.Second, allowZero: true}
 	fuzzCacheDir     *string
 	isFuzzWorker     *bool
-
+	testOld          *bool
 	// corpusDir is the parent directory of the fuzz test's seed corpus within
 	// the package.
 	corpusDir = "testdata/fuzz"
@@ -347,7 +347,9 @@ func (f *F) Fuzz(ff any) {
 		// Fuzzing is enabled, and this is the test process started by 'go test'.
 		// Act as the coordinator process, and coordinate workers to perform the
 		// actual fuzzing.
-		corpusTargetDir := filepath.Join(corpusDir, f.name)
+		// corpusTargetDir := filepath.Join(corpusDir, f.name)
+		newPanicDir := f.name + "Panic"
+		corpusTargetDir := filepath.Join(corpusDir, newPanicDir)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
 		err := f.fuzzContext.deps.CoordinateFuzzing(
 			fuzzDuration.d,
@@ -367,7 +369,8 @@ func (f *F) Fuzz(ff any) {
 				crashPath := crashErr.CrashPath()
 				fmt.Fprintf(f.w, "Failing input written to %s\n", crashPath)
 				testName := filepath.Base(crashPath)
-				fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", f.name, testName)
+				fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", newPanicDir, testName)
+				// fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", f.name, testName)
 			}
 		}
 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
@@ -497,7 +500,15 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				if shouldFailFast() {
 					break
 				}
-				testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+				// testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+				var testName string
+				var matched bool
+				if *testOld {
+					testName, matched, _ = tctx.match.fullName(nil, ft.Name)
+				} else {
+					newDir := ft.Name + "Panic"
+					testName, matched, _ = tctx.match.fullName(nil, newDir)
+				}
 				if !matched {
 					continue
 				}
