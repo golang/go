@@ -88,11 +88,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], binary.BigEndian.Uint64(b[0:8])
+	return b[8:], binary.BigEndian.Uint64(b)
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], binary.BigEndian.Uint32(b[0:4])
+	return b[4:], binary.BigEndian.Uint32(b)
 }
 
 // New returns a new hash.Hash computing the MD5 checksum. The Hash also
