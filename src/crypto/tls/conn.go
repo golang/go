@@ -1089,7 +1089,7 @@ func (c *Conn) readHandshake(transcript transcriptHash) (any, error) {
 	data := c.hand.Bytes()
 	n := int(data[1])<<16 | int(data[2])<<8 | int(data[3])
 	if n > maxHandshake {
-		c.sendAlertLocked(alertInternalError)
+		c.sendAlert(alertInternalError)
 		return nil, c.in.setErrorLocked(fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake))
 	}
 	if err := c.readHandshakeBytes(4 + n); err != nil {
