@@ -607,15 +607,18 @@ func (t *timer) maybeAdd() {
 	t.lock()
 	t.trace("maybeAdd")
 	when := int64(0)
+	wake := false
 	if t.needsAdd() {
 		t.state |= timerHeaped
 		when = t.when
+		wakeTime := ts.wakeTime()
+		wake = wakeTime == 0 || when < wakeTime
 		ts.addHeap(t)
 	}
 	t.unlock()
 	ts.unlock()
 	releasem(mp)
-	if when > 0 {
+	if wake {
 		wakeNetPoller(when)
 	}
 }
