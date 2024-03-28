@@ -191,6 +191,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
+	typecheck.InitCoverage()
 	rttype.Init()
 
 	// Parse and typecheck input.
