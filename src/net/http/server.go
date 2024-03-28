@@ -1924,7 +1924,7 @@ func (c *conn) serve(ctx context.Context) {
 			// 400 response on the TLS conn's underlying net.Conn.
 			var reason string
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
-				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+				c.httpOnHttpsPortErrorHandler(re.Conn, re.RecondBytes)
 				re.Conn.Close()
 				reason = "client sent an HTTP request to an HTTPS server"
 			} else {
@@ -3835,4 +3835,69 @@ func MaxBytesHandler(h Handler, n int64) Handler {
 		r2.Body = MaxBytesReader(w, r.Body, n)
 		h.ServeHTTP(w, &r2)
 	})
+}
+
+// net/http: configurable error message for Client sent an HTTP request to an HTTPS server.
+// https://go.dev/issue/49310
+func (c *conn) httpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) {
+	// Read Response string
+	badRequestResponse := c.server.TLSConfig.HttpOnHttpsPortErrorResponse
+	if badRequestResponse == "" {
+		badRequestResponse = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n"
+	}
+
+	// Handler
+	if handler := c.server.TLSConfig.HttpOnHttpsPortErrorHandler; handler != nil {
+		handler(conn, recondBytes, badRequestResponse)
+		return
+	}
+
+	// Redirect
+	if c.server.TLSConfig.HttpOnHttpsPortErrorRedirect {
+		// Read Header
+		req, _, err := ReadRequestForHttpOnHttpsPortErrorHandler(conn, recondBytes)
+		if err != nil {
+			io.WriteString(conn, badRequestResponse)
+			return
+		}
+
+		// Send Redirect
+		io.WriteString(conn, fmt.Sprintf(
+			"HTTP/1.1 307 Temporary Redirect\r\nLocation: https://%s%s\r\nConnection: close\r\n\r\nClient sent an HTTP request to an HTTPS server.\n",
+			req.Host, req.URL.Path,
+		))
+		return
+	}
+
+	// Send Response string
+	io.WriteString(conn, badRequestResponse)
+}
+
+func ReadRequestForHttpOnHttpsPortErrorHandler(conn net.Conn, recondBytes []byte) (req *Request, reqBytes []byte, err error) {
+	// Max 4KB
+	if len(recondBytes) > 4096 {
+		return nil, recondBytes, errors.New("recondBytes too long")
+	}
+
+	// Content length may be insufficient, continue reading.
+	if len(recondBytes) < 4096 && !bytes.Contains(recondBytes, []byte("\r\n\r\n")) {
+		b := make([]byte, 4096-len(recondBytes))
+		// Set Timeout 1s
+		conn.SetReadDeadline(time.Now().Add(time.Duration(1 * time.Second)))
+		n, err := conn.Read(b)
+		if err != nil {
+			return nil, recondBytes, err
+		}
+		recondBytes = append(recondBytes, b[:n]...)
+	}
+
+	// Read Request
+	req, err = ReadRequest(bufio.NewReader(bytes.NewReader(recondBytes)))
+	if err != nil {
+		return nil, recondBytes, err
+	}
+	if req.Host == "" {
+		return nil, recondBytes, errors.New("missing required Host header")
+	}
+	return req, recondBytes, nil
 }
