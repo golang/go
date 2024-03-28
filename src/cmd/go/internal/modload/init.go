@@ -6,6 +6,7 @@ package modload
 
 import (
 	"bytes"
+	"cmd/go/internal/par"
 	"context"
 	"encoding/json"
 	"errors"
@@ -364,6 +365,7 @@ func Reset() {
 	MainModules = nil
 	requirements = nil
 	workFilePath = ""
+	rawGoModSummaryCache = par.ErrCache[module.Version, *modFileSummary]{}
 	modfetch.Reset()
 }
 
