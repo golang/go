@@ -375,6 +375,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		if err != nil {
 			return 0, 0, err
 		}
+		if len(fd) > 3 {
+			si.CbReserved2, si.Reserved2 = createChildStdioBuffer(fd)
+		}
 	}
 
 	envBlock, err := createEnvBlock(attr.Env)
@@ -401,4 +404,60 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 func Exec(argv0 string, argv []string, envv []string) (err error) {
 	return EWINDOWS
+}
+
+// The C Run-time (CRT) file descriptor mode flags. See
+// https://github.com/nodejs/node/blob/71691e53/deps/uv/src/win/process-stdio.c#L57-L65
+const (
+	crt_FD_OPEN uint8 = 1 << iota
+	crt_FD_EOFLAG
+	crt_FD_CRLF
+	crt_FD_PIPE
+	crt_FD_NOINHERIT
+	crt_FD_APPEND
+	crt_FD_DEV
+	crt_FD_TEXT
+)
+
+// createChildStdioBuffer creates a buffer that describes the handles that will
+// be inherited by the child process so that the child process can retrieve the
+// inherited handles by calling the CRT function _get_osfhandle.
+//
+// The buffer has the following layout:
+//   int number_of_fds
+//   unsigned char crt_flags[number_of_fds]
+//   HANDLE os_handle[number_of_fds]
+//
+// See:
+// https://github.com/nodejs/node/blob/71691e53/deps/uv/src/win/process-stdio.c#L32-L37
+// https://github.com/reactos/reactos/blob/57c84dd6/sdk/lib/crt/stdio/file.c#L405-L532
+// https://github.com/reactos/reactos/blob/57c84dd6/sdk/lib/crt/stdio/file.c#L1588-L1599
+func createChildStdioBuffer(fd []Handle) (uint16, *byte) {
+	count := int32(len(fd))
+	var crtFlags uint8
+	int32Size := unsafe.Sizeof(count)
+	flagsSize := unsafe.Sizeof(crtFlags)
+	handleSize := unsafe.Sizeof(fd[0])
+
+	size := uint16(int32Size + flagsSize*uintptr(count) + handleSize*uintptr(count))
+	buf := make([]byte, size)
+
+	*(*int32)(unsafe.Pointer(&buf[0])) = count
+
+	for i := uintptr(0); i < uintptr(count); i++ {
+		// (ZekeLu) should it be restrict to report the error for invalid or
+		// unknown handles?
+		ft, _ := GetFileType(fd[i])
+		switch ft {
+		case FILE_TYPE_DISK:
+			crtFlags = crt_FD_OPEN
+		case FILE_TYPE_PIPE:
+			crtFlags = crt_FD_OPEN | crt_FD_PIPE
+		default:
+			crtFlags = crt_FD_OPEN | crt_FD_DEV
+		}
+		*(*uint8)(unsafe.Pointer(&buf[int32Size+flagsSize*i])) = crtFlags
+		*(*Handle)(unsafe.Pointer(&buf[int32Size+flagsSize*uintptr(count)+handleSize*i])) = fd[i]
+	}
+	return size, &buf[0]
 }
