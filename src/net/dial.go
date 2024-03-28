@@ -25,9 +25,7 @@ const (
 	// defaultTCPKeepAliveCount is a default constant value for TCP_KEEPCNT.
 	defaultTCPKeepAliveCount = 9
 
-	// For the moment, MultiPath TCP is not used by default
-	// See go.dev/issue/56539
-	defaultMPTCPEnabled = false
+	defaultMPTCPEnabled = true
 )
 
 var multipathtcp = godebug.New("multipathtcp")
@@ -50,11 +48,11 @@ func (m *mptcpStatus) get() bool {
 		return false
 	}
 
-	// If MPTCP is forced via GODEBUG=multipathtcp=1
-	if multipathtcp.Value() == "1" {
+	// If MPTCP is disabled via GODEBUG=multipathtcp=0
+	if multipathtcp.Value() == "0" {
 		multipathtcp.IncNonDefault()
 
-		return true
+		return false
 	}
 
 	return defaultMPTCPEnabled
