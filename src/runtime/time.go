@@ -1077,8 +1077,8 @@ func (ts *timers) verify() {
 			continue
 		}
 
-		// The heap is 4-ary. See siftupTimer and siftdownTimer.
-		p := (i - 1) / 4
+		// The heap is timerHeapN-ary. See siftupTimer and siftdownTimer.
+		p := int(uint(i-1) / timerHeapN)
 		if tw.when < ts.heap[p].when {
 			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", tw.when, "\n")
 			throw("bad timer heap")
@@ -1139,6 +1139,8 @@ func timeSleepUntil() int64 {
 	return next
 }
 
+const timerHeapN = 4
+
 // Heap maintenance algorithms.
 // These algorithms check for slice index errors manually.
 // Slice index error can happen if the program is using racy
@@ -1160,7 +1162,7 @@ func (ts *timers) siftUp(i int) {
 		badTimer()
 	}
 	for i > 0 {
-		p := (i - 1) / 4 // parent
+		p := int(uint(i-1) / timerHeapN) // parent
 		if when >= heap[p].when {
 			break
 		}
@@ -1180,34 +1182,28 @@ func (ts *timers) siftDown(i int) {
 	if i >= n {
 		badTimer()
 	}
+	if i*timerHeapN+1 >= n {
+		return
+	}
 	tw := heap[i]
 	when := tw.when
 	if when <= 0 {
 		badTimer()
 	}
 	for {
-		c := i*4 + 1 // left child
-		c3 := c + 2  // mid child
-		if c >= n {
+		leftChild := i*timerHeapN + 1
+		if leftChild >= n {
 			break
 		}
-		w := heap[c].when
-		if c+1 < n && heap[c+1].when < w {
-			w = heap[c+1].when
-			c++
-		}
-		if c3 < n {
-			w3 := heap[c3].when
-			if c3+1 < n && heap[c3+1].when < w3 {
-				w3 = heap[c3+1].when
-				c3++
-			}
-			if w3 < w {
-				w = w3
-				c = c3
+		w := when
+		c := -1
+		for j, tw := range heap[leftChild:min(leftChild+timerHeapN, n)] {
+			if tw.when < w {
+				w = tw.when
+				c = leftChild + j
 			}
 		}
-		if w >= when {
+		if c < 0 {
 			break
 		}
 		heap[i] = heap[c]
@@ -1222,11 +1218,11 @@ func (ts *timers) siftDown(i int) {
 // It takes O(n) time for n=len(ts.heap), not the O(n log n) of n repeated add operations.
 func (ts *timers) initHeap() {
 	// Last possible element that needs sifting down is parent of last element;
-	// last element is len(t)-1; parent of last element is (len(t)-1-1)/4.
+	// last element is len(t)-1; parent of last element is (len(t)-1-1)/timerHeapN.
 	if len(ts.heap) <= 1 {
 		return
 	}
-	for i := (len(ts.heap) - 1 - 1) / 4; i >= 0; i-- {
+	for i := int(uint(len(ts.heap)-1-1) / timerHeapN); i >= 0; i-- {
 		ts.siftDown(i)
 	}
 }
