@@ -9,7 +9,8 @@ package net
 import (
 	"internal/poll"
 	"io"
-	"os"
+	"io/fs"
+	"syscall"
 )
 
 // sendFile copies the contents of r to c using the sendfile
@@ -34,7 +35,12 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			return 0, nil, true
 		}
 	}
-	f, ok := r.(*os.File)
+	f, ok := r.(interface {
+		io.Seeker
+		Fd() uintptr // not used, but limits the type to *os.File
+		Stat() (fs.FileInfo, error)
+		SyscallConn() (syscall.RawConn, error)
+	})
 	if !ok {
 		return 0, nil, false
 	}

@@ -7,7 +7,6 @@ package net
 import (
 	"internal/poll"
 	"io"
-	"os"
 	"syscall"
 )
 
@@ -29,7 +28,9 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		}
 	}
 
-	f, ok := r.(*os.File)
+	f, ok := r.(interface {
+		Fd() uintptr
+	})
 	if !ok {
 		return 0, nil, false
 	}
