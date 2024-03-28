@@ -42,6 +42,35 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 			if rel == ".." || strings.HasPrefix(rel, "../") {
 				return false
 			}
+
+			relToWorkingDir, err := filepath.Rel(cwd, p.Dir)
+			if err != nil {
+				return matchPath(rel)
+			}
+
+			hasAnyPrefix := func(dir string, prefixes ...string) bool {
+				for _, prefix := range prefixes {
+					if strings.HasPrefix(dir, prefix) {
+						return true
+					}
+				}
+				return false
+			}
+
+			sep := string(filepath.Separator)
+			if relToWorkingDir == "." || hasAnyPrefix(relToWorkingDir, ".."+sep) {
+				// Not a special directory so can return immediately
+				return matchPath(rel)
+			}
+
+			// Otherwise avoid special directories "testdata" or beginning with ".", "_".
+			pathComponents := strings.Split(relToWorkingDir, sep)
+			for _, elem := range pathComponents {
+				if hasAnyPrefix(elem, ".", "_") || elem == "testdata" {
+					return false
+				}
+			}
+
 			return matchPath(rel)
 		}
 	case pattern == "all":
