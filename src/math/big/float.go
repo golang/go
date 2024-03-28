@@ -673,8 +673,8 @@ func (z *Float) Set(x *Float) *Float {
 }
 
 // Copy sets z to x, with the same precision, rounding mode, and
-// accuracy as x, and returns z. x is not changed even if z and
-// x are the same.
+// accuracy as x, and returns a new *Float with value of z. The
+// value of x is never changed.
 func (z *Float) Copy(x *Float) *Float {
 	if debugFloat {
 		x.validate()
