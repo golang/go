@@ -335,12 +335,19 @@ func dynimport(obj string) {
 		if err != nil {
 			fatalf("%s", err)
 		}
+		defer func() {
+			if err = f.Close(); err != nil {
+				fatalf("error closing %s: %v", *dynout, err)
+			}
+		}()
+
 		stdout = f
 	}
 
 	fmt.Fprintf(stdout, "package %s\n", *dynpackage)
 
 	if f, err := elf.Open(obj); err == nil {
+		defer f.Close()
 		if *dynlinker {
 			// Emit the cgo_dynamic_linker line.
 			if sec := f.Section(".interp"); sec != nil {
@@ -368,6 +375,7 @@ func dynimport(obj string) {
 	}
 
 	if f, err := macho.Open(obj); err == nil {
+		defer f.Close()
 		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
 			if len(s) > 0 && s[0] == '_' {
@@ -384,6 +392,7 @@ func dynimport(obj string) {
 	}
 
 	if f, err := pe.Open(obj); err == nil {
+		defer f.Close()
 		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
@@ -396,6 +405,7 @@ func dynimport(obj string) {
 	}
 
 	if f, err := xcoff.Open(obj); err == nil {
+		defer f.Close()
 		sym, err := f.ImportedSymbols()
 		if err != nil {
 			fatalf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
