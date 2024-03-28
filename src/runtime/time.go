@@ -239,12 +239,8 @@ func (t *timer) updateHeap(ts *timers) (updated bool) {
 		assertLockHeld(&ts.mu)
 	}
 	if t.state&timerZombie != 0 {
-		// Take timer out of heap, applying final t.whenHeap update first.
-		t.state &^= timerHeaped | timerZombie
-		if t.state&timerModified != 0 {
-			t.state &^= timerModified
-			t.whenHeap = t.when
-		}
+		// Take timer out of heap.
+		t.state &^= timerHeaped | timerZombie | timerModified
 		if ts != nil {
 			ts.zombies.Add(-1)
 			ts.deleteMin()
@@ -649,6 +645,24 @@ func (ts *timers) cleanHead() {
 		// We can clean the timers later.
 		if gp.preemptStop {
 			return
+		}
+
+		// Delete zombies from tail of heap. It requires no heap adjustments at all,
+		// and doing so increases the chances that when we swap out a zombie
+		// in heap[0] for the tail of the heap, we'll get a non-zombie timer,
+		// shortening this loop.
+		n := len(ts.heap)
+		if t := ts.heap[n-1]; t.astate.Load()&timerZombie != 0 {
+			t.lock()
+			if t.state&timerZombie != 0 {
+				t.state &^= timerHeaped | timerZombie | timerModified
+				t.ts = nil
+				ts.zombies.Add(-1)
+				ts.heap[n-1] = nil
+				ts.heap = ts.heap[:n-1]
+			}
+			t.unlock()
+			continue
 		}
 
 		t := ts.heap[0]
