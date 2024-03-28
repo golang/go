@@ -1210,29 +1210,26 @@ func (e *pendingEntry) clear() {
 	}
 }
 
-// canMerge reports whether a new location description is a superset
-// of the (non-empty) pending location description, if so, the two
-// can be merged (i.e., pending is still a valid and useful location
-// description).
+// canMerge reports whether pending and new would produce the same location when
+// writing a location list entry.
 func canMerge(pending, new VarLoc) bool {
-	if pending.absent() && new.absent() {
+	// If the two locations are the same, they can be trivially merged.
+	// This covers the case where both are absent.
+	if pending == new {
 		return true
 	}
 	if pending.absent() || new.absent() {
 		return false
 	}
-	// pending is not absent, therefore it has either a stack mapping,
-	// or registers, or both.
-	if pending.onStack() && pending.StackOffset != new.StackOffset {
-		// if pending has a stack offset, then new must also, and it
-		// must be the same (StackOffset encodes onStack).
-		return false
+	// Stack locations are preferred to registers, so if the new location is in
+	// the same place on the stack as the old one, keep it regardless of any
+	// registers.
+	if pending.onStack() {
+		return pending.StackOffset == new.StackOffset
 	}
-	if pending.Registers&new.Registers != pending.Registers {
-		// There is at least one register in pending not mentioned in new.
-		return false
-	}
-	return true
+	// See if the pending location's reported register still works for the new
+	// value.
+	return new.Registers != 0 && firstReg(pending.Registers) == firstReg(new.Registers)
 }
 
 // firstReg returns the first register in set that is present.
@@ -1473,6 +1470,8 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 		slot := state.slots[slotID]
 
 		if !loc.absent() {
+			// Note that the choice to prefer stack locations to registers when
+			// both exist here affects the logic in canMerge.
 			if loc.onStack() {
 				if loc.stackOffsetValue() == 0 {
 					list = append(list, dwarf.DW_OP_call_frame_cfa)
