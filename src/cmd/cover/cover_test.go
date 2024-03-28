@@ -123,6 +123,11 @@ func TestCoverWithToolExec(t *testing.T) {
 	t.Run("HtmlUnformatted", func(t *testing.T) {
 		testHtmlUnformatted(t, toolexecArg)
 	})
+
+	t.Run("HtmlCss", func(t *testing.T) {
+		testHtmlCss(t, toolexecArg)
+	})
+
 	t.Run("FuncWithDuplicateLines", func(t *testing.T) {
 		testFuncWithDuplicateLines(t, toolexecArg)
 	})
@@ -375,12 +380,18 @@ func testCoverHTML(t *testing.T, toolexecArg string) {
 	cmd = testenv.Command(t, testcover(t), "-html", htmlProfile, "-o", htmlHTML)
 	run(cmd, t)
 
-	// Extract the parts of the HTML with comment markers,
-	// and compare against a golden file.
 	entireHTML, err := os.ReadFile(htmlHTML)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Check default CSS.
+	if !bytes.Contains(entireHTML, []byte(`.cov0 { color: rgb(192, 0, 0) }`)) {
+		t.Error("Default CSS not found in HTML")
+	}
+
+	// Extract the parts of the HTML with comment markers,
+	// and compare against a golden file.
 	var out strings.Builder
 	scan := bufio.NewScanner(bytes.NewReader(entireHTML))
 	in := false
@@ -478,6 +489,51 @@ lab:
 	cmd = testenv.Command(t, testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
 	cmd.Dir = htmlUDir
 	run(cmd, t)
+}
+
+// Check that cover produces HTML with specified CSS.
+// Issue #64954.
+func testHtmlCss(t *testing.T, toolexecArg string) {
+	testenv.MustHaveGoRun(t)
+	dir := tempDir(t)
+
+	t.Parallel()
+
+	const cssContent = "/* This is a test style sheet */\n"
+	if err := os.WriteFile(filepath.Join(dir, "html.css"), []byte(cssContent), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
+	htmlProfile := filepath.Join(dir, "html.cov")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+	run(cmd, t)
+
+	// testcover -html testdata/html/html.cov -css testdata/html/html.css -o testdata/html/html.html
+	htmlCSS := filepath.Join(dir, "html.css")
+	htmlHTML := filepath.Join(dir, "html.html")
+	cmd = testenv.Command(t, testcover(t), "-html", htmlProfile, "-css", htmlCSS, "-o", htmlHTML)
+	run(cmd, t)
+
+	entireHTML, err := os.ReadFile(htmlHTML)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defaultCssPos := bytes.Index(entireHTML, []byte(`.cov0 { color: rgb(192, 0, 0) }`))
+	if defaultCssPos == -1 {
+		t.Error("Default CSS not found in HTML")
+	}
+
+	cssPos := bytes.Index(entireHTML, []byte(cssContent))
+	if cssPos == -1 {
+		t.Error("Custom CSS not found in HTML")
+	}
+
+	if cssPos <= defaultCssPos {
+		t.Error("Custom CSS does not override default CSS")
+	}
 }
 
 // lineDupContents becomes linedup.go in testFuncWithDuplicateLines.
