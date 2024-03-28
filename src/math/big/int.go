@@ -9,7 +9,9 @@ package big
 import (
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
+	"strconv"
 	"strings"
 )
 
@@ -601,6 +603,31 @@ func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 	}
 
 	return z
+}
+
+// Log10 returns log(x) (the decimal logarithm of x).
+// The returned value is of type float64 to have an accurate result.
+func Log10(x *Int) float64 {
+	if !isOverflow(x) {
+		return math.Log10(float64(x.Int64()))
+	}
+
+	x.Sqrt(x)
+	numMul := 2
+
+	for isOverflow(x) {
+		x.Sqrt(x)
+		numMul = numMul << 1
+	}
+
+	bigNumLog := math.Log10(float64(x.Int64())) * float64(numMul)
+
+	return bigNumLog
+}
+
+// isOverflow checks if bigNum is too big to be handled by a type int64.
+func isOverflow(bigNum *Int) bool {
+	return bigNum.String() != strconv.Itoa(int(bigNum.Int64()))
 }
 
 // GCD sets z to the greatest common divisor of a and b and returns z.
