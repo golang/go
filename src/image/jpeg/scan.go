@@ -311,6 +311,12 @@ func (d *decoder) processSOS(n int) error {
 					return err
 				}
 
+				// padding 0xff bytes, skip and rewrite tmp[1] until not equals to 0xff
+				for d.tmp[0] == 0xff && d.tmp[1] == 0xff {
+					if err := d.readFull(d.tmp[1:2]); err != nil {
+						return err
+					}
+				}
 				// Section F.1.2.3 says that "Byte alignment of markers is
 				// achieved by padding incomplete bytes with 1-bits. If padding
 				// with 1-bits creates a X’FF’ value, a zero byte is stuffed
