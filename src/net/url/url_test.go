@@ -54,6 +54,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// path with lowercase hex escaping (golang.org/issue/33596)
+	{
+		"http://www.google.com/file%3Fone%3ftwo",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/file?one?two",
+			RawPath: "",
+		},
+		"",
+	},
 	// fragment with hex escaping
 	{
 		"http://www.google.com/#file%20one%26two",
