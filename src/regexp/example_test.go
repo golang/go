@@ -226,6 +226,7 @@ func ExampleRegexp_ReplaceAll() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("T")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1")))
+	// Tries to find the named group `$1W` which is not present, so empty.
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
 
@@ -257,6 +258,7 @@ func ExampleRegexp_ReplaceAllString() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "T"))
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1"))
+	// Tries to find the named group `$1W` which is not present, so empty.
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1W"))
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "${1}W"))
 
