@@ -196,3 +196,34 @@ func Float32Max(a, b float32) float32 {
 	// ppc64/power10:"XSMAXJDP"
 	return max(a, b)
 }
+
+// ------------------------ //
+//  Constant Optimizations  //
+// ------------------------ //
+
+func Float32Constant() float32 {
+	// ppc64x/power8:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
+	// ppc64x/power9:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
+	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
+	return 49.0
+}
+
+func Float64Constant() float64 {
+	// ppc64x/power8:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
+	// ppc64x/power9:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
+	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
+	return 49.0
+}
+
+func Float32DenormalConstant() float32 {
+	// ppc64x:"FMOVS\t[$]f32\\.00400000\\(SB\\)"
+	return 0x1p-127
+}
+
+// A float64 constant which can be exactly represented as a
+// denormal float32 value. On ppc64x, denormal values cannot
+// be used with XXSPLTIDP.
+func Float64DenormalFloat32Constant() float64 {
+	// ppc64x:"FMOVD\t[$]f64\\.3800000000000000\\(SB\\)"
+	return 0x1p-127
+}
