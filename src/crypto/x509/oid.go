@@ -121,6 +121,9 @@ func (o OID) MarshalText() ([]byte, error) {
 func (o *OID) UnmarshalText(text []byte) error {
 	oid := string(text)
 
+	// (*big.Int).SetString allows +/- signs, but we don't want
+	// to allow them in the string representation of Object Identifier, so
+	// reject such encodings.
 	for _, c := range oid {
 		isDigit := c >= '0' && c <= '9'
 		if !isDigit && c != ' ' && c != '.' {
