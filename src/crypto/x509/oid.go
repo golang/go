@@ -117,7 +117,7 @@ func (o OID) MarshalText() ([]byte, error) {
 	return []byte(o.String()), nil
 }
 
-// MarshalText implements [encoding.TextUnmarshaler]
+// UnmarshalText implements [encoding.TextUnmarshaler]
 func (o *OID) UnmarshalText(text []byte) error {
 	oid := string(text)
 
@@ -187,12 +187,12 @@ func (o *OID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalText implements [encoding.BinaryMarshaler]
+// MarshalBinary implements [encoding.BinaryMarshaler]
 func (o OID) MarshalBinary() ([]byte, error) {
 	return bytes.Clone(o.der), nil
 }
 
-// MarshalText implements [encoding.BinaryUnmarshaler]
+// UnmarshalBinary implements [encoding.BinaryUnmarshaler]
 func (o *OID) UnmarshalBinary(b []byte) error {
 	oid, ok := newOIDFromDER(b)
 	if !ok {
