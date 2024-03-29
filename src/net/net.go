@@ -617,12 +617,36 @@ func (e *DNSConfigError) Temporary() bool { return false }
 
 // Various errors contained in DNSError.
 var (
-	errNoSuchHost = errors.New("no such host")
+	errNoSuchHost  = &notFoundError{"no such host"}
+	errUnknownPort = &notFoundError{"unknown port"}
+
+	errUnknownNetwork = errors.New("unknown network")
+	errInvalidAddress = errors.New("invalid address")
+	errInvalidPort    = errors.New("invalid port")
 )
+
+// notFoundError is a special error understood by the newWrappingDNSError function,
+// which causes a creation of a DNSError with IsNotFound field set to true.
+type notFoundError struct{ s string }
+
+func (e *notFoundError) Error() string { return e.s }
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	Err         string // description of the error
+	// Underlying is an error that caused this DNSError.
+	// It is returned by the Unwrap method.
+	//
+	// When updating this field make sure to update
+	// the Err field accordingly, so that the Error
+	// and Unwrap methods don't diverge.
+	Underlying error
+
+	// Err is a description of the error, for backwards compatibility
+	// the net package sets this error to the value
+	// returned by Underlying.Error(), it used by
+	// the Error method to produce the error string.
+	Err string
+
 	Name        string // name looked for
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
@@ -633,6 +657,35 @@ type DNSError struct {
 	// or the name itself was not found (NXDOMAIN).
 	IsNotFound bool
 }
+
+// newWrappingDNSError creates a new *DNSError.
+// It examines the provided error and, if it implements the Error interface,
+// it sets the IsTimeout and IsTemporary fields accordingly.
+// If the error is of type *notFoundError (errNoSuchHost or errUnknownPort),
+// it sets the IsNotFound field to true.
+func newWrappingDNSError(err error, name, server string) *DNSError {
+	var isTimeout bool
+	var isTemporary bool
+	if err, ok := err.(timeout); ok {
+		isTimeout = err.Timeout()
+	}
+	if err, ok := err.(temporary); ok {
+		isTemporary = err.Temporary()
+	}
+	_, isNotFound := err.(*notFoundError)
+	return &DNSError{
+		Underlying:  err,
+		Err:         err.Error(),
+		Name:        name,
+		Server:      server,
+		IsTimeout:   isTimeout,
+		IsTemporary: isTemporary,
+		IsNotFound:  isNotFound,
+	}
+}
+
+// Unwrap returns e.Underlying.
+func (e *DNSError) Unwrap() error { return e.Underlying }
 
 func (e *DNSError) Error() string {
 	if e == nil {

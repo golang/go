@@ -94,7 +94,7 @@ func lookupPortMap(network, service string) (port int, error error) {
 	case "udp", "udp4", "udp6":
 		return lookupPortMapWithNetwork("udp", "udp", service)
 	}
-	return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+	return 0, newWrappingDNSError(errUnknownNetwork, network+"/"+service, "")
 }
 
 func lookupPortMapWithNetwork(network, errNetwork, service string) (port int, error error) {
@@ -105,9 +105,9 @@ func lookupPortMapWithNetwork(network, errNetwork, service string) (port int, er
 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
 			return port, nil
 		}
-		return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
+		return 0, newWrappingDNSError(errUnknownPort, errNetwork+"/"+service, "")
 	}
-	return 0, &DNSError{Err: "unknown network", Name: errNetwork + "/" + service}
+	return 0, newWrappingDNSError(errUnknownNetwork, errNetwork+"/"+service, "")
 }
 
 // ipVersion returns the provided network's IP version: '4', '6' or 0
@@ -192,7 +192,7 @@ func LookupHost(host string) (addrs []string, err error) {
 func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+		return nil, newWrappingDNSError(errNoSuchHost, host, "")
 	}
 	if _, err := netip.ParseAddr(host); err == nil {
 		return []string{host}, nil
@@ -236,7 +236,7 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
 	}
 
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+		return nil, newWrappingDNSError(errNoSuchHost, host, "")
 	}
 	addrs, err := r.internetAddrList(ctx, afnet, host)
 	if err != nil {
@@ -304,7 +304,7 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
 	// Make sure that no matter what we do later, host=="" is rejected.
 	if host == "" {
-		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+		return nil, newWrappingDNSError(errNoSuchHost, host, "")
 	}
 	if ip, err := netip.ParseAddr(host); err == nil {
 		return []IPAddr{{IP: IP(ip.AsSlice()).To16(), Zone: ip.Zone()}}, nil
@@ -354,12 +354,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		} else {
 			go dnsWaitGroupDone(ch, lookupGroupCancel)
 		}
-		ctxErr := ctx.Err()
-		err := &DNSError{
-			Err:       mapErr(ctxErr).Error(),
-			Name:      host,
-			IsTimeout: ctxErr == context.DeadlineExceeded,
-		}
+		err := newWrappingDNSError(mapErr(ctx.Err()), host, "")
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
 		}
@@ -370,17 +365,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		err := r.Err
 		if err != nil {
 			if _, ok := err.(*DNSError); !ok {
-				isTimeout := false
-				if err == context.DeadlineExceeded {
-					isTimeout = true
-				} else if terr, ok := err.(timeout); ok {
-					isTimeout = terr.Timeout()
-				}
-				err = &DNSError{
-					Err:       err.Error(),
-					Name:      host,
-					IsTimeout: isTimeout,
-				}
+				err = newWrappingDNSError(mapErr(err), host, "")
 			}
 		}
 		if trace != nil && trace.DNSDone != nil {
@@ -486,7 +471,7 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 		return "", err
 	}
 	if !isDomainName(cname) {
-		return "", &DNSError{Err: errMalformedDNSRecordsDetail, Name: host}
+		return "", newWrappingDNSError(errMalformedDNSRecordsDetail, host, "")
 	}
 	return cname, nil
 }
@@ -509,7 +494,9 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 	return DefaultResolver.LookupSRV(context.Background(), service, proto, name)
 }
 
-// LookupSRV tries to resolve an [SRV] query of the given service,
+var errSRVHeaderNameInvalid = errors.New("SRV header name is invalid")
+
+// LookupSRV tries to resolve an SRV query of the given service,
 // protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
@@ -529,7 +516,7 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
 		return "", nil, err
 	}
 	if cname != "" && !isDomainName(cname) {
-		return "", nil, &DNSError{Err: "SRV header name is invalid", Name: name}
+		return "", nil, newWrappingDNSError(errSRVHeaderNameInvalid, name, "")
 	}
 	filteredAddrs := make([]*SRV, 0, len(addrs))
 	for _, addr := range addrs {
@@ -542,7 +529,7 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
 		filteredAddrs = append(filteredAddrs, addr)
 	}
 	if len(addrs) != len(filteredAddrs) {
-		return cname, filteredAddrs, &DNSError{Err: errMalformedDNSRecordsDetail, Name: name}
+		return cname, filteredAddrs, newWrappingDNSError(errMalformedDNSRecordsDetail, name, "")
 	}
 	return cname, filteredAddrs, nil
 }
@@ -582,7 +569,7 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 		filteredMX = append(filteredMX, mx)
 	}
 	if len(records) != len(filteredMX) {
-		return filteredMX, &DNSError{Err: errMalformedDNSRecordsDetail, Name: name}
+		return filteredMX, newWrappingDNSError(errMalformedDNSRecordsDetail, name, "")
 	}
 	return filteredMX, nil
 }
@@ -622,7 +609,7 @@ func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
 		filteredNS = append(filteredNS, ns)
 	}
 	if len(records) != len(filteredNS) {
-		return filteredNS, &DNSError{Err: errMalformedDNSRecordsDetail, Name: name}
+		return filteredNS, newWrappingDNSError(errMalformedDNSRecordsDetail, name, "")
 	}
 	return filteredNS, nil
 }
@@ -674,7 +661,7 @@ func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error
 		}
 	}
 	if len(names) != len(filteredNames) {
-		return filteredNames, &DNSError{Err: errMalformedDNSRecordsDetail, Name: addr}
+		return filteredNames, newWrappingDNSError(errMalformedDNSRecordsDetail, addr, "")
 	}
 	return filteredNames, nil
 }
@@ -682,7 +669,7 @@ func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error
 // errMalformedDNSRecordsDetail is the DNSError detail which is returned when a Resolver.Lookup...
 // method receives DNS records which contain invalid DNS names. This may be returned alongside
 // results which have had the malformed records filtered out.
-var errMalformedDNSRecordsDetail = "DNS response contained records which contain invalid names"
+var errMalformedDNSRecordsDetail = errors.New("DNS response contained records which contain invalid names")
 
 // dial makes a new connection to the provided server (which must be
 // an IP address) with the provided network type, using either r.Dial
@@ -733,19 +720,11 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 			break
 		}
 		if err != nil {
-			return "", nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return "", nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		if h.Type != dnsmessage.TypeSRV {
 			if err := p.SkipAnswer(); err != nil {
-				return "", nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
+				return "", nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 			}
 			continue
 		}
@@ -754,11 +733,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 		}
 		srv, err := p.SRVResource()
 		if err != nil {
-			return "", nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return "", nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		srvs = append(srvs, &SRV{Target: srv.Target.String(), Port: srv.Port, Priority: srv.Priority, Weight: srv.Weight})
 	}
@@ -779,29 +754,17 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 			break
 		}
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		if h.Type != dnsmessage.TypeMX {
 			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
+				return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 			}
 			continue
 		}
 		mx, err := p.MXResource()
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		mxs = append(mxs, &MX{Host: mx.MX.String(), Pref: mx.Pref})
 
@@ -823,29 +786,17 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 			break
 		}
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		if h.Type != dnsmessage.TypeNS {
 			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
+				return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 			}
 			continue
 		}
 		ns, err := p.NSResource()
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		nss = append(nss, &NS{Host: ns.NS.String()})
 	}
@@ -865,29 +816,17 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 			break
 		}
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		if h.Type != dnsmessage.TypeTXT {
 			if err := p.SkipAnswer(); err != nil {
-				return nil, &DNSError{
-					Err:    "cannot unmarshal DNS message",
-					Name:   name,
-					Server: server,
-				}
+				return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 			}
 			continue
 		}
 		txt, err := p.TXTResource()
 		if err != nil {
-			return nil, &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return nil, newWrappingDNSError(errCannotUnmarshalDNSMessage, name, server)
 		}
 		// Multiple strings in one TXT record need to be
 		// concatenated without separator to be consistent

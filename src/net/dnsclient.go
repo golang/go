@@ -32,7 +32,7 @@ func randIntn(n int) int {
 func reverseaddr(addr string) (arpa string, err error) {
 	ip := ParseIP(addr)
 	if ip == nil {
-		return "", &DNSError{Err: "unrecognized address", Name: addr}
+		return "", newWrappingDNSError(errInvalidAddress, addr, "")
 	}
 	if ip.To4() != nil {
 		return itoa.Uitoa(uint(ip[15])) + "." + itoa.Uitoa(uint(ip[14])) + "." + itoa.Uitoa(uint(ip[13])) + "." + itoa.Uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
