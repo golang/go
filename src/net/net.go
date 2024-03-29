@@ -633,7 +633,7 @@ func (e *notFoundError) Error() string { return e.s }
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	UnwrapErr   error  // error returned by [DNSError.Unwrap], might be nil
+	UnwrapErr   error  // error returned by the [DNSError.Unwrap] method, might be nil
 	Err         string // description of the error
 	Name        string // name looked for
 	Server      string // server used
