@@ -1770,3 +1770,28 @@ func testEarlyHintsRequest(t *testing.T, mode testMode) {
 		t.Errorf("Read body %q; want Hello", body)
 	}
 }
+
+// Issue 53808
+func TestServerReadAfterHandlerDone100Continue(t *testing.T) {
+	run(t, testServerReadAfterHandlerDone100Continue)
+}
+func testServerReadAfterHandlerDone100Continue(t *testing.T, mode testMode) {
+	readyc := make(chan struct{})
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		go func() {
+			<-readyc
+			io.ReadAll(r.Body)
+			<-readyc
+		}()
+	}))
+
+	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("body"))
+	req.Header.Set("Expect", "100-continue")
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatalf("Get(%q) = %v", cst.ts.URL, err)
+	}
+	res.Body.Close()
+	readyc <- struct{}{} // server starts reading from the request body
+	readyc <- struct{}{} // server finishes reading from the request body
+}
