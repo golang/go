@@ -1,5 +1,5 @@
 pkg crypto/x509, func ParseOID(string) (OID, error) #66249
 pkg crypto/x509, method (OID) MarshalText() ([]byte, error) #66249
-pkg crypto/x509, method (*OID) UnmarshalText([]byte) (error) #66249
+pkg crypto/x509, method (*OID) UnmarshalText([]byte) error #66249
 pkg crypto/x509, method (OID) MarshalBinary() ([]byte, error) #66249
-pkg crypto/x509, method (*OID) UnmarshalBinary([]byte) (error) #66249
+pkg crypto/x509, method (*OID) UnmarshalBinary([]byte) error #66249
