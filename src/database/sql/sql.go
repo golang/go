@@ -24,7 +24,7 @@ import (
 	"math/rand/v2"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -69,7 +69,7 @@ func Drivers() []string {
 	for name := range drivers {
 		list = append(list, name)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -3452,10 +3452,8 @@ func (r *Row) Scan(dest ...any) error {
 	// they were obtained from the network anyway) But for now we
 	// don't care.
 	defer r.rows.Close()
-	for _, dp := range dest {
-		if _, ok := dp.(*RawBytes); ok {
-			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
-		}
+	if scanArgsContainRawBytes(dest) {
+		return errors.New("sql: RawBytes isn't allowed on Row.Scan")
 	}
 
 	if !r.rows.Next() {

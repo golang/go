@@ -40,14 +40,7 @@ func init() {
 		freedFrom[c] = s
 	}
 	putConnHook = func(db *DB, c *driverConn) {
-		idx := -1
-		for i, v := range db.freeConn {
-			if v == c {
-				idx = i
-				break
-			}
-		}
-		if idx >= 0 {
+		if slices.Contains(db.freeConn, c) {
 			// print before panic, as panic may get lost due to conflicting panic
 			// (all goroutines asleep) elsewhere, since we might not unlock
 			// the mutex in freeConn here.
@@ -291,7 +284,7 @@ func TestQuery(t *testing.T) {
 		{age: 2, name: "Bob"},
 		{age: 3, name: "Chris"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -355,7 +348,7 @@ func TestQueryContext(t *testing.T) {
 		{age: 1, name: "Alice"},
 		{age: 2, name: "Bob"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -540,7 +533,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 		{age: 2, name: "Bob"},
 		{age: 3, name: "Chris"},
 	}
-	if !reflect.DeepEqual(got1, want1) {
+	if !slices.Equal(got1, want1) {
 		t.Errorf("mismatch.\n got1: %#v\nwant: %#v", got1, want1)
 	}
 
@@ -566,7 +559,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 		{name: "Bob"},
 		{name: "Chris"},
 	}
-	if !reflect.DeepEqual(got2, want2) {
+	if !slices.Equal(got2, want2) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got2, want2)
 	}
 	if rows.NextResultSet() {
@@ -614,7 +607,7 @@ func TestQueryNamedArg(t *testing.T) {
 	want := []row{
 		{age: 2, name: "Bob"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -724,7 +717,7 @@ func TestRowsColumns(t *testing.T) {
 		t.Fatalf("Columns: %v", err)
 	}
 	want := []string{"age", "name"}
-	if !reflect.DeepEqual(cols, want) {
+	if !slices.Equal(cols, want) {
 		t.Errorf("got %#v; want %#v", cols, want)
 	}
 	if err := rows.Close(); err != nil {
@@ -827,7 +820,7 @@ func TestQueryRow(t *testing.T) {
 		t.Fatalf("photo QueryRow+Scan: %v", err)
 	}
 	want := []byte("APHOTO")
-	if !reflect.DeepEqual(photo, want) {
+	if !slices.Equal(photo, want) {
 		t.Errorf("photo = %q; want %q", photo, want)
 	}
 }
