@@ -252,6 +252,8 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
 }
 
 func isTestingType(typ types.Type, testingType string) bool {
+	// No Unalias here: I doubt "go test" recognizes
+	// "type A = *testing.T; func Test(A) {}" as a test.
 	ptr, ok := typ.(*types.Pointer)
 	if !ok {
 		return false

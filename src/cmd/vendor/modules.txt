@@ -71,8 +71,8 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.18.0
-## explicit; go 1.18
+# golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14
+## explicit; go 1.19
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -122,7 +122,9 @@ golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/bisect
 golang.org/x/tools/internal/facts
+golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
 # rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650
 ## explicit; go 1.20

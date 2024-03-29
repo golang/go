@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -69,12 +70,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// (*"encoding/json".Decoder).Decode
 			// (* "encoding/gob".Decoder).Decode
 			// (* "encoding/xml".Decoder).Decode
-			t := recv.Type()
-			if ptr, ok := t.(*types.Pointer); ok {
-				t = ptr.Elem()
-			}
-			tname := t.(*types.Named).Obj()
-			if tname.Name() == "Decoder" {
+			_, named := typesinternal.ReceiverNamed(recv)
+			if tname := named.Obj(); tname.Name() == "Decoder" {
 				switch tname.Pkg().Path() {
 				case "encoding/json", "encoding/xml", "encoding/gob":
 					argidx = 0 // func(interface{})
