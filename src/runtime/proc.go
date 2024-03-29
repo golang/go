@@ -922,6 +922,16 @@ func mcommoninit(mp *m, id int64) {
 	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" {
 		mp.cgoCallers = new(cgoCallers)
 	}
+	mProfStackInit(mp)
+}
+
+// mProfStackInit is used to eagilery initialize stack trace buffers for
+// profiling. Lazy allocation would have to deal with reentrancy issues in
+// malloc and runtime locks for mLockProfile.
+// TODO(mknyszek): Implement lazy allocation if this becomes a problem.
+func mProfStackInit(mp *m) {
+	mp.profStack = make([]uintptr, maxStack)
+	mp.mLockProfile.stack = make([]uintptr, maxStack)
 }
 
 func (mp *m) becomeSpinning() {

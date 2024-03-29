@@ -599,6 +599,7 @@ type m struct {
 	nextwaitm     muintptr    // next m waiting for lock
 
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
+	profStack    []uintptr    // used for memory/block/mutex stack traces
 
 	// wait* are used to carry arguments from gopark into park_m, because
 	// there's no stack to put them on. That is their sole purpose.
