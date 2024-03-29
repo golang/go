@@ -890,6 +890,9 @@ func mayModifyPkgVar(n ir.Node) bool {
 		case ir.OCALLFUNC, ir.OCALLINTER:
 			return !ir.IsFuncPCIntrinsic(n.(*ir.CallExpr))
 
+		case ir.OINLCALL:
+			return true
+
 		case ir.OAPPEND, ir.OCLEAR, ir.OCOPY:
 			return true // could mutate a global array
 
