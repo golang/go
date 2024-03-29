@@ -1224,7 +1224,6 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 
 	makeTimeout := func() error {
 		return &DNSError{
-			Underlying:  os.ErrDeadlineExceeded,
 			Err:         os.ErrDeadlineExceeded.Error(),
 			Name:        name,
 			Server:      server,
@@ -1234,7 +1233,6 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeNxDomain := func() error {
 		return &DNSError{
-			Underlying: errNoSuchHost,
 			Err:        errNoSuchHost.Error(),
 			Name:       name,
 			Server:     server,
@@ -1287,7 +1285,6 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 				return resolveOK
 			},
 			wantStrictErr: &DNSError{
-				Underlying:  errServerMisbehaving,
 				Err:         errServerMisbehaving.Error(),
 				Name:        name,
 				Server:      server,
@@ -1315,7 +1312,6 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 				return resolveOK
 			},
 			wantStrictErr: &DNSError{
-				Underlying:  socketOnFireErr,
 				Err:         socketOnFireErr.Error(),
 				Name:        name,
 				Server:      server,
@@ -1495,7 +1491,6 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 		var wantRRs int
 		if strict {
 			wantErr = &DNSError{
-				Underlying:  os.ErrDeadlineExceeded,
 				Err:         os.ErrDeadlineExceeded.Error(),
 				Name:        name,
 				Server:      server,
@@ -2110,7 +2105,7 @@ func TestCVE202133195(t *testing.T) {
 		{
 			name: "CNAME",
 			f: func(t *testing.T) {
-				expectedErr := &DNSError{Underlying: errMalformedDNSRecordsDetail, Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
 				_, err := r.LookupCNAME(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2129,7 +2124,7 @@ func TestCVE202133195(t *testing.T) {
 						Target: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Underlying: errMalformedDNSRecordsDetail, Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
 				_, records, err := r.LookupSRV(context.Background(), "target", "tcp", "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2167,7 +2162,7 @@ func TestCVE202133195(t *testing.T) {
 						Host: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Underlying: errMalformedDNSRecordsDetail, Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
 				records, err := r.LookupMX(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2192,7 +2187,7 @@ func TestCVE202133195(t *testing.T) {
 						Host: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Underlying: errMalformedDNSRecordsDetail, Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
 				records, err := r.LookupNS(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2213,7 +2208,7 @@ func TestCVE202133195(t *testing.T) {
 			name: "Addr",
 			f: func(t *testing.T) {
 				expected := []string{"good.golang.org."}
-				expectedErr := &DNSError{Underlying: errMalformedDNSRecordsDetail, Err: errMalformedDNSRecordsDetail.Error(), Name: "192.0.2.42"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "192.0.2.42"}
 				records, err := r.LookupAddr(context.Background(), "192.0.2.42")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2561,7 +2556,7 @@ func TestLongDNSNames(t *testing.T) {
 					break
 				}
 
-				expectedErr := DNSError{Underlying: errNoSuchHost, Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
+				expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
 				var dnsErr *DNSError
 				errors.As(err, &dnsErr)
 				if dnsErr == nil || *dnsErr != expectedErr {
@@ -2754,7 +2749,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 			continue
 		}
 
-		expectedErr := DNSError{Underlying: errNoSuchHost, Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
+		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
 		var dnsErr *DNSError
 		errors.As(err, &dnsErr)
 		if dnsErr == nil || *dnsErr != expectedErr {

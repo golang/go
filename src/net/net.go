@@ -633,20 +633,8 @@ func (e *notFoundError) Error() string { return e.s }
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	// Underlying is an error that caused this DNSError.
-	// It is returned by the Unwrap method.
-	//
-	// When updating this field make sure to update
-	// the Err field accordingly, so that the Error
-	// and Unwrap methods don't diverge.
-	Underlying error
-
-	// Err is a description of the error, for backwards compatibility
-	// the net package sets this error to the value
-	// returned by Underlying.Error(), it used by
-	// the Error method to produce the error string.
-	Err string
-
+	UnwrapErr   error  // error returned by [DNSError.Unwrap], might be nil
+	Err         string // description of the error
 	Name        string // name looked for
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
@@ -659,22 +647,30 @@ type DNSError struct {
 }
 
 // newWrappingDNSError creates a new *DNSError.
-// It examines the provided error and, if it implements the Error interface,
-// it sets the IsTimeout and IsTemporary fields accordingly.
-// If the error is of type *notFoundError (errNoSuchHost or errUnknownPort),
-// it sets the IsNotFound field to true.
+// Based on the err, it sets the UnwrapErr, IsTimeout, IsTemporary, IsNotFound fields.
 func newWrappingDNSError(err error, name, server string) *DNSError {
-	var isTimeout bool
-	var isTemporary bool
+	var (
+		isTimeout   bool
+		isTemporary bool
+		unwrapErr   error
+	)
+
 	if err, ok := err.(timeout); ok {
 		isTimeout = err.Timeout()
 	}
 	if err, ok := err.(temporary); ok {
 		isTemporary = err.Temporary()
 	}
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		unwrapErr = errTimeout
+	} else if errors.Is(err, context.Canceled) {
+		unwrapErr = errCanceled
+	}
+
 	_, isNotFound := err.(*notFoundError)
 	return &DNSError{
-		Underlying:  err,
+		UnwrapErr:   unwrapErr,
 		Err:         err.Error(),
 		Name:        name,
 		Server:      server,
@@ -684,8 +680,8 @@ func newWrappingDNSError(err error, name, server string) *DNSError {
 	}
 }
 
-// Unwrap returns e.Underlying.
-func (e *DNSError) Unwrap() error { return e.Underlying }
+// Unwrap returns e.UnwrapErr.
+func (e *DNSError) Unwrap() error { return e.UnwrapErr }
 
 func (e *DNSError) Error() string {
 	if e == nil {
