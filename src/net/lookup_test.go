@@ -481,10 +481,10 @@ var revAddrTests = []struct {
 	{"1::", "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.0.0.0.ip6.arpa.", ""},
 	{"1234:567::89a:bcde", "e.d.c.b.a.9.8.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.7.6.5.0.4.3.2.1.ip6.arpa.", ""},
 	{"1234:567:fefe:bcbc:adad:9e4a:89a:bcde", "e.d.c.b.a.9.8.0.a.4.e.9.d.a.d.a.c.b.c.b.e.f.e.f.7.6.5.0.4.3.2.1.ip6.arpa.", ""},
-	{"1.2.3", "", "invalid address"},
-	{"1.2.3.4.5", "", "invalid address"},
-	{"1234:567:bcbca::89a:bcde", "", "invalid address"},
-	{"1234:567::bcbc:adad::89a:bcde", "", "invalid address"},
+	{"1.2.3", "", "unrecognized address"},
+	{"1.2.3.4.5", "", "unrecognized address"},
+	{"1234:567:bcbca::89a:bcde", "", "unrecognized address"},
+	{"1234:567::bcbc:adad::89a:bcde", "", "unrecognized address"},
 }
 
 func TestReverseAddress(t *testing.T) {

@@ -620,9 +620,10 @@ var (
 	errNoSuchHost  = &notFoundError{"no such host"}
 	errUnknownPort = &notFoundError{"unknown port"}
 
-	errUnknownNetwork = errors.New("unknown network")
-	errInvalidAddress = errors.New("invalid address")
-	errInvalidPort    = errors.New("invalid port")
+	errUnknownNetwork      = errors.New("unknown network")
+	errInvalidAddress      = errors.New("invalid address")
+	errUnrecognizedAddress = errors.New("unrecognized address")
+	errInvalidPort         = errors.New("invalid port")
 )
 
 // notFoundError is a special error understood by the newWrappingDNSError function,
