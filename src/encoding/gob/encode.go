@@ -601,7 +601,7 @@ func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	if ut.externalEnc == 0 && srt.Kind() == reflect.Struct {
 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
 			f := srt.Field(fieldNum)
-			if !isSent(srt, &f) {
+			if !isSent(&f) {
 				continue
 			}
 			op, indir := encOpFor(f.Type, seen, building)

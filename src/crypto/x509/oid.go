@@ -24,6 +24,12 @@ type OID struct {
 	der []byte
 }
 
+// ParseOID parses a Object Identifier string, represented by ASCII numbers separated by dots.
+func ParseOID(oid string) (OID, error) {
+	var o OID
+	return o, o.UnmarshalText([]byte(oid))
+}
+
 func newOIDFromDER(der []byte) (OID, bool) {
 	if len(der) == 0 || der[len(der)-1]&0x80 != 0 {
 		return OID{}, false
@@ -81,6 +87,119 @@ func appendBase128Int(dst []byte, n uint64) []byte {
 		dst = append(dst, o)
 	}
 	return dst
+}
+
+func base128BigIntLength(n *big.Int) int {
+	if n.Cmp(big.NewInt(0)) == 0 {
+		return 1
+	}
+	return (n.BitLen() + 6) / 7
+}
+
+func appendBase128BigInt(dst []byte, n *big.Int) []byte {
+	if n.Cmp(big.NewInt(0)) == 0 {
+		return append(dst, 0)
+	}
+
+	for i := base128BigIntLength(n) - 1; i >= 0; i-- {
+		o := byte(big.NewInt(0).Rsh(n, uint(i)*7).Bits()[0])
+		o &= 0x7f
+		if i != 0 {
+			o |= 0x80
+		}
+		dst = append(dst, o)
+	}
+	return dst
+}
+
+// MarshalText implements [encoding.TextMarshaler]
+func (o OID) MarshalText() ([]byte, error) {
+	return []byte(o.String()), nil
+}
+
+// MarshalText implements [encoding.TextUnmarshaler]
+func (o *OID) UnmarshalText(text []byte) error {
+	oid := string(text)
+
+	for _, c := range oid {
+		isDigit := c >= '0' && c <= '9'
+		if !isDigit && c != ' ' && c != '.' {
+			return errInvalidOID
+		}
+	}
+
+	end := strings.IndexByte(oid, '.')
+	if end == -1 {
+		return errInvalidOID
+	}
+
+	firstNum := oid[:end]
+	oid = oid[end+1:]
+	end = strings.IndexByte(oid, '.')
+	if end == -1 {
+		end = len(oid)
+	}
+	secondNum := oid[:end]
+
+	var (
+		first  = big.NewInt(0)
+		second = big.NewInt(0)
+	)
+
+	if _, ok := first.SetString(firstNum, 10); !ok {
+		return errInvalidOID
+	}
+	if _, ok := second.SetString(secondNum, 10); !ok {
+		return errInvalidOID
+	}
+
+	if first.Cmp(big.NewInt(2)) > 0 || (first.Cmp(big.NewInt(2)) < 0 && second.Cmp(big.NewInt(40)) >= 0) {
+		return errInvalidOID
+	}
+
+	firstComponent := first.Mul(first, big.NewInt(40))
+	firstComponent.Add(firstComponent, second)
+
+	der := appendBase128BigInt(make([]byte, 0, 32), firstComponent)
+
+	if end != len(oid) {
+		oid = oid[end+1:]
+		for {
+			end := strings.IndexByte(oid, '.')
+			if end == -1 {
+				end = len(oid)
+			}
+
+			b, ok := big.NewInt(0).SetString(oid[:end], 10)
+			if !ok {
+				return errInvalidOID
+			}
+			der = appendBase128BigInt(der, b)
+
+			if end == len(oid) {
+				break
+			}
+			oid = oid[end+1:]
+		}
+	}
+
+	o.der = der
+	return nil
+}
+
+// MarshalText implements [encoding.BinaryMarshaler]
+func (o OID) MarshalBinary() ([]byte, error) {
+	return bytes.Clone(o.der), nil
+}
+
+// MarshalText implements [encoding.BinaryUnmarshaler]
+func (o *OID) UnmarshalBinary(b []byte) error {
+	oid, ok := newOIDFromDER(b)
+	if !ok {
+		return errInvalidOID
+	}
+	*o = oid
+	return nil
 }
 
 // Equal returns true when oid and other represents the same Object Identifier.
