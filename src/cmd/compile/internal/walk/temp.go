@@ -25,9 +25,7 @@ func initStackTemp(init *ir.Nodes, tmp *ir.Name, val ir.Node) *ir.AddrExpr {
 // allocated temporary variable of the given type. Statements to
 // zero-initialize tmp are appended to init.
 func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
-	n := typecheck.TempAt(base.Pos, ir.CurFunc, typ)
-	n.SetNonMergeable(true)
-	return initStackTemp(init, n, nil)
+	return initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, typ), nil)
 }
 
 // stackBufAddr returns the expression &tmp, where tmp is a newly

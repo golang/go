@@ -314,9 +314,8 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad arg 1 type to %s: want integer, have %s", v.Op, v.Args[1].LongString())
 				}
 			case OpVarDef:
-				n := v.Aux.(*ir.Name)
-				if !n.Type().HasPointers() && !IsMergeCandidate(n) {
-					f.Fatalf("vardef must be merge candidate or have pointer type %s", v.Aux.(*ir.Name).Type().String())
+				if !v.Aux.(*ir.Name).Type().HasPointers() {
+					f.Fatalf("vardef must have pointer type %s", v.Aux.(*ir.Name).Type().String())
 				}
 			case OpNilCheck:
 				// nil checks have pointer type before scheduling, and

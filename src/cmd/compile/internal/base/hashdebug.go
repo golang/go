@@ -53,10 +53,9 @@ func (d *HashDebug) SetInlineSuffixOnly(b bool) *HashDebug {
 // The default compiler-debugging HashDebug, for "-d=gossahash=..."
 var hashDebug *HashDebug
 
-var FmaHash *HashDebug         // for debugging fused-multiply-add floating point changes
-var LoopVarHash *HashDebug     // for debugging shared/private loop variable changes
-var PGOHash *HashDebug         // for debugging PGO optimization decisions
-var MergeLocalsHash *HashDebug // for debugging local stack slot merging changes
+var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
+var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
+var PGOHash *HashDebug     // for debugging PGO optimization decisions
 
 // DebugHashMatchPkgFunc reports whether debug variable Gossahash
 //

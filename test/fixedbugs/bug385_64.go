@@ -11,423 +11,214 @@
 
 package main
 
-var z [10 << 20]byte
+var z [10<<20]byte
 
 func main() { // GC_ERROR "stack frame too large"
-	// seq 1 206 | sed 's/.*/	var x& [10<<20]byte/'
-	// seq 1 206 | sed 's/.*/	z = x&/'
-	var x1 [10<<20]byte
-	var x2 [10<<20]byte
-	var x3 [10<<20]byte
-	var x4 [10<<20]byte
-	var x5 [10<<20]byte
-	var x6 [10<<20]byte
-	var x7 [10<<20]byte
-	var x8 [10<<20]byte
-	var x9 [10<<20]byte
-	var x10 [10<<20]byte
-	var x11 [10<<20]byte
-	var x12 [10<<20]byte
-	var x13 [10<<20]byte
-	var x14 [10<<20]byte
-	var x15 [10<<20]byte
-	var x16 [10<<20]byte
-	var x17 [10<<20]byte
-	var x18 [10<<20]byte
-	var x19 [10<<20]byte
-	var x20 [10<<20]byte
-	var x21 [10<<20]byte
-	var x22 [10<<20]byte
-	var x23 [10<<20]byte
-	var x24 [10<<20]byte
-	var x25 [10<<20]byte
-	var x26 [10<<20]byte
-	var x27 [10<<20]byte
-	var x28 [10<<20]byte
-	var x29 [10<<20]byte
-	var x30 [10<<20]byte
-	var x31 [10<<20]byte
-	var x32 [10<<20]byte
-	var x33 [10<<20]byte
-	var x34 [10<<20]byte
-	var x35 [10<<20]byte
-	var x36 [10<<20]byte
-	var x37 [10<<20]byte
-	var x38 [10<<20]byte
-	var x39 [10<<20]byte
-	var x40 [10<<20]byte
-	var x41 [10<<20]byte
-	var x42 [10<<20]byte
-	var x43 [10<<20]byte
-	var x44 [10<<20]byte
-	var x45 [10<<20]byte
-	var x46 [10<<20]byte
-	var x47 [10<<20]byte
-	var x48 [10<<20]byte
-	var x49 [10<<20]byte
-	var x50 [10<<20]byte
-	var x51 [10<<20]byte
-	var x52 [10<<20]byte
-	var x53 [10<<20]byte
-	var x54 [10<<20]byte
-	var x55 [10<<20]byte
-	var x56 [10<<20]byte
-	var x57 [10<<20]byte
-	var x58 [10<<20]byte
-	var x59 [10<<20]byte
-	var x60 [10<<20]byte
-	var x61 [10<<20]byte
-	var x62 [10<<20]byte
-	var x63 [10<<20]byte
-	var x64 [10<<20]byte
-	var x65 [10<<20]byte
-	var x66 [10<<20]byte
-	var x67 [10<<20]byte
-	var x68 [10<<20]byte
-	var x69 [10<<20]byte
-	var x70 [10<<20]byte
-	var x71 [10<<20]byte
-	var x72 [10<<20]byte
-	var x73 [10<<20]byte
-	var x74 [10<<20]byte
-	var x75 [10<<20]byte
-	var x76 [10<<20]byte
-	var x77 [10<<20]byte
-	var x78 [10<<20]byte
-	var x79 [10<<20]byte
-	var x80 [10<<20]byte
-	var x81 [10<<20]byte
-	var x82 [10<<20]byte
-	var x83 [10<<20]byte
-	var x84 [10<<20]byte
-	var x85 [10<<20]byte
-	var x86 [10<<20]byte
-	var x87 [10<<20]byte
-	var x88 [10<<20]byte
-	var x89 [10<<20]byte
-	var x90 [10<<20]byte
-	var x91 [10<<20]byte
-	var x92 [10<<20]byte
-	var x93 [10<<20]byte
-	var x94 [10<<20]byte
-	var x95 [10<<20]byte
-	var x96 [10<<20]byte
-	var x97 [10<<20]byte
-	var x98 [10<<20]byte
-	var x99 [10<<20]byte
-	var x100 [10<<20]byte
-	var x101 [10<<20]byte
-	var x102 [10<<20]byte
-	var x103 [10<<20]byte
-	var x104 [10<<20]byte
-	var x105 [10<<20]byte
-	var x106 [10<<20]byte
-	var x107 [10<<20]byte
-	var x108 [10<<20]byte
-	var x109 [10<<20]byte
-	var x110 [10<<20]byte
-	var x111 [10<<20]byte
-	var x112 [10<<20]byte
-	var x113 [10<<20]byte
-	var x114 [10<<20]byte
-	var x115 [10<<20]byte
-	var x116 [10<<20]byte
-	var x117 [10<<20]byte
-	var x118 [10<<20]byte
-	var x119 [10<<20]byte
-	var x120 [10<<20]byte
-	var x121 [10<<20]byte
-	var x122 [10<<20]byte
-	var x123 [10<<20]byte
-	var x124 [10<<20]byte
-	var x125 [10<<20]byte
-	var x126 [10<<20]byte
-	var x127 [10<<20]byte
-	var x128 [10<<20]byte
-	var x129 [10<<20]byte
-	var x130 [10<<20]byte
-	var x131 [10<<20]byte
-	var x132 [10<<20]byte
-	var x133 [10<<20]byte
-	var x134 [10<<20]byte
-	var x135 [10<<20]byte
-	var x136 [10<<20]byte
-	var x137 [10<<20]byte
-	var x138 [10<<20]byte
-	var x139 [10<<20]byte
-	var x140 [10<<20]byte
-	var x141 [10<<20]byte
-	var x142 [10<<20]byte
-	var x143 [10<<20]byte
-	var x144 [10<<20]byte
-	var x145 [10<<20]byte
-	var x146 [10<<20]byte
-	var x147 [10<<20]byte
-	var x148 [10<<20]byte
-	var x149 [10<<20]byte
-	var x150 [10<<20]byte
-	var x151 [10<<20]byte
-	var x152 [10<<20]byte
-	var x153 [10<<20]byte
-	var x154 [10<<20]byte
-	var x155 [10<<20]byte
-	var x156 [10<<20]byte
-	var x157 [10<<20]byte
-	var x158 [10<<20]byte
-	var x159 [10<<20]byte
-	var x160 [10<<20]byte
-	var x161 [10<<20]byte
-	var x162 [10<<20]byte
-	var x163 [10<<20]byte
-	var x164 [10<<20]byte
-	var x165 [10<<20]byte
-	var x166 [10<<20]byte
-	var x167 [10<<20]byte
-	var x168 [10<<20]byte
-	var x169 [10<<20]byte
-	var x170 [10<<20]byte
-	var x171 [10<<20]byte
-	var x172 [10<<20]byte
-	var x173 [10<<20]byte
-	var x174 [10<<20]byte
-	var x175 [10<<20]byte
-	var x176 [10<<20]byte
-	var x177 [10<<20]byte
-	var x178 [10<<20]byte
-	var x179 [10<<20]byte
-	var x180 [10<<20]byte
-	var x181 [10<<20]byte
-	var x182 [10<<20]byte
-	var x183 [10<<20]byte
-	var x184 [10<<20]byte
-	var x185 [10<<20]byte
-	var x186 [10<<20]byte
-	var x187 [10<<20]byte
-	var x188 [10<<20]byte
-	var x189 [10<<20]byte
-	var x190 [10<<20]byte
-	var x191 [10<<20]byte
-	var x192 [10<<20]byte
-	var x193 [10<<20]byte
-	var x194 [10<<20]byte
-	var x195 [10<<20]byte
-	var x196 [10<<20]byte
-	var x197 [10<<20]byte
-	var x198 [10<<20]byte
-	var x199 [10<<20]byte
-	var x200 [10<<20]byte
-	var x201 [10<<20]byte
-	var x202 [10<<20]byte
-	var x203 [10<<20]byte
-	var x204 [10<<20]byte
-	var x205 [10<<20]byte
-	var x206 [10<<20]byte
-	var x207 [10<<20]byte
-	z = x1
-	z = x2
-	z = x3
-	z = x4
-	z = x5
-	z = x6
-	z = x7
-	z = x8
-	z = x9
-	z = x10
-	z = x11
-	z = x12
-	z = x13
-	z = x14
-	z = x15
-	z = x16
-	z = x17
-	z = x18
-	z = x19
-	z = x20
-	z = x21
-	z = x22
-	z = x23
-	z = x24
-	z = x25
-	z = x26
-	z = x27
-	z = x28
-	z = x29
-	z = x30
-	z = x31
-	z = x32
-	z = x33
-	z = x34
-	z = x35
-	z = x36
-	z = x37
-	z = x38
-	z = x39
-	z = x40
-	z = x41
-	z = x42
-	z = x43
-	z = x44
-	z = x45
-	z = x46
-	z = x47
-	z = x48
-	z = x49
-	z = x50
-	z = x51
-	z = x52
-	z = x53
-	z = x54
-	z = x55
-	z = x56
-	z = x57
-	z = x58
-	z = x59
-	z = x60
-	z = x61
-	z = x62
-	z = x63
-	z = x64
-	z = x65
-	z = x66
-	z = x67
-	z = x68
-	z = x69
-	z = x70
-	z = x71
-	z = x72
-	z = x73
-	z = x74
-	z = x75
-	z = x76
-	z = x77
-	z = x78
-	z = x79
-	z = x80
-	z = x81
-	z = x82
-	z = x83
-	z = x84
-	z = x85
-	z = x86
-	z = x87
-	z = x88
-	z = x89
-	z = x90
-	z = x91
-	z = x92
-	z = x93
-	z = x94
-	z = x95
-	z = x96
-	z = x97
-	z = x98
-	z = x99
-	z = x100
-	z = x101
-	z = x102
-	z = x103
-	z = x104
-	z = x105
-	z = x106
-	z = x107
-	z = x108
-	z = x109
-	z = x110
-	z = x111
-	z = x112
-	z = x113
-	z = x114
-	z = x115
-	z = x116
-	z = x117
-	z = x118
-	z = x119
-	z = x120
-	z = x121
-	z = x122
-	z = x123
-	z = x124
-	z = x125
-	z = x126
-	z = x127
-	z = x128
-	z = x129
-	z = x130
-	z = x131
-	z = x132
-	z = x133
-	z = x134
-	z = x135
-	z = x136
-	z = x137
-	z = x138
-	z = x139
-	z = x140
-	z = x141
-	z = x142
-	z = x143
-	z = x144
-	z = x145
-	z = x146
-	z = x147
-	z = x148
-	z = x149
-	z = x150
-	z = x151
-	z = x152
-	z = x153
-	z = x154
-	z = x155
-	z = x156
-	z = x157
-	z = x158
-	z = x159
-	z = x160
-	z = x161
-	z = x162
-	z = x163
-	z = x164
-	z = x165
-	z = x166
-	z = x167
-	z = x168
-	z = x169
-	z = x170
-	z = x171
-	z = x172
-	z = x173
-	z = x174
-	z = x175
-	z = x176
-	z = x177
-	z = x178
-	z = x179
-	z = x180
-	z = x181
-	z = x182
-	z = x183
-	z = x184
-	z = x185
-	z = x186
-	z = x187
-	z = x188
-	z = x189
-	z = x190
-	z = x191
-	z = x192
-	z = x193
-	z = x194
-	z = x195
-	z = x196
-	z = x197
-	z = x198
-	z = x199
-	z = x200
-	z = x201
-	z = x202
-	z = x203
-	z = x204
-	z = x205
-	z = x206
-	z = x207
+	// seq 1 206 | sed 's/.*/	var x& [10<<20]byte; z = x&/'
+	var x1 [10<<20]byte; z = x1
+	var x2 [10<<20]byte; z = x2
+	var x3 [10<<20]byte; z = x3
+	var x4 [10<<20]byte; z = x4
+	var x5 [10<<20]byte; z = x5
+	var x6 [10<<20]byte; z = x6
+	var x7 [10<<20]byte; z = x7
+	var x8 [10<<20]byte; z = x8
+	var x9 [10<<20]byte; z = x9
+	var x10 [10<<20]byte; z = x10
+	var x11 [10<<20]byte; z = x11
+	var x12 [10<<20]byte; z = x12
+	var x13 [10<<20]byte; z = x13
+	var x14 [10<<20]byte; z = x14
+	var x15 [10<<20]byte; z = x15
+	var x16 [10<<20]byte; z = x16
+	var x17 [10<<20]byte; z = x17
+	var x18 [10<<20]byte; z = x18
+	var x19 [10<<20]byte; z = x19
+	var x20 [10<<20]byte; z = x20
+	var x21 [10<<20]byte; z = x21
+	var x22 [10<<20]byte; z = x22
+	var x23 [10<<20]byte; z = x23
+	var x24 [10<<20]byte; z = x24
+	var x25 [10<<20]byte; z = x25
+	var x26 [10<<20]byte; z = x26
+	var x27 [10<<20]byte; z = x27
+	var x28 [10<<20]byte; z = x28
+	var x29 [10<<20]byte; z = x29
+	var x30 [10<<20]byte; z = x30
+	var x31 [10<<20]byte; z = x31
+	var x32 [10<<20]byte; z = x32
+	var x33 [10<<20]byte; z = x33
+	var x34 [10<<20]byte; z = x34
+	var x35 [10<<20]byte; z = x35
+	var x36 [10<<20]byte; z = x36
+	var x37 [10<<20]byte; z = x37
+	var x38 [10<<20]byte; z = x38
+	var x39 [10<<20]byte; z = x39
+	var x40 [10<<20]byte; z = x40
+	var x41 [10<<20]byte; z = x41
+	var x42 [10<<20]byte; z = x42
+	var x43 [10<<20]byte; z = x43
+	var x44 [10<<20]byte; z = x44
+	var x45 [10<<20]byte; z = x45
+	var x46 [10<<20]byte; z = x46
+	var x47 [10<<20]byte; z = x47
+	var x48 [10<<20]byte; z = x48
+	var x49 [10<<20]byte; z = x49
+	var x50 [10<<20]byte; z = x50
+	var x51 [10<<20]byte; z = x51
+	var x52 [10<<20]byte; z = x52
+	var x53 [10<<20]byte; z = x53
+	var x54 [10<<20]byte; z = x54
+	var x55 [10<<20]byte; z = x55
+	var x56 [10<<20]byte; z = x56
+	var x57 [10<<20]byte; z = x57
+	var x58 [10<<20]byte; z = x58
+	var x59 [10<<20]byte; z = x59
+	var x60 [10<<20]byte; z = x60
+	var x61 [10<<20]byte; z = x61
+	var x62 [10<<20]byte; z = x62
+	var x63 [10<<20]byte; z = x63
+	var x64 [10<<20]byte; z = x64
+	var x65 [10<<20]byte; z = x65
+	var x66 [10<<20]byte; z = x66
+	var x67 [10<<20]byte; z = x67
+	var x68 [10<<20]byte; z = x68
+	var x69 [10<<20]byte; z = x69
+	var x70 [10<<20]byte; z = x70
+	var x71 [10<<20]byte; z = x71
+	var x72 [10<<20]byte; z = x72
+	var x73 [10<<20]byte; z = x73
+	var x74 [10<<20]byte; z = x74
+	var x75 [10<<20]byte; z = x75
+	var x76 [10<<20]byte; z = x76
+	var x77 [10<<20]byte; z = x77
+	var x78 [10<<20]byte; z = x78
+	var x79 [10<<20]byte; z = x79
+	var x80 [10<<20]byte; z = x80
+	var x81 [10<<20]byte; z = x81
+	var x82 [10<<20]byte; z = x82
+	var x83 [10<<20]byte; z = x83
+	var x84 [10<<20]byte; z = x84
+	var x85 [10<<20]byte; z = x85
+	var x86 [10<<20]byte; z = x86
+	var x87 [10<<20]byte; z = x87
+	var x88 [10<<20]byte; z = x88
+	var x89 [10<<20]byte; z = x89
+	var x90 [10<<20]byte; z = x90
+	var x91 [10<<20]byte; z = x91
+	var x92 [10<<20]byte; z = x92
+	var x93 [10<<20]byte; z = x93
+	var x94 [10<<20]byte; z = x94
+	var x95 [10<<20]byte; z = x95
+	var x96 [10<<20]byte; z = x96
+	var x97 [10<<20]byte; z = x97
+	var x98 [10<<20]byte; z = x98
+	var x99 [10<<20]byte; z = x99
+	var x100 [10<<20]byte; z = x100
+	var x101 [10<<20]byte; z = x101
+	var x102 [10<<20]byte; z = x102
+	var x103 [10<<20]byte; z = x103
+	var x104 [10<<20]byte; z = x104
+	var x105 [10<<20]byte; z = x105
+	var x106 [10<<20]byte; z = x106
+	var x107 [10<<20]byte; z = x107
+	var x108 [10<<20]byte; z = x108
+	var x109 [10<<20]byte; z = x109
+	var x110 [10<<20]byte; z = x110
+	var x111 [10<<20]byte; z = x111
+	var x112 [10<<20]byte; z = x112
+	var x113 [10<<20]byte; z = x113
+	var x114 [10<<20]byte; z = x114
+	var x115 [10<<20]byte; z = x115
+	var x116 [10<<20]byte; z = x116
+	var x117 [10<<20]byte; z = x117
+	var x118 [10<<20]byte; z = x118
+	var x119 [10<<20]byte; z = x119
+	var x120 [10<<20]byte; z = x120
+	var x121 [10<<20]byte; z = x121
+	var x122 [10<<20]byte; z = x122
+	var x123 [10<<20]byte; z = x123
+	var x124 [10<<20]byte; z = x124
+	var x125 [10<<20]byte; z = x125
+	var x126 [10<<20]byte; z = x126
+	var x127 [10<<20]byte; z = x127
+	var x128 [10<<20]byte; z = x128
+	var x129 [10<<20]byte; z = x129
+	var x130 [10<<20]byte; z = x130
+	var x131 [10<<20]byte; z = x131
+	var x132 [10<<20]byte; z = x132
+	var x133 [10<<20]byte; z = x133
+	var x134 [10<<20]byte; z = x134
+	var x135 [10<<20]byte; z = x135
+	var x136 [10<<20]byte; z = x136
+	var x137 [10<<20]byte; z = x137
+	var x138 [10<<20]byte; z = x138
+	var x139 [10<<20]byte; z = x139
+	var x140 [10<<20]byte; z = x140
+	var x141 [10<<20]byte; z = x141
+	var x142 [10<<20]byte; z = x142
+	var x143 [10<<20]byte; z = x143
+	var x144 [10<<20]byte; z = x144
+	var x145 [10<<20]byte; z = x145
+	var x146 [10<<20]byte; z = x146
+	var x147 [10<<20]byte; z = x147
+	var x148 [10<<20]byte; z = x148
+	var x149 [10<<20]byte; z = x149
+	var x150 [10<<20]byte; z = x150
+	var x151 [10<<20]byte; z = x151
+	var x152 [10<<20]byte; z = x152
+	var x153 [10<<20]byte; z = x153
+	var x154 [10<<20]byte; z = x154
+	var x155 [10<<20]byte; z = x155
+	var x156 [10<<20]byte; z = x156
+	var x157 [10<<20]byte; z = x157
+	var x158 [10<<20]byte; z = x158
+	var x159 [10<<20]byte; z = x159
+	var x160 [10<<20]byte; z = x160
+	var x161 [10<<20]byte; z = x161
+	var x162 [10<<20]byte; z = x162
+	var x163 [10<<20]byte; z = x163
+	var x164 [10<<20]byte; z = x164
+	var x165 [10<<20]byte; z = x165
+	var x166 [10<<20]byte; z = x166
+	var x167 [10<<20]byte; z = x167
+	var x168 [10<<20]byte; z = x168
+	var x169 [10<<20]byte; z = x169
+	var x170 [10<<20]byte; z = x170
+	var x171 [10<<20]byte; z = x171
+	var x172 [10<<20]byte; z = x172
+	var x173 [10<<20]byte; z = x173
+	var x174 [10<<20]byte; z = x174
+	var x175 [10<<20]byte; z = x175
+	var x176 [10<<20]byte; z = x176
+	var x177 [10<<20]byte; z = x177
+	var x178 [10<<20]byte; z = x178
+	var x179 [10<<20]byte; z = x179
+	var x180 [10<<20]byte; z = x180
+	var x181 [10<<20]byte; z = x181
+	var x182 [10<<20]byte; z = x182
+	var x183 [10<<20]byte; z = x183
+	var x184 [10<<20]byte; z = x184
+	var x185 [10<<20]byte; z = x185
+	var x186 [10<<20]byte; z = x186
+	var x187 [10<<20]byte; z = x187
+	var x188 [10<<20]byte; z = x188
+	var x189 [10<<20]byte; z = x189
+	var x190 [10<<20]byte; z = x190
+	var x191 [10<<20]byte; z = x191
+	var x192 [10<<20]byte; z = x192
+	var x193 [10<<20]byte; z = x193
+	var x194 [10<<20]byte; z = x194
+	var x195 [10<<20]byte; z = x195
+	var x196 [10<<20]byte; z = x196
+	var x197 [10<<20]byte; z = x197
+	var x198 [10<<20]byte; z = x198
+	var x199 [10<<20]byte; z = x199
+	var x200 [10<<20]byte; z = x200
+	var x201 [10<<20]byte; z = x201
+	var x202 [10<<20]byte; z = x202
+	var x203 [10<<20]byte; z = x203
+	var x204 [10<<20]byte; z = x204
+	var x205 [10<<20]byte; z = x205
+	var x206 [10<<20]byte; z = x206
 }
