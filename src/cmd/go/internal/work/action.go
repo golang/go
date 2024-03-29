@@ -384,6 +384,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		if err != nil {
 			base.Fatal(fmt.Errorf("failed to open shared library: %v", err))
 		}
+		defer f.Close()
 		sect := f.Section(".go_export")
 		if sect == nil {
 			base.Fatal(fmt.Errorf("%s: missing .go_export section", shlibpath))
