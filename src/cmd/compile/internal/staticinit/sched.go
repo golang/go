@@ -899,6 +899,12 @@ func mayModifyPkgVar(n ir.Node) bool {
 		case ir.OAPPEND, ir.OCLEAR, ir.OCOPY:
 			return true // could mutate a global array
 
+		case ir.OASOP:
+			n := n.(*ir.AssignOpStmt)
+			if !safeLHS(n.X) {
+				return true
+			}
+
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
 			if !safeLHS(n.X) {
