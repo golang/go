@@ -881,7 +881,13 @@ func mayModifyPkgVar(n ir.Node) bool {
 	// safeLHS reports whether the assigned-to variable lhs is either a
 	// local variable or a global from another package.
 	safeLHS := func(lhs ir.Node) bool {
-		v, ok := ir.OuterValue(lhs).(*ir.Name)
+		outer := ir.OuterValue(lhs)
+		// "*p = ..." should be safe if p is a local variable.
+		// TODO: Should ir.OuterValue handle this?
+		for outer.Op() == ir.ODEREF {
+			outer = outer.(*ir.StarExpr).X
+		}
+		v, ok := outer.(*ir.Name)
 		return ok && v.Op() == ir.ONAME && !(v.Class == ir.PEXTERN && v.Sym().Pkg == types.LocalPkg)
 	}
 
