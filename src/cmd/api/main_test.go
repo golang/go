@@ -403,8 +403,11 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 const usePkgCache = true
 
 var (
-	pkgCache = map[string]*apiPackage{} // map tagKey to package
-	pkgTags  = map[string][]string{}    // map import dir to list of relevant tags
+	pkgCache struct {
+		lock sync.Mutex
+		m    map[string]*apiPackage // map tagKey to package
+	}
+	pkgTags = map[string][]string{} // map import dir to list of relevant tags
 )
 
 // tagKey returns the tag-based key to use in the pkgCache.
@@ -627,7 +630,9 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 	if usePkgCache {
 		if tags, ok := pkgTags[dir]; ok {
 			key = tagKey(dir, context, tags)
+			pkgCache.lock.Lock()
 			if pkg := pkgCache[key]; pkg != nil {
+				pkgCache.lock.Unlock()
 				w.imported[name] = pkg
 				return pkg, nil
 			}
@@ -684,7 +689,9 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 	pkg = &apiPackage{tpkg, files}
 
 	if usePkgCache {
+		pkgCache.lock.Lock()
 		pkgCache[key] = pkg
+		pkgCache.lock.Unlock()
 	}
 
 	w.imported[name] = pkg
