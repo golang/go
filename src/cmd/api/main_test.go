@@ -410,6 +410,10 @@ var (
 	pkgTags = map[string][]string{} // map import dir to list of relevant tags
 )
 
+func init() {
+	pkgCache.m = make(map[string]*apiPackage)
+}
+
 // tagKey returns the tag-based key to use in the pkgCache.
 // It is a comma-separated string; the first part is dir, the rest tags.
 // The satisfied tags are derived from context but only those that
@@ -631,8 +635,9 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 		if tags, ok := pkgTags[dir]; ok {
 			key = tagKey(dir, context, tags)
 			pkgCache.lock.Lock()
-			if pkg := pkgCache[key]; pkg != nil {
-				pkgCache.lock.Unlock()
+			pkg := pkgCache.m[key]
+			pkgCache.lock.Unlock()
+			if pkg != nil {
 				w.imported[name] = pkg
 				return pkg, nil
 			}
@@ -690,7 +695,7 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 
 	if usePkgCache {
 		pkgCache.lock.Lock()
-		pkgCache[key] = pkg
+		pkgCache.m[key] = pkg
 		pkgCache.lock.Unlock()
 	}
 
