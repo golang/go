@@ -39,7 +39,12 @@ func startProfile() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			base.Fatalf("%v", err)
 		}
-		base.AtExit(pprof.StopCPUProfile)
+		base.AtExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing cpu profile: %v", err)
+			}
+		})
 	}
 	if base.Flag.MemProfile != "" {
 		if base.Flag.MemProfileRate != 0 {
@@ -77,6 +82,9 @@ func startProfile() {
 			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
 				base.Fatalf("%v", err)
 			}
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing memory profile: %v", err)
+			}
 		})
 	} else {
 		// Not doing memory profiling; disable it entirely.
@@ -112,6 +120,11 @@ func startProfile() {
 		if err := tracepkg.Start(f); err != nil {
 			base.Fatalf("%v", err)
 		}
-		base.AtExit(tracepkg.Stop)
+		base.AtExit(func() {
+			tracepkg.Stop()
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing trace profile: %v", err)
+			}
+		})
 	}
 }
