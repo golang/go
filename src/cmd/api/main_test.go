@@ -382,11 +382,21 @@ func (w *Walker) Features() (fs []string) {
 	return
 }
 
-var parsedFileCache = make(map[string]*ast.File)
+var parsedFileCache struct {
+	lock sync.RWMutex
+	m    map[string]*ast.File
+}
+
+func init() {
+	parsedFileCache.m = make(map[string]*ast.File)
+}
 
 func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	filename := filepath.Join(dir, file)
-	if f := parsedFileCache[filename]; f != nil {
+	parsedFileCache.lock.RLock()
+	f := parsedFileCache.m[filename]
+	parsedFileCache.lock.RUnlock()
+	if f != nil {
 		return f, nil
 	}
 
@@ -394,7 +404,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	parsedFileCache[filename] = f
+	parsedFileCache.lock.Lock()
+	parsedFileCache.m[filename] = f
+	parsedFileCache.lock.Unlock()
 
 	return f, nil
 }
@@ -404,14 +416,18 @@ const usePkgCache = true
 
 var (
 	pkgCache struct {
-		lock sync.Mutex
+		lock sync.RWMutex
 		m    map[string]*apiPackage // map tagKey to package
 	}
-	pkgTags = map[string][]string{} // map import dir to list of relevant tags
+	pkgTags struct {
+		lock sync.RWMutex
+		m    map[string][]string // map import dir to list of relevant tags
+	}
 )
 
 func init() {
 	pkgCache.m = make(map[string]*apiPackage)
+	pkgTags.m = make(map[string][]string)
 }
 
 // tagKey returns the tag-based key to use in the pkgCache.
@@ -632,15 +648,22 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 	// of relevant tags, reuse the result.
 	var key string
 	if usePkgCache {
-		if tags, ok := pkgTags[dir]; ok {
+		pkgTags.lock.Lock()
+		tags, ok := pkgTags.m[dir]
+		if ok {
 			key = tagKey(dir, context, tags)
-			pkgCache.lock.Lock()
+			pkgTags.lock.Unlock()
+
+			pkgCache.lock.RLock()
 			pkg := pkgCache.m[key]
-			pkgCache.lock.Unlock()
+			pkgCache.lock.RUnlock()
+
 			if pkg != nil {
 				w.imported[name] = pkg
 				return pkg, nil
 			}
+		} else {
+			pkgTags.lock.Unlock()
 		}
 	}
 
@@ -654,10 +677,13 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 
 	// Save tags list first time we see a directory.
 	if usePkgCache {
-		if _, ok := pkgTags[dir]; !ok {
-			pkgTags[dir] = info.AllTags
+		pkgTags.lock.Lock()
+		_, ok := pkgTags.m[dir]
+		if !ok {
+			pkgTags.m[dir] = info.AllTags
 			key = tagKey(dir, context, info.AllTags)
 		}
+		pkgTags.lock.Unlock()
 	}
 
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
