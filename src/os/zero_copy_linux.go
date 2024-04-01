@@ -16,6 +16,15 @@ var (
 	pollSendFile      = poll.SendFile
 )
 
+// wrapSyscallError takes an error and a syscall name. If the error is
+// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+func wrapSyscallError(name string, err error) error {
+	if _, ok := err.(syscall.Errno); ok {
+		err = NewSyscallError(name, err)
+	}
+	return err
+}
+
 func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	pfd, network := getPollFDAndNetwork(w)
 	// TODO(panjf2000): same as File.spliceToFile.
