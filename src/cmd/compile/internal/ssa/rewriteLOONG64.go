@@ -6,6 +6,9 @@ import "cmd/compile/internal/types"
 
 func rewriteValueLOONG64(v *Value) bool {
 	switch v.Op {
+	case OpAbs:
+		v.Op = OpLOONG64ABSD
+		return true
 	case OpAdd16:
 		v.Op = OpLOONG64ADDV
 		return true
@@ -116,6 +119,9 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueLOONG64_OpConstNil(v)
+	case OpCopysign:
+		v.Op = OpLOONG64FCOPYSGD
+		return true
 	case OpCvt32Fto32:
 		v.Op = OpLOONG64TRUNCFW
 		return true

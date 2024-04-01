@@ -129,8 +129,11 @@
 
 (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
 
+// math package intrinsics
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
+(Abs ...) => (ABSD ...)
+(Copysign ...) => (FCOPYSGD ...)
 
 (Min(64|32)F ...) => (FMIN(D|F) ...)
 (Max(64|32)F ...) => (FMAX(D|F) ...)
