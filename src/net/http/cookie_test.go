@@ -147,6 +147,19 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "a\rb", Value: "v"},
 		``,
 	},
+	// Quoted values (issue #46443)
+	{
+		&Cookie{Name: "cookie", Value: "quoted", Quoted: true},
+		`cookie="quoted"`,
+	},
+	{
+		&Cookie{Name: "cookie", Value: "quoted with spaces", Quoted: true},
+		`cookie="quoted with spaces"`,
+	},
+	{
+		&Cookie{Name: "cookie", Value: "quoted,with,commas", Quoted: true},
+		`cookie="quoted,with,commas"`,
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
@@ -214,6 +227,15 @@ var addCookieTests = []struct {
 			{Name: "cookie-3", Value: "v$3"},
 		},
 		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
+	},
+	// Quoted values (issue #46443)
+	{
+		[]*Cookie{
+			{Name: "cookie-1", Value: "quoted", Quoted: true},
+			{Name: "cookie-2", Value: "quoted with spaces", Quoted: true},
+			{Name: "cookie-3", Value: "quoted,with,commas", Quoted: true},
+		},
+		`cookie-1="quoted"; cookie-2="quoted with spaces"; cookie-3="quoted,with,commas"`,
 	},
 }
 
@@ -326,15 +348,15 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-2=" z"`}},
-		[]*Cookie{{Name: "special-2", Value: " z", Raw: `special-2=" z"`}},
+		[]*Cookie{{Name: "special-2", Value: " z", Quoted: true, Raw: `special-2=" z"`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-3="a "`}},
-		[]*Cookie{{Name: "special-3", Value: "a ", Raw: `special-3="a "`}},
+		[]*Cookie{{Name: "special-3", Value: "a ", Quoted: true, Raw: `special-3="a "`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-4=" "`}},
-		[]*Cookie{{Name: "special-4", Value: " ", Raw: `special-4=" "`}},
+		[]*Cookie{{Name: "special-4", Value: " ", Quoted: true, Raw: `special-4=" "`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-5=a,z`}},
@@ -342,7 +364,7 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-6=",z"`}},
-		[]*Cookie{{Name: "special-6", Value: ",z", Raw: `special-6=",z"`}},
+		[]*Cookie{{Name: "special-6", Value: ",z", Quoted: true, Raw: `special-6=",z"`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-7=a,`}},
@@ -350,13 +372,18 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-8=","`}},
-		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
+		[]*Cookie{{Name: "special-8", Value: ",", Quoted: true, Raw: `special-8=","`}},
 	},
 	// Make sure we can properly read back the Set-Cookie headers
 	// for names containing spaces:
 	{
 		Header{"Set-Cookie": {`special-9 =","`}},
-		[]*Cookie{{Name: "special-9", Value: ",", Raw: `special-9 =","`}},
+		[]*Cookie{{Name: "special-9", Value: ",", Quoted: true, Raw: `special-9 =","`}},
+	},
+	// Quoted values (issue #46443)
+	{
+		Header{"Set-Cookie": {`cookie="quoted"`}},
+		[]*Cookie{{Name: "cookie", Value: "quoted", Quoted: true, Raw: `cookie="quoted"`}},
 	},
 
 	// TODO(bradfitz): users have reported seeing this in the
@@ -425,15 +452,15 @@ var readCookiesTests = []struct {
 		Header{"Cookie": {`Cookie-1="v$1"; c2="v2"`}},
 		"",
 		[]*Cookie{
-			{Name: "Cookie-1", Value: "v$1"},
-			{Name: "c2", Value: "v2"},
+			{Name: "Cookie-1", Value: "v$1", Quoted: true},
+			{Name: "c2", Value: "v2", Quoted: true},
 		},
 	},
 	{
 		Header{"Cookie": {`Cookie-1="v$1"; c2=v2;`}},
 		"",
 		[]*Cookie{
-			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "Cookie-1", Value: "v$1", Quoted: true},
 			{Name: "c2", Value: "v2"},
 		},
 	},
@@ -486,23 +513,26 @@ func TestCookieSanitizeValue(t *testing.T) {
 	log.SetOutput(&logbuf)
 
 	tests := []struct {
-		in, want string
+		in     string
+		quoted bool
+		want   string
 	}{
-		{"foo", "foo"},
-		{"foo;bar", "foobar"},
-		{"foo\\bar", "foobar"},
-		{"foo\"bar", "foobar"},
-		{"\x00\x7e\x7f\x80", "\x7e"},
-		{`"withquotes"`, "withquotes"},
-		{"a z", `"a z"`},
-		{" z", `" z"`},
-		{"a ", `"a "`},
-		{"a,z", `"a,z"`},
-		{",z", `",z"`},
-		{"a,", `"a,"`},
+		{"foo", false, "foo"},
+		{"foo;bar", false, "foobar"},
+		{"foo\\bar", false, "foobar"},
+		{"foo\"bar", false, "foobar"},
+		{"\x00\x7e\x7f\x80", false, "\x7e"},
+		{`withquotes`, true, `"withquotes"`},
+		{`"withquotes"`, true, `"withquotes"`}, // double quotes are not valid octets
+		{"a z", false, `"a z"`},
+		{" z", false, `" z"`},
+		{"a ", false, `"a "`},
+		{"a,z", false, `"a,z"`},
+		{",z", false, `",z"`},
+		{"a,", false, `"a,"`},
 	}
 	for _, tt := range tests {
-		if got := sanitizeCookieValue(tt.in); got != tt.want {
+		if got := sanitizeCookieValue(tt.in, tt.quoted); got != tt.want {
 			t.Errorf("sanitizeCookieValue(%q) = %q; want %q", tt.in, got, tt.want)
 		}
 	}
@@ -668,7 +698,7 @@ func TestParseCookie(t *testing.T) {
 		},
 		{
 			line:    `Cookie-1="v$1";c2="v2"`,
-			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}, {Name: "c2", Value: "v2"}},
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1", Quoted: true}, {Name: "c2", Value: "v2", Quoted: true}},
 		},
 		{
 			line:    "k1=",
@@ -800,15 +830,15 @@ func TestParseSetCookie(t *testing.T) {
 		},
 		{
 			line:   `special-2=" z"`,
-			cookie: &Cookie{Name: "special-2", Value: " z", Raw: `special-2=" z"`},
+			cookie: &Cookie{Name: "special-2", Value: " z", Quoted: true, Raw: `special-2=" z"`},
 		},
 		{
 			line:   `special-3="a "`,
-			cookie: &Cookie{Name: "special-3", Value: "a ", Raw: `special-3="a "`},
+			cookie: &Cookie{Name: "special-3", Value: "a ", Quoted: true, Raw: `special-3="a "`},
 		},
 		{
 			line:   `special-4=" "`,
-			cookie: &Cookie{Name: "special-4", Value: " ", Raw: `special-4=" "`},
+			cookie: &Cookie{Name: "special-4", Value: " ", Quoted: true, Raw: `special-4=" "`},
 		},
 		{
 			line:   `special-5=a,z`,
@@ -816,7 +846,7 @@ func TestParseSetCookie(t *testing.T) {
 		},
 		{
 			line:   `special-6=",z"`,
-			cookie: &Cookie{Name: "special-6", Value: ",z", Raw: `special-6=",z"`},
+			cookie: &Cookie{Name: "special-6", Value: ",z", Quoted: true, Raw: `special-6=",z"`},
 		},
 		{
 			line:   `special-7=a,`,
@@ -824,13 +854,13 @@ func TestParseSetCookie(t *testing.T) {
 		},
 		{
 			line:   `special-8=","`,
-			cookie: &Cookie{Name: "special-8", Value: ",", Raw: `special-8=","`},
+			cookie: &Cookie{Name: "special-8", Value: ",", Quoted: true, Raw: `special-8=","`},
 		},
 		// Make sure we can properly read back the Set-Cookie headers
 		// for names containing spaces:
 		{
 			line:   `special-9 =","`,
-			cookie: &Cookie{Name: "special-9", Value: ",", Raw: `special-9 =","`},
+			cookie: &Cookie{Name: "special-9", Value: ",", Quoted: true, Raw: `special-9 =","`},
 		},
 		{
 			line: "",
