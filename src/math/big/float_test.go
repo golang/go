@@ -519,7 +519,7 @@ func TestFloatRound(t *testing.T) {
 }
 
 // TestFloatRound24 tests that rounding a float64 to 24 bits
-// matches IEEE-754 rounding to nearest when converting a
+// matches IEEE 754 rounding to nearest when converting a
 // float64 to a float32 (excluding denormal numbers).
 func TestFloatRound24(t *testing.T) {
 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)
