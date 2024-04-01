@@ -256,12 +256,15 @@ var optab = []Optab{
 	{AMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
 
 	{AMOVW, C_REG, C_NONE, C_NONE, C_FREG, C_NONE, 30, 4, 0, 0},
-	{AMOVW, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 31, 4, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_NONE, C_FREG, C_NONE, 47, 4, 0, 0},
-	{AMOVV, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 48, 4, 0, 0},
-
-	{AMOVV, C_FCCREG, C_NONE, C_NONE, C_REG, C_NONE, 63, 4, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_NONE, C_FCCREG, C_NONE, 64, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_FREG, C_NONE, 30, 4, 0, 0},
+	{AMOVW, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_FREG, C_NONE, C_NONE, C_REG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_FCCREG, C_NONE, C_NONE, C_REG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_FCSRREG, C_NONE, C_NONE, C_REG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_FCCREG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_REG, C_NONE, C_NONE, C_FCSRREG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_FREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 30, 4, 0, 0},
+	{AMOVV, C_FCCREG, C_NONE, C_NONE, C_FREG, C_NONE, 30, 4, 0, 0},
 
 	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
 	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
@@ -607,19 +610,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		return C_NONE
 
 	case obj.TYPE_REG:
-		if REG_R0 <= a.Reg && a.Reg <= REG_R31 {
-			return C_REG
-		}
-		if REG_F0 <= a.Reg && a.Reg <= REG_F31 {
-			return C_FREG
-		}
-		if REG_FCSR0 <= a.Reg && a.Reg <= REG_FCSR31 {
-			return C_FCSRREG
-		}
-		if REG_FCC0 <= a.Reg && a.Reg <= REG_FCC31 {
-			return C_FCCREG
-		}
-		return C_GOK
+		return c.rclass(a.Reg)
 
 	case obj.TYPE_MEM:
 		switch a.Name {
@@ -778,19 +769,25 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 	return C_GOK
 }
 
+// In Loong64，there are 8 CFRs, denoted as fcc0-fcc7.
+// There are 4 FCSRs, denoted as fcsr0-fcsr3.
 func (c *ctxt0) rclass(r int16) int {
 	switch {
 	case REG_R0 <= r && r <= REG_R31:
 		return C_REG
 	case REG_F0 <= r && r <= REG_F31:
 		return C_FREG
-	case REG_FCC0 <= r && r <= REG_FCC31:
+	case REG_FCC0 <= r && r <= REG_FCC7:
 		return C_FCCREG
-	case REG_FCSR0 <= r && r <= REG_FCSR31:
+	case REG_FCSR0 <= r && r <= REG_FCSR3:
 		return C_FCSRREG
 	}
 
 	return C_GOK
+}
+
+func oclass(a *obj.Addr) int {
+	return int(a.Class) - 1
 }
 
 func prasm(p *obj.Prog) {
@@ -1179,10 +1176,6 @@ func buildop(ctxt *obj.Link) {
 	}
 }
 
-func OP_TEN(x uint32, y uint32) uint32 {
-	return x<<21 | y<<10
-}
-
 // r1 -> rk
 // r2 -> rj
 // r3 -> rd
@@ -1514,12 +1507,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.From.Reg))
 		}
 
-	case 30: // movw r,fr
-		a := OP_TEN(8, 1321) // movgr2fr.w
-		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
-
-	case 31: // movw fr,r
-		a := OP_TEN(8, 1325) // movfr2gr.s
+	case 30: // mov gr/fr/fcc/fcsr, fr/fcc/fcsr/gr
+		a := c.specailFpMovInst(p.As, oclass(&p.From), oclass(&p.To))
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
 
 	case 34: // mov $con,fr
@@ -1528,8 +1517,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if o.from1 == C_ANDCON {
 			a = AOR
 		}
+		a2 := c.specailFpMovInst(p.As, C_REG, oclass(&p.To))
 		o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(0), uint32(REGTMP))
-		o2 = OP_RR(OP_TEN(8, 1321), uint32(REGTMP), uint32(p.To.Reg)) // movgr2fr.w
+		o2 = OP_RR(a2, uint32(REGTMP), uint32(p.To.Reg))
 
 	case 35: // mov r,lext/auto/oreg
 		v := c.regoff(&p.To)
@@ -1554,14 +1544,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 40: // word
 		o1 = uint32(c.regoff(&p.From))
 
-	case 47: // movv r,fr
-		a := OP_TEN(8, 1322) // movgr2fr.d
-		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
-
-	case 48: // movv fr,r
-		a := OP_TEN(8, 1326) // movfr2gr.d
-		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
-
 	case 49:
 		if p.As == ANOOP {
 			// andi r0, r0, 0
@@ -1570,6 +1552,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			// undef
 			o1 = OP_15I(c.opi(ABREAK), 0)
 		}
+
 	// relocation operations
 	case 50: // mov r,addr ==> pcalau12i + sw
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
@@ -1725,14 +1708,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: // rdtimex rd, rj
 		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
-
-	case 63: // movv c_fcc0, c_reg ==> movcf2gr rd, cj
-		a := OP_TEN(8, 1335)
-		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
-
-	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
-		a := OP_TEN(8, 1334)
-		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
 
 	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
@@ -2116,6 +2091,60 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	} else {
 		c.ctxt.Diag("bad irr opcode %v", a)
 	}
+	return 0
+}
+
+func (c *ctxt0) specailFpMovInst(a obj.As, fclass int, tclass int) uint32 {
+	switch a {
+	case AMOVV:
+		switch fclass {
+		case C_REG:
+			switch tclass {
+			case C_FREG:
+				return 0x452a << 10 // movgr2fr.d
+			case C_FCCREG:
+				return 0x4536 << 10 // movgr2cf
+			case C_FCSRREG:
+				return 0x4530 << 10 // movgr2fcsr
+			}
+		case C_FREG:
+			switch tclass {
+			case C_REG:
+				return 0x452e << 10 // movfr2gr.d
+			case C_FCCREG:
+				return 0x4534 << 10 // movfr2cf
+			}
+		case C_FCCREG:
+			switch tclass {
+			case C_REG:
+				return 0x4537 << 10 // movcf2gr
+			case C_FREG:
+				return 0x4535 << 10 // movcf2fr
+			}
+		case C_FCSRREG:
+			switch tclass {
+			case C_REG:
+				return 0x4532 << 10 // movfcsr2gr
+			}
+		}
+
+	case AMOVW:
+		switch fclass {
+		case C_REG:
+			switch tclass {
+			case C_FREG:
+				return 0x4529 << 10 // movgr2fr.w
+			}
+		case C_FREG:
+			switch tclass {
+			case C_REG:
+				return 0x452d << 10 // movfr2gr.s
+			}
+		}
+	}
+
+	c.ctxt.Diag("bad class combination: %s %s,%s\n", a, fclass, tclass)
+
 	return 0
 }
 
