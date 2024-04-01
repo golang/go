@@ -112,7 +112,11 @@ func parent(config Config) {
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		// There was an error getting os.Executable. It's possible
+		// for this to happen on AIX if os.Args[0] is not an absolute
+		// path and we can't find os.Args[0] in PATH.
+		log.Printf("failed to start telemetry sidecar: os.Executable: %v", err)
+		return
 	}
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
 	daemonize(cmd)
