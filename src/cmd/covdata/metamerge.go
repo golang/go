@@ -237,6 +237,11 @@ func (mm *metaMerge) emitMeta(outdir string, pcombine bool) [16]byte {
 	if err != nil {
 		fatal("unable to open output meta-data file %s: %v", fpath, err)
 	}
+	defer func() {
+		if err := mf.Close(); err != nil {
+			fatal("error closing output meta-data file %s: %v", fpath, err)
+		}
+	}()
 
 	// Encode and write.
 	mfw := encodemeta.NewCoverageMetaFileWriter(fpath, mf)
