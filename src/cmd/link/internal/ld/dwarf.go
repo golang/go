@@ -542,7 +542,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 	bytesize := decodetypeSize(d.arch, tdata)
 
 	var die, typedefdie *dwarf.DWDie
-	switch abi.Kind(kind) {
+	switch kind {
 	case abi.Bool:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_boolean, 0)

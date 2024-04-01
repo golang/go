@@ -512,7 +512,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 	if p == nil {
 		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
 	}
-	if abi.Kind(decodetypeKind(arch, p)&abi.KindMask) != abi.Interface {
+	if decodetypeKind(arch, p) != abi.Interface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
 	relocs := ldr.Relocs(symIdx)
@@ -533,7 +533,7 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
 	}
 	off := commonsize(arch) // reflect.rtype
-	switch abi.Kind(decodetypeKind(arch, p) & abi.KindMask) {
+	switch decodetypeKind(arch, p) {
 	case abi.Struct: // reflect.structType
 		off += 4 * arch.PtrSize
 	case abi.Pointer: // reflect.ptrType

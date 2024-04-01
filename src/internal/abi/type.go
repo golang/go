@@ -72,9 +72,9 @@ const (
 
 const (
 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
-	KindDirectIface = 1 << 5
-	KindGCProg      = 1 << 6 // Type.gc points to GC program
-	KindMask        = (1 << 5) - 1
+	KindDirectIface Kind = 1 << 5
+	KindGCProg      Kind = 1 << 6 // Type.gc points to GC program
+	KindMask        Kind = (1 << 5) - 1
 )
 
 // TFlag is used by a Type to signal what extra type information is
@@ -166,7 +166,7 @@ var kindNames = []string{
 	UnsafePointer: "unsafe.Pointer",
 }
 
-func (t *Type) Kind() Kind { return Kind(t.Kind_ & KindMask) }
+func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
 
 func (t *Type) HasName() bool {
 	return t.TFlag&TFlagNamed != 0
