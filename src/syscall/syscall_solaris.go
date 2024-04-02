@@ -280,6 +280,10 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return int(r0), err
 }
 
+func Mkfifo(path string, mode uint32) (err error) {
+	return Mknod(path, mode|S_IFIFO, 0)
+}
+
 func gethostname() (name string, err uintptr)
 
 func Gethostname() (name string, err error) {
