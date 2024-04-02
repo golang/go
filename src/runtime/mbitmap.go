@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
 	"runtime/internal/sys"
@@ -413,7 +414,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}

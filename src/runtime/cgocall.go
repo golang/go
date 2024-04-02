@@ -85,6 +85,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
 	"runtime/internal/sys"
@@ -501,29 +502,29 @@ func cgoCheckPointer(ptr any, arg any) {
 	t := ep._type
 
 	top := true
-	if arg != nil && (t.Kind_&kindMask == kindPtr || t.Kind_&kindMask == kindUnsafePointer) {
+	if arg != nil && (t.Kind_&abi.KindMask == abi.Pointer || t.Kind_&abi.KindMask == abi.UnsafePointer) {
 		p := ep.data
-		if t.Kind_&kindDirectIface == 0 {
+		if t.Kind_&abi.KindDirectIface == 0 {
 			p = *(*unsafe.Pointer)(p)
 		}
 		if p == nil || !cgoIsGoPointer(p) {
 			return
 		}
 		aep := efaceOf(&arg)
-		switch aep._type.Kind_ & kindMask {
-		case kindBool:
-			if t.Kind_&kindMask == kindUnsafePointer {
+		switch aep._type.Kind_ & abi.KindMask {
+		case abi.Bool:
+			if t.Kind_&abi.KindMask == abi.UnsafePointer {
 				// We don't know the type of the element.
 				break
 			}
 			pt := (*ptrtype)(unsafe.Pointer(t))
 			cgoCheckArg(pt.Elem, p, true, false, cgoCheckPointerFail)
 			return
-		case kindSlice:
+		case abi.Slice:
 			// Check the slice rather than the pointer.
 			ep = aep
 			t = ep._type
-		case kindArray:
+		case abi.Array:
 			// Check the array rather than the pointer.
 			// Pass top as false since we have a pointer
 			// to the array.
@@ -535,7 +536,7 @@ func cgoCheckPointer(ptr any, arg any) {
 		}
 	}
 
-	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, top, cgoCheckPointerFail)
+	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, top, cgoCheckPointerFail)
 }
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
@@ -552,28 +553,28 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		return
 	}
 
-	switch t.Kind_ & kindMask {
+	switch t.Kind_ & abi.KindMask {
 	default:
 		throw("can't happen")
-	case kindArray:
+	case abi.Array:
 		at := (*arraytype)(unsafe.Pointer(t))
 		if !indir {
 			if at.Len != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg(at.Elem, p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
+			cgoCheckArg(at.Elem, p, at.Elem.Kind_&abi.KindDirectIface == 0, top, msg)
 			return
 		}
 		for i := uintptr(0); i < at.Len; i++ {
 			cgoCheckArg(at.Elem, p, true, top, msg)
 			p = add(p, at.Elem.Size_)
 		}
-	case kindChan, kindMap:
+	case abi.Chan, abi.Map:
 		// These types contain internal pointers that will
 		// always be allocated in the Go heap. It's never OK
 		// to pass them to C.
 		panic(errorString(msg))
-	case kindFunc:
+	case abi.Func:
 		if indir {
 			p = *(*unsafe.Pointer)(p)
 		}
@@ -581,7 +582,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		panic(errorString(msg))
-	case kindInterface:
+	case abi.Interface:
 		it := *(**_type)(p)
 		if it == nil {
 			return
@@ -599,8 +600,8 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
-		cgoCheckArg(it, p, it.Kind_&kindDirectIface == 0, false, msg)
-	case kindSlice:
+		cgoCheckArg(it, p, it.Kind_&abi.KindDirectIface == 0, false, msg)
+	case abi.Slice:
 		st := (*slicetype)(unsafe.Pointer(t))
 		s := (*slice)(p)
 		p = s.array
@@ -617,7 +618,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			cgoCheckArg(st.Elem, p, true, false, msg)
 			p = add(p, st.Elem.Size_)
 		}
-	case kindString:
+	case abi.String:
 		ss := (*stringStruct)(p)
 		if !cgoIsGoPointer(ss.str) {
 			return
@@ -625,13 +626,13 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top && !isPinned(ss.str) {
 			panic(errorString(msg))
 		}
-	case kindStruct:
+	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t))
 		if !indir {
 			if len(st.Fields) != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&kindDirectIface == 0, top, msg)
+			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&abi.KindDirectIface == 0, top, msg)
 			return
 		}
 		for _, f := range st.Fields {
@@ -640,7 +641,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			}
 			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)
 		}
-	case kindPtr, kindUnsafePointer:
+	case abi.Pointer, abi.UnsafePointer:
 		if indir {
 			p = *(*unsafe.Pointer)(p)
 			if p == nil {
@@ -754,5 +755,5 @@ func cgoCheckResult(val any) {
 
 	ep := efaceOf(&val)
 	t := ep._type
-	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, false, cgoResultFail)
+	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, false, cgoResultFail)
 }

@@ -454,12 +454,6 @@ func (m Method) IsExported() bool {
 	return m.PkgPath == ""
 }
 
-const (
-	kindDirectIface = 1 << 5
-	kindGCProg      = 1 << 6 // Type.gc points to GC program
-	kindMask        = (1 << 5) - 1
-)
-
 // String returns the name of k.
 func (k Kind) String() string {
 	if uint(k) < uint(len(kindNames)) {
@@ -2068,7 +2062,7 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 	b := &abi.Type{
 		Align_:   goarch.PtrSize,
 		Size_:    size,
-		Kind_:    uint8(Struct),
+		Kind_:    abi.Struct,
 		PtrBytes: ptrdata,
 		GCData:   gcdata,
 	}
@@ -2084,7 +2078,7 @@ func (t *rtype) gcSlice(begin, end uintptr) []byte {
 // emitGCMask writes the GC mask for [n]typ into out, starting at bit
 // offset base.
 func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		panic("reflect: unexpected GC program")
 	}
 	ptrs := typ.PtrBytes / goarch.PtrSize
@@ -2103,7 +2097,7 @@ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
 // appendGCProg appends the GC program for the first ptrdata bytes of
 // typ to dst and returns the extended slice.
 func appendGCProg(dst []byte, typ *abi.Type) []byte {
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Element has GC program; emit one element.
 		n := uintptr(*(*uint32)(unsafe.Pointer(typ.GCData)))
 		prog := typ.GcSlice(4, 4+n-1)
@@ -2283,7 +2277,7 @@ func StructOf(fields []StructField) Type {
 		}
 		f, fpkgpath := runtimeStructField(field)
 		ft := f.Typ
-		if ft.Kind_&kindGCProg != 0 {
+		if ft.Kind_&abi.KindGCProg != 0 {
 			hasGCProg = true
 		}
 		if fpkgpath != "" {
@@ -2372,7 +2366,7 @@ func StructOf(fields []StructField) Type {
 						// Issue 15924.
 						panic("reflect: embedded type with methods not implemented if type is not first field")
 					}
-					if len(fields) > 1 && ft.Kind_&kindDirectIface != 0 {
+					if len(fields) > 1 && ft.Kind_&abi.KindDirectIface != 0 {
 						panic("reflect: embedded type with methods not implemented for non-pointer type")
 					}
 					for _, m := range unt.Methods() {
@@ -2590,10 +2584,10 @@ func StructOf(fields []StructField) Type {
 		}
 		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
-		typ.Kind_ |= kindGCProg
+		typ.Kind_ |= abi.KindGCProg
 		typ.GCData = &prog[0]
 	} else {
-		typ.Kind_ &^= kindGCProg
+		typ.Kind_ &^= abi.KindGCProg
 		bv := new(bitVector)
 		addTypeBits(bv, 0, &typ.Type)
 		if len(bv.data) > 0 {
@@ -2617,9 +2611,9 @@ func StructOf(fields []StructField) Type {
 	switch {
 	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
 		// structs of 1 direct iface type can be direct
-		typ.Kind_ |= kindDirectIface
+		typ.Kind_ |= abi.KindDirectIface
 	default:
-		typ.Kind_ &^= kindDirectIface
+		typ.Kind_ &^= abi.KindDirectIface
 	}
 
 	return addToCache(toType(&typ.Type))
@@ -2745,11 +2739,11 @@ func ArrayOf(length int, elem Type) Type {
 
 	case length == 1:
 		// In memory, 1-element array looks just like the element.
-		array.Kind_ |= typ.Kind_ & kindGCProg
+		array.Kind_ |= typ.Kind_ & abi.KindGCProg
 		array.GCData = typ.GCData
 		array.PtrBytes = typ.PtrBytes
 
-	case typ.Kind_&kindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
+	case typ.Kind_&abi.KindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into length 1 bits in larger mask.
@@ -2786,7 +2780,7 @@ func ArrayOf(length int, elem Type) Type {
 		prog = appendVarint(prog, uintptr(length)-1)
 		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
-		array.Kind_ |= kindGCProg
+		array.Kind_ |= abi.KindGCProg
 		array.GCData = &prog[0]
 		array.PtrBytes = array.Size_ // overestimate but ok; must match program
 	}
@@ -2812,9 +2806,9 @@ func ArrayOf(length int, elem Type) Type {
 	switch {
 	case length == 1 && !ifaceIndir(typ):
 		// array of 1 direct iface type can be direct
-		array.Kind_ |= kindDirectIface
+		array.Kind_ |= abi.KindDirectIface
 	default:
-		array.Kind_ &^= kindDirectIface
+		array.Kind_ &^= abi.KindDirectIface
 	}
 
 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
@@ -2914,7 +2908,7 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.
 func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&kindDirectIface == 0
+	return t.Kind_&abi.KindDirectIface == 0
 }
 
 // Note: this type must agree with runtime.bitvector.
@@ -2942,7 +2936,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 		return
 	}
 
-	switch Kind(t.Kind_ & kindMask) {
+	switch Kind(t.Kind_ & abi.KindMask) {
 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
 		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
