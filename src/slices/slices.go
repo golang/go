@@ -7,7 +7,6 @@ package slices
 
 import (
 	"cmp"
-	"math/bits"
 	"unsafe"
 )
 
@@ -482,12 +481,15 @@ func Concat[S ~[]E, E any](slices ...S) S {
 // Repeat panics if count is negative or if the result of (len(x) * count)
 // overflows.
 func Repeat[S ~[]E, E any](x S, count int) S {
-	if count < 0 {
-		panic("cannot be negative")
+	if count <= 0 {
+		if count < 0 {
+			panic("cannot be negative")
+		}
+		return S{}
 	}
 
-	const maxInt = ^uint(0) >> 1
-	if hi, lo := bits.Mul(uint(len(x)), uint(count)); hi > 0 || lo > maxInt {
+	const maxInt = int(^uint(0) >> 1)
+	if maxInt/count < len(x) {
 		panic("the result of (len(x) * count) overflows")
 	}
 
