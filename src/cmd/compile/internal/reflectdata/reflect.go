@@ -743,14 +743,14 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	i = int(kinds[t.Kind()])
+	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
-		i |= abi.KindDirectIface
+		kind |= abi.KindDirectIface
 	}
 	if useGCProg {
-		i |= abi.KindGCProg
+		kind |= abi.KindGCProg
 	}
-	c.Field("Kind_").WriteUint8(uint8(i))
+	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
