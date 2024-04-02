@@ -27,12 +27,12 @@ func (o tagOptions) Contains(optionName string) bool {
 		return false
 	}
 	s := string(o)
-	for s != "" {
-		var name string
-		name, s, _ = strings.Cut(s, ",")
-		if name == optionName {
+	for idx := strings.Index(s, ","); idx != -1; {
+		if optionName == s[:idx] {
 			return true
 		}
+		s = s[idx+1:]
+		idx = strings.Index(s, ",")
 	}
-	return false
+	return optionName == s
 }

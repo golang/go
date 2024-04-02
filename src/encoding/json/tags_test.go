@@ -26,3 +26,10 @@ func TestTagParsing(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkTagOptionsContains(b *testing.B) {
+	_, opts := parseTag("field,foobar,foo")
+	for range b.N {
+		opts.Contains("foo")
+	}
+}
