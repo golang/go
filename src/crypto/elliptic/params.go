@@ -56,7 +56,7 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve); ok {
+	if specific, ok := specificCurves[curve]; ok {
 		return specific.IsOnCurve(x, y)
 	}
 
@@ -110,7 +110,7 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve); ok {
+	if specific, ok := specificCurves[curve]; ok {
 		return specific.Add(x1, y1, x2, y2)
 	}
 	panicIfNotOnCurve(curve, x1, y1)
@@ -201,14 +201,14 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 
 // Double implements [Curve.Double].
 //
-// Deprecated: the [CurveParams】 methods are deprecated and are not guaranteed to
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the [crypto/ecdh] package.
 // For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
 // from [P224], [P256], [P384], or [P521].
 func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve); ok {
+	if specific, ok := specificCurves[curve]; ok {
 		return specific.Double(x1, y1)
 	}
 	panicIfNotOnCurve(curve, x1, y1)
@@ -287,7 +287,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve); ok {
+	if specific, ok := specificCurves[curve]; ok {
 		return specific.ScalarMult(Bx, By, k)
 	}
 	panicIfNotOnCurve(curve, Bx, By)
@@ -317,18 +317,16 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	// If there is a dedicated constant-time implementation for this curve operation,
 	// use that instead of the generic one.
-	if specific, ok := matchesSpecificCurve(curve); ok {
+	if specific, ok := specificCurves[curve]; ok {
 		return specific.ScalarBaseMult(k)
 	}
 
 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
 }
 
-func matchesSpecificCurve(params *CurveParams) (Curve, bool) {
-	for _, c := range []Curve{p224, p256, p384, p521} {
-		if params == c.Params() {
-			return c, true
-		}
-	}
-	return nil, false
+var specificCurves = map[*CurveParams]Curve{
+	P224().Params(): p224,
+	P256().Params(): p256,
+	P384().Params(): p384,
+	P521().Params(): p521,
 }
