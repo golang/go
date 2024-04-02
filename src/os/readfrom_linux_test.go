@@ -693,21 +693,20 @@ type spliceFileHook struct {
 
 	written int64
 	handled bool
-	sc      string
 	err     error
 
-	original func(dst, src *poll.FD, remain int64) (int64, bool, string, error)
+	original func(dst, src *poll.FD, remain int64) (int64, bool, error)
 }
 
 func (h *spliceFileHook) install() {
 	h.original = *PollSpliceFile
-	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, string, error) {
+	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
 		h.called = true
 		h.dstfd = dst.Sysfd
 		h.srcfd = src.Sysfd
 		h.remain = remain
-		h.written, h.handled, h.sc, h.err = h.original(dst, src, remain)
-		return h.written, h.handled, h.sc, h.err
+		h.written, h.handled, h.err = h.original(dst, src, remain)
+		return h.written, h.handled, h.err
 	}
 }
 

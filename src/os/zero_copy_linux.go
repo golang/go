@@ -87,14 +87,13 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 		return
 	}
 
-	var syscallName string
-	written, handled, syscallName, err = pollSplice(&f.pfd, pfd, remain)
+	written, handled, err = pollSplice(&f.pfd, pfd, remain)
 
 	if lr != nil {
 		lr.N = remain - written
 	}
 
-	return written, handled, wrapSyscallError(syscallName, err)
+	return written, handled, wrapSyscallError("splice", err)
 }
 
 func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err error) {
