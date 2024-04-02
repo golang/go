@@ -10,7 +10,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"internal/goexperiment"
 	"internal/testenv"
 	tracev2 "internal/trace/v2"
 	"io"
@@ -890,10 +889,6 @@ func init() {
 }
 
 func TestCrashWhileTracing(t *testing.T) {
-	if !goexperiment.ExecTracer2 {
-		t.Skip("skipping because this test is incompatible with the legacy tracer")
-	}
-
 	testenv.MustHaveExec(t)
 
 	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))

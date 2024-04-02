@@ -8,7 +8,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goexperiment"
 	"internal/goos"
 	"internal/platform"
 	"internal/testenv"
@@ -777,44 +776,6 @@ func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
-	}
-}
-
-func TestCgoTraceParser(t *testing.T) {
-	// Test issue 29707.
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("no pthreads on %s", runtime.GOOS)
-	}
-	if goexperiment.ExecTracer2 {
-		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
-	}
-	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
-	want := "OK\n"
-	ErrTimeOrder := "ErrTimeOrder\n"
-	if output == ErrTimeOrder {
-		t.Skipf("skipping due to golang.org/issue/16755: %v", output)
-	} else if output != want {
-		t.Fatalf("want %s, got %s\n", want, output)
-	}
-}
-
-func TestCgoTraceParserWithOneProc(t *testing.T) {
-	// Test issue 29707.
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("no pthreads on %s", runtime.GOOS)
-	}
-	if goexperiment.ExecTracer2 {
-		t.Skip("skipping test that is covered elsewhere for the new execution tracer")
-	}
-	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
-	want := "OK\n"
-	ErrTimeOrder := "ErrTimeOrder\n"
-	if output == ErrTimeOrder {
-		t.Skipf("skipping due to golang.org/issue/16755: %v", output)
-	} else if output != want {
-		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
 	}
 }
 

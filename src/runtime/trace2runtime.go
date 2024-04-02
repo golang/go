@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.exectracer2
-
 // Runtime -> tracer API.
 
 package runtime
@@ -560,10 +558,6 @@ func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
 		w.w = w.w.writeProcStatus(uint64(pp.id), traceProcSyscallAbandoned, pp.trace.inSweep)
 	}
 	w.commit(traceEvProcSteal, traceArg(pp.id), pp.trace.nextSeq(tl.gen), traceArg(mStolenFrom))
-}
-
-// GoSysBlock is a no-op in the new tracer.
-func (tl traceLocker) GoSysBlock(pp *p) {
 }
 
 // HeapAlloc emits a HeapAlloc event.
