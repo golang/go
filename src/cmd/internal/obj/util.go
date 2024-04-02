@@ -6,6 +6,7 @@ package obj
 
 import (
 	"bytes"
+	"cmd/internal/objabi"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
@@ -642,6 +643,7 @@ var Anames = []string{
 	"JMP",
 	"NOP",
 	"PCALIGN",
+	"PCALIGNMAX",
 	"PCDATA",
 	"RET",
 	"GETCALLERPC",
@@ -666,4 +668,63 @@ func abiDecorate(a *Addr, abiDetail bool) string {
 		return ""
 	}
 	return fmt.Sprintf("<%s>", a.Sym.ABI())
+}
+
+// AlignmentPadding bytes to add to align code as requested.
+// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+//
+// pc_: current offset in function, in bytes
+// p:  a PCALIGN or PCALIGNMAX prog
+// ctxt: the context, for current function
+// cursym: current function being assembled
+// returns number of bytes of padding needed,
+// updates minimum alignment for the function.
+func AlignmentPadding(pc int32, p *Prog, ctxt *Link, cursym *LSym) int {
+	v := AlignmentPaddingLength(pc, p, ctxt)
+	requireAlignment(p.From.Offset, ctxt, cursym)
+	return v
+}
+
+// AlignmentPaddingLength is the number of bytes to add to align code as requested.
+// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+// This only computes the length and does not update the (missing parameter)
+// current function's own required alignment.
+//
+// pc: current offset in function, in bytes
+// p:  a PCALIGN or PCALIGNMAX prog
+// ctxt: the context, for current function
+// returns number of bytes of padding needed,
+func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
+	a := p.From.Offset
+	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
+		return 0
+	}
+	pc64 := int64(pc)
+	lob := pc64 & (a - 1) // Low Order Bits -- if not zero, then not aligned
+	if p.As == APCALIGN {
+		if lob != 0 {
+			return int(a - lob)
+		}
+		return 0
+	}
+	// emit as many as s bytes of padding to obtain alignment
+	s := p.To.Offset
+	if s < 0 || s >= a {
+		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the aligment %d\n", s, a)
+		return 0
+	}
+	if s >= a-lob {
+		return int(a - lob)
+	}
+	return 0
+}
+
+// requireAlignment ensures that the function is aligned enough to support
+// the required code alignment
+func requireAlignment(a int64, ctxt *Link, cursym *LSym) {
+	// TODO remove explicit knowledge about AIX.
+	if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
+		cursym.Func().Align = int32(a)
+	}
 }

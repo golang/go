@@ -416,6 +416,7 @@ const (
 	AJMP
 	ANOP
 	APCALIGN
+	APCALIGNMAX // currently x86, amd64 and arm64
 	APCDATA
 	ARET
 	AGETCALLERPC

@@ -889,9 +889,10 @@ var optab = []Optab{
 	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
 	{obj.ANOP, C_ZREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
-	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
+	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
+	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
+	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},    // align code
+	{obj.APCALIGNMAX, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0, 0}, // align code, conditional
 }
 
 // Valid pstate field values, and value to use in instruction.
@@ -1109,13 +1110,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		m = o.size(c.ctxt, p)
 		if m == 0 {
 			switch p.As {
-			case obj.APCALIGN:
-				alignedValue := p.From.Offset
-				m = pcAlignPadLength(ctxt, pc, alignedValue)
-				// Update the current text symbol alignment value.
-				if int32(alignedValue) > cursym.Func().Align {
-					cursym.Func().Align = int32(alignedValue)
-				}
+			case obj.APCALIGN, obj.APCALIGNMAX:
+				m = obj.AlignmentPadding(int32(pc), p, ctxt, cursym)
 				break
 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
 				continue
@@ -1181,9 +1177,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			if m == 0 {
 				switch p.As {
-				case obj.APCALIGN:
-					alignedValue := p.From.Offset
-					m = pcAlignPadLength(ctxt, pc, alignedValue)
+				case obj.APCALIGN, obj.APCALIGNMAX:
+					m = obj.AlignmentPaddingLength(int32(pc), p, ctxt)
 					break
 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
 					continue
@@ -1214,9 +1209,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if sz > 4*len(out) {
 			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
 		}
-		if p.As == obj.APCALIGN {
-			alignedValue := p.From.Offset
-			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
+		if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
+			v := obj.AlignmentPaddingLength(int32(p.Pc), p, c.ctxt)
 			for i = 0; i < int(v/4); i++ {
 				// emit ANOOP instruction by the padding size
 				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
@@ -3316,6 +3310,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
+			obj.APCALIGNMAX,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
