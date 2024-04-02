@@ -17,7 +17,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"internal/singleflight"
 	"internal/testenv"
 	"io"
 	"log"
@@ -386,7 +385,6 @@ func (w *Walker) Features() (fs []string) {
 var parsedFileCache struct {
 	lock sync.RWMutex
 	m    map[string]*ast.File
-	wg   singleflight.Group
 }
 
 func init() {
@@ -411,6 +409,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		parsedFileCache.m[filename] = f
 	}
 	parsedFileCache.lock.Unlock()
+
 	return f, nil
 }
 
