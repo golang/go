@@ -17,6 +17,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"internal/singleflight"
 	"internal/testenv"
 	"io"
 	"log"
@@ -385,6 +386,7 @@ func (w *Walker) Features() (fs []string) {
 var parsedFileCache struct {
 	lock sync.RWMutex
 	m    map[string]*ast.File
+	wg   singleflight.Group
 }
 
 func init() {
@@ -405,9 +407,10 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 		return nil, err
 	}
 	parsedFileCache.lock.Lock()
-	parsedFileCache.m[filename] = f
+	if _, ok := parsedFileCache.m[filename]; !ok {
+		parsedFileCache.m[filename] = f
+	}
 	parsedFileCache.lock.Unlock()
-
 	return f, nil
 }
 
@@ -473,10 +476,6 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
-var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
-
-type semToken struct{}
-
 // loadImports populates w with information about the packages in the standard
 // library and the packages they themselves import in w's build context.
 //
@@ -501,9 +500,6 @@ func (w *Walker) loadImports() {
 
 	imports, ok := listCache.Load(name)
 	if !ok {
-		listSem <- semToken{}
-		defer func() { <-listSem }()
-
 		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
 		cmd.Env = listEnv(w.context)
 		if w.context.Dir != "" {
