@@ -142,7 +142,7 @@ func afterTest(t testing.TB) {
 		").noteClientGone(":     "a closenotifier sender",
 	}
 	var stacks string
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2500; i++ {
 		bad = ""
 		stacks = strings.Join(interestingGoroutines(), "\n\n")
 		for substr, what := range badSubstring {
@@ -156,7 +156,7 @@ func afterTest(t testing.TB) {
 		}
 		// Bad stuff found, but goroutines might just still be
 		// shutting down, so give it some time.
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
 }
