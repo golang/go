@@ -2773,7 +2773,7 @@ func (v Value) UnsafeAddr() uintptr {
 }
 
 // UnsafePointer returns v's value as a [unsafe.Pointer].
-// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
+// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], [String] or [UnsafePointer].
 //
 // If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
