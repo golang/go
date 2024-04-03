@@ -73,7 +73,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiWrappers:   regabiSupported,
 		RegabiArgs:       regabiSupported,
 		CoverageRedesign: true,
-		ExecTracer2:      true,
 	}
 
 	// Start with the statically enabled set of experiments.
