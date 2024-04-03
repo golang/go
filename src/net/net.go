@@ -656,10 +656,8 @@ func newWrappingDNSError(err error, name, server string) *DNSError {
 		unwrapErr   error
 	)
 
-	if err, ok := err.(timeout); ok {
+	if err, ok := err.(Error); ok {
 		isTimeout = err.Timeout()
-	}
-	if err, ok := err.(temporary); ok {
 		isTemporary = err.Temporary()
 	}
 
