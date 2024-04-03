@@ -82,12 +82,13 @@ var optab = []Optab{
 	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 
 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
-	{AADDF, C_FREG, C_REG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
-	{ACMPEQF, C_FREG, C_REG, C_NONE, C_NONE, C_NONE, 32, 4, 0, 0},
+	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+
+	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 29, 4, 0, 0},
 
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
@@ -850,6 +851,21 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 	return C_GOK
 }
 
+func (c *ctxt0) rclass(r int16) int {
+	switch {
+	case REG_R0 <= r && r <= REG_R31:
+		return C_REG
+	case REG_F0 <= r && r <= REG_F31:
+		return C_FREG
+	case REG_FCC0 <= r && r <= REG_FCC31:
+		return C_FCCREG
+	case REG_FCSR0 <= r && r <= REG_FCSR31:
+		return C_FCSRREG
+	}
+
+	return C_GOK
+}
+
 func prasm(p *obj.Prog) {
 	fmt.Printf("%v\n", p)
 }
@@ -883,7 +899,7 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 	// 2nd source operand
 	a2 := C_NONE
 	if p.Reg != 0 {
-		a2 = C_REG
+		a2 = c.rclass(p.Reg)
 	}
 
 	// 2nd destination operand
@@ -1619,6 +1635,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case 4:
 			o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(r), uint32(p.From.Reg))
 		}
+
+	case 29: // fcmp.cond.x fj, fk, fcc
+		o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(p.To.Reg))
 
 	case 30: // movw r,fr
 		a := OP_TEN(8, 1321) // movgr2fr.w

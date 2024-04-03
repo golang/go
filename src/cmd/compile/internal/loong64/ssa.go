@@ -244,6 +244,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = loong64.REG_FCC0
 	case ssa.OpLOONG64MOVVaddr:
 		p := s.Prog(loong64.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
