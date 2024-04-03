@@ -48,7 +48,7 @@ var (
 	// errServerTemporarilyMisbehaving is like errServerMisbehaving, except
 	// that when it gets translated to a DNSError, the IsTemporary field
 	// gets set to true.
-	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
+	errServerTemporarilyMisbehaving = &temporaryError{"server misbehaving"}
 )
 
 func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
@@ -320,11 +320,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				if err == errNoSuchHost {
 					return p, server, newWrappingDNSError(errNoSuchHost, name, server)
 				}
-				dnsErr := newWrappingDNSError(err, name, server)
-				if err == errServerTemporarilyMisbehaving {
-					dnsErr.IsTemporary = true
-				}
-				lastErr = dnsErr
+				lastErr = newWrappingDNSError(err, name, server)
 				continue
 			}
 

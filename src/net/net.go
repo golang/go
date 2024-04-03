@@ -632,6 +632,12 @@ type notFoundError struct{ s string }
 
 func (e *notFoundError) Error() string { return e.s }
 
+type temporaryError struct{ s string }
+
+func (e *temporaryError) Error() string   { return e.s }
+func (e *temporaryError) Temporary() bool { return true }
+func (e *temporaryError) Timeout() bool   { return false }
+
 // DNSError represents a DNS lookup error.
 type DNSError struct {
 	UnwrapErr   error  // error returned by the [DNSError.Unwrap] method, might be nil
