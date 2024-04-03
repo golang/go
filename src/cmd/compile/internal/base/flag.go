@@ -260,6 +260,9 @@ func ParseFlags() {
 	if Debug.PGOHash != "" {
 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
 	}
+	if Debug.MergeLocalsHash != "" {
+		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
+	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
