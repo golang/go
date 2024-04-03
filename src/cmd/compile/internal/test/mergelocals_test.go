@@ -12,19 +12,19 @@ import (
 	"cmd/internal/src"
 	"internal/testenv"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
 )
 
+func mkiv(name string) *ir.Name {
+	i32 := types.Types[types.TINT32]
+	s := typecheck.Lookup(name)
+	v := ir.NewNameAt(src.NoXPos, s, i32)
+	return v
+}
+
 func TestMergeLocalState(t *testing.T) {
-	mkiv := func(name string) *ir.Name {
-		i32 := types.Types[types.TINT32]
-		s := typecheck.Lookup(name)
-		v := ir.NewNameAt(src.NoXPos, s, i32)
-		return v
-	}
 	v1 := mkiv("v1")
 	v2 := mkiv("v2")
 	v3 := mkiv("v3")
@@ -126,22 +126,25 @@ func TestMergeLocalsIntegration(t *testing.T) {
 	// get overlapped, then another clump of 2 that share the same
 	// frame offset.
 	//
-	// The expected output blob we're interested in looks like this:
+	// The expected output blob we're interested might look like
+	// this (for amd64):
 	//
 	// =-= stack layout for ABC:
-	//  2: "p1" frameoff -8200 used=true
-	//  3: "xp3" frameoff -8200 used=true
-	//  4: "xp4" frameoff -8200 used=true
-	//  5: "p2" frameoff -16400 used=true
-	//  6: "s" frameoff -24592 used=true
-	//  7: "v1" frameoff -32792 used=true
-	//  8: "v3" frameoff -32792 used=true
-	//  9: "v2" frameoff -40992 used=true
+	// 2: "p1" frameoff -8200 used=true
+	// 3: "xp3" frameoff -8200 used=true
+	// 4: "xp4" frameoff -8200 used=true
+	// 5: "p2" frameoff -16400 used=true
+	// 6: "r" frameoff -16408 used=true
+	// 7: "s" frameoff -24600 used=true
+	// 8: "v2" frameoff -32800 used=true
+	// 9: "v3" frameoff -32800 used=true
 	//
 	tmpdir := t.TempDir()
 	src := filepath.Join("testdata", "mergelocals", "integration.go")
 	obj := filepath.Join(tmpdir, "p.a")
-	out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "1", "-o", obj, "-d=mergelocalstrace=2,mergelocals=1", src).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile",
+		"-p=p", "-c", "1", "-o", obj, "-d=mergelocalstrace=2,mergelocals=1",
+		src).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to compile: %v\n%s", err, out)
 	}
@@ -157,8 +160,11 @@ func TestMergeLocalsIntegration(t *testing.T) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) != 5 {
-			t.Fatalf("bad trace output line: %s", line)
+		wantFields := 5
+		if len(fields) != wantFields {
+			t.Logf(string(out))
+			t.Fatalf("bad trace output line, wanted %d fields got %d: %s",
+				wantFields, len(fields), line)
 		}
 		vname := fields[1]
 		frameoff := fields[3]
@@ -168,17 +174,22 @@ func TestMergeLocalsIntegration(t *testing.T) {
 	wantvnum := 8
 	gotvnum := len(vars)
 	if wantvnum != gotvnum {
+		t.Logf(string(out))
 		t.Fatalf("expected trace output on %d vars got %d\n", wantvnum, gotvnum)
 	}
 
-	// We expect one clump of 3, another clump of 2, and the rest singletons.
-	expected := []int{1, 1, 1, 2, 3}
+	// Expect at least one clump of at least 3.
+	n3 := 0
 	got := []int{}
 	for _, v := range varsAtFrameOffset {
+		if v > 2 {
+			n3++
+		}
 		got = append(got, v)
 	}
 	sort.Ints(got)
-	if !slices.Equal(got, expected) {
-		t.Fatalf("expected variable clumps %+v not equal to what we got: %+v", expected, got)
+	if n3 == 0 {
+		t.Logf(string(out))
+		t.Fatalf("expected at least one clump of 3, got: %+v", got)
 	}
 }

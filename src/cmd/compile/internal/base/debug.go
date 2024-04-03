@@ -45,6 +45,7 @@ type DebugFlags struct {
 	MergeLocalsDumpFunc   string `help:"dump specified func in merge locals"`
 	MergeLocalsHash       string `help:"hash value for debugging stack slot merging of local variables" concurrent:"ok"`
 	MergeLocalsTrace      int    `help:"trace debug output for locals merging"`
+	MergeLocalsHTrace     int    `help:"hash-selected trace debug output for locals merging"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`

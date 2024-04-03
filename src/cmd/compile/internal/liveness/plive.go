@@ -481,13 +481,13 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 			}
 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
 		case ir.PAUTO:
-			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
 			if checkForDuplicateSlots {
 				if prev, ok := slotsSeen[node.FrameOffset()]; ok {
 					base.FatalfAt(node.Pos(), "two vars live at pointerMap generation: %q and %q", prev.Sym().Name, node.Sym().Name)
 				}
 				slotsSeen[node.FrameOffset()] = node
 			}
+			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
 		}
 	}
 }

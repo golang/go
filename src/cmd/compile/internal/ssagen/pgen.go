@@ -256,10 +256,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	if base.Debug.MergeLocalsTrace > 1 {
-		fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
+		prolog := false
 		for i, v := range fn.Dcl {
 			if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
 				continue
+			}
+			if !prolog {
+				fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
+				prolog = true
 			}
 			fmt.Fprintf(os.Stderr, " %d: %q frameoff %d used=%v\n", i, v.Sym().Name, v.FrameOffset(), v.Used())
 		}

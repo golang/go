@@ -53,12 +53,22 @@ type candRegion struct {
 // of its auto variables can safely share the same stack slot, returning
 // a state object that describes how the overlap should be done.
 func MergeLocals(fn *ir.Func, f *ssa.Func) *MergeLocalsState {
-	cands, idx, regions := collectMergeCandidates(fn)
-	if len(regions) == 0 {
+
+	// Create a container object for useful state info and then
+	// call collectMergeCandidates to see if there are vars suitable
+	// for stack slot merging.
+	cs := &cstate{
+		fn:    fn,
+		f:     f,
+		trace: base.Debug.MergeLocalsTrace,
+	}
+	cs.collectMergeCandidates()
+	if len(cs.regions) == 0 {
 		return nil
 	}
-	lv := newliveness(fn, f, cands, idx, 0)
 
+	// Kick off liveness analysis.
+	//
 	// If we have a local variable such as "r2" below that's written
 	// but then not read, something like:
 	//
@@ -75,16 +85,17 @@ func MergeLocals(fn *ir.Func, f *ssa.Func) *MergeLocalsState {
 	// can ignore "r2" completely during liveness analysis for stack
 	// maps, however for stack slock merging we most definitely want
 	// to treat the writes as "uses".
-	lv.conservativeWrites = true
+	cs.lv = newliveness(fn, f, cs.cands, cs.nameToSlot, 0)
+	cs.lv.conservativeWrites = true
+	cs.lv.prologue()
+	cs.lv.solve()
 
-	lv.prologue()
-	lv.solve()
-	cs := &cstate{
-		fn:        fn,
-		ibuilders: make([]IntervalsBuilder, len(cands)),
-	}
-	computeIntervals(lv, cs)
-	rv := performMerging(lv, cs, regions)
+	// Compute intervals for each candidate based on the liveness and
+	// on block effects.
+	cs.computeIntervals()
+
+	// Perform merging within each region of the candidates list.
+	rv := cs.performMerging()
 	if err := rv.check(); err != nil {
 		base.FatalfAt(fn.Pos(), "invalid mergelocals state: %v", err)
 	}
@@ -245,20 +256,20 @@ func (mls *MergeLocalsState) String() string {
 }
 
 // collectMergeCandidates visits all of the AUTO vars declared in
-// function fn and returns a list of candidate variables for merging /
-// overlapping. Return values are: 1) a slice of ir.Name's
-// corresponding to the candidates, 2) a map that maps ir.Name to slot
-// in the slice, and 3) a slice containing regions (start/end pairs)
-// corresponding to variables that could be overlapped provided that
-// their lifetimes are disjoint.
-func collectMergeCandidates(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32, []candRegion) {
-	m := make(map[*ir.Name]int32)
+// function fn and identifies a list of candidate variables for
+// merging / overlapping. On return the "cands" field of cs will be
+// filled in with our set of potentially overlappable candidate
+// variables, the "regions" field will hold regions/sequence of
+// compatible vars within the candidates list, "nameToSlot" field will
+// be populated, and the "indirectUE" field will be filled in with
+// information about indirect upwards-exposed uses in the func.
+func (cs *cstate) collectMergeCandidates() {
 	var cands []*ir.Name
-	var regions []candRegion
 
 	// Collect up the available set of appropriate AUTOs in the
-	// function as a first step.
-	for _, n := range fn.Dcl {
+	// function as a first step, and bail if we have fewer than
+	// two candidates.
+	for _, n := range cs.fn.Dcl {
 		if !n.Used() {
 			continue
 		}
@@ -268,49 +279,60 @@ func collectMergeCandidates(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32, []cand
 		cands = append(cands, n)
 	}
 	if len(cands) < 2 {
-		return nil, nil, nil
+		return
 	}
 
 	// Sort by pointerness, size, and then name.
 	sort.SliceStable(cands, func(i, j int) bool {
-		ci, cj := cands[i], cands[j]
-		ihp, jhp := 0, 0
-		var ilsym, jlsym *obj.LSym
-		if ci.Type().HasPointers() {
-			ihp = 1
-			ilsym, _, _ = reflectdata.GCSym(ci.Type())
-		}
-		if cj.Type().HasPointers() {
-			jhp = 1
-			jlsym, _, _ = reflectdata.GCSym(cj.Type())
-		}
-		if ihp != jhp {
-			return ihp < jhp
-		}
-		if ci.Type().Size() != cj.Type().Size() {
-			return ci.Type().Size() < cj.Type().Size()
-		}
-		if ihp != 0 && jhp != 0 && ilsym != jlsym {
-			// FIXME: find less clunky way to do this
-			return fmt.Sprintf("%v", ilsym) < fmt.Sprintf("%v", jlsym)
-		}
-		if ci.Sym().Name != cj.Sym().Name {
-			return ci.Sym().Name < cj.Sym().Name
-		}
-		return fmt.Sprintf("%v", ci.Pos()) < fmt.Sprintf("%v", ci.Pos())
+		return nameLess(cands[i], cands[j])
 	})
 
-	if base.Debug.MergeLocalsTrace > 1 {
-		fmt.Fprintf(os.Stderr, "=-= raw cand list for func %v:\n", fn)
+	if cs.trace > 1 {
+		fmt.Fprintf(os.Stderr, "=-= raw cand list for func %v:\n", cs.fn)
 		for i := range cands {
 			dumpCand(cands[i], i)
 		}
 	}
 
-	// Now generate a pruned candidate list-- we only want to return a
-	// non-empty list if there is some possibility of overlapping two
-	// vars.
+	// Now generate an initial pruned candidate list and regions list.
+	// This may be empty if we don't have enough compatible candidates.
+	initial, _ := genRegions(cands)
+	if len(initial) < 2 {
+		return
+	}
+
+	// When bisecting it can be handy to see debug trace output for
+	// only those functions that hashdebug selects; set this up here.
+	cs.setupHashTrace(initial)
+
+	// Create and populate an indirect use table that we'll use
+	// during interval construction. As part of this process we may
+	// wind up tossing out additional candidates, so check to make
+	// sure we still have something to work with.
+	cs.cands, cs.regions = cs.populateIndirectUseTable(initial)
+	if len(cs.cands) < 2 {
+		return
+	}
+
+	// At this point we have a final pruned set of candidates and a
+	// corresponding set of regions for the candidates. Build a
+	// name-to-slot map for the candidates.
+	cs.nameToSlot = make(map[*ir.Name]int32)
+	for i, n := range cs.cands {
+		cs.nameToSlot[n] = int32(i)
+	}
+
+	if cs.trace > 1 {
+		fmt.Fprintf(os.Stderr, "=-= pruned candidate list for fn %v:\n", cs.fn)
+		for i := range cs.cands {
+			dumpCand(cs.cands[i], i)
+		}
+	}
+}
+
+func genRegions(cands []*ir.Name) ([]*ir.Name, []candRegion) {
 	var pruned []*ir.Name
+	var regions []candRegion
 	st := 0
 	for {
 		en := nextRegion(cands, st)
@@ -334,19 +356,264 @@ func collectMergeCandidates(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32, []cand
 		st = en + 1
 	}
 	if len(pruned) < 2 {
-		return nil, nil, nil
+		return nil, nil
 	}
-	for i, n := range pruned {
-		m[n] = int32(i)
-	}
+	return pruned, regions
+}
 
-	if base.Debug.MergeLocalsTrace > 1 {
-		fmt.Fprintf(os.Stderr, "=-= pruned candidate list for func %v:\n", fn)
-		for i := range pruned {
-			dumpCand(pruned[i], i)
+func (cs *cstate) dumpFunc() {
+	fmt.Fprintf(os.Stderr, "=-= mergelocalsdumpfunc %v:\n", cs.fn)
+	ii := 0
+	for k, b := range cs.f.Blocks {
+		fmt.Fprintf(os.Stderr, "b%d:\n", k)
+		for _, v := range b.Values {
+			pos := base.Ctxt.PosTable.Pos(v.Pos)
+			fmt.Fprintf(os.Stderr, "=-= %d L%d|C%d %s\n", ii, pos.RelLine(), pos.RelCol(), v.LongString())
+			ii++
 		}
 	}
-	return pruned, m, regions
+}
+
+func (cs *cstate) dumpFuncIfSelected() {
+	if base.Debug.MergeLocalsDumpFunc == "" {
+		return
+	}
+	if !strings.HasSuffix(fmt.Sprintf("%v", cs.fn),
+		base.Debug.MergeLocalsDumpFunc) {
+		return
+	}
+	cs.dumpFunc()
+}
+
+func (cs *cstate) setupHashTrace(cands []*ir.Name) {
+	if base.Debug.MergeLocalsHTrace == 0 || base.Debug.MergeLocalsHash == "" {
+		return
+	}
+
+	// With this trace variant, check to see whether any of the
+	// candidates are selected-- if yes then enable tracing. Hack:
+	// create a new hashdebug with verbosity turned off and use that
+	// to test, so as not to confuse bisect.
+	modified := strings.ReplaceAll(base.Debug.MergeLocalsHash, "v", "q")
+	quiethd := base.NewHashDebug("qmergelocals", modified, nil)
+	found := false
+	for _, cand := range cands {
+		if !quiethd.MatchPosWithInfo(cand.Pos(), "quiet", nil) {
+			found = true
+			fmt.Fprintf(os.Stderr, "=-= MergeLocalsHTrace fn=%v n=%s match\n",
+				cs.fn, cand.Sym().Name)
+			break
+		}
+	}
+	if found {
+		cs.trace = base.Debug.MergeLocalsHTrace
+	}
+}
+
+// populateIndirectUseTable creates and populates the "indirectUE" table
+// within cs by doing some additional analysis of how the vars in
+// cands are accessed in the function.
+//
+// It is possible to have situations where a given ir.Name is
+// non-address-taken at the source level, but whose address is
+// materialized in order to accomodate the needs of
+// architecture-dependent operations or one sort or another (examples
+// include things like LoweredZero/DuffZero, etc). The issue here is
+// that the SymAddr op will show up as touching a variable of
+// interest, but the subsequent memory op will not. This is generally
+// not an issue for computing whether something is live across a call,
+// but it is problematic for collecting the more fine-grained live
+// interval info that drives stack slot merging.
+//
+// To handle this problem, make a forward pass over each basic block
+// looking for instructions of the form vK := SymAddr(N) where N is a
+// raw candidate. Create an entry in a map at that point from vK to
+// its use count. Continue the walk, looking for uses of vK: when we
+// see one, record it in a side table as an upwards exposed use of N.
+// Each time we see a use, decrement the use count in the map, and if
+// we hit zero, remove the map entry. If we hit the end of the basic
+// block and we still have map entries, then evict the name in
+// question from the candidate set.
+func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []candRegion) {
+
+	// main indirect UE table, this is what we're producing in this func
+	indirectUE := make(map[ssa.ID][]*ir.Name)
+
+	// this map holds the current set of candidates; the set may
+	// shrink if we have to evict any candidates.
+	rawcands := make(map[*ir.Name]struct{})
+
+	// maps ssa value V to the ir.Name it is taking the addr of,
+	// plus a count of the uses we've seen of V during a block walk.
+	pendingUses := make(map[ssa.ID]nameCount)
+
+	// A temporary indirect UE tab just for the current block
+	// being processed; used to help with evictions.
+	blockIndirectUE := make(map[ssa.ID][]*ir.Name)
+
+	// temporary map used to record evictions in a given block.
+	evicted := make(map[*ir.Name]bool)
+	for _, n := range cands {
+		rawcands[n] = struct{}{}
+	}
+	for k := 0; k < len(cs.f.Blocks); k++ {
+		genmapclear(pendingUses)
+		genmapclear(blockIndirectUE)
+		b := cs.f.Blocks[k]
+		for _, v := range b.Values {
+			if n, e := affectedVar(v); n != nil {
+				if _, ok := rawcands[n]; ok {
+					if e&ssa.SymAddr != 0 && v.Uses != 0 {
+						// we're taking the address of candidate var n
+						if _, ok := pendingUses[v.ID]; ok {
+							// should never happen
+							base.FatalfAt(v.Pos, "internal error: apparent multiple defs for SSA value %d", v.ID)
+						}
+						// Stash an entry in pendingUses recording
+						// that we took the address of "n" via this
+						// val.
+						pendingUses[v.ID] = nameCount{n: n, count: v.Uses}
+						if cs.trace > 2 {
+							fmt.Fprintf(os.Stderr, "=-= SymAddr(%s) on %s\n",
+								n.Sym().Name, v.LongString())
+						}
+					}
+				}
+			}
+			for _, arg := range v.Args {
+				if nc, ok := pendingUses[arg.ID]; ok {
+					// We found a use of some value that took the
+					// address of nc.n. Record this inst as a
+					// potential indirect use.
+					if cs.trace > 2 {
+						fmt.Fprintf(os.Stderr, "=-= add indirectUE(%s) count=%d on %s\n", nc.n.Sym().Name, nc.count, v.LongString())
+					}
+					blockIndirectUE[v.ID] = append(blockIndirectUE[v.ID], nc.n)
+					nc.count--
+					if nc.count == 0 {
+						// That was the last use of the value. Clean
+						// up the entry in pendingUses.
+						if cs.trace > 2 {
+							fmt.Fprintf(os.Stderr, "=-= last use of v%d\n",
+								arg.ID)
+						}
+						delete(pendingUses, arg.ID)
+					} else {
+						// Not the last use; record the decremented
+						// use count and move on.
+						pendingUses[arg.ID] = nc
+					}
+				}
+			}
+		}
+
+		// We've reached the end of this basic block: if we have any
+		// leftover entries in pendingUses, then evict the
+		// corresponding names from the candidate set. The idea here
+		// is that if we materialized the address of some local and
+		// that value is flowing out of the block off somewhere else,
+		// we're going to treat that local as truly address-taken and
+		// not have it be a merge candidate.
+		genmapclear(evicted)
+		if len(pendingUses) != 0 {
+			for id, nc := range pendingUses {
+				if cs.trace > 2 {
+					fmt.Fprintf(os.Stderr, "=-= evicting %q due to pendingUse %d count %d\n", nc.n.Sym().Name, id, nc.count)
+				}
+				delete(rawcands, nc.n)
+				evicted[nc.n] = true
+			}
+		}
+		// Copy entries from blockIndirectUE into final indirectUE. Skip
+		// anything that we evicted in the loop above.
+		for id, sl := range blockIndirectUE {
+			for _, n := range sl {
+				if evicted[n] {
+					continue
+				}
+				indirectUE[id] = append(indirectUE[id], n)
+				if cs.trace > 2 {
+					fmt.Fprintf(os.Stderr, "=-= add final indUE v%d name %s\n", id, n.Sym().Name)
+				}
+			}
+		}
+	}
+	if len(rawcands) < 2 {
+		return nil, nil
+	}
+	cs.indirectUE = indirectUE
+	if cs.trace > 2 {
+		fmt.Fprintf(os.Stderr, "=-= iuetab:\n")
+		ids := make([]ssa.ID, 0, len(indirectUE))
+		for k := range indirectUE {
+			ids = append(ids, k)
+		}
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		for _, id := range ids {
+			fmt.Fprintf(os.Stderr, "  v%d:", id)
+			for _, n := range indirectUE[id] {
+				fmt.Fprintf(os.Stderr, " %s", n.Sym().Name)
+			}
+			fmt.Fprintf(os.Stderr, "\n")
+		}
+	}
+
+	pruned := cands[:0]
+	for k := range rawcands {
+		pruned = append(pruned, k)
+	}
+	sort.Slice(pruned, func(i, j int) bool {
+		return nameLess(pruned[i], pruned[j])
+	})
+	var regions []candRegion
+	pruned, regions = genRegions(pruned)
+	if len(pruned) < 2 {
+		return nil, nil
+	}
+	return pruned, regions
+}
+
+// FIXME: bootstrap tool compiler is build with a "go 1.20" go.mod, so
+// we are not allowed to use map clear yet. Use this helper instead.
+func genmapclear[KT comparable, VT any](m map[KT]VT) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+type nameCount struct {
+	n     *ir.Name
+	count int32
+}
+
+// nameLess compares ci with cj to see if ci should be less than cj
+// in a relative ordering of candidate variables. This is used to
+// sort vars by size, pointerness, and GC shape.
+func nameLess(ci, cj *ir.Name) bool {
+	ihp, jhp := 0, 0
+	var ilsym, jlsym *obj.LSym
+	if ci.Type().HasPointers() {
+		ihp = 1
+		ilsym, _, _ = reflectdata.GCSym(ci.Type())
+	}
+	if cj.Type().HasPointers() {
+		jhp = 1
+		jlsym, _, _ = reflectdata.GCSym(cj.Type())
+	}
+	if ihp != jhp {
+		return ihp < jhp
+	}
+	if ci.Type().Size() != cj.Type().Size() {
+		return ci.Type().Size() < cj.Type().Size()
+	}
+	if ihp != 0 && jhp != 0 && ilsym != jlsym {
+		// FIXME: find less clunky way to do this
+		return fmt.Sprintf("%v", ilsym) < fmt.Sprintf("%v", jlsym)
+	}
+	if ci.Sym().Name != cj.Sym().Name {
+		return ci.Sym().Name < cj.Sym().Name
+	}
+	return fmt.Sprintf("%v", ci.Pos()) < fmt.Sprintf("%v", cj.Pos())
 }
 
 // nextRegion starts at location idx and walks forward in the cands
@@ -384,9 +651,19 @@ func nextRegion(cands []*ir.Name, idx int) int {
 	return n - 1
 }
 
+// cstate holds state information we'll need during the analysis
+// phase of stack slot merging but can be discarded when the analysis
+// is done.
 type cstate struct {
-	fn        *ir.Func
-	ibuilders []IntervalsBuilder
+	fn         *ir.Func
+	f          *ssa.Func
+	lv         *liveness
+	cands      []*ir.Name
+	nameToSlot map[*ir.Name]int32
+	regions    []candRegion
+	indirectUE map[ssa.ID][]*ir.Name
+	ivs        []Intervals
+	trace      int // debug trace level
 }
 
 // mergeVisitRegion tries to perform overlapping of variables with a
@@ -397,8 +674,8 @@ type cstate struct {
 // first element in the st->en range, then walk the rest of the
 // elements adding in vars whose lifetimes don't overlap with the
 // first element, then repeat the process until we run out of work to do.
-func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st, en int) {
-	if base.Debug.MergeLocalsTrace > 1 {
+func (cs *cstate) mergeVisitRegion(mls *MergeLocalsState, st, en int) {
+	if cs.trace > 1 {
 		fmt.Fprintf(os.Stderr, "=-= mergeVisitRegion(st=%d, en=%d)\n", st, en)
 	}
 	n := en - st + 1
@@ -415,8 +692,9 @@ func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st,
 	}
 
 	navail := n
-	cands := lv.vars
-	if base.Debug.MergeLocalsTrace > 1 {
+	cands := cs.cands
+	ivs := cs.ivs
+	if cs.trace > 1 {
 		fmt.Fprintf(os.Stderr, "  =-= navail = %d\n", navail)
 	}
 	for navail >= 2 {
@@ -424,7 +702,7 @@ func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st,
 		used.Set(int32(leader - st))
 		navail--
 
-		if base.Debug.MergeLocalsTrace > 1 {
+		if cs.trace > 1 {
 			fmt.Fprintf(os.Stderr, "  =-= begin leader %d used=%s\n", leader,
 				used.String())
 		}
@@ -443,7 +721,7 @@ func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st,
 			if used.Get(int32(succ - st)) {
 				continue
 			}
-			if base.Debug.MergeLocalsTrace > 1 {
+			if cs.trace > 1 {
 				fmt.Fprintf(os.Stderr, "  =-= overlap of %d[%v] {%s} with %d[%v] {%s} is: %v\n", leader, cands[leader], lints.String(), succ, cands[succ], ivs[succ].String(), lints.Overlaps(ivs[succ]))
 			}
 
@@ -470,7 +748,7 @@ func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st,
 			for i := range elems {
 				used.Set(int32(elems[i] - st))
 			}
-			if base.Debug.MergeLocalsTrace > 1 {
+			if cs.trace > 1 {
 				fmt.Fprintf(os.Stderr, "=-= overlapping %+v:\n", sl)
 				for i := range sl {
 					dumpCand(mls.vars[sl[i]], sl[i])
@@ -486,59 +764,32 @@ func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st,
 // performMerging carries out variable merging within each of the
 // candidate ranges in regions, returning a state object
 // that describes the variable overlaps.
-func performMerging(lv *liveness, cs *cstate, regions []candRegion) *MergeLocalsState {
-	cands := lv.vars
+func (cs *cstate) performMerging() *MergeLocalsState {
+	cands := cs.cands
+
 	mls := &MergeLocalsState{
 		partition: make(map[*ir.Name][]int),
 	}
 
-	// Finish intervals construction.
-	ivs := make([]Intervals, len(cands))
-	for i := range cands {
-		var err error
-		ivs[i], err = cs.ibuilders[i].Finish()
-		if err != nil {
-			ninstr := 0
-			if base.Debug.MergeLocalsTrace != 0 {
-				iidx := 0
-				for k := 0; k < len(lv.f.Blocks); k++ {
-					b := lv.f.Blocks[k]
-					fmt.Fprintf(os.Stderr, "\n")
-					for _, v := range b.Values {
-						fmt.Fprintf(os.Stderr, " b%d %d: %s\n", k, iidx, v.LongString())
-						iidx++
-						ninstr++
-					}
-				}
-			}
-			base.FatalfAt(cands[i].Pos(), "interval construct error for var %q in func %q (%d instrs): %v", cands[i].Sym().Name, ir.FuncName(cs.fn), ninstr, err)
-			return nil
-		}
-	}
-
 	// Dump state before attempting overlap.
-	if base.Debug.MergeLocalsTrace > 1 {
+	if cs.trace > 1 {
 		fmt.Fprintf(os.Stderr, "=-= cands live before overlap:\n")
 		for i := range cands {
 			c := cands[i]
 			fmt.Fprintf(os.Stderr, "%d: %v sz=%d ivs=%s\n",
-				i, c.Sym().Name, c.Type().Size(), ivs[i].String())
+				i, c.Sym().Name, c.Type().Size(), cs.ivs[i].String())
 		}
-		fmt.Fprintf(os.Stderr, "=-= regions (%d): ", len(regions))
-		for _, cr := range regions {
+		fmt.Fprintf(os.Stderr, "=-= regions (%d): ", len(cs.regions))
+		for _, cr := range cs.regions {
 			fmt.Fprintf(os.Stderr, " [%d,%d]", cr.st, cr.en)
 		}
 		fmt.Fprintf(os.Stderr, "\n")
 	}
 
-	if base.Debug.MergeLocalsTrace > 1 {
-		fmt.Fprintf(os.Stderr, "=-= len(regions) = %d\n", len(regions))
-	}
-
 	// Apply a greedy merge/overlap strategy within each region
 	// of compatible variables.
-	for _, cr := range regions {
-		mls.mergeVisitRegion(lv, ivs, cr.st, cr.en)
+	for _, cr := range cs.regions {
+		cs.mergeVisitRegion(mls, cr.st, cr.en)
 	}
 	if len(mls.vars) == 0 {
 		return nil
@@ -550,23 +801,13 @@ func performMerging(lv *liveness, cs *cstate, regions []candRegion) *MergeLocals
 // of the function we're compiling, building up an Intervals object
 // for each candidate variable by looking for upwards exposed uses
 // and kills.
-func computeIntervals(lv *liveness, cs *cstate) {
+func (cs *cstate) computeIntervals() {
+	lv := cs.lv
+	ibuilders := make([]IntervalsBuilder, len(cs.cands))
 	nvars := int32(len(lv.vars))
 	liveout := bitvec.New(nvars)
 
-	if base.Debug.MergeLocalsDumpFunc != "" &&
-		strings.HasSuffix(fmt.Sprintf("%v", cs.fn), base.Debug.MergeLocalsDumpFunc) {
-		fmt.Fprintf(os.Stderr, "=-= mergelocalsdumpfunc %v:\n", cs.fn)
-		ii := 0
-		for k, b := range lv.f.Blocks {
-			fmt.Fprintf(os.Stderr, "b%d:\n", k)
-			for _, v := range b.Values {
-				pos := base.Ctxt.PosTable.Pos(v.Pos)
-				fmt.Fprintf(os.Stderr, "=-= %d L%d|C%d %s\n", ii, pos.RelLine(), pos.RelCol(), v.LongString())
-				ii++
-			}
-		}
-	}
+	cs.dumpFuncIfSelected()
 
 	// Count instructions.
 	ninstr := 0
@@ -581,7 +822,7 @@ func computeIntervals(lv *liveness, cs *cstate) {
 		b := lv.f.Blocks[k]
 		be := lv.blockEffects(b)
 
-		if base.Debug.MergeLocalsTrace > 2 {
+		if cs.trace > 2 {
 			fmt.Fprintf(os.Stderr, "=-= liveout from tail of b%d: ", k)
 			for j := range lv.vars {
 				if be.liveout.Get(int32(j)) {
@@ -602,17 +843,17 @@ func computeIntervals(lv *liveness, cs *cstate) {
 			blockLiveOut := be.liveout.Get(int32(j))
 			if isLive {
 				if !blockLiveOut {
-					if base.Debug.MergeLocalsTrace > 2 {
+					if cs.trace > 2 {
 						fmt.Fprintf(os.Stderr, "=+= at instr %d block boundary kill of %v\n", iidx, lv.vars[j])
 					}
-					cs.ibuilders[j].Kill(iidx)
+					ibuilders[j].Kill(iidx)
 				}
 			} else if blockLiveOut {
-				if base.Debug.MergeLocalsTrace > 2 {
+				if cs.trace > 2 {
 					fmt.Fprintf(os.Stderr, "=+= at block-end instr %d %v becomes live\n",
 						iidx, lv.vars[j])
 				}
-				cs.ibuilders[j].Live(iidx)
+				ibuilders[j].Live(iidx)
 			}
 		}
 
@@ -624,7 +865,7 @@ func computeIntervals(lv *liveness, cs *cstate) {
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 
-			if base.Debug.MergeLocalsTrace > 2 {
+			if cs.trace > 2 {
 				fmt.Fprintf(os.Stderr, "=-= b%d instr %d: %s\n", k, iidx, v.LongString())
 			}
 
@@ -639,24 +880,92 @@ func computeIntervals(lv *liveness, cs *cstate) {
 				panic("should never happen")
 			}
 			if iskilled && liveout.Get(pos) {
-				cs.ibuilders[pos].Kill(iidx)
+				ibuilders[pos].Kill(iidx)
 				liveout.Unset(pos)
-				if base.Debug.MergeLocalsTrace > 2 {
+				if cs.trace > 2 {
 					fmt.Fprintf(os.Stderr, "=+= at instr %d kill of %v\n",
 						iidx, lv.vars[pos])
 				}
 			} else if becomeslive && !liveout.Get(pos) {
-				cs.ibuilders[pos].Live(iidx)
+				ibuilders[pos].Live(iidx)
 				liveout.Set(pos)
-				if base.Debug.MergeLocalsTrace > 2 {
+				if cs.trace > 2 {
 					fmt.Fprintf(os.Stderr, "=+= at instr %d upwards-exposed use of %v\n",
 						iidx, lv.vars[pos])
+				}
+			}
+
+			if cs.indirectUE != nil {
+				// Now handle "indirect" upwards-exposed uses.
+				ues := cs.indirectUE[v.ID]
+				for _, n := range ues {
+					if pos, ok := lv.idx[n]; ok {
+						if !liveout.Get(pos) {
+							ibuilders[pos].Live(iidx)
+							liveout.Set(pos)
+							if cs.trace > 2 {
+								fmt.Fprintf(os.Stderr, "=+= at instr %d v%d indirect upwards-exposed use of %v\n", iidx, v.ID, lv.vars[pos])
+							}
+						}
+					}
 				}
 			}
 			iidx--
 		}
 
-		if b == lv.f.Entry {
+		// This check disabled for now due to the way scheduling works
+		// for ops that materialize values of local variables. For
+		// many architecture we have rewrite rules of this form:
+		//
+		// (LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVDaddr {sym} (SPanchored base mem))
+		// (LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
+		//
+		// which are designed to ensure that if you have a pointerful
+		// variable "abc" sequence
+		//
+		//    v30 = VarDef <mem> {abc} v21
+		//    v31 = LocalAddr <*SB> {abc} v2 v30
+		//    v32 = Zero <mem> {SB} [2056] v31 v30
+		//
+		// this will be lowered into
+		//
+		//    v30 = VarDef <mem> {sb} v21
+		//   v106 = SPanchored <uintptr> v2 v30
+		//    v31 = MOVDaddr <*SB> {sb} v106
+		//     v3 = DUFFZERO <mem> [2056] v31 v30
+		//
+		// Note the SPanchored: this ensures that the scheduler won't
+		// move the MOVDaddr earlier than the vardef. With a variable
+		// "xyz" that has no pointers, howver, if we start with
+		//
+		//    v66 = VarDef <mem> {t2} v65
+		//    v67 = LocalAddr <*T> {t2} v2 v66
+		//    v68 = Zero <mem> {T} [2056] v67 v66
+		//
+		// we might lower to
+		//
+		//    v66 = VarDef <mem> {t2} v65
+		//    v29 = MOVDaddr <*T> {t2} [2032] v2
+		//    v43 = LoweredZero <mem> v67 v29 v66
+		//    v68 = Zero [2056] v2 v43
+		//
+		// where that MOVDaddr can float around arbitrarily, meaning
+		// that we may see an upwards-exposed use to it before the
+		// VarDef.
+		//
+		// One avenue to restoring the check below would be to change
+		// the rewrite rules to something like
+		//
+		// (LocalAddr <t> {sym} base mem) && (t.Elem().HasPointers() || isMergeCandidate(t) => (MOVDaddr {sym} (SPanchored base mem))
+		//
+		// however that change will have to be carefully evaluated,
+		// since it would constrain the scheduler for _all_ LocalAddr
+		// ops for potential merge candidates, even if we don't
+		// actually succeed in any overlaps. This will be revisitged in
+		// a later CL if possible.
+		//
+		const checkLiveOnEntry = false
+		if checkLiveOnEntry && b == lv.f.Entry {
 			for j, v := range lv.vars {
 				if liveout.Get(int32(j)) {
 					lv.f.Fatalf("%v %L recorded as live on entry",
@@ -668,20 +977,33 @@ func computeIntervals(lv *liveness, cs *cstate) {
 	if iidx != -1 {
 		panic("iidx underflow")
 	}
+
+	// Finish intervals construction.
+	ivs := make([]Intervals, len(cs.cands))
+	for i := range cs.cands {
+		var err error
+		ivs[i], err = ibuilders[i].Finish()
+		if err != nil {
+			cs.dumpFunc()
+			base.FatalfAt(cs.cands[i].Pos(), "interval construct error for var %q in func %q (%d instrs): %v", cs.cands[i].Sym().Name, ir.FuncName(cs.fn), ninstr, err)
+		}
+	}
+	cs.ivs = ivs
+}
+
+func fmtFullPos(p src.XPos) string {
+	var sb strings.Builder
+	sep := ""
+	base.Ctxt.AllPos(p, func(pos src.Pos) {
+		fmt.Fprintf(&sb, sep)
+		sep = "|"
+		file := filepath.Base(pos.Filename())
+		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
+	})
+	return sb.String()
 }
 
 func dumpCand(c *ir.Name, i int) {
-	fmtFullPos := func(p src.XPos) string {
-		var sb strings.Builder
-		sep := ""
-		base.Ctxt.AllPos(p, func(pos src.Pos) {
-			fmt.Fprintf(&sb, sep)
-			sep = "|"
-			file := filepath.Base(pos.Filename())
-			fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
-		})
-		return sb.String()
-	}
 	fmt.Fprintf(os.Stderr, " %d: %s %q sz=%d hp=%v t=%v\n",
 		i, fmtFullPos(c.Pos()), c.Sym().Name, c.Type().Size(),
 		c.Type().HasPointers(), c.Type())

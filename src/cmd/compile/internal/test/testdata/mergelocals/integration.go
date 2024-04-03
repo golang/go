@@ -32,37 +32,42 @@ type Single struct {
 	x  [1023]int
 }
 
+var G int
+
+//go:noinline
+func clobber() {
+	G++
+}
+
 func ABC(i, j int) int {
 	r := 0
 
-	// here v1 interferes with v2 but could be overlapped with v3.
-	// we can also overlap v1 with v3.
-	var v1 Vanilla
+	// here v2 and v3 can be overlapped.
+	clobber()
 	if i < 101 {
 		var v2 Vanilla
-		v1.x[i] = j
-		r += v1.x[j]
 		v2.x[i] = j
 		r += v2.x[j]
 	}
-
-	{
+	if j != 303 {
 		var v3 Vanilla2
 		v3.x[i] = j
 		r += v3.x[j]
 	}
+	clobber()
 
+	// not an overlap candidate (only one var of this size).
 	var s Single
 	s.x[i] = j
 	r += s.x[j]
 
-	// Here p1 and p2 interfere, but p1 could be overlapped with xp3.
+	// Here p1 and p2 interfere, but p1 could be overlapped with xp3 + xp4.
 	var p1, p2 Pointery
 	p1.x[i] = j
 	r += p1.x[j]
 	p2.x[i] = j
 	r += p2.x[j]
-	{
+	if j != 505 {
 		var xp3 Pointery2
 		xp3.x[i] = j
 		r += xp3.x[j]
@@ -79,5 +84,5 @@ func ABC(i, j int) int {
 		r += xp4.x[j]
 	}
 
-	return r
+	return r + G
 }
