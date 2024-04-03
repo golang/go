@@ -33,8 +33,6 @@ import (
 // See issues 36852, 41409, and 43687.
 // (Also see golang.org/issue/27348.)
 func TestAllDependencies(t *testing.T) {
-	t.Skip("TODO(#65051): 1.22.2 contains unreleased changes from vendored modules")
-
 	goBin := testenv.GoToolPath(t)
 
 	// Ensure that all packages imported within GOROOT
