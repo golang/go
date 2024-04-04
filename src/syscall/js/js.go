@@ -210,7 +210,13 @@ func ValueOf(x any) Value {
 	}
 }
 
+// stringVal copies string x to Javascript and returns a ref.
+//
+// (noescape): This is safe because no references are maintained to the
+//             Go string x after the syscall returns.
+//
 //go:wasmimport gojs syscall/js.stringVal
+//go:noescape
 func stringVal(x string) ref
 
 // Type represents the JavaScript type of a Value.
@@ -294,7 +300,13 @@ func (v Value) Get(p string) Value {
 	return r
 }
 
+// valueGet returns a ref to JavaScript property p of ref v.
+//
+// (noescape): This is safe because no references are maintained to the
+//             Go string p after the syscall returns.
+//
 //go:wasmimport gojs syscall/js.valueGet
+//go:noescape
 func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
@@ -309,7 +321,13 @@ func (v Value) Set(p string, x any) {
 	runtime.KeepAlive(xv)
 }
 
+// valueSet sets property p of ref v to ref x.
+//
+// (noescape): This is safe because no references are maintained to the
+//             Go string p after the syscall returns.
+//
 //go:wasmimport gojs syscall/js.valueSet
+//go:noescape
 func valueSet(v ref, p string, x ref)
 
 // Delete deletes the JavaScript property p of value v.
@@ -322,7 +340,13 @@ func (v Value) Delete(p string) {
 	runtime.KeepAlive(v)
 }
 
+// valueDelete deletes the JavaScript property p of ref v.
+//
+// (noescape): This is safe because no references are maintained to the
+//             Go string p after the syscall returns.
+//
 //go:wasmimport gojs syscall/js.valueDelete
+//go:noescape
 func valueDelete(v ref, p string)
 
 // Index returns JavaScript index i of value v.
@@ -354,15 +378,36 @@ func (v Value) SetIndex(i int, x any) {
 //go:wasmimport gojs syscall/js.valueSetIndex
 func valueSetIndex(v ref, i int, x ref)
 
-func makeArgs(args []any) ([]Value, []ref) {
-	argVals := make([]Value, len(args))
-	argRefs := make([]ref, len(args))
+// makeArgSlices makes two slices to hold JavaScript arg data.
+// It can be paired with storeArgs to make-and-store JavaScript arg slices.
+// However, the two functions are separated to ensure makeArgSlices is inlined
+// which will prevent the slices from being heap allocated for small (<=16)
+// numbers of args.
+func makeArgSlices(size int) (argVals []Value, argRefs []ref) {
+	// value chosen for being power of two, and enough to handle all web APIs
+	// in particular, note that WebGL2's texImage2D takes up to 10 arguments
+	const maxStackArgs = 16
+	if size <= maxStackArgs {
+		// as long as makeArgs is inlined, these will be stack-allocated
+		argVals = make([]Value, size, maxStackArgs)
+		argRefs = make([]ref, size, maxStackArgs)
+	} else {
+		// allocates on the heap, but exceeding maxStackArgs should be rare
+		argVals = make([]Value, size)
+		argRefs = make([]ref, size)
+	}
+	return
+}
+
+// storeArgs maps input args onto respective Value and ref slices.
+// It can be paired with makeArgSlices to make-and-store JavaScript arg slices.
+func storeArgs(args []any, argValsDst []Value, argRefsDst []ref) {
+	// would go in makeArgs if the combined func was simple enough to inline
 	for i, arg := range args {
 		v := ValueOf(arg)
-		argVals[i] = v
-		argRefs[i] = v.ref
+		argValsDst[i] = v
+		argRefsDst[i] = v.ref
 	}
-	return argVals, argRefs
 }
 
 // Length returns the JavaScript property "length" of v.
@@ -383,7 +428,8 @@ func valueLength(v ref) int
 // It panics if v has no method m.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Call(m string, args ...any) Value {
-	argVals, argRefs := makeArgs(args)
+	argVals, argRefs := makeArgSlices(len(args))
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueCall(v.ref, m, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -399,15 +445,24 @@ func (v Value) Call(m string, args ...any) Value {
 	return makeValue(res)
 }
 
+// valueCall does a JavaScript call to the method name m of ref v with the given arguments.
+//
+// (noescape): This is safe because no references are maintained to the
+//             Go string m after the syscall returns. Additionally, the args slice
+//             is only used temporarily to collect the JavaScript objects for
+//             the JavaScript method invocation.
+//
 //go:wasmimport gojs syscall/js.valueCall
 //go:nosplit
+//go:noescape
 func valueCall(v ref, m string, args []ref) (ref, bool)
 
 // Invoke does a JavaScript call of the value v with the given arguments.
 // It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Invoke(args ...any) Value {
-	argVals, argRefs := makeArgs(args)
+	argVals, argRefs := makeArgSlices(len(args))
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueInvoke(v.ref, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -420,14 +475,22 @@ func (v Value) Invoke(args ...any) Value {
 	return makeValue(res)
 }
 
+// valueInvoke does a JavaScript call to value v with the given arguments.
+//
+// (noescape): This is safe because the args slice is only used temporarily
+//             to collect the JavaScript objects for the JavaScript method
+//             invocation.
+//
 //go:wasmimport gojs syscall/js.valueInvoke
+//go:noescape
 func valueInvoke(v ref, args []ref) (ref, bool)
 
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
 // It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) New(args ...any) Value {
-	argVals, argRefs := makeArgs(args)
+	argVals, argRefs := makeArgSlices(len(args))
+	storeArgs(args, argVals, argRefs)
 	res, ok := valueNew(v.ref, argRefs)
 	runtime.KeepAlive(v)
 	runtime.KeepAlive(argVals)
@@ -440,7 +503,13 @@ func (v Value) New(args ...any) Value {
 	return makeValue(res)
 }
 
+// valueNew uses JavaScript's "new" operator with value v as a constructor and the given arguments.
+//
+// (noescape): This is safe because the args slice is only used temporarily
+//             to collect the JavaScript objects for the constructor execution.
+//
 //go:wasmimport gojs syscall/js.valueNew
+//go:noescape
 func valueNew(v ref, args []ref) (ref, bool)
 
 func (v Value) isNumber() bool {
@@ -543,7 +612,13 @@ func jsString(v Value) string {
 //go:wasmimport gojs syscall/js.valuePrepareString
 func valuePrepareString(v ref) (ref, int)
 
+// valueLoadString loads string data located at ref v into byte slice b.
+//
+// (noescape): This is safe because the byte slice is only used as a destination
+//             for storing the string data and references to it are not maintained.
+//
 //go:wasmimport gojs syscall/js.valueLoadString
+//go:noescape
 func valueLoadString(v ref, b []byte)
 
 // InstanceOf reports whether v is an instance of type t according to JavaScript's instanceof operator.
@@ -581,7 +656,13 @@ func CopyBytesToGo(dst []byte, src Value) int {
 	return n
 }
 
+// copyBytesToGo copies bytes from src to dst.
+//
+// (noescape): This is safe because the dst byte slice is only used as a dst
+//             copy buffer and no references to it are maintained.
+//
 //go:wasmimport gojs syscall/js.copyBytesToGo
+//go:noescape
 func copyBytesToGo(dst []byte, src ref) (int, bool)
 
 // CopyBytesToJS copies bytes from src to dst.
@@ -596,5 +677,11 @@ func CopyBytesToJS(dst Value, src []byte) int {
 	return n
 }
 
+// copyBytesToJs copies bytes from src to dst.
+//
+// (noescape): This is safe because the src byte slice is only used as a src
+//             copy buffer and no references to it are maintained.
+//
 //go:wasmimport gojs syscall/js.copyBytesToJS
+//go:noescape
 func copyBytesToJS(dst ref, src []byte) (int, bool)
