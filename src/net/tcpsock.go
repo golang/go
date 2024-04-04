@@ -241,8 +241,8 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 // SetKeepAlivePeriod sets the duration the connection needs to
 // remain idle before TCP starts sending keepalive probes.
 //
-// Note that calling this method on Windows will reset the KeepAliveInterval
-// to the default system value, which is normally 1 second.
+// Note that calling this method on Windows prior to Windows 10 version 1709
+// will reset the KeepAliveInterval to the default system value, which is normally 1 second.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
