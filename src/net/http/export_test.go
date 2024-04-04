@@ -86,6 +86,14 @@ func SetPendingDialHooks(before, after func()) {
 
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
+func SetTestHookProxyConnectTimeout(t *testing.T, f func(context.Context, time.Duration) (context.Context, context.CancelFunc)) {
+	orig := testHookProxyConnectTimeout
+	t.Cleanup(func() {
+		testHookProxyConnectTimeout = orig
+	})
+	testHookProxyConnectTimeout = f
+}
+
 func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 	return &timeoutHandler{
 		handler:     handler,

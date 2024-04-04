@@ -1626,11 +1626,20 @@ func TestOnProxyConnectResponse(t *testing.T) {
 // Issue 28012: verify that the Transport closes its TCP connection to http proxies
 // when they're slow to reply to HTTPS CONNECT responses.
 func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
+	cancelc := make(chan struct{})
+	SetTestHookProxyConnectTimeout(t, func(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(ctx)
+		go func() {
+			select {
+			case <-cancelc:
+			case <-ctx.Done():
+			}
+			cancel()
+		}()
+		return ctx, cancel
+	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer afterTest(t)
 
 	ln := newLocalListener(t)
 	defer ln.Close()
@@ -1658,7 +1667,7 @@ func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
 		// Now hang and never write a response; instead, cancel the request and wait
 		// for the client to close.
 		// (Prior to Issue 28012 being fixed, we never closed.)
-		cancel()
+		close(cancelc)
 		var buf [1]byte
 		_, err = br.Read(buf[:])
 		if err != io.EOF {
@@ -1674,7 +1683,7 @@ func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
 			},
 		},
 	}
-	req, err := NewRequestWithContext(ctx, "GET", "https://golang.fake.tld/", nil)
+	req, err := NewRequest("GET", "https://golang.fake.tld/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3927,9 +3936,13 @@ func testTransportDialTLS(t *testing.T, mode testMode) {
 
 func TestTransportDialContext(t *testing.T) { run(t, testTransportDialContext) }
 func testTransportDialContext(t *testing.T, mode testMode) {
-	var mu sync.Mutex // guards following
-	var gotReq bool
-	var receivedContext context.Context
+	ctxKey := "some-key"
+	ctxValue := "some-value"
+	var (
+		mu          sync.Mutex // guards following
+		gotReq      bool
+		gotCtxValue any
+	)
 
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		mu.Lock()
@@ -3939,7 +3952,7 @@ func testTransportDialContext(t *testing.T, mode testMode) {
 	c := ts.Client()
 	c.Transport.(*Transport).DialContext = func(ctx context.Context, netw, addr string) (net.Conn, error) {
 		mu.Lock()
-		receivedContext = ctx
+		gotCtxValue = ctx.Value(ctxKey)
 		mu.Unlock()
 		return net.Dial(netw, addr)
 	}
@@ -3948,7 +3961,7 @@ func testTransportDialContext(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.WithValue(context.Background(), "some-key", "some-value")
+	ctx := context.WithValue(context.Background(), ctxKey, ctxValue)
 	res, err := c.Do(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
@@ -3958,8 +3971,8 @@ func testTransportDialContext(t *testing.T, mode testMode) {
 	if !gotReq {
 		t.Error("didn't get request")
 	}
-	if receivedContext != ctx {
-		t.Error("didn't receive correct context")
+	if got, want := gotCtxValue, ctxValue; got != want {
+		t.Errorf("got context with value %v, want %v", got, want)
 	}
 }
 
@@ -3967,9 +3980,13 @@ func TestTransportDialTLSContext(t *testing.T) {
 	run(t, testTransportDialTLSContext, []testMode{https1Mode, http2Mode})
 }
 func testTransportDialTLSContext(t *testing.T, mode testMode) {
-	var mu sync.Mutex // guards following
-	var gotReq bool
-	var receivedContext context.Context
+	ctxKey := "some-key"
+	ctxValue := "some-value"
+	var (
+		mu          sync.Mutex // guards following
+		gotReq      bool
+		gotCtxValue any
+	)
 
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		mu.Lock()
@@ -3979,7 +3996,7 @@ func testTransportDialTLSContext(t *testing.T, mode testMode) {
 	c := ts.Client()
 	c.Transport.(*Transport).DialTLSContext = func(ctx context.Context, netw, addr string) (net.Conn, error) {
 		mu.Lock()
-		receivedContext = ctx
+		gotCtxValue = ctx.Value(ctxKey)
 		mu.Unlock()
 		c, err := tls.Dial(netw, addr, c.Transport.(*Transport).TLSClientConfig)
 		if err != nil {
@@ -3992,7 +4009,7 @@ func testTransportDialTLSContext(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.WithValue(context.Background(), "some-key", "some-value")
+	ctx := context.WithValue(context.Background(), ctxKey, ctxValue)
 	res, err := c.Do(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
@@ -4002,8 +4019,8 @@ func testTransportDialTLSContext(t *testing.T, mode testMode) {
 	if !gotReq {
 		t.Error("didn't get request")
 	}
-	if receivedContext != ctx {
-		t.Error("didn't receive correct context")
+	if got, want := gotCtxValue, ctxValue; got != want {
+		t.Errorf("got context with value %v, want %v", got, want)
 	}
 }
 
