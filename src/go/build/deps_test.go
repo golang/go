@@ -77,6 +77,7 @@ var depsRules = `
 	< internal/race
 	< internal/msan
 	< internal/asan
+	< internal/weak
 	< sync
 	< internal/bisect
 	< internal/godebug

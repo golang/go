@@ -328,6 +328,13 @@ func markrootSpans(gcw *gcWork, shard int) {
 	// 2) Finalizer specials (which are not in the garbage
 	// collected heap) are roots. In practice, this means the fn
 	// field must be scanned.
+	//
+	// Objects with weak handles have only one invariant related
+	// to this function: weak handle specials (which are not in the
+	// garbage collected heap) are roots. In practice, this means
+	// the handle field must be scanned. Note that the value the
+	// handle pointer referenced does *not* need to be scanned. See
+	// the definition of specialWeakHandle for details.
 	sg := mheap_.sweepgen
 
 	// Find the arena and page index into that arena for this shard.
@@ -373,24 +380,28 @@ func markrootSpans(gcw *gcWork, shard int) {
 			// removed from the list while we're traversing it.
 			lock(&s.speciallock)
 			for sp := s.specials; sp != nil; sp = sp.next {
-				if sp.kind != _KindSpecialFinalizer {
-					continue
-				}
-				// don't mark finalized object, but scan it so we
-				// retain everything it points to.
-				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				// A finalizer can be set for an inner byte of an object, find object beginning.
-				p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+				switch sp.kind {
+				case _KindSpecialFinalizer:
+					// don't mark finalized object, but scan it so we
+					// retain everything it points to.
+					spf := (*specialfinalizer)(unsafe.Pointer(sp))
+					// A finalizer can be set for an inner byte of an object, find object beginning.
+					p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
 
-				// Mark everything that can be reached from
-				// the object (but *not* the object itself or
-				// we'll never collect it).
-				if !s.spanclass.noscan() {
-					scanobject(p, gcw)
-				}
+					// Mark everything that can be reached from
+					// the object (but *not* the object itself or
+					// we'll never collect it).
+					if !s.spanclass.noscan() {
+						scanobject(p, gcw)
+					}
 
-				// The special itself is a root.
-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+					// The special itself is a root.
+					scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+				case _KindSpecialWeakHandle:
+					// The special itself is a root.
+					spw := (*specialWeakHandle)(unsafe.Pointer(sp))
+					scanblock(uintptr(unsafe.Pointer(&spw.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+				}
 			}
 			unlock(&s.speciallock)
 		}
