@@ -249,6 +249,7 @@ func (v *Map) Delete(key string) {
 	i, found := slices.BinarySearch(v.keys, key)
 	if found {
 		v.keys = slices.Delete(v.keys, i, i+1)
+		v.m.Delete(key)
 	}
 }
 
