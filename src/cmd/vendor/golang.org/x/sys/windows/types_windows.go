@@ -3380,3 +3380,27 @@ type BLOB struct {
 	Size     uint32
 	BlobData *byte
 }
+
+type ComStat struct {
+	Flags    uint32
+	CBInQue  uint32
+	CBOutQue uint32
+}
+
+type DCB struct {
+	DCBlength  uint32
+	BaudRate   uint32
+	Flags      uint32
+	wReserved  uint16
+	XonLim     uint16
+	XoffLim    uint16
+	ByteSize   uint8
+	Parity     uint8
+	StopBits   uint8
+	XonChar    byte
+	XoffChar   byte
+	ErrorChar  byte
+	EofChar    byte
+	EvtChar    byte
+	wReserved1 uint16
+}
