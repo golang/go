@@ -155,8 +155,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	var mls *liveness.MergeLocalsState
 	if base.Debug.MergeLocals != 0 {
 		mls = liveness.MergeLocals(fn, f)
-		if base.Debug.MergeLocalsTrace == 1 && mls != nil {
-			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging\n", ir.FuncName(fn), mls.EstSavings())
+		if base.Debug.MergeLocalsTrace > 0 && mls != nil {
+			savedNP, savedP := mls.EstSavings()
+			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging (%d nonpointer %d pointer)\n", ir.FuncName(fn), savedNP+savedP, savedNP, savedP)
 			if base.Debug.MergeLocalsTrace > 1 {
 				fmt.Fprintf(os.Stderr, "=-= merge locals state for %v:\n%v",
 					fn, mls)

@@ -139,16 +139,22 @@ func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
 	return tmp
 }
 
-// EstSavings returns the estimated reduction in stack size for
-// the given merge locals state.
-func (mls *MergeLocalsState) EstSavings() int {
-	tot := 0
+// EstSavings returns the estimated reduction in stack size (number of bytes) for
+// the given merge locals state via a pair of ints, the first for non-pointer types and the second for pointer types.
+func (mls *MergeLocalsState) EstSavings() (int, int) {
+	totnp := 0
+	totp := 0
 	for n := range mls.partition {
 		if mls.Subsumed(n) {
-			tot += int(n.Type().Size())
+			sz := int(n.Type().Size())
+			if n.Type().HasPointers() {
+				totp += sz
+			} else {
+				totnp += sz
+			}
 		}
 	}
-	return tot
+	return totnp, totp
 }
 
 // check tests for various inconsistencies and problems in mls,
