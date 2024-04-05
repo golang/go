@@ -494,8 +494,6 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 	return DefaultResolver.LookupSRV(context.Background(), service, proto, name)
 }
 
-var errSRVHeaderNameInvalid = errors.New("SRV header name is invalid")
-
 // LookupSRV tries to resolve an SRV query of the given service,
 // protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
