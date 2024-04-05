@@ -106,7 +106,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_socktype(&hints) = _C_SOCK_DGRAM
 		*_C_ai_protocol(&hints) = _C_IPPROTO_UDP
 	default:
-		return 0, newWrappingDNSError(errUnknownNetwork, network+"/"+service, "")
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
 	switch ipVersion(network) {
 	case '4':
@@ -123,7 +123,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
 	cservice, err := syscall.ByteSliceFromString(service)
 	if err != nil {
-		return 0, newWrappingDNSError(err, network+"/"+service, "")
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
 	}
 	// Lowercase the C service name.
 	for i, b := range cservice[:len(service)] {
@@ -174,7 +174,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 
 	h, err := syscall.BytePtrFromString(name)
 	if err != nil {
-		return nil, newWrappingDNSError(err, name, "")
+		return nil, &DNSError{Err: err.Error(), Name: name}
 	}
 	var res *_C_struct_addrinfo
 	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(h)), nil, &hints, &res)
@@ -242,11 +242,11 @@ const (
 func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) {
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
-		return nil, newWrappingDNSError(errInvalidAddress, addr, "")
+		return nil, &DNSError{Err: "invalid address", Name: addr}
 	}
 	sa, salen := cgoSockaddr(IP(ip.AsSlice()), ip.Zone())
 	if sa == nil {
-		return nil, newWrappingDNSError(errInvalidAddress, addr, "")
+		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
 	}
 
 	return doBlockingWithCtx(ctx, addr, func() ([]string, error) {

@@ -2105,7 +2105,7 @@ func TestCVE202133195(t *testing.T) {
 		{
 			name: "CNAME",
 			f: func(t *testing.T) {
-				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "golang.org"}
 				_, err := r.LookupCNAME(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2124,7 +2124,7 @@ func TestCVE202133195(t *testing.T) {
 						Target: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "golang.org"}
 				_, records, err := r.LookupSRV(context.Background(), "target", "tcp", "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2162,7 +2162,7 @@ func TestCVE202133195(t *testing.T) {
 						Host: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "golang.org"}
 				records, err := r.LookupMX(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2187,7 +2187,7 @@ func TestCVE202133195(t *testing.T) {
 						Host: "good.golang.org.",
 					},
 				}
-				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "golang.org"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "golang.org"}
 				records, err := r.LookupNS(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
@@ -2208,7 +2208,7 @@ func TestCVE202133195(t *testing.T) {
 			name: "Addr",
 			f: func(t *testing.T) {
 				expected := []string{"good.golang.org."}
-				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail.Error(), Name: "192.0.2.42"}
+				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "192.0.2.42"}
 				records, err := r.LookupAddr(context.Background(), "192.0.2.42")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
