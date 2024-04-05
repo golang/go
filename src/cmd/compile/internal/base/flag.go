@@ -184,6 +184,7 @@ func ParseFlags() {
 	Debug.SyncFrames = -1 // disable sync markers by default
 	Debug.ZeroCopy = 1
 	Debug.RangeFuncCheck = 1
+	Debug.MergeLocals = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
