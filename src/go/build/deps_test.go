@@ -373,10 +373,6 @@ var depsRules = `
 	  golang.org/x/net/lif,
 	  golang.org/x/net/route;
 
-	os, runtime, strconv, sync, unsafe,
-	internal/godebug
-	< internal/intern;
-
 	internal/bytealg, internal/itoa, math/bits, sort, strconv, unique
 	< net/netip;
 
