@@ -27,7 +27,7 @@ type Alias struct {
 func NewAlias(obj *TypeName, rhs Type) *Alias {
 	alias := (*Checker)(nil).newAlias(obj, rhs)
 	// Ensure that alias.actual is set (#65455).
-	unalias(alias)
+	alias.cleanup()
 	return alias
 }
 
@@ -63,7 +63,16 @@ func unalias(a0 *Alias) Type {
 	if t == nil {
 		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
 	}
-	a0.actual = t
+
+	// Memoize the type only if valid.
+	// In the presence of unfinished cyclic declarations, Unalias
+	// would otherwise latch the invalid value (#66704).
+	// TODO(adonovan): rethink, along with checker.typeDecl's use
+	// of Invalid to mark unfinished aliases.
+	if t != Typ[Invalid] {
+		a0.actual = t
+	}
+
 	return t
 }
 
@@ -92,5 +101,13 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
 }
 
 func (a *Alias) cleanup() {
-	Unalias(a)
+	// Ensure a.actual is set before types are published,
+	// so Unalias is a pure "getter", not a "setter".
+	actual := Unalias(a)
+
+	if actual == Typ[Invalid] {
+		// We don't set a.actual to Typ[Invalid] during type checking,
+		// as it may indicate that the RHS is not fully set up.
+		a.actual = actual
+	}
 }
