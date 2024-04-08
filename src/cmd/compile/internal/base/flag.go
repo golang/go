@@ -376,6 +376,10 @@ func ParseFlags() {
 		Debug.Libfuzzer = 0
 	}
 
+	if len(Flag.Cfg.ImportDirs) > 0 && Flag.Cfg.PackageFile != nil {
+		log.Fatalf("cannot use both -I and -importcfg")
+	}
+
 	if Debug.Checkptr == -1 { // if not set explicitly
 		Debug.Checkptr = 0
 	}
