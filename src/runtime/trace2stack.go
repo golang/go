@@ -138,6 +138,11 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
 // dump writes all previously cached stacks to trace buffers,
 // releases all memory and resets state. It must only be called once the caller
 // can guarantee that there are no more writers to the table.
+//
+// This must run on the system stack because it flushes buffers and thus
+// may acquire trace.lock.
+//
+//go:systemstack
 func (t *traceStackTable) dump(gen uintptr) {
 	w := unsafeTraceWriter(gen, nil)
 
@@ -189,11 +194,9 @@ func (t *traceStackTable) dump(gen uintptr) {
 	}
 	// Still, hold the lock over reset. The callee expects it, even though it's
 	// not strictly necessary.
-	systemstack(func() {
-		lock(&t.tab.lock)
-		t.tab.reset()
-		unlock(&t.tab.lock)
-	})
+	lock(&t.tab.lock)
+	t.tab.reset()
+	unlock(&t.tab.lock)
 
 	w.flush().end()
 }

@@ -49,7 +49,7 @@ func (t *traceStringTable) emit(gen uintptr, s string) uint64 {
 
 // writeString writes the string to t.buf.
 //
-// Must run on the systemstack because it acquires t.lock.
+// Must run on the systemstack because it may flush buffers and thus could acquire trace.lock.
 //
 //go:systemstack
 func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
@@ -75,7 +75,7 @@ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
 	w.varint(uint64(len(s)))
 	w.stringData(s)
 
-	// Store back buf in case it was updated during ensure.
+	// Store back buf if it was updated during ensure.
 	t.buf = w.traceBuf
 	unlock(&t.lock)
 }
@@ -84,20 +84,21 @@ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
 //
 // Must be called only once the caller is certain nothing else will be
 // added to this table.
+//
+// Because it flushes buffers, this may acquire trace.lock and thus
+// must run on the systemstack.
+//
+//go:systemstack
 func (t *traceStringTable) reset(gen uintptr) {
 	if t.buf != nil {
-		systemstack(func() {
-			lock(&trace.lock)
-			traceBufFlush(t.buf, gen)
-			unlock(&trace.lock)
-		})
+		lock(&trace.lock)
+		traceBufFlush(t.buf, gen)
+		unlock(&trace.lock)
 		t.buf = nil
 	}
 
 	// Reset the table.
-	systemstack(func() {
-		lock(&t.tab.lock)
-		t.tab.reset()
-		unlock(&t.tab.lock)
-	})
+	lock(&t.tab.lock)
+	t.tab.reset()
+	unlock(&t.tab.lock)
 }

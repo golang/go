@@ -195,15 +195,18 @@ func traceReadCPU(gen uintptr) bool {
 
 // traceCPUFlush flushes trace.cpuBuf[gen%2]. The caller must be certain that gen
 // has completed and that there are no more writers to it.
+//
+// Must run on the systemstack because it flushes buffers and acquires trace.lock
+// to do so.
+//
+//go:systemstack
 func traceCPUFlush(gen uintptr) {
 	// Flush any remaining trace buffers containing CPU samples.
 	if buf := trace.cpuBuf[gen%2]; buf != nil {
-		systemstack(func() {
-			lock(&trace.lock)
-			traceBufFlush(buf, gen)
-			unlock(&trace.lock)
-			trace.cpuBuf[gen%2] = nil
-		})
+		lock(&trace.lock)
+		traceBufFlush(buf, gen)
+		unlock(&trace.lock)
+		trace.cpuBuf[gen%2] = nil
 	}
 }
 
