@@ -122,22 +122,21 @@ func TestMergeLocalsIntegration(t *testing.T) {
 	// be many possible ways to overlap a given set of candidate
 	// variables, all of them legal. Rather than locking down
 	// a specific set of overlappings or frame offsets, this
-	// tests just verifies that there is one clump of 3 vars that
-	// get overlapped, then another clump of 2 that share the same
-	// frame offset.
+	// tests just verifies that there is a decent-sized clump of 4+ vars that
+	// get overlapped.
 	//
 	// The expected output blob we're interested might look like
 	// this (for amd64):
 	//
 	// =-= stack layout for ABC:
-	// 2: "p1" frameoff -8200 used=true
-	// 3: "xp3" frameoff -8200 used=true
-	// 4: "xp4" frameoff -8200 used=true
-	// 5: "p2" frameoff -16400 used=true
-	// 6: "r" frameoff -16408 used=true
-	// 7: "s" frameoff -24600 used=true
-	// 8: "v2" frameoff -32800 used=true
-	// 9: "v3" frameoff -32800 used=true
+	// 2: "p1" frameoff -8200 ...
+	// 3: "s" frameoff -8200 ...
+	// 4: "v2" frameoff -8200 ...
+	// 5: "v3" frameoff -8200 ...
+	// 6: "xp3" frameoff -8200 ...
+	// 7: "xp4" frameoff -8200 ...
+	// 8: "p2" frameoff -16400 ...
+	// 9: "r" frameoff -16408 ...
 	//
 	tmpdir := t.TempDir()
 	src := filepath.Join("testdata", "mergelocals", "integration.go")
@@ -160,7 +159,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
 			continue
 		}
 		fields := strings.Fields(line)
-		wantFields := 5
+		wantFields := 9
 		if len(fields) != wantFields {
 			t.Logf(string(out))
 			t.Fatalf("bad trace output line, wanted %d fields got %d: %s",
@@ -189,7 +188,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
 	}
 	sort.Ints(got)
 	if n3 == 0 {
-		t.Logf(string(out))
+		t.Logf("%s\n", string(out))
 		t.Fatalf("expected at least one clump of 3, got: %+v", got)
 	}
 }

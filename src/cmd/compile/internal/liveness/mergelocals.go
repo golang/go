@@ -8,9 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"os"
@@ -23,12 +21,14 @@ import (
 // (stack-allocated) variables within a function can be safely
 // merged/overlapped, e.g. share a stack slot with some other auto).
 // An instance of MergeLocalsState is produced by MergeLocals() below
-// and then consumed in ssagen.AllocFrame. The map 'partition' contains
-// entries of the form <N,SL> where N is an *ir.Name and SL is a slice
-// holding the indices (within 'vars') of other variables that share the
-// same slot. For example, if a function contains five variables where
-// v1/v2/v3 are safe to overlap and v4/v5 are safe to overlap, the
-// MergeLocalsState content might look like
+// and then consumed in ssagen.AllocFrame. The map 'partition'
+// contains entries of the form <N,SL> where N is an *ir.Name and SL
+// is a slice holding the indices (within 'vars') of other variables
+// that share the same slot, specifically the slot of the first
+// element in the partition, which we'll call the "leader". For
+// example, if a function contains five variables where v1/v2/v3 are
+// safe to overlap and v4/v5 are safe to overlap, the MergeLocalsState
+// content might look like
 //
 //	vars: [v1, v2, v3, v4, v5]
 //	partition: v1 -> [1, 0, 2], v2 -> [1, 0, 2], v3 -> [1, 0, 2]
@@ -47,6 +47,22 @@ type MergeLocalsState struct {
 // [st,en] within the list of candidate variables.
 type candRegion struct {
 	st, en int
+}
+
+// cstate holds state information we'll need during the analysis
+// phase of stack slot merging but can be discarded when the analysis
+// is done.
+type cstate struct {
+	fn             *ir.Func
+	f              *ssa.Func
+	lv             *liveness
+	cands          []*ir.Name
+	nameToSlot     map[*ir.Name]int32
+	regions        []candRegion
+	indirectUE     map[ssa.ID][]*ir.Name
+	ivs            []Intervals
+	hashDeselected map[*ir.Name]bool
+	trace          int // debug trace level
 }
 
 // MergeLocals analyzes the specified ssa function f to determine which
@@ -223,6 +239,19 @@ func (mls *MergeLocalsState) check() error {
 		if !foundk {
 			return fmt.Errorf("k=%s v=+%v slice value missing k", k.Sym().Name, sl)
 		}
+		vl := mls.vars[sl[0]]
+		for _, v := range sl[1:] {
+			vv := mls.vars[v]
+			if vv.Type().Size() > vl.Type().Size() {
+				return fmt.Errorf("k=%s v=+%v follower %s size %d larger than leader %s size %d", k.Sym().Name, sl, vv.Sym().Name, vv.Type().Size(), vl.Sym().Name, vl.Type().Size())
+			}
+			if vv.Type().HasPointers() && !vl.Type().HasPointers() {
+				return fmt.Errorf("k=%s v=+%v follower %s hasptr=true but leader %s hasptr=false", k.Sym().Name, sl, vv.Sym().Name, vl.Sym().Name)
+			}
+			if vv.Type().Alignment() > vl.Type().Alignment() {
+				return fmt.Errorf("k=%s v=+%v follower %s align %d greater than leader %s align %d", k.Sym().Name, sl, vv.Sym().Name, vv.Type().Alignment(), vl.Sym().Name, vl.Type().Alignment())
+			}
+		}
 	}
 	for i := range used {
 		if !used[i] {
@@ -296,14 +325,13 @@ func (cs *cstate) collectMergeCandidates() {
 
 	// Now generate an initial pruned candidate list and regions list.
 	// This may be empty if we don't have enough compatible candidates.
-	initial, _ := genRegions(cands)
+	initial, _ := cs.genRegions(cands)
 	if len(initial) < 2 {
 		return
 	}
 
-	// When bisecting it can be handy to see debug trace output for
-	// only those functions that hashdebug selects; set this up here.
-	cs.setupHashTrace(initial)
+	// Set up for hash bisection if enabled.
+	cs.setupHashBisection(initial)
 
 	// Create and populate an indirect use table that we'll use
 	// during interval construction. As part of this process we may
@@ -330,7 +358,9 @@ func (cs *cstate) collectMergeCandidates() {
 	}
 }
 
-func genRegions(cands []*ir.Name) ([]*ir.Name, []candRegion) {
+// genRegions generates a set of regions within cands corresponding
+// to potentially overlappable/mergeable variables.
+func (cs *cstate) genRegions(cands []*ir.Name) ([]*ir.Name, []candRegion) {
 	var pruned []*ir.Name
 	var regions []candRegion
 	st := 0
@@ -346,8 +376,8 @@ func genRegions(cands []*ir.Name) ([]*ir.Name, []candRegion) {
 		}
 		pst := len(pruned)
 		pen := pst + (en - st)
-		if base.Debug.MergeLocalsTrace > 1 {
-			fmt.Fprintf(os.Stderr, "=-= add part %d -> %d\n", pst, pen)
+		if cs.trace > 1 {
+			fmt.Fprintf(os.Stderr, "=-= addregion st=%d en=%d: add part %d -> %d\n", st, en, pst, pen)
 		}
 
 		// non-empty region, add to pruned
@@ -385,27 +415,29 @@ func (cs *cstate) dumpFuncIfSelected() {
 	cs.dumpFunc()
 }
 
-func (cs *cstate) setupHashTrace(cands []*ir.Name) {
-	if base.Debug.MergeLocalsHTrace == 0 || base.Debug.MergeLocalsHash == "" {
+// setupHashBisection checks to see if any of the candidate
+// variables have been de-selected by our hash debug. Here
+// we also implement the -d=mergelocalshtrace flag, which turns
+// on debug tracing only if we have at least two candidates
+// selected by the hash debug for this function.
+func (cs *cstate) setupHashBisection(cands []*ir.Name) {
+	if base.Debug.MergeLocalsHash == "" {
 		return
 	}
-
-	// With this trace variant, check to see whether any of the
-	// candidates are selected-- if yes then enable tracing. Hack:
-	// create a new hashdebug with verbosity turned off and use that
-	// to test, so as not to confuse bisect.
-	modified := strings.ReplaceAll(base.Debug.MergeLocalsHash, "v", "q")
-	quiethd := base.NewHashDebug("qmergelocals", modified, nil)
-	found := false
+	deselected := make(map[*ir.Name]bool)
+	selCount := 0
 	for _, cand := range cands {
-		if !quiethd.MatchPosWithInfo(cand.Pos(), "quiet", nil) {
-			found = true
-			fmt.Fprintf(os.Stderr, "=-= MergeLocalsHTrace fn=%v n=%s match\n",
-				cs.fn, cand.Sym().Name)
-			break
+		if !base.MergeLocalsHash.MatchPosWithInfo(cand.Pos(), "mergelocals", nil) {
+			deselected[cand] = true
+		} else {
+			deselected[cand] = false
+			selCount++
 		}
 	}
-	if found {
+	if selCount < len(cands) {
+		cs.hashDeselected = deselected
+	}
+	if base.Debug.MergeLocalsHTrace != 0 && selCount >= 2 {
 		cs.trace = base.Debug.MergeLocalsHTrace
 	}
 }
@@ -566,7 +598,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		return nameLess(pruned[i], pruned[j])
 	})
 	var regions []candRegion
-	pruned, regions = genRegions(pruned)
+	pruned, regions = cs.genRegions(pruned)
 	if len(pruned) < 2 {
 		return nil, nil
 	}
@@ -586,29 +618,30 @@ type nameCount struct {
 	count int32
 }
 
-// nameLess compares ci with cj to see if ci should be less than cj
-// in a relative ordering of candidate variables. This is used to
-// sort vars by size, pointerness, and GC shape.
+// nameLess compares ci with cj to see if ci should be less than cj in
+// a relative ordering of candidate variables. This is used to sort
+// vars by pointerness (variables with pointers first), then in order
+// of decreasing alignment, then by decreasing size. We are assuming a
+// merging algorithm that merges later entries in the list into
+// earlier entries. An example ordered candidate list produced by
+// nameLess:
+//
+//	idx   name    type       align    size
+//	0:    abc     [10]*int   8        80
+//	1:    xyz     [9]*int    8        72
+//	2:    qrs     [2]*int    8        16
+//	3:    tuv     [9]int     8        72
+//	4:    wxy     [9]int32   4        36
+//	5:    jkl     [8]int32   4        32
 func nameLess(ci, cj *ir.Name) bool {
-	ihp, jhp := 0, 0
-	var ilsym, jlsym *obj.LSym
-	if ci.Type().HasPointers() {
-		ihp = 1
-		ilsym, _, _ = reflectdata.GCSym(ci.Type())
+	if ci.Type().HasPointers() != cj.Type().HasPointers() {
+		return ci.Type().HasPointers()
 	}
-	if cj.Type().HasPointers() {
-		jhp = 1
-		jlsym, _, _ = reflectdata.GCSym(cj.Type())
-	}
-	if ihp != jhp {
-		return ihp < jhp
+	if ci.Type().Alignment() != cj.Type().Alignment() {
+		return cj.Type().Alignment() < ci.Type().Alignment()
 	}
 	if ci.Type().Size() != cj.Type().Size() {
-		return ci.Type().Size() < cj.Type().Size()
-	}
-	if ihp != 0 && jhp != 0 && ilsym != jlsym {
-		// FIXME: find less clunky way to do this
-		return fmt.Sprintf("%v", ilsym) < fmt.Sprintf("%v", jlsym)
+		return cj.Type().Size() < ci.Type().Size()
 	}
 	if ci.Sym().Name != cj.Sym().Name {
 		return ci.Sym().Name < cj.Sym().Name
@@ -617,53 +650,32 @@ func nameLess(ci, cj *ir.Name) bool {
 }
 
 // nextRegion starts at location idx and walks forward in the cands
-// slice looking for variables that are "compatible" (overlappable)
-// with the variable at position idx; it returns the end of the new
-// region (range of compatible variables starting at idx).
+// slice looking for variables that are "compatible" (potentially
+// overlappable, in the sense that they could potentially share the
+// stack slot of cands[idx]); it returns the end of the new region
+// (range of compatible variables starting at idx).
 func nextRegion(cands []*ir.Name, idx int) int {
 	n := len(cands)
 	if idx >= n {
 		return -1
 	}
 	c0 := cands[idx]
-	hp0 := c0.Type().HasPointers()
+	szprev := c0.Type().Size()
+	alnprev := c0.Type().Alignment()
 	for j := idx + 1; j < n; j++ {
 		cj := cands[j]
-		hpj := cj.Type().HasPointers()
-		ok := true
-		if hp0 {
-			if !hpj || c0.Type().Size() != cj.Type().Size() {
-				return j - 1
-			}
-			// GC shape must match if both types have pointers.
-			gcsym0, _, _ := reflectdata.GCSym(c0.Type())
-			gcsymj, _, _ := reflectdata.GCSym(cj.Type())
-			if gcsym0 != gcsymj {
-				return j - 1
-			}
-		} else {
-			// If no pointers, match size only.
-			if !ok || hp0 != hpj || c0.Type().Size() != cj.Type().Size() {
-				return j - 1
-			}
+		szj := cj.Type().Size()
+		if szj > szprev {
+			return j - 1
 		}
+		alnj := cj.Type().Alignment()
+		if alnj > alnprev {
+			return j - 1
+		}
+		szprev = szj
+		alnprev = alnj
 	}
 	return n - 1
-}
-
-// cstate holds state information we'll need during the analysis
-// phase of stack slot merging but can be discarded when the analysis
-// is done.
-type cstate struct {
-	fn         *ir.Func
-	f          *ssa.Func
-	lv         *liveness
-	cands      []*ir.Name
-	nameToSlot map[*ir.Name]int32
-	regions    []candRegion
-	indirectUE map[ssa.ID][]*ir.Name
-	ivs        []Intervals
-	trace      int // debug trace level
 }
 
 // mergeVisitRegion tries to perform overlapping of variables with a
@@ -673,7 +685,13 @@ type cstate struct {
 // size, etc. Overlapping is done in a a greedy fashion: we select the
 // first element in the st->en range, then walk the rest of the
 // elements adding in vars whose lifetimes don't overlap with the
-// first element, then repeat the process until we run out of work to do.
+// first element, then repeat the process until we run out of work.
+// Ordering of the candidates within the region [st,en] is important;
+// within the list the assumption is that if we overlap two variables
+// X and Y where X precedes Y in the list, we need to make X the
+// "leader" (keep X's slot and set Y's frame offset to X's) as opposed
+// to the other way around, since it's possible that Y is smaller in
+// size than X.
 func (cs *cstate) mergeVisitRegion(mls *MergeLocalsState, st, en int) {
 	if cs.trace > 1 {
 		fmt.Fprintf(os.Stderr, "=-= mergeVisitRegion(st=%d, en=%d)\n", st, en)
@@ -712,10 +730,8 @@ func (cs *cstate) mergeVisitRegion(mls *MergeLocalsState, st, en int) {
 		for succ := nxt(leader + 1); succ != -1; succ = nxt(succ + 1) {
 
 			// Skip if de-selected by merge locals hash.
-			if base.Debug.MergeLocalsHash != "" {
-				if !base.MergeLocalsHash.MatchPosWithInfo(cands[succ].Pos(), "mergelocals", nil) {
-					continue
-				}
+			if cs.hashDeselected != nil && cs.hashDeselected[cands[succ]] {
+				continue
 			}
 			// Skip if already used.
 			if used.Get(int32(succ - st)) {
@@ -1004,9 +1020,9 @@ func fmtFullPos(p src.XPos) string {
 }
 
 func dumpCand(c *ir.Name, i int) {
-	fmt.Fprintf(os.Stderr, " %d: %s %q sz=%d hp=%v t=%v\n",
+	fmt.Fprintf(os.Stderr, " %d: %s %q sz=%d hp=%v align=%d t=%v\n",
 		i, fmtFullPos(c.Pos()), c.Sym().Name, c.Type().Size(),
-		c.Type().HasPointers(), c.Type())
+		c.Type().HasPointers(), c.Type().Alignment(), c.Type())
 }
 
 // for unit testing only.
