@@ -10,7 +10,11 @@ const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
 const openatTrap uintptr = syscall.SYS_OPENAT
 const fstatatTrap uintptr = syscall.SYS_FSTATAT
 
-const AT_REMOVEDIR = 0x08
-const AT_SYMLINK_NOFOLLOW = 0x02
+const (
+	AT_EACCESS          = 0x1
+	AT_FDCWD            = -0x64
+	AT_REMOVEDIR        = 0x08
+	AT_SYMLINK_NOFOLLOW = 0x02
 
-const UTIME_OMIT = -0x1
+	UTIME_OMIT = -0x1
+)
