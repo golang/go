@@ -97,3 +97,10 @@ var SupportAccept4 = sync.OnceValue(func() bool {
 		return err != syscall.ENOSYS
 	}
 })
+
+// SupportTCPKeepAliveIdleIntvlCNT determines whether the TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT
+// are available by checking the kernel version for Solaris 11.4.
+var SupportTCPKeepAliveIdleIntvlCNT = sync.OnceValue(func() bool {
+	major, minor := KernelVersion()
+	return major > 11 || (major == 11 && minor >= 4)
+})

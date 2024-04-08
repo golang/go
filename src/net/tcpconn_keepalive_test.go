@@ -6,7 +6,10 @@
 
 package net
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
 	maybeSkipKeepAliveTest(t)
@@ -164,8 +167,18 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
 			t.Fatal(errHook)
 		}
 
-		if err := c.(*TCPConn).SetKeepAliveConfig(cfg); err != nil {
-			t.Fatal(err)
+		err = c.(*TCPConn).SetKeepAliveConfig(cfg)
+		if err != nil {
+			if runtime.GOOS == "solaris" {
+				// Solaris prior to 11.4 does not support TCP_KEEPINTVL and TCP_KEEPCNT,
+				// so it will return syscall.ENOPROTOOPT when only one of Interval and Count
+				// is negative. This is expected, so skip the error check in this case.
+				if cfg.Interval >= 0 && cfg.Count >= 0 {
+					t.Fatal(err)
+				}
+			} else {
+				t.Fatal(err)
+			}
 		}
 
 		if err := sc.Control(func(fd uintptr) {
