@@ -65,7 +65,7 @@ var abbrs = map[string]abbr{
 	"SE Asia Standard Time":           {"+07", "+07"},     // Asia/Bangkok
 	"Altai Standard Time":             {"+07", "+07"},     // Asia/Barnaul
 	"Middle East Standard Time":       {"EET", "EEST"},    // Asia/Beirut
-	"India Standard Time":             {"IST", "IST"},     // Asia/Calcutta
+	"India Standard Time":             {"IST", "IST"},     // Asia/Kolkata
 	"Transbaikal Standard Time":       {"+09", "+09"},     // Asia/Chita
 	"Sri Lanka Standard Time":         {"+0530", "+0530"}, // Asia/Colombo
 	"Syria Standard Time":             {"+03", "+03"},     // Asia/Damascus
