@@ -626,7 +626,7 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 		addrs, err := r.LookupIPAddr(context.Background(), tt.name)
 		if err != nil {
 			if err, ok := err.(*DNSError); !ok || tt.error != nil && (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
-				t.Errorf("got %#v; want %#v", err, tt.error)
+				t.Errorf("got %v; want %v", err, tt.error)
 			}
 			continue
 		}
@@ -1220,8 +1220,14 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 		resolveTimeout
 	)
 
-	var socketOnFireErr = &OpError{Op: "write", Err: fmt.Errorf("socket on fire")}
-
+	makeTempError := func(err string) error {
+		return &DNSError{
+			Err:         err,
+			Name:        name,
+			Server:      server,
+			IsTemporary: true,
+		}
+	}
 	makeTimeout := func() error {
 		return &DNSError{
 			Err:         os.ErrDeadlineExceeded.Error(),
@@ -1284,13 +1290,8 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 				}
 				return resolveOK
 			},
-			wantStrictErr: &DNSError{
-				Err:         errServerMisbehaving.Error(),
-				Name:        name,
-				Server:      server,
-				IsTemporary: true,
-			},
-			wantIPs: []string{ip4, ip6},
+			wantStrictErr: makeTempError("server misbehaving"),
+			wantIPs:       []string{ip4, ip6},
 		},
 		{
 			desc: "searchY error always fails",
@@ -1311,13 +1312,8 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 				}
 				return resolveOK
 			},
-			wantStrictErr: &DNSError{
-				Err:         socketOnFireErr.Error(),
-				Name:        name,
-				Server:      server,
-				IsTemporary: true,
-			},
-			wantIPs: []string{ip6},
+			wantStrictErr: makeTempError("write: socket on fire"),
+			wantIPs:       []string{ip6},
 		},
 		{
 			desc: "searchY IPv6-only timeout fails in strict mode",
@@ -1340,7 +1336,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 			case resolveOK:
 				// Handle below.
 			case resolveOpError:
-				return dnsmessage.Message{}, socketOnFireErr
+				return dnsmessage.Message{}, &OpError{Op: "write", Err: fmt.Errorf("socket on fire")}
 			case resolveServfail:
 				return dnsmessage.Message{
 					Header: dnsmessage.Header{
