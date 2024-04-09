@@ -11,8 +11,8 @@ import (
 	"log"
 	"net"
 	"net/http/httptest"
-	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -378,7 +378,7 @@ func TestBuiltinTypes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Slice: expected no error but got string %q", err.Error())
 	}
-	if e := []int{args.A, args.B}; !reflect.DeepEqual(replySlice, e) {
+	if e := []int{args.A, args.B}; !slices.Equal(replySlice, e) {
 		t.Errorf("Slice: expected %v got %v", e, replySlice)
 	}
 
@@ -389,7 +389,7 @@ func TestBuiltinTypes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Array: expected no error but got string %q", err.Error())
 	}
-	if e := [2]int{args.A, args.B}; !reflect.DeepEqual(replyArray, e) {
+	if e := [2]int{args.A, args.B}; !slices.Equal(replyArray[:], e[:]) {
 		t.Errorf("Array: expected %v got %v", e, replyArray)
 	}
 }

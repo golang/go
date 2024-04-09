@@ -13,7 +13,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"sort"
+	"slices"
+	"strings"
 )
 
 const debugText = `<html>
@@ -46,23 +47,11 @@ type debugMethod struct {
 	Name string
 }
 
-type methodArray []debugMethod
-
 type debugService struct {
 	Service *service
 	Name    string
-	Method  methodArray
+	Method  []debugMethod
 }
-
-type serviceArray []debugService
-
-func (s serviceArray) Len() int           { return len(s) }
-func (s serviceArray) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s serviceArray) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-func (m methodArray) Len() int           { return len(m) }
-func (m methodArray) Less(i, j int) bool { return m[i].Name < m[j].Name }
-func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 
 type debugHTTP struct {
 	*Server
@@ -71,18 +60,18 @@ type debugHTTP struct {
 // Runs at /debug/rpc
 func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
-	var services serviceArray
+	var services []debugService
 	server.serviceMap.Range(func(snamei, svci any) bool {
 		svc := svci.(*service)
-		ds := debugService{svc, snamei.(string), make(methodArray, 0, len(svc.method))}
+		ds := debugService{svc, snamei.(string), make([]debugMethod, 0, len(svc.method))}
 		for mname, method := range svc.method {
 			ds.Method = append(ds.Method, debugMethod{method, mname})
 		}
-		sort.Sort(ds.Method)
+		slices.SortFunc(ds.Method, func(i, j debugMethod) int { return strings.Compare(i.Name, j.Name) })
 		services = append(services, ds)
 		return true
 	})
-	sort.Sort(services)
+	slices.SortFunc(services, func(i, j debugService) int { return strings.Compare(i.Name, j.Name) })
 	err := debug.Execute(w, services)
 	if err != nil {
 		fmt.Fprintln(w, "rpc: error executing template:", err.Error())

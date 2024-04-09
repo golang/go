@@ -11,7 +11,7 @@ import (
 	"io"
 	"net"
 	"net/rpc"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -223,7 +223,7 @@ func TestBuiltinTypes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Slice: expected no error but got string %q", err.Error())
 	}
-	if e := []int{arg}; !reflect.DeepEqual(replySlice, e) {
+	if e := []int{arg}; !slices.Equal(replySlice, e) {
 		t.Errorf("Slice: expected %v got %v", e, replySlice)
 	}
 
@@ -233,7 +233,7 @@ func TestBuiltinTypes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Array: expected no error but got string %q", err.Error())
 	}
-	if e := [1]int{arg}; !reflect.DeepEqual(replyArray, e) {
+	if e := [1]int{arg}; !slices.Equal(replyArray[:], e[:]) {
 		t.Errorf("Array: expected %v got %v", e, replyArray)
 	}
 }
