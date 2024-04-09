@@ -1165,17 +1165,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		size = span.elemsize
 		x = unsafe.Pointer(span.base())
 		if needzero && span.needzero != 0 {
-			if noscan {
-				delayedZeroing = true
-			} else {
-				memclrNoHeapPointers(x, size)
-			}
+			delayedZeroing = true
 		}
 		if !noscan {
+			// Tell the GC not to look at this yet.
+			span.largeType = nil
 			header = &span.largeType
 		}
 	}
-	if !noscan {
+	if !noscan && !delayedZeroing {
 		c.scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
 	}
 
@@ -1243,17 +1241,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 0
 	releasem(mp)
 
-	// Pointerfree data can be zeroed late in a context where preemption can occur.
+	// Objects can be zeroed late in a context where preemption can occur.
+	// If the object contains pointers, its pointer data must be cleared
+	// or otherwise indicate that the GC shouldn't scan it.
 	// x will keep the memory alive.
 	if delayedZeroing {
-		if !noscan {
-			throw("delayed zeroing on data that may contain pointers")
-		}
-		if header != nil {
-			throw("unexpected malloc header in delayed zeroing of large object")
-		}
 		// N.B. size == fullSize always in this case.
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
+
+		// Finish storing the type information for this case.
+		if !noscan {
+			mp := acquirem()
+			getMCache(mp).scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
+
+			// Publish the type information with the zeroed memory.
+			publicationBarrier()
+			releasem(mp)
+		}
 	}
 
 	if debug.malloc {

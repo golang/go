@@ -192,6 +192,10 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 		addr += mallocHeaderSize
 	} else {
 		typ = span.largeType
+		if typ == nil {
+			// Allow a nil type here for delayed zeroing. See mallocgc.
+			return typePointers{}
+		}
 	}
 	gcdata := typ.GCData
 	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
