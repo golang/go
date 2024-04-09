@@ -621,7 +621,7 @@ var (
 	errUnknownPort = &notFoundError{"unknown port"}
 )
 
-// notFoundError is a special error understood by the newWrappingDNSError function,
+// notFoundError is a special error understood by the newDNSError function,
 // which causes a creation of a DNSError with IsNotFound field set to true.
 type notFoundError struct{ s string }
 
@@ -648,9 +648,9 @@ type DNSError struct {
 	IsNotFound bool
 }
 
-// newWrappingDNSError creates a new *DNSError.
+// newDNSError creates a new *DNSError.
 // Based on the err, it sets the UnwrapErr, IsTimeout, IsTemporary, IsNotFound fields.
-func newWrappingDNSError(err error, name, server string) *DNSError {
+func newDNSError(err error, name, server string) *DNSError {
 	var (
 		isTimeout   bool
 		isTemporary bool

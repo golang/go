@@ -306,7 +306,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP, cfg.trustAD)
 			if err != nil {
-				dnsErr := newWrappingDNSError(err, name, server)
+				dnsErr := newDNSError(err, name, server)
 				// Set IsTemporary for socket-level errors. Note that this flag
 				// may also be used to indicate a SERVFAIL response.
 				if _, ok := err.(*OpError); ok {
@@ -318,17 +318,17 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 			if err := checkHeader(&p, h); err != nil {
 				if err == errNoSuchHost {
-					return p, server, newWrappingDNSError(errNoSuchHost, name, server)
+					return p, server, newDNSError(errNoSuchHost, name, server)
 				}
-				lastErr = newWrappingDNSError(err, name, server)
+				lastErr = newDNSError(err, name, server)
 				continue
 			}
 
 			if err := skipToAnswer(&p, qtype); err != nil {
 				if err == errNoSuchHost {
-					return p, server, newWrappingDNSError(errNoSuchHost, name, server)
+					return p, server, newDNSError(errNoSuchHost, name, server)
 				}
-				lastErr = newWrappingDNSError(err, name, server)
+				lastErr = newDNSError(err, name, server)
 				continue
 			}
 
@@ -432,7 +432,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		// Other lookups might allow broader name syntax
 		// (for example Multicast DNS allows UTF-8; see RFC 6762).
 		// For consistency with libc resolvers, report no such host.
-		return dnsmessage.Parser{}, "", newWrappingDNSError(errNoSuchHost, name, "")
+		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
 	}
 
 	if conf == nil {
@@ -560,7 +560,7 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 		}
 
 		if order == hostLookupFiles {
-			return nil, newWrappingDNSError(errNoSuchHost, name, "")
+			return nil, newDNSError(errNoSuchHost, name, "")
 		}
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, "ip", name, order, conf)
@@ -610,13 +610,13 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		}
 
 		if order == hostLookupFiles {
-			return nil, dnsmessage.Name{}, newWrappingDNSError(errNoSuchHost, name, "")
+			return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 		}
 	}
 
 	if !isDomainName(name) {
 		// See comment in func lookup above about use of errNoSuchHost.
-		return nil, dnsmessage.Name{}, newWrappingDNSError(errNoSuchHost, name, "")
+		return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 	}
 	type result struct {
 		p      dnsmessage.Parser
@@ -821,7 +821,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 		}
 
 		if order == hostLookupFiles {
-			return nil, newWrappingDNSError(errNoSuchHost, addr, "")
+			return nil, newDNSError(errNoSuchHost, addr, "")
 		}
 	}
 

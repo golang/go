@@ -138,9 +138,9 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 				err = syscall.EMFILE
 			}
 		case _C_EAI_SERVICE, _C_EAI_NONAME: // Darwin returns EAI_NONAME.
-			return 0, newWrappingDNSError(errUnknownPort, network+"/"+service, "")
+			return 0, newDNSError(errUnknownPort, network+"/"+service, "")
 		default:
-			return 0, newWrappingDNSError(addrinfoErrno(gerrno), network+"/"+service, "")
+			return 0, newDNSError(addrinfoErrno(gerrno), network+"/"+service, "")
 		}
 	}
 	defer _C_freeaddrinfo(res)
@@ -157,7 +157,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			return int(p[0])<<8 | int(p[1]), nil
 		}
 	}
-	return 0, newWrappingDNSError(errUnknownPort, network+"/"+service, "")
+	return 0, newDNSError(errUnknownPort, network+"/"+service, "")
 }
 
 func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
@@ -191,11 +191,11 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 				// comes up again. golang.org/issue/6232.
 				err = syscall.EMFILE
 			}
-			return nil, newWrappingDNSError(err, name, "")
+			return nil, newDNSError(err, name, "")
 		case _C_EAI_NONAME, _C_EAI_NODATA:
-			return nil, newWrappingDNSError(errNoSuchHost, name, "")
+			return nil, newDNSError(errNoSuchHost, name, "")
 		default:
-			return nil, newWrappingDNSError(addrinfoErrno(gerrno), name, "")
+			return nil, newDNSError(addrinfoErrno(gerrno), name, "")
 		}
 
 	}
@@ -270,11 +270,11 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
 			if err == nil { // see golang.org/issue/6232
 				err = syscall.EMFILE
 			}
-			return nil, newWrappingDNSError(err, addr, "")
+			return nil, newDNSError(err, addr, "")
 		case _C_EAI_NONAME:
-			return nil, newWrappingDNSError(errNoSuchHost, addr, "")
+			return nil, newDNSError(errNoSuchHost, addr, "")
 		default:
-			return nil, newWrappingDNSError(addrinfoErrno(gerrno), addr, "")
+			return nil, newDNSError(addrinfoErrno(gerrno), addr, "")
 		}
 	}
 	if i := bytealg.IndexByte(b, 0); i != -1 {
