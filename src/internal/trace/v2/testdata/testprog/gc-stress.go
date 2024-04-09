@@ -38,16 +38,16 @@ func makeTree(depth int) *node {
 }
 
 var trees [16]*node
-var ballast *[16]*[8192]*node
+var ballast *[16]*[1024]*node
 var sink [][]byte
 
 func main() {
 	for i := range trees {
 		trees[i] = makeTree(6)
 	}
-	ballast = new([16]*[8192]*node)
+	ballast = new([16]*[1024]*node)
 	for i := range ballast {
-		ballast[i] = new([8192]*node)
+		ballast[i] = new([1024]*node)
 		for j := range ballast[i] {
 			ballast[i][j] = &node{
 				data: [128]byte{1, 2, 3, 4},
