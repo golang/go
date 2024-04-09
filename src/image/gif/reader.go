@@ -406,8 +406,10 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
 			// seem OK with this, so we enlarge the palette with
 			// transparent colors. See golang.org/issue/15059.
 			p := make(color.Palette, ti+1)
-			i := copy(p, m.Palette)
-			clear(p[i:])
+			copy(p, m.Palette)
+			for i := len(m.Palette); i < len(p); i++ {
+				p[i] = color.RGBA{}
+			}
 			m.Palette = p
 		}
 	}
