@@ -180,7 +180,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
-	// racecall preserves BX
+	// racecall<> preserves BX
 	CALL	racecall<>(SB)
 	MOVQ	BX, DX	// restore function entry context
 	RET
@@ -303,10 +303,10 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
-
 // Implementation for platforms that do not have tsan v3 apis.
 #ifdef GOOS_openbsd
 
+// TODO(mauri870): the stack frame size for all of these is wrong!
 TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
 
