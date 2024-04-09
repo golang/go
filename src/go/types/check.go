@@ -23,7 +23,9 @@ var noposn = atPos(nopos)
 // debugging/development support
 const debug = false // leave on during development
 
-// gotypesalias controls the use of Alias types
+// gotypesalias controls the use of Alias types.
+// As of Apr 12 2024 it is on by default.
+// It will be removed soon.
 var gotypesalias = godebug.New("gotypesalias")
 
 // exprInfo stores information about an untyped expression.
@@ -258,8 +260,14 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 	//
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
+	enableAlias := false
+	switch gotypesalias.Value() {
+	case "", "1":
+		enableAlias = true
+	}
+
 	return &Checker{
-		enableAlias: gotypesalias.Value() == "1",
+		enableAlias: enableAlias,
 		conf:        conf,
 		ctxt:        conf.Context,
 		fset:        fset,

@@ -124,8 +124,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
-// Except for manual tests, each package is type-checked twice, once without
-// use of Alias types, and once with Alias types.
 //
 // The srcs slice contains the file content for the files named in the
 // filenames slice. The colDelta parameter specifies the tolerance for position
@@ -134,15 +132,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
-	// Alias types are disabled by default
-	testFilesImpl(t, filenames, srcs, manual, opts...)
-	if !manual {
-		t.Setenv("GODEBUG", "gotypesalias=1")
-		testFilesImpl(t, filenames, srcs, manual, opts...)
-	}
-}
-
-func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}

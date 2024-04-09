@@ -998,7 +998,7 @@ type A = []int
 type S struct{ A }
 `
 
-	t.Setenv("GODEBUG", "gotypesalias=1")
+	// t.Setenv("GODEBUG", "gotypesalias=1") // now on by default
 	pkg := mustTypecheck(src, nil, nil)
 
 	S := pkg.Scope().Lookup("S")
