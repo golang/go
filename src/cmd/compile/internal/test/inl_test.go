@@ -72,7 +72,6 @@ func TestIntendedInlining(t *testing.T) {
 			"cgoInRange",
 			"gclinkptr.ptr",
 			"guintptr.ptr",
-			"writeHeapBitsForAddr",
 			"heapBitsSlice",
 			"markBits.isMarked",
 			"muintptr.ptr",
@@ -243,8 +242,6 @@ func TestIntendedInlining(t *testing.T) {
 		// On loong64, mips64x and riscv64, TrailingZeros64 is not intrinsified and causes nextFreeFast
 		// too expensive to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
-		// Same behavior for heapBits.nextFast.
-		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
 	}
 	if runtime.GOARCH != "386" {
 		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.

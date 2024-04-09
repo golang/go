@@ -1435,34 +1435,18 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// of the object.
 		n = s.base() + s.elemsize - b
 		n = min(n, maxObletBytes)
-		if goexperiment.AllocHeaders {
-			tp = s.typePointersOfUnchecked(s.base())
-			tp = tp.fastForward(b-tp.addr, b+n)
-		}
+		tp = s.typePointersOfUnchecked(s.base())
+		tp = tp.fastForward(b-tp.addr, b+n)
 	} else {
-		if goexperiment.AllocHeaders {
-			tp = s.typePointersOfUnchecked(b)
-		}
+		tp = s.typePointersOfUnchecked(b)
 	}
 
-	var hbits heapBits
-	if !goexperiment.AllocHeaders {
-		hbits = heapBitsForAddr(b, n)
-	}
 	var scanSize uintptr
 	for {
 		var addr uintptr
-		if goexperiment.AllocHeaders {
-			if tp, addr = tp.nextFast(); addr == 0 {
-				if tp, addr = tp.next(b + n); addr == 0 {
-					break
-				}
-			}
-		} else {
-			if hbits, addr = hbits.nextFast(); addr == 0 {
-				if hbits, addr = hbits.next(); addr == 0 {
-					break
-				}
+		if tp, addr = tp.nextFast(); addr == 0 {
+			if tp, addr = tp.next(b + n); addr == 0 {
+				break
 			}
 		}
 

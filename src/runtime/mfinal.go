@@ -9,7 +9,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -442,7 +441,7 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	// Move base forward if we've got an allocation header.
-	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+	if !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
 		base += mallocHeaderSize
 	}
 
