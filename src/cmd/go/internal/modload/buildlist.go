@@ -8,8 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"reflect"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -1228,7 +1228,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
 		}
 	}
 
-	if rs.pruning == pruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+	if rs.pruning == pruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
 		// The root set is unchanged and rs was already pruned, so keep rs to
 		// preserve its cached ModuleGraph (if any).
 		return rs, nil
@@ -1469,7 +1469,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
 	if MainModules.Len() > 1 {
 		gover.ModSort(roots)
 	}
-	if rs.pruning == unpruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+	if rs.pruning == unpruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
 		// The root set is unchanged and rs was already unpruned, so keep rs to
 		// preserve its cached ModuleGraph (if any).
 		return rs, nil

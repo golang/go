@@ -226,8 +226,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		case explicit:
 			if check != nil {
 				err := check.newError(DuplicateDecl)
-				err.addf(atPos(pos), "duplicate method %s", m.name)
-				err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+				err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+				err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
 				err.report()
 			}
 		default:
@@ -240,8 +240,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 				check.later(func() {
 					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
 						err := check.newError(DuplicateDecl)
-						err.addf(atPos(pos), "duplicate method %s", m.name)
-						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+						err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
 						err.report()
 					}
 				}).describef(atPos(pos), "duplicate method check for %s", m.name)

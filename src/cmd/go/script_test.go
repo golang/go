@@ -180,7 +180,7 @@ func tbFromContext(ctx context.Context) (testing.TB, bool) {
 	return t.(testing.TB), true
 }
 
-// initScriptState creates the initial directory structure in s for unpacking a
+// initScriptDirs creates the initial directory structure in s for unpacking a
 // cmd/go script.
 func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
 	must := func(err error) {

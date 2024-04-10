@@ -1574,7 +1574,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 // The PolicyIdentifier and Policies fields are both used to marshal certificate
 // policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
 // GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
-// be marshalled instead of the PolicyIdentifier field. The Policies field can
+// be marshaled instead of the PolicyIdentifier field. The Policies field can
 // be used to marshal policy OIDs which have components that are larger than 31
 // bits.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {

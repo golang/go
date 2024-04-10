@@ -13,6 +13,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
@@ -84,13 +85,6 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	return a.Sym().Name < b.Sym().Name
 }
 
-// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
-type byStackVar []*ir.Name
-
-func (s byStackVar) Len() int           { return len(s) }
-func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
-func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
 // needAlloc reports whether n is within the current frame, for which we need to
 // allocate space. In particular, it excludes arguments and results, which are in
 // the callers frame.
@@ -158,10 +152,41 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	// Use sort.Stable instead of sort.Sort so stack layout (and thus
+	var mls *liveness.MergeLocalsState
+	if base.Debug.MergeLocals != 0 {
+		mls = liveness.MergeLocals(fn, f)
+		if base.Debug.MergeLocalsTrace > 0 && mls != nil {
+			savedNP, savedP := mls.EstSavings()
+			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging (%d nonpointer %d pointer)\n", ir.FuncName(fn), savedNP+savedP, savedNP, savedP)
+			if base.Debug.MergeLocalsTrace > 1 {
+				fmt.Fprintf(os.Stderr, "=-= merge locals state for %v:\n%v",
+					fn, mls)
+			}
+		}
+	}
+
+	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
-	sort.Stable(byStackVar(fn.Dcl))
+	sort.SliceStable(fn.Dcl, func(i, j int) bool {
+		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j])
+	})
+
+	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
+		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
+		for i, v := range fn.Dcl {
+			if !ssa.IsMergeCandidate(v) {
+				continue
+			}
+			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used())
+
+		}
+	}
+
+	var leaders map[*ir.Name]int64
+	if mls != nil {
+		leaders = make(map[*ir.Name]int64)
+	}
 
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
@@ -170,12 +195,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			// i.e., stack assign if AUTO, or if PARAMOUT in registers (which has no predefined spill locations)
 			continue
 		}
+		if mls != nil && mls.Subsumed(n) {
+			continue
+		}
 		if !n.Used() {
 			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
-
 		types.CalcSize(n.Type())
 		w := n.Type().Size()
 		if w >= types.MaxWidth || w < 0 {
@@ -200,6 +227,46 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			lastHasPtr = false
 		}
 		n.SetFrameOffset(-s.stksize)
+		if mls != nil && mls.IsLeader(n) {
+			leaders[n] = -s.stksize
+		}
+	}
+
+	if mls != nil {
+		followers := []*ir.Name{}
+		newdcl := make([]*ir.Name, 0, len(fn.Dcl))
+		for i := 0; i < len(fn.Dcl); i++ {
+			n := fn.Dcl[i]
+			if mls.Subsumed(n) {
+				continue
+			}
+			newdcl = append(newdcl, n)
+			if off, ok := leaders[n]; ok {
+				followers = mls.Followers(n, followers)
+				for _, f := range followers {
+					// Set the stack offset for each follower to be
+					// the same as the leader.
+					f.SetFrameOffset(off)
+				}
+				// position followers immediately after leader
+				newdcl = append(newdcl, followers...)
+			}
+		}
+		fn.Dcl = newdcl
+	}
+
+	if base.Debug.MergeLocalsTrace > 1 {
+		prolog := false
+		for i, v := range fn.Dcl {
+			if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
+				continue
+			}
+			if !prolog {
+				fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
+				prolog = true
+			}
+			fmt.Fprintf(os.Stderr, " %d: %q frameoff %d used=%v\n", i, v.Sym().Name, v.FrameOffset(), v.Used())
+		}
 	}
 
 	s.stksize = types.RoundUp(s.stksize, s.stkalign)

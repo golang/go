@@ -26,13 +26,11 @@ func at[T interface{ ~[]E }, E any](x T, i int) E {
 // type is itself, its "operational type" is defined by the type list in
 // the tybe bound, if any.
 func _[T interface{ ~int }](x T) {
+	type myint int
 	var _ int = int(x)
 	var _ T = 42
 	var _ T = T(myint(42))
 }
-
-// TODO: put this type declaration back inside the above function when issue 47631 is fixed.
-type myint int
 
 // Indexing a generic type which has a an array as core type.
 func _[T interface{ ~[10]int }](x T) {

@@ -1459,7 +1459,19 @@ var (
 	// Regexp to extract an architecture check: architecture name (or triplet),
 	// followed by semi-colon, followed by a comma-separated list of opcode checks.
 	// Extraneous spaces are ignored.
-	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
+	//
+	// An example: arm64/v8.1 : -`ADD` , `SUB`
+	//	"(\w+)" matches "arm64" (architecture name)
+	//	"(/[\w.]+)?" matches "v8.1" (architecture version)
+	//	"(/\w*)?" doesn't match anything here (it's an optional part of the triplet)
+	//	"\s*:\s*" matches " : " (semi-colon)
+	//	"(" starts a capturing group
+	//      first reMatchCheck matches "-`ADD`"
+	//	`(?:" starts a non-capturing group
+	//	"\s*,\s*` matches " , "
+	//	second reMatchCheck matches "`SUB`"
+	//	")*)" closes started groups; "*" means that there might be other elements in the comma-separated list
+	rxAsmPlatform = regexp.MustCompile(`(\w+)(/[\w.]+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
 
 	// Regexp to extract a single opcoded check
 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
@@ -1471,7 +1483,7 @@ var (
 		"386":     {"GO386", "sse2", "softfloat"},
 		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
 		"arm":     {"GOARM", "5", "6", "7", "7,softfloat"},
-		"arm64":   {},
+		"arm64":   {"GOARM64", "v8.0", "v8.1"},
 		"loong64": {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},

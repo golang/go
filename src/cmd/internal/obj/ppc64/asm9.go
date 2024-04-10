@@ -429,9 +429,9 @@ var optabBase = []Optab{
 	{as: AMTVSRD, a1: C_REG, a6: C_FREG, type_: 104, size: 4},
 	{as: AMTVSRDD, a1: C_REG, a2: C_REG, a6: C_VSREG, type_: 104, size: 4},
 
-	/* VSX logical */
-	{as: AXXLAND, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx and, xx3-form */
-	{as: AXXLOR, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4},  /* vsx or, xx3-form */
+	/* VSX xx3-form */
+	{as: AXXLAND, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 90, size: 4},    /* vsx xx3-form (FPR usage) */
+	{as: AXXLAND, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx xx3-form */
 
 	/* VSX select */
 	{as: AXXSEL, a1: C_VSREG, a2: C_VSREG, a3: C_VSREG, a6: C_VSREG, type_: 91, size: 4}, /* vsx select, xx4-form */
@@ -1679,16 +1679,17 @@ func buildop(ctxt *obj.Link) {
 			opset(AMTVSRWZ, r0)
 			opset(AMTVSRWS, r0)
 
-		case AXXLAND: /* xxland, xxlandc, xxleqv, xxlnand */
+		case AXXLAND:
 			opset(AXXLANDC, r0)
 			opset(AXXLEQV, r0)
 			opset(AXXLNAND, r0)
-
-		case AXXLOR: /* xxlorc, xxlnor, xxlor, xxlxor */
 			opset(AXXLORC, r0)
 			opset(AXXLNOR, r0)
 			opset(AXXLORQ, r0)
 			opset(AXXLXOR, r0)
+			opset(AXXLOR, r0)
+			opset(AXSMAXJDP, r0)
+			opset(AXSMINJDP, r0)
 
 		case AXXSEL: /* xxsel */
 			opset(AXXSEL, r0)
@@ -4769,6 +4770,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX3(60, 146, 0) /* xxlor - v2.06 */
 	case AXXLXOR:
 		return OPVXX3(60, 154, 0) /* xxlxor - v2.06 */
+	case AXSMINJDP:
+		return OPVXX3(60, 152, 0) /* xsminjdp - v3.0 */
+	case AXSMAXJDP:
+		return OPVXX3(60, 144, 0) /* xsmaxjdp - v3.0 */
 
 	case AXXSEL:
 		return OPVXX4(60, 3, 0) /* xxsel - v2.06 */

@@ -18,7 +18,7 @@ func (c *TCPConn) SetKeepAliveConfig(config KeepAliveConfig) error {
 	if err := setKeepAlive(c.fd, config.Enable); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
-	if windows.SupportFullTCPKeepAlive() {
+	if windows.SupportTCPKeepAliveIdle() && windows.SupportTCPKeepAliveInterval() {
 		if err := setKeepAliveIdle(c.fd, config.Idle); err != nil {
 			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 		}

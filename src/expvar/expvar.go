@@ -30,7 +30,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -181,13 +181,11 @@ func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	// Using insertion sort to place key into the already-sorted v.keys.
-	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
-		v.keys = append(v.keys, key)
-	} else if v.keys[i] != key {
-		v.keys = append(v.keys, "")
-		copy(v.keys[i+1:], v.keys[i:])
-		v.keys[i] = key
+	i, found := slices.BinarySearch(v.keys, key)
+	if found {
+		return
 	}
+	v.keys = slices.Insert(v.keys, i, key)
 }
 
 func (v *Map) Get(key string) Var {
@@ -248,9 +246,9 @@ func (v *Map) AddFloat(key string, delta float64) {
 func (v *Map) Delete(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	i := sort.SearchStrings(v.keys, key)
-	if i < len(v.keys) && key == v.keys[i] {
-		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+	i, found := slices.BinarySearch(v.keys, key)
+	if found {
+		v.keys = slices.Delete(v.keys, i, i+1)
 		v.m.Delete(key)
 	}
 }
@@ -318,7 +316,7 @@ func Publish(name string, v Var) {
 	vars.keysMu.Lock()
 	defer vars.keysMu.Unlock()
 	vars.keys = append(vars.keys, name)
-	sort.Strings(vars.keys)
+	slices.Sort(vars.keys)
 }
 
 // Get retrieves a named exported variable. It returns nil if the name has

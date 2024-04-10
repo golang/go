@@ -134,6 +134,9 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 
 	// no package yet => import it
 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
+		if check.conf.FakeImportC && check.conf.go115UsesCgo {
+			check.error(pos, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")
+		}
 		imp = NewPackage("C", "C")
 		imp.fake = true // package scope is not populated
 		imp.cgo = check.conf.go115UsesCgo
@@ -674,8 +677,23 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.enableAlias {
+	if false && check.enableAlias {
 		// With Alias nodes we can process declarations in any order.
+		//
+		// TODO(adonovan): unfortunately, Alias nodes
+		// (GODEBUG=gotypesalias=1) don't entirely resolve
+		// problems with cycles. For example, in
+		// GOROOT/test/typeparam/issue50259.go,
+		//
+		// 	type T[_ any] struct{}
+		// 	type A T[B]
+		// 	type B = T[A]
+		//
+		// TypeName A has Type Named during checking, but by
+		// the time the unified export data is written out,
+		// its Type is Invalid.
+		//
+		// Investigate and reenable this branch.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)
 		}

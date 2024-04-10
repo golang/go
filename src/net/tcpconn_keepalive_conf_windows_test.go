@@ -25,7 +25,7 @@ func maybeSkipKeepAliveTest(t *testing.T) {
 	// 	doesn't provide any ways to retrieve the current TCP keep-alive settings, therefore
 	// 	we're not able to run the test suite similar to Unix-like OS's on Windows.
 	//  Try to find another proper approach to test the keep-alive settings on old Windows.
-	if !windows.SupportFullTCPKeepAlive() {
+	if !windows.SupportTCPKeepAliveIdle() || !windows.SupportTCPKeepAliveInterval() || !windows.SupportTCPKeepAliveCount() {
 		t.Skip("skipping on windows")
 	}
 }

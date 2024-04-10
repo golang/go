@@ -57,7 +57,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
 // called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	var h1, h2 uint64
-	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+	g := &gcmAsm{cipher: c, ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
 
 	hle := make([]byte, gcmBlockSize)
 
@@ -119,7 +119,8 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 // counterCryptASM implements counterCrypt which then allows the loop to
 // be unrolled and optimized.
 func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
-	counterCryptASM(len(g.cipher.enc)/4-1, out, in, counter, &g.cipher.enc[0])
+	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
+
 }
 
 // increments the rightmost 32-bits of the count value by 1.
@@ -211,9 +212,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	ret, out := sliceForAppend(dst, len(ciphertext))
 
 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
-		for i := range out {
-			out[i] = 0
-		}
+		clear(out)
 		return nil, errOpen
 	}
 

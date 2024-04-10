@@ -8,7 +8,7 @@ import (
 	"internal/abi"
 	"internal/chacha8rand"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -612,11 +612,11 @@ type m struct {
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
-	libcall   libcall
-	libcallpc uintptr // for cpu profiler
-	libcallsp uintptr
-	libcallg  guintptr
-	syscall   libcall // stores syscall parameters on windows
+	libcall    libcall
+	libcallpc  uintptr // for cpu profiler
+	libcallsp  uintptr
+	libcallg   guintptr
+	winsyscall winlibcall // stores syscall parameters on windows
 
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call
@@ -762,6 +762,9 @@ type p struct {
 	// preempt is set to indicate that this P should be enter the
 	// scheduler ASAP (regardless of what G is running on it).
 	preempt bool
+
+	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
+	gcStopTime int64
 
 	// pageTraceBuf is a buffer for writing out page allocation/free/scavenge traces.
 	//
@@ -1148,6 +1151,29 @@ func (w waitReason) isMutexWait() bool {
 	return w == waitReasonSyncMutexLock ||
 		w == waitReasonSyncRWMutexRLock ||
 		w == waitReasonSyncRWMutexLock
+}
+
+func (w waitReason) isWaitingForGC() bool {
+	return isWaitingForGC[w]
+}
+
+// isWaitingForGC indicates that a goroutine is only entering _Gwaiting and
+// setting a waitReason because it needs to be able to let the GC take ownership
+// of its stack. The G is always actually executing on the system stack, in
+// these cases.
+//
+// TODO(mknyszek): Consider replacing this with a new dedicated G status.
+var isWaitingForGC = [len(waitReasonStrings)]bool{
+	waitReasonStoppingTheWorld:      true,
+	waitReasonGCMarkTermination:     true,
+	waitReasonGarbageCollection:     true,
+	waitReasonGarbageCollectionScan: true,
+	waitReasonTraceGoroutineStatus:  true,
+	waitReasonTraceProcStatus:       true,
+	waitReasonPageTraceFlush:        true,
+	waitReasonGCAssistMarking:       true,
+	waitReasonGCWorkerActive:        true,
+	waitReasonFlushProcCaches:       true,
 }
 
 var (

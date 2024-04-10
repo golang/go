@@ -37,7 +37,9 @@ import (
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
+	"math"
 	"math/bits"
+	"strings"
 )
 
 // Test if this value can encoded as a mask for
@@ -73,6 +75,45 @@ func encodePPC64RLDCMask(mask int64) (mb, me int) {
 	return mb, me - 1
 }
 
+// Is this a symbol which should never have a TOC prologue generated?
+// These are special functions which should not have a TOC regeneration
+// prologue.
+func isNOTOCfunc(name string) bool {
+	switch {
+	case name == "runtime.duffzero":
+		return true
+	case name == "runtime.duffcopy":
+		return true
+	case strings.HasPrefix(name, "runtime.elf_"):
+		return true
+	default:
+		return false
+	}
+}
+
+// Try converting FMOVD/FMOVS to XXSPLTIDP. If it is converted,
+// return true.
+func convertFMOVtoXXSPLTIDP(p *obj.Prog) bool {
+	if p.From.Type != obj.TYPE_FCONST || buildcfg.GOPPC64 < 10 {
+		return false
+	}
+	v := p.From.Val.(float64)
+	if float64(float32(v)) != v {
+		return false
+	}
+	// Secondly, is this value a normal value?
+	ival := int64(math.Float32bits(float32(v)))
+	isDenorm := ival&0x7F800000 == 0 && ival&0x007FFFFF != 0
+	if !isDenorm {
+		p.As = AXXSPLTIDP
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = ival
+		// Convert REG_Fx into equivalent REG_VSx
+		p.To.Reg = REG_VS0 + (p.To.Reg & 31)
+	}
+	return !isDenorm
+}
+
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
@@ -94,7 +135,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	case AFMOVS:
-		if p.From.Type == obj.TYPE_FCONST {
+		if p.From.Type == obj.TYPE_FCONST && !convertFMOVtoXXSPLTIDP(p) {
 			f32 := float32(p.From.Val.(float64))
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float32Sym(f32)
@@ -106,7 +147,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
 			// Constant not needed in memory for float +/- 0
-			if f64 != 0 {
+			if f64 != 0 && !convertFMOVtoXXSPLTIDP(p) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Sym = ctxt.Float64Sym(f64)
 				p.From.Name = obj.NAME_EXTERN
@@ -794,7 +835,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			q = p
 
-			if NeedTOCpointer(c.ctxt) && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
+			if NeedTOCpointer(c.ctxt) && !isNOTOCfunc(c.cursym.Name) {
 				// When compiling Go into PIC, without PCrel support, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//

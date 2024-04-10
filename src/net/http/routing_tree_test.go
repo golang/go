@@ -7,7 +7,6 @@ package http
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 	"testing"
 
@@ -261,7 +260,7 @@ func TestMatchingMethods(t *testing.T) {
 			ms := map[string]bool{}
 			test.tree.matchingMethods(test.host, test.path, ms)
 			keys := mapKeys(ms)
-			sort.Strings(keys)
+			slices.Sort(keys)
 			got := strings.Join(keys, ",")
 			if got != test.want {
 				t.Errorf("got %s, want %s", got, test.want)
@@ -285,7 +284,7 @@ func (n *routingNode) print(w io.Writer, level int) {
 		keys = append(keys, k)
 		return true
 	})
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		fmt.Fprintf(w, "%s%q:\n", indent, k)

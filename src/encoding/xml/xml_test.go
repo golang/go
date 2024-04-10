@@ -1091,10 +1091,10 @@ func TestIssue7113(t *testing.T) {
 	}
 
 	if a.XMLName.Space != structSpace {
-		t.Errorf("overidding with empty namespace: unmarshalling, got %s, want %s\n", a.XMLName.Space, structSpace)
+		t.Errorf("overidding with empty namespace: unmarshaling, got %s, want %s\n", a.XMLName.Space, structSpace)
 	}
 	if len(a.C.XMLName.Space) != 0 {
-		t.Fatalf("overidding with empty namespace: unmarshalling, got %s, want empty\n", a.C.XMLName.Space)
+		t.Fatalf("overidding with empty namespace: unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
 	}
 
 	var b []byte
@@ -1106,7 +1106,7 @@ func TestIssue7113(t *testing.T) {
 		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
 	}
 	if string(b) != xmlTest {
-		t.Fatalf("overidding with empty namespace: marshalling, got %s, want %s\n", b, xmlTest)
+		t.Fatalf("overidding with empty namespace: marshaling, got %s, want %s\n", b, xmlTest)
 	}
 	var c A
 	err = Unmarshal(b, &c)

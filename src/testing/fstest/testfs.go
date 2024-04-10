@@ -25,8 +25,8 @@ import (
 // Otherwise, fsys must contain at least the listed files; it can also contain others.
 // The contents of fsys must not change concurrently with TestFS.
 //
-// If TestFS finds any misbehaviors, it returns an error reporting all of them.
-// The error text spans multiple lines, one per detected misbehavior.
+// If TestFS finds any misbehaviors, it returns either the first error or a
+// list of errors. Use [errors.Is] or [errors.As] to inspect.
 //
 // Typical usage inside a test is:
 //
@@ -51,7 +51,7 @@ func TestFS(fsys fs.FS, expected ...string) error {
 				return err
 			}
 			if err := testFS(sub, subExpected...); err != nil {
-				return fmt.Errorf("testing fs.Sub(fsys, %s): %v", dir, err)
+				return fmt.Errorf("testing fs.Sub(fsys, %s): %w", dir, err)
 			}
 			break // one sub-test is enough
 		}
@@ -89,32 +89,29 @@ func testFS(fsys fs.FS, expected ...string) error {
 			t.errorf("expected but not found: %s", name)
 		}
 	}
-	if len(t.errText) == 0 {
+	if len(t.errors) == 0 {
 		return nil
 	}
-	return errors.New("TestFS found errors:\n" + string(t.errText))
+	return fmt.Errorf("TestFS found errors:\n%w", errors.Join(t.errors...))
 }
 
 // An fsTester holds state for running the test.
 type fsTester struct {
-	fsys    fs.FS
-	errText []byte
-	dirs    []string
-	files   []string
+	fsys   fs.FS
+	errors []error
+	dirs   []string
+	files  []string
 }
 
-// errorf adds an error line to errText.
+// errorf adds an error to the list of errors.
 func (t *fsTester) errorf(format string, args ...any) {
-	if len(t.errText) > 0 {
-		t.errText = append(t.errText, '\n')
-	}
-	t.errText = append(t.errText, fmt.Sprintf(format, args...)...)
+	t.errors = append(t.errors, fmt.Errorf(format, args...))
 }
 
 func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 	f, err := t.fsys.Open(dir)
 	if err != nil {
-		t.errorf("%s: Open: %v", dir, err)
+		t.errorf("%s: Open: %w", dir, err)
 		return nil
 	}
 	d, ok := f.(fs.ReadDirFile)
@@ -138,7 +135,7 @@ func (t *fsTester) checkDir(dir string) {
 	list, err := d.ReadDir(-1)
 	if err != nil {
 		d.Close()
-		t.errorf("%s: ReadDir(-1): %v", dir, err)
+		t.errorf("%s: ReadDir(-1): %w", dir, err)
 		return
 	}
 
@@ -176,7 +173,7 @@ func (t *fsTester) checkDir(dir string) {
 	list2, err := d.ReadDir(-1)
 	if len(list2) > 0 || err != nil {
 		d.Close()
-		t.errorf("%s: ReadDir(-1) at EOF = %d entries, %v, wanted 0 entries, nil", dir, len(list2), err)
+		t.errorf("%s: ReadDir(-1) at EOF = %d entries, %w, wanted 0 entries, nil", dir, len(list2), err)
 		return
 	}
 
@@ -184,13 +181,13 @@ func (t *fsTester) checkDir(dir string) {
 	list2, err = d.ReadDir(1)
 	if len(list2) > 0 || err != io.EOF {
 		d.Close()
-		t.errorf("%s: ReadDir(1) at EOF = %d entries, %v, wanted 0 entries, EOF", dir, len(list2), err)
+		t.errorf("%s: ReadDir(1) at EOF = %d entries, %w, wanted 0 entries, EOF", dir, len(list2), err)
 		return
 	}
 
 	// Check that close does not report an error.
 	if err := d.Close(); err != nil {
-		t.errorf("%s: Close: %v", dir, err)
+		t.errorf("%s: Close: %w", dir, err)
 	}
 
 	// Check that closing twice doesn't crash.
@@ -204,7 +201,7 @@ func (t *fsTester) checkDir(dir string) {
 	defer d.Close()
 	list2, err = d.ReadDir(-1)
 	if err != nil {
-		t.errorf("%s: second Open+ReadDir(-1): %v", dir, err)
+		t.errorf("%s: second Open+ReadDir(-1): %w", dir, err)
 		return
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs second Open+ReadDir(-1)", list, list2)
@@ -230,7 +227,7 @@ func (t *fsTester) checkDir(dir string) {
 			break
 		}
 		if err != nil {
-			t.errorf("%s: third Open: ReadDir(%d) after %d: %v", dir, n, len(list2), err)
+			t.errorf("%s: third Open: ReadDir(%d) after %d: %w", dir, n, len(list2), err)
 			return
 		}
 		if n == 0 {
@@ -244,7 +241,7 @@ func (t *fsTester) checkDir(dir string) {
 	if fsys, ok := t.fsys.(fs.ReadDirFS); ok {
 		list2, err := fsys.ReadDir(dir)
 		if err != nil {
-			t.errorf("%s: fsys.ReadDir: %v", dir, err)
+			t.errorf("%s: fsys.ReadDir: %w", dir, err)
 			return
 		}
 		t.checkDirList(dir, "first Open+ReadDir(-1) vs fsys.ReadDir", list, list2)
@@ -259,7 +256,7 @@ func (t *fsTester) checkDir(dir string) {
 	// Check fs.ReadDir as well.
 	list2, err = fs.ReadDir(t.fsys, dir)
 	if err != nil {
-		t.errorf("%s: fs.ReadDir: %v", dir, err)
+		t.errorf("%s: fs.ReadDir: %w", dir, err)
 		return
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs fs.ReadDir", list, list2)
@@ -358,7 +355,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 
 	names, err := t.fsys.(fs.GlobFS).Glob(glob)
 	if err != nil {
-		t.errorf("%s: Glob(%#q): %v", dir, glob, err)
+		t.errorf("%s: Glob(%#q): %w", dir, glob, err)
 		return
 	}
 	if reflect.DeepEqual(want, names) {
@@ -391,13 +388,13 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	file, err := t.fsys.Open(path)
 	if err != nil {
-		t.errorf("%s: Open: %v", path, err)
+		t.errorf("%s: Open: %w", path, err)
 		return
 	}
 	info, err := file.Stat()
 	file.Close()
 	if err != nil {
-		t.errorf("%s: Stat: %v", path, err)
+		t.errorf("%s: Stat: %w", path, err)
 		return
 	}
 	fentry := formatEntry(entry)
@@ -409,7 +406,7 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 
 	einfo, err := entry.Info()
 	if err != nil {
-		t.errorf("%s: entry.Info: %v", path, err)
+		t.errorf("%s: entry.Info: %w", path, err)
 		return
 	}
 	finfo := formatInfo(info)
@@ -430,7 +427,7 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	// Stat should be the same as Open+Stat, even for symlinks.
 	info2, err := fs.Stat(t.fsys, path)
 	if err != nil {
-		t.errorf("%s: fs.Stat: %v", path, err)
+		t.errorf("%s: fs.Stat: %w", path, err)
 		return
 	}
 	finfo2 := formatInfo(info2)
@@ -441,7 +438,7 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	if fsys, ok := t.fsys.(fs.StatFS); ok {
 		info2, err := fsys.Stat(path)
 		if err != nil {
-			t.errorf("%s: fsys.Stat: %v", path, err)
+			t.errorf("%s: fsys.Stat: %w", path, err)
 			return
 		}
 		finfo2 := formatInfo(info2)
@@ -508,19 +505,19 @@ func (t *fsTester) checkFile(file string) {
 	// Read entire file.
 	f, err := t.fsys.Open(file)
 	if err != nil {
-		t.errorf("%s: Open: %v", file, err)
+		t.errorf("%s: Open: %w", file, err)
 		return
 	}
 
 	data, err := io.ReadAll(f)
 	if err != nil {
 		f.Close()
-		t.errorf("%s: Open+ReadAll: %v", file, err)
+		t.errorf("%s: Open+ReadAll: %w", file, err)
 		return
 	}
 
 	if err := f.Close(); err != nil {
-		t.errorf("%s: Close: %v", file, err)
+		t.errorf("%s: Close: %w", file, err)
 	}
 
 	// Check that closing twice doesn't crash.
@@ -531,7 +528,7 @@ func (t *fsTester) checkFile(file string) {
 	if fsys, ok := t.fsys.(fs.ReadFileFS); ok {
 		data2, err := fsys.ReadFile(file)
 		if err != nil {
-			t.errorf("%s: fsys.ReadFile: %v", file, err)
+			t.errorf("%s: fsys.ReadFile: %w", file, err)
 			return
 		}
 		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
@@ -543,7 +540,7 @@ func (t *fsTester) checkFile(file string) {
 		}
 		data2, err = fsys.ReadFile(file)
 		if err != nil {
-			t.errorf("%s: second call to fsys.ReadFile: %v", file, err)
+			t.errorf("%s: second call to fsys.ReadFile: %w", file, err)
 			return
 		}
 		t.checkFileRead(file, "Readall vs second fsys.ReadFile", data, data2)
@@ -555,7 +552,7 @@ func (t *fsTester) checkFile(file string) {
 	// Check that fs.ReadFile works with t.fsys.
 	data2, err := fs.ReadFile(t.fsys, file)
 	if err != nil {
-		t.errorf("%s: fs.ReadFile: %v", file, err)
+		t.errorf("%s: fs.ReadFile: %w", file, err)
 		return
 	}
 	t.checkFileRead(file, "ReadAll vs fs.ReadFile", data, data2)
@@ -563,7 +560,7 @@ func (t *fsTester) checkFile(file string) {
 	// Use iotest.TestReader to check small reads, Seek, ReadAt.
 	f, err = t.fsys.Open(file)
 	if err != nil {
-		t.errorf("%s: second Open: %v", file, err)
+		t.errorf("%s: second Open: %w", file, err)
 		return
 	}
 	defer f.Close()

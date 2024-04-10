@@ -8,8 +8,10 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/asan"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
 	"runtime"
@@ -231,7 +233,6 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
-//sys	rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) = ntdll.RtlGetNtVersionNumbers
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
@@ -446,11 +447,11 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
 		}
 		race.Acquire(unsafe.Pointer(&ioSync))
 	}
-	if msanenabled && *done > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }
@@ -463,11 +464,11 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error 
 	if race.Enabled && *done > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
 	}
-	if msanenabled && *done > 0 {
-		msanRead(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanRead(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }

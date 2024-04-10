@@ -119,6 +119,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	return newFile(r, name, "file"), nil
 }
 
+func openDirNolog(name string) (*File, error) {
+	return openFileNolog(name, O_RDONLY, 0)
+}
+
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
@@ -309,7 +313,18 @@ func Symlink(oldname, newname string) error {
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
+	var o *uint16
+	if isAbs(oldname) {
+		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
+	} else {
+		// Do not use fixLongPath on oldname for relative symlinks,
+		// as it would turn the name into an absolute path thus making
+		// an absolute symlink instead.
+		// Notice that CreateSymbolicLinkW does not fail for relative
+		// symlinks beyond MAX_PATH, so this does not prevent the
+		// creation of an arbitrary long path name.
+		o, err = syscall.UTF16PtrFromString(oldname)
+	}
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}

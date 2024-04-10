@@ -192,7 +192,7 @@ func skipSubTest(t *testing.T, tag string, basename string, gcflags string, coun
 		if *force {
 			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
-			t.Skip("skipping flaky test becaused not forced (-f)")
+			t.Skip("skipping flaky test because not forced (-f)")
 		}
 	})
 }

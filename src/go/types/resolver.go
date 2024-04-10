@@ -146,6 +146,9 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 
 	// no package yet => import it
 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
+		if check.conf.FakeImportC && check.conf.go115UsesCgo {
+			check.error(at, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")
+		}
 		imp = NewPackage("C", "C")
 		imp.fake = true // package scope is not populated
 		imp.cgo = check.conf.go115UsesCgo

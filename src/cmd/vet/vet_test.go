@@ -78,7 +78,6 @@ func TestVet(t *testing.T) {
 		"method",
 		"nilfunc",
 		"print",
-		"rangeloop",
 		"shift",
 		"slog",
 		"structtag",
@@ -120,6 +119,39 @@ func TestVet(t *testing.T) {
 			errchk(cmd, files, t)
 		})
 	}
+
+	// The loopclosure analyzer (aka "rangeloop" before CL 140578)
+	// is a no-op for files whose version >= go1.22, so we use a
+	// go.mod file in the rangeloop directory to "downgrade".
+	//
+	// TOOD(adonovan): delete when go1.21 goes away.
+	t.Run("loopclosure", func(t *testing.T) {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+		cmd.Dir = "testdata/rangeloop"
+		cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
+		cmd.Run()
+		stderr := cmd.Stderr.(fmt.Stringer).String()
+
+		filename := filepath.FromSlash("testdata/rangeloop/rangeloop.go")
+
+		// Unlike the tests above, which runs vet in cmd/vet/, this one
+		// runs it in subdirectory, so the "full names" in the output
+		// are in fact short "./rangeloop.go".
+		// But we can't just pass "./rangeloop.go" as the "full name"
+		// argument to errorCheck as it does double duty as both a
+		// string that appears in the output, and as file name
+		// openable relative to the test directory, containing text
+		// expectations.
+		//
+		// So, we munge the file.
+		stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./rangeloop.go"), filename)
+
+		if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
+			t.Errorf("error check failed: %s", err)
+			t.Log("vet stderr:\n", cmd.Stderr)
+		}
+	})
 }
 
 func cgoEnabled(t *testing.T) bool {

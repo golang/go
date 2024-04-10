@@ -4,6 +4,7 @@
 
 #include "textflag.h"
 
+TEXT ·libc_arc4random_buf_trampoline(SB),NOSPLIT,$0-0; JMP libc_arc4random_buf(SB)
 TEXT ·libc_getaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getaddrinfo(SB)
 TEXT ·libc_freeaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_freeaddrinfo(SB)
 TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getnameinfo(SB)

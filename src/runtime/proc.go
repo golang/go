@@ -10,7 +10,7 @@ import (
 	"internal/goarch"
 	"internal/goexperiment"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -579,7 +579,7 @@ func switchToCrashStack(fn func()) {
 // Disable crash stack on Windows for now. Apparently, throwing an exception
 // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
 // hangs the process (see issue 63938).
-const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
+const crashStackImplemented = (GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
 
 //go:noescape
 func switchToCrashStack0(fn func()) // in assembly
@@ -1208,6 +1208,17 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
 	casgstatus(gp, old, _Gwaiting)
 }
 
+// casGToWaitingForGC transitions gp from old to _Gwaiting, and sets the wait reason.
+// The wait reason must be a valid isWaitingForGC wait reason.
+//
+// Use this over casgstatus when possible to ensure that a waitreason is set.
+func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
+	if !reason.isWaitingForGC() {
+		throw("casGToWaitingForGC with non-isWaitingForGC wait reason")
+	}
+	casGToWaiting(gp, old, reason)
+}
+
 // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
 // Returns old status. Cannot call casgstatus directly, because we are racing with an
 // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
@@ -1311,8 +1322,10 @@ var stwReasonStrings = [...]string{
 // worldStop provides context from the stop-the-world required by the
 // start-the-world.
 type worldStop struct {
-	reason stwReason
-	start  int64
+	reason           stwReason
+	startedStopping  int64
+	finishedStopping int64
+	stoppingCPUTime  int64
 }
 
 // Temporary variable for stopTheWorld, when it can't write to the stack.
@@ -1356,7 +1369,7 @@ func stopTheWorld(reason stwReason) worldStop {
 		// N.B. The execution tracer is not aware of this status
 		// transition and handles it specially based on the
 		// wait reason.
-		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
+		casGToWaitingForGC(gp, _Grunning, waitReasonStoppingTheWorld)
 		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
@@ -1468,6 +1481,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	preemptall()
 	// stop current P
 	gp.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
+	gp.m.p.ptr().gcStopTime = start
 	sched.stopwait--
 	// try to retake all P's in Psyscall status
 	trace = traceAcquire()
@@ -1479,6 +1493,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 				trace.ProcSteal(pp, false)
 			}
 			pp.syscalltick++
+			pp.gcStopTime = nanotime()
 			sched.stopwait--
 		}
 	}
@@ -1494,6 +1509,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 			break
 		}
 		pp.status = _Pgcstop
+		pp.gcStopTime = nanotime()
 		sched.stopwait--
 	}
 	wait := sched.stopwait > 0
@@ -1511,14 +1527,19 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 		}
 	}
 
-	startTime := nanotime() - start
+	finish := nanotime()
+	startTime := finish - start
 	if reason.isGC() {
 		sched.stwStoppingTimeGC.record(startTime)
 	} else {
 		sched.stwStoppingTimeOther.record(startTime)
 	}
 
-	// sanity checks
+	// Double-check we actually stopped everything, and all the invariants hold.
+	// Also accumulate all the time spent by each P in _Pgcstop up to the point
+	// where everything was stopped. This will be accumulated into the total pause
+	// CPU time by the caller.
+	stoppingCPUTime := int64(0)
 	bad := ""
 	if sched.stopwait != 0 {
 		bad = "stopTheWorld: not stopped (stopwait != 0)"
@@ -1527,6 +1548,11 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 			if pp.status != _Pgcstop {
 				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
 			}
+			if pp.gcStopTime == 0 && bad == "" {
+				bad = "stopTheWorld: broken CPU time accounting"
+			}
+			stoppingCPUTime += finish - pp.gcStopTime
+			pp.gcStopTime = 0
 		}
 	}
 	if freezing.Load() {
@@ -1543,7 +1569,12 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 
 	worldStopped()
 
-	return worldStop{reason: reason, start: start}
+	return worldStop{
+		reason:           reason,
+		startedStopping:  start,
+		finishedStopping: finish,
+		stoppingCPUTime:  stoppingCPUTime,
+	}
 }
 
 // reason is the same STW reason passed to stopTheWorld. start is the start
@@ -1599,7 +1630,7 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
 	if now == 0 {
 		now = nanotime()
 	}
-	totalTime := now - w.start
+	totalTime := now - w.startedStopping
 	if w.reason.isGC() {
 		sched.stwTotalTimeGC.record(totalTime)
 	} else {
@@ -1903,7 +1934,7 @@ func forEachP(reason waitReason, fn func(*p)) {
 		// N.B. The execution tracer is not aware of this status
 		// transition and handles it specially based on the
 		// wait reason.
-		casGToWaiting(gp, _Grunning, reason)
+		casGToWaitingForGC(gp, _Grunning, reason)
 		forEachPInternal(fn)
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
@@ -2932,6 +2963,7 @@ func handoffp(pp *p) {
 	lock(&sched.lock)
 	if sched.gcwaiting.Load() {
 		pp.status = _Pgcstop
+		pp.gcStopTime = nanotime()
 		sched.stopwait--
 		if sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
@@ -3074,6 +3106,7 @@ func gcstopm() {
 	pp := releasep()
 	lock(&sched.lock)
 	pp.status = _Pgcstop
+	pp.gcStopTime = nanotime()
 	sched.stopwait--
 	if sched.stopwait == 0 {
 		notewakeup(&sched.stopnote)
@@ -3961,11 +3994,16 @@ func park_m(gp *g) {
 
 	trace := traceAcquire()
 
+	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
+		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
+	}
 	// N.B. Not using casGToWaiting here because the waitreason is
 	// set by park_m's caller.
 	casgstatus(gp, _Grunning, _Gwaiting)
 	if trace.ok() {
-		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
 		traceRelease(trace)
 	}
 
@@ -3995,13 +4033,18 @@ func goschedImpl(gp *g, preempted bool) {
 		dumpgstatus(gp)
 		throw("bad g status")
 	}
-	casgstatus(gp, _Grunning, _Grunnable)
 	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
 		if preempted {
 			trace.GoPreempt()
 		} else {
 			trace.GoSched()
 		}
+	}
+	casgstatus(gp, _Grunning, _Grunnable)
+	if trace.ok() {
 		traceRelease(trace)
 	}
 
@@ -4104,9 +4147,14 @@ func goyield() {
 func goyield_m(gp *g) {
 	trace := traceAcquire()
 	pp := gp.m.p.ptr()
+	if trace.ok() {
+		// Trace the event before the transition. It may take a
+		// stack trace, but we won't own the stack after the
+		// transition anymore.
+		trace.GoPreempt()
+	}
 	casgstatus(gp, _Grunning, _Grunnable)
 	if trace.ok() {
-		trace.GoPreempt()
 		traceRelease(trace)
 	}
 	dropg()
@@ -4376,6 +4424,7 @@ func entersyscall_gcwait() {
 			}
 			traceRelease(trace)
 		}
+		pp.gcStopTime = nanotime()
 		pp.syscalltick++
 		if sched.stopwait--; sched.stopwait == 0 {
 			notewakeup(&sched.stopnote)
@@ -4827,7 +4876,7 @@ func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newg := newproc1(fn, gp, pc)
+		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 
 		pp := getg().m.p.ptr()
 		runqput(pp, newg, true)
@@ -4838,10 +4887,10 @@ func newproc(fn *funcval) {
 	})
 }
 
-// Create a new g in state _Grunnable, starting at fn. callerpc is the
-// address of the go statement that created this. The caller is responsible
-// for adding the new g to the scheduler.
-func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+// Create a new g in state _Grunnable (or _Gwaiting if parked is true), starting at fn.
+// callerpc is the address of the go statement that created this. The caller is responsible
+// for adding the new g to the scheduler. If parked is true, waitreason must be non-zero.
+func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreason waitReason) *g {
 	if fn == nil {
 		fatal("go of nil func value")
 	}
@@ -4910,7 +4959,12 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 
 	// Get a goid and switch to runnable. Make all this atomic to the tracer.
 	trace := traceAcquire()
-	casgstatus(newg, _Gdead, _Grunnable)
+	var status uint32 = _Grunnable
+	if parked {
+		status = _Gwaiting
+		newg.waitreason = waitreason
+	}
+	casgstatus(newg, _Gdead, status)
 	if pp.goidcache == pp.goidcacheend {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
@@ -4923,7 +4977,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	pp.goidcache++
 	newg.trace.reset()
 	if trace.ok() {
-		trace.GoCreate(newg, newg.startpc)
+		trace.GoCreate(newg, newg.startpc, parked)
 		traceRelease(trace)
 	}
 
@@ -5264,22 +5318,22 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	// On mips{,le}/arm, 64bit atomics are emulated with spinlocks, in
-	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
+	// internal/runtime/atomic. If SIGPROF arrives while the program is inside
 	// the critical section, it creates a deadlock (when writing the sample).
 	// As a workaround, create a counter of SIGPROFs while in critical section
 	// to store the count, and pass it to sigprof.add() later when SIGPROF is
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
-			if hasPrefix(funcname(f), "runtime/internal/atomic") {
+			if hasPrefix(funcname(f), "internal/runtime/atomic") {
 				cpuprof.lostAtomic++
 				return
 			}
 		}
 		if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && pc&0xffff0000 == 0xffff0000 {
-			// runtime/internal/atomic functions call into kernel
+			// internal/runtime/atomic functions call into kernel
 			// helpers on arm < 7. See
-			// runtime/internal/atomic/sys_linux_arm.s.
+			// internal/runtime/atomic/sys_linux_arm.s.
 			cpuprof.lostAtomic++
 			return
 		}
@@ -5608,7 +5662,7 @@ func procresize(nprocs int32) *p {
 			if trace.ok() {
 				// Pretend that we were descheduled
 				// and then scheduled again to keep
-				// the trace sane.
+				// the trace consistent.
 				trace.GoSched()
 				trace.ProcStop(gp.m.p.ptr())
 				traceRelease(trace)

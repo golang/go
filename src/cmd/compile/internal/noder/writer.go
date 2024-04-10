@@ -831,7 +831,11 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 	case *types2.TypeName:
 		if obj.IsAlias() {
 			w.pos(obj)
-			w.typ(types2.Unalias(obj.Type()))
+			t := obj.Type()
+			if alias, ok := t.(*types2.Alias); ok { // materialized alias
+				t = alias.Rhs()
+			}
+			w.typ(t)
 			return pkgbits.ObjAlias
 		}
 
@@ -2304,7 +2308,6 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 				elem = kv.Value
 			}
 		}
-		w.pos(elem)
 		w.implicitConvExpr(elemType, elem)
 	}
 }

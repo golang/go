@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.19
-
 package counter
 
 // The implementation of this package and tests are located in
@@ -13,6 +11,8 @@ package counter
 // type aliasing or restructuring the internal/counter package.
 import (
 	"flag"
+	"path"
+	"runtime/debug"
 
 	"golang.org/x/telemetry/internal/counter"
 )
@@ -92,9 +92,30 @@ func Open() {
 // and increments the counter. The name of the counter is
 // the concatenation of prefix and the flag name.
 //
-//	For instance, CountFlags("gopls:flag-", flag.CommandLine)
+//	For instance, CountFlags("gopls/flag:", *flag.CommandLine)
 func CountFlags(prefix string, fs flag.FlagSet) {
 	fs.Visit(func(f *flag.Flag) {
 		New(prefix + f.Name).Inc()
 	})
+}
+
+// CountCommandLineFlags creates a counter for every flag
+// that is set in the default flag.CommandLine FlagSet using
+// the counter name binaryName+"/flag:"+flagName where
+// binaryName is the base name of the Path embedded in the
+// binary's build info. If the binary does not have embedded build
+// info, the "flag:"+flagName counter will be incremented.
+//
+// CountCommandLineFlags must be called after flags are parsed
+// with flag.Parse.
+//
+// For instance, if the -S flag is passed to cmd/compile and
+// CountCommandLineFlags is called after flags are parsed,
+// the "compile/flag:S" counter will be incremented.
+func CountCommandLineFlags() {
+	prefix := "flag:"
+	if buildInfo, ok := debug.ReadBuildInfo(); ok && buildInfo.Path != "" {
+		prefix = path.Base(buildInfo.Path) + "/" + prefix
+	}
+	CountFlags(prefix, *flag.CommandLine)
 }

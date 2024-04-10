@@ -24,7 +24,7 @@ type Type struct {
 	TFlag       TFlag   // extra type information flags
 	Align_      uint8   // alignment of variable with this type
 	FieldAlign_ uint8   // alignment of struct field with this type
-	Kind_       uint8   // enumeration for C
+	Kind_       Kind    // enumeration for C
 	// function for comparing objects of this type
 	// (ptr to object A, ptr to object B) -> ==?
 	Equal func(unsafe.Pointer, unsafe.Pointer) bool
@@ -38,7 +38,7 @@ type Type struct {
 
 // A Kind represents the specific kind of type that a Type represents.
 // The zero Kind is not a valid kind.
-type Kind uint
+type Kind uint8
 
 const (
 	Invalid Kind = iota
@@ -72,9 +72,9 @@ const (
 
 const (
 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
-	KindDirectIface = 1 << 5
-	KindGCProg      = 1 << 6 // Type.gc points to GC program
-	KindMask        = (1 << 5) - 1
+	KindDirectIface Kind = 1 << 5
+	KindGCProg      Kind = 1 << 6 // Type.gc points to GC program
+	KindMask        Kind = (1 << 5) - 1
 )
 
 // TFlag is used by a Type to signal what extra type information is
@@ -166,7 +166,7 @@ var kindNames = []string{
 	UnsafePointer: "unsafe.Pointer",
 }
 
-func (t *Type) Kind() Kind { return Kind(t.Kind_ & KindMask) }
+func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
 
 func (t *Type) HasName() bool {
 	return t.TFlag&TFlagNamed != 0

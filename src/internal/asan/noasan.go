@@ -12,8 +12,6 @@ import (
 
 const Enabled = false
 
-func Read(addr unsafe.Pointer, len int) {
-}
+func Read(addr unsafe.Pointer, len uintptr) {}
 
-func Write(addr unsafe.Pointer, len int) {
-}
+func Write(addr unsafe.Pointer, len uintptr) {}

@@ -18,7 +18,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1641,7 +1641,11 @@ func (_ traceLocker) GCMarkAssistDone() {
 	traceEvent(traceEvGCMarkAssistDone, -1)
 }
 
-func (_ traceLocker) GoCreate(newg *g, pc uintptr) {
+// N.B. the last argument is used only for iter.Pull.
+func (_ traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
+	if blocked {
+		throw("tried to emit event for newly-created blocked goroutine: unsupported in the v1 tracer")
+	}
 	newg.trace.seq = 0
 	newg.trace.lastP = getg().m.p
 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
@@ -1694,6 +1698,10 @@ func (_ traceLocker) GoUnpark(gp *g, skip int) {
 		gp.trace.lastP = pp
 		traceEvent(traceEvGoUnblock, skip, gp.goid, gp.trace.seq)
 	}
+}
+
+func (_ traceLocker) GoSwitch(_ *g, _ bool) {
+	throw("tried to emit event for a direct goroutine switch: unsupported in the v1 tracer")
 }
 
 func (_ traceLocker) GoSysCall() {
@@ -1891,7 +1899,7 @@ func (tl traceLocker) OneNewExtraM(gp *g) {
 	// Trigger two trace events for the locked g in the extra m,
 	// since the next event of the g will be traceEvGoSysExit in exitsyscall,
 	// while calling from C thread to Go.
-	tl.GoCreate(gp, 0) // no start pc
+	tl.GoCreate(gp, 0, false) // no start pc
 	gp.trace.seq++
 	traceEvent(traceEvGoInSyscall, -1, gp.goid)
 }

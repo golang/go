@@ -47,6 +47,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/notsha256",
 	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
+	"cmd/internal/pgo",
 	"cmd/internal/pkgpath",
 	"cmd/internal/quoted",
 	"cmd/internal/src",
@@ -316,7 +317,7 @@ func bootstrapFixImports(srcFile string) string {
 			continue
 		}
 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"") || strings.HasPrefix(line, "\trtabi \"")) {
+			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"") || strings.HasPrefix(line, "\trtabi \"") || strings.HasPrefix(line, "\tpgoir \"")) {
 			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
 			for _, dir := range bootstrapDirs {
 				if strings.HasPrefix(dir, "cmd/") {

@@ -11,8 +11,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
-	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -239,9 +238,6 @@ var mheap_ mheap
 // outside of the Go heap and accessed via the mheap_.arenas index.
 type heapArena struct {
 	_ sys.NotInHeap
-
-	// heapArenaPtrScalar contains pointer/scalar data about the heap for this heap arena.
-	heapArenaPtrScalar
 
 	// spans maps from virtual address page ID within this arena to *mspan.
 	// For allocated spans, their pages map to the span itself.
@@ -1397,8 +1393,8 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 			s.divMul = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
-			if goexperiment.AllocHeaders && !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
-				// In the allocheaders experiment, reserve space for the pointer/scan bitmap at the end.
+			if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
+				// Reserve space for the pointer/scan bitmap at the end.
 				s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
 			} else {
 				s.nelems = uint16(nbytes / s.elemsize)

@@ -73,7 +73,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiWrappers:   regabiSupported,
 		RegabiArgs:       regabiSupported,
 		CoverageRedesign: true,
-		AllocHeaders:     true,
 		ExecTracer2:      true,
 	}
 

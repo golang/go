@@ -6,7 +6,10 @@
 
 package main
 
-import "time"
+import (
+	"runtime"
+	"time"
+)
 
 type T struct{}
 
@@ -24,8 +27,19 @@ type Q interface {
 }
 
 func main() {
+	var count = 10000
+	if runtime.Compiler == "gccgo" {
+		// On targets without split-stack libgo allocates
+		// a large stack for each goroutine. On 32-bit
+		// systems this test can run out of memory.
+		const intSize = 32 << (^uint(0) >> 63) // 32 or 64
+		if intSize < 64 {
+			count = 100
+		}
+	}
+
 	var q Q = &R{&T{}}
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < count; i++ {
 		go func() {
 			defer q.Foo([]interface{}{"meow"})
 			time.Sleep(100 * time.Millisecond)

@@ -10,7 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -218,7 +218,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			userG := getg().m.curg
 			selfScan := gp == userG && readgstatus(userG) == _Grunning
 			if selfScan {
-				casGToWaiting(userG, _Grunning, waitReasonGarbageCollectionScan)
+				casGToWaitingForGC(userG, _Grunning, waitReasonGarbageCollectionScan)
 			}
 
 			// TODO: suspendG blocks (and spins) until gp
@@ -655,7 +655,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	}
 
 	// gcDrainN requires the caller to be preemptible.
-	casGToWaiting(gp, _Grunning, waitReasonGCAssistMarking)
+	casGToWaitingForGC(gp, _Grunning, waitReasonGCAssistMarking)
 
 	// drain own cached work first in the hopes that it
 	// will be more cache friendly.
@@ -1435,34 +1435,18 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// of the object.
 		n = s.base() + s.elemsize - b
 		n = min(n, maxObletBytes)
-		if goexperiment.AllocHeaders {
-			tp = s.typePointersOfUnchecked(s.base())
-			tp = tp.fastForward(b-tp.addr, b+n)
-		}
+		tp = s.typePointersOfUnchecked(s.base())
+		tp = tp.fastForward(b-tp.addr, b+n)
 	} else {
-		if goexperiment.AllocHeaders {
-			tp = s.typePointersOfUnchecked(b)
-		}
+		tp = s.typePointersOfUnchecked(b)
 	}
 
-	var hbits heapBits
-	if !goexperiment.AllocHeaders {
-		hbits = heapBitsForAddr(b, n)
-	}
 	var scanSize uintptr
 	for {
 		var addr uintptr
-		if goexperiment.AllocHeaders {
-			if tp, addr = tp.nextFast(); addr == 0 {
-				if tp, addr = tp.next(b + n); addr == 0 {
-					break
-				}
-			}
-		} else {
-			if hbits, addr = hbits.nextFast(); addr == 0 {
-				if hbits, addr = hbits.next(); addr == 0 {
-					break
-				}
+		if tp, addr = tp.nextFast(); addr == 0 {
+			if tp, addr = tp.next(b + n); addr == 0 {
+				break
 			}
 		}
 

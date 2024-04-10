@@ -9,7 +9,7 @@ import (
 	"net/http/httptrace"
 	"net/http/internal/ascii"
 	"net/textproto"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -152,16 +152,10 @@ type keyValues struct {
 	values []string
 }
 
-// A headerSorter implements sort.Interface by sorting a []keyValues
-// by key. It's used as a pointer, so it can fit in a sort.Interface
-// interface value without allocation.
+// headerSorter contains a slice of keyValues sorted by keyValues.key.
 type headerSorter struct {
 	kvs []keyValues
 }
-
-func (s *headerSorter) Len() int           { return len(s.kvs) }
-func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
-func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
 
 var headerSorterPool = sync.Pool{
 	New: func() any { return new(headerSorter) },
@@ -182,7 +176,7 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
 		}
 	}
 	hs.kvs = kvs
-	sort.Sort(hs)
+	slices.SortFunc(hs.kvs, func(a, b keyValues) int { return strings.Compare(a.key, b.key) })
 	return kvs, hs
 }
 

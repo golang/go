@@ -747,7 +747,7 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // If the provided file or directory name is a relative path, it is
 // interpreted relative to the current directory and may ascend to
 // parent directories. If the provided name is constructed from user
-// input, it should be sanitized before calling ServeFile.
+// input, it should be sanitized before calling [ServeFile].
 //
 // As a precaution, ServeFile will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
@@ -779,22 +779,20 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 // ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
 //
-// If the provided file or directory name is a relative path, it is
-// interpreted relative to the current directory and may ascend to
-// parent directories. If the provided name is constructed from user
-// input, it should be sanitized before calling [ServeFile].
+// If the provided name is constructed from user input, it should be
+// sanitized before calling [ServeFileFS].
 //
-// As a precaution, ServeFile will reject requests where r.URL.Path
+// As a precaution, ServeFileFS will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
 // might unsafely use [filepath.Join] on r.URL.Path without sanitizing
 // it and then use that filepath.Join result as the name argument.
 //
-// As another special case, ServeFile redirects any request where r.URL.Path
+// As another special case, ServeFileFS redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
-// use ServeContent.
+// use [ServeContent].
 //
-// Outside of those two special cases, ServeFile does not use
+// Outside of those two special cases, ServeFileFS does not use
 // r.URL.Path for selecting the file or directory to serve; only the
 // file or directory provided in the name argument is used.
 func ServeFileFS(w ResponseWriter, r *Request, fsys fs.FS, name string) {

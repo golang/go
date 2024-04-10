@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
-		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
+		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", quote(v.name))
 	}
 
 	for _, scope := range scope.children {
@@ -496,7 +496,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
 					err := check.newError(OutOfScopeResult)
-					err.addf(s, "result parameter %s not in scope at return", obj.name)
+					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
 					err.addf(alt, "inner declaration of %s", obj)
 					err.report()
 					// ok to continue

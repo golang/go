@@ -192,6 +192,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			"darwin/amd64", "darwin/arm64",
 			"ios/amd64", "ios/arm64",
 			"aix/ppc64",
+			"openbsd/arm64",
 			"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 			return true
 		}

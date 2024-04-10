@@ -42,7 +42,7 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
 // context is cancellable. It is intended for use with calls that don't support context
 // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
 // For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
-// blocking might not be executed when the context gets cancelled early.
+// blocking might not be executed when the context gets canceled early.
 func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking func() (T, error)) (T, error) {
 	if err := acquireThread(ctx); err != nil {
 		var zero T

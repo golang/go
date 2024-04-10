@@ -998,7 +998,7 @@ func TestHandshakeServerSNI(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForName is similar to TestHandshakeServerSNI, but
+// TestHandshakeServerSNIGetCertificate is similar to TestHandshakeServerSNI, but
 // tests the dynamic GetCertificate method
 func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 	config := testConfig.Clone()

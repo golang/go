@@ -108,16 +108,12 @@ func NewFile(fd uintptr, name string) *File {
 		return nil
 	}
 
-	kind := kindNewFile
-	appendMode := false
-	if flags, err := unix.Fcntl(fdi, syscall.F_GETFL, 0); err == nil {
-		if unix.HasNonblockFlag(flags) {
-			kind = kindNonBlock
-		}
-		appendMode = flags&syscall.O_APPEND != 0
+	flags, err := unix.Fcntl(fdi, syscall.F_GETFL, 0)
+	if err != nil {
+		flags = 0
 	}
-	f := newFile(fdi, name, kind)
-	f.appendMode = appendMode
+	f := newFile(fdi, name, kindNewFile, unix.HasNonblockFlag(flags))
+	f.appendMode = flags&syscall.O_APPEND != 0
 	return f
 }
 
@@ -136,9 +132,7 @@ func net_newUnixFile(fd int, name string) *File {
 		panic("invalid FD")
 	}
 
-	f := newFile(fd, name, kindNonBlock)
-	f.nonblock = true // tell Fd to return blocking descriptor
-	return f
+	return newFile(fd, name, kindSock, true)
 }
 
 // newFileKind describes the kind of file to newFile.
@@ -148,23 +142,23 @@ const (
 	// kindNewFile means that the descriptor was passed to us via NewFile.
 	kindNewFile newFileKind = iota
 	// kindOpenFile means that the descriptor was opened using
-	// Open, Create, or OpenFile (without O_NONBLOCK).
+	// Open, Create, or OpenFile.
 	kindOpenFile
 	// kindPipe means that the descriptor was opened using Pipe.
 	kindPipe
-	// kindNonBlock means that the descriptor is already in
-	// non-blocking mode.
-	kindNonBlock
+	// kindSock means that the descriptor is a network file descriptor
+	// that was created from net package and was opened using net_newUnixFile.
+	kindSock
 	// kindNoPoll means that we should not put the descriptor into
 	// non-blocking mode, because we know it is not a pipe or FIFO.
-	// Used by openFdAt for directories.
+	// Used by openFdAt and openDirNolog for directories.
 	kindNoPoll
 )
 
 // newFile is like NewFile, but if called from OpenFile or Pipe
 // (as passed in the kind parameter) it tries to add the file to
 // the runtime poller.
-func newFile(fd int, name string, kind newFileKind) *File {
+func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 	f := &File{&file{
 		pfd: poll.FD{
 			Sysfd:         fd,
@@ -175,11 +169,16 @@ func newFile(fd int, name string, kind newFileKind) *File {
 		stdoutOrErr: fd == 1 || fd == 2,
 	}}
 
-	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindSock || nonBlocking
 
-	// If the caller passed a non-blocking filedes (kindNonBlock),
-	// we assume they know what they are doing so we allow it to be
-	// used with kqueue.
+	// Things like regular files and FIFOs in kqueue on *BSD/Darwin
+	// may not work properly (or accurately according to its manual).
+	// As a result, we should avoid adding those to the kqueue-based
+	// netpoller. Check out #19093, #24164, and #66239 for more contexts.
+	//
+	// If the fd was passed to us via any path other than OpenFile,
+	// we assume those callers know what they were doing, so we won't
+	// perform this check and allow it to be added to the kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
 		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
@@ -211,10 +210,14 @@ func newFile(fd int, name string, kind newFileKind) *File {
 
 	clearNonBlock := false
 	if pollable {
-		if kind == kindNonBlock {
-			// The descriptor is already in non-blocking mode.
-			// We only set f.nonblock if we put the file into
-			// non-blocking mode.
+		// The descriptor is already in non-blocking mode.
+		// We only set f.nonblock if we put the file into
+		// non-blocking mode.
+		if nonBlocking {
+			// See the comments on net_newUnixFile.
+			if kind == kindSock {
+				f.nonblock = true // tell Fd to return blocking descriptor
+			}
 		} else if err := syscall.SetNonblock(fd, true); err == nil {
 			f.nonblock = true
 			clearNonBlock = true
@@ -256,7 +259,7 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
-// Changes here should be reflected in openFdAt, if relevant.
+// Changes here should be reflected in openFdAt and openDirNolog, if relevant.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -265,20 +268,17 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		}
 	}
 
-	var r int
-	var s poll.SysFile
-	for {
-		var e error
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	// We have to check EINTR here, per issues 11180 and 39237.
+	ignoringEINTR(func() error {
 		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-		if e == nil {
-			break
-		}
-
-		// We have to check EINTR here, per issues 11180 and 39237.
-		if e == syscall.EINTR {
-			continue
-		}
-
+		return e
+	})
+	if e != nil {
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
@@ -293,12 +293,30 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	kind := kindOpenFile
-	if unix.HasNonblockFlag(flag) {
-		kind = kindNonBlock
+	f := newFile(r, name, kindOpenFile, unix.HasNonblockFlag(flag))
+	f.pfd.SysFile = s
+	return f, nil
+}
+
+func openDirNolog(name string) (*File, error) {
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	ignoringEINTR(func() error {
+		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
+		return e
+	})
+	if e != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
-	f := newFile(r, name, kind)
+	if !supportsCloseOnExec {
+		syscall.CloseOnExec(r)
+	}
+
+	f := newFile(r, name, kindNoPoll, false)
 	f.pfd.SysFile = s
 	return f, nil
 }

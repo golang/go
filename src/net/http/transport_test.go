@@ -754,7 +754,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
 	tr := c.Transport.(*Transport)
 	tr.MaxConnsPerHost = 1
 
-	// This request is cancelled when dial is queued, which preempts dialing.
+	// This request is canceled when dial is queued, which preempts dialing.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	SetPendingDialHooks(cancel, nil)
@@ -6844,23 +6844,25 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 		})
 		req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 		res, err := client.Do(req)
-		reqerrc <- err
-		if err == nil {
+		if err != nil {
+			reqerrc <- err
+		} else {
 			res.Body.Close()
 		}
 	}()
 
 	// Wait for the first request to receive a response and return the
 	// connection to the idle pool.
-	r1c := <-reqc
-	close(r1c)
+	select {
+	case err := <-reqerrc:
+		t.Fatalf("request 1: got err %v, want nil", err)
+	case r1c := <-reqc:
+		close(r1c)
+	}
 	var idlec chan struct{}
 	select {
 	case err := <-reqerrc:
-		if err != nil {
-			t.Fatalf("request 1: got err %v, want nil", err)
-		}
-		idlec = <-putidlec
+		t.Fatalf("request 1: got err %v, want nil", err)
 	case idlec = <-putidlec:
 	}
 
@@ -6968,4 +6970,105 @@ func testProxyAuthHeader(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
+}
+
+// Issue 61708
+func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
+	ln := newLocalListener(t)
+	addr := ln.Addr().String()
+
+	done := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			t.Errorf("ln.Accept: %v", err)
+			return
+		}
+		// Start reading request before sending response to avoid
+		// "Unsolicited response received on idle HTTP channel" RoundTrip error.
+		if _, err := io.ReadFull(conn, make([]byte, 1)); err != nil {
+			t.Errorf("conn.Read: %v", err)
+			return
+		}
+		io.WriteString(conn, "HTTP/1.1 200\r\nContent-Length: 3\r\n\r\nfoo")
+		<-done
+		conn.Close()
+	}()
+
+	didRead := make(chan bool)
+	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
+	defer SetReadLoopBeforeNextReadHook(nil)
+
+	tr := &Transport{}
+
+	// Send a request with a body guaranteed to fail on write.
+	req, err := NewRequest("POST", "http://"+addr, io.LimitReader(neverEnding('x'), 1<<30))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+
+	resp, err := tr.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("tr.RoundTrip: %v", err)
+	}
+
+	close(done)
+
+	// Before closing response body wait for readLoopDone goroutine
+	// to complete due to closed connection by writeLoop.
+	<-didRead
+
+	resp.Body.Close()
+
+	// Verify no outstanding requests after readLoop/writeLoop
+	// goroutines shut down.
+	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
+		n := tr.NumPendingRequestsForTesting()
+		if n > 0 {
+			if d > 0 {
+				t.Logf("pending requests = %d after %v (want 0)", n, d)
+			}
+			return false
+		}
+		return true
+	})
+}
+
+func TestValidateClientRequestTrailers(t *testing.T) {
+	run(t, testValidateClientRequestTrailers)
+}
+
+func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		rw.Write([]byte("Hello"))
+	})).ts
+
+	cases := []struct {
+		trailer Header
+		wantErr string
+	}{
+		{Header{"Trx": {"x\r\nX-Another-One"}}, `invalid trailer field value for "Trx"`},
+		{Header{"\r\nTrx": {"X-Another-One"}}, `invalid trailer field name "\r\nTrx"`},
+	}
+
+	for i, tt := range cases {
+		testName := fmt.Sprintf("%s%d", mode, i)
+		t.Run(testName, func(t *testing.T) {
+			req, err := NewRequest("GET", cst.URL, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Trailer = tt.trailer
+			res, err := cst.Client().Do(req)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+			if g, w := err.Error(), tt.wantErr; !strings.Contains(g, w) {
+				t.Fatalf("Mismatched error\n\t%q\ndoes not contain\n\t%q", g, w)
+			}
+			if res != nil {
+				t.Fatal("Unexpected non-nil response")
+			}
+		})
+	}
 }

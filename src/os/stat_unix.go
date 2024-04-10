@@ -19,7 +19,7 @@ func (f *File) Stat() (FileInfo, error) {
 	var fs fileStat
 	err := f.pfd.Fstat(&fs.sys)
 	if err != nil {
-		return nil, &PathError{Op: "stat", Path: f.name, Err: err}
+		return nil, f.wrapErr("stat", err)
 	}
 	fillFileStatFromSys(&fs, f.name)
 	return &fs, nil

@@ -587,6 +587,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
 			//           the alias as incomplete. Currently this causes problems
 			//           with certain cycles. Investigate.
+			//
+			// NOTE(adonovan): to avoid the Invalid being prematurely observed
+			// by (e.g.) a var whose type is an unfinished cycle,
+			// Unalias does not memoize if Invalid. Perhaps we should use a
+			// special sentinel distinct from Invalid.
 			alias := check.newAlias(obj, Typ[Invalid])
 			setDefType(def, alias)
 
@@ -825,7 +830,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
 					err := check.newError(DuplicateFieldAndMethod)
-					err.addf(alt, "field and method with the same name %s", fld.name)
+					err.addf(alt, "field and method with the same name %s", quote(fld.name))
 					err.addAltDecl(fld)
 					err.report()
 				}

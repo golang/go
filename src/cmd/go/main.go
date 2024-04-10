@@ -182,7 +182,13 @@ func main() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	// Increment a subcommand counter for the subcommand we're running.
+	// Don't increment the counter for the tool subcommand here: we'll
+	// increment in the tool subcommand's Run function because we need
+	// to do the flag processing in invoke first.
+	if cfg.CmdName != "tool" {
+		telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	}
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -261,6 +267,7 @@ func invoke(cmd *base.Command, args []string) {
 		}
 		defer func() {
 			rtrace.Stop()
+			f.Close()
 		}()
 	}
 

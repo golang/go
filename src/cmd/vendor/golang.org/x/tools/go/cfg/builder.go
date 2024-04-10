@@ -16,8 +16,8 @@ type builder struct {
 	cfg       *CFG
 	mayReturn func(*ast.CallExpr) bool
 	current   *Block
-	lblocks   map[*ast.Object]*lblock // labeled blocks
-	targets   *targets                // linked stack of branch targets
+	lblocks   map[string]*lblock // labeled blocks
+	targets   *targets           // linked stack of branch targets
 }
 
 func (b *builder) stmt(_s ast.Stmt) {
@@ -42,7 +42,7 @@ start:
 		b.add(s)
 		if call, ok := s.X.(*ast.CallExpr); ok && !b.mayReturn(call) {
 			// Calls to panic, os.Exit, etc, never return.
-			b.current = b.newBlock("unreachable.call")
+			b.current = b.newBlock(KindUnreachable, s)
 		}
 
 	case *ast.DeclStmt:
@@ -57,7 +57,7 @@ start:
 		}
 
 	case *ast.LabeledStmt:
-		label = b.labeledBlock(s.Label)
+		label = b.labeledBlock(s.Label, s)
 		b.jump(label._goto)
 		b.current = label._goto
 		_s = s.Stmt
@@ -65,7 +65,7 @@ start:
 
 	case *ast.ReturnStmt:
 		b.add(s)
-		b.current = b.newBlock("unreachable.return")
+		b.current = b.newBlock(KindUnreachable, s)
 
 	case *ast.BranchStmt:
 		b.branchStmt(s)
@@ -77,11 +77,11 @@ start:
 		if s.Init != nil {
 			b.stmt(s.Init)
 		}
-		then := b.newBlock("if.then")
-		done := b.newBlock("if.done")
+		then := b.newBlock(KindIfThen, s)
+		done := b.newBlock(KindIfDone, s)
 		_else := done
 		if s.Else != nil {
-			_else = b.newBlock("if.else")
+			_else = b.newBlock(KindIfElse, s)
 		}
 		b.add(s.Cond)
 		b.ifelse(then, _else)
@@ -128,7 +128,7 @@ func (b *builder) branchStmt(s *ast.BranchStmt) {
 	switch s.Tok {
 	case token.BREAK:
 		if s.Label != nil {
-			if lb := b.labeledBlock(s.Label); lb != nil {
+			if lb := b.labeledBlock(s.Label, nil); lb != nil {
 				block = lb._break
 			}
 		} else {
@@ -139,7 +139,7 @@ func (b *builder) branchStmt(s *ast.BranchStmt) {
 
 	case token.CONTINUE:
 		if s.Label != nil {
-			if lb := b.labeledBlock(s.Label); lb != nil {
+			if lb := b.labeledBlock(s.Label, nil); lb != nil {
 				block = lb._continue
 			}
 		} else {
@@ -155,14 +155,14 @@ func (b *builder) branchStmt(s *ast.BranchStmt) {
 
 	case token.GOTO:
 		if s.Label != nil {
-			block = b.labeledBlock(s.Label)._goto
+			block = b.labeledBlock(s.Label, nil)._goto
 		}
 	}
-	if block == nil {
-		block = b.newBlock("undefined.branch")
+	if block == nil { // ill-typed (e.g. undefined label)
+		block = b.newBlock(KindUnreachable, s)
 	}
 	b.jump(block)
-	b.current = b.newBlock("unreachable.branch")
+	b.current = b.newBlock(KindUnreachable, s)
 }
 
 func (b *builder) switchStmt(s *ast.SwitchStmt, label *lblock) {
@@ -172,7 +172,7 @@ func (b *builder) switchStmt(s *ast.SwitchStmt, label *lblock) {
 	if s.Tag != nil {
 		b.add(s.Tag)
 	}
-	done := b.newBlock("switch.done")
+	done := b.newBlock(KindSwitchDone, s)
 	if label != nil {
 		label._break = done
 	}
@@ -188,13 +188,13 @@ func (b *builder) switchStmt(s *ast.SwitchStmt, label *lblock) {
 	for i, clause := range s.Body.List {
 		body := fallthru
 		if body == nil {
-			body = b.newBlock("switch.body") // first case only
+			body = b.newBlock(KindSwitchCaseBody, clause) // first case only
 		}
 
 		// Preallocate body block for the next case.
 		fallthru = done
 		if i+1 < ncases {
-			fallthru = b.newBlock("switch.body")
+			fallthru = b.newBlock(KindSwitchCaseBody, s.Body.List[i+1])
 		}
 
 		cc := clause.(*ast.CaseClause)
@@ -208,7 +208,7 @@ func (b *builder) switchStmt(s *ast.SwitchStmt, label *lblock) {
 
 		var nextCond *Block
 		for _, cond := range cc.List {
-			nextCond = b.newBlock("switch.next")
+			nextCond = b.newBlock(KindSwitchNextCase, cc)
 			b.add(cond) // one half of the tag==cond condition
 			b.ifelse(body, nextCond)
 			b.current = nextCond
@@ -247,7 +247,7 @@ func (b *builder) typeSwitchStmt(s *ast.TypeSwitchStmt, label *lblock) {
 		b.add(s.Assign)
 	}
 
-	done := b.newBlock("typeswitch.done")
+	done := b.newBlock(KindSwitchDone, s)
 	if label != nil {
 		label._break = done
 	}
@@ -258,10 +258,10 @@ func (b *builder) typeSwitchStmt(s *ast.TypeSwitchStmt, label *lblock) {
 			default_ = cc
 			continue
 		}
-		body := b.newBlock("typeswitch.body")
+		body := b.newBlock(KindSwitchCaseBody, cc)
 		var next *Block
 		for _, casetype := range cc.List {
-			next = b.newBlock("typeswitch.next")
+			next = b.newBlock(KindSwitchNextCase, cc)
 			// casetype is a type, so don't call b.add(casetype).
 			// This block logically contains a type assertion,
 			// x.(casetype), but it's unclear how to represent x.
@@ -300,7 +300,7 @@ func (b *builder) selectStmt(s *ast.SelectStmt, label *lblock) {
 		}
 	}
 
-	done := b.newBlock("select.done")
+	done := b.newBlock(KindSelectDone, s)
 	if label != nil {
 		label._break = done
 	}
@@ -312,8 +312,8 @@ func (b *builder) selectStmt(s *ast.SelectStmt, label *lblock) {
 			defaultBody = &clause.Body
 			continue
 		}
-		body := b.newBlock("select.body")
-		next := b.newBlock("select.next")
+		body := b.newBlock(KindSelectCaseBody, clause)
+		next := b.newBlock(KindSelectAfterCase, clause)
 		b.ifelse(body, next)
 		b.current = body
 		b.targets = &targets{
@@ -358,15 +358,15 @@ func (b *builder) forStmt(s *ast.ForStmt, label *lblock) {
 	if s.Init != nil {
 		b.stmt(s.Init)
 	}
-	body := b.newBlock("for.body")
-	done := b.newBlock("for.done") // target of 'break'
-	loop := body                   // target of back-edge
+	body := b.newBlock(KindForBody, s)
+	done := b.newBlock(KindForDone, s) // target of 'break'
+	loop := body                       // target of back-edge
 	if s.Cond != nil {
-		loop = b.newBlock("for.loop")
+		loop = b.newBlock(KindForLoop, s)
 	}
 	cont := loop // target of 'continue'
 	if s.Post != nil {
-		cont = b.newBlock("for.post")
+		cont = b.newBlock(KindForPost, s)
 	}
 	if label != nil {
 		label._break = done
@@ -414,12 +414,12 @@ func (b *builder) rangeStmt(s *ast.RangeStmt, label *lblock) {
 	// 	jump loop
 	// done:                                   (target of break)
 
-	loop := b.newBlock("range.loop")
+	loop := b.newBlock(KindRangeLoop, s)
 	b.jump(loop)
 	b.current = loop
 
-	body := b.newBlock("range.body")
-	done := b.newBlock("range.done")
+	body := b.newBlock(KindRangeBody, s)
+	done := b.newBlock(KindRangeDone, s)
 	b.ifelse(body, done)
 	b.current = body
 
@@ -461,14 +461,19 @@ type lblock struct {
 
 // labeledBlock returns the branch target associated with the
 // specified label, creating it if needed.
-func (b *builder) labeledBlock(label *ast.Ident) *lblock {
-	lb := b.lblocks[label.Obj]
+func (b *builder) labeledBlock(label *ast.Ident, stmt *ast.LabeledStmt) *lblock {
+	lb := b.lblocks[label.Name]
 	if lb == nil {
-		lb = &lblock{_goto: b.newBlock(label.Name)}
+		lb = &lblock{_goto: b.newBlock(KindLabel, nil)}
 		if b.lblocks == nil {
-			b.lblocks = make(map[*ast.Object]*lblock)
+			b.lblocks = make(map[string]*lblock)
 		}
-		b.lblocks[label.Obj] = lb
+		b.lblocks[label.Name] = lb
+	}
+	// Fill in the label later (in case of forward goto).
+	// Stmt may be set already if labels are duplicated (ill-typed).
+	if stmt != nil && lb._goto.Stmt == nil {
+		lb._goto.Stmt = stmt
 	}
 	return lb
 }
@@ -477,11 +482,12 @@ func (b *builder) labeledBlock(label *ast.Ident) *lblock {
 // slice and returns it.
 // It does not automatically become the current block.
 // comment is an optional string for more readable debugging output.
-func (b *builder) newBlock(comment string) *Block {
+func (b *builder) newBlock(kind BlockKind, stmt ast.Stmt) *Block {
 	g := b.cfg
 	block := &Block{
-		Index:   int32(len(g.Blocks)),
-		comment: comment,
+		Index: int32(len(g.Blocks)),
+		Kind:  kind,
+		Stmt:  stmt,
 	}
 	block.Succs = block.succs2[:0]
 	g.Blocks = append(g.Blocks, block)

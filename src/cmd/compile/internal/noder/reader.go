@@ -2965,7 +2965,7 @@ func (r *reader) compLit() ir.Node {
 			*elemp, elemp = kv, &kv.Value
 		}
 
-		*elemp = wrapName(r.pos(), r.expr())
+		*elemp = r.expr()
 	}
 
 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
@@ -2978,23 +2978,6 @@ func (r *reader) compLit() ir.Node {
 		lit.SetType(typ0)
 	}
 	return lit
-}
-
-func wrapName(pos src.XPos, x ir.Node) ir.Node {
-	// These nodes do not carry line numbers.
-	// Introduce a wrapper node to give them the correct line.
-	switch x.Op() {
-	case ir.OTYPE, ir.OLITERAL:
-		if x.Sym() == nil {
-			break
-		}
-		fallthrough
-	case ir.ONAME, ir.ONONAME, ir.ONIL:
-		p := ir.NewParenExpr(pos, x)
-		p.SetImplicit(true)
-		return p
-	}
-	return x
 }
 
 func (r *reader) funcLit() ir.Node {

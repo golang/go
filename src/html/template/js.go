@@ -171,7 +171,7 @@ func jsValEscaper(args ...any) string {
 	// cyclic data. This may be an unacceptable DoS risk.
 	b, err := json.Marshal(a)
 	if err != nil {
-		// While the standard JSON marshaller does not include user controlled
+		// While the standard JSON marshaler does not include user controlled
 		// information in the error message, if a type has a MarshalJSON method,
 		// the content of the error message is not guaranteed. Since we insert
 		// the error into the template, as part of a comment, we attempt to

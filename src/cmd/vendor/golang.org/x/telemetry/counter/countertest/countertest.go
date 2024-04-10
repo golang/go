@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.19
-
 // countertest provides testing utilities for counters.
 // This package cannot be used except for testing.
 package countertest
@@ -21,6 +19,9 @@ var (
 	openedMu sync.Mutex
 	opened   bool
 )
+
+// SupportedPlatform reports if this platform supports Open()
+const SupportedPlatform = !telemetry.DisabledOnPlatform
 
 func isOpen() bool {
 	openedMu.Lock()

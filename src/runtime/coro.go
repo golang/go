@@ -39,11 +39,9 @@ func newcoro(f func(*coro)) *coro {
 	systemstack(func() {
 		start := corostart
 		startfv := *(**funcval)(unsafe.Pointer(&start))
-		gp = newproc1(startfv, gp, pc)
+		gp = newproc1(startfv, gp, pc, true, waitReasonCoroutine)
 	})
 	gp.coroarg = c
-	gp.waitreason = waitReasonCoroutine
-	casgstatus(gp, _Grunnable, _Gwaiting)
 	c.gp.set(gp)
 	return c
 }
@@ -94,18 +92,30 @@ func coroswitch(c *coro) {
 // It is important not to add more atomic operations or other
 // expensive operations to the fast path.
 func coroswitch_m(gp *g) {
-	// TODO(rsc,mknyszek): add tracing support in a lightweight manner.
-	// Probably the tracer will need a global bool (set and cleared during STW)
-	// that this code can check to decide whether to use trace.gen.Load();
-	// we do not want to do the atomic load all the time, especially when
-	// tracer use is relatively rare.
+	// TODO(go.dev/issue/65889): Something really nasty will happen if either
+	// goroutine in this handoff tries to lock itself to an OS thread.
+	// There's an explicit multiplexing going on here that needs to be
+	// disabled if either the consumer or the iterator ends up in such
+	// a state.
 	c := gp.coroarg
 	gp.coroarg = nil
 	exit := gp.coroexit
 	gp.coroexit = false
 	mp := gp.m
 
+	// Acquire tracer for writing for the duration of this call.
+	//
+	// There's a lot of state manipulation performed with shortcuts
+	// but we need to make sure the tracer can only observe the
+	// start and end states to maintain a coherent model and avoid
+	// emitting an event for every single transition.
+	trace := traceAcquire()
+
 	if exit {
+		// TODO(65889): If we're locked to the current OS thread and
+		// we exit here while tracing is enabled, we're going to end up
+		// in a really bad place (traceAcquire also calls acquirem; there's
+		// no releasem before the thread exits).
 		gdestroy(gp)
 		gp = nil
 	} else {
@@ -148,6 +158,13 @@ func coroswitch_m(gp *g) {
 		}
 	}
 
+	// Emit the trace event after getting gnext but before changing curg.
+	// GoSwitch expects that the current G is running and that we haven't
+	// switched yet for correct status emission.
+	if trace.ok() {
+		trace.GoSwitch(gnext, exit)
+	}
+
 	// Start running next, without heavy scheduling machinery.
 	// Set mp.curg and gnext.m and then update scheduling state
 	// directly if possible.
@@ -158,6 +175,11 @@ func coroswitch_m(gp *g) {
 		// coordinating with the garbage collector about the state change.
 		casgstatus(gnext, _Gwaiting, _Grunnable)
 		casgstatus(gnext, _Grunnable, _Grunning)
+	}
+
+	// Release the trace locker. We've completed all the necessary transitions..
+	if trace.ok() {
+		traceRelease(trace)
 	}
 
 	// Switch to gnext. Does not return.

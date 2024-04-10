@@ -128,7 +128,7 @@ to 1.2+3.4i produces (1.200000+3.400000i).
 
 When formatting a single integer code point or a rune string (type []rune)
 with %q, invalid Unicode code points are changed to the Unicode replacement
-character, U+FFFD, as in strconv.QuoteRune.
+character, U+FFFD, as in [strconv.QuoteRune].
 
 Other flags:
 
@@ -137,7 +137,7 @@ Other flags:
 	'-'	pad with spaces on the right rather than the left (left-justify the field)
 	'#'	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
 		0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
-		for %q, print a raw (backquoted) string if strconv.CanBackquote
+		for %q, print a raw (backquoted) string if [strconv.CanBackquote]
 		returns true;
 		always print a decimal point for %e, %E, %f, %F, %g and %G;
 		do not remove trailing zeros for %g and %G;
@@ -169,17 +169,17 @@ Except when printed using the verbs %T and %p, special
 formatting considerations apply for operands that implement
 certain interfaces. In order of application:
 
-1. If the operand is a reflect.Value, the operand is replaced by the
+1. If the operand is a [reflect.Value], the operand is replaced by the
 concrete value that it holds, and printing continues with the next rule.
 
-2. If an operand implements the Formatter interface, it will
+2. If an operand implements the [Formatter] interface, it will
 be invoked. In this case the interpretation of verbs and flags is
 controlled by that implementation.
 
 3. If the %v verb is used with the # flag (%#v) and the operand
-implements the GoStringer interface, that will be invoked.
+implements the [GoStringer] interface, that will be invoked.
 
-If the format (which is implicitly %v for Println etc.) is valid
+If the format (which is implicitly %v for [Println] etc.) is valid
 for a string (%s %q %x %X), or is %v but not %#v,
 the following two rules apply:
 
@@ -219,7 +219,7 @@ formatting methods such as Error or String on unexported fields.
 
 # Explicit argument indexes
 
-In Printf, Sprintf, and Fprintf, the default behavior is for each
+In [Printf], [Sprintf], and [Fprintf], the default behavior is for each
 formatting verb to format successive arguments passed in the call.
 However, the notation [n] immediately before the verb indicates that the
 nth one-indexed argument is to be formatted instead. The same notation
@@ -287,17 +287,17 @@ string, "<nil>".
 # Scanning
 
 An analogous set of functions scans formatted text to yield
-values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
-Fscanf and Fscanln read from a specified io.Reader; Sscan,
-Sscanf and Sscanln read from an argument string.
+values.  [Scan], [Scanf] and [Scanln] read from [os.Stdin]; [Fscan],
+[Fscanf] and [Fscanln] read from a specified [io.Reader]; [Sscan],
+[Sscanf] and [Sscanln] read from an argument string.
 
-Scan, Fscan, Sscan treat newlines in the input as spaces.
+[Scan], [Fscan], [Sscan] treat newlines in the input as spaces.
 
-Scanln, Fscanln and Sscanln stop scanning at a newline and
+[Scanln], [Fscanln] and [Sscanln] stop scanning at a newline and
 require that the items be followed by a newline or EOF.
 
-Scanf, Fscanf, and Sscanf parse the arguments according to a
-format string, analogous to that of Printf. In the text that
+[Scanf], [Fscanf], and [Sscanf] parse the arguments according to a
+format string, analogous to that of [Printf]. In the text that
 follows, 'space' means any Unicode whitespace character
 except newline.
 
@@ -320,10 +320,10 @@ scanf family: in C, newlines are treated as any other space,
 and it is never an error when a run of spaces in the format
 string finds no spaces to consume in the input.
 
-The verbs behave analogously to those of Printf.
+The verbs behave analogously to those of [Printf].
 For example, %x will scan an integer as a hexadecimal number,
 and %v will scan the default representation format for the value.
-The Printf verbs %p and %T and the flags # and + are not implemented.
+The [Printf] verbs %p and %T and the flags # and + are not implemented.
 For floating-point and complex values, all valid formatting verbs
 (%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
 both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
@@ -359,26 +359,26 @@ immediately by a newline is treated as a plain newline
 (\r\n means the same as \n).
 
 In all the scanning functions, if an operand implements method
-Scan (that is, it implements the Scanner interface) that
+[Scan] (that is, it implements the [Scanner] interface) that
 method will be used to scan the text for that operand.  Also,
 if the number of arguments scanned is less than the number of
 arguments provided, an error is returned.
 
 All arguments to be scanned must be either pointers to basic
-types or implementations of the Scanner interface.
+types or implementations of the [Scanner] interface.
 
-Like Scanf and Fscanf, Sscanf need not consume its entire input.
-There is no way to recover how much of the input string Sscanf used.
+Like [Scanf] and [Fscanf], [Sscanf] need not consume its entire input.
+There is no way to recover how much of the input string [Sscanf] used.
 
-Note: Fscan etc. can read one character (rune) past the input
+Note: [Fscan] etc. can read one character (rune) past the input
 they return, which means that a loop calling a scan routine
 may skip some of the input.  This is usually a problem only
 when there is no space between input values.  If the reader
-provided to Fscan implements ReadRune, that method will be used
+provided to [Fscan] implements ReadRune, that method will be used
 to read characters.  If the reader also implements UnreadRune,
 that method will be used to save the character and successive
 calls will not lose data.  To attach ReadRune and UnreadRune
 methods to a reader without that capability, use
-bufio.NewReader.
+[bufio.NewReader].
 */
 package fmt

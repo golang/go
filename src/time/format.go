@@ -6,13 +6,13 @@ package time
 
 import "errors"
 
-// These are predefined layouts for use in Time.Format and time.Parse.
+// These are predefined layouts for use in [Time.Format] and [time.Parse].
 // The reference time used in these layouts is the specific time stamp:
 //
 //	01/02 03:04:05PM '06 -0700
 //
 // (January 2, 15:04:05, 2006, in time zone seven hours west of GMT).
-// That value is recorded as the constant named Layout, listed below. As a Unix
+// That value is recorded as the constant named [Layout], listed below. As a Unix
 // time, this is 1136239445. Since MST is GMT-0700, the reference would be
 // printed by the Unix date command as:
 //
@@ -24,16 +24,16 @@ import "errors"
 // The example for Time.Format demonstrates the working of the layout string
 // in detail and is a good reference.
 //
-// Note that the RFC822, RFC850, and RFC1123 formats should be applied
+// Note that the [RFC822], [RFC850], and [RFC1123] formats should be applied
 // only to local times. Applying them to UTC times will use "UTC" as the
 // time zone abbreviation, while strictly speaking those RFCs require the
 // use of "GMT" in that case.
-// In general RFC1123Z should be used instead of RFC1123 for servers
-// that insist on that format, and RFC3339 should be preferred for new protocols.
-// RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+// In general [RFC1123Z] should be used instead of [RFC1123] for servers
+// that insist on that format, and [RFC3339] should be preferred for new protocols.
+// [RFC3339], [RFC822], [RFC822Z], [RFC1123], and [RFC1123Z] are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs and they do accept time formats not formally defined.
-// The RFC3339Nano format removes trailing zeros from the seconds field
+// The [RFC3339Nano] format removes trailing zeros from the seconds field
 // and thus may not sort correctly once formatted.
 //
 // Most programs can use one of the defined constants as the layout passed to
@@ -41,8 +41,8 @@ import "errors"
 // creating a custom layout string.
 //
 // To define your own format, write down what the reference time would look like
-// formatted your way; see the values of constants like ANSIC, StampMicro or
-// Kitchen for examples. The model is to demonstrate what the reference time
+// formatted your way; see the values of constants like [ANSIC], [StampMicro] or
+// [Kitchen] for examples. The model is to demonstrate what the reference time
 // looks like so that the Format and Parse methods can apply the same
 // transformation to a general time value.
 //
@@ -553,7 +553,7 @@ func (t Time) String() string {
 	return s
 }
 
-// GoString implements fmt.GoStringer and formats t to be printed in Go source
+// GoString implements [fmt.GoStringer] and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
 	abs := t.abs()
@@ -613,9 +613,9 @@ func (t Time) GoString() string {
 
 // Format returns a textual representation of the time value formatted according
 // to the layout defined by the argument. See the documentation for the
-// constant called Layout to see how to represent the layout format.
+// constant called [Layout] to see how to represent the layout format.
 //
-// The executable example for Time.Format demonstrates the working
+// The executable example for [Time.Format] demonstrates the working
 // of the layout string in detail and is a good reference.
 func (t Time) Format(layout string) string {
 	const bufSize = 64
@@ -631,7 +631,7 @@ func (t Time) Format(layout string) string {
 	return string(b)
 }
 
-// AppendFormat is like Format but appends the textual
+// AppendFormat is like [Time.Format] but appends the textual
 // representation to b and returns the extended buffer.
 func (t Time) AppendFormat(b []byte, layout string) []byte {
 	// Optimize for RFC3339 as it accounts for over half of all representations.
@@ -963,11 +963,11 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// See the documentation for the constant called Layout to see how to
+// See the documentation for the constant called [Layout] to see how to
 // represent the format. The second argument must be parseable using
 // the format string (layout) provided as the first argument.
 //
-// The example for Time.Format demonstrates the working of the layout string
+// The example for [Time.Format] demonstrates the working of the layout string
 // in detail and is a good reference.
 //
 // When parsing (only), the input may contain a fractional second
@@ -991,7 +991,7 @@ func skip(value, prefix string) (string, error) {
 // In the absence of a time zone indicator, Parse returns a time in UTC.
 //
 // When parsing a time with a zone offset like -0700, if the offset corresponds
-// to a time zone used by the current location (Local), then Parse uses that
+// to a time zone used by the current location ([Local]), then Parse uses that
 // location and zone in the returned time. Otherwise it records the time as
 // being in a fabricated location with time fixed at the given zone offset.
 //
@@ -1003,7 +1003,7 @@ func skip(value, prefix string) (string, error) {
 // This choice means that such a time can be parsed and reformatted with the
 // same layout losslessly, but the exact instant used in the representation will
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
-// that use a numeric zone offset, or use ParseInLocation.
+// that use a numeric zone offset, or use [ParseInLocation].
 func Parse(layout, value string) (Time, error) {
 	// Optimize for RFC3339 as it accounts for over half of all representations.
 	if layout == RFC3339 || layout == RFC3339Nano {

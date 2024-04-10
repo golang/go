@@ -13,6 +13,8 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+
+	"golang.org/x/tools/internal/aliases"
 )
 
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
@@ -28,7 +30,10 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 }
 
 func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
-	under := typ
+	// TODO(adonovan): think about generics, and also generic aliases.
+	under := aliases.Unalias(typ)
+	// Don't call Underlying unconditionally: although it removed
+	// Named and Alias, it also removes TypeParam.
 	if n, ok := typ.(*types.Named); ok {
 		under = n.Underlying()
 	}

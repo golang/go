@@ -7,7 +7,6 @@ package http
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -35,7 +34,7 @@ func trueConflicts(pat *pattern, pats []*pattern) []string {
 			s = append(s, p.String())
 		}
 	}
-	sort.Strings(s)
+	slices.Sort(s)
 	return s
 }
 
@@ -47,7 +46,7 @@ func indexConflicts(pat *pattern, idx *routingIndex) []string {
 		}
 		return nil
 	})
-	sort.Strings(s)
+	slices.Sort(s)
 	return slices.Compact(s)
 }
 

@@ -63,6 +63,7 @@ func init() {
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
 var (
 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
+	flagBindNow = flag.Bool("bindnow", false, "mark a dynamically linked ELF object for immediate function binding")
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
@@ -517,6 +518,10 @@ func startProfile() {
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
+			}
+			// Close the file after writing the profile.
+			if err := f.Close(); err != nil {
+				log.Fatalf("could not close %v: %v", *memprofile, err)
 			}
 		})
 	}

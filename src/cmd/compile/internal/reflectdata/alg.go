@@ -20,7 +20,7 @@ import (
 // AlgType returns the fixed-width AMEMxx variants instead of the general
 // AMEM kind when possible.
 func AlgType(t *types.Type) types.AlgKind {
-	a, _ := types.AlgType(t)
+	a := types.AlgType(t)
 	if a == types.AMEM {
 		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
 			// For example, we can't treat [2]int16 as an int32 if int32s require
@@ -254,7 +254,7 @@ func runtimeHashFor(name string, t *types.Type) *ir.Name {
 
 // hashfor returns the function to compute the hash of a value of type t.
 func hashfor(t *types.Type) *ir.Name {
-	switch a, _ := types.AlgType(t); a {
+	switch types.AlgType(t) {
 	case types.AMEM:
 		base.Fatalf("hashfor with AMEM type")
 	case types.AINTER:
@@ -293,7 +293,7 @@ func sysClosure(name string) *obj.LSym {
 // equality for two objects of type t.
 func geneq(t *types.Type) *obj.LSym {
 	switch AlgType(t) {
-	case types.ANOEQ:
+	case types.ANOEQ, types.ANOALG:
 		// The runtime will panic if it tries to compare
 		// a type with a nil equality function.
 		return nil
@@ -643,7 +643,7 @@ func eqFunc(t *types.Type) *ir.Func {
 // EqFor returns ONAME node represents type t's equal function, and a boolean
 // to indicates whether a length needs to be passed when calling the function.
 func EqFor(t *types.Type) (ir.Node, bool) {
-	switch a, _ := types.AlgType(t); a {
+	switch types.AlgType(t) {
 	case types.AMEM:
 		return typecheck.LookupRuntime("memequal", t, t), true
 	case types.ASPECIAL:

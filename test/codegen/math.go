@@ -204,7 +204,9 @@ func constantCheck32() bool {
 func constantConvert32(x float32) float32 {
 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
-	// ppc64x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// ppc64x/power8:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// ppc64x/power9:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// ppc64x/power10:"XXSPLTIDP\t[$]1065353216, VS0"
 	// arm64:"FMOVS\t[$]\\(1.0\\)"
 	if x > math.Float32frombits(0x3f800000) {
 		return -x

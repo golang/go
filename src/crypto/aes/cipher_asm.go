@@ -44,8 +44,9 @@ func newCipher(key []byte) (cipher.Block, error) {
 	if !supportsAES {
 		return newCipherGeneric(key)
 	}
-	n := len(key) + 28
-	c := aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}
+	// Note that under certain circumstances, we only return the inner aesCipherAsm.
+	// This avoids an unnecessary allocation of the aesCipher struct.
+	c := aesCipherGCM{aesCipherAsm{aesCipher{l: uint8(len(key) + 28)}}}
 	var rounds int
 	switch len(key) {
 	case 128 / 8:
@@ -60,9 +61,9 @@ func newCipher(key []byte) (cipher.Block, error) {
 
 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
 	if supportsAES && supportsGFMUL {
-		return &aesCipherGCM{c}, nil
+		return &c, nil
 	}
-	return &c, nil
+	return &c.aesCipherAsm, nil
 }
 
 func (c *aesCipherAsm) BlockSize() int { return BlockSize }
@@ -78,7 +79,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
+	encryptBlockAsm(int(c.l)/4-1, &c.enc[0], &dst[0], &src[0])
 }
 
 func (c *aesCipherAsm) Decrypt(dst, src []byte) {
@@ -92,7 +93,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
+	decryptBlockAsm(int(c.l)/4-1, &c.dec[0], &dst[0], &src[0])
 }
 
 // expandKey is used by BenchmarkExpand to ensure that the asm implementation

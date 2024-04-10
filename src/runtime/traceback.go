@@ -182,8 +182,8 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		}
 	}
 
-	// runtime/internal/atomic functions call into kernel helpers on
-	// arm < 7. See runtime/internal/atomic/sys_linux_arm.s.
+	// internal/runtime/atomic functions call into kernel helpers on
+	// arm < 7. See internal/runtime/atomic/sys_linux_arm.s.
 	//
 	// Start in the caller's frame.
 	if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && frame.pc&0xffff0000 == 0xffff0000 {
@@ -632,8 +632,11 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 				skip--
 			} else {
 				// Callers expect the pc buffer to contain return addresses
-				// and do the -1 themselves, so we add 1 to the call PC to
-				// create a return PC.
+				// and do the -1 themselves, so we add 1 to the call pc to
+				// create a "return pc". Since there is no actual call, here
+				// "return pc" just means a pc you subtract 1 from to get
+				// the pc of the "call". The actual no-op we insert may or
+				// may not be 1 byte.
 				pcBuf[n] = uf.pc + 1
 				n++
 			}

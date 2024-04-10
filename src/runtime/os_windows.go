@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -135,7 +135,7 @@ var (
 	_NtAssociateWaitCompletionPacket stdFunction
 	_NtCancelWaitCompletionPacket    stdFunction
 	_RtlGetCurrentPeb                stdFunction
-	_RtlGetNtVersionNumbers          stdFunction
+	_RtlGetVersion                   stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
@@ -214,6 +214,8 @@ func asmstdcall(fn unsafe.Pointer)
 
 var asmstdcallAddr unsafe.Pointer
 
+type winlibcall libcall
+
 func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	if name[len(name)-1] != 0 {
 		throw("usage")
@@ -268,7 +270,7 @@ func loadOptionalSyscalls() {
 		}
 	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
-	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
+	_RtlGetVersion = windowsFindfunc(n32, []byte("RtlGetVersion\000"))
 }
 
 func monitorSuspendResume() {
@@ -302,21 +304,6 @@ func monitorSuspendResume() {
 	handle := uintptr(0)
 	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
-}
-
-//go:nosplit
-func getLoadLibrary() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryW))
-}
-
-//go:nosplit
-func getLoadLibraryEx() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryExW))
-}
-
-//go:nosplit
-func getGetProcAddress() uintptr {
-	return uintptr(unsafe.Pointer(_GetProcAddress))
 }
 
 func getproccount() int32 {
@@ -452,9 +439,10 @@ func initLongPathSupport() {
 	)
 
 	// Check that we're ≥ 10.0.15063.
-	var maj, min, build uint32
-	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
-	if maj < 10 || (maj == 10 && min == 0 && build&0xffff < 15063) {
+	info := _OSVERSIONINFOW{}
+	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+	stdcall1(_RtlGetVersion, uintptr(unsafe.Pointer(&info)))
+	if info.majorVersion < 10 || (info.majorVersion == 10 && info.minorVersion == 0 && info.buildNumber < 15063) {
 		return
 	}
 

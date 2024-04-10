@@ -971,3 +971,21 @@ func doWork(dur Duration) {
 	for Since(start) < dur {
 	}
 }
+
+func BenchmarkAdjustTimers10000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const n = 10000
+			timers := make([]*Timer, 0, n)
+			for range n {
+				t := AfterFunc(Hour, func() {})
+				timers = append(timers, t)
+			}
+			timers[n-1].Reset(Nanosecond)
+			Sleep(Microsecond)
+			for _, t := range timers {
+				t.Stop()
+			}
+		}
+	})
+}

@@ -70,7 +70,7 @@ var depsRules = `
 	< internal/unsafeheader
 	< runtime/internal/sys
 	< internal/runtime/syscall
-	< runtime/internal/atomic
+	< internal/runtime/atomic
 	< runtime/internal/math
 	< runtime
 	< sync/atomic
@@ -321,8 +321,9 @@ var depsRules = `
 	# databases
 	FMT
 	< database/sql/internal
-	< database/sql/driver
-	< database/sql;
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
 
 	# images
 	FMT, compress/lzw, compress/zlib

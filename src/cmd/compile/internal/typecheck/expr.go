@@ -433,7 +433,7 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
 	return n
 }
 
-// XDotMethod returns an expression representing the field selection
+// XDotField returns an expression representing the field selection
 // x.sym. If any implicit field selection are necessary, those are
 // inserted too.
 func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {

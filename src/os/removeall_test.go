@@ -504,3 +504,20 @@ func TestRemoveAllNoFcntl(t *testing.T) {
 		t.Errorf("found %d fcntl calls, want < 100", got)
 	}
 }
+
+func BenchmarkRemoveAll(b *testing.B) {
+	tmpDir := filepath.Join(b.TempDir(), "target")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		err := CopyFS(tmpDir, DirFS("."))
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
+		if err := RemoveAll(tmpDir); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

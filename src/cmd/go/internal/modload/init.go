@@ -1465,6 +1465,7 @@ func modulesTextIsForWorkspace(vendorDir string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer f.Close()
 	var buf [512]byte
 	n, err := f.Read(buf[:])
 	if err != nil && err != io.EOF {

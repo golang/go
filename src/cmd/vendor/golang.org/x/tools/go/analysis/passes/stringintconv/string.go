@@ -60,10 +60,12 @@ func describe(typ, inType types.Type, inName string) string {
 }
 
 func typeName(typ types.Type) string {
-	if v, _ := typ.(interface{ Name() string }); v != nil {
+	typ = aliases.Unalias(typ)
+	// TODO(adonovan): don't discard alias type, return its name.
+	if v, _ := typ.(*types.Basic); v != nil {
 		return v.Name()
 	}
-	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil {
+	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil { // Named, TypeParam
 		return v.Obj().Name()
 	}
 	return ""

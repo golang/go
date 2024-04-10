@@ -542,10 +542,14 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
+			if alias, ok := typ.(*Alias); ok { // materialized? (gotypesalias=1)
+				typ = alias.fromRHS
+			}
 		} else if t, _ := typ.(*TypeParam); t != nil {
 			typ = t.bound
 		} else {
 			// TODO(gri) should this be fromRHS for *Named?
+			// (See discussion in #66559.)
 			typ = under(typ)
 		}
 	}

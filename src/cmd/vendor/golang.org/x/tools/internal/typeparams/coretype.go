@@ -5,7 +5,10 @@
 package typeparams
 
 import (
+	"fmt"
 	"go/types"
+
+	"golang.org/x/tools/internal/aliases"
 )
 
 // CoreType returns the core type of T or nil if T does not have a core type.
@@ -109,7 +112,7 @@ func CoreType(T types.Type) types.Type {
 // _NormalTerms makes no guarantees about the order of terms, except that it
 // is deterministic.
 func _NormalTerms(typ types.Type) ([]*types.Term, error) {
-	switch typ := typ.(type) {
+	switch typ := aliases.Unalias(typ).(type) {
 	case *types.TypeParam:
 		return StructuralTerms(typ)
 	case *types.Union:
@@ -119,4 +122,31 @@ func _NormalTerms(typ types.Type) ([]*types.Term, error) {
 	default:
 		return []*types.Term{types.NewTerm(false, typ)}, nil
 	}
+}
+
+// Deref returns the type of the variable pointed to by t,
+// if t's core type is a pointer; otherwise it returns t.
+//
+// Do not assume that Deref(T)==T implies T is not a pointer:
+// consider "type T *T", for example.
+//
+// TODO(adonovan): ideally this would live in typesinternal, but that
+// creates an import cycle. Move there when we melt this package down.
+func Deref(t types.Type) types.Type {
+	if ptr, ok := CoreType(t).(*types.Pointer); ok {
+		return ptr.Elem()
+	}
+	return t
+}
+
+// MustDeref returns the type of the variable pointed to by t.
+// It panics if t's core type is not a pointer.
+//
+// TODO(adonovan): ideally this would live in typesinternal, but that
+// creates an import cycle. Move there when we melt this package down.
+func MustDeref(t types.Type) types.Type {
+	if ptr, ok := CoreType(t).(*types.Pointer); ok {
+		return ptr.Elem()
+	}
+	panic(fmt.Sprintf("%v is not a pointer", t))
 }

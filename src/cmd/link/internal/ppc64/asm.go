@@ -474,24 +474,9 @@ func rewriteABIFuncReloc(ctxt *ld.Link, ldr *loader.Loader, tname string, r load
 	r.SetAdd(int64((n - minReg) * offMul))
 	firstUse = !ldr.AttrReachable(ts)
 	if firstUse {
-		ldr.SetAttrReachable(ts, true)
 		// This function only becomes reachable now. It has been dropped from
 		// the text section (it was unreachable until now), it needs included.
-		//
-		// Similarly, TOC regeneration should not happen for these functions,
-		// remove it from this save/restore function.
-		if ldr.AttrShared(ts) {
-			sb := ldr.MakeSymbolUpdater(ts)
-			sb.SetData(sb.Data()[8:])
-			sb.SetSize(sb.Size() - 8)
-			relocs := sb.Relocs()
-			// Only one PCREL reloc to .TOC. should be present.
-			if relocs.Count() != 1 {
-				log.Fatalf("Unexpected number of relocs in %s\n", ldr.SymName(ts))
-			}
-			sb.ResetRelocs()
-
-		}
+		ldr.SetAttrReachable(ts, true)
 	}
 	return ts, firstUse
 }

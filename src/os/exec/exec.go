@@ -777,7 +777,7 @@ func (c *Cmd) watchCtx(resultc chan<- ctxResult) {
 		} else if errors.Is(interruptErr, os.ErrProcessDone) {
 			// The process already finished: we just didn't notice it yet.
 			// (Perhaps c.Wait hadn't been called, or perhaps it happened to race with
-			// c.ctx being cancelled.) Don't inject a needless error.
+			// c.ctx being canceled.) Don't inject a needless error.
 		} else {
 			err = wrappedError{
 				prefix: "exec: canceling Cmd",

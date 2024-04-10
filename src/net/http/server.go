@@ -23,7 +23,7 @@ import (
 	urlpkg "net/url"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1922,12 +1922,15 @@ func (c *conn) serve(ctx context.Context) {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
+			var reason string
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
 				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
 				re.Conn.Close()
-				return
+				reason = "client sent an HTTP request to an HTTPS server"
+			} else {
+				reason = err.Error()
 			}
-			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
+			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), reason)
 			return
 		}
 		// Restore Conn-level deadlines.
@@ -2061,7 +2064,7 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
-		if d := c.server.idleTimeout(); d != 0 {
+		if d := c.server.idleTimeout(); d > 0 {
 			c.rwc.SetReadDeadline(time.Now().Add(d))
 		} else {
 			c.rwc.SetReadDeadline(time.Time{})
@@ -2173,22 +2176,9 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // writes are done to w.
 // The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
-	h := w.Header()
-	// We delete headers which might be valid for some other content,
-	// but not anymore for the error content.
-	h.Del("Content-Length")
-	h.Del("Content-Encoding")
-	h.Del("Etag")
-	h.Del("Last-Modified")
-	// There might be cache control headers set for some other content,
-	// but we reset it to no-cache for the error content if presents.
-	if h.has("Cache-Control") {
-		h.Set("Cache-Control", "no-cache")
-	}
-	// There might be content type already set, but we reset it to
-	// text/plain for the error message.
-	h.Set("Content-Type", "text/plain; charset=utf-8")
-	h.Set("X-Content-Type-Options", "nosniff")
+	w.Header().Del("Content-Length")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }
@@ -2665,7 +2655,7 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
 	// matchOrRedirect will try appending a trailing slash if there is no match.
 	mux.tree.matchingMethods(host, path+"/", ms)
 	methods := mapKeys(ms)
-	sort.Strings(methods)
+	slices.Sort(methods)
 	return methods
 }
 
@@ -2862,9 +2852,9 @@ type Server struct {
 	// ReadHeaderTimeout is the amount of time allowed to read
 	// request headers. The connection's read deadline is reset
 	// after reading the headers and the Handler can decide what
-	// is considered too slow for the body. If ReadHeaderTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
+	// is considered too slow for the body. If zero, the value of
+	// ReadTimeout is used. If negative, or if zero and ReadTimeout
+	// is zero or negative, there is no timeout.
 	ReadHeaderTimeout time.Duration
 
 	// WriteTimeout is the maximum duration before timing out
@@ -2875,9 +2865,9 @@ type Server struct {
 	WriteTimeout time.Duration
 
 	// IdleTimeout is the maximum amount of time to wait for the
-	// next request when keep-alives are enabled. If IdleTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
+	// next request when keep-alives are enabled. If zero, the value
+	// of ReadTimeout is used. If negative, or if zero and ReadTimeout
+	// is zero or negative, there is no timeout.
 	IdleTimeout time.Duration
 
 	// MaxHeaderBytes controls the maximum number of bytes the
@@ -3219,7 +3209,7 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 	// passed this tls.Config to tls.NewListener. And if they did,
 	// it's too late anyway to fix it. It would only be potentially racy.
 	// See Issue 15908.
-	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+	return slices.Contains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
 }
 
 // ErrServerClosed is returned by the [Server.Serve], [ServeTLS], [ListenAndServe],
@@ -3321,7 +3311,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	}
 
 	config := cloneTLSConfig(srv.TLSConfig)
-	if !strSliceContains(config.NextProtos, "http/1.1") {
+	if !slices.Contains(config.NextProtos, "http/1.1") {
 		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
@@ -3826,15 +3816,6 @@ func numLeadingCRorLF(v []byte) (n int) {
 		break
 	}
 	return
-}
-
-func strSliceContains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 // tlsRecordHeaderLooksLikeHTTP reports whether a TLS record header

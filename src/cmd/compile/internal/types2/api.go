@@ -469,3 +469,10 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 	pkg := NewPackage(path, "")
 	return pkg, NewChecker(conf, pkg, info).Files(files)
 }
+
+// Rhs returns the type R on the right-hand side of an alias
+// declaration "type A = R", which may be another alias.
+//
+// TODO(adonovan): move to alias.go (common with go/types) once
+// proposal #66559 is accepted.
+func (a *Alias) Rhs() Type { return a.fromRHS }

@@ -610,5 +610,7 @@ var Anames = []string{
 	"XVCVSXWSP",
 	"XVCVUXDSP",
 	"XVCVUXWSP",
+	"XSMAXJDP",
+	"XSMINJDP",
 	"LASTAOUT",
 }

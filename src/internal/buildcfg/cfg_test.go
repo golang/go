@@ -75,7 +75,7 @@ func TestConfigFlags(t *testing.T) {
 }
 
 func TestGoarm64FeaturesSupports(t *testing.T) {
-	g := parseGoarm64("v9.3")
+	g, _ := ParseGoarm64("v9.3")
 
 	if !g.Supports("v9.3") {
 		t.Errorf("Wrong goarm64Features.Supports for v9.3, v9.3")

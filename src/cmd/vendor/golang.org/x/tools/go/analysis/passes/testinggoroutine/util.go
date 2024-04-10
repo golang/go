@@ -30,7 +30,7 @@ func localFunctionDecls(info *types.Info, files []*ast.File) func(*types.Func) *
 				}
 			}
 		}
-		// TODO: once we only support go1.19+, set f = f.Origin() here.
+		// TODO: set f = f.Origin() here.
 		return fnDecls[f]
 	}
 }

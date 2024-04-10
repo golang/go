@@ -337,6 +337,11 @@ func Chdir(dir string) error {
 		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
+	if runtime.GOOS == "windows" {
+		getwdCache.Lock()
+		getwdCache.dir = dir
+		getwdCache.Unlock()
+	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
 		if err == nil {
@@ -378,6 +383,14 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	f.appendMode = flag&O_APPEND != 0
 
 	return f, nil
+}
+
+// openDir opens a file which is assumed to be a directory. As such, it skips
+// the syscalls that make the file descriptor non-blocking as these take time
+// and will fail on file descriptors for directories.
+func openDir(name string) (*File, error) {
+	testlog.Open(name)
+	return openDirNolog(name)
 }
 
 // lstat is overridden in tests.
