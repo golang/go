@@ -89,11 +89,11 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
 	if buildcfg.Experiment.SwissMap {
-		_ = types.NewPtr(reflectdata.SwissMapType())                    // *runtime.hmap
+		_ = types.NewPtr(reflectdata.SwissMapType()) // *runtime.hmap
 	} else {
-		_ = types.NewPtr(reflectdata.OldMapType())                      // *runtime.hmap
+		_ = types.NewPtr(reflectdata.OldMapType()) // *runtime.hmap
 	}
-	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
+	_ = types.NewPtr(deferstruct()) // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
@@ -3731,7 +3731,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		if typ.IsFloat() {
 			hasIntrinsic := false
 			switch Arch.LinkArch.Family {
-			case sys.AMD64, sys.ARM64, sys.RISCV64:
+			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64:
 				hasIntrinsic = true
 			case sys.PPC64:
 				hasIntrinsic = buildcfg.GOPPC64 >= 9

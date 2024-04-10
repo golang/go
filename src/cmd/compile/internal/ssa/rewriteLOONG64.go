@@ -416,6 +416,18 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValueLOONG64_OpLsh8x8(v)
+	case OpMax32F:
+		v.Op = OpLOONG64FMAXF
+		return true
+	case OpMax64F:
+		v.Op = OpLOONG64FMAXD
+		return true
+	case OpMin32F:
+		v.Op = OpLOONG64FMINF
+		return true
+	case OpMin64F:
+		v.Op = OpLOONG64FMIND
+		return true
 	case OpMod16:
 		return rewriteValueLOONG64_OpMod16(v)
 	case OpMod16u:

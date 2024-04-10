@@ -132,6 +132,9 @@
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
 
+(Min(64|32)F ...) => (FMIN(D|F) ...)
+(Max(64|32)F ...) => (FMAX(D|F) ...)
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB ...) => (AND ...)
 (OrB ...) => (OR ...)

@@ -184,6 +184,64 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpLOONG64FMINF,
+		ssa.OpLOONG64FMIND,
+		ssa.OpLOONG64FMAXF,
+		ssa.OpLOONG64FMAXD:
+		// ADDD Rarg0, Rarg1, Rout
+		// CMPEQD Rarg0, Rarg0, FCC0
+		// bceqz FCC0, end
+		// CMPEQD Rarg1, Rarg1, FCC0
+		// bceqz FCC0, end
+		// F(MIN|MAX)(F|D)
+
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg()
+		add, fcmp := loong64.AADDD, loong64.ACMPEQD
+		if v.Op == ssa.OpLOONG64FMINF || v.Op == ssa.OpLOONG64FMAXF {
+			add = loong64.AADDF
+			fcmp = loong64.ACMPEQF
+		}
+		p1 := s.Prog(add)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r0
+		p1.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
+
+		p2 := s.Prog(fcmp)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = r0
+		p2.Reg = r0
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = loong64.REG_FCC0
+
+		p3 := s.Prog(loong64.ABFPF)
+		p3.To.Type = obj.TYPE_BRANCH
+
+		p4 := s.Prog(fcmp)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = r1
+		p4.Reg = r1
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = loong64.REG_FCC0
+
+		p5 := s.Prog(loong64.ABFPF)
+		p5.To.Type = obj.TYPE_BRANCH
+
+		p6 := s.Prog(v.Op.Asm())
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = r1
+		p6.Reg = r0
+		p6.To.Type = obj.TYPE_REG
+		p6.To.Reg = out
+
+		nop := s.Prog(obj.ANOP)
+		p3.To.SetTarget(nop)
+		p5.To.SetTarget(nop)
+
 	case ssa.OpLOONG64SGT,
 		ssa.OpLOONG64SGTU:
 		p := s.Prog(v.Op.Asm())
