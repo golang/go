@@ -7,6 +7,7 @@
 package poll
 
 import (
+	"internal/itoa"
 	"internal/syscall/unix"
 	"io"
 	"sync/atomic"
@@ -379,6 +380,14 @@ func (fd *FD) Write(p []byte) (int, error) {
 		}
 		n, err := ignoringEINTRIO(syscall.Write, fd.Sysfd, p[nn:max])
 		if n > 0 {
+			if n > max-nn {
+				// This can reportedly happen when using
+				// some VPN software. Issue #61060.
+				// If we don't check this we will panic
+				// with slice bounds out of range.
+				// Use a more informative panic.
+				panic("invalid return from write: got " + itoa.Itoa(n) + " from a write of " + itoa.Itoa(max-nn))
+			}
 			nn += n
 		}
 		if nn == len(p) {
