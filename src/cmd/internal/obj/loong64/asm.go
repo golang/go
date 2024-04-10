@@ -1052,6 +1052,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ASUBF, r0)
 			opset(ASUBD, r0)
 			opset(AADDD, r0)
+			opset(AFMINF, r0)
+			opset(AFMIND, r0)
+			opset(AFMAXF, r0)
+			opset(AFMAXD, r0)
 
 		case AAND:
 			opset(AOR, r0)
@@ -1872,6 +1876,14 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0c2<<20 | 0x3<<15 // FCMP.SLT.D
 	case ACMPGTF:
 		return 0x0c1<<20 | 0x3<<15 // FCMP.SLT.S
+	case AFMINF:
+		return 0x215 << 15 // fmin.s
+	case AFMIND:
+		return 0x216 << 15 // fmin.d
+	case AFMAXF:
+		return 0x211 << 15 // fmax.s
+	case AFMAXD:
+		return 0x212 << 15 // fmax.d
 	}
 
 	if a < 0 {

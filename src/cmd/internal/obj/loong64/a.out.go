@@ -440,6 +440,12 @@ const (
 	ARDTIMED
 	ACPUCFG
 
+	// 3.2.1.3
+	AFMINF
+	AFMIND
+	AFMAXF
+	AFMAXD
+
 	ALAST
 
 	// aliases

@@ -179,5 +179,9 @@ var Anames = []string{
 	"RDTIMEHW",
 	"RDTIMED",
 	"CPUCFG",
+	"FMINF",
+	"FMIND",
+	"FMAXF",
+	"FMAXD",
 	"LAST",
 }
