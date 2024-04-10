@@ -164,3 +164,27 @@ func ReadVarint(r io.ByteReader) (int64, error) {
 	}
 	return x, err
 }
+
+// UvarintLength
+func UvarintLength(x uint64) (n int) {
+	if x < 128 { // 1 << 7
+		return 1
+	} else if x < 16384 { // 1 << 14
+		return 2
+	} else if x < 2097152 { // 1 << 21
+		return 3
+	} else if x < 268435456 { // 1 << 28
+		return 4
+	} else if x < 34359738368 { // 1 << 35
+		return 5
+	} else if x < 4398046511104 { // 1 << 42
+		return 6
+	} else if x < 562949953421312 { // 1 << 49
+		return 7
+	} else if x < 72057594037927936 { // 1 << 56
+		return 8
+	} else if x < 9223372036854775808 { // 1 << 63
+		return 9
+	}
+	return 10
+}
