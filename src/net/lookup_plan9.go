@@ -172,7 +172,7 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 		if stringsHasSuffix(err.Error(), "dns failure") {
 			err = errNoSuchHost
 		}
-		return nil, newWrappingDNSError(err, host, "")
+		return nil, newDNSError(err, host, "")
 	}
 loop:
 	for _, line := range lines {
