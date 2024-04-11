@@ -272,6 +272,12 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.selectedIdentityPresent = true
 		m.selectedIdentity = uint16(rand.Intn(0xffff))
 	}
+	if rand.Intn(10) > 5 {
+		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.serverNameAck = rand.Intn(2) == 1
+	}
 
 	return reflect.ValueOf(m)
 }

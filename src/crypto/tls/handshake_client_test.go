@@ -7,9 +7,14 @@ package tls
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -2807,5 +2812,125 @@ func TestHandshakeRSATooBig(t *testing.T) {
 	err = c.processCertsFromClient(Certificate{Certificate: [][]byte{testCert.Bytes}})
 	if err == nil || err.Error() != expectedErr {
 		t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+func TestTLS13ECHRejectionCallbacks(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		DNSNames:     []string{"example.golang"},
+		NotBefore:    testConfig.Time().Add(-time.Hour),
+		NotAfter:     testConfig.Time().Add(time.Hour),
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	serverConfig.Certificates = []Certificate{
+		{
+			Certificate: [][]byte{certDER},
+			PrivateKey:  k,
+		},
+	}
+	serverConfig.MinVersion = VersionTLS13
+	clientConfig.RootCAs = x509.NewCertPool()
+	clientConfig.RootCAs.AddCert(cert)
+	clientConfig.MinVersion = VersionTLS13
+	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
+	clientConfig.ServerName = "example.golang"
+
+	for _, tc := range []struct {
+		name        string
+		expectedErr string
+
+		verifyConnection                    func(ConnectionState) error
+		verifyPeerCertificate               func([][]byte, [][]*x509.Certificate) error
+		encryptedClientHelloRejectionVerify func(ConnectionState) error
+	}{
+		{
+			name:        "no callbacks",
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "EncryptedClientHelloRejectionVerify, no err",
+			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
+				return nil
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "EncryptedClientHelloRejectionVerify, err",
+			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
+				return errors.New("callback err")
+			},
+			// testHandshake returns the server side error, so we just need to
+			// check alertBadCertificate was sent
+			expectedErr: "callback err",
+		},
+		{
+			name: "VerifyConnection, err",
+			verifyConnection: func(ConnectionState) error {
+				return errors.New("callback err")
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "VerifyPeerCertificate, err",
+			verifyPeerCertificate: func([][]byte, [][]*x509.Certificate) error {
+				return errors.New("callback err")
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, s := localPipe(t)
+			done := make(chan error)
+
+			go func() {
+				serverErr := Server(s, serverConfig).Handshake()
+				s.Close()
+				done <- serverErr
+			}()
+
+			cConfig := clientConfig.Clone()
+			cConfig.VerifyConnection = tc.verifyConnection
+			cConfig.VerifyPeerCertificate = tc.verifyPeerCertificate
+			cConfig.EncryptedClientHelloRejectionVerify = tc.encryptedClientHelloRejectionVerify
+
+			clientErr := Client(c, cConfig).Handshake()
+			c.Close()
+
+			if tc.expectedErr == "" && clientErr != nil {
+				t.Fatalf("unexpected err: %s", clientErr)
+			} else if clientErr != nil && tc.expectedErr != clientErr.Error() {
+				t.Fatalf("unexpected err: got %q, want %q", clientErr, tc.expectedErr)
+			}
+		})
+	}
+}
+
+func TestECHTLS12Server(t *testing.T) {
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+
+	serverConfig.MaxVersion = VersionTLS12
+	clientConfig.MinVersion = 0
+
+	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
+
+	expectedErr := "server: tls: client offered only unsupported versions: [304]\nclient: remote error: tls: protocol version not supported"
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("unexpected handshake error: got %q, want %q", err, expectedErr)
 	}
 }

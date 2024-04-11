@@ -1,5 +1,45 @@
 {
     "DisabledTests": {
+        "*-Async": "We don't support boringssl concept of async",
+
+        "TLS-ECH-Client-Reject-NoClientCertificate-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-Reject-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-TLS12-RejectRetryConfigs": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-Rejected-OverrideName-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-Reject-TLS12-NoFalseStart": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-TLS12SessionTicket": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-TLS12SessionID": "We won't attempt to negotiate 1.2 if ECH is enabled",
+
+        "TLS-ECH-Client-Reject-ResumeInnerSession-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled (we could possibly test this if we had the ability to indicate not to send ECH on resumption?)",
+
+        "TLS-ECH-Client-Reject-EarlyDataRejected": "We don't support switiching out ECH configs with this level of granularity",
+
+        "TLS-ECH-Client-NoNPN": "We don't support NPN",
+
+        "TLS-ECH-Client-ChannelID": "We don't support sending channel ID",
+        "TLS-ECH-Client-Reject-NoChannelID-TLS13": "We don't support sending channel ID",
+        "TLS-ECH-Client-Reject-NoChannelID-TLS12": "We don't support sending channel ID",
+
+        "TLS-ECH-Client-GREASE-IgnoreHRRExtension": "We don't support ECH GREASE because we don't fallback to plaintext",
+        "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We don't support ECH GREASE because we don't fallback to plaintext",
+        "TLS-ECH-Client-GREASEExtensions": "We don't support ECH GREASE because we don't fallback to plaintext",
+        "TLS-ECH-Client-GREASE-NoOverrideName": "We don't support ECH GREASE because we don't fallback to plaintext",
+
+        "TLS-ECH-Client-UnsolicitedInnerServerNameAck": "We don't allow sending empty SNI without skipping certificate verification, TODO: could add special flag to bogo to indicate 'empty sni'",
+
+        "TLS-ECH-Client-NoSupportedConfigs": "We don't support fallback to cleartext when there are no valid ECH configs",
+        "TLS-ECH-Client-SkipInvalidPublicName": "We don't support fallback to cleartext when there are no valid ECH configs",
+
+        "TLS-ECH-Client-Reject-RandomHRRExtension": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject-UnsupportedRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject-NoRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject-HelloRetryRequest": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject-NoClientCertificate-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+        "TLS-ECH-Client-Reject-OverrideName-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
+
+        "*ECH-Server*": "no ECH server support",
+        "SendV2ClientHello*": "We don't support SSLv2",
         "*QUIC*": "No QUIC support",
         "Compliance-fips*": "No FIPS",
         "*DTLS*": "No DTLS",
@@ -16,8 +56,6 @@
         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
         "SendBogusAlertType": "sending wrong alert type",
         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
-        "*ECH-Server*": "no ECH server support",
-        "TLS-ECH-Client-UnsolictedHRRExtension": "TODO",
         "*Client-P-224*": "no P-224 support",
         "*Server-P-224*": "no P-224 support",
         "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",
@@ -180,6 +218,23 @@
         "DuplicateCertCompressionExt-TLS13": "TODO: first pass, this should be fixed",
         "Client-RejectJDK11DowngradeRandom": "TODO: first pass, this should be fixed",
         "CheckClientCertificateTypes": "TODO: first pass, this should be fixed",
-        "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed"
+        "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed",
+        "ALPNClient-RejectUnknown-TLS-TLS1": "TODO: first pass, this should be fixed",
+        "ALPNClient-RejectUnknown-TLS-TLS11": "TODO: first pass, this should be fixed",
+        "ALPNClient-RejectUnknown-TLS-TLS12": "TODO: first pass, this should be fixed",
+        "ALPNClient-RejectUnknown-TLS-TLS13": "TODO: first pass, this should be fixed",
+        "ClientHelloPadding": "TODO: first pass, this should be fixed",
+        "TLS13-ExpectTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
+        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync": "TODO: first pass, this should be fixed",
+        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync-SplitHandshakeRecords": "TODO: first pass, this should be fixed",
+        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync-PackHandshake": "TODO: first pass, this should be fixed",
+        "WrongMessageType-TLS13-EndOfEarlyData-TLS": "TODO: first pass, this should be fixed",
+        "TrailingMessageData-TLS13-EndOfEarlyData-TLS": "TODO: first pass, this should be fixed",
+        "SendHelloRetryRequest-2-TLS13": "TODO: first pass, this should be fixed",
+        "EarlyData-SkipEndOfEarlyData-TLS13": "TODO: first pass, this should be fixed",
+        "EarlyData-Server-BadFinished-TLS13": "TODO: first pass, this should be fixed",
+        "EarlyData-UnexpectedHandshake-Server-TLS13": "TODO: first pass, this should be fixed",
+        "EarlyData-CipherMismatch-Client-TLS13": "TODO: first pass, this should be fixed",
+        "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed"
     }
 }

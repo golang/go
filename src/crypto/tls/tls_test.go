@@ -771,7 +771,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 8
+	const expectedCount = 9
 	called := 0
 
 	c1 := Config{
@@ -807,6 +807,10 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 7
 			return nil, nil
 		},
+		EncryptedClientHelloRejectionVerify: func(ConnectionState) error {
+			called |= 1 << 8
+			return nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -819,6 +823,7 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.VerifyConnection(ConnectionState{})
 	c2.UnwrapSession(nil, ConnectionState{})
 	c2.WrapSession(ConnectionState{}, nil)
+	c2.EncryptedClientHelloRejectionVerify(ConnectionState{})
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -837,7 +842,7 @@ func TestCloneNonFuncFields(t *testing.T) {
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is
@@ -872,6 +877,8 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
 		case "Renegotiation":
 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
+		case "EncryptedClientHelloConfigList":
+			f.Set(reflect.ValueOf([]byte{'x'}))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		default:

@@ -1,7 +1,9 @@
 package tls
 
 import (
+	"bytes"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
@@ -48,93 +50,35 @@ var (
 	shimID = flag.Uint64("shim-id", 0, "")
 	_      = flag.Bool("ipv6", false, "")
 
-	// Unimplemented flags
-	// -advertise-alpn
-	// -advertise-npn
-	// -allow-hint-mismatch
-	// -async
-	// -check-close-notify
-	// -cipher
-	// -curves
-	// -delegated-credential
-	// -dtls
-	// -ech-config-list
-	// -ech-server-config
-	// -enable-channel-id
-	// -enable-early-data
-	// -enable-ech-grease
-	// -enable-grease
-	// -enable-ocsp-stapling
-	// -enable-signed-cert-timestamps
-	// -expect-advertised-alpn
-	// -expect-certificate-types
-	// -expect-channel-id
-	// -expect-cipher-aes
-	// -expect-client-ca-list
-	// -expect-curve-id
-	// -expect-early-data-reason
-	// -expect-extended-master-secret
-	// -expect-hrr
-	// -expect-key-usage-invalid
-	// -expect-msg-callback
-	// -expect-no-session
-	// -expect-peer-cert-file
-	// -expect-peer-signature-algorithm
-	// -expect-peer-verify-pref
-	// -expect-secure-renegotiation
-	// -expect-server-name
-	// -expect-ticket-supports-early-data
-	// -export-keying-material
-	// -export-traffic-secrets
-	// -fail-cert-callback
-	// -fail-early-callback
-	// -fallback-scsv
-	// -false-start
-	// -forbid-renegotiation-after-handshake
-	// -handshake-twice
-	// -host-name
-	// -ignore-rsa-key-usage
-	// -implicit-handshake
-	// -install-cert-compression-algs
-	// -install-ddos-callback
-	// -install-one-cert-compression-alg
-	// -jdk11-workaround
-	// -key-update
-	// -max-cert-list
-	// -max-send-fragment
-	// -no-ticket
-	// -no-tls1
-	// -no-tls11
-	// -no-tls12
-	// -ocsp-response
-	// -on-resume-expect-accept-early-data
-	// -on-resume-expect-reject-early-data
-	// -on-shim-cipher
-	// -on-shim-curves
-	// -peek-then-read
-	// -psk
-	// -read-with-unfinished-write
-	// -reject-alpn
-	// -renegotiate-explicit
-	// -renegotiate-freely
-	// -renegotiate-ignore
-	// -renegotiate-once
-	// -select-alpn
-	// -select-next-proto
-	// -send-alert
-	// -send-channel-id
-	// -server-preference
-	// -shim-shuts-down
-	// -signed-cert-timestamps
-	// -signing-prefs
-	// -srtp-profiles
-	// -tls-unique
-	// -use-client-ca-list
-	// -use-ocsp-callback
-	// -use-old-client-cert-callback
-	// -verify-fail
-	// -verify-peer
-	// -verify-prefs
+	echConfigListB64           = flag.String("ech-config-list", "", "")
+	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
+	expectHRR                  = flag.Bool("expect-hrr", false, "")
+	expectedECHRetryConfigs    = flag.String("expect-ech-retry-configs", "", "")
+	expectNoECHRetryConfigs    = flag.Bool("expect-no-ech-retry-configs", false, "")
+	onInitialExpectECHAccepted = flag.Bool("on-initial-expect-ech-accept", false, "")
+	_                          = flag.Bool("expect-no-ech-name-override", false, "")
+	_                          = flag.String("expect-ech-name-override", "", "")
+	_                          = flag.Bool("reverify-on-resume", false, "")
+	onResumeECHConfigListB64   = flag.String("on-resume-ech-config-list", "", "")
+	_                          = flag.Bool("on-resume-expect-reject-early-data", false, "")
+	onResumeExpectECHAccepted  = flag.Bool("on-resume-expect-ech-accept", false, "")
+	_                          = flag.Bool("on-resume-expect-no-ech-name-override", false, "")
+	expectedServerName         = flag.String("expect-server-name", "", "")
+
+	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
+
+	_                       = flag.Bool("enable-early-data", false, "")
+	_                       = flag.Bool("on-resume-expect-accept-early-data", false, "")
+	_                       = flag.Bool("expect-ticket-supports-early-data", false, "")
+	onResumeShimWritesFirst = flag.Bool("on-resume-shim-writes-first", false, "")
+
+	advertiseALPN = flag.String("advertise-alpn", "", "")
+	expectALPN    = flag.String("expect-alpn", "", "")
+
+	hostName = flag.String("host-name", "", "")
+
+	verifyPeer = flag.Bool("verify-peer", false, "")
+	_          = flag.Bool("use-custom-verify-callback", false, "")
 )
 
 type stringSlice []string
@@ -168,9 +112,21 @@ func bogoShim() {
 
 		ClientSessionCache: NewLRUClientSessionCache(0),
 	}
-
 	if *noTLS13 && cfg.MaxVersion == VersionTLS13 {
 		cfg.MaxVersion = VersionTLS12
+	}
+
+	if *advertiseALPN != "" {
+		alpns := *advertiseALPN
+		for len(alpns) > 0 {
+			alpnLen := int(alpns[0])
+			cfg.NextProtos = append(cfg.NextProtos, alpns[1:1+alpnLen])
+			alpns = alpns[alpnLen+1:]
+		}
+	}
+
+	if *hostName != "" {
+		cfg.ServerName = *hostName
 	}
 
 	if *keyfile != "" || *certfile != "" {
@@ -198,6 +154,18 @@ func bogoShim() {
 	if *requireAnyClientCertificate {
 		cfg.ClientAuth = RequireAnyClientCert
 	}
+	if *verifyPeer {
+		cfg.ClientAuth = VerifyClientCertIfGiven
+	}
+
+	if *echConfigListB64 != "" {
+		echConfigList, err := base64.StdEncoding.DecodeString(*echConfigListB64)
+		if err != nil {
+			log.Fatalf("parse ech-config-list err: %s", err)
+		}
+		cfg.EncryptedClientHelloConfigList = echConfigList
+		cfg.MinVersion = VersionTLS13
+	}
 
 	if len(*curves) != 0 {
 		for _, curveStr := range *curves {
@@ -210,6 +178,14 @@ func bogoShim() {
 	}
 
 	for i := 0; i < *resumeCount+1; i++ {
+		if i > 0 && (*onResumeECHConfigListB64 != "") {
+			echConfigList, err := base64.StdEncoding.DecodeString(*onResumeECHConfigListB64)
+			if err != nil {
+				log.Fatalf("parse ech-config-list err: %s", err)
+			}
+			cfg.EncryptedClientHelloConfigList = echConfigList
+		}
+
 		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
 		if err != nil {
 			log.Fatalf("dial err: %s", err)
@@ -230,7 +206,7 @@ func bogoShim() {
 			tlsConn = Client(conn, cfg)
 		}
 
-		if *shimWritesFirst {
+		if i == 0 && *shimWritesFirst {
 			if _, err := tlsConn.Write([]byte("hello")); err != nil {
 				log.Fatalf("write err: %s", err)
 			}
@@ -238,19 +214,65 @@ func bogoShim() {
 
 		for {
 			buf := make([]byte, 500)
-			n, err := tlsConn.Read(buf)
-			if err == io.EOF {
-				break
-			}
+			var n int
+			n, err = tlsConn.Read(buf)
 			if err != nil {
-				log.Fatalf("read err: %s", err)
+				break
 			}
 			buf = buf[:n]
 			for i := range buf {
 				buf[i] ^= 0xff
 			}
-			if _, err := tlsConn.Write(buf); err != nil {
-				log.Fatalf("write err: %s", err)
+			if _, err = tlsConn.Write(buf); err != nil {
+				break
+			}
+		}
+		if err != nil && err != io.EOF {
+			retryErr, ok := err.(*ECHRejectionError)
+			if !ok {
+				log.Fatalf("unexpected error type returned: %v", err)
+			}
+			if *expectNoECHRetryConfigs && len(retryErr.RetryConfigList) > 0 {
+				log.Fatalf("expected no ECH retry configs, got some")
+			}
+			if *expectedECHRetryConfigs != "" {
+				expectedRetryConfigs, err := base64.StdEncoding.DecodeString(*expectedECHRetryConfigs)
+				if err != nil {
+					log.Fatalf("failed to decode expected retry configs: %s", err)
+				}
+				if !bytes.Equal(retryErr.RetryConfigList, expectedRetryConfigs) {
+					log.Fatalf("unexpected retry list returned: got %x, want %x", retryErr.RetryConfigList, expectedRetryConfigs)
+				}
+			}
+			log.Fatalf("conn error: %s", err)
+		}
+
+		cs := tlsConn.ConnectionState()
+		if cs.HandshakeComplete {
+			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
+				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
+			}
+
+			if *expectECHAccepted && !cs.ECHAccepted {
+				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
+			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {
+				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
+			} else if i > 0 && *onResumeExpectECHAccepted && !cs.ECHAccepted {
+				log.Fatal("expected ECH to be accepted on resumption, but connection state shows it was not")
+			} else if i == 0 && !*expectECHAccepted && cs.ECHAccepted {
+				log.Fatal("did not expect ECH, but it was accepted")
+			}
+
+			if *expectHRR && !cs.testingOnlyDidHRR {
+				log.Fatal("expected HRR but did not do it")
+			}
+
+			if *expectSessionMiss && cs.DidResume {
+				log.Fatal("unexpected session resumption")
+			}
+
+			if *expectedServerName != "" && cs.ServerName != *expectedServerName {
+				log.Fatalf("unexpected server name: got %q, want %q", cs.ServerName, *expectedServerName)
 			}
 		}
 
@@ -275,21 +297,26 @@ func TestBogoSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-
 	if testenv.Builder() != "" && runtime.GOOS == "windows" {
 		t.Skip("#66913: windows network connections are flakey on builders")
 	}
 
-	const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
-	output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to download boringssl: %s", err)
-	}
-	var j struct {
-		Dir string
-	}
-	if err := json.Unmarshal(output, &j); err != nil {
-		t.Fatalf("failed to parse 'go mod download' output: %s", err)
+	var bogoDir string
+	if *bogoLocalDir != "" {
+		bogoDir = *bogoLocalDir
+	} else {
+		const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
+		output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to download boringssl: %s", err)
+		}
+		var j struct {
+			Dir string
+		}
+		if err := json.Unmarshal(output, &j); err != nil {
+			t.Fatalf("failed to parse 'go mod download' output: %s", err)
+		}
+		bogoDir = j.Dir
 	}
 
 	cwd, err := os.Getwd()
@@ -319,7 +346,7 @@ func TestBogoSuite(t *testing.T) {
 	cmd := exec.Command(goCmd, args...)
 	out := &strings.Builder{}
 	cmd.Stdout, cmd.Stderr = io.MultiWriter(os.Stdout, out), os.Stderr
-	cmd.Dir = filepath.Join(j.Dir, "ssl/test/runner")
+	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
 	err = cmd.Run()
 	if err != nil {
 		t.Fatalf("bogo failed: %s", err)

@@ -125,6 +125,8 @@ const (
 	extensionKeyShare                uint16 = 51
 	extensionQUICTransportParameters uint16 = 57
 	extensionRenegotiationInfo       uint16 = 0xff01
+	extensionECHOuterExtensions      uint16 = 0xfd00
+	extensionEncryptedClientHello    uint16 = 0xfe0d
 )
 
 // TLS signaling cipher suite values
@@ -286,6 +288,11 @@ type ConnectionState struct {
 	// Section 3). This value will be nil for TLS 1.3 connections and for
 	// resumed connections that don't support Extended Master Secret (RFC 7627).
 	TLSUnique []byte
+
+	// ECHAccepted indicates if Encrypted Client Hello was offered by the client
+	// and accepted by the server. Currently, ECH is supported only on the
+	// client side.
+	ECHAccepted bool
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -777,6 +784,41 @@ type Config struct {
 	// used for debugging.
 	KeyLogWriter io.Writer
 
+	// EncryptedClientHelloConfigList is a serialized ECHConfigList. If
+	// provided, clients will attempt to connect to servers using Encrypted
+	// Client Hello (ECH) using one of the provided ECHConfigs. Servers
+	// currently ignore this field.
+	//
+	// If the list contains no valid ECH configs, the handshake will fail
+	// and return an error.
+	//
+	// If EncryptedClientHelloConfigList is set, MinVersion, if set, must
+	// be VersionTLS13.
+	//
+	// When EncryptedClientHelloConfigList is set, the handshake will only
+	// succeed if ECH is sucessfully negotiated. If the server rejects ECH,
+	// an ECHRejectionError error will be returned, which may contain a new
+	// ECHConfigList that the server suggests using.
+	//
+	// How this field is parsed may change in future Go versions, if the
+	// encoding described in the final Encrypted Client Hello RFC changes.
+	EncryptedClientHelloConfigList []byte
+
+	// EncryptedClientHelloRejectionVerify, if not nil, is called when ECH is
+	// rejected, in order to verify the ECH provider certificate in the outer
+	// Client Hello. If it returns a non-nil error, the handshake is aborted and
+	// that error results.
+	//
+	// Unlike VerifyPeerCertificate and VerifyConnection, normal certificate
+	// verification will not be performed before calling
+	// EncryptedClientHelloRejectionVerify.
+	//
+	// If EncryptedClientHelloRejectionVerify is nil and ECH is rejected, the
+	// roots in RootCAs will be used to verify the ECH providers public
+	// certificate. VerifyPeerCertificate and VerifyConnection are not called
+	// when ECH is rejected, even if set, and InsecureSkipVerify is ignored.
+	EncryptedClientHelloRejectionVerify func(ConnectionState) error
+
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
@@ -836,36 +878,38 @@ func (c *Config) Clone() *Config {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return &Config{
-		Rand:                        c.Rand,
-		Time:                        c.Time,
-		Certificates:                c.Certificates,
-		NameToCertificate:           c.NameToCertificate,
-		GetCertificate:              c.GetCertificate,
-		GetClientCertificate:        c.GetClientCertificate,
-		GetConfigForClient:          c.GetConfigForClient,
-		VerifyPeerCertificate:       c.VerifyPeerCertificate,
-		VerifyConnection:            c.VerifyConnection,
-		RootCAs:                     c.RootCAs,
-		NextProtos:                  c.NextProtos,
-		ServerName:                  c.ServerName,
-		ClientAuth:                  c.ClientAuth,
-		ClientCAs:                   c.ClientCAs,
-		InsecureSkipVerify:          c.InsecureSkipVerify,
-		CipherSuites:                c.CipherSuites,
-		PreferServerCipherSuites:    c.PreferServerCipherSuites,
-		SessionTicketsDisabled:      c.SessionTicketsDisabled,
-		SessionTicketKey:            c.SessionTicketKey,
-		ClientSessionCache:          c.ClientSessionCache,
-		UnwrapSession:               c.UnwrapSession,
-		WrapSession:                 c.WrapSession,
-		MinVersion:                  c.MinVersion,
-		MaxVersion:                  c.MaxVersion,
-		CurvePreferences:            c.CurvePreferences,
-		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
-		Renegotiation:               c.Renegotiation,
-		KeyLogWriter:                c.KeyLogWriter,
-		sessionTicketKeys:           c.sessionTicketKeys,
-		autoSessionTicketKeys:       c.autoSessionTicketKeys,
+		Rand:                                c.Rand,
+		Time:                                c.Time,
+		Certificates:                        c.Certificates,
+		NameToCertificate:                   c.NameToCertificate,
+		GetCertificate:                      c.GetCertificate,
+		GetClientCertificate:                c.GetClientCertificate,
+		GetConfigForClient:                  c.GetConfigForClient,
+		VerifyPeerCertificate:               c.VerifyPeerCertificate,
+		VerifyConnection:                    c.VerifyConnection,
+		RootCAs:                             c.RootCAs,
+		NextProtos:                          c.NextProtos,
+		ServerName:                          c.ServerName,
+		ClientAuth:                          c.ClientAuth,
+		ClientCAs:                           c.ClientCAs,
+		InsecureSkipVerify:                  c.InsecureSkipVerify,
+		CipherSuites:                        c.CipherSuites,
+		PreferServerCipherSuites:            c.PreferServerCipherSuites,
+		SessionTicketsDisabled:              c.SessionTicketsDisabled,
+		SessionTicketKey:                    c.SessionTicketKey,
+		ClientSessionCache:                  c.ClientSessionCache,
+		UnwrapSession:                       c.UnwrapSession,
+		WrapSession:                         c.WrapSession,
+		MinVersion:                          c.MinVersion,
+		MaxVersion:                          c.MaxVersion,
+		CurvePreferences:                    c.CurvePreferences,
+		DynamicRecordSizingDisabled:         c.DynamicRecordSizingDisabled,
+		Renegotiation:                       c.Renegotiation,
+		KeyLogWriter:                        c.KeyLogWriter,
+		EncryptedClientHelloConfigList:      c.EncryptedClientHelloConfigList,
+		EncryptedClientHelloRejectionVerify: c.EncryptedClientHelloRejectionVerify,
+		sessionTicketKeys:                   c.sessionTicketKeys,
+		autoSessionTicketKeys:               c.autoSessionTicketKeys,
 	}
 }
 
@@ -1051,6 +1095,9 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 			if isClient || tls10server.Value() != "1" {
 				continue
 			}
+		}
+		if isClient && c.EncryptedClientHelloConfigList != nil && v < VersionTLS13 {
+			continue
 		}
 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
 			continue
