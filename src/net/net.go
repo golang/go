@@ -662,10 +662,10 @@ func newDNSError(err error, name, server string) *DNSError {
 		isTemporary = err.Temporary()
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) {
-		unwrapErr = errTimeout
-	} else if errors.Is(err, context.Canceled) {
-		unwrapErr = errCanceled
+	// At this time, the only errors we wrap are context errors, to allow
+	// users to check for canceled/timed out requests.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		unwrapErr = err
 	}
 
 	_, isNotFound := err.(*notFoundError)
