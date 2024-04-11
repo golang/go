@@ -39,6 +39,7 @@ var stdPkgs = []string{
 	"sort",
 	"strconv",
 	"strings",
+	"structs",
 	"sync",
 	"syscall",
 	"testing",

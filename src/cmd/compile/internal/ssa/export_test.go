@@ -7,6 +7,7 @@ package ssa
 import (
 	"testing"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -15,6 +16,7 @@ import (
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 )
 
 var CheckFunc = checkFunc
@@ -115,6 +117,7 @@ func init() {
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
 
+	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 	typecheck.InitUniverse()
 	testTypes.SetTypPtrs()
 }
