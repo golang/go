@@ -21,14 +21,18 @@ func dse(f *Func) {
 	defer f.retSparseSet(storeUse)
 	shadowed := f.newSparseMap(f.NumValues())
 	defer f.retSparseMap(shadowed)
+	localAddrs := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(localAddrs)
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
+		//  localAddrs contains indexes into b.Values for each unique LocalAddr.
 		loadUse.clear()
 		storeUse.clear()
+		localAddrs.clear()
 		stores = stores[:0]
-		for _, v := range b.Values {
+		for i, v := range b.Values {
 			if v.Op == OpPhi {
 				// Ignore phis - they will always be first and can't be eliminated
 				continue
@@ -46,6 +50,12 @@ func dse(f *Func) {
 					}
 				}
 			} else {
+				if v.Op == OpLocalAddr {
+					if findSameLocalAddr(b, v, localAddrs) >= 0 {
+						continue
+					}
+					localAddrs.add(ID(i))
+				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						loadUse.add(a.ID)
@@ -100,6 +110,10 @@ func dse(f *Func) {
 			} else { // OpZero
 				sz = v.AuxInt
 			}
+			idx := findSameLocalAddr(b, ptr, localAddrs)
+			if idx != -1 {
+				ptr = b.Values[idx]
+			}
 			sr := shadowRange(shadowed.get(ptr.ID))
 			if sr.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
@@ -136,6 +150,16 @@ func dse(f *Func) {
 	}
 }
 
+func findSameLocalAddr(b *Block, vv *Value, localAddrs *sparseSet) int {
+	for _, idx := range localAddrs.contents() {
+		la := b.Values[idx]
+		if isSamePtr(la, vv) {
+			return int(idx)
+		}
+	}
+	return -1
+}
+
 // A shadowRange encodes a set of byte offsets [lo():hi()] from
 // a given pointer that will be written to later in the block.
 // A zero shadowRange encodes an empty shadowed range (and so
@@ -146,6 +170,7 @@ type shadowRange int32
 func (sr shadowRange) lo() int64 {
 	return int64(sr & 0xffff)
 }
+
 func (sr shadowRange) hi() int64 {
 	return int64((sr >> 16) & 0xffff)
 }
