@@ -1,0 +1,2 @@
+pkg net/http, func ParseCookie(string) ([]*Cookie, error) #66008
+pkg net/http, func ParseSetCookie(string) (*Cookie, error) #66008

@@ -6,6 +6,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -648,5 +649,207 @@ func BenchmarkReadCookies(b *testing.B) {
 	}
 	if !reflect.DeepEqual(c, wantCookies) {
 		b.Fatalf("readCookies:\nhave: %s\nwant: %s\n", toJSON(c), toJSON(wantCookies))
+	}
+}
+
+func TestParseCookie(t *testing.T) {
+	tests := []struct {
+		line    string
+		cookies []*Cookie
+		err     error
+	}{
+		{
+			line:    "Cookie-1=v$1",
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}},
+		},
+		{
+			line:    "Cookie-1=v$1;c2=v2",
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}, {Name: "c2", Value: "v2"}},
+		},
+		{
+			line:    `Cookie-1="v$1";c2="v2"`,
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}, {Name: "c2", Value: "v2"}},
+		},
+		{
+			line:    "k1=",
+			cookies: []*Cookie{{Name: "k1", Value: ""}},
+		},
+		{
+			line: "",
+			err:  errBlankCookie,
+		},
+		{
+			line: "whatever",
+			err:  errEqualNotFoundInCookie,
+		},
+		{
+			line: "=v1",
+			err:  errInvalidCookieName,
+		},
+		{
+			line: "k1=\\",
+			err:  errInvalidCookieValue,
+		},
+	}
+	for i, tt := range tests {
+		gotCookies, gotErr := ParseCookie(tt.line)
+		if !errors.Is(gotErr, tt.err) {
+			t.Errorf("#%d ParseCookie got error %v, want error %v", i, gotErr, tt.err)
+		}
+		if !reflect.DeepEqual(gotCookies, tt.cookies) {
+			t.Errorf("#%d ParseCookie:\ngot cookies: %s\nwant cookies: %s\n", i, toJSON(gotCookies), toJSON(tt.cookies))
+		}
+	}
+}
+
+func TestParseSetCookie(t *testing.T) {
+	tests := []struct {
+		line   string
+		cookie *Cookie
+		err    error
+	}{
+		{
+			line:   "Cookie-1=v$1",
+			cookie: &Cookie{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"},
+		},
+		{
+			line: "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+			cookie: &Cookie{
+				Name:       "NID",
+				Value:      "99=YsDT5i3E-CXax-",
+				Path:       "/",
+				Domain:     ".google.ch",
+				HttpOnly:   true,
+				Expires:    time.Date(2011, 11, 23, 1, 5, 3, 0, time.UTC),
+				RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
+				Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+			},
+		},
+		{
+			line: ".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly",
+			cookie: &Cookie{
+				Name:       ".ASPXAUTH",
+				Value:      "7E3AA",
+				Path:       "/",
+				Expires:    time.Date(2012, 3, 7, 14, 25, 6, 0, time.UTC),
+				RawExpires: "Wed, 07-Mar-2012 14:25:06 GMT",
+				HttpOnly:   true,
+				Raw:        ".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly",
+			},
+		},
+		{
+			line: "ASP.NET_SessionId=foo; path=/; HttpOnly",
+			cookie: &Cookie{
+				Name:     "ASP.NET_SessionId",
+				Value:    "foo",
+				Path:     "/",
+				HttpOnly: true,
+				Raw:      "ASP.NET_SessionId=foo; path=/; HttpOnly",
+			},
+		},
+		{
+			line: "samesitedefault=foo; SameSite",
+			cookie: &Cookie{
+				Name:     "samesitedefault",
+				Value:    "foo",
+				SameSite: SameSiteDefaultMode,
+				Raw:      "samesitedefault=foo; SameSite",
+			},
+		},
+		{
+			line: "samesiteinvalidisdefault=foo; SameSite=invalid",
+			cookie: &Cookie{
+				Name:     "samesiteinvalidisdefault",
+				Value:    "foo",
+				SameSite: SameSiteDefaultMode,
+				Raw:      "samesiteinvalidisdefault=foo; SameSite=invalid",
+			},
+		},
+		{
+			line: "samesitelax=foo; SameSite=Lax",
+			cookie: &Cookie{
+				Name:     "samesitelax",
+				Value:    "foo",
+				SameSite: SameSiteLaxMode,
+				Raw:      "samesitelax=foo; SameSite=Lax",
+			},
+		},
+		{
+			line: "samesitestrict=foo; SameSite=Strict",
+			cookie: &Cookie{
+				Name:     "samesitestrict",
+				Value:    "foo",
+				SameSite: SameSiteStrictMode,
+				Raw:      "samesitestrict=foo; SameSite=Strict",
+			},
+		},
+		{
+			line: "samesitenone=foo; SameSite=None",
+			cookie: &Cookie{
+				Name:     "samesitenone",
+				Value:    "foo",
+				SameSite: SameSiteNoneMode,
+				Raw:      "samesitenone=foo; SameSite=None",
+			},
+		},
+		// Make sure we can properly read back the Set-Cookie headers we create
+		// for values containing spaces or commas:
+		{
+			line:   `special-1=a z`,
+			cookie: &Cookie{Name: "special-1", Value: "a z", Raw: `special-1=a z`},
+		},
+		{
+			line:   `special-2=" z"`,
+			cookie: &Cookie{Name: "special-2", Value: " z", Raw: `special-2=" z"`},
+		},
+		{
+			line:   `special-3="a "`,
+			cookie: &Cookie{Name: "special-3", Value: "a ", Raw: `special-3="a "`},
+		},
+		{
+			line:   `special-4=" "`,
+			cookie: &Cookie{Name: "special-4", Value: " ", Raw: `special-4=" "`},
+		},
+		{
+			line:   `special-5=a,z`,
+			cookie: &Cookie{Name: "special-5", Value: "a,z", Raw: `special-5=a,z`},
+		},
+		{
+			line:   `special-6=",z"`,
+			cookie: &Cookie{Name: "special-6", Value: ",z", Raw: `special-6=",z"`},
+		},
+		{
+			line:   `special-7=a,`,
+			cookie: &Cookie{Name: "special-7", Value: "a,", Raw: `special-7=a,`},
+		},
+		{
+			line:   `special-8=","`,
+			cookie: &Cookie{Name: "special-8", Value: ",", Raw: `special-8=","`},
+		},
+		{
+			line: "",
+			err:  errBlankCookie,
+		},
+		{
+			line: "whatever",
+			err:  errEqualNotFoundInCookie,
+		},
+		{
+			line: "=v1",
+			err:  errInvalidCookieName,
+		},
+		{
+			line: "k1=\\",
+			err:  errInvalidCookieValue,
+		},
+	}
+	for i, tt := range tests {
+		gotCookie, gotErr := ParseSetCookie(tt.line)
+		if !errors.Is(gotErr, tt.err) {
+			t.Errorf("#%d ParseCookie got error %v, want error %v", i, gotErr, tt.err)
+		}
+		if !reflect.DeepEqual(gotCookie, tt.cookie) {
+			t.Errorf("#%d ParseCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
+		}
 	}
 }

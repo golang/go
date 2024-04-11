@@ -55,6 +55,140 @@ const (
 	SameSiteNoneMode
 )
 
+var (
+	errBlankCookie           = errors.New("http: blank cookie")
+	errEqualNotFoundInCookie = errors.New("http: '=' not found in cookie")
+	errInvalidCookieName     = errors.New("http: invalid cookie name")
+	errInvalidCookieValue    = errors.New("http: invalid cookie value")
+)
+
+// ParseCookie parses a Cookie header value and returns all the cookies
+// which were set in it. Since the same cookie name can appear multiple times
+// the returned Values can contain more than one value for a given key.
+func ParseCookie(line string) ([]*Cookie, error) {
+	parts := strings.Split(textproto.TrimString(line), ";")
+	if len(parts) == 1 && parts[0] == "" {
+		return nil, errBlankCookie
+	}
+	cookies := make([]*Cookie, 0, len(parts))
+	for _, s := range parts {
+		s = textproto.TrimString(s)
+		name, value, found := strings.Cut(s, "=")
+		if !found {
+			return nil, errEqualNotFoundInCookie
+		}
+		if !isCookieNameValid(name) {
+			return nil, errInvalidCookieName
+		}
+		value, found = parseCookieValue(value, true)
+		if !found {
+			return nil, errInvalidCookieValue
+		}
+		cookies = append(cookies, &Cookie{Name: name, Value: value})
+	}
+	return cookies, nil
+}
+
+// ParseSetCookie parses a Set-Cookie header value and returns a cookie.
+// It returns an error on syntax error.
+func ParseSetCookie(line string) (*Cookie, error) {
+	parts := strings.Split(textproto.TrimString(line), ";")
+	if len(parts) == 1 && parts[0] == "" {
+		return nil, errBlankCookie
+	}
+	parts[0] = textproto.TrimString(parts[0])
+	name, value, ok := strings.Cut(parts[0], "=")
+	if !ok {
+		return nil, errEqualNotFoundInCookie
+	}
+	name = textproto.TrimString(name)
+	if !isCookieNameValid(name) {
+		return nil, errInvalidCookieName
+	}
+	value, ok = parseCookieValue(value, true)
+	if !ok {
+		return nil, errInvalidCookieValue
+	}
+	c := &Cookie{
+		Name:  name,
+		Value: value,
+		Raw:   line,
+	}
+	for i := 1; i < len(parts); i++ {
+		parts[i] = textproto.TrimString(parts[i])
+		if len(parts[i]) == 0 {
+			continue
+		}
+
+		attr, val, _ := strings.Cut(parts[i], "=")
+		lowerAttr, isASCII := ascii.ToLower(attr)
+		if !isASCII {
+			continue
+		}
+		val, ok = parseCookieValue(val, false)
+		if !ok {
+			c.Unparsed = append(c.Unparsed, parts[i])
+			continue
+		}
+
+		switch lowerAttr {
+		case "samesite":
+			lowerVal, ascii := ascii.ToLower(val)
+			if !ascii {
+				c.SameSite = SameSiteDefaultMode
+				continue
+			}
+			switch lowerVal {
+			case "lax":
+				c.SameSite = SameSiteLaxMode
+			case "strict":
+				c.SameSite = SameSiteStrictMode
+			case "none":
+				c.SameSite = SameSiteNoneMode
+			default:
+				c.SameSite = SameSiteDefaultMode
+			}
+			continue
+		case "secure":
+			c.Secure = true
+			continue
+		case "httponly":
+			c.HttpOnly = true
+			continue
+		case "domain":
+			c.Domain = val
+			continue
+		case "max-age":
+			secs, err := strconv.Atoi(val)
+			if err != nil || secs != 0 && val[0] == '0' {
+				break
+			}
+			if secs <= 0 {
+				secs = -1
+			}
+			c.MaxAge = secs
+			continue
+		case "expires":
+			c.RawExpires = val
+			exptime, err := time.Parse(time.RFC1123, val)
+			if err != nil {
+				exptime, err = time.Parse("Mon, 02-Jan-2006 15:04:05 MST", val)
+				if err != nil {
+					c.Expires = time.Time{}
+					break
+				}
+			}
+			c.Expires = exptime.UTC()
+			continue
+		case "path":
+			c.Path = val
+			continue
+		}
+		c.Unparsed = append(c.Unparsed, parts[i])
+	}
+	return c, nil
+}
+
 // readSetCookies parses all "Set-Cookie" values from
 // the header h and returns the successfully parsed Cookies.
 func readSetCookies(h Header) []*Cookie {
@@ -64,101 +198,9 @@ func readSetCookies(h Header) []*Cookie {
 	}
 	cookies := make([]*Cookie, 0, cookieCount)
 	for _, line := range h["Set-Cookie"] {
-		parts := strings.Split(textproto.TrimString(line), ";")
-		if len(parts) == 1 && parts[0] == "" {
-			continue
+		if cookie, err := ParseSetCookie(line); err == nil {
+			cookies = append(cookies, cookie)
 		}
-		parts[0] = textproto.TrimString(parts[0])
-		name, value, ok := strings.Cut(parts[0], "=")
-		if !ok {
-			continue
-		}
-		name = textproto.TrimString(name)
-		if !isCookieNameValid(name) {
-			continue
-		}
-		value, ok = parseCookieValue(value, true)
-		if !ok {
-			continue
-		}
-		c := &Cookie{
-			Name:  name,
-			Value: value,
-			Raw:   line,
-		}
-		for i := 1; i < len(parts); i++ {
-			parts[i] = textproto.TrimString(parts[i])
-			if len(parts[i]) == 0 {
-				continue
-			}
-
-			attr, val, _ := strings.Cut(parts[i], "=")
-			lowerAttr, isASCII := ascii.ToLower(attr)
-			if !isASCII {
-				continue
-			}
-			val, ok = parseCookieValue(val, false)
-			if !ok {
-				c.Unparsed = append(c.Unparsed, parts[i])
-				continue
-			}
-
-			switch lowerAttr {
-			case "samesite":
-				lowerVal, ascii := ascii.ToLower(val)
-				if !ascii {
-					c.SameSite = SameSiteDefaultMode
-					continue
-				}
-				switch lowerVal {
-				case "lax":
-					c.SameSite = SameSiteLaxMode
-				case "strict":
-					c.SameSite = SameSiteStrictMode
-				case "none":
-					c.SameSite = SameSiteNoneMode
-				default:
-					c.SameSite = SameSiteDefaultMode
-				}
-				continue
-			case "secure":
-				c.Secure = true
-				continue
-			case "httponly":
-				c.HttpOnly = true
-				continue
-			case "domain":
-				c.Domain = val
-				continue
-			case "max-age":
-				secs, err := strconv.Atoi(val)
-				if err != nil || secs != 0 && val[0] == '0' {
-					break
-				}
-				if secs <= 0 {
-					secs = -1
-				}
-				c.MaxAge = secs
-				continue
-			case "expires":
-				c.RawExpires = val
-				exptime, err := time.Parse(time.RFC1123, val)
-				if err != nil {
-					exptime, err = time.Parse("Mon, 02-Jan-2006 15:04:05 MST", val)
-					if err != nil {
-						c.Expires = time.Time{}
-						break
-					}
-				}
-				c.Expires = exptime.UTC()
-				continue
-			case "path":
-				c.Path = val
-				continue
-			}
-			c.Unparsed = append(c.Unparsed, parts[i])
-		}
-		cookies = append(cookies, c)
 	}
 	return cookies
 }
