@@ -267,7 +267,9 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage
 		if ahdr.Type == dnsmessage.TypeOPT {
 			return ahdr.ExtendedRCode(hdr.RCode)
 		}
-		p.SkipAdditional()
+		if err := p.SkipAdditional(); err != nil {
+			return hdr.RCode
+		}
 	}
 }
 
