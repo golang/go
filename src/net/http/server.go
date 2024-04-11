@@ -2175,12 +2175,12 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be plain text.
-func Error(w ResponseWriter, error string, code int) {
+func Error(w ResponseWriter, errorMessage string, code int) {
 	w.Header().Del("Content-Length")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	fmt.Fprintln(w, error)
+	fmt.Fprintln(w, errorMessage)
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
