@@ -48,7 +48,7 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
 func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
 	res := make(map[tracev2.GoID][]interval)
 	for _, g := range t.summary.Goroutines {
-		if g.Name != name {
+		if name != "" && g.Name != name {
 			continue
 		}
 		endTime := g.EndTime
