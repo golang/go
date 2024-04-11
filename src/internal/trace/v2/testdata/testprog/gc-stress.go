@@ -11,7 +11,6 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"os"
 	"runtime"
 	"runtime/trace"
@@ -62,7 +61,7 @@ func main() {
 		i := i
 		go func() {
 			for {
-				sink[i] = make([]byte, rand.Intn(32<<10))
+				sink[i] = make([]byte, 4<<10)
 			}
 		}()
 	}
