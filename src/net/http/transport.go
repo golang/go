@@ -2692,7 +2692,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		select {
 		case err := <-writeErrCh:
 			if debugRoundTrip {
-				req.logf("writeErrCh resv: %T/%#v", err, err)
+				req.logf("writeErrCh recv: %T/%#v", err, err)
 			}
 			if err != nil {
 				pc.close(fmt.Errorf("write error: %w", err))
