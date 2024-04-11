@@ -1,7 +1,7 @@
 ### Timer changes
 
 Go 1.23 makes two significant changes to the implementation of
-[`time.Timer`](/pkg/time#Timer) and [`time.Ticker`](/pkg/time#Ticker).
+[time.Timer] and [time.Ticker].
 
 First, `Timer`s and `Ticker`s that are no longer referred to by the program
 become eligible for garbage collection immediately, even if their
