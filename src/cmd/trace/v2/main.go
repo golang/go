@@ -28,6 +28,35 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	}
 	defer tracef.Close()
 
+	// Handle requests for profiles.
+	if pprof != "" {
+		parsed, err := parseTrace(tracef)
+		if err != nil {
+			return err
+		}
+		var f traceviewer.ProfileFunc
+		switch pprof {
+		case "net":
+			f = pprofByGoroutine(computePprofIO(), parsed)
+		case "sync":
+			f = pprofByGoroutine(computePprofBlock(), parsed)
+		case "syscall":
+			f = pprofByGoroutine(computePprofSyscall(), parsed)
+		case "sched":
+			f = pprofByGoroutine(computePprofSched(), parsed)
+		default:
+			return fmt.Errorf("unknown pprof type %s\n", pprof)
+		}
+		records, err := f(&http.Request{})
+		if err != nil {
+			return fmt.Errorf("failed to generate pprof: %v\n", err)
+		}
+		if err := traceviewer.BuildProfile(records).Write(os.Stdout); err != nil {
+			return fmt.Errorf("failed to generate pprof: %v\n", err)
+		}
+		return nil
+	}
+
 	// Debug flags.
 	switch debug {
 	case 1:
