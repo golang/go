@@ -40,6 +40,14 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	if debug > 1 {
 		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
 	}
+	// if the number of rewrite iterations reaches itersLimit we will
+	// at that point turn on cycle detection. Instead of a fixed limit,
+	// size the limit according to func size to allow for cases such
+	// as the one in issue #66773.
+	itersLimit := f.NumBlocks()
+	if itersLimit < 20 {
+		itersLimit = 20
+	}
 	var iters int
 	var states map[string]bool
 	for {
@@ -154,7 +162,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 			break
 		}
 		iters++
-		if (iters > 1000 || debug >= 2) && change {
+		if (iters > itersLimit || debug >= 2) && change {
 			// We've done a suspiciously large number of rewrites (or we're in debug mode).
 			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
 			// and the maximum value encountered during make.bash is 12.
