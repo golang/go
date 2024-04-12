@@ -413,7 +413,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if name == "." {
 			return nil
 		}
 		info, err := d.Info()
@@ -421,7 +421,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
-		if !info.Mode().IsRegular() {
+		if !d.IsDir() && !info.Mode().IsRegular() {
 			return errors.New("tar: cannot add non-regular file")
 		}
 		h, err := FileInfoHeader(info, "")
@@ -431,6 +431,9 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		h.Name = name
 		if err := tw.WriteHeader(h); err != nil {
 			return err
+		}
+		if d.IsDir() {
+			return nil
 		}
 		f, err := fsys.Open(name)
 		if err != nil {
@@ -668,6 +671,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
 func (sw sparseFileWriter) logicalRemaining() int64 {
 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
 }
+
 func (sw sparseFileWriter) physicalRemaining() int64 {
 	return sw.fw.physicalRemaining()
 }

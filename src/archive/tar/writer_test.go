@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -1338,29 +1339,40 @@ func TestFileWriter(t *testing.T) {
 
 func TestWriterAddFS(t *testing.T) {
 	fsys := fstest.MapFS{
+		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
 		"file.go":              {Data: []byte("hello")},
 		"subfolder/another.go": {Data: []byte("world")},
+		// Notably missing here is the "subfolder" directory. This makes sure even
+		// if we don't have a subfolder directory listed.
 	}
 	var buf bytes.Buffer
 	tw := NewWriter(&buf)
 	if err := tw.AddFS(fsys); err != nil {
 		t.Fatal(err)
 	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add subfolder into fsys to match what we'll read from the tar.
+	fsys["subfolder"] = &fstest.MapFile{Mode: 0o555 | os.ModeDir}
 
 	// Test that we can get the files back from the archive
 	tr := NewReader(&buf)
 
-	entries, err := fsys.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
+	names := make([]string, 0, len(fsys))
+	for name := range fsys {
+		names = append(names, name)
 	}
+	sort.Strings(names)
 
-	var curfname string
-	for _, entry := range entries {
-		curfname = entry.Name()
-		if entry.IsDir() {
-			curfname += "/"
-			continue
+	entriesLeft := len(fsys)
+	for _, name := range names {
+		entriesLeft--
+
+		entryInfo, err := fsys.Stat(name)
+		if err != nil {
+			t.Fatalf("getting entry info error: %v", err)
 		}
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -1370,21 +1382,32 @@ func TestWriterAddFS(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		if hdr.Name != name {
+			t.Errorf("test fs has filename %v; archive header has %v",
+				name, hdr.Name)
+		}
+
+		if entryInfo.Mode() != hdr.FileInfo().Mode() {
+			t.Errorf("%s: test fs has mode %v; archive header has %v",
+				name, entryInfo.Mode(), hdr.FileInfo().Mode())
+		}
+
+		if entryInfo.IsDir() {
+			continue
+		}
+
 		data, err := io.ReadAll(tr)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		if hdr.Name != curfname {
-			t.Fatalf("got filename %v, want %v",
-				curfname, hdr.Name)
-		}
-
-		origdata := fsys[curfname].Data
+		origdata := fsys[name].Data
 		if string(data) != string(origdata) {
-			t.Fatalf("got file content %v, want %v",
+			t.Fatalf("test fs has file content %v; archive header has %v",
 				data, origdata)
 		}
+	}
+	if entriesLeft > 0 {
+		t.Fatalf("not all entries are in the archive")
 	}
 }
 
