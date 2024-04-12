@@ -139,9 +139,8 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
 			}
 		case _C_EAI_SERVICE, _C_EAI_NONAME: // Darwin returns EAI_NONAME.
 			return 0, newDNSError(errUnknownPort, network+"/"+service, "")
-		default:
-			return 0, newDNSError(addrinfoErrno(gerrno), network+"/"+service, "")
 		}
+		return 0, newDNSError(addrinfoErrno(gerrno), network+"/"+service, "")
 	}
 	defer _C_freeaddrinfo(res)
 
@@ -194,9 +193,8 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 			return nil, newDNSError(err, name, "")
 		case _C_EAI_NONAME, _C_EAI_NODATA:
 			return nil, newDNSError(errNoSuchHost, name, "")
-		default:
-			return nil, newDNSError(addrinfoErrno(gerrno), name, "")
 		}
+		return nil, newDNSError(addrinfoErrno(gerrno), name, "")
 
 	}
 	defer _C_freeaddrinfo(res)
@@ -273,9 +271,8 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
 			return nil, newDNSError(err, addr, "")
 		case _C_EAI_NONAME:
 			return nil, newDNSError(errNoSuchHost, addr, "")
-		default:
-			return nil, newDNSError(addrinfoErrno(gerrno), addr, "")
 		}
+		return nil, newDNSError(addrinfoErrno(gerrno), addr, "")
 	}
 	if i := bytealg.IndexByte(b, 0); i != -1 {
 		b = b[:i]
