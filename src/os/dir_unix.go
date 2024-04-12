@@ -17,6 +17,7 @@ import (
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
+	mu   sync.Mutex
 	buf  *[]byte // buffer for directory I/O
 	nbuf int     // length of buf; return value from Getdirentries
 	bufp int     // location of next record in buf.
@@ -43,13 +44,16 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
-	if f.dirinfo == nil {
-		f.dirinfo = new(dirInfo)
+	// If this file has no dirInfo, create one.
+	d := f.dirinfo.Load()
+	if d == nil {
+		d = new(dirInfo)
+		f.dirinfo.Store(d)
 	}
-	d := f.dirinfo
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.buf == nil {
-		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
+		d.buf = dirBufPool.Get().(*[]byte)
 	}
 
 	// Change the meaning of n for the implementation below.

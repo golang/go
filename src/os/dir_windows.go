@@ -16,6 +16,7 @@ import (
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
+	mu sync.Mutex
 	// buf is a slice pointer so the slice header
 	// does not escape to the heap when returning
 	// buf to dirBufPool.
@@ -93,14 +94,27 @@ func (d *dirInfo) init(h syscall.Handle) {
 }
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	if file.dirinfo == nil {
-		file.dirinfo = new(dirInfo)
-		file.dirinfo.init(file.pfd.Sysfd)
+	// If this file has no dirInfo, create one.
+	var d *dirInfo
+	for {
+		d = file.dirinfo.Load()
+		if d != nil {
+			break
+		}
+		d = new(dirInfo)
+		d.init(file.pfd.Sysfd)
+		if file.dirinfo.CompareAndSwap(nil, d) {
+			break
+		}
+		// We lost the race: try again.
+		d.close()
 	}
-	d := file.dirinfo
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.buf == nil {
 		d.buf = dirBufPool.Get().(*[]byte)
 	}
+
 	wantAll := n <= 0
 	if wantAll {
 		n = -1

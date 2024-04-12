@@ -9,6 +9,8 @@ import (
 	"internal/poll"
 	"io"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -26,8 +28,8 @@ type file struct {
 	fdmu       poll.FDMutex
 	fd         int
 	name       string
-	dirinfo    *dirInfo // nil unless directory being read
-	appendMode bool     // whether file is opened for appending
+	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
+	appendMode bool                    // whether file is opened for appending
 }
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
@@ -60,6 +62,7 @@ func NewFile(fd uintptr, name string) *File {
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
+	mu   sync.Mutex
 	buf  [syscall.STATMAX]byte // buffer for directory I/O
 	nbuf int                   // length of buf; return value from Read
 	bufp int                   // location of next record in buf.
@@ -349,11 +352,9 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	defer f.decref()
-	if f.dirinfo != nil {
-		// Free cached dirinfo, so we allocate a new one if we
-		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo = nil
-	}
+	// Free cached dirinfo, so we allocate a new one if we
+	// access this file as a directory again. See #35767 and #37161.
+	f.dirinfo.Store(nil)
 	return syscall.Seek(f.fd, offset, whence)
 }
 

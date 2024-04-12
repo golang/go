@@ -11,6 +11,7 @@ import (
 	"internal/syscall/unix"
 	"io/fs"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	_ "unsafe" // for go:linkname
 )
@@ -58,10 +59,10 @@ func rename(oldname, newname string) error {
 type file struct {
 	pfd         poll.FD
 	name        string
-	dirinfo     *dirInfo // nil unless directory being read
-	nonblock    bool     // whether we set nonblocking mode
-	stdoutOrErr bool     // whether this is stdout or stderr
-	appendMode  bool     // whether file is opened for appending
+	dirinfo     atomic.Pointer[dirInfo] // nil unless directory being read
+	nonblock    bool                    // whether we set nonblocking mode
+	stdoutOrErr bool                    // whether this is stdout or stderr
+	appendMode  bool                    // whether file is opened for appending
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -325,9 +326,8 @@ func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
 	}
-	if file.dirinfo != nil {
-		file.dirinfo.close()
-		file.dirinfo = nil
+	if info := file.dirinfo.Swap(nil); info != nil {
+		info.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -347,11 +347,10 @@ func (file *file) close() error {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	if f.dirinfo != nil {
+	if info := f.dirinfo.Swap(nil); info != nil {
 		// Free cached dirinfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo.close()
-		f.dirinfo = nil
+		info.close()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
