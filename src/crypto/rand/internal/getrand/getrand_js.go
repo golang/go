@@ -7,11 +7,12 @@
 package getrand
 
 import (
-	"math"
 	"syscall/js"
 )
 
-const maxGetRandomRead = math.MaxInt
+// The maximum buffer size for crypto.getRandomValues is 65536 bytes.
+// https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
+const maxGetRandomRead = 64 << 10
 
 var jsCrypto = js.Global().Get("crypto")
 var uint8Array = js.Global().Get("Uint8Array")
