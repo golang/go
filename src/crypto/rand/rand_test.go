@@ -60,3 +60,13 @@ func benchmarkRead(b *testing.B, size int) {
 		}
 	}
 }
+
+func TestReadAllocs(t *testing.T) {
+	allocs := testing.AllocsPerRun(100, func() {
+		buf := make([]byte, 32)
+		Read(buf)
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
+}

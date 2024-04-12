@@ -13,6 +13,24 @@ import (
 	"testing"
 )
 
+// batched returns a function that calls f to populate a []byte by chunking it
+// into subslices of, at most, readMax bytes.
+func batched(f func([]byte) error, readMax int) func([]byte) error {
+	return func(out []byte) error {
+		for len(out) > 0 {
+			read := len(out)
+			if read > readMax {
+				read = readMax
+			}
+			if err := f(out[:read]); err != nil {
+				return err
+			}
+			out = out[read:]
+		}
+		return nil
+	}
+}
+
 func TestBatched(t *testing.T) {
 	fillBatched := batched(func(p []byte) error {
 		for i := range p {

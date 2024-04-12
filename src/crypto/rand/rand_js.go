@@ -8,14 +8,11 @@ package rand
 
 import "syscall/js"
 
-// The maximum buffer size for crypto.getRandomValues is 65536 bytes.
-// https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
-const maxGetRandomRead = 64 << 10
-
 var batchedGetRandom func([]byte) error
 
+var randReader = reader{}
+
 func init() {
-	Reader = &reader{}
 	batchedGetRandom = batched(getRandom, maxGetRandomRead)
 }
 
@@ -27,7 +24,7 @@ var uint8Array = js.Global().Get("Uint8Array")
 // See https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues.
 type reader struct{}
 
-func (r *reader) Read(b []byte) (int, error) {
+func (r reader) Read(b []byte) (int, error) {
 	if err := batchedGetRandom(b); err != nil {
 		return 0, err
 	}

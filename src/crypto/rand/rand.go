@@ -19,28 +19,20 @@ import "io"
 //   - On Windows, Reader uses the ProcessPrng API.
 //   - On js/wasm, Reader uses the Web Crypto API.
 //   - On wasip1/wasm, Reader uses random_get from wasi_snapshot_preview1.
-var Reader io.Reader
+var Reader io.Reader = randReader
 
 // Read is a helper function that calls Reader.Read using io.ReadFull.
 // On return, n == len(b) if and only if err == nil.
 func Read(b []byte) (n int, err error) {
-	return io.ReadFull(Reader, b)
-}
-
-// batched returns a function that calls f to populate a []byte by chunking it
-// into subslices of, at most, readMax bytes.
-func batched(f func([]byte) error, readMax int) func([]byte) error {
-	return func(out []byte) error {
-		for len(out) > 0 {
-			read := len(out)
-			if read > readMax {
-				read = readMax
-			}
-			if err := f(out[:read]); err != nil {
-				return err
-			}
-			out = out[read:]
-		}
-		return nil
+	for n < len(b) && err == nil {
+		var nn int
+		nn, err = randReader.Read(b[n:])
+		n += nn
 	}
+	if n >= len(b) {
+		err = nil
+	} else if n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	return
 }

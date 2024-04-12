@@ -11,11 +11,11 @@ import (
 	"internal/syscall/windows"
 )
 
-func init() { Reader = &rngReader{} }
+var randReader = rngReader{}
 
 type rngReader struct{}
 
-func (r *rngReader) Read(b []byte) (int, error) {
+func (r rngReader) Read(b []byte) (int, error) {
 	if err := windows.ProcessPrng(b); err != nil {
 		return 0, err
 	}
