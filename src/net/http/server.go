@@ -3296,7 +3296,8 @@ func (srv *Server) Serve(l net.Listener) error {
 //
 // Files containing a certificate and matching private key for the
 // server must be provided if neither the [Server]'s
-// TLSConfig.Certificates nor TLSConfig.GetCertificate are populated.
+// TLSConfig.Certificates, TLSConfig.GetCertificate nor
+// config.GetConfigForClient are populated.
 // If the certificate is signed by a certificate authority, the
 // certFile should be the concatenation of the server's certificate,
 // any intermediates, and the CA's certificate.
@@ -3315,7 +3316,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
-	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
+	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil || config.GetConfigForClient != nil
 	if !configHasCert || certFile != "" || keyFile != "" {
 		var err error
 		config.Certificates = make([]tls.Certificate, 1)
