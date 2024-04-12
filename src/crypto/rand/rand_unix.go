@@ -40,8 +40,8 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	if boring.Enabled {
 		return boring.RandReader.Read(b)
 	}
-
 	boring.Unreachable()
+
 	if r.used.CompareAndSwap(0, 1) {
 		// First use of randomness. Start timer to warn about
 		// being blocked on entropy not being available.
