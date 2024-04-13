@@ -65,7 +65,7 @@ func benchmarkRead(b *testing.B, size int) {
 }
 
 func TestReadAllocs(t *testing.T) {
-	if boring.Enabled || race.Enabled || (runtime.GOOS == "js" && runtime.GOARCH == "wasm") {
+	if boring.Enabled || race.Enabled || (runtime.GOOS == "js" && runtime.GOARCH == "wasm") || runtime.GOOS == "plan9" {
 		t.Skip("zero-allocs unsupported")
 	}
 
