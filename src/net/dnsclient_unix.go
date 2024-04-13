@@ -318,6 +318,8 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 			if err := checkHeader(&p, h); err != nil {
 				if err == errNoSuchHost {
+					// The name does not exist, so trying
+					// another server won't help.
 					return p, server, newDNSError(errNoSuchHost, name, server)
 				}
 				lastErr = newDNSError(err, name, server)
@@ -326,6 +328,8 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 			if err := skipToAnswer(&p, qtype); err != nil {
 				if err == errNoSuchHost {
+					// The name does not exist, so trying
+					// another server won't help.
 					return p, server, newDNSError(errNoSuchHost, name, server)
 				}
 				lastErr = newDNSError(err, name, server)

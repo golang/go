@@ -627,6 +627,8 @@ type notFoundError struct{ s string }
 
 func (e *notFoundError) Error() string { return e.s }
 
+// temporaryError is an error type that implements the [Error] interface.
+// It returns true from the Temporary method.
 type temporaryError struct{ s string }
 
 func (e *temporaryError) Error() string   { return e.s }
