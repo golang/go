@@ -7,10 +7,9 @@ package rand
 import (
 	"bytes"
 	"compress/flate"
+	"crypto/internal/boring"
 	"io"
 	"runtime"
-	"std/crypto/internal/boring"
-	"std/runtime"
 	"testing"
 )
 
