@@ -680,7 +680,7 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 //
 // The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
 // [io/fs.ReadDirFS].
-func DirFS(dir string) fs.FS {
+func DirFS(dir string) fs.ReadDirFS {
 	return dirFS(dir)
 }
 
