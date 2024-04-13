@@ -6,4 +6,4 @@
 
 package getrand
 
-const maxGetRandomRead = 255
+const maxGetRandomRead = 1 << 8
