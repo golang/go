@@ -170,9 +170,9 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
 		if stringsHasSuffix(err.Error(), "dns failure") {
-			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+			err = errNoSuchHost
 		}
-		return nil, handlePlan9DNSError(err, host)
+		return nil, newDNSError(err, host, "")
 	}
 loop:
 	for _, line := range lines {
