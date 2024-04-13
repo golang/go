@@ -411,8 +411,8 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		return wt.WriteTo(dst)
 	}
 	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
-	if rt, ok := dst.(ReaderFrom); ok {
-		return rt.ReadFrom(src)
+	if rf, ok := dst.(ReaderFrom); ok {
+		return rf.ReadFrom(src)
 	}
 	if buf == nil {
 		size := 32 * 1024
