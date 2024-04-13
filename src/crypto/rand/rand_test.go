@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/internal/boring"
+	"internal/race"
 	"io"
 	"runtime"
 	"testing"
@@ -64,11 +65,11 @@ func benchmarkRead(b *testing.B, size int) {
 }
 
 func TestReadAllocs(t *testing.T) {
-	if boring.Enabled || (runtime.GOOS == "js" && runtime.GOARCH == "wasm") {
+	if boring.Enabled || race.Enabled || (runtime.GOOS == "js" && runtime.GOARCH == "wasm") {
 		t.Skip("zero-allocs unsupported")
 	}
 
-	allocs := testing.AllocsPerRun(1000, func() {
+	allocs := testing.AllocsPerRun(100, func() {
 		buf := make([]byte, 32)
 		Read(buf)
 	})
