@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+var goResolver = Resolver{PreferGo: true}
+
 func hasSuffixFold(s, suffix string) bool {
 	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
 }

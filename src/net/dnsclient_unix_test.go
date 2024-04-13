@@ -25,8 +25,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var goResolver = Resolver{PreferGo: true}
-
 // Test address from 192.0.2.0/24 block, reserved by RFC 5737 for documentation.
 var TestAddr = [4]byte{0xc0, 0x00, 0x02, 0x01}
 
