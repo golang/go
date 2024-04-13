@@ -25,6 +25,12 @@ const urandomDevice = "/dev/urandom"
 
 var randReader = &reader{}
 
+func init() {
+	if boring.Enabled {
+		Reader = boring.RandReader
+	}
+}
+
 // A reader satisfies reads by reading from urandomDevice
 type reader struct {
 	f    hideAgainFileReader
