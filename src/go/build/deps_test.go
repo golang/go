@@ -490,6 +490,7 @@ var depsRules = `
 	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
+	< crypto/rand/internal/getrand
 	< crypto/rand
 	< crypto/internal/mlkem768
 	< crypto/ed25519
