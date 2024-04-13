@@ -57,6 +57,7 @@ func BenchmarkRead(b *testing.B) {
 func benchmarkRead(b *testing.B, size int) {
 	b.SetBytes(int64(size))
 	buf := make([]byte, size)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := Read(buf); err != nil {
 			b.Fatal(err)
@@ -75,5 +76,14 @@ func TestReadAllocs(t *testing.T) {
 	})
 	if allocs != 0 {
 		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
+}
+
+func BenchmarkReadAllocs(b *testing.B) {
+	b.SetBytes(1024)
+	b.ReportAllocs()
+	for range b.N {
+		buf := make([]byte, 1024)
+		Read(buf)
 	}
 }
