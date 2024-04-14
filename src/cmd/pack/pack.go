@@ -123,6 +123,7 @@ func openArchive(name string, mode int, files []string) *Archive {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
 	var a *archive.Archive
 	if mode&os.O_TRUNC != 0 { // the c command
 		a, err = archive.New(f)
