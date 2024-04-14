@@ -2936,14 +2936,14 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 	switch Kind(t.Kind_ & abi.KindMask) {
 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
-		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+		for bv.n < uint32(offset/goarch.PtrSize) {
 			bv.append(0)
 		}
 		bv.append(1)
 
 	case Interface:
 		// 2 pointers
-		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+		for bv.n < uint32(offset/goarch.PtrSize) {
 			bv.append(0)
 		}
 		bv.append(1)
