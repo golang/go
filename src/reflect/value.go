@@ -3576,7 +3576,7 @@ func (v Value) Seq() iter.Seq[Value] {
 			}
 		}
 	}
-	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value] ")
+	panic("reflect: " + v.Type().String() + " not make iter.Seq[Value] ")
 }
 
 // Seq2 is like Seq but for two values.
