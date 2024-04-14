@@ -29311,6 +29311,36 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		v.AddArg2(v0, mem)
 		return true
 	}
+	// match: (StaticLECall {f} x y m:(SelectN [1] c:(StaticLECall {g} x y mem)))
+	// cond: isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")
+	// result: (MakeResult (SelectN [0] <typ.Int> c) m)
+	for {
+		if len(v.Args) != 3 {
+			break
+		}
+		f := auxToCall(v.Aux)
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		m := v.Args[2]
+		if m.Op != OpSelectN || auxIntToInt64(m.AuxInt) != 1 {
+			break
+		}
+		c := m.Args[0]
+		if c.Op != OpStaticLECall || len(c.Args) != 3 {
+			break
+		}
+		g := auxToCall(c.Aux)
+		if x != c.Args[0] || y != c.Args[1] || !(isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpSelectN, typ.Int)
+		v0.AuxInt = int64ToAuxInt(0)
+		v0.AddArg(c)
+		v.AddArg2(v0, m)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpStore(v *Value) bool {
