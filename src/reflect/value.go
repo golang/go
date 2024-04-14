@@ -3576,7 +3576,7 @@ func (v Value) Seq() iter.Seq[Value] {
 			}
 		}
 	}
-	panic("reflect: " + v.Type().String() + " not make iter.Seq[Value] ")
+	panic("reflect: " + v.Type().String() + " not make iter.Seq[Value]")
 }
 
 // Seq2 is like Seq but for two values.
@@ -3591,7 +3591,7 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 	}
 	switch v.Kind() {
 	case Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
-		panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value] ")
+		panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value]")
 	case Pointer:
 		if !(v.Elem().kind() == Array) {
 			return nil
@@ -3631,7 +3631,7 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 			}
 		}
 	}
-	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value] ")
+	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value]")
 }
 
 // convertOp returns the function to convert a value of type src
