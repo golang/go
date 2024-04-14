@@ -3545,7 +3545,7 @@ func (v Value) Seq() iter.Seq[Value] {
 			len := v.Len()
 			v = v.Elem()
 			for i := range len {
-				if !yield(ValueOf(v.Index(i))) {
+				if !yield(v.Index(i)) {
 					return
 				}
 			}
