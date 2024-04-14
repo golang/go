@@ -117,3 +117,39 @@ func BenchmarkTypeForError(b *testing.B) {
 		sinkType = reflect.TypeFor[error]()
 	}
 }
+
+func Test_Type_CanSeq(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
+		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq(); got != tt.want {
+				t.Errorf("rtype.CanSeq() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_Type_CanSeq2(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
+		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq2(); got != tt.want {
+				t.Errorf("rtype.CanSeq() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
