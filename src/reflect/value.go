@@ -3576,7 +3576,7 @@ func (v Value) Seq() iter.Seq[Value] {
 			}
 		}
 	}
-	return nil
+	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value] ")
 }
 
 // Seq2 is like Seq but for two values.
@@ -3631,7 +3631,7 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 			}
 		}
 	}
-	return nil
+	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value] ")
 }
 
 // convertOp returns the function to convert a value of type src
