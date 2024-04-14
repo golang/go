@@ -241,10 +241,10 @@ type Type interface {
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
 
-	// CanSeq report whether the type is convertible to iter.Seq
+	// CanSeq report whether the type is convertible to iter.Seq.
 	CanSeq() bool
 
-	// CanSeq2 report whether the type is convertible to iter.Seq2
+	// CanSeq2 report whether the type is convertible to iter.Seq2.
 	CanSeq2() bool
 
 	common() *abi.Type
