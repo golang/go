@@ -93,7 +93,7 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 			scanDir(arg)
 		} else {
 			ok := scanFile(arg, info, true)
-			if !ok {
+			if !ok && *versionM {
 				base.SetExitStatus(1)
 			}
 		}
