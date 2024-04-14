@@ -114,9 +114,6 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"internal/runtime/sys": {},
 		"compress/flate": {
-			"byLiteral.Len",
-			"byLiteral.Less",
-			"byLiteral.Swap",
 			"(*dictDecoder).tryWriteCopy",
 		},
 		"encoding/base64": {
@@ -282,13 +279,6 @@ func TestIntendedInlining(t *testing.T) {
 		}
 	}
 
-	// Functions that must actually be inlined; they must have actual callers.
-	must := map[string]bool{
-		"compress/flate.byLiteral.Len":  true,
-		"compress/flate.byLiteral.Less": true,
-		"compress/flate.byLiteral.Swap": true,
-	}
-
 	notInlinedReason := make(map[string]string)
 	pkgs := make([]string, 0, len(want))
 	for pname, fnames := range want {
@@ -330,12 +320,8 @@ func TestIntendedInlining(t *testing.T) {
 		}
 		if m := canInline.FindStringSubmatch(line); m != nil {
 			fname := m[1]
-			fullname := curPkg + "." + fname
-			// If function must be inlined somewhere, being inlinable is not enough
-			if _, ok := must[fullname]; !ok {
-				delete(notInlinedReason, fullname)
-				continue
-			}
+			delete(notInlinedReason, curPkg+"."+fname)
+			continue
 		}
 		if m := cannotInline.FindStringSubmatch(line); m != nil {
 			fname, reason := m[1], m[2]
