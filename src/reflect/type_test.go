@@ -130,7 +130,7 @@ func Test_Type_CanSeq(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.tr.CanSeq(); got != tt.want {
-				t.Errorf("rtype.CanSeq() = %v, want %v", got, tt.want)
+				t.Errorf("Type.CanSeq() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -148,7 +148,7 @@ func Test_Type_CanSeq2(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.tr.CanSeq2(); got != tt.want {
-				t.Errorf("rtype.CanSeq() = %v, want %v", got, tt.want)
+				t.Errorf("Type.CanSeq2() = %v, want %v", got, tt.want)
 			}
 		})
 	}
