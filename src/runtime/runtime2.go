@@ -510,11 +510,11 @@ type g struct {
 	sleepWhen     int64          // when to sleep until
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
 
-	coroarg *coro // argument during coroutine transfers
-
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
 	goroutineProfiled goroutineProfileStateHolder
+
+	coroarg *coro // argument during coroutine transfers
 
 	// Per-G tracer state.
 	trace gTraceState
@@ -604,8 +604,8 @@ type m struct {
 	// there's no stack to put them on. That is their sole purpose.
 	waitunlockf          func(*g, unsafe.Pointer) bool
 	waitlock             unsafe.Pointer
-	waitTraceBlockReason traceBlockReason
 	waitTraceSkip        int
+	waitTraceBlockReason traceBlockReason
 
 	syscalltick uint32
 	freelink    *m // on sched.freem

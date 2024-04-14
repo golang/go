@@ -33,16 +33,6 @@ type gcCPULimiterState struct {
 	lock atomic.Uint32
 
 	enabled atomic.Bool
-	bucket  struct {
-		// Invariants:
-		// - fill >= 0
-		// - capacity >= 0
-		// - fill <= capacity
-		fill, capacity uint64
-	}
-	// overflow is the cumulative amount of GC CPU time that we tried to fill the
-	// bucket with but exceeded its capacity.
-	overflow uint64
 
 	// gcEnabled is an internal copy of gcBlackenEnabled that determines
 	// whether the limiter tracks total assist time.
@@ -54,6 +44,20 @@ type gcCPULimiterState struct {
 	// transitioning is true when the GC is in a STW and transitioning between
 	// the mark and sweep phases.
 	transitioning bool
+
+	// test indicates whether this instance of the struct was made for testing purposes.
+	test bool
+
+	bucket struct {
+		// Invariants:
+		// - fill >= 0
+		// - capacity >= 0
+		// - fill <= capacity
+		fill, capacity uint64
+	}
+	// overflow is the cumulative amount of GC CPU time that we tried to fill the
+	// bucket with but exceeded its capacity.
+	overflow uint64
 
 	// assistTimePool is the accumulated assist time since the last update.
 	assistTimePool atomic.Int64
@@ -77,9 +81,6 @@ type gcCPULimiterState struct {
 	//
 	// gomaxprocs isn't used directly so as to keep this structure unit-testable.
 	nprocs int32
-
-	// test indicates whether this instance of the struct was made for testing purposes.
-	test bool
 }
 
 // limiting returns true if the CPU limiter is currently enabled, meaning the Go GC
