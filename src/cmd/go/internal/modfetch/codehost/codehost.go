@@ -49,7 +49,7 @@ type Repo interface {
 	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
 	CheckReuse(ctx context.Context, old *Origin, subdir string) error
 
-	// List lists all tags with the given prefix.
+	// Tags lists all tags with the given prefix.
 	Tags(ctx context.Context, prefix string) (*Tags, error)
 
 	// Stat returns information about the revision rev.
