@@ -11,9 +11,10 @@ package http
 // they mostly involve renaming functions, usually by unexporting them.
 
 import (
+	"cmp"
 	"internal/godebug"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -65,27 +66,15 @@ func (mux *serveMux121) handle(pattern string, handler Handler) {
 	e := muxEntry{h: handler, pattern: pattern}
 	mux.m[pattern] = e
 	if pattern[len(pattern)-1] == '/' {
-		mux.es = appendSorted(mux.es, e)
+		i, _ := slices.BinarySearchFunc(mux.es, e, func(i, target muxEntry) int {
+			return cmp.Compare(len(target.pattern), len(i.pattern))
+		})
+		mux.es = slices.Insert(mux.es, i, e)
 	}
 
 	if pattern[0] != '/' {
 		mux.hosts = true
 	}
-}
-
-func appendSorted(es []muxEntry, e muxEntry) []muxEntry {
-	n := len(es)
-	i := sort.Search(n, func(i int) bool {
-		return len(es[i].pattern) < len(e.pattern)
-	})
-	if i == n {
-		return append(es, e)
-	}
-	// we now know that i points at where we want to insert
-	es = append(es, muxEntry{}) // try to grow the slice in place, any entry works.
-	copy(es[i+1:], es[i:])      // Move shorter entries down
-	es[i] = e
-	return es
 }
 
 // Formerly ServeMux.HandleFunc.
