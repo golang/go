@@ -135,7 +135,8 @@ func isGoBinaryCandidate(file string, info fs.FileInfo) bool {
 // If mustPrint is true, scanFile will report any error reading file.
 // Otherwise (mustPrint is false, because scanFile is being called
 // by scanDir) scanFile prints nothing for non-Go binaries.
-func scanFile(file string, info fs.FileInfo, mustPrint bool) (ok bool) {
+// scanFile reports whether the file is a Go binary.
+func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
 	if info.Mode()&fs.ModeSymlink != 0 {
 		// Accept file symlinks only.
 		i, err := os.Stat(file)
