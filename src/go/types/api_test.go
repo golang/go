@@ -3005,17 +3005,9 @@ type T[_ any] struct{}
 type A T[B]
 type B = T[A]
 `
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "a.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pkg, err := new(Config).Check("a", fset, []*ast.File{f}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	pkg := mustTypecheck(src, nil, nil)
 	B := pkg.Scope().Lookup("B")
+
 	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
 	if got != want {
 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
