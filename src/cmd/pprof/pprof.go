@@ -84,8 +84,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
 		return nil, statusCodeError(resp)
 	}
 	return profile.Parse(resp.Body)
