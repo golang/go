@@ -461,33 +461,8 @@ func checkFunc(f *Func) {
 	memCheck(f)
 }
 
-func memCheck(f *Func) {
-	// Check that if a tuple has a memory type, it is second.
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			if v.Type.IsTuple() && v.Type.FieldType(0).IsMemory() {
-				f.Fatalf("memory is first in a tuple: %s\n", v.LongString())
-			}
-		}
-	}
-
-	// Single live memory checks.
-	// These checks only work if there are no memory copies.
-	// (Memory copies introduce ambiguity about which mem value is really live.
-	// probably fixable, but it's easier to avoid the problem.)
-	// For the same reason, disable this check if some memory ops are unused.
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			if (v.Op == OpCopy || v.Uses == 0) && v.Type.IsMemory() {
-				return
-			}
-		}
-		if b != f.Entry && len(b.Preds) == 0 {
-			return
-		}
-	}
-
-	// Compute live memory at the end of each block.
+// computeLastMem compute live memory at the end of each block.
+func computeLastMem(f *Func) []*Value {
 	lastmem := make([]*Value, f.NumBlocks())
 	ss := newSparseSet(f.NumValues())
 	for _, b := range f.Blocks {
@@ -553,6 +528,36 @@ func memCheck(f *Func) {
 			break
 		}
 	}
+	return lastmem
+}
+
+func memCheck(f *Func) {
+	// Check that if a tuple has a memory type, it is second.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Type.IsTuple() && v.Type.FieldType(0).IsMemory() {
+				f.Fatalf("memory is first in a tuple: %s\n", v.LongString())
+			}
+		}
+	}
+
+	// Single live memory checks.
+	// These checks only work if there are no memory copies.
+	// (Memory copies introduce ambiguity about which mem value is really live.
+	// probably fixable, but it's easier to avoid the problem.)
+	// For the same reason, disable this check if some memory ops are unused.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if (v.Op == OpCopy || v.Uses == 0) && v.Type.IsMemory() {
+				return
+			}
+		}
+		if b != f.Entry && len(b.Preds) == 0 {
+			return
+		}
+	}
+
+	lastmem := computeLastMem(f)
 	// Check merge points.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {

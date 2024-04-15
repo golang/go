@@ -88,6 +88,7 @@ func layoutOrder(f *Func) []*Block {
 	}
 
 	bid := f.Entry.ID
+	blockTrace := false
 blockloop:
 	for {
 		// add block to schedule
@@ -120,7 +121,6 @@ blockloop:
 		}
 
 		// Pick the next block to schedule
-		// Pick among the successor blocks that have not been scheduled yet.
 
 		// Use likely direction if we have it.
 		var likely *Block
@@ -131,8 +131,25 @@ blockloop:
 			likely = b.Succs[1].b
 		}
 		if likely != nil && !scheduled[likely.ID] {
+			blockTrace = true
 			bid = likely.ID
 			continue
+		}
+
+		// Pick the next block in the path trace if possible, trace starts with
+		// statically predicted branch, e.g.
+		//   b0: ... If -> b1(likely),b2
+		//   b1: ... Plain -> b3
+		// schedule the path trace b0->b1->b3 sequentially
+		if blockTrace {
+			if len(b.Succs) == 1 {
+				s := b.Succs[0].b
+				if !scheduled[s.ID] {
+					bid = s.ID
+					continue blockloop
+				}
+			}
+			blockTrace = false
 		}
 
 		// Use degree for now.

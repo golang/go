@@ -155,7 +155,7 @@ func f4(x *[10]int) {
 	// and the offset is small enough that if x is nil, the address will still be
 	// in the first unmapped page of memory.
 
-	_ = x[9] // ERROR "generated nil check" // bug: would like to remove this check (but nilcheck and load are in different blocks)
+	_ = x[9] // ERROR "removed nil check"
 
 	for {
 		if x[9] != 0 { // ERROR "removed nil check"

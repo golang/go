@@ -60,7 +60,7 @@ func f3a(x *string, y *string) {
 }
 
 func f4(x *[2]string, y [2]string) {
-	*x = y // ERROR "write barrier"
+	*x = y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
