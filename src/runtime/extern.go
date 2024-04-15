@@ -297,7 +297,7 @@ import (
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	rpc := make([]uintptr, 1)
-	n := callers(skip+1, rpc[:])
+	n := callers(skip+1, rpc)
 	if n < 1 {
 		return
 	}
