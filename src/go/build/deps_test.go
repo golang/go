@@ -197,7 +197,7 @@ var depsRules = `
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
-	arena, strconv, unicode
+	arena, strconv, unicode, iter
 	< reflect;
 
 	os, reflect

@@ -3542,18 +3542,17 @@ func (v Value) Seq() iter.Seq[Value] {
 			return nil
 		}
 		return func(yield func(Value) bool) {
-			len := v.Len()
 			v = v.Elem()
-			for i := range len {
-				if !yield(v.Index(i)) {
+			for i := range v.Len() {
+				if !yield(ValueOf(i)) {
 					return
 				}
 			}
 		}
-	case Slice, String:
+	case Array, Slice, String:
 		return func(yield func(Value) bool) {
 			for i := range v.Len() {
-				if !yield(v.Index(i)) {
+				if !yield(ValueOf(i)) {
 					return
 				}
 			}
@@ -3562,21 +3561,21 @@ func (v Value) Seq() iter.Seq[Value] {
 		return func(yield func(Value) bool) {
 			i := v.MapRange()
 			for i.Next() {
-				if !yield(i.Value()) {
+				if !yield(i.Key()) {
 					return
 				}
 			}
 		}
 	case Chan:
 		return func(yield func(Value) bool) {
-			for v, ok := v.Recv(); ok; {
-				if !yield(v) {
+			for value, ok := v.Recv(); ok; value, ok = v.Recv() {
+				if !yield(value) {
 					return
 				}
 			}
 		}
 	}
-	panic("reflect: " + v.Type().String() + " not make iter.Seq[Value]")
+	panic("reflect: " + v.Type().String() + " cannot produce iter.Seq[Value]")
 }
 
 // Seq2 is like Seq but for two values.
@@ -3590,22 +3589,19 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 		}
 	}
 	switch v.Kind() {
-	case Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
-		panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value]")
 	case Pointer:
 		if !(v.Elem().kind() == Array) {
 			return nil
 		}
 		return func(yield func(Value, Value) bool) {
-			len := v.Len()
 			v = v.Elem()
-			for i := range len {
+			for i := range v.Len() {
 				if !yield(ValueOf(i), v.Index(i)) {
 					return
 				}
 			}
 		}
-	case Slice, String:
+	case Array, Slice, String:
 		return func(yield func(Value, Value) bool) {
 			for i := range v.Len() {
 				if !yield(ValueOf(i), v.Index(i)) {
@@ -3622,16 +3618,8 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 				}
 			}
 		}
-	case Chan:
-		return func(yield func(Value, Value) bool) {
-			for v, ok := v.Recv(); ; {
-				if !yield(v, ValueOf(ok)) {
-					return
-				}
-			}
-		}
 	}
-	panic("reflect: " + v.Type().String() + " not make iter.Seq2[Value, Value]")
+	panic("reflect: " + v.Type().String() + " cannot produce iter.Seq2[Value, Value]")
 }
 
 // convertOp returns the function to convert a value of type src
