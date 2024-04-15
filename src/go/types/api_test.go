@@ -2997,6 +2997,7 @@ func TestTooNew(t *testing.T) {
 
 // This is a regression test for #66704.
 func TestUnaliasTooSoonInCycle(t *testing.T) {
+	t.Setenv("GODEBUG", "gotypesalias=1")
 	const src = `package a
 
 var x T[B] // this appears to cause Unalias to be called on B while still Invalid

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/types/errors"
+	"os"
 	"regexp"
 	"sort"
 
@@ -85,6 +86,10 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
 	}
 
+	// Currently, the compiler panics when using Alias types.
+	// Use the non-default setting for now.
+	// TODO(gri) set this to gotypesalias=1 or remove this call.
+	os.Setenv("GODEBUG", "gotypesalias=0")
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
 	base.ExitIfErrors()
 	if err != nil {
