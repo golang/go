@@ -8814,7 +8814,7 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("unexpected %v", v1.Interface())
 				}
 				if v != v2.Interface() {
-					t.Fatalf("got %v, want %v", v2.Interface(), m[v1.String()])
+					t.Fatalf("got %v, want %d", v2.Interface(), m[v1.String()])
 				}
 				i++
 				if i > 4 {
