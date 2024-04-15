@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"math/big"
 	"strconv"
@@ -16,6 +17,16 @@ import (
 
 	"golang.org/x/crypto/sha3"
 )
+
+func TestFieldReduce(t *testing.T) {
+	for a := uint32(0); a < 2*q*q; a++ {
+		got := fieldReduce(a)
+		exp := fieldElement(a % q)
+		if got != exp {
+			t.Fatalf("reduce(%d) = %d, expected %d", a, got, exp)
+		}
+	}
+}
 
 func TestFieldAdd(t *testing.T) {
 	for a := fieldElement(0); a < q; a++ {
@@ -188,11 +199,11 @@ func TestGammas(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ek, dk, err := GenerateKey()
+	dk, err := GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, Ke, err := Encapsulate(ek)
+	c, Ke, err := Encapsulate(dk.EncapsulationKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,21 +215,21 @@ func TestRoundTrip(t *testing.T) {
 		t.Fail()
 	}
 
-	ek1, dk1, err := GenerateKey()
+	dk1, err := GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Equal(ek, ek1) {
+	if bytes.Equal(dk.EncapsulationKey(), dk1.EncapsulationKey()) {
 		t.Fail()
 	}
-	if bytes.Equal(dk, dk1) {
+	if bytes.Equal(dk.Bytes(), dk1.Bytes()) {
 		t.Fail()
 	}
-	if bytes.Equal(dk[len(dk)-32:], dk1[len(dk)-32:]) {
+	if bytes.Equal(dk.Bytes()[EncapsulationKeySize-32:], dk1.Bytes()[EncapsulationKeySize-32:]) {
 		t.Fail()
 	}
 
-	c1, Ke1, err := Encapsulate(ek)
+	c1, Ke1, err := Encapsulate(dk.EncapsulationKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,10 +242,11 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestBadLengths(t *testing.T) {
-	ek, dk, err := GenerateKey()
+	dk, err := GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
+	ek := dk.EncapsulationKey()
 
 	for i := 0; i < len(ek)-1; i++ {
 		if _, _, err := Encapsulate(ek[:i]); err == nil {
@@ -254,15 +266,15 @@ func TestBadLengths(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < len(dk)-1; i++ {
-		if _, err := Decapsulate(dk[:i], c); err == nil {
+	for i := 0; i < len(dk.Bytes())-1; i++ {
+		if _, err := NewKeyFromExtendedEncoding(dk.Bytes()[:i]); err == nil {
 			t.Errorf("expected error for dk length %d", i)
 		}
 	}
-	dkLong := dk
+	dkLong := dk.Bytes()
 	for i := 0; i < 100; i++ {
 		dkLong = append(dkLong, 0)
-		if _, err := Decapsulate(dkLong, c); err == nil {
+		if _, err := NewKeyFromExtendedEncoding(dkLong); err == nil {
 			t.Errorf("expected error for dk length %d", len(dkLong))
 		}
 	}
@@ -279,6 +291,29 @@ func TestBadLengths(t *testing.T) {
 			t.Errorf("expected error for c length %d", len(cLong))
 		}
 	}
+}
+
+func EncapsulateDerand(ek, m []byte) (c, K []byte, err error) {
+	if len(m) != messageSize {
+		return nil, nil, errors.New("bad message length")
+	}
+	return kemEncaps(nil, ek, (*[messageSize]byte)(m))
+}
+
+func DecapsulateFromBytes(dkBytes []byte, c []byte) ([]byte, error) {
+	dk, err := NewKeyFromExtendedEncoding(dkBytes)
+	if err != nil {
+		return nil, err
+	}
+	return Decapsulate(dk, c)
+}
+
+func GenerateKeyDerand(t testing.TB, d, z []byte) ([]byte, *DecapsulationKey) {
+	if len(d) != 32 || len(z) != 32 {
+		t.Fatal("bad length")
+	}
+	dk := kemKeyGen(nil, (*[32]byte)(d), (*[32]byte)(z))
+	return dk.EncapsulationKey(), dk
 }
 
 var millionFlag = flag.Bool("million", false, "run the million vector test")
@@ -308,19 +343,19 @@ func TestPQCrystalsAccumulated(t *testing.T) {
 	for i := 0; i < n; i++ {
 		s.Read(d)
 		s.Read(z)
-		ek, dk := kemKeyGen(d, z)
+		ek, dk := GenerateKeyDerand(t, d, z)
 		o.Write(ek)
-		o.Write(dk)
+		o.Write(dk.Bytes())
 
 		s.Read(msg)
-		ct, k, err := kemEncaps(ek, msg)
+		ct, k, err := EncapsulateDerand(ek, msg)
 		if err != nil {
 			t.Fatal(err)
 		}
 		o.Write(ct)
 		o.Write(k)
 
-		kk, err := kemDecaps(dk, ct)
+		kk, err := Decapsulate(dk, ct)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -329,7 +364,7 @@ func TestPQCrystalsAccumulated(t *testing.T) {
 		}
 
 		s.Read(ct1)
-		k1, err := kemDecaps(dk, ct1)
+		k1, err := Decapsulate(dk, ct1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -342,25 +377,17 @@ func TestPQCrystalsAccumulated(t *testing.T) {
 	}
 }
 
-var sinkElement fieldElement
-
-func BenchmarkSampleNTT(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		sinkElement ^= sampleNTT(bytes.Repeat([]byte("A"), 32), '4', '2')[0]
-	}
-}
-
 var sink byte
 
 func BenchmarkKeyGen(b *testing.B) {
-	d := make([]byte, 32)
-	rand.Read(d)
-	z := make([]byte, 32)
-	rand.Read(z)
+	var dk DecapsulationKey
+	var d, z [32]byte
+	rand.Read(d[:])
+	rand.Read(z[:])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ek, dk := kemKeyGen(d, z)
-		sink ^= ek[0] ^ dk[0]
+		dk := kemKeyGen(&dk, &d, &z)
+		sink ^= dk.EncapsulationKey()[0]
 	}
 }
 
@@ -369,12 +396,13 @@ func BenchmarkEncaps(b *testing.B) {
 	rand.Read(d)
 	z := make([]byte, 32)
 	rand.Read(z)
-	m := make([]byte, 32)
-	rand.Read(m)
-	ek, _ := kemKeyGen(d, z)
+	var m [messageSize]byte
+	rand.Read(m[:])
+	ek, _ := GenerateKeyDerand(b, d, z)
+	var c [CiphertextSize]byte
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c, K, err := kemEncaps(ek, m)
+		c, K, err := kemEncaps(&c, ek, &m)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -389,41 +417,42 @@ func BenchmarkDecaps(b *testing.B) {
 	rand.Read(z)
 	m := make([]byte, 32)
 	rand.Read(m)
-	ek, dk := kemKeyGen(d, z)
-	c, _, err := kemEncaps(ek, m)
+	ek, dk := GenerateKeyDerand(b, d, z)
+	c, _, err := EncapsulateDerand(ek, m)
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		K, err := kemDecaps(dk, c)
-		if err != nil {
-			b.Fatal(err)
-		}
+		K := kemDecaps(dk, (*[CiphertextSize]byte)(c))
 		sink ^= K[0]
 	}
 }
 
 func BenchmarkRoundTrip(b *testing.B) {
-	ek, dk, err := GenerateKey()
+	dk, err := GenerateKey()
 	if err != nil {
 		b.Fatal(err)
 	}
+	ek := dk.EncapsulationKey()
 	c, _, err := Encapsulate(ek)
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.Run("Alice", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ekS, dkS, err := GenerateKey()
+			dkS, err := GenerateKey()
 			if err != nil {
 				b.Fatal(err)
 			}
+			ekS := dkS.EncapsulationKey()
+			sink ^= ekS[0]
+
 			Ks, err := Decapsulate(dk, c)
 			if err != nil {
 				b.Fatal(err)
 			}
-			sink ^= ekS[0] ^ dkS[0] ^ Ks[0]
+			sink ^= Ks[0]
 		}
 	})
 	b.Run("Bob", func(b *testing.B) {
