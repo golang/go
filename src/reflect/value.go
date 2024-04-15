@@ -3538,8 +3538,8 @@ func (v Value) Seq() iter.Seq[Value] {
 			}
 		}
 	case Pointer:
-		if !(v.Elem().kind() == Array) {
-			return nil
+		if v.Elem().kind() != Array {
+			break
 		}
 		return func(yield func(Value) bool) {
 			v = v.Elem()
@@ -3590,8 +3590,8 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 	}
 	switch v.Kind() {
 	case Pointer:
-		if !(v.Elem().kind() == Array) {
-			return nil
+		if v.Elem().kind() != Array {
+			break
 		}
 		return func(yield func(Value, Value) bool) {
 			v = v.Elem()
