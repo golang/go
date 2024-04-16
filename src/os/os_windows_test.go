@@ -96,7 +96,6 @@ func TestSameWindowsFile(t *testing.T) {
 type dirLinkTest struct {
 	name         string
 	mklink       func(link, target string) error
-	issueNo      int // correspondent issue number (for broken tests)
 	isMountPoint bool
 }
 
@@ -132,11 +131,6 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 		}
 		if string(data) != "abc" {
 			t.Errorf(`abc file is expected to have "abc" in it, but has %v`, data)
-			continue
-		}
-
-		if test.issueNo > 0 {
-			t.Logf("skipping broken %q test: see issue %d", test.name, test.issueNo)
 			continue
 		}
 
