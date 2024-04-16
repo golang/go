@@ -241,10 +241,10 @@ type Type interface {
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
 
-	// CanSeq report whether the type is convertible to iter.Seq.
+	// CanSeq whether the report type can be use for range one iteration variables.
 	CanSeq() bool
 
-	// CanSeq2 report whether the type is convertible to iter.Seq2.
+	// CanSeq2 whether the report type can be use for range two iteration variables.
 	CanSeq2() bool
 
 	common() *abi.Type
@@ -873,10 +873,18 @@ func (t *rtype) OverflowUint(x uint64) bool {
 }
 
 func (t *rtype) CanSeq() bool {
-	return canSeq(&t.t)
+	switch t.Kind() {
+	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Array, Slice, Chan, String, Map:
+		return true
+	case Func:
+		return canRangeFunc(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
 }
 
-func canSeq(t *abi.Type) bool {
+func canRangeFunc(t *abi.Type) bool {
 	if t.Kind() != abi.Func {
 		return false
 	}
@@ -893,10 +901,18 @@ func canSeq(t *abi.Type) bool {
 }
 
 func (t *rtype) CanSeq2() bool {
-	return canSeq2(&t.t)
+	switch t.Kind() {
+	case Array, Slice, String, Map:
+		return true
+	case Func:
+		return canRangeFunc2(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
 }
 
-func canSeq2(t *abi.Type) bool {
+func canRangeFunc2(t *abi.Type) bool {
 	if t.Kind() != abi.Func {
 		return false
 	}

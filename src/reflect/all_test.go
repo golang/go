@@ -8726,6 +8726,22 @@ func TestValueSeq(t *testing.T) {
 				}
 			}
 		}},
+		{"func", ValueOf(func(f func(int) bool) {
+			for i := range 4 {
+				f(i)
+			}
+		}), func(t *testing.T, s iter.Seq[Value]) {
+			i := int64(0)
+			for v := range s {
+				if v.Int() != i {
+					t.Fatalf("got %d, want %d", v.Int(), i)
+				}
+				i++
+				if i > 4 {
+					t.Fatalf("should loop four times")
+				}
+			}
+		}},
 	}
 	for _, tc := range tests {
 		seq := tc.val.Seq()
@@ -8819,6 +8835,25 @@ func TestValueSeq2(t *testing.T) {
 				i++
 				if i > 4 {
 					t.Fatalf("should loop four times")
+				}
+			}
+		}},
+		{"func", ValueOf(func(f func(int, int) bool) {
+			for i := range 4 {
+				f(i, i+1)
+			}
+		}), func(t *testing.T, s iter.Seq2[Value, Value]) {
+			i := int64(0)
+			for v1, v2 := range s {
+				if v1.Int() != i {
+					t.Fatalf("got %d, want %d", v1.Int(), i)
+				}
+				i++
+				if i > 4 {
+					t.Fatalf("should loop four times")
+				}
+				if v2.Int() != i {
+					t.Fatalf("got %d, want %d", v2.Int(), i)
 				}
 			}
 		}},

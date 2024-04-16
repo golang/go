@@ -3512,7 +3512,7 @@ func (v Value) Equal(u Value) bool {
 // Otherwise v's kind must be Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
 // Array, Chan, Map, Slice, or String.
 func (v Value) Seq() iter.Seq[Value] {
-	if canSeq(v.typ()) {
+	if canRangeFunc(v.typ()) {
 		return func(yield func(Value) bool) {
 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
 				return []Value{ValueOf(yield(in[0]))}
@@ -3580,7 +3580,7 @@ func (v Value) Seq() iter.Seq[Value] {
 
 // Seq2 is like Seq but for two values.
 func (v Value) Seq2() iter.Seq2[Value, Value] {
-	if canSeq2(v.typ()) {
+	if canRangeFunc2(v.typ()) {
 		return func(yield func(Value, Value) bool) {
 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
 				return []Value{ValueOf(yield(in[0], in[1]))}
