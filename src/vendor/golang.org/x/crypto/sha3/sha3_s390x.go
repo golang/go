@@ -143,6 +143,12 @@ func (s *asmState) Write(b []byte) (int, error) {
 
 // Read squeezes an arbitrary number of bytes from the sponge.
 func (s *asmState) Read(out []byte) (n int, err error) {
+	// The 'compute last message digest' instruction only stores the digest
+	// at the first operand (dst) for SHAKE functions.
+	if s.function != shake_128 && s.function != shake_256 {
+		panic("sha3: can only call Read for SHAKE functions")
+	}
+
 	n = len(out)
 
 	// need to pad if we were absorbing
@@ -202,8 +208,17 @@ func (s *asmState) Sum(b []byte) []byte {
 
 	// Hash the buffer. Note that we don't clear it because we
 	// aren't updating the state.
-	klmd(s.function, &a, nil, s.buf)
-	return append(b, a[:s.outputLen]...)
+	switch s.function {
+	case sha3_224, sha3_256, sha3_384, sha3_512:
+		klmd(s.function, &a, nil, s.buf)
+		return append(b, a[:s.outputLen]...)
+	case shake_128, shake_256:
+		d := make([]byte, s.outputLen, 64)
+		klmd(s.function, &a, d, s.buf)
+		return append(b, d[:s.outputLen]...)
+	default:
+		panic("sha3: unknown function")
+	}
 }
 
 // Reset resets the Hash to its initial state.
