@@ -826,6 +826,12 @@ func TestParseSetCookie(t *testing.T) {
 			line:   `special-8=","`,
 			cookie: &Cookie{Name: "special-8", Value: ",", Raw: `special-8=","`},
 		},
+		// Make sure we can properly read back the Set-Cookie headers
+		// for names containing spaces:
+		{
+			line:   `special-9 =","`,
+			cookie: &Cookie{Name: "special-9", Value: ",", Raw: `special-9 =","`},
+		},
 		{
 			line: "",
 			err:  errBlankCookie,
