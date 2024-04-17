@@ -114,7 +114,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
 		rt := r.Type()
-		if !rt.IsDirectCallOrJump() && !isPLTCall(rt) {
+		if !rt.IsDirectCallOrJump() && !isPLTCall(ctxt.Arch, rt) {
 			continue
 		}
 		rs := r.Sym()
@@ -146,19 +146,19 @@ func trampoline(ctxt *Link, s loader.Sym) {
 
 // whether rt is a (host object) relocation that will be turned into
 // a call to PLT.
-func isPLTCall(rt objabi.RelocType) bool {
+func isPLTCall(arch *sys.Arch, rt objabi.RelocType) bool {
 	const pcrel = 1
-	switch rt {
+	switch uint32(arch.Family) | uint32(rt)<<8 {
 	// ARM64
-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
-		objabi.MachoRelocOffset + MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
+	case uint32(sys.ARM64) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_AARCH64_CALL26))<<8,
+		uint32(sys.ARM64) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_AARCH64_JUMP26))<<8,
+		uint32(sys.ARM64) | uint32(objabi.MachoRelocOffset+MACHO_ARM64_RELOC_BRANCH26*2+pcrel)<<8:
 		return true
 
 	// ARM
-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL),
-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+	case uint32(sys.ARM) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_ARM_CALL))<<8,
+		uint32(sys.ARM) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_ARM_PC24))<<8,
+		uint32(sys.ARM) | uint32(objabi.ElfRelocOffset+objabi.RelocType(elf.R_ARM_JUMP24))<<8:
 		return true
 	}
 	// TODO: other architectures.
