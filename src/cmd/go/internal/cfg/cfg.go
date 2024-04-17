@@ -424,7 +424,7 @@ var (
 )
 
 // EnvOrAndChanged get the environment variable value
-// and report if it is different from the default value
+// and report if it is different from the default value.
 func EnvOrAndChanged(name, def string) (string, bool) {
 	val := Getenv(name)
 	if val != "" {
