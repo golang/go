@@ -8,20 +8,19 @@ package getrand
 
 import "math"
 
+// GetRandom populates out with cryptographically secure random data.
 func GetRandom(out []byte) error {
 	if maxGetRandomRead == math.MaxInt {
 		return getRandom(out)
 	}
 
+	// Batch random read operations up to maxGetRandomRead.
 	for len(out) > 0 {
-		read := len(out)
-		if read > maxGetRandomRead {
-			read = maxGetRandomRead
-		}
-		if err := getRandom(out[:read]); err != nil {
+		readBytes := min(len(out), maxGetRandomRead)
+		if err := getRandom(out[:readBytes]); err != nil {
 			return err
 		}
-		out = out[read:]
+		out = out[readBytes:]
 	}
 	return nil
 }

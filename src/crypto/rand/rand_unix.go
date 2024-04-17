@@ -91,6 +91,8 @@ func (hr hideAgainFileReader) Read(p []byte) (n int, err error) {
 }
 
 func (hr hideAgainFileReader) ReadFull(p []byte) (n int, err error) {
+	// To avoid escaping the p slice, inline the io.ReadFull function.
+	// The following code has the same behaviour as: io.ReadFull(hr.f, out).
 	for n < len(p) && err == nil {
 		var nn int
 		nn, err = hr.Read(p[n:])
