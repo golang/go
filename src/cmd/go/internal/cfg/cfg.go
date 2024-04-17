@@ -282,6 +282,7 @@ var envCache struct {
 }
 
 // EnvFile returns the name of the Go environment configuration file.
+// Bool result report env file whether it is a modified non-default value.
 func EnvFile() (string, bool, error) {
 	if file := os.Getenv("GOENV"); file != "" {
 		if file == "off" {
@@ -422,6 +423,8 @@ var (
 	GOVCS                       = Getenv("GOVCS")
 )
 
+// EnvOrAndChanged get the environment variable value
+// and report if it is different from the default value
 func EnvOrAndChanged(name, def string) (string, bool) {
 	val := Getenv(name)
 	if val != "" {

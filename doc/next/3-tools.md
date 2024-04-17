@@ -8,6 +8,9 @@ Distributions that install the `go` command to a location other than
 `$GOROOT/bin/go` should install a symlink instead of relocating
 or copying the `go` binary.
 
+New Flag -changed only prints all non-default settings in go env,
+do not print GOOS and GOARCH.
+
 ### Vet {#vet}
 
 The `go vet` subcommand now includes the

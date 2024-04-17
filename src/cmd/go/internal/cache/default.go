@@ -75,6 +75,7 @@ var (
 
 // DefaultDir returns the effective GOCACHE setting.
 // It returns "off" if the cache is disabled.
+// Bool result report dir whether it is a modified non-default value.
 func DefaultDir() (string, bool) {
 	// Save the result of the first call to DefaultDir for later use in
 	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
