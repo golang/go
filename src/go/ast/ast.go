@@ -88,6 +88,20 @@ func stripTrailingWhitespace(s string) string {
 	return s[0:i]
 }
 
+// Raw returns the raw (original) text of the comment.
+// It includes the comment markers (//, /*, and */).
+// It adds a newline at the end of the comment.
+func (g *CommentGroup) Raw() string {
+	if g == nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, c := range g.List {
+		b.WriteString(c.Text + "\n")
+	}
+	return b.String()
+}
+
 // Text returns the text of the comment.
 // Comment markers (//, /*, and */), the first space of a line comment, and
 // leading and trailing empty lines are removed.
@@ -109,7 +123,7 @@ func (g *CommentGroup) Text() string {
 		// The parser has given us exactly the comment text.
 		switch c[1] {
 		case '/':
-			//-style comment (no newline at the end)
+			// -style comment (no newline at the end)
 			c = c[2:]
 			if len(c) == 0 {
 				// empty line

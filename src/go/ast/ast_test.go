@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var comments = []struct {
+var commentsText = []struct {
 	list []string
 	text string
 }{
@@ -39,7 +39,7 @@ var comments = []struct {
 }
 
 func TestCommentText(t *testing.T) {
-	for i, c := range comments {
+	for i, c := range commentsText {
 		list := make([]*Comment, len(c.list))
 		for i, s := range c.list {
 			list[i] = &Comment{Text: s}
@@ -48,6 +48,50 @@ func TestCommentText(t *testing.T) {
 		text := (&CommentGroup{list}).Text()
 		if text != c.text {
 			t.Errorf("case %d: got %q; expected %q", i, text, c.text)
+		}
+	}
+}
+
+var commentsRaw = []struct {
+	list []string
+	raw  string
+}{
+	{[]string{"//"}, "//\n"},
+	{[]string{"//   "}, "//   \n"},
+	{[]string{"//", "//", "//   "}, "//\n//\n//   \n"},
+	{[]string{"// foo   "}, "// foo   \n"},
+	{[]string{"//", "//", "// foo"}, "//\n//\n// foo\n"},
+	{[]string{"// foo  bar  "}, "// foo  bar  \n"},
+	{[]string{"// foo", "// bar"}, "// foo\n// bar\n"},
+	{[]string{"// foo", "//", "//", "//", "// bar"}, "// foo\n//\n//\n//\n// bar\n"},
+	{[]string{"// foo", "/* bar */"}, "// foo\n/* bar */\n"},
+	{[]string{"//", "//", "//", "// foo", "//", "//", "//"}, "//\n//\n//\n// foo\n//\n//\n//\n"},
+
+	{[]string{"/**/"}, "/**/\n"},
+	{[]string{"/*   */"}, "/*   */\n"},
+	{[]string{"/**/", "/**/", "/*   */"}, "/**/\n/**/\n/*   */\n"},
+	{[]string{"/* Foo   */"}, "/* Foo   */\n"},
+	{[]string{"/* Foo  Bar  */"}, "/* Foo  Bar  */\n"},
+	{[]string{"/* Foo*/", "/* Bar*/"}, "/* Foo*/\n/* Bar*/\n"},
+	{[]string{"/* Foo*/", "/**/", "/**/", "/**/", "// Bar"}, "/* Foo*/\n/**/\n/**/\n/**/\n// Bar\n"},
+	{[]string{"/* Foo*/", "/*\n*/", "//", "/*\n*/", "// Bar"}, "/* Foo*/\n/*\n*/\n//\n/*\n*/\n// Bar\n"},
+	{[]string{"/* Foo*/", "// Bar"}, "/* Foo*/\n// Bar\n"},
+	{[]string{"/* Foo\n Bar*/"}, "/* Foo\n Bar*/\n"},
+
+	{[]string{"// foo", "//go:noinline", "// bar", "//:baz"}, "// foo\n//go:noinline\n// bar\n//:baz\n"},
+	{[]string{"// foo", "//lint123:ignore", "// bar"}, "// foo\n//lint123:ignore\n// bar\n"},
+}
+
+func TestCommentRaw(t *testing.T) {
+	for i, c := range commentsRaw {
+		list := make([]*Comment, len(c.list))
+		for i, s := range c.list {
+			list[i] = &Comment{Text: s}
+		}
+
+		text := (&CommentGroup{list}).Raw()
+		if text != c.raw {
+			t.Errorf("case %d: got %q; expected %q", i, text, c.raw)
 		}
 	}
 }
