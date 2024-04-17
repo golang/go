@@ -102,12 +102,6 @@ type Checker struct {
 	// If enableAlias is set, alias declarations produce an Alias type.
 	// Otherwise the alias information is only in the type name, which
 	// points directly to the actual (aliased) type.
-	// Starting with Go 1.23, enableAlias is set by default.
-	// Non-default behavior is tracked with gotypesalias.IncNonDefault()
-	// for each declaration of an alias type where enableAlias is not set.
-	//
-	// TODO(gri) Testing runs tests in both modes. Do we need to exclude
-	//           tracking of non-default behavior for tests?
 	enableAlias bool
 
 	conf *Config
