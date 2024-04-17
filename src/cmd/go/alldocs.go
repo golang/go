@@ -476,8 +476,7 @@
 // form NAME=VALUE and changes the default settings
 // of the named environment variables to the given values.
 //
-// The -changed flag output rusult of
-// query for non-defaults in the env,
+// The -changed flag only prints all non-default settings,
 // do not print GOOS and GOARCH.
 //
 // For more about environment variables, see 'go help environment'.
