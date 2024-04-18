@@ -1318,6 +1318,7 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 			toolchain = workFile.Toolchain.Name
 		}
 		roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
+		direct = directRequirements(modFiles)
 	} else {
 		pruning = pruningForGoVersion(MainModules.GoVersion())
 		if len(modFiles) != 1 {
@@ -1338,6 +1339,18 @@ const (
 	omitToolchainRoot addToolchainRoot = false
 	withToolchainRoot                  = true
 )
+
+func directRequirements(modFiles []*modfile.File) map[string]bool {
+	direct := make(map[string]bool)
+	for _, modFile := range modFiles {
+		for _, r := range modFile.Require {
+			if !r.Indirect {
+				direct[r.Mod.Path] = true
+			}
+		}
+	}
+	return direct
+}
 
 func rootsFromModFile(m module.Version, modFile *modfile.File, addToolchainRoot addToolchainRoot) (roots []module.Version, direct map[string]bool) {
 	direct = make(map[string]bool)
