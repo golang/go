@@ -14,6 +14,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync/atomic"
+	"time"
 
 	"internal/trace/v2/raw"
 
@@ -28,9 +30,16 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	}
 	defer tracef.Close()
 
+	// Get the size of the trace file.
+	fi, err := tracef.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat trace file: %v", err)
+	}
+	traceSize := fi.Size()
+
 	// Handle requests for profiles.
 	if pprof != "" {
-		parsed, err := parseTrace(tracef)
+		parsed, err := parseTrace(tracef, traceSize)
 		if err != nil {
 			return err
 		}
@@ -72,13 +81,22 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	addr := "http://" + ln.Addr().String()
 
 	log.Print("Preparing trace for viewer...")
-	parsed, err := parseTrace(tracef)
+	parsed, err := parseTraceInteractive(tracef, traceSize)
 	if err != nil {
 		return err
 	}
 	// N.B. tracef not needed after this point.
 	// We might double-close, but that's fine; we ignore the error.
 	tracef.Close()
+
+	// Print a nice message for a partial trace.
+	if parsed.err != nil {
+		log.Printf("Encountered error, but able to proceed. Error: %v", parsed.err)
+
+		lost := parsed.size - parsed.valid
+		pct := float64(lost) / float64(parsed.size) * 100
+		log.Printf("Lost %.2f%% of the latest trace data due to error (%s of %s)", pct, byteCount(lost), byteCount(parsed.size))
+	}
 
 	log.Print("Splitting trace for viewer...")
 	ranges, err := splitTrace(parsed)
@@ -140,29 +158,79 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
 	return fmt.Errorf("failed to start http server: %w", err)
 }
 
-type parsedTrace struct {
-	events  []tracev2.Event
-	summary *trace.Summary
+func parseTraceInteractive(tr io.Reader, size int64) (parsed *parsedTrace, err error) {
+	done := make(chan struct{})
+	cr := countingReader{r: tr}
+	go func() {
+		parsed, err = parseTrace(&cr, size)
+		done <- struct{}{}
+	}()
+	ticker := time.NewTicker(5 * time.Second)
+progressLoop:
+	for {
+		select {
+		case <-ticker.C:
+		case <-done:
+			ticker.Stop()
+			break progressLoop
+		}
+		progress := cr.bytesRead.Load()
+		pct := float64(progress) / float64(size) * 100
+		log.Printf("%s of %s (%.1f%%) processed...", byteCount(progress), byteCount(size), pct)
+	}
+	return
 }
 
-func parseTrace(tr io.Reader) (*parsedTrace, error) {
-	r, err := tracev2.NewReader(tr)
+type parsedTrace struct {
+	events      []tracev2.Event
+	summary     *trace.Summary
+	size, valid int64
+	err         error
+}
+
+func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
+	// Set up the reader.
+	cr := countingReader{r: rr}
+	r, err := tracev2.NewReader(&cr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace reader: %w", err)
 	}
+
+	// Set up state.
 	s := trace.NewSummarizer()
 	t := new(parsedTrace)
+	var validBytes int64
+	var validEvents int
 	for {
 		ev, err := r.ReadEvent()
 		if err == io.EOF {
+			validBytes = cr.bytesRead.Load()
+			validEvents = len(t.events)
 			break
-		} else if err != nil {
-			return nil, fmt.Errorf("failed to read event: %w", err)
+		}
+		if err != nil {
+			t.err = err
+			break
 		}
 		t.events = append(t.events, ev)
 		s.Event(&t.events[len(t.events)-1])
+
+		if ev.Kind() == tracev2.EventSync {
+			validBytes = cr.bytesRead.Load()
+			validEvents = len(t.events)
+		}
 	}
+
+	// Check to make sure we got at least one good generation.
+	if validEvents == 0 {
+		return nil, fmt.Errorf("failed to parse any useful part of the trace: %v", t.err)
+	}
+
+	// Finish off the parsedTrace.
 	t.summary = s.Finalize()
+	t.valid = validBytes
+	t.size = size
+	t.events = t.events[:validEvents]
 	return t, nil
 }
 
@@ -216,4 +284,40 @@ func debugRawEvents(trace io.Reader) error {
 		}
 		fmt.Println(ev.String())
 	}
+}
+
+type countingReader struct {
+	r         io.Reader
+	bytesRead atomic.Int64
+}
+
+func (c *countingReader) Read(buf []byte) (n int, err error) {
+	n, err = c.r.Read(buf)
+	c.bytesRead.Add(int64(n))
+	return n, err
+}
+
+type byteCount int64
+
+func (b byteCount) String() string {
+	var suffix string
+	var divisor int64
+	switch {
+	case b < 1<<10:
+		suffix = "B"
+		divisor = 1
+	case b < 1<<20:
+		suffix = "KiB"
+		divisor = 1 << 10
+	case b < 1<<30:
+		suffix = "MiB"
+		divisor = 1 << 20
+	case b < 1<<40:
+		suffix = "GiB"
+		divisor = 1 << 30
+	}
+	if divisor == 1 {
+		return fmt.Sprintf("%d %s", b, suffix)
+	}
+	return fmt.Sprintf("%.1f %s", float64(b)/float64(divisor), suffix)
 }
