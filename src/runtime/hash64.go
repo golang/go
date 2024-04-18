@@ -15,16 +15,12 @@ import (
 )
 
 const (
-	m1 = 0xa0761d6478bd642f
-	m2 = 0xe7037ed1a0b428db
-	m3 = 0x8ebc6af09c88c6e3
-	m4 = 0x589965cc75374cc3
 	m5 = 0x1d8e4e27c47d124f
 )
 
 func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 	var a, b uintptr
-	seed ^= hashkey[0] ^ m1
+	seed ^= hashkey[0]
 	switch {
 	case s == 0:
 		return seed
@@ -50,32 +46,32 @@ func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 			seed1 := seed
 			seed2 := seed
 			for ; l > 48; l -= 48 {
-				seed = mix(r8(p)^hashkey[1]^m2, r8(add(p, 8))^seed)
-				seed1 = mix(r8(add(p, 16))^hashkey[2]^m3, r8(add(p, 24))^seed1)
-				seed2 = mix(r8(add(p, 32))^hashkey[3]^m4, r8(add(p, 40))^seed2)
+				seed = mix(r8(p)^hashkey[1], r8(add(p, 8))^seed)
+				seed1 = mix(r8(add(p, 16))^hashkey[2], r8(add(p, 24))^seed1)
+				seed2 = mix(r8(add(p, 32))^hashkey[3], r8(add(p, 40))^seed2)
 				p = add(p, 48)
 			}
 			seed ^= seed1 ^ seed2
 		}
 		for ; l > 16; l -= 16 {
-			seed = mix(r8(p)^hashkey[1]^m2, r8(add(p, 8))^seed)
+			seed = mix(r8(p)^hashkey[1], r8(add(p, 8))^seed)
 			p = add(p, 16)
 		}
 		a = r8(add(p, l-16))
 		b = r8(add(p, l-8))
 	}
 
-	return mix(m5^s, mix(a^hashkey[1]^m2, b^seed))
+	return mix(m5^s, mix(a^hashkey[1], b^seed))
 }
 
 func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a := r4(p)
-	return mix(m5^4, mix(a^hashkey[1]^m2, a^seed^hashkey[0]^m1))
+	return mix(m5^4, mix(a^hashkey[1], a^seed^hashkey[0]))
 }
 
 func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a := r8(p)
-	return mix(m5^8, mix(a^hashkey[1]^m2, a^seed^hashkey[0]^m1))
+	return mix(m5^8, mix(a^hashkey[1], a^seed^hashkey[0]))
 }
 
 func mix(a, b uintptr) uintptr {
