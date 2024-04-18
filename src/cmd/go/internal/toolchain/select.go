@@ -196,6 +196,13 @@ func Select() {
 			}
 			if gover.Compare(goVers, minVers) > 0 {
 				gotoolchain = "go" + goVers
+				// Starting with Go 1.21, the first released version has a .0 patch version suffix.
+				// Don't try to download a language version (sans patch component), such as go1.22.
+				// Instead, use the first toolchain of that language version, such as 1.22.0.
+				// See golang.org/issue/62278.
+				if gover.IsLang(goVers) && gover.Compare(goVers, "1.21") >= 0 {
+					gotoolchain += ".0"
+				}
 				gover.Startup.AutoGoVersion = goVers
 				gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
 			}
@@ -327,6 +334,10 @@ func Exec(gotoolchain string) {
 	dir, err := modfetch.Download(context.Background(), m)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
+			toolVers := gover.FromToolchain(gotoolchain)
+			if gover.IsLang(toolVers) && gover.Compare(toolVers, "1.21") >= 0 {
+				base.Fatalf("invalid toolchain: %s is a language version but not a toolchain version (%s.x)", gotoolchain, gotoolchain)
+			}
 			base.Fatalf("download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
 		}
 		base.Fatalf("download %s: %v", gotoolchain, err)
