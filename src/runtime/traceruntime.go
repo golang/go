@@ -481,25 +481,10 @@ func emitUnblockStatus(w traceWriter, gp *g, gen uintptr) traceWriter {
 //
 // Must be called with a valid P.
 func (tl traceLocker) GoSysCall() {
-	var skip int
-	switch {
-	case tracefpunwindoff():
-		// Unwind by skipping 1 frame relative to gp.syscallsp which is captured 3
-		// results by hard coding the number of frames in between our caller and the
-		// actual syscall, see cases below.
-		// TODO(felixge): Implement gp.syscallbp to avoid this workaround?
-		skip = 1
-	case GOOS == "solaris" || GOOS == "illumos":
-		// These platforms don't use a libc_read_trampoline.
-		skip = 3
-	default:
-		// Skip the extra trampoline frame used on most systems.
-		skip = 4
-	}
 	// Scribble down the M that the P is currently attached to.
 	pp := tl.mp.p.ptr()
 	pp.trace.mSyscallID = int64(tl.mp.procid)
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(skip))
+	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(1))
 }
 
 // GoSysExit emits a GoSyscallEnd event, possibly along with a GoSyscallBlocked event

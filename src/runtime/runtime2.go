@@ -437,6 +437,7 @@ type g struct {
 	sched     gobuf
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
 	stktopsp  uintptr // expected sp at top of stack, to check in traceback
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
@@ -1263,3 +1264,17 @@ var (
 
 // Must agree with internal/buildcfg.FramePointerEnabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+
+// getcallerfp returns the frame pointer of the caller of the caller
+// of this function.
+//
+//go:nosplit
+//go:noinline
+func getcallerfp() uintptr {
+	fp := getfp() // This frame's FP.
+	if fp != 0 {
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's FP.
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's caller's FP.
+	}
+	return fp
+}

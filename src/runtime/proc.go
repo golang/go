@@ -4237,7 +4237,7 @@ func gdestroy(gp *g) {
 //
 //go:nosplit
 //go:nowritebarrierrec
-func save(pc, sp uintptr) {
+func save(pc, sp, bp uintptr) {
 	gp := getg()
 
 	if gp == gp.m.g0 || gp == gp.m.gsignal {
@@ -4253,6 +4253,7 @@ func save(pc, sp uintptr) {
 	gp.sched.sp = sp
 	gp.sched.lr = 0
 	gp.sched.ret = 0
+	gp.sched.bp = bp
 	// We need to ensure ctxt is zero, but can't have a write
 	// barrier here. However, it should always already be zero.
 	// Assert that.
@@ -4285,7 +4286,7 @@ func save(pc, sp uintptr) {
 // entry point for syscalls, which obtains the SP and PC from the caller.
 //
 //go:nosplit
-func reentersyscall(pc, sp uintptr) {
+func reentersyscall(pc, sp, bp uintptr) {
 	trace := traceAcquire()
 	gp := getg()
 
@@ -4301,14 +4302,15 @@ func reentersyscall(pc, sp uintptr) {
 	gp.throwsplit = true
 
 	// Leave SP around for GC and traceback.
-	save(pc, sp)
+	save(pc, sp, bp)
 	gp.syscallsp = sp
 	gp.syscallpc = pc
+	gp.syscallbp = bp
 	casgstatus(gp, _Grunning, _Gsyscall)
 	if staticLockRanking {
 		// When doing static lock ranking casgstatus can call
 		// systemstack which clobbers g.sched.
-		save(pc, sp)
+		save(pc, sp, bp)
 	}
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
@@ -4325,18 +4327,18 @@ func reentersyscall(pc, sp uintptr) {
 		// systemstack itself clobbers g.sched.{pc,sp} and we might
 		// need them later when the G is genuinely blocked in a
 		// syscall
-		save(pc, sp)
+		save(pc, sp, bp)
 	}
 
 	if sched.sysmonwait.Load() {
 		systemstack(entersyscall_sysmon)
-		save(pc, sp)
+		save(pc, sp, bp)
 	}
 
 	if gp.m.p.ptr().runSafePointFn != 0 {
 		// runSafePointFn may stack split if run on this stack
 		systemstack(runSafePointFn)
-		save(pc, sp)
+		save(pc, sp, bp)
 	}
 
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
@@ -4347,7 +4349,7 @@ func reentersyscall(pc, sp uintptr) {
 	atomic.Store(&pp.status, _Psyscall)
 	if sched.gcwaiting.Load() {
 		systemstack(entersyscall_gcwait)
-		save(pc, sp)
+		save(pc, sp, bp)
 	}
 
 	gp.m.locks--
@@ -4360,7 +4362,12 @@ func reentersyscall(pc, sp uintptr) {
 //go:nosplit
 //go:linkname entersyscall
 func entersyscall() {
-	reentersyscall(getcallerpc(), getcallersp())
+	// N.B. getcallerfp cannot be written directly as argument in the call
+	// to reentersyscall because it forces spilling the other arguments to
+	// the stack. This results in exceeding the nosplit stack requirements
+	// on some platforms.
+	fp := getcallerfp()
+	reentersyscall(getcallerpc(), getcallersp(), fp)
 }
 
 func entersyscall_sysmon() {
@@ -4418,7 +4425,8 @@ func entersyscallblock() {
 	// Leave SP around for GC and traceback.
 	pc := getcallerpc()
 	sp := getcallersp()
-	save(pc, sp)
+	bp := getcallerfp()
+	save(pc, sp, bp)
 	gp.syscallsp = gp.sched.sp
 	gp.syscallpc = gp.sched.pc
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
@@ -4441,7 +4449,7 @@ func entersyscallblock() {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(), getcallersp())
+	save(getcallerpc(), getcallersp(), getcallerfp())
 
 	gp.m.locks--
 }

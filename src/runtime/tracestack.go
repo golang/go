@@ -92,7 +92,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 		if getg() == gp {
 			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf[1:])
 		} else if gp != nil {
-			// Two cases:
+			// Three cases:
 			//
 			// (1) We're called on the g0 stack through mcall(fn) or systemstack(fn). To
 			// behave like gcallers above, we start unwinding from sched.bp, which
@@ -100,11 +100,21 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 			// address of the leaf frame is stored in sched.pc, which we manually
 			// capture here.
 			//
-			// (2) We're called against a gp that we're not currently executing on, in
-			// which case it's currently not executing. gp.sched contains the most up-to-date
+			// (2) We're called against a gp that we're not currently executing on, but that isn't
+			// in a syscall, in which case it's currently not executing. gp.sched contains the most
+			// up-to-date information about where it stopped, and like case (1), we match gcallers
+			// here.
+			//
+			// (3) We're called against a gp that we're not currently executing on, but that is in
+			// a syscall, in which case gp.syscallsp != 0. gp.syscall* contains the most up-to-date
 			// information about where it stopped, and like case (1), we match gcallers here.
-			pcBuf[1] = gp.sched.pc
-			nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+			if gp.syscallsp != 0 {
+				pcBuf[1] = gp.syscallpc
+				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
+			} else {
+				pcBuf[1] = gp.sched.pc
+				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+			}
 		}
 	}
 	if nstk > 0 {
