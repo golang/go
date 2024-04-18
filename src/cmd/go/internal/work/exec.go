@@ -1140,13 +1140,15 @@ type vetConfig struct {
 	NonGoFiles   []string // absolute paths to package non-Go files
 	IgnoredFiles []string // absolute paths to ignored source files
 
-	ImportMap   map[string]string // map import path in source code to package path
-	PackageFile map[string]string // map package path to .a file with export data
-	Standard    map[string]bool   // map package path to whether it's in the standard library
-	PackageVetx map[string]string // map package path to vetx data from earlier vet run
-	VetxOnly    bool              // only compute vetx data; don't report detected problems
-	VetxOutput  string            // write vetx data to this output file
-	GoVersion   string            // Go version for package
+	ModulePath    string            // module path (may be "" on module error)
+	ModuleVersion string            // module version (may be "" on main module or module error)
+	ImportMap     map[string]string // map import path in source code to package path
+	PackageFile   map[string]string // map package path to .a file with export data
+	Standard      map[string]bool   // map package path to whether it's in the standard library
+	PackageVetx   map[string]string // map package path to vetx data from earlier vet run
+	VetxOnly      bool              // only compute vetx data; don't report detected problems
+	VetxOutput    string            // write vetx data to this output file
+	GoVersion     string            // Go version for package
 
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
@@ -1187,6 +1189,11 @@ func buildVetConfig(a *Action, srcfiles []string) {
 			v = gover.DefaultGoModVersion
 		}
 		vcfg.GoVersion = "go" + v
+
+		if a.Package.Module.Error == nil {
+			vcfg.ModulePath = a.Package.Module.Path
+			vcfg.ModuleVersion = a.Package.Module.Version
+		}
 	}
 	a.vetCfg = vcfg
 	for i, raw := range a.Package.Internal.RawImports {
