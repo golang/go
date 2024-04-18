@@ -600,7 +600,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 		return
 	}
 	t0, t1 := a[0].typ, a[1].typ
-	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
+	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
