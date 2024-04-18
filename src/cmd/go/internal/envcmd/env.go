@@ -258,7 +258,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 			ev.Changed = ev.Value != ""
 		case "PKG_CONFIG":
 			ev.Changed = ev.Value != cfg.DefaultPkgConfig
-		case "CXXFLAGS", "CFLAGS", "FFLAGS", "LDFLAGS":
+		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "GGO_LDFLAGS":
 			ev.Changed = ev.Value != work.DefaultCFlags
 		}
 	}
