@@ -123,7 +123,7 @@ func (g *CommentGroup) Text() string {
 		// The parser has given us exactly the comment text.
 		switch c[1] {
 		case '/':
-			// -style comment (no newline at the end)
+			//-style comment (no newline at the end)
 			c = c[2:]
 			if len(c) == 0 {
 				// empty line
