@@ -83,6 +83,7 @@ func DefaultDir() (string, bool) {
 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
 	defaultDirOnce.Do(func() {
+		defaultDir = cfg.Getenv("GOCACHE")
 		if defaultDir != "" {
 			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
 				defaultDirChanged = true
