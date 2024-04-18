@@ -16,10 +16,15 @@ go build -x -pgo=default.pgo lib.go
 go build -a -x -pgo=default.pgo lib.go
 stderr 'preprofile.*default\.pgo'
 
-# ... building a different package should not run preprofile again, instead using a profile from cache.
+# ... building a different package should not run preprofile again, instead
+# using a profile from cache.
+#
+# Note we can't directly look for $GOCACHE in the regex below because the
+# Windows slashes would need to be escaped. Instead just look for the "gocache"
+# component (specified above) as an approximation.
 go build -x -pgo=default.pgo lib2.go
 ! stderr 'preprofile.*default\.pgo'
-stderr 'compile.*-pgoprofile=.*'$GOCACHE'.*lib2.go'
+stderr 'compile.*-pgoprofile=\S+gocache.*lib2.go'
 
 -- lib.go --
 package lib
