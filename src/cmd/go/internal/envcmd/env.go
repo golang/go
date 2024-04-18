@@ -140,9 +140,9 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName})
 	}
 
-	key, val, changde := cfg.GetArchEnv()
-	if key != "" {
-		env = append(env, cfg.EnvVar{Name: key, Value: val, Changed: changde})
+	goarch, val, changed := cfg.GetArchEnv()
+	if goarch != "" {
+		env = append(env, cfg.EnvVar{Name: goarch, Value: val, Changed: changed})
 	}
 
 	cc := cfg.Getenv("CC")
@@ -251,21 +251,15 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
 	}
 
 	for i := range ret {
-		switch ret[i].Name {
-		// GOGCCFLAGS cannot be modified
-		case "GOGCCFLAGS":
+		ev := &ret[i]
+		switch ev.Name {
+		case "GOGCCFLAGS": // GOGCCFLAGS cannot be modified
 		case "CGO_CPPFLAGS":
-			if ret[i].Value != "" {
-				ret[i].Changed = true
-			}
+			ev.Changed = ev.Value != ""
 		case "PKG_CONFIG":
-			if ret[i].Value != cfg.DefaultPkgConfig {
-				ret[i].Changed = true
-			}
-		default:
-			if ret[i].Value != work.DefaultCFlags {
-				ret[i].Changed = true
-			}
+			ev.Changed = ev.Value != cfg.DefaultPkgConfig
+		case "CXXFLAGS", "CFLAGS", "FFLAGS", "LDFLAGS":
+			ev.Changed = ev.Value != work.DefaultCFlags
 		}
 	}
 

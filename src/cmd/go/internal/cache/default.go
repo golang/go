@@ -69,13 +69,13 @@ func initDefaultCache() {
 var (
 	defaultDirOnce    sync.Once
 	defaultDir        string
-	defaultDirChanged bool
+	defaultDirChanged bool // effective value differs from $GOCACHE
 	defaultDirErr     error
 )
 
 // DefaultDir returns the effective GOCACHE setting.
-// It returns "off" if the cache is disabled.
-// Bool result report dir whether it is a modified non-default value.
+// It returns "off" if the cache is disabled,
+// and reports whether the effective value differs from GOCACHE.
 func DefaultDir() (string, bool) {
 	// Save the result of the first call to DefaultDir for later use in
 	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
@@ -83,12 +83,11 @@ func DefaultDir() (string, bool) {
 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
 	defaultDirOnce.Do(func() {
-		defaultDir = cfg.Getenv("GOCACHE")
-		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
-			defaultDirChanged = true
-			return
-		}
 		if defaultDir != "" {
+			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
+				defaultDirChanged = true
+				return
+			}
 			defaultDir = "off"
 			defaultDirChanged = true
 			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
@@ -99,6 +98,7 @@ func DefaultDir() (string, bool) {
 		dir, err := os.UserCacheDir()
 		if err != nil {
 			defaultDir = "off"
+			defaultDirChanged = true
 			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
 			return
 		}

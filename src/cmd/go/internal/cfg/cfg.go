@@ -265,7 +265,7 @@ func init() {
 type EnvVar struct {
 	Name    string
 	Value   string
-	Changed bool
+	Changed bool // effective Value differs from default
 }
 
 // OrigEnv is the original environment of the program at startup.
@@ -281,12 +281,12 @@ var envCache struct {
 	m    map[string]string
 }
 
-// EnvFile returns the name of the Go environment configuration file.
-// Bool result report env file whether it is a modified non-default value.
+// EnvFile returns the name of the Go environment configuration file,
+// and reports whether the effective value differs from the default.
 func EnvFile() (string, bool, error) {
 	if file := os.Getenv("GOENV"); file != "" {
 		if file == "off" {
-			return "", true, fmt.Errorf("GOENV=off")
+			return "", false, fmt.Errorf("GOENV=off")
 		}
 		return file, true, nil
 	}
@@ -423,8 +423,8 @@ var (
 	GOVCS                       = Getenv("GOVCS")
 )
 
-// EnvOrAndChanged get the environment variable value
-// and report if it is different from the default value.
+// EnvOrAndChanged returns the environment variable value
+// and reports whether it differs from the default value.
 func EnvOrAndChanged(name, def string) (string, bool) {
 	val := Getenv(name)
 	if val != "" {
