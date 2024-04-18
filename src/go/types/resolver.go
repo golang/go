@@ -665,7 +665,7 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.enableAlias {
+	if check.conf._EnableAlias {
 		// With Alias nodes we can process declarations in any order.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)

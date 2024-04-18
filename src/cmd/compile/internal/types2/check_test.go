@@ -122,10 +122,11 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
-	// Alias types are enabled by default
+	enableAlias := true
+	opts = append(opts, func(conf *Config) { conf.EnableAlias = enableAlias })
 	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
 	if !manual {
-		t.Setenv("GODEBUG", "gotypesalias=0")
+		enableAlias = false
 		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
 	}
 }
@@ -192,7 +193,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
 
 	// By default, gotypesalias is not set.
 	if gotypesalias != "" {
-		t.Setenv("GODEBUG", "gotypesalias="+gotypesalias)
+		conf.EnableAlias = gotypesalias != "0"
 	}
 
 	// Provide Config.Info with all maps so that info recording is tested.

@@ -180,6 +180,12 @@ type Config struct {
 	// of an error message. ErrorURL must be a format string containing
 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
 	_ErrorURL string
+
+	// If _EnableAlias is set, alias declarations produce an Alias type.
+	// Otherwise the alias information is only in the type name, which
+	// points directly to the actual (aliased) type.
+	// This flag will eventually be removed (with Go 1.24 at the earliest).
+	_EnableAlias bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

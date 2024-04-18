@@ -101,12 +101,6 @@ type actionDesc struct {
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
-
-	// If EnableAlias is set, alias declarations produce an Alias type.
-	// Otherwise the alias information is only in the type name, which
-	// points directly to the actual (aliased) type.
-	enableAlias bool
-
 	conf *Config
 	ctxt *Context // context for de-duplicating instances
 	fset *token.FileSet
@@ -173,9 +167,9 @@ func (check *Checker) addDeclDep(to Object) {
 
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
-// Not used if check.enableAlias is set.
+// Not used if check.conf._EnableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
-	assert(!check.enableAlias)
+	assert(!check.conf._EnableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -185,14 +179,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
-	assert(!check.enableAlias)
+	assert(!check.conf._EnableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	assert(!check.enableAlias)
+	assert(!check.conf._EnableAlias)
 	return check.brokenAliases[alias]
 }
 
@@ -261,16 +255,18 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 	//
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
+	// In go/types, conf._EnableAlias is controlled by gotypesalias.
+	conf._EnableAlias = gotypesalias.Value() != "0"
+
 	return &Checker{
-		enableAlias: gotypesalias.Value() != "0",
-		conf:        conf,
-		ctxt:        conf.Context,
-		fset:        fset,
-		pkg:         pkg,
-		Info:        info,
-		version:     asGoVersion(conf.GoVersion),
-		objMap:      make(map[Object]*declInfo),
-		impMap:      make(map[importKey]*Package),
+		conf:    conf,
+		ctxt:    conf.Context,
+		fset:    fset,
+		pkg:     pkg,
+		Info:    info,
+		version: asGoVersion(conf.GoVersion),
+		objMap:  make(map[Object]*declInfo),
+		impMap:  make(map[importKey]*Package),
 	}
 }
 

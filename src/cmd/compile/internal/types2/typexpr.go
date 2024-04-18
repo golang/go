@@ -108,7 +108,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = constant_
 
 	case *TypeName:
-		if !check.enableAlias && check.isBrokenAlias(obj) {
+		if !check.conf.EnableAlias && check.isBrokenAlias(obj) {
 			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
 			return
 		}
