@@ -78,6 +78,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 		// Find the key or a candidate location for insertion.
 		i = ht.root
 		hashShift = 8 * goarch.PtrSize
+		haveInsertPoint := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
@@ -85,6 +86,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 			n = slot.Load()
 			if n == nil {
 				// We found a nil slot which is a candidate for insertion.
+				haveInsertPoint = true
 				break
 			}
 			if n.isEntry {
@@ -94,11 +96,12 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 				if v, ok := n.entry().lookup(key, ht.keyEqual); ok {
 					return v, true
 				}
+				haveInsertPoint = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !haveInsertPoint {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
@@ -188,6 +191,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 		// Find the key or return when there's nothing to delete.
 		i = ht.root
 		hashShift = 8 * goarch.PtrSize
+		found := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
@@ -204,11 +208,12 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 					return
 				}
 				// We've got something to delete.
+				found = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !found {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
@@ -248,7 +253,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	// Check if the node is now empty (and isn't the root), and delete it if able.
 	for i.parent != nil && i.empty() {
-		if hashShift == 64 {
+		if hashShift == 8*goarch.PtrSize {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 		hashShift += nChildrenLog2
