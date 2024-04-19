@@ -34,8 +34,8 @@ go env -changed GOOS
 [GOOS:windows] stdout 'set GOOS=linux'
 [!GOOS:windows] stdout 'GOOS=''windows'''
 go env -changed GOARCH
-[GOARCH:amd64] stdout 'set GOARCH=arm64'
-[!GOARCH:amd64] stdout 'GOARCH=''amd64'''
+[GOARCH:amd64] stdout 'set GOARCH=arm64|GOARCH=''arm64'''
+[!GOARCH:amd64] stdout 'set GOARCH=amd64|GOARCH=''amd64'''
 
 go env -changed -json GOOS
 [GOOS:windows] stdout '"GOOS": "linux"'
