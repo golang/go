@@ -569,7 +569,10 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 
 	case *types2.Interface:
 		// Handle "any" as reference to its TypeName.
-		if typ == anyTypeName.Type() {
+		// The underlying "any" interface is canonical, so this logic handles both
+		// GODEBUG=gotypesalias=1 (when any is represented as a types2.Alias), and
+		// gotypesalias=0.
+		if types2.Unalias(typ) == types2.Unalias(anyTypeName.Type()) {
 			w.Code(pkgbits.TypeNamed)
 			w.obj(anyTypeName, nil)
 			break

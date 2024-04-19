@@ -214,10 +214,11 @@ func (w *typeWriter) typ(typ Type) {
 
 	case *Interface:
 		if w.ctxt == nil {
-			if t == universeAny.Type() {
+			if t == universeAnyAlias.Type().Underlying() {
 				// When not hashing, we can try to improve type strings by writing "any"
-				// for a type that is pointer-identical to universeAny. This logic should
-				// be deprecated by more robust handling for aliases.
+				// for a type that is pointer-identical to universeAny.
+				// TODO(rfindley): this logic should not be necessary with
+				// gotypesalias=1. Remove once that is always the case.
 				w.string("any")
 				break
 			}

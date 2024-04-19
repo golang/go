@@ -42,7 +42,14 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Name)
 		}
 		return
-	case universeAny, universeComparable:
+	case universeComparable:
+		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
+			return // avoid follow-on errors
+		}
+	}
+	// Because the representation of any depends on gotypesalias, we don't check
+	// pointer identity here.
+	if obj.Name() == "any" && obj.Parent() == Universe {
 		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
 			return // avoid follow-on errors
 		}

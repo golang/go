@@ -607,7 +607,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
 }
 
 func TestIssue50646(t *testing.T) {
-	anyType := Universe.Lookup("any").Type()
+	anyType := Universe.Lookup("any").Type().Underlying()
 	comparableType := Universe.Lookup("comparable").Type()
 
 	if !Comparable(anyType) {

@@ -12,6 +12,7 @@ import (
 	"go/constant"
 	"internal/godebug"
 	. "internal/types/errors"
+	"sync/atomic"
 )
 
 // nopos indicates an unknown position
@@ -25,6 +26,29 @@ const debug = false // leave on during development
 // To disable their use, set GODEBUG to gotypesalias=0.
 // This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
 var gotypesalias = godebug.New("gotypesalias")
+
+// _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
+// [Universe] scope.
+//
+// This is necessary because while Alias creation is controlled by
+// [Config.EnableAlias], the representation of "any" is a global. In
+// [Scope.Lookup], we select this global representation based on the result of
+// [aliasAny], but as a result need to guard against this behavior changing
+// during the type checking pass. Therefore we implement the following rule:
+// any number of goroutines can type check concurrently with the same
+// EnableAlias value, but if any goroutine tries to type check concurrently
+// with a different EnableAlias value, we panic.
+//
+// To achieve this, _aliasAny is a state machine:
+//
+//	0:        no type checking is occurring
+//	negative: type checking is occurring without EnableAlias set
+//	positive: type checking is occurring with EnableAlias set
+var _aliasAny int32
+
+func aliasAny() bool {
+	return atomic.LoadInt32(&_aliasAny) >= 0 // default true
+}
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -397,6 +421,20 @@ func (check *Checker) Files(files []*syntax.File) (err error) {
 // syntax is properly type annotated even in a package containing
 // errors.
 func (check *Checker) checkFiles(files []*syntax.File) {
+	// Ensure that EnableAlias is consistent among concurrent type checking
+	// operations. See the documentation of [_aliasAny] for details.
+	if check.conf.EnableAlias {
+		if atomic.AddInt32(&_aliasAny, 1) <= 0 {
+			panic("EnableAlias set while !EnableAlias type checking is ongoing")
+		}
+		defer atomic.AddInt32(&_aliasAny, -1)
+	} else {
+		if atomic.AddInt32(&_aliasAny, -1) >= 0 {
+			panic("!EnableAlias set while EnableAlias type checking is ongoing")
+		}
+		defer atomic.AddInt32(&_aliasAny, 1)
+	}
+
 	print := func(msg string) {
 		if check.conf.Trace {
 			fmt.Println()

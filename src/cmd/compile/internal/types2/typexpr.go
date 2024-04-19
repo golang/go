@@ -41,11 +41,19 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
 		}
 		return
-	case universeAny, universeComparable:
+	case universeComparable:
 		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
 			return // avoid follow-on errors
 		}
 	}
+	// Because the representation of any depends on gotypesalias, we don't check
+	// pointer identity here.
+	if obj.Name() == "any" && obj.Parent() == Universe {
+		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
+			return // avoid follow-on errors
+		}
+	}
+
 	check.recordUse(e, obj)
 
 	// If we want a type but don't have one, stop right here and avoid potential problems
