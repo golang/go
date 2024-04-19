@@ -2053,11 +2053,11 @@ func TestSelectMaxCases(t *testing.T) {
 	})
 	defer func() {
 		if err := recover(); err != nil {
-			if err.(string) != "reflect.Select: too many cases (max 65536)" {
-				t.Fatalf("unexpected error from select call with greater than max supported cases")
+			if err.(string) != "Reflect.Select: too many cases (max 65536)" {
+				t.Fatalf("Unexpected error from select call with greater than max supported cases")
 			}
 		} else {
-			t.Fatalf("expected select call to panic with greater than max supported cases")
+			t.Fatalf("Expected select call to panic with greater than max supported cases")
 		}
 	}()
 	// Should panic
@@ -2068,7 +2068,7 @@ func TestSelectNop(t *testing.T) {
 	// "select { default: }" should always return the default case.
 	chosen, _, _ := Select([]SelectCase{{Dir: SelectDefault}})
 	if chosen != 0 {
-		t.Fatalf("expected Select to return 0, but got %#v", chosen)
+		t.Fatalf("Expected Select to return 0, but got %#v", chosen)
 	}
 }
 
@@ -2088,7 +2088,7 @@ func selectWatcher() {
 		selectWatch.Lock()
 		if selectWatch.info != nil && time.Since(selectWatch.now) > 10*time.Second {
 			fmt.Fprintf(os.Stderr, "TestSelect:\n%s blocked indefinitely\n", fmtSelect(selectWatch.info))
-			panic("select stuck")
+			panic("Select stuck")
 		}
 		selectWatch.Unlock()
 	}
@@ -8521,7 +8521,7 @@ func TestClear(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
-				t.Errorf("unexpected result for value.Clear(): %v value", tc.value)
+				t.Errorf("Unexpected result for value.Clear(): %v value", tc.value)
 			}
 		})
 	}
@@ -8572,15 +8572,15 @@ func TestSliceAt(t *testing.T) {
 
 	s := SliceAt(typ, unsafe.Pointer(&p[0]), len(p))
 	if s.Pointer() != uintptr(unsafe.Pointer(&p[0])) {
-		t.Fatalf("unexpected underlying array: %d, want: %d", s.Pointer(), uintptr(unsafe.Pointer(&p[0])))
+		t.Fatalf("Unexpected underlying array: %d, want: %d", s.Pointer(), uintptr(unsafe.Pointer(&p[0])))
 	}
 	if s.Len() != len(p) || s.Cap() != len(p) {
-		t.Fatalf("unexpected len or cap, len: %d, cap: %d, want: %d", s.Len(), s.Cap(), len(p))
+		t.Fatalf("Unexpected len or cap, len: %d, cap: %d, want: %d", s.Len(), s.Cap(), len(p))
 	}
 
 	typ = TypeOf(0)
 	if !SliceAt(typ, unsafe.Pointer((*int)(nil)), 0).IsNil() {
-		t.Fatal("nil pointer with zero length must return nil")
+		t.Fatal("Nil pointer with zero length must return nil")
 	}
 
 	// nil pointer with positive length panics
