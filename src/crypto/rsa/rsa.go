@@ -89,6 +89,7 @@ var (
 	errPublicModulus       = errors.New("crypto/rsa: missing public modulus")
 	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
 	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
+	errPublicKeySizeZero   = errors.New("crypto/rsa: public key size zero")
 )
 
 // checkPub sanity checks the public key before we use it.
@@ -105,6 +106,9 @@ func checkPub(pub *PublicKey) error {
 	}
 	if pub.E > 1<<31-1 {
 		return errPublicExponentLarge
+	}
+	if pub.Size() == 0 {
+		return errPublicKeySizeZero
 	}
 	return nil
 }
