@@ -8521,7 +8521,7 @@ func TestClear(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
-				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
+				t.Errorf("unexpected result for value.Clear(): %v value", tc.value)
 			}
 		})
 	}
@@ -8554,10 +8554,10 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
-				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
+				t.Errorf("Unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
 			}
 			if got := tc.val.UnsafePointer(); got != tc.wantUnsafePointer {
-				t.Errorf("unexpected unsafe.Pointer result, got %#x, want %#x", got, tc.wantUnsafePointer)
+				t.Errorf("Unexpected unsafe.Pointer result, got %#x, want %#x", got, tc.wantUnsafePointer)
 			}
 		})
 	}
