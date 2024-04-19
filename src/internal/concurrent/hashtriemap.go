@@ -301,7 +301,7 @@ const (
 	// 16 children. This seems to be the sweet spot for
 	// load performance: any smaller and we lose out on
 	// 50% or more in CPU performance. Any larger and the
-	// returns are miniscule (~1% improvement for 32 children).
+	// returns are minuscule (~1% improvement for 32 children).
 	nChildrenLog2 = 4
 	nChildren     = 1 << nChildrenLog2
 	nChildrenMask = nChildren - 1
