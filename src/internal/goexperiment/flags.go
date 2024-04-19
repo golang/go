@@ -116,7 +116,4 @@ type Flags struct {
 
 	// RangeFunc enables range over func.
 	RangeFunc bool
-
-	// Range enables range over int and func.
-	Range bool
 }
