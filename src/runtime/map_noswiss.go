@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.swissmap
+
 package runtime
 
 // This file contains the implementation of Go's map type.
