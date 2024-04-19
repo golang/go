@@ -477,7 +477,8 @@
 // of the named environment variables to the given values.
 //
 // The -changed flag only prints all non-default settings,
-// do not print GOOS and GOARCH.
+// when command line arguments exist,
+// print only if the specified environment variable is not the default value.
 //
 // For more about environment variables, see 'go help environment'.
 //
