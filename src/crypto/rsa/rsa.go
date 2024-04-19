@@ -90,6 +90,7 @@ var (
 	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
 	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
 	errPublicKeySizeZero   = errors.New("crypto/rsa: public key size zero")
+	errPrivateKeySizeZero  = errors.New("crypto/rsa: private key size zero")
 )
 
 // checkPub sanity checks the public key before we use it.

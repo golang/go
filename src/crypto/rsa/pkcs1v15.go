@@ -292,6 +292,9 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 
 	tLen := len(prefix) + hashLen
 	k := priv.Size()
+	if k == 0 {
+		return nil, errPrivateKeySizeZero
+	}
 	if k < tLen+11 {
 		return nil, ErrMessageTooLong
 	}
