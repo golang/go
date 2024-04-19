@@ -654,6 +654,17 @@ func TestEncryptOAEP(t *testing.T) {
 	}
 }
 
+func TestEncryptOAEPWithPublicKeySizeZero(t *testing.T) {
+	sha1 := sha1.New()
+	_, err := EncryptOAEP(sha1, nil, &PublicKey{}, nil, nil)
+	if err == nil {
+		t.Error("expected error but got nil")
+	}
+	if err != nil && err.Error() != "crypto/rsa: public key size zero" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestDecryptOAEP(t *testing.T) {
 	random := rand.Reader
 
