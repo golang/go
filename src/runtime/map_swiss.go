@@ -63,15 +63,17 @@ import (
 	"unsafe"
 )
 
+type maptype = abi.SwissMapType
+
 const (
 	// Maximum number of key/elem pairs a bucket can hold.
-	bucketCntBits = abi.MapBucketCountBits
+	bucketCntBits = abi.SwissMapBucketCountBits
 
 	// Maximum average load of a bucket that triggers growth is bucketCnt*13/16 (about 80% full)
 	// Because of minimum alignment rules, bucketCnt is known to be at least 8.
 	// Represent as loadFactorNum/loadFactorDen, to allow integer math.
 	loadFactorDen = 2
-	loadFactorNum = loadFactorDen * abi.MapBucketCount * 13 / 16
+	loadFactorNum = loadFactorDen * abi.SwissMapBucketCount * 13 / 16
 
 	// data offset should be the size of the bmap struct, but needs to be
 	// aligned correctly. For amd64p32 this means 64-bit alignment
@@ -146,7 +148,7 @@ type bmap struct {
 	// tophash generally contains the top byte of the hash value
 	// for each key in this bucket. If tophash[0] < minTopHash,
 	// tophash[0] is a bucket evacuation state instead.
-	tophash [abi.MapBucketCount]uint8
+	tophash [abi.SwissMapBucketCount]uint8
 	// Followed by bucketCnt keys and then bucketCnt elems.
 	// NOTE: packing all the keys together and then all the elems together makes the
 	// code a bit more complicated than alternating key/elem/key/elem/... but it allows
@@ -425,7 +427,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	top := tophash(hash)
 bucketloop:
 	for ; b != nil; b = b.overflow(t) {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == emptyRest {
 					break bucketloop
@@ -437,7 +439,7 @@ bucketloop:
 				k = *((*unsafe.Pointer)(k))
 			}
 			if t.Key.Equal(key, k) {
-				e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+				e := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 				if t.IndirectElem() {
 					e = *((*unsafe.Pointer)(e))
 				}
@@ -486,7 +488,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	top := tophash(hash)
 bucketloop:
 	for ; b != nil; b = b.overflow(t) {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == emptyRest {
 					break bucketloop
@@ -498,7 +500,7 @@ bucketloop:
 				k = *((*unsafe.Pointer)(k))
 			}
 			if t.Key.Equal(key, k) {
-				e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+				e := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 				if t.IndirectElem() {
 					e = *((*unsafe.Pointer)(e))
 				}
@@ -530,7 +532,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	top := tophash(hash)
 bucketloop:
 	for ; b != nil; b = b.overflow(t) {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == emptyRest {
 					break bucketloop
@@ -542,7 +544,7 @@ bucketloop:
 				k = *((*unsafe.Pointer)(k))
 			}
 			if t.Key.Equal(key, k) {
-				e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+				e := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 				if t.IndirectElem() {
 					e = *((*unsafe.Pointer)(e))
 				}
@@ -612,12 +614,12 @@ again:
 	var elem unsafe.Pointer
 bucketloop:
 	for {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 			if b.tophash[i] != top {
 				if isEmpty(b.tophash[i]) && inserti == nil {
 					inserti = &b.tophash[i]
 					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.KeySize))
-					elem = add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+					elem = add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 				}
 				if b.tophash[i] == emptyRest {
 					break bucketloop
@@ -635,7 +637,7 @@ bucketloop:
 			if t.NeedKeyUpdate() {
 				typedmemmove(t.Key, k, key)
 			}
-			elem = add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+			elem = add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 			goto done
 		}
 		ovf := b.overflow(t)
@@ -659,7 +661,7 @@ bucketloop:
 		newb := h.newoverflow(t, b)
 		inserti = &newb.tophash[0]
 		insertk = add(unsafe.Pointer(newb), dataOffset)
-		elem = add(insertk, abi.MapBucketCount*uintptr(t.KeySize))
+		elem = add(insertk, abi.SwissMapBucketCount*uintptr(t.KeySize))
 	}
 
 	// store new key/elem at insert position
@@ -725,7 +727,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	top := tophash(hash)
 search:
 	for ; b != nil; b = b.overflow(t) {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 			if b.tophash[i] != top {
 				if b.tophash[i] == emptyRest {
 					break search
@@ -746,7 +748,7 @@ search:
 			} else if t.Key.Pointers() {
 				memclrHasPointers(k, t.Key.Size_)
 			}
-			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+			e := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 			if t.IndirectElem() {
 				*(*unsafe.Pointer)(e) = nil
 			} else if t.Elem.Pointers() {
@@ -759,7 +761,7 @@ search:
 			// change those to emptyRest states.
 			// It would be nice to make this a separate function, but
 			// for loops are not currently inlineable.
-			if i == abi.MapBucketCount-1 {
+			if i == abi.SwissMapBucketCount-1 {
 				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
 					goto notLast
 				}
@@ -778,7 +780,7 @@ search:
 					c := b
 					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
 					}
-					i = abi.MapBucketCount - 1
+					i = abi.SwissMapBucketCount - 1
 				} else {
 					i--
 				}
@@ -839,7 +841,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	// decide where to start
 	r := uintptr(rand())
 	it.startBucket = r & bucketMask(h.B)
-	it.offset = uint8(r >> h.B & (abi.MapBucketCount - 1))
+	it.offset = uint8(r >> h.B & (abi.SwissMapBucketCount - 1))
 
 	// iterator state
 	it.bucket = it.startBucket
@@ -900,8 +902,8 @@ next:
 		}
 		i = 0
 	}
-	for ; i < abi.MapBucketCount; i++ {
-		offi := (i + it.offset) & (abi.MapBucketCount - 1)
+	for ; i < abi.SwissMapBucketCount; i++ {
+		offi := (i + it.offset) & (abi.SwissMapBucketCount - 1)
 		if isEmpty(b.tophash[offi]) || b.tophash[offi] == evacuatedEmpty {
 			// TODO: emptyRest is hard to use here, as we start iterating
 			// in the middle of a bucket. It's feasible, just tricky.
@@ -911,7 +913,7 @@ next:
 		if t.IndirectKey() {
 			k = *((*unsafe.Pointer)(k))
 		}
-		e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+uintptr(offi)*uintptr(t.ValueSize))
+		e := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+uintptr(offi)*uintptr(t.ValueSize))
 		if checkBucket != noCheck && !h.sameSizeGrow() {
 			// Special case: iterator was started during a grow to a larger size
 			// and the grow is not done yet. We're working on a bucket whose
@@ -1002,7 +1004,7 @@ func mapclear(t *maptype, h *hmap) {
 		for i := uintptr(0); i <= mask; i++ {
 			b := (*bmap)(add(bucket, i*uintptr(t.BucketSize)))
 			for ; b != nil; b = b.overflow(t) {
-				for i := uintptr(0); i < abi.MapBucketCount; i++ {
+				for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 					b.tophash[i] = emptyRest
 				}
 			}
@@ -1089,7 +1091,7 @@ func hashGrow(t *maptype, h *hmap) {
 
 // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
 func overLoadFactor(count int, B uint8) bool {
-	return count > abi.MapBucketCount && uintptr(count) > loadFactorNum*(bucketShift(B)/loadFactorDen)
+	return count > abi.SwissMapBucketCount && uintptr(count) > loadFactorNum*(bucketShift(B)/loadFactorDen)
 }
 
 // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
@@ -1167,7 +1169,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 		x := &xy[0]
 		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.BucketSize)))
 		x.k = add(unsafe.Pointer(x.b), dataOffset)
-		x.e = add(x.k, abi.MapBucketCount*uintptr(t.KeySize))
+		x.e = add(x.k, abi.SwissMapBucketCount*uintptr(t.KeySize))
 
 		if !h.sameSizeGrow() {
 			// Only calculate y pointers if we're growing bigger.
@@ -1175,13 +1177,13 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			y := &xy[1]
 			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.BucketSize)))
 			y.k = add(unsafe.Pointer(y.b), dataOffset)
-			y.e = add(y.k, abi.MapBucketCount*uintptr(t.KeySize))
+			y.e = add(y.k, abi.SwissMapBucketCount*uintptr(t.KeySize))
 		}
 
 		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
-			e := add(k, abi.MapBucketCount*uintptr(t.KeySize))
-			for i := 0; i < abi.MapBucketCount; i, k, e = i+1, add(k, uintptr(t.KeySize)), add(e, uintptr(t.ValueSize)) {
+			e := add(k, abi.SwissMapBucketCount*uintptr(t.KeySize))
+			for i := 0; i < abi.SwissMapBucketCount; i, k, e = i+1, add(k, uintptr(t.KeySize)), add(e, uintptr(t.ValueSize)) {
 				top := b.tophash[i]
 				if isEmpty(top) {
 					b.tophash[i] = evacuatedEmpty
@@ -1227,13 +1229,13 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				b.tophash[i] = evacuatedX + useY // evacuatedX + 1 == evacuatedY
 				dst := &xy[useY]                 // evacuation destination
 
-				if dst.i == abi.MapBucketCount {
+				if dst.i == abi.SwissMapBucketCount {
 					dst.b = h.newoverflow(t, dst.b)
 					dst.i = 0
 					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
-					dst.e = add(dst.k, abi.MapBucketCount*uintptr(t.KeySize))
+					dst.e = add(dst.k, abi.SwissMapBucketCount*uintptr(t.KeySize))
 				}
-				dst.b.tophash[dst.i&(abi.MapBucketCount-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+				dst.b.tophash[dst.i&(abi.SwissMapBucketCount-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 				if t.IndirectKey() {
 					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
 				} else {
@@ -1301,18 +1303,18 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 	if t.Key.Equal == nil {
 		throw("runtime.reflect_makemap: unsupported map key type")
 	}
-	if t.Key.Size_ > abi.MapMaxKeyBytes && (!t.IndirectKey() || t.KeySize != uint8(goarch.PtrSize)) ||
-		t.Key.Size_ <= abi.MapMaxKeyBytes && (t.IndirectKey() || t.KeySize != uint8(t.Key.Size_)) {
+	if t.Key.Size_ > abi.SwissMapMaxKeyBytes && (!t.IndirectKey() || t.KeySize != uint8(goarch.PtrSize)) ||
+		t.Key.Size_ <= abi.SwissMapMaxKeyBytes && (t.IndirectKey() || t.KeySize != uint8(t.Key.Size_)) {
 		throw("key size wrong")
 	}
-	if t.Elem.Size_ > abi.MapMaxElemBytes && (!t.IndirectElem() || t.ValueSize != uint8(goarch.PtrSize)) ||
-		t.Elem.Size_ <= abi.MapMaxElemBytes && (t.IndirectElem() || t.ValueSize != uint8(t.Elem.Size_)) {
+	if t.Elem.Size_ > abi.SwissMapMaxElemBytes && (!t.IndirectElem() || t.ValueSize != uint8(goarch.PtrSize)) ||
+		t.Elem.Size_ <= abi.SwissMapMaxElemBytes && (t.IndirectElem() || t.ValueSize != uint8(t.Elem.Size_)) {
 		throw("elem size wrong")
 	}
-	if t.Key.Align_ > abi.MapBucketCount {
+	if t.Key.Align_ > abi.SwissMapBucketCount {
 		throw("key align too big")
 	}
-	if t.Elem.Align_ > abi.MapBucketCount {
+	if t.Elem.Align_ > abi.SwissMapBucketCount {
 		throw("elem align too big")
 	}
 	if t.Key.Size_%uintptr(t.Key.Align_) != 0 {
@@ -1321,7 +1323,7 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 	if t.Elem.Size_%uintptr(t.Elem.Align_) != 0 {
 		throw("elem size not a multiple of elem align")
 	}
-	if abi.MapBucketCount < 8 {
+	if abi.SwissMapBucketCount < 8 {
 		throw("bucketsize too small for proper alignment")
 	}
 	if dataOffset%uintptr(t.Key.Align_) != 0 {
@@ -1444,26 +1446,26 @@ func mapclone(m any) any {
 // moveToBmap moves a bucket from src to dst. It returns the destination bucket or new destination bucket if it overflows
 // and the pos that the next key/value will be written, if pos == bucketCnt means needs to written in overflow bucket.
 func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int) {
-	for i := 0; i < abi.MapBucketCount; i++ {
+	for i := 0; i < abi.SwissMapBucketCount; i++ {
 		if isEmpty(src.tophash[i]) {
 			continue
 		}
 
-		for ; pos < abi.MapBucketCount; pos++ {
+		for ; pos < abi.SwissMapBucketCount; pos++ {
 			if isEmpty(dst.tophash[pos]) {
 				break
 			}
 		}
 
-		if pos == abi.MapBucketCount {
+		if pos == abi.SwissMapBucketCount {
 			dst = h.newoverflow(t, dst)
 			pos = 0
 		}
 
 		srcK := add(unsafe.Pointer(src), dataOffset+uintptr(i)*uintptr(t.KeySize))
-		srcEle := add(unsafe.Pointer(src), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+uintptr(i)*uintptr(t.ValueSize))
+		srcEle := add(unsafe.Pointer(src), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+uintptr(i)*uintptr(t.ValueSize))
 		dstK := add(unsafe.Pointer(dst), dataOffset+uintptr(pos)*uintptr(t.KeySize))
-		dstEle := add(unsafe.Pointer(dst), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+uintptr(pos)*uintptr(t.ValueSize))
+		dstEle := add(unsafe.Pointer(dst), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+uintptr(pos)*uintptr(t.ValueSize))
 
 		dst.tophash[pos] = src.tophash[i]
 		if t.IndirectKey() {
@@ -1567,7 +1569,7 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 		// Process entries one at a time.
 		for srcBmap != nil {
 			// move from oldBlucket to new bucket
-			for i := uintptr(0); i < abi.MapBucketCount; i++ {
+			for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
 				if isEmpty(srcBmap.tophash[i]) {
 					continue
 				}
@@ -1581,7 +1583,7 @@ func mapclone2(t *maptype, src *hmap) *hmap {
 					srcK = *((*unsafe.Pointer)(srcK))
 				}
 
-				srcEle := add(unsafe.Pointer(srcBmap), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+				srcEle := add(unsafe.Pointer(srcBmap), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
 				if t.IndirectElem() {
 					srcEle = *((*unsafe.Pointer)(srcEle))
 				}
@@ -1607,7 +1609,7 @@ func keys(m any, p unsafe.Pointer) {
 	}
 	s := (*slice)(p)
 	r := int(rand())
-	offset := uint8(r >> h.B & (abi.MapBucketCount - 1))
+	offset := uint8(r >> h.B & (abi.SwissMapBucketCount - 1))
 	if h.B == 0 {
 		copyKeys(t, h, (*bmap)(h.buckets), s, offset)
 		return
@@ -1636,8 +1638,8 @@ func keys(m any, p unsafe.Pointer) {
 
 func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 	for b != nil {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
-			offi := (i + uintptr(offset)) & (abi.MapBucketCount - 1)
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
+			offi := (i + uintptr(offset)) & (abi.SwissMapBucketCount - 1)
 			if isEmpty(b.tophash[offi]) {
 				continue
 			}
@@ -1670,7 +1672,7 @@ func values(m any, p unsafe.Pointer) {
 	}
 	s := (*slice)(p)
 	r := int(rand())
-	offset := uint8(r >> h.B & (abi.MapBucketCount - 1))
+	offset := uint8(r >> h.B & (abi.SwissMapBucketCount - 1))
 	if h.B == 0 {
 		copyValues(t, h, (*bmap)(h.buckets), s, offset)
 		return
@@ -1699,8 +1701,8 @@ func values(m any, p unsafe.Pointer) {
 
 func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 	for b != nil {
-		for i := uintptr(0); i < abi.MapBucketCount; i++ {
-			offi := (i + uintptr(offset)) & (abi.MapBucketCount - 1)
+		for i := uintptr(0); i < abi.SwissMapBucketCount; i++ {
+			offi := (i + uintptr(offset)) & (abi.SwissMapBucketCount - 1)
 			if isEmpty(b.tophash[offi]) {
 				continue
 			}
@@ -1709,7 +1711,7 @@ func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 				fatal("concurrent map read and map write")
 			}
 
-			ele := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+offi*uintptr(t.ValueSize))
+			ele := add(unsafe.Pointer(b), dataOffset+abi.SwissMapBucketCount*uintptr(t.KeySize)+offi*uintptr(t.ValueSize))
 			if t.IndirectElem() {
 				ele = *((*unsafe.Pointer)(ele))
 			}

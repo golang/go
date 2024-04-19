@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -926,7 +927,11 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// MapIterType contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(), true)
+			if buildcfg.Experiment.SwissMap {
+				n.Prealloc = o.newTemp(reflectdata.SwissMapIterType(), true)
+			} else {
+				n.Prealloc = o.newTemp(reflectdata.OldMapIterType(), true)
+			}
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)

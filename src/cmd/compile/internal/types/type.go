@@ -10,6 +10,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 	"internal/types/errors"
 	"sync"
 )
@@ -313,7 +314,17 @@ type Map struct {
 	Key  *Type // Key type
 	Elem *Type // Val (elem) type
 
-	Bucket *Type // internal struct type representing a hash bucket
+	// Note: It would be cleaner to completely split Map into OldMap and
+	// SwissMap, but 99% of the types map code doesn't care about the
+	// implementation at all, so it is tons of churn to split the type.
+	// Only code that looks at the bucket field can care about the
+	// implementation.
+
+	// GOEXPERIMENT=noswissmap fields
+	OldBucket *Type // internal struct type representing a hash bucket
+
+	// GOEXPERIMENT=swissmap fields
+	SwissBucket *Type // internal struct type representing a hash bucket
 }
 
 // MapType returns t's extra map-specific fields.
@@ -1206,23 +1217,43 @@ func (t *Type) cmp(x *Type) Cmp {
 		// by the general code after the switch.
 
 	case TSTRUCT:
-		if t.StructType().Map == nil {
-			if x.StructType().Map != nil {
-				return CMPlt // nil < non-nil
-			}
-			// to the fallthrough
-		} else if x.StructType().Map == nil {
-			return CMPgt // nil > non-nil
-		} else if t.StructType().Map.MapType().Bucket == t {
-			// Both have non-nil Map
-			// Special case for Maps which include a recursive type where the recursion is not broken with a named type
-			if x.StructType().Map.MapType().Bucket != x {
-				return CMPlt // bucket maps are least
-			}
-			return t.StructType().Map.cmp(x.StructType().Map)
-		} else if x.StructType().Map.MapType().Bucket == x {
-			return CMPgt // bucket maps are least
-		} // If t != t.Map.Bucket, fall through to general case
+		if buildcfg.Experiment.SwissMap {
+			if t.StructType().Map == nil {
+				if x.StructType().Map != nil {
+					return CMPlt // nil < non-nil
+				}
+				// to the fallthrough
+			} else if x.StructType().Map == nil {
+				return CMPgt // nil > non-nil
+			} else if t.StructType().Map.MapType().SwissBucket == t {
+				// Both have non-nil Map
+				// Special case for Maps which include a recursive type where the recursion is not broken with a named type
+				if x.StructType().Map.MapType().SwissBucket != x {
+					return CMPlt // bucket maps are least
+				}
+				return t.StructType().Map.cmp(x.StructType().Map)
+			} else if x.StructType().Map.MapType().SwissBucket == x {
+				return CMPgt // bucket maps are least
+			} // If t != t.Map.SwissBucket, fall through to general case
+		} else {
+			if t.StructType().Map == nil {
+				if x.StructType().Map != nil {
+					return CMPlt // nil < non-nil
+				}
+				// to the fallthrough
+			} else if x.StructType().Map == nil {
+				return CMPgt // nil > non-nil
+			} else if t.StructType().Map.MapType().OldBucket == t {
+				// Both have non-nil Map
+				// Special case for Maps which include a recursive type where the recursion is not broken with a named type
+				if x.StructType().Map.MapType().OldBucket != x {
+					return CMPlt // bucket maps are least
+				}
+				return t.StructType().Map.cmp(x.StructType().Map)
+			} else if x.StructType().Map.MapType().OldBucket == x {
+				return CMPgt // bucket maps are least
+			} // If t != t.Map.OldBucket, fall through to general case
+		}
 
 		tfs := t.Fields()
 		xfs := x.Fields()

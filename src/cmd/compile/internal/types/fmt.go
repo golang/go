@@ -474,7 +474,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			switch t {
-			case mt.Bucket:
+			case mt.OldBucket, mt.SwissBucket:
 				b.WriteString("map.bucket[")
 			default:
 				base.Fatalf("unknown internal map type")

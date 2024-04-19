@@ -119,8 +119,8 @@ import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.MapBucketCount+9, 10) + `)
-	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.MapBucketCount+3, 10) + `)
+	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.OldMapBucketCount+9, 10) + `)
+	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.OldMapBucketCount+3, 10) + `)
     chanint := make(chan int, 10)
     chanstr := make(chan string, 10)
     chanint <- 99

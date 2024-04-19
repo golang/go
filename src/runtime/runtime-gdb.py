@@ -141,6 +141,7 @@ class SliceTypePrinter:
 			yield ('[{0}]'.format(idx), item)
 
 
+# TODO(go.dev/issue/54766): Support swisstable maps.
 class MapTypePrinter:
 	"""Pretty print map[K]V types.
 

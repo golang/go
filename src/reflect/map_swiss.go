@@ -14,7 +14,7 @@ import (
 
 // mapType represents a map type.
 type mapType struct {
-	abi.MapType
+	abi.SwissMapType
 }
 
 func (t *rtype) Key() Type {
@@ -70,13 +70,13 @@ func MapOf(key, elem Type) Type {
 		return typehash(ktyp, p, seed)
 	}
 	mt.Flags = 0
-	if ktyp.Size_ > abi.MapMaxKeyBytes {
+	if ktyp.Size_ > abi.SwissMapMaxKeyBytes {
 		mt.KeySize = uint8(goarch.PtrSize)
 		mt.Flags |= 1 // indirect key
 	} else {
 		mt.KeySize = uint8(ktyp.Size_)
 	}
-	if etyp.Size_ > abi.MapMaxElemBytes {
+	if etyp.Size_ > abi.SwissMapMaxElemBytes {
 		mt.ValueSize = uint8(goarch.PtrSize)
 		mt.Flags |= 2 // indirect value
 	} else {
@@ -99,10 +99,10 @@ func MapOf(key, elem Type) Type {
 }
 
 func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
-	if ktyp.Size_ > abi.MapMaxKeyBytes {
+	if ktyp.Size_ > abi.SwissMapMaxKeyBytes {
 		ktyp = ptrTo(ktyp)
 	}
-	if etyp.Size_ > abi.MapMaxElemBytes {
+	if etyp.Size_ > abi.SwissMapMaxElemBytes {
 		etyp = ptrTo(etyp)
 	}
 
@@ -114,29 +114,29 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 	var gcdata *byte
 	var ptrdata uintptr
 
-	size := abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize
+	size := abi.SwissMapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize
 	if size&uintptr(ktyp.Align_-1) != 0 || size&uintptr(etyp.Align_-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
 	}
 
 	if ktyp.Pointers() || etyp.Pointers() {
-		nptr := (abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
+		nptr := (abi.SwissMapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
 		n := (nptr + 7) / 8
 
 		// Runtime needs pointer masks to be a multiple of uintptr in size.
 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
 		mask := make([]byte, n)
-		base := uintptr(abi.MapBucketCount / goarch.PtrSize)
+		base := uintptr(abi.SwissMapBucketCount / goarch.PtrSize)
 
 		if ktyp.Pointers() {
-			emitGCMask(mask, base, ktyp, abi.MapBucketCount)
+			emitGCMask(mask, base, ktyp, abi.SwissMapBucketCount)
 		}
-		base += abi.MapBucketCount * ktyp.Size_ / goarch.PtrSize
+		base += abi.SwissMapBucketCount * ktyp.Size_ / goarch.PtrSize
 
 		if etyp.Pointers() {
-			emitGCMask(mask, base, etyp, abi.MapBucketCount)
+			emitGCMask(mask, base, etyp, abi.SwissMapBucketCount)
 		}
-		base += abi.MapBucketCount * etyp.Size_ / goarch.PtrSize
+		base += abi.SwissMapBucketCount * etyp.Size_ / goarch.PtrSize
 
 		word := base
 		mask[word/8] |= 1 << (word % 8)
@@ -180,7 +180,7 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
+	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ(), v.pointer(), k)
 	} else {
@@ -423,7 +423,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ()))
 
-	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
+	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
 		k := *(*string)(key.ptr)
 		if elem.typ() == nil {
 			mapdelete_faststr(v.typ(), v.pointer(), k)

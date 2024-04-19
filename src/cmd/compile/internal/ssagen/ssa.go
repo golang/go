@@ -88,7 +88,11 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
-	_ = types.NewPtr(reflectdata.MapType())                                 // *runtime.hmap
+	if buildcfg.Experiment.SwissMap {
+		_ = types.NewPtr(reflectdata.SwissMapType())                    // *runtime.hmap
+	} else {
+		_ = types.NewPtr(reflectdata.OldMapType())                      // *runtime.hmap
+	}
 	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
@@ -2939,7 +2943,13 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 
 		// map <--> *hmap
-		if to.Kind() == types.TMAP && from == types.NewPtr(reflectdata.MapType()) {
+		var mt *types.Type
+		if buildcfg.Experiment.SwissMap {
+			mt = types.NewPtr(reflectdata.SwissMapType())
+		} else {
+			mt = types.NewPtr(reflectdata.OldMapType())
+		}
+		if to.Kind() == types.TMAP && from == mt {
 			return v
 		}
 
