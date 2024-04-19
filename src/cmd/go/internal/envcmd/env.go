@@ -54,7 +54,8 @@ form NAME=VALUE and changes the default settings
 of the named environment variables to the given values.
 
 The -changed flag only prints all non-default settings,
-do not print GOOS and GOARCH.
+when command line arguments exist,
+print only if the specified environment variable is not the default value.
 
 For more about environment variables, see 'go help environment'.
 	`,
@@ -77,7 +78,7 @@ func MkEnv() []cfg.EnvVar {
 	envFile, envFileChanged, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
-		{Name: "GOARCH", Value: cfg.Goarch},
+		{Name: "GOARCH", Value: cfg.Goarch, Changed: cfg.Goarch != runtime.GOARCH},
 		{Name: "GOBIN", Value: cfg.GOBIN},
 		{Name: "GOCACHE"},
 		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
@@ -97,7 +98,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE, Changed: cfg.GOMODCACHEChanged},
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY, Changed: cfg.GONOPROXYChanged},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB, Changed: cfg.GONOSUMDBChanged},
-		{Name: "GOOS", Value: cfg.Goos},
+		{Name: "GOOS", Value: cfg.Goos, Changed: cfg.Goos != runtime.GOOS},
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
 		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
@@ -111,8 +112,6 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GODEBUG"},
 	}
 
-	// See go.dev/issue/34208
-	// GOOS and GOARCH are deliberately not set Changed
 	for i := range env {
 		switch env[i].Name {
 		case "GO111MODULE":

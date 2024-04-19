@@ -31,11 +31,15 @@ stdout '"CGO_CPPFLAGS": "nodefault"'
 [!GOARCH:amd64] env GOARCH=amd64
 
 go env -changed GOOS
-! stdout 'GOOS'
+[GOOS:windows] stdout 'set GOOS=linux'
+[!GOOS:windows] stdout 'GOOS=''windows'''
 go env -changed GOARCH
-! stdout 'GOARCH'
+[GOARCH:amd64] stdout 'set GOARCH=arm64'
+[!GOARCH:amd64] stdout 'GOARCH=''amd64'''
 
 go env -changed -json GOOS
-stdout '^{}$'
+[GOOS:windows] stdout '"GOOS": "linux"'
+[!GOOS:windows] stdout '"GOOS": "windows"'
 go env -changed -json GOARCH
-stdout '^{}$'
+[GOARCH:amd64] stdout '"GOARCH": "arm64"'
+[!GOARCH:amd64] stdout '"GOARCH": "amd64"'
