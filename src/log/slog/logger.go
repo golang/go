@@ -133,6 +133,16 @@ func (l *Logger) With(args ...any) *Logger {
 	return c
 }
 
+// WithAttrs is a more efficient version of [Logger.With] that accepts only Attrs.
+func (l *Logger) WithAttrs(attrs ...Attr) *Logger {
+	if len(attrs) == 0 {
+		return l
+	}
+	c := l.clone()
+	c.handler = l.handler.WithAttrs(attrs)
+	return c
+}
+
 // WithGroup returns a Logger that starts a group, if name is non-empty.
 // The keys of all attributes added to the Logger will be qualified by the given
 // name. (How that qualification happens depends on the [Handler.WithGroup]
@@ -159,6 +169,11 @@ func New(h Handler) *Logger {
 // With calls [Logger.With] on the default logger.
 func With(args ...any) *Logger {
 	return Default().With(args...)
+}
+
+// WithAttrs calls [Logger.WithAttrs] on the default logger.
+func WithAttrs(attrs ...Attr) *Logger {
+	return Default().WithAttrs(attrs...)
 }
 
 // Enabled reports whether l emits log records at the given context and level.
