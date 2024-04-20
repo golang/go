@@ -167,10 +167,11 @@ func TestAttrs(t *testing.T) {
 
 	l1 := New(&captureHandler{}).With("a", 1)
 	l2 := New(l1.Handler()).With("b", 2)
-	l2.Info("m", "c", 3)
-	h := l2.Handler().(*captureHandler)
-	check(h.attrs, Int("a", 1), Int("b", 2))
-	check(attrsSlice(h.r), Int("c", 3))
+	l3 := New(l2.Handler()).WithAttrs(Int("c", 3))
+	l3.Info("m", "d", 4)
+	h := l3.Handler().(*captureHandler)
+	check(h.attrs, Int("a", 1), Int("b", 2), Int("c", 3))
+	check(attrsSlice(h.r), Int("d", 4))
 }
 
 func TestCallDepth(t *testing.T) {
