@@ -709,7 +709,7 @@ func TestParseCookie(t *testing.T) {
 			err:  errBlankCookie,
 		},
 		{
-			line: "whatever",
+			line: "equal-not-found",
 			err:  errEqualNotFoundInCookie,
 		},
 		{
@@ -867,7 +867,7 @@ func TestParseSetCookie(t *testing.T) {
 			err:  errBlankCookie,
 		},
 		{
-			line: "whatever",
+			line: "equal-not-found",
 			err:  errEqualNotFoundInCookie,
 		},
 		{
@@ -882,10 +882,10 @@ func TestParseSetCookie(t *testing.T) {
 	for i, tt := range tests {
 		gotCookie, gotErr := ParseSetCookie(tt.line)
 		if !errors.Is(gotErr, tt.err) {
-			t.Errorf("#%d ParseCookie got error %v, want error %v", i, gotErr, tt.err)
+			t.Errorf("#%d ParseSetCookie got error %v, want error %v", i, gotErr, tt.err)
 		}
 		if !reflect.DeepEqual(gotCookie, tt.cookie) {
-			t.Errorf("#%d ParseCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
+			t.Errorf("#%d ParseSetCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
 		}
 	}
 }
