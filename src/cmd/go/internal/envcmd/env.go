@@ -650,7 +650,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 	start := 0
 	for i := 0; i <= len(lines); i++ {
 		if i == len(lines) || lineToKey(lines[i]) == "" {
-			sortKeyValues(lines[start:i])
+			sort.Strings(lines[start:i])
 			start = i + 1
 		}
 	}
@@ -678,15 +678,4 @@ func lineToKey(line string) string {
 		return ""
 	}
 	return line[:i]
-}
-
-// sortKeyValues sorts a sequence of lines by key.
-// It differs from sort.Strings in that keys which are GOx where x is an ASCII
-// character smaller than = sort after GO=.
-// (There are no such keys currently. It used to matter for GO386 which was
-// removed in Go 1.16.)
-func sortKeyValues(lines []string) {
-	sort.Slice(lines, func(i, j int) bool {
-		return lineToKey(lines[i]) < lineToKey(lines[j])
-	})
 }
