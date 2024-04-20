@@ -479,6 +479,46 @@ func g() {
 	}
 }
 
+func TestIssue52605(t *testing.T) {
+	const orig = `
+package p
+
+// Doc
+//
+type T struct {
+// This is not
+//	a doc comment.
+X int
+}
+`
+
+	const want = `package p
+
+// Doc
+type T struct {
+	// This is not
+	//	a doc comment.
+	X int
+}
+`
+
+	f, err := parser.ParseFile(fset, "src.go", orig, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	err = Fprint(&buf, fset, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := buf.String()
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
 var decls = []string{
 	`import "fmt"`,
 	"const pi = 3.1415\nconst e = 2.71828\n\nvar x = pi",
