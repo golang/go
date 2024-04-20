@@ -213,6 +213,19 @@ func TestSignPKCS1v15(t *testing.T) {
 	}
 }
 
+func TestSignPKCS1v15WithPrivateKeySizeZero(t *testing.T) {
+	h := sha1.New()
+	h.Write([]byte("key"))
+	digest := h.Sum(nil)
+	_, err := SignPKCS1v15(nil, &PrivateKey{}, crypto.SHA1, digest)
+	if err == nil {
+		t.Error("expected error but got nil")
+	}
+	if err != nil && err.Error() != "crypto/rsa: private key size zero" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestVerifyPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
