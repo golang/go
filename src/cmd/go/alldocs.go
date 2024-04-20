@@ -476,9 +476,9 @@
 // form NAME=VALUE and changes the default settings
 // of the named environment variables to the given values.
 //
-// The -changed flag only prints all non-default settings,
-// when command line arguments exist,
-// print only if the specified environment variable is not the default value.
+// The -changed flag prints only those settings whose effective
+// value differs from the default value that would be obtained in
+// an empty environment with no prior uses of the -w flag.
 //
 // For more about environment variables, see 'go help environment'.
 //

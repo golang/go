@@ -53,9 +53,9 @@ The -w flag requires one or more arguments of the
 form NAME=VALUE and changes the default settings
 of the named environment variables to the given values.
 
-The -changed flag only prints all non-default settings,
-when command line arguments exist,
-print only if the specified environment variable is not the default value.
+The -changed flag prints only those settings whose effective
+value differs from the default value that would be obtained in
+an empty environment with no prior uses of the -w flag.
 
 For more about environment variables, see 'go help environment'.
 	`,
@@ -343,25 +343,15 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
-	if *envChanged {
-		if len(args) > 0 {
-			var es []cfg.EnvVar
-			for _, name := range args {
-				es = append(es, findCfgEnv(env, name))
-			}
-			env = es
+	if len(args) > 0 && *envChanged {
+		var es []cfg.EnvVar
+		for _, name := range args {
+			es = append(es, findCfgEnv(env, name))
 		}
-
-		if *envJson {
-			printEnvAsJSON(env, true)
-			return
-		}
-
-		PrintEnv(os.Stdout, env, true)
-		return
+		env = es
 	}
 
-	if len(args) > 0 {
+	if len(args) > 0 && !*envChanged {
 		if *envJson {
 			var es []cfg.EnvVar
 			for _, name := range args {
@@ -378,11 +368,11 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if *envJson {
-		printEnvAsJSON(env, false)
+		printEnvAsJSON(env, *envChanged)
 		return
 	}
 
-	PrintEnv(os.Stdout, env, false)
+	PrintEnv(os.Stdout, env, *envChanged)
 }
 
 func runEnvW(args []string) {

@@ -85,12 +85,11 @@ func DefaultDir() (string, bool) {
 	defaultDirOnce.Do(func() {
 		defaultDir = cfg.Getenv("GOCACHE")
 		if defaultDir != "" {
+			defaultDirChanged = true
 			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
-				defaultDirChanged = true
 				return
 			}
 			defaultDir = "off"
-			defaultDirChanged = true
 			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
 			return
 		}

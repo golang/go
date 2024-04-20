@@ -8,9 +8,9 @@ Distributions that install the `go` command to a location other than
 `$GOROOT/bin/go` should install a symlink instead of relocating
 or copying the `go` binary.
 
-The new go env -changed flag causes the command to print only
+The new go env `-changed` flag causes the command to print only
 those settings whose effective value differs from the default value
-that would be obtained in an empty environment with no prior uses of the -w flag.
+that would be obtained in an empty environment with no prior uses of the `-w` flag.
 
 ### Vet {#vet}
 
