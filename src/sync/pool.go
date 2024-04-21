@@ -6,7 +6,7 @@ package sync
 
 import (
 	"internal/race"
-	rt "internal/runtime"
+	"internal/runtime/proc"
 	"runtime"
 	"sync/atomic"
 	"unsafe"
@@ -113,7 +113,7 @@ func (p *Pool) Put(x any) {
 	} else {
 		l.shared.pushHead(x)
 	}
-	rt.ProcUnpin()
+	proc.Unpin()
 	if race.Enabled {
 		race.Enable()
 	}
@@ -143,7 +143,7 @@ func (p *Pool) Get() any {
 			x = p.getSlow(pid)
 		}
 	}
-	rt.ProcUnpin()
+	proc.Unpin()
 	if race.Enabled {
 		race.Enable()
 		if x != nil {
@@ -206,7 +206,7 @@ func (p *Pool) pin() (*poolLocal, int) {
 		panic("nil Pool")
 	}
 
-	pid := rt.ProcPin()
+	pid := proc.Pin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
@@ -222,10 +222,10 @@ func (p *Pool) pin() (*poolLocal, int) {
 func (p *Pool) pinSlow() (*poolLocal, int) {
 	// Retry under the mutex.
 	// Can not lock the mutex while pinned.
-	rt.ProcUnpin()
+	proc.Unpin()
 	allPoolsMu.Lock()
 	defer allPoolsMu.Unlock()
-	pid := rt.ProcPin()
+	pid := proc.Pin()
 	// poolCleanup won't be called while we are pinned.
 	s := p.localSize
 	l := p.local

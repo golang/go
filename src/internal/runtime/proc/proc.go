@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package runtime
+package proc
 
 import _ "unsafe"
 
-//go:linkname ProcPin runtime.procPin
+//go:linkname Pin runtime.procPin
 //go:nosplit
-func ProcPin() int
+func Pin() int
 
-//go:linkname ProcUnpin runtime.procUnpin
+//go:linkname Unpin runtime.procUnpin
 //go:nosplit
-func ProcUnpin()
+func Unpin()

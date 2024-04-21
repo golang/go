@@ -4,13 +4,13 @@
 
 package sync
 
-import "internal/runtime"
+import "internal/runtime/proc"
 
 // Export for testing.
 var Runtime_Semacquire = runtime_Semacquire
 var Runtime_Semrelease = runtime_Semrelease
-var Runtime_procPin = runtime.ProcPin
-var Runtime_procUnpin = runtime.ProcUnpin
+var Runtime_procPin = proc.Pin
+var Runtime_procUnpin = proc.Unpin
 
 // poolDequeue testing.
 type PoolDequeue interface {
