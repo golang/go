@@ -353,6 +353,7 @@ const (
 	auxFloat32                // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64                // auxInt is a float64 (encoded with math.Float64bits)
 	auxFlagConstant           // auxInt is a flagConstant
+	auxCCop                   // auxInt is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
 	auxNameOffsetInt8         // aux is a &struct{Name ir.Name, Offset int64}; auxInt is index in parameter registers array
 	auxString                 // aux is a string
 	auxSym                    // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
@@ -360,7 +361,6 @@ const (
 	auxSymValAndOff           // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                    // aux is a type
 	auxTypSize                // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
-	auxCCop                   // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
 	auxCall                   // aux is a *ssa.AuxCall
 	auxCallOff                // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
 
