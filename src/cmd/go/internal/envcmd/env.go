@@ -681,10 +681,7 @@ func lineToKey(line string) string {
 }
 
 // sortKeyValues sorts a sequence of lines by key.
-// It differs from sort.Strings in that keys which are GOx where x is an ASCII
-// character smaller than = sort after GO=.
-// (There are no such keys currently. It used to matter for GO386 which was
-// removed in Go 1.16.)
+// It differs from sort.Strings in that GO386= sorts after GO=.
 func sortKeyValues(lines []string) {
 	sort.Slice(lines, func(i, j int) bool {
 		return lineToKey(lines[i]) < lineToKey(lines[j])
