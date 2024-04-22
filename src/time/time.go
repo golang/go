@@ -53,9 +53,9 @@
 //
 // On some systems the monotonic clock will stop if the computer goes to sleep.
 // On such a system, t.Sub(u) may not accurately reflect the actual
-// time that passed between t and u. This may impact a bunch of functions/methods:
-// [time.Since], [time.Until], [Time.Add], [Time.Sub], [Time.After], [Time.Before]
-// [Time.Equal], [Time.Compare].
+// time that passed between t and u. The same applies to other functions and
+// methods that subtract times, such as [Since], [Until], [Before], [After] ...
+// See issue: https://github.com/golang/go/issues/66870
 // Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
 //
 // Because the monotonic clock reading has no meaning outside
@@ -257,11 +257,6 @@ func (t *Time) mono() int64 {
 }
 
 // After reports whether the time instant t is after u.
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and u. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) After(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext > u.ext
@@ -272,11 +267,6 @@ func (t Time) After(u Time) bool {
 }
 
 // Before reports whether the time instant t is before u.
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and u. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) Before(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext < u.ext
@@ -288,11 +278,6 @@ func (t Time) Before(u Time) bool {
 
 // Compare compares the time instant t with u. If t is before u, it returns -1;
 // if t is after u, it returns +1; if they're the same, it returns 0.
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and u. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) Compare(u Time) int {
 	var tc, uc int64
 	if t.wall&u.wall&hasMonotonic != 0 {
@@ -317,11 +302,6 @@ func (t Time) Compare(u Time) int {
 // For example, 6:00 +0200 and 4:00 UTC are Equal.
 // See the documentation on the Time type for the pitfalls of using == with
 // Time values; most code should use Equal instead.
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and u. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) Equal(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext == u.ext
@@ -893,11 +873,6 @@ func (d Duration) Abs() Duration {
 }
 
 // Add returns the time t+d.
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-//
-// On such a system, this may not accurately reflect the actual time that
-// t+d. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) Add(d Duration) Time {
 	dsec := int64(d / 1e9)
 	nsec := t.nsec() + int32(d%1e9)
@@ -926,11 +901,6 @@ func (t Time) Add(d Duration) Time {
 // value that can be stored in a [Duration], the maximum (or minimum) duration
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and u. Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func (t Time) Sub(u Time) Duration {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return subMono(t.ext, u.ext)
@@ -960,12 +930,6 @@ func subMono(t, u int64) Duration {
 
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and process start time.
-// Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func Since(t Time) Duration {
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
@@ -976,12 +940,6 @@ func Since(t Time) Duration {
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
-//
-// On some systems the monotonic clock will stop if the computer goes to sleep.
-// On such a system, this may not accurately reflect the actual time that
-// passed between t and now.
-// Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
-// See issue: https://github.com/golang/go/issues/66870
 func Until(t Time) Duration {
 	if t.wall&hasMonotonic != 0 {
 		// Common case optimization: if t has monotonic time, then Sub will use only it.
