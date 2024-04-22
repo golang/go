@@ -4428,6 +4428,7 @@ func entersyscallblock() {
 	save(pc, sp, bp)
 	gp.syscallsp = gp.sched.sp
 	gp.syscallpc = gp.sched.pc
+	gp.syscallbp = gp.sched.bp
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		sp1 := sp
 		sp2 := gp.sched.sp
