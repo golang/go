@@ -52,6 +52,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// Hex constant 0xFFFFFFFE00000001
 	MOVD $-8589934591, R5           // 38a0ffff or 0602000038a00001
 
+	// For #66955. Verify this opcode turns into a load and assembles.
+	MOVD $-6795364578871345152, R5  // 3ca00000e8a50000 or 04100000e4a00000
+
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a
@@ -90,6 +93,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
 	MOVHBR (R3)(R0), R5             // 7ca01e2c
 	MOVHBR (R3), R5                 // 7ca01e2c
+	OR $0, R0, R0
 	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40 or 0600ef0038a1cc40
 	MOVD $foo(SB), R5               // 3ca0000038a50000 or 0610000038a00000
 

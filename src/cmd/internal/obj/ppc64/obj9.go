@@ -175,8 +175,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			// Is this a shifted 16b constant? If so, rewrite it to avoid a creating and loading a constant.
 			val := p.From.Offset
 			shift := bits.TrailingZeros64(uint64(val))
-			mask := 0xFFFF << shift
-			if val&int64(mask) == val || (val>>(shift+16) == -1 && (val>>shift)<<shift == val) {
+			mask := int64(0xFFFF) << shift
+			if val&mask == val || (val>>(shift+16) == -1 && (val>>shift)<<shift == val) {
 				// Rewrite this value into MOVD $const>>shift, Rto; SLD $shift, Rto
 				q := obj.Appendp(p, c.newprog)
 				q.As = ASLD
