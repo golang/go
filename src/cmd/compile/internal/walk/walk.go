@@ -192,30 +192,8 @@ func mapfast(t *types.Type) int {
 }
 
 func mapfastSwiss(t *types.Type) int {
-	if t.Elem().Size() > abi.SwissMapMaxElemBytes {
-		return mapslow
-	}
-	switch reflectdata.AlgType(t.Key()) {
-	case types.AMEM32:
-		if !t.Key().HasPointers() {
-			return mapfast32
-		}
-		if types.PtrSize == 4 {
-			return mapfast32ptr
-		}
-		base.Fatalf("small pointer %v", t.Key())
-	case types.AMEM64:
-		if !t.Key().HasPointers() {
-			return mapfast64
-		}
-		if types.PtrSize == 8 {
-			return mapfast64ptr
-		}
-		// Two-word object, at least one of which is a pointer.
-		// Use the slow path.
-	case types.ASTRING:
-		return mapfaststr
-	}
+	// TODO(#54766): Temporarily avoid specialized variants to minimize
+	// required code.
 	return mapslow
 }
 
