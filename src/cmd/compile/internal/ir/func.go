@@ -481,6 +481,9 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
 	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
 	fn.SetIsHiddenClosure(outerfn != nil)
+	if outerfn != nil {
+		fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
+	}
 
 	clo := &ClosureExpr{Func: fn}
 	clo.op = OCLOSURE
