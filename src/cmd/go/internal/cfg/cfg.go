@@ -578,7 +578,7 @@ func gopathDir(rel string) string {
 	return filepath.Join(list[0], rel)
 }
 
-// gopath now semantics are actually the same in go/build.defaultGOPATH.
+// Keep consistent with go/build.defaultGOPATH.
 func gopath(ctxt build.Context) string {
 	if len(ctxt.GOPATH) > 0 {
 		return ctxt.GOPATH

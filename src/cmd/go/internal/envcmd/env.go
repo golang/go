@@ -170,15 +170,6 @@ func MkEnv() []cfg.EnvVar {
 	return env
 }
 
-func findCfgEnv(env []cfg.EnvVar, name string) cfg.EnvVar {
-	for _, e := range env {
-		if e.Name == name {
-			return e
-		}
-	}
-	return cfg.EnvVar{}
-}
-
 func findEnv(env []cfg.EnvVar, name string) string {
 	for _, e := range env {
 		if e.Name == name {
@@ -343,36 +334,44 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
-	if len(args) > 0 && *envChanged {
-		var es []cfg.EnvVar
-		for _, name := range args {
-			es = append(es, findCfgEnv(env, name))
-		}
-		env = es
-	}
-
-	if len(args) > 0 && !*envChanged {
-		if *envJson {
+	if len(args) > 0 {
+		// Show only the named vars.
+		if !*envChanged {
+			if *envJson {
+				var es []cfg.EnvVar
+				for _, name := range args {
+					e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+					es = append(es, e)
+				}
+				env = es
+			} else {
+				// Print just the values, without names.
+				for _, name := range args {
+					fmt.Printf("%s\n", findEnv(env, name))
+				}
+				return
+			}
+		} else {
+			// Show only the changed, named vars.
 			var es []cfg.EnvVar
 			for _, name := range args {
-				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
-				es = append(es, e)
+				for _, e := range env {
+					if e.Name == name {
+						es = append(es, e)
+						break
+					}
+				}
 			}
-			printEnvAsJSON(es, false)
-		} else {
-			for _, name := range args {
-				fmt.Printf("%s\n", findEnv(env, name))
-			}
+			env = es
 		}
-		return
 	}
 
+	// print
 	if *envJson {
 		printEnvAsJSON(env, *envChanged)
-		return
+	} else {
+		PrintEnv(os.Stdout, env, *envChanged)
 	}
-
-	PrintEnv(os.Stdout, env, *envChanged)
 }
 
 func runEnvW(args []string) {
