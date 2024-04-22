@@ -87,6 +87,8 @@ var depsRules = `
 	< internal/runtime/syscall
 	< internal/runtime/atomic
 	< internal/runtime/exithook
+	< internal/runtime/maps/internal/abi
+	< internal/runtime/maps
 	< internal/runtime/math
 	< runtime
 	< sync/atomic

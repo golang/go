@@ -1450,6 +1450,11 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 	return newarray(typ, n)
 }
 
+//go:linkname maps_newarray internal/runtime/maps.newarray
+func maps_newarray(typ *_type, n int) unsafe.Pointer {
+	return newarray(typ, n)
+}
+
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	c := getMCache(mp)
 	if c == nil {

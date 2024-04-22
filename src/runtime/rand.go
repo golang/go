@@ -177,6 +177,11 @@ func rand() uint64 {
 	}
 }
 
+//go:linkname maps_rand internal/runtime/maps.rand
+func maps_rand() uint64 {
+	return rand()
+}
+
 // mrandinit initializes the random state of an m.
 func mrandinit(mp *m) {
 	var seed [4]uint64
