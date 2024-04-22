@@ -2799,7 +2799,11 @@
 // same memory state can reuse the results of the first call.
 // See issue 61725.
 // Note that this could pretty easily generalize to any pure function.
-(StaticLECall {f} x y m:(SelectN [1] c:(StaticLECall {g} x y mem)))
+(SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
   && isSameCall(f, "runtime.cmpstring")
   && isSameCall(g, "runtime.cmpstring")
-=> (MakeResult (SelectN [0] <typ.Int> c) m)
+=> @c.Block (SelectN [0] <typ.Int> c)
+
+// If we don't use the result of cmpstring, might as well not call it.
+// Note that this could pretty easily generalize to any pure function.
+(SelectN [1] c:(StaticLECall {f} _ _ mem)) && c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c) => mem
