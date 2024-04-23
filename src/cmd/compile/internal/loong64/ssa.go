@@ -468,6 +468,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(16) // space used in callee args area by assembly stubs
 	case ssa.OpLOONG64LoweredAtomicLoad8, ssa.OpLOONG64LoweredAtomicLoad32, ssa.OpLOONG64LoweredAtomicLoad64:
+		// MOVB	(Rarg0), Rout
+		// DBAR	0x14
 		as := loong64.AMOVV
 		switch v.Op {
 		case ssa.OpLOONG64LoweredAtomicLoad8:
@@ -475,13 +477,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssa.OpLOONG64LoweredAtomicLoad32:
 			as = loong64.AMOVW
 		}
-		s.Prog(loong64.ADBAR)
 		p := s.Prog(as)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-		s.Prog(loong64.ADBAR)
+		p1 := s.Prog(loong64.ADBAR)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = 0x14
+
 	case ssa.OpLOONG64LoweredAtomicStore8, ssa.OpLOONG64LoweredAtomicStore32, ssa.OpLOONG64LoweredAtomicStore64:
 		as := loong64.AMOVV
 		switch v.Op {

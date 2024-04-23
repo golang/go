@@ -319,38 +319,30 @@ TEXT ·Oruintptr(SB), NOSPLIT, $0-24
 // uint32 internal∕runtime∕atomic·Load(uint32 volatile* ptr)
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOVV	ptr+0(FP), R19
-	DBAR
 	MOVWU	0(R19), R19
-	DBAR
+	DBAR	$0x14	// LoadAcquire barrier
 	MOVW	R19, ret+8(FP)
 	RET
 
 // uint8 internal∕runtime∕atomic·Load8(uint8 volatile* ptr)
 TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
 	MOVV	ptr+0(FP), R19
-	DBAR
 	MOVBU	0(R19), R19
-	DBAR
+	DBAR	$0x14
 	MOVB	R19, ret+8(FP)
 	RET
 
 // uint64 internal∕runtime∕atomic·Load64(uint64 volatile* ptr)
 TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
 	MOVV	ptr+0(FP), R19
-	DBAR
 	MOVV	0(R19), R19
-	DBAR
+	DBAR	$0x14
 	MOVV	R19, ret+8(FP)
 	RET
 
 // void *internal∕runtime∕atomic·Loadp(void *volatile *ptr)
 TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
-	MOVV	ptr+0(FP), R19
-	DBAR
-	MOVV	0(R19), R19
-	DBAR
-	MOVV	R19, ret+8(FP)
-	RET
+	JMP     ·Load64(SB)
 
 // uint32 internal∕runtime∕atomic·LoadAcq(uint32 volatile* ptr)
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
