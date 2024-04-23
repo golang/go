@@ -104,6 +104,12 @@ var ppcGnuNeed = []string{
 	"beq",
 }
 
+var s390xGnuNeed = []string{
+	"brasl",
+	"j",
+	"clije",
+}
+
 func mustHaveDisasm(t *testing.T) {
 	switch runtime.GOARCH {
 	case "loong64":
@@ -112,8 +118,6 @@ func mustHaveDisasm(t *testing.T) {
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "riscv64":
 		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
 }
 
@@ -202,6 +206,8 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 			need = append(need, armGnuNeed...)
 		case "ppc64", "ppc64le":
 			need = append(need, ppcGnuNeed...)
+		case "s390x":
+			need = append(need, s390xGnuNeed...)
 		}
 	}
 	args = []string{

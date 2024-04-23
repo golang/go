@@ -24,6 +24,7 @@ import (
 	"golang.org/x/arch/arm/armasm"
 	"golang.org/x/arch/arm64/arm64asm"
 	"golang.org/x/arch/ppc64/ppc64asm"
+	"golang.org/x/arch/s390x/s390xasm"
 	"golang.org/x/arch/x86/x86asm"
 )
 
@@ -383,6 +384,23 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	return text, size
 }
 
+func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+	inst, err := s390xasm.Decode(code)
+	var text string
+	size := inst.Len
+	if err != nil || size == 0 || inst.Op == 0 {
+		size = 2
+		text = "?"
+	} else {
+		if gnuAsm {
+			text = fmt.Sprintf("%s", s390xasm.GNUSyntax(inst, pc))
+		} else {
+			text = fmt.Sprintf("%s", "Go/plan9 syntax unsupported..!!")
+		}
+	}
+	return text, size
+}
+
 var disasms = map[string]disasmFunc{
 	"386":     disasm_386,
 	"amd64":   disasm_amd64,
@@ -390,6 +408,7 @@ var disasms = map[string]disasmFunc{
 	"arm64":   disasm_arm64,
 	"ppc64":   disasm_ppc64,
 	"ppc64le": disasm_ppc64,
+	"s390x":   disasm_s390x,
 }
 
 var byteOrders = map[string]binary.ByteOrder{
