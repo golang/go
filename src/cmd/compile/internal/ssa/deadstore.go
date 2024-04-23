@@ -27,7 +27,6 @@ func dse(f *Func) {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
-		//  localAddrs contains indexes into b.Values for each unique LocalAddr.
 		loadUse.clear()
 		storeUse.clear()
 		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
