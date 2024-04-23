@@ -110,6 +110,14 @@ func Select() {
 		return
 	}
 
+	// As a special case, let "go env GOMOD" and "go env GOWORK" be handled by
+	// the local toolchain. Users expect to be able to look up GOMOD and GOWORK
+	// since the go.mod and go.work file need to be determined to determine
+	// the minimum toolchain. See issue #61455.
+	if len(os.Args) == 3 && os.Args[1] == "env" && (os.Args[2] == "GOMOD" || os.Args[2] == "GOWORK") {
+		return
+	}
+
 	// Interpret GOTOOLCHAIN to select the Go toolchain to run.
 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
 	gover.Startup.GOTOOLCHAIN = gotoolchain
