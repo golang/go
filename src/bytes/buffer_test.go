@@ -94,6 +94,21 @@ func TestNewBuffer(t *testing.T) {
 	check(t, "NewBuffer", buf, testString)
 }
 
+var buf Buffer
+
+// Calling NewBuffer and immediately shallow copying the Buffer struct
+// should not result in any allocations.
+// This can be used to reset the underlying []byte of an existing Buffer.
+func TestNewBufferShallow(t *testing.T) {
+	n := testing.AllocsPerRun(1000, func() {
+		buf = *NewBuffer(testBytes)
+	})
+	if n > 0 {
+		t.Errorf("allocations occurred while shallow copying")
+	}
+	check(t, "NewBuffer", &buf, testString)
+}
+
 func TestNewBufferString(t *testing.T) {
 	buf := NewBufferString(testString)
 	check(t, "NewBufferString", buf, testString)
