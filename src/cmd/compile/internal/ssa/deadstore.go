@@ -21,8 +21,8 @@ func dse(f *Func) {
 	defer f.retSparseSet(storeUse)
 	shadowed := f.newSparseMap(f.NumValues())
 	defer f.retSparseMap(shadowed)
-	localAddrs := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(localAddrs)
+	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
+	localAddrs := map[any]*Value{}
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
@@ -30,9 +30,12 @@ func dse(f *Func) {
 		//  localAddrs contains indexes into b.Values for each unique LocalAddr.
 		loadUse.clear()
 		storeUse.clear()
-		localAddrs.clear()
+		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
+		for k := range localAddrs {
+			delete(localAddrs, k)
+		}
 		stores = stores[:0]
-		for i, v := range b.Values {
+		for _, v := range b.Values {
 			if v.Op == OpPhi {
 				// Ignore phis - they will always be first and can't be eliminated
 				continue
@@ -51,10 +54,11 @@ func dse(f *Func) {
 				}
 			} else {
 				if v.Op == OpLocalAddr {
-					if findSameLocalAddr(b, v, localAddrs) >= 0 {
+					if _, ok := localAddrs[v.Aux]; !ok {
+						localAddrs[v.Aux] = v
+					} else {
 						continue
 					}
-					localAddrs.add(ID(i))
 				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
@@ -110,9 +114,10 @@ func dse(f *Func) {
 			} else { // OpZero
 				sz = v.AuxInt
 			}
-			idx := findSameLocalAddr(b, ptr, localAddrs)
-			if idx != -1 {
-				ptr = b.Values[idx]
+			if ptr.Op == OpLocalAddr {
+				if la, ok := localAddrs[ptr.Aux]; ok {
+					ptr = la
+				}
 			}
 			sr := shadowRange(shadowed.get(ptr.ID))
 			if sr.contains(off, off+sz) {
@@ -148,16 +153,6 @@ func dse(f *Func) {
 			}
 		}
 	}
-}
-
-func findSameLocalAddr(b *Block, vv *Value, localAddrs *sparseSet) int {
-	for _, idx := range localAddrs.contents() {
-		la := b.Values[idx]
-		if isSamePtr(la, vv) {
-			return int(idx)
-		}
-	}
-	return -1
 }
 
 // A shadowRange encodes a set of byte offsets [lo():hi()] from
