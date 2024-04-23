@@ -560,11 +560,6 @@ func (tl traceLocker) HeapGoal() {
 	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapGoal, traceArg(heapGoal))
 }
 
-// OneNewExtraM is a no-op in the new tracer. This is worth keeping around though because
-// it's a good place to insert a thread-level event about the new extra M.
-func (tl traceLocker) OneNewExtraM(_ *g) {
-}
-
 // GoCreateSyscall indicates that a goroutine has transitioned from dead to GoSyscall.
 //
 // Unlike GoCreate, the caller must be running on gp.
@@ -657,14 +652,6 @@ func trace_userLog(id uint64, category, message string) {
 	traceRelease(tl)
 }
 
-// traceProcFree is called when a P is destroyed.
-//
-// This must run on the system stack to match the old tracer.
-//
-//go:systemstack
-func traceProcFree(_ *p) {
-}
-
 // traceThreadDestroy is called when a thread is removed from
 // sched.freem.
 //
@@ -702,11 +689,4 @@ func traceThreadDestroy(mp *m) {
 		print("runtime: seq1=", seq1, "\n")
 		throw("bad use of trace.seqlock")
 	}
-}
-
-// Not used in the new tracer; solely for compatibility with the old tracer.
-// nosplit because it's called from exitsyscall without a P.
-//
-//go:nosplit
-func (_ traceLocker) RecordSyscallExitedTime(_ *g, _ *p) {
 }

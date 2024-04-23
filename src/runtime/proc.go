@@ -2343,11 +2343,6 @@ func oneNewExtraM() {
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
-	trace := traceAcquire()
-	if trace.ok() {
-		trace.OneNewExtraM(gp)
-		traceRelease(trace)
-	}
 	// put on allg for garbage collector
 	allgadd(gp)
 
@@ -5489,7 +5484,6 @@ func (pp *p) destroy() {
 	freemcache(pp.mcache)
 	pp.mcache = nil
 	gfpurge(pp)
-	traceProcFree(pp)
 	if raceenabled {
 		if pp.timers.raceCtx != 0 {
 			// The race detector code uses a callback to fetch
