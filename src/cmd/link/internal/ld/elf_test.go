@@ -194,11 +194,19 @@ func TestElfBindNow(t *testing.T) {
 		progC = `package main; import "C"; func main() {}`
 	)
 
+	// Note: for linux/amd64 and linux/arm64, for relro we'll always see
+	// a .got section when building with -buildmode=pie (in addition
+	// to .dynamic); for some other less mainstream archs (ppc64le,
+	// s390) this is not the case (on ppc64le for example we only see
+	// got refs from C objects). Hence we put ".dynamic" in the 'want RO'
+	// list below and ".got" in the 'want RO if present".
+
 	tests := []struct {
 		name                 string
 		args                 []string
 		prog                 string
 		wantSecsRO           []string
+		wantSecsROIfPresent  []string
 		mustHaveBuildModePIE bool
 		mustHaveCGO          bool
 		mustInternalLink     bool
@@ -214,7 +222,8 @@ func TestElfBindNow(t *testing.T) {
 			mustHaveBuildModePIE: true,
 			mustInternalLink:     true,
 			wantDf1Pie:           true,
-			wantSecsRO:           []string{".dynamic", ".got"},
+			wantSecsRO:           []string{".dynamic"},
+			wantSecsROIfPresent:  []string{".got"},
 		},
 		{
 			name:             "bindnow-linkmode-internal",
@@ -234,7 +243,8 @@ func TestElfBindNow(t *testing.T) {
 			wantDfBindNow:        true,
 			wantDf1Now:           true,
 			wantDf1Pie:           true,
-			wantSecsRO:           []string{".dynamic", ".got", ".got.plt"},
+			wantSecsRO:           []string{".dynamic"},
+			wantSecsROIfPresent:  []string{".got", ".got.plt"},
 		},
 		{
 			name:                 "bindnow-pie-linkmode-external",
@@ -245,8 +255,9 @@ func TestElfBindNow(t *testing.T) {
 			wantDfBindNow:        true,
 			wantDf1Now:           true,
 			wantDf1Pie:           true,
+			wantSecsRO:           []string{".dynamic"},
 			// NB: external linker produces .plt.got, not .got.plt
-			wantSecsRO: []string{".dynamic", ".got"},
+			wantSecsROIfPresent: []string{".got", ".got.plt"},
 		},
 	}
 
@@ -339,10 +350,9 @@ func TestElfBindNow(t *testing.T) {
 				t.Fatalf("DT_FLAGS_1 DF_1_PIE got: %v, want: %v", gotDf1Pie, test.wantDf1Pie)
 			}
 
-			// Skipping this newer portion of the test temporarily pending resolution of problems on ppc64le, loonpg64, possibly others.
-			if false {
-
-				for _, wsroname := range test.wantSecsRO {
+			wsrolists := [][]string{test.wantSecsRO, test.wantSecsROIfPresent}
+			for k, wsrolist := range wsrolists {
+				for _, wsroname := range wsrolist {
 					// Locate section of interest.
 					var wsro *elf.Section
 					for _, s := range elfFile.Sections {
@@ -352,8 +362,11 @@ func TestElfBindNow(t *testing.T) {
 						}
 					}
 					if wsro == nil {
-						t.Fatalf("test %s: can't locate %q section",
-							test.name, wsroname)
+						if k == 0 {
+							t.Fatalf("test %s: can't locate %q section",
+								test.name, wsroname)
+						}
+						continue
 					}
 
 					// Now walk the program headers. Section should be part of
