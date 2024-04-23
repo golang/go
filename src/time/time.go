@@ -55,7 +55,7 @@
 // On such a system, t.Sub(u) may not accurately reflect the actual
 // time that passed between t and u. The same applies to other functions and
 // methods that subtract times, such as [Since], [Until], [Before], [After],
-// [Add], [Sub], [Equal] and [Compare]
+// [Add], [Sub], [Equal] and [Compare].
 // Use [Time.Round](0) or [Time.Truncate](0) to walkaround.
 //
 // Because the monotonic clock reading has no meaning outside
