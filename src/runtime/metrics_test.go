@@ -948,8 +948,6 @@ func TestSchedPauseMetrics(t *testing.T) {
 }
 
 func TestRuntimeLockMetricsAndProfile(t *testing.T) {
-	testenv.SkipFlaky(t, 64253)
-
 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {
@@ -1181,12 +1179,17 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			}
 
 			const slop = 1.5 // account for nanotime vs cputicks
-			if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
-				t.Errorf("views differ by more than %fx", slop)
-			}
+			t.Run("compare timers", func(t *testing.T) {
+				testenv.SkipFlaky(t, 64253)
+				if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
+					t.Errorf("views differ by more than %fx", slop)
+				}
+			})
 		})
 
 		t.Run("sample-2", func(t *testing.T) {
+			testenv.SkipFlaky(t, 64253)
+
 			old := runtime.SetMutexProfileFraction(2)
 			defer runtime.SetMutexProfileFraction(old)
 
@@ -1218,6 +1221,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	})
 
 	t.Run("runtime.semrelease", func(t *testing.T) {
+		testenv.SkipFlaky(t, 64253)
+
 		old := runtime.SetMutexProfileFraction(1)
 		defer runtime.SetMutexProfileFraction(old)
 
