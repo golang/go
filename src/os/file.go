@@ -398,6 +398,8 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	return f, nil
 }
 
+var errPathEscapes = errors.New("path escapes from parent")
+
 // openDir opens a file which is assumed to be a directory. As such, it skips
 // the syscalls that make the file descriptor non-blocking as these take time
 // and will fail on file descriptors for directories.

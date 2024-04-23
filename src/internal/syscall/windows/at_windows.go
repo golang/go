@@ -42,7 +42,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 	}
 	if flag&syscall.O_APPEND != 0 {
 		access |= FILE_APPEND_DATA
-		// Remove GENERIC_WRITE access unless O_TRUNC is set,
+		// Remove FILE_WRITE_DATA access unless O_TRUNC is set,
 		// in which case we need it to truncate the file.
 		if flag&syscall.O_TRUNC == 0 {
 			access &^= FILE_WRITE_DATA
@@ -99,7 +99,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 		fileAttrs,
 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
 		disposition,
-		FILE_SYNCHRONOUS_IO_NONALERT|options,
+		FILE_SYNCHRONOUS_IO_NONALERT|FILE_OPEN_FOR_BACKUP_INTENT|options,
 		0,
 		0,
 	)

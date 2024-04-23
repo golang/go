@@ -1779,15 +1779,24 @@ func TestSeekError(t *testing.T) {
 
 func TestOpenError(t *testing.T) {
 	t.Parallel()
-
-	dir := t.TempDir()
-	if err := WriteFile(filepath.Join(dir, "is-a-file"), nil, 0o666); err != nil {
-		t.Fatal(err)
+	dir := makefs(t, []string{
+		"is-a-file",
+		"is-a-dir/",
+	})
+	t.Run("NoRoot", func(t *testing.T) { testOpenError(t, dir, false) })
+	t.Run("InRoot", func(t *testing.T) { testOpenError(t, dir, true) })
+}
+func testOpenError(t *testing.T, dir string, rooted bool) {
+	t.Parallel()
+	var r *Root
+	if rooted {
+		var err error
+		r, err = OpenRoot(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
 	}
-	if err := Mkdir(filepath.Join(dir, "is-a-dir"), 0o777); err != nil {
-		t.Fatal(err)
-	}
-
 	for _, tt := range []struct {
 		path  string
 		mode  int
@@ -1805,16 +1814,25 @@ func TestOpenError(t *testing.T) {
 		O_WRONLY,
 		syscall.ENOTDIR,
 	}} {
-		path := filepath.Join(dir, tt.path)
-		f, err := OpenFile(path, tt.mode, 0)
+		var f *File
+		var err error
+		var name string
+		if rooted {
+			name = fmt.Sprintf("Root(%q).OpenFile(%q, %d)", dir, tt.path, tt.mode)
+			f, err = r.OpenFile(tt.path, tt.mode, 0)
+		} else {
+			path := filepath.Join(dir, tt.path)
+			name = fmt.Sprintf("OpenFile(%q, %d)", path, tt.mode)
+			f, err = OpenFile(path, tt.mode, 0)
+		}
 		if err == nil {
-			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode)
+			t.Errorf("%v succeeded", name)
 			f.Close()
 			continue
 		}
 		perr, ok := err.(*PathError)
 		if !ok {
-			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
+			t.Errorf("%v returns error of %T type; want *PathError", name, err)
 		}
 		if perr.Err != tt.error {
 			if runtime.GOOS == "plan9" {
@@ -1827,7 +1845,7 @@ func TestOpenError(t *testing.T) {
 					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
 						continue
 					}
-					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+					t.Errorf("%v = _, %q; want suffix %q", name, syscallErrStr, expectedErrStr)
 				}
 				continue
 			}
@@ -1838,7 +1856,7 @@ func TestOpenError(t *testing.T) {
 					continue
 				}
 			}
-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
+			t.Errorf("%v = _, %q; want %q", name, perr.Err.Error(), tt.error.Error())
 		}
 	}
 }
@@ -2070,8 +2088,15 @@ func TestWriteAtInAppendMode(t *testing.T) {
 	}
 }
 
-func writeFile(t *testing.T, fname string, flag int, text string) string {
-	f, err := OpenFile(fname, flag, 0666)
+func writeFile(t *testing.T, r *Root, fname string, flag int, text string) string {
+	t.Helper()
+	var f *File
+	var err error
+	if r == nil {
+		f, err = OpenFile(fname, flag, 0666)
+	} else {
+		f, err = r.OpenFile(fname, flag, 0666)
+	}
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -2088,35 +2113,180 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 }
 
 func TestAppend(t *testing.T) {
-	t.Chdir(t.TempDir())
-	const f = "append.txt"
-	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
-	if s != "new" {
-		t.Fatalf("writeFile: have %q want %q", s, "new")
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		const f = "append.txt"
+		s := writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+		if s != "new" {
+			t.Fatalf("writeFile: have %q want %q", s, "new")
+		}
+		s = writeFile(t, r, f, O_APPEND|O_RDWR, "|append")
+		if s != "new|append" {
+			t.Fatalf("writeFile: have %q want %q", s, "new|append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "|append")
+		if s != "new|append|append" {
+			t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
+		}
+		err := Remove(f)
+		if err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
+		if s != "new&append" {
+			t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_RDWR, "old")
+		if s != "old&append" {
+			t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+		if s != "new" {
+			t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
+		}
+	})
+}
+
+// TestFilePermissions tests setting Unix permission bits on file creation.
+func TestFilePermissions(t *testing.T) {
+	if Getuid() == 0 {
+		t.Skip("skipping test when running as root")
 	}
-	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
-	if s != "new|append" {
-		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+	for _, test := range []struct {
+		name string
+		mode FileMode
+	}{
+		{"r", 0o444},
+		{"w", 0o222},
+		{"rw", 0o666},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			switch runtime.GOOS {
+			case "windows":
+				if test.mode&0444 == 0 {
+					t.Skip("write-only files not supported on " + runtime.GOOS)
+				}
+			case "wasip1":
+				t.Skip("file permissions not supported on " + runtime.GOOS)
+			}
+			testMaybeRooted(t, func(t *testing.T, r *Root) {
+				const filename = "f"
+				var f *File
+				var err error
+				if r == nil {
+					f, err = OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
+				} else {
+					f, err = r.OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.Close()
+				b, err := ReadFile(filename)
+				if test.mode&0o444 != 0 {
+					if err != nil {
+						t.Errorf("ReadFile = %v; want success", err)
+					}
+				} else {
+					if err == nil {
+						t.Errorf("ReadFile = %q, <nil>; want failure", string(b))
+					}
+				}
+				_, err = Stat(filename)
+				if err != nil {
+					t.Errorf("Stat = %v; want success", err)
+				}
+				err = WriteFile(filename, nil, 0666)
+				if test.mode&0o222 != 0 {
+					if err != nil {
+						t.Errorf("WriteFile = %v; want success", err)
+						b, err := ReadFile(filename)
+						t.Errorf("ReadFile: %v", err)
+						t.Errorf("file contents: %q", b)
+					}
+				} else {
+					if err == nil {
+						t.Errorf("WriteFile(%q) = <nil>; want failure", filename)
+						st, err := Stat(filename)
+						if err == nil {
+							t.Errorf("mode: %s", st.Mode())
+						}
+						b, err := ReadFile(filename)
+						t.Errorf("ReadFile: %v", err)
+						t.Errorf("file contents: %q", b)
+					}
+				}
+			})
+		})
 	}
-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
-	if s != "new|append|append" {
-		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
-	}
-	err := Remove(f)
-	if err != nil {
-		t.Fatalf("Remove: %v", err)
-	}
-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
-	if s != "new&append" {
-		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
-	}
-	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
-	if s != "old&append" {
-		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
-	}
-	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
-	if s != "new" {
-		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
+
+}
+
+// TestFileRDWRFlags tests the O_RDONLY, O_WRONLY, and O_RDWR flags.
+func TestFileRDWRFlags(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		flag int
+	}{
+		{"O_RDONLY", O_RDONLY},
+		{"O_WRONLY", O_WRONLY},
+		{"O_RDWR", O_RDWR},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testMaybeRooted(t, func(t *testing.T, r *Root) {
+				const filename = "f"
+				content := []byte("content")
+				if err := WriteFile(filename, content, 0666); err != nil {
+					t.Fatal(err)
+				}
+				var f *File
+				var err error
+				if r == nil {
+					f, err = OpenFile(filename, test.flag, 0)
+				} else {
+					f, err = r.OpenFile(filename, test.flag, 0)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+				got, err := io.ReadAll(f)
+				if test.flag == O_WRONLY {
+					if err == nil {
+						t.Errorf("read file: %q, %v; want error", got, err)
+					}
+				} else {
+					if err != nil || !bytes.Equal(got, content) {
+						t.Errorf("read file: %q, %v; want %q, <nil>", got, err, content)
+					}
+				}
+				if _, err := f.Seek(0, 0); err != nil {
+					t.Fatalf("f.Seek: %v", err)
+				}
+				newcontent := []byte("CONTENT")
+				_, err = f.Write(newcontent)
+				if test.flag == O_RDONLY {
+					if err == nil {
+						t.Errorf("write file: succeeded, want error")
+					}
+				} else {
+					if err != nil {
+						t.Errorf("write file: %v, want success", err)
+					}
+				}
+				f.Close()
+				got, err = ReadFile(filename)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := content
+				if test.flag != O_RDONLY {
+					want = newcontent
+				}
+				if !bytes.Equal(got, want) {
+					t.Fatalf("after write, file contains %q, want %q", got, want)
+				}
+			})
+		})
 	}
 }
 
@@ -2937,6 +3107,22 @@ func isDeadlineExceeded(err error) bool {
 
 // Test that opening a file does not change its permissions.  Issue 38225.
 func TestOpenFileKeepsPermissions(t *testing.T) {
+	t.Run("OpenFile", func(t *testing.T) {
+		testOpenFileKeepsPermissions(t, OpenFile)
+	})
+	t.Run("RootOpenFile", func(t *testing.T) {
+		testOpenFileKeepsPermissions(t, func(name string, flag int, perm FileMode) (*File, error) {
+			dir, file := filepath.Split(name)
+			r, err := OpenRoot(dir)
+			if err != nil {
+				return nil, err
+			}
+			defer r.Close()
+			return r.OpenFile(file, flag, perm)
+		})
+	})
+}
+func testOpenFileKeepsPermissions(t *testing.T, openf func(name string, flag int, perm FileMode) (*File, error)) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -2948,7 +3134,7 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 	if err := f.Close(); err != nil {
 		t.Error(err)
 	}
-	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
+	f, err = openf(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3597,27 +3783,35 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 }
 
 func TestAppendDoesntOverwrite(t *testing.T) {
-	name := filepath.Join(t.TempDir(), "file")
-	if err := WriteFile(name, []byte("hello"), 0666); err != nil {
-		t.Fatal(err)
-	}
-	f, err := OpenFile(name, O_APPEND|O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.Write([]byte(" world")); err != nil {
-		f.Close()
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-	got, err := ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "hello world"
-	if string(got) != want {
-		t.Fatalf("got %q, want %q", got, want)
-	}
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		name := "file"
+		if err := WriteFile(name, []byte("hello"), 0666); err != nil {
+			t.Fatal(err)
+		}
+		var f *File
+		var err error
+		if r == nil {
+			f, err = OpenFile(name, O_APPEND|O_WRONLY, 0)
+		} else {
+			f, err = r.OpenFile(name, O_APPEND|O_WRONLY, 0)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Write([]byte(" world")); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		got, err := ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "hello world"
+		if string(got) != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
 }

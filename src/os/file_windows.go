@@ -415,10 +415,13 @@ func readReparseLink(path string) (string, error) {
 		return "", err
 	}
 	defer syscall.CloseHandle(h)
+	return readReparseLinkHandle(h)
+}
 
+func readReparseLinkHandle(h syscall.Handle) (string, error) {
 	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
 	var bytesReturned uint32
-	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+	err := syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
 	if err != nil {
 		return "", err
 	}
