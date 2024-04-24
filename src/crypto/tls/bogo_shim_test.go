@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -231,6 +232,10 @@ func TestBogoSuite(t *testing.T) {
 
 	if testing.Short() {
 		t.Skip("skipping in short mode")
+	}
+
+	if testenv.Builder() != "" && runtime.GOOS == "windows" {
+		t.Skip("#66913: windows network connections are flakey on builders")
 	}
 
 	const boringsslModVer = "v0.0.0-20240412155355-1c6e10495e4f"
