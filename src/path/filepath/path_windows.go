@@ -5,7 +5,7 @@
 package filepath
 
 import (
-	"internal/safefilepath"
+	"internal/filepathlite"
 	"os"
 	"strings"
 	"syscall"
@@ -42,7 +42,7 @@ func isLocal(path string) bool {
 		if part == "." || part == ".." {
 			hasDots = true
 		}
-		if safefilepath.IsReservedName(part) {
+		if filepathlite.IsReservedName(part) {
 			return false
 		}
 	}

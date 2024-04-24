@@ -13,7 +13,7 @@ package filepath
 
 import (
 	"errors"
-	"internal/safefilepath"
+	"internal/filepathlite"
 	"io/fs"
 	"os"
 	"slices"
@@ -221,7 +221,7 @@ func unixIsLocal(path string) bool {
 //
 // The path returned by Localize will always be local, as reported by IsLocal.
 func Localize(path string) (string, error) {
-	return safefilepath.Localize(path)
+	return filepathlite.Localize(path)
 }
 
 // ToSlash returns the result of replacing each separator character

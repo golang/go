@@ -4,7 +4,7 @@
 
 //go:build unix || (js && wasm) || wasip1
 
-package safefilepath
+package filepathlite
 
 import "internal/bytealg"
 

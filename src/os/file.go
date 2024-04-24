@@ -45,8 +45,8 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/poll"
-	"internal/safefilepath"
 	"internal/testlog"
 	"io"
 	"io/fs"
@@ -766,7 +766,7 @@ func (dir dirFS) join(name string) (string, error) {
 	if dir == "" {
 		return "", errors.New("os: DirFS with empty root")
 	}
-	name, err := safefilepath.Localize(name)
+	name, err := filepathlite.Localize(name)
 	if err != nil {
 		return "", ErrInvalid
 	}

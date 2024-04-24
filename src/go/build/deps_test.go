@@ -174,7 +174,7 @@ var depsRules = `
 	io/fs
 	< internal/testlog
 	< internal/poll
-	< internal/safefilepath
+	< internal/filepathlite
 	< os
 	< os/signal;
 
@@ -183,7 +183,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, internal/safefilepath, STR
+	os/signal, internal/filepathlite, STR
 	< path/filepath
 	< io/ioutil;
 

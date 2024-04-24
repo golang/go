@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package safefilepath manipulates operating-system file paths.
-package safefilepath
+// Package filepathlite manipulates operating-system file paths.
+package filepathlite
 
 import (
 	"errors"
