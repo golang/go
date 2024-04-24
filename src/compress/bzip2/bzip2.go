@@ -27,8 +27,8 @@ type reader struct {
 	blockCRC     uint32
 	wantBlockCRC uint32
 	setupDone    bool // true if we have parsed the bzip2 header.
-	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
 	eof          bool
+	blockSize    int       // blockSize in bytes, i.e. 900 * 1000.
 	c            [256]uint // the ``C'' array for the inverse BWT.
 	tt           []uint32  // mirrors the ``tt'' array in the bzip2 source and contains the P array in the upper 24 bits.
 	tPos         uint32    // Index of the next output byte in tt.
