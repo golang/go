@@ -104,7 +104,9 @@ func (a *traceRegionAlloc) drop() {
 		a.full = block.next
 		sysFree(unsafe.Pointer(block), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
 	}
-	sysFree(a.current.Load(), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
-	a.current.Store(nil)
+	if current := a.current.Load(); current != nil {
+		sysFree(current, unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
+		a.current.Store(nil)
+	}
 	a.dropping.Store(false)
 }

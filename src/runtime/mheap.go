@@ -1367,6 +1367,15 @@ HaveSpan:
 	memstats.heapStats.release()
 
 	pageTraceAlloc(pp, now, base, npages)
+
+	// Trace the span alloc.
+	if traceAllocFreeEnabled() {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.SpanAlloc(s)
+			traceRelease(trace)
+		}
+	}
 	return s
 }
 
@@ -1549,6 +1558,15 @@ func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
 		pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
 
+		// Trace the span free.
+		if traceAllocFreeEnabled() {
+			trace := traceAcquire()
+			if trace.ok() {
+				trace.SpanFree(s)
+				traceRelease(trace)
+			}
+		}
+
 		lock(&h.lock)
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
@@ -1580,6 +1598,15 @@ func (h *mheap) freeSpan(s *mspan) {
 //go:systemstack
 func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
 	pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+
+	// Trace the span free.
+	if traceAllocFreeEnabled() {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.SpanFree(s)
+			traceRelease(trace)
+		}
+	}
 
 	s.needzero = 1
 	lock(&h.lock)

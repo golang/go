@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 )
 
@@ -87,6 +88,9 @@ const (
 
 	// GoStatus with stack.
 	traceEvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
+
+	// Batch event for an experimental batch with a custom format.
+	traceEvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
 )
 
 // traceArg is a simple wrapper type to help ensure that arguments passed
@@ -197,4 +201,9 @@ func (tl traceLocker) string(s string) traceArg {
 // the trace eagerly.
 func (tl traceLocker) uniqueString(s string) traceArg {
 	return traceArg(trace.stringTab[tl.gen%2].emit(tl.gen, s))
+}
+
+// rtype returns a traceArg representing typ which may be passed to write.
+func (tl traceLocker) rtype(typ *abi.Type) traceArg {
+	return traceArg(trace.typeTab[tl.gen%2].put(typ))
 }

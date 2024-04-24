@@ -59,6 +59,8 @@ func traceLockInit() {
 	lockInit(&trace.stringTab[1].tab.mem.lock, lockRankTraceStrings)
 	lockInit(&trace.stackTab[0].tab.mem.lock, lockRankTraceStackTab)
 	lockInit(&trace.stackTab[1].tab.mem.lock, lockRankTraceStackTab)
+	lockInit(&trace.typeTab[0].tab.mem.lock, lockRankTraceTypeTab)
+	lockInit(&trace.typeTab[1].tab.mem.lock, lockRankTraceTypeTab)
 	lockInit(&trace.lock, lockRankTrace)
 }
 
@@ -140,6 +142,14 @@ var traceGoStopReasonStrings = [...]string{
 //go:nosplit
 func traceEnabled() bool {
 	return trace.enabled
+}
+
+// traceAllocFreeEnabled returns true if the trace is currently enabled
+// and alloc/free events are also enabled.
+//
+//go:nosplit
+func traceAllocFreeEnabled() bool {
+	return trace.enabledWithAllocFree
 }
 
 // traceShuttingDown returns true if the trace is currently shutting down.

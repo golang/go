@@ -150,6 +150,10 @@ func processBatch(g *generation, b batch) error {
 			return fmt.Errorf("found multiple frequency events")
 		}
 		g.freq = freq
+	case b.exp != event.NoExperiment:
+		if err := addExperimentalData(g.expData, b); err != nil {
+			return err
+		}
 	default:
 		g.batches[b.m] = append(g.batches[b.m], b)
 	}
@@ -411,4 +415,21 @@ func parseFreq(b batch) (frequency, error) {
 	}
 	// Convert to nanoseconds per timestamp unit.
 	return frequency(1.0 / (float64(f) / 1e9)), nil
+}
+
+// addExperimentalData takes an experimental batch and adds it to the ExperimentalData
+// for the experiment its a part of.
+func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch) error {
+	if b.exp == event.NoExperiment {
+		return fmt.Errorf("internal error: addExperimentalData called on non-experimental batch")
+	}
+	ed, ok := expData[b.exp]
+	if !ok {
+		ed = new(ExperimentalData)
+	}
+	ed.Batches = append(ed.Batches, ExperimentalBatch{
+		Thread: b.m,
+		Data:   b.data,
+	})
+	return nil
 }

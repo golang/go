@@ -125,6 +125,7 @@ allg,
 < fin,
   spanSetSpine,
   mspanSpecial,
+  traceTypeTab,
   MPROF;
 
 # We can acquire gcBitsArenas for pinner bits, and

@@ -67,6 +67,7 @@ var trace struct {
 	// There are 2 of each: one for gen%2, one for 1-gen%2.
 	stackTab  [2]traceStackTable  // maps stack traces to unique ids
 	stringTab [2]traceStringTable // maps strings to unique ids
+	typeTab   [2]traceTypeTable   // maps type pointers to unique ids
 
 	// cpuLogRead accepts CPU profile samples from the signal handler where
 	// they're generated. There are two profBufs here: one for gen%2, one for
@@ -110,6 +111,10 @@ var trace struct {
 	// as a publication barrier.
 	enabled bool
 
+	// enabledWithAllocFree is set if debug.traceallocfree is != 0 when tracing begins.
+	// It follows the same synchronization protocol as enabled.
+	enabledWithAllocFree bool
+
 	// Trace generation counter.
 	gen            atomic.Uintptr
 	lastNonZeroGen uintptr // last non-zero value of gen
@@ -126,6 +131,12 @@ var trace struct {
 	//
 	// Mutated only during stop-the-world.
 	seqGC uint64
+
+	// minPageHeapAddr is the minimum address of the page heap when tracing started.
+	minPageHeapAddr uint64
+
+	// debugMalloc is the value of debug.malloc before tracing began.
+	debugMalloc bool
 }
 
 // Trace public API.
@@ -216,6 +227,10 @@ func StartTrace() error {
 	// Prevent sysmon from running any code that could generate events.
 	lock(&sched.sysmonlock)
 
+	// Grab the minimum page heap address. All Ps are stopped, so it's safe to read this since
+	// nothing can allocate heap memory.
+	trace.minPageHeapAddr = uint64(mheap_.pages.inUse.ranges[0].base.addr())
+
 	// Reset mSyscallID on all Ps while we have them stationary and the trace is disabled.
 	for _, pp := range allp {
 		pp.trace.mSyscallID = -1
@@ -236,6 +251,12 @@ func StartTrace() error {
 	// After trace.gen is updated, other Ms may start creating trace buffers and emitting
 	// data into them.
 	trace.enabled = true
+	if debug.traceallocfree.Load() != 0 {
+		// Enable memory events since the GODEBUG is set.
+		trace.debugMalloc = debug.malloc
+		trace.enabledWithAllocFree = true
+		debug.malloc = true
+	}
 	trace.gen.Store(firstGen)
 
 	// Wait for exitingSyscall to drain.
@@ -265,6 +286,11 @@ func StartTrace() error {
 	// Record the fact that a GC is active, if applicable.
 	if gcphase == _GCmark || gcphase == _GCmarktermination {
 		tl.GCActive()
+	}
+
+	// Dump a snapshot of memory, if enabled.
+	if trace.enabledWithAllocFree {
+		traceSnapshotMemory()
 	}
 
 	// Record the heap goal so we have it at the very beginning of the trace.
@@ -556,6 +582,7 @@ func traceAdvance(stopTrace bool) {
 	// stacks may generate new strings.
 	traceCPUFlush(gen)
 	trace.stackTab[gen%2].dump(gen)
+	trace.typeTab[gen%2].dump(gen)
 	trace.stringTab[gen%2].reset(gen)
 
 	// That's it. This generation is done producing buffers.
@@ -585,6 +612,16 @@ func traceAdvance(stopTrace bool) {
 
 		// Finish off CPU profile reading.
 		traceStopReadCPU()
+
+		// Reset debug.malloc if necessary. Note that this is set in a racy
+		// way; that's OK. Some mallocs may still enter into the debug.malloc
+		// block, but they won't generate events because tracing is disabled.
+		// That is, it's OK if mallocs read a stale debug.malloc or
+		// trace.enabledWithAllocFree value.
+		if trace.enabledWithAllocFree {
+			trace.enabledWithAllocFree = false
+			debug.malloc = trace.debugMalloc
+		}
 	} else {
 		// Go over each P and emit a status event for it if necessary.
 		//

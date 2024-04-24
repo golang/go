@@ -337,6 +337,15 @@ var debug struct {
 	malloc    bool
 	inittrace int32
 	sbrk      int32
+	// traceallocfree controls whether execution traces contain
+	// detailed trace data about memory allocation. This value
+	// affects debug.malloc only if it is != 0 and the execution
+	// tracer is enabled, in which case debug.malloc will be
+	// set to "true" if it isn't already while tracing is enabled.
+	// It will be set while the world is stopped, so it's safe.
+	// The value of traceallocfree can be changed any time in response
+	// to os.Setenv("GODEBUG").
+	traceallocfree atomic.Int32
 
 	panicnil atomic.Int32
 
@@ -376,6 +385,7 @@ var dbgvars = []*dbgVar{
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},

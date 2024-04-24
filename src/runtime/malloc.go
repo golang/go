@@ -1265,6 +1265,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(fullSize)
 		}
+
+		if traceAllocFreeEnabled() {
+			trace := traceAcquire()
+			if trace.ok() {
+				trace.HeapObjectAlloc(uintptr(x), typ)
+				traceRelease(trace)
+			}
+		}
 	}
 
 	if assistG != nil {
