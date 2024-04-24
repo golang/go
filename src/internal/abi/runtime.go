@@ -4,5 +4,8 @@
 
 package abi
 
-// ZeroValSize is the size in bytes of runtime.zeroVal.
+// ZeroValSize is the size in bytes of [ZeroVal].
 const ZeroValSize = 1024
+
+// ZeroVal is a region containing all zero bytes.
+var ZeroVal [ZeroValSize]byte
