@@ -3014,3 +3014,21 @@ type B = T[A]
 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
 	}
 }
+
+func TestAlias_Rhs(t *testing.T) {
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	const src = `package p
+
+type A = B
+type B = C
+type C = int
+`
+
+	pkg := mustTypecheck(src, nil, nil)
+	A := pkg.Scope().Lookup("A")
+
+	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
+	if got != want {
+		t.Errorf("A.Rhs = %s, want %s", got, want)
+	}
+}
