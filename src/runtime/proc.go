@@ -6945,18 +6945,6 @@ func sync_atomic_runtime_procUnpin() {
 	procUnpin()
 }
 
-//go:linkname internal_weak_runtime_procPin internal/weak.runtime_procPin
-//go:nosplit
-func internal_weak_runtime_procPin() int {
-	return procPin()
-}
-
-//go:linkname internal_weak_runtime_procUnpin internal/weak.runtime_procUnpin
-//go:nosplit
-func internal_weak_runtime_procUnpin() {
-	procUnpin()
-}
-
 // Active spinning for sync.Mutex.
 //
 //go:linkname sync_runtime_canSpin sync.runtime_canSpin
