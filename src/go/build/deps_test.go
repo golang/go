@@ -66,6 +66,7 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos
 	< internal/bytealg
+	< internal/stringslite
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
