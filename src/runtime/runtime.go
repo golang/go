@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"internal/abi"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -297,5 +296,3 @@ func setCrashFD(fd uintptr) uintptr {
 var auxv []uintptr
 
 func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336
-
-var zeroVal [abi.ZeroValSize]byte
