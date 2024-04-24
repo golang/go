@@ -170,7 +170,6 @@ func TestWriteSetCookies(t *testing.T) {
 	for i, tt := range writeSetCookiesTests {
 		if g, e := tt.Cookie.String(), tt.Raw; g != e {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
-			continue
 		}
 	}
 
@@ -247,7 +246,6 @@ func TestAddCookie(t *testing.T) {
 		}
 		if g := req.Header.Get("Cookie"); g != tt.Raw {
 			t.Errorf("Test %d:\nwant: %s\n got: %s\n", i, tt.Raw, g)
-			continue
 		}
 	}
 }
@@ -407,7 +405,6 @@ func TestReadSetCookies(t *testing.T) {
 			c := readSetCookies(tt.Header)
 			if !reflect.DeepEqual(c, tt.Cookies) {
 				t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
-				continue
 			}
 		}
 	}
@@ -477,7 +474,6 @@ func TestReadCookies(t *testing.T) {
 			c := readCookies(tt.Header, tt.Filter)
 			if !reflect.DeepEqual(c, tt.Cookies) {
 				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))
-				continue
 			}
 		}
 	}
@@ -883,6 +879,7 @@ func TestParseSetCookie(t *testing.T) {
 		gotCookie, gotErr := ParseSetCookie(tt.line)
 		if !errors.Is(gotErr, tt.err) {
 			t.Errorf("#%d ParseSetCookie got error %v, want error %v", i, gotErr, tt.err)
+			continue
 		}
 		if !reflect.DeepEqual(gotCookie, tt.cookie) {
 			t.Errorf("#%d ParseSetCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
