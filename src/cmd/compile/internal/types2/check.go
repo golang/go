@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"internal/godebug"
 	. "internal/types/errors"
 	"sync/atomic"
 )
@@ -20,12 +19,6 @@ var nopos syntax.Pos
 
 // debugging/development support
 const debug = false // leave on during development
-
-// gotypesalias controls the use of Alias types.
-// As of Apr 16 2024 they are used by default.
-// To disable their use, set GODEBUG to gotypesalias=0.
-// This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
-var gotypesalias = godebug.New("gotypesalias")
 
 // _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
 // [Universe] scope.
