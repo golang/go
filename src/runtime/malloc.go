@@ -1261,10 +1261,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	if debug.malloc {
-		if debug.allocfreetrace != 0 {
-			tracealloc(x, size, typ)
-		}
-
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(fullSize)

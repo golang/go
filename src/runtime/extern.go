@@ -35,9 +35,6 @@ time.
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
 
-	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
-	profiled and a stack trace printed on each object's allocation and free.
-
 	clobberfree: setting clobberfree=1 causes the garbage collector to
 	clobber the memory content of an object with bad content when it frees
 	the object.

@@ -608,17 +608,13 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		spanHasNoSpecials(s)
 	}
 
-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
-		// Find all newly freed objects. This doesn't have to
-		// efficient; allocfreetrace has massive overhead.
+	if debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+		// Find all newly freed objects.
 		mbits := s.markBitsForBase()
 		abits := s.allocBitsForIndex(0)
 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
 			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
 				x := s.base() + i*s.elemsize
-				if debug.allocfreetrace != 0 {
-					tracefree(unsafe.Pointer(x), size)
-				}
 				if debug.clobberfree != 0 {
 					clobberfree(unsafe.Pointer(x), size)
 				}
