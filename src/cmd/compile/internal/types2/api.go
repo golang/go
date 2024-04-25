@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package types declares the data types and implements
+// Package types2 declares the data types and implements
 // the algorithms for type-checking of Go packages. Use
 // Config.Check to invoke the type checker for a package.
 // Alternatively, create a new type checker with NewChecker
