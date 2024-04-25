@@ -351,8 +351,8 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
-	em, err := encrypt(pub, sig)
-	if err != nil {
+	em, encErr := encrypt(pub, sig)
+	if em == nil {
 		return ErrVerification
 	}
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
@@ -367,7 +367,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		ok &= subtle.ConstantTimeByteEq(em[i], 0xff)
 	}
 
-	if ok != 1 {
+	if ok != 1 || encErr != nil {
 		return ErrVerification
 	}
 

@@ -486,13 +486,11 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	m, err := bigmod.NewNat().SetBytes(plaintext, N)
-	if err != nil {
-		return nil, err
-	}
+	m := bigmod.NewNat()
+	_, encErr := m.SetOverflowingBytes(plaintext, N)
 	e := uint(pub.E)
 
-	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
+	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), encErr
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
