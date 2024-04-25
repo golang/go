@@ -8628,9 +8628,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"uint", ValueOf(uint64(4)), func(t *testing.T, s iter.Seq[Value]) {
@@ -8640,9 +8640,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Uint(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"*[4]int", ValueOf(&[4]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq[Value]) {
@@ -8652,9 +8652,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"[4]int", ValueOf([4]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq[Value]) {
@@ -8664,9 +8664,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"[]int", ValueOf([]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq[Value]) {
@@ -8676,9 +8676,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"string", ValueOf("1234"), func(t *testing.T, s iter.Seq[Value]) {
@@ -8688,9 +8688,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"map[string]int", ValueOf(m), func(t *testing.T, s iter.Seq[Value]) {
@@ -8700,9 +8700,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("unexpected %v", v.Interface())
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"chan int", ValueOf(c), func(t *testing.T, s iter.Seq[Value]) {
@@ -8721,9 +8721,9 @@ func TestValueSeq(t *testing.T) {
 				if i == 3 {
 					close(c)
 				}
-				if i > 3 {
-					t.Fatalf("should loop three times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"func", ValueOf(func(f func(int) bool) {
@@ -8737,9 +8737,9 @@ func TestValueSeq(t *testing.T) {
 					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 	}
@@ -8768,12 +8768,12 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %d, want %d", v1.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
 				if v2.Int() != i {
 					t.Fatalf("got %d, want %d", v2.Int(), i)
 				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"[4]int", ValueOf([4]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq2[Value, Value]) {
@@ -8783,12 +8783,12 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %d, want %d", v1.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
 				if v2.Int() != i {
 					t.Fatalf("got %d, want %d", v2.Int(), i)
 				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"[]int", ValueOf([]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq2[Value, Value]) {
@@ -8798,12 +8798,12 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %d, want %d", v1.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
 				if v2.Int() != i {
 					t.Fatalf("got %d, want %d", v2.Int(), i)
 				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"string", ValueOf("1234"), func(t *testing.T, s iter.Seq2[Value, Value]) {
@@ -8817,9 +8817,9 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %v, want %v", v2.Interface(), str[i])
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"map[string]int", ValueOf(m), func(t *testing.T, s iter.Seq2[Value, Value]) {
@@ -8833,9 +8833,9 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %v, want %d", v2.Interface(), m[v1.String()])
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 		{"func", ValueOf(func(f func(int, int) bool) {
@@ -8849,12 +8849,12 @@ func TestValueSeq2(t *testing.T) {
 					t.Fatalf("got %d, want %d", v1.Int(), i)
 				}
 				i++
-				if i > 4 {
-					t.Fatalf("should loop four times")
-				}
 				if v2.Int() != i {
 					t.Fatalf("got %d, want %d", v2.Int(), i)
 				}
+			}
+			if i != 3 {
+				t.Fatalf("should loop four times")
 			}
 		}},
 	}
