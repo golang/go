@@ -642,27 +642,31 @@ func (c *Cmd) Start() error {
 		}
 		return c.Err
 	}
-	lp := c.cacheLookExtensions
-	if lp == "" && runtime.GOOS == "windows" {
-		// If c.Path is relative, we had to wait until now
-		// to resolve it in case c.Dir was changed.
-		// (If it is absolute, we already resolved its extension in Command
-		// and shouldn't need to do so again.)
-		//
-		// Unfortunately, we cannot write the result back to c.Path because programs
-		// may assume that they can call Start concurrently with reading the path.
-		// (It is safe and non-racy to do so on Unix platforms, and users might not
-		// test with the race detector on all platforms;
-		// see https://go.dev/issue/62596.)
-		//
-		// So we will pass the fully resolved path to os.StartProcess, but leave
-		// c.Path as is: missing a bit of logging information seems less harmful
-		// than triggering a surprising data race, and if the user really cares
-		// about that bit of logging they can always use LookPath to resolve it.
-		var err error
-		lp, err = lookExtensions(c.Path, c.Dir)
-		if err != nil {
-			return err
+	lp := c.Path
+	if runtime.GOOS == "windows" {
+		if lp == "" {
+			// If c.Path is relative, we had to wait until now
+			// to resolve it in case c.Dir was changed.
+			// (If it is absolute, we already resolved its extension in Command
+			// and shouldn't need to do so again.)
+			//
+			// Unfortunately, we cannot write the result back to c.Path because programs
+			// may assume that they can call Start concurrently with reading the path.
+			// (It is safe and non-racy to do so on Unix platforms, and users might not
+			// test with the race detector on all platforms;
+			// see https://go.dev/issue/62596.)
+			//
+			// So we will pass the fully resolved path to os.StartProcess, but leave
+			// c.Path as is: missing a bit of logging information seems less harmful
+			// than triggering a surprising data race, and if the user really cares
+			// about that bit of logging they can always use LookPath to resolve it.
+			var err error
+			lp, err = lookExtensions(c.Path, c.Dir)
+			if err != nil {
+				return err
+			}
+		} else {
+			lp = c.cacheLookExtensions
 		}
 	}
 	if c.Cancel != nil && c.ctx == nil {
