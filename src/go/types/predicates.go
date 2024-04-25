@@ -521,7 +521,9 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool 
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
 func Default(t Type) Type {
-	if t, ok := Unalias(t).(*Basic); ok {
+	// Alias and named types cannot denote untyped types
+	// so there's no need to call Unalias or under, below.
+	if t, _ := t.(*Basic); t != nil {
 		switch t.kind {
 		case UntypedBool:
 			return Typ[Bool]
