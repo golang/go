@@ -665,7 +665,7 @@ func (c *Cmd) Start() error {
 			if err != nil {
 				return err
 			}
-		} else {
+		} else if c.cacheLookExtensions != "" {
 			lp = c.cacheLookExtensions
 		}
 	}
