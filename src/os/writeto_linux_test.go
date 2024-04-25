@@ -109,8 +109,18 @@ func newSendFileTest(t *testing.T, proto string, size int64) (net.Conn, *File, n
 
 func hookSendFile(t *testing.T) *sendFileHook {
 	h := new(sendFileHook)
-	h.install()
-	t.Cleanup(h.uninstall)
+	orig := poll.TestHookDidSendFile
+	t.Cleanup(func() {
+		poll.TestHookDidSendFile = orig
+	})
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+		h.called = true
+		h.dstfd = dstFD.Sysfd
+		h.srcfd = src
+		h.written = written
+		h.err = err
+		h.handled = handled
+	}
 	return h
 }
 
@@ -118,29 +128,10 @@ type sendFileHook struct {
 	called bool
 	dstfd  int
 	srcfd  int
-	remain int64
 
 	written int64
 	handled bool
 	err     error
-
-	original func(dst *poll.FD, src int, remain int64) (int64, error, bool)
-}
-
-func (h *sendFileHook) install() {
-	h.original = *PollSendFile
-	*PollSendFile = func(dst *poll.FD, src int, remain int64) (int64, error, bool) {
-		h.called = true
-		h.dstfd = dst.Sysfd
-		h.srcfd = src
-		h.remain = remain
-		h.written, h.err, h.handled = h.original(dst, src, remain)
-		return h.written, h.err, h.handled
-	}
-}
-
-func (h *sendFileHook) uninstall() {
-	*PollSendFile = h.original
 }
 
 func createTempFile(t *testing.T, size int64) (*File, []byte) {

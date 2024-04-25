@@ -12,6 +12,9 @@ const maxSendfileSize int = 4 << 20
 
 // SendFile wraps the sendfile system call.
 func SendFile(dstFD *FD, src int, remain int64) (written int64, err error, handled bool) {
+	defer func() {
+		TestHookDidSendFile(dstFD, src, written, err, handled)
+	}()
 	if err := dstFD.writeLock(); err != nil {
 		return 0, err, false
 	}
