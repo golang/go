@@ -299,6 +299,7 @@ func (s *Server) Certificate() *x509.Certificate {
 // Client returns an HTTP client configured for making requests to the server.
 // It is configured to trust the server's TLS test certificate and will
 // close its idle connections on [Server.Close].
+// It only redirects requests to the base URL (Server.URL) to the test server.
 func (s *Server) Client() *http.Client {
 	return s.client
 }
