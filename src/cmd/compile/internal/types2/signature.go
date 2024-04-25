@@ -73,9 +73,6 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TypeParams returns the type parameters of signature s, or nil.
 func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
 
-// SetTypeParams sets the type parameters of signature s.
-func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
-
 // RecvTypeParams returns the receiver type parameters of signature s, or nil.
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
 
