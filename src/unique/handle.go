@@ -102,7 +102,7 @@ var (
 	cleanupMu      sync.Mutex
 	cleanupFuncsMu sync.Mutex
 	cleanupFuncs   []func()
-	cleanupNotify  []func() // One-time notifcations when cleanups finish.
+	cleanupNotify  []func() // One-time notifications when cleanups finish.
 )
 
 type uniqueMap[T comparable] struct {
