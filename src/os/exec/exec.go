@@ -644,7 +644,7 @@ func (c *Cmd) Start() error {
 	}
 	lp := c.Path
 	if runtime.GOOS == "windows" {
-		if lp == "" {
+		if c.cacheLookExtensions == "" {
 			// If c.Path is relative, we had to wait until now
 			// to resolve it in case c.Dir was changed.
 			// (If it is absolute, we already resolved its extension in Command
@@ -665,7 +665,7 @@ func (c *Cmd) Start() error {
 			if err != nil {
 				return err
 			}
-		} else if c.cacheLookExtensions != "" {
+		} else {
 			lp = c.cacheLookExtensions
 		}
 	}
