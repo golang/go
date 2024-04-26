@@ -7,6 +7,7 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"math/rand"
 	"strconv"
@@ -100,6 +101,7 @@ var buf Buffer
 // should not result in any allocations.
 // This can be used to reset the underlying []byte of an existing Buffer.
 func TestNewBufferShallow(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
 	n := testing.AllocsPerRun(1000, func() {
 		buf = *NewBuffer(testBytes)
 	})
