@@ -496,7 +496,7 @@ func printStack(w Writer, h uint64, stk []uintptr) error {
 	for {
 		f, more := frames.Next()
 		buf = append(buf, prefix...)
-		buf = append(buf, f.Func.Name()...)
+		buf = append(buf, f.Function...)
 		buf = append(buf, "()\n"...)
 		buf = append(buf, prefix...)
 		buf = append(buf, '\t')
