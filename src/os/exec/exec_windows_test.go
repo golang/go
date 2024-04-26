@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -105,5 +106,18 @@ func TestChildCriticalEnv(t *testing.T) {
 	}
 	if strings.TrimSpace(string(out)) == "" {
 		t.Error("no SYSTEMROOT found")
+	}
+}
+
+func TestIssue66586(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	path := filepath.Join(testenv.GOROOT(t), "bin", "go")
+	cmd := exec.Command(path, "version")
+	err := cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != cmd.Path {
+		t.Fatalf("unexpected path: %s", cmd.Path)
 	}
 }
