@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || windows
+//go:build aix || darwin || dragonfly || freebsd || illumos || linux || netbsd || windows
 
 package net
 

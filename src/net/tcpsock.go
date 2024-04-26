@@ -126,6 +126,9 @@ type TCPConn struct {
 // By contrast, if only one of Idle and Interval is set to a non-negative value,
 // the other will be set to the system default value, and ultimately,
 // set both Idle and Interval to negative values if you want to leave them unchanged.
+//
+// Note that Solaris and its derivatives do not support setting Interval to a non-negative value
+// and Count to a negative value, or vice-versa.
 type KeepAliveConfig struct {
 	// If Enable is true, keep-alive probes are enabled.
 	Enable bool

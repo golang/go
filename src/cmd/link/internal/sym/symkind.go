@@ -76,6 +76,7 @@ const (
 	SGCBITSRELRO
 	SRODATARELRO
 	SFUNCTABRELRO
+	SELFRELROSECT
 
 	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
 	STYPELINK

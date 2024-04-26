@@ -120,6 +120,9 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 	if name.Alias() {
 		return nil, fmt.Errorf("type sym %v refers to alias", typ)
 	}
+	if name.Type().IsInterface() {
+		return nil, fmt.Errorf("type sym %v refers to interface type", typ)
+	}
 
 	for _, m := range name.Type().Methods() {
 		if m.Sym == meth {

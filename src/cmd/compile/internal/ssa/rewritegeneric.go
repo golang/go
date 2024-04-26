@@ -28081,6 +28081,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (SelectN [0] (MakeResult x ___))
 	// result: x
 	for {
@@ -28437,6 +28438,55 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		v.copyOf(newLen)
+		return true
+	}
+	// match: (SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
+	// cond: isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")
+	// result: @c.Block (SelectN [0] <typ.Int> c)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpStaticLECall || len(v_0.Args) != 3 {
+			break
+		}
+		f := auxToCall(v_0.Aux)
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != OpSelectN || auxIntToInt64(v_0_2.AuxInt) != 1 {
+			break
+		}
+		c := v_0_2.Args[0]
+		if c.Op != OpStaticLECall || len(c.Args) != 3 {
+			break
+		}
+		g := auxToCall(c.Aux)
+		if x != c.Args[0] || y != c.Args[1] || !(isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")) {
+			break
+		}
+		b = c.Block
+		v0 := b.NewValue0(v.Pos, OpSelectN, typ.Int)
+		v.copyOf(v0)
+		v0.AuxInt = int64ToAuxInt(0)
+		v0.AddArg(c)
+		return true
+	}
+	// match: (SelectN [1] c:(StaticLECall {f} _ _ mem))
+	// cond: c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c)
+	// result: mem
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 {
+			break
+		}
+		c := v_0
+		if c.Op != OpStaticLECall || len(c.Args) != 3 {
+			break
+		}
+		f := auxToCall(c.Aux)
+		mem := c.Args[2]
+		if !(c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c)) {
+			break
+		}
+		v.copyOf(mem)
 		return true
 	}
 	return false

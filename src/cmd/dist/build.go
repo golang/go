@@ -1354,7 +1354,7 @@ func toolenv() []string {
 	return env
 }
 
-var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
+var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
 
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.

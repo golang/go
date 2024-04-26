@@ -23,7 +23,7 @@ import (
 )
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
-func cmpstackvarlt(a, b *ir.Name) bool {
+func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
 	// Sort non-autos before autos.
 	if needAlloc(a) != needAlloc(b) {
 		return needAlloc(b)
@@ -36,6 +36,15 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 	}
 
 	// From here on, a and b are both autos (i.e., local variables).
+
+	// Sort followers after leaders, if mls != nil
+	if mls != nil {
+		aFollow := mls.Subsumed(a)
+		bFollow := mls.Subsumed(b)
+		if aFollow != bFollow {
+			return bFollow
+		}
+	}
 
 	// Sort used before unused (so AllocFrame can truncate unused
 	// variables).
@@ -153,6 +162,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	var mls *liveness.MergeLocalsState
+	var leaders map[*ir.Name]int64
 	if base.Debug.MergeLocals != 0 {
 		mls = liveness.MergeLocals(fn, f)
 		if base.Debug.MergeLocalsTrace > 0 && mls != nil {
@@ -163,14 +173,35 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 					fn, mls)
 			}
 		}
+		leaders = make(map[*ir.Name]int64)
 	}
 
 	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
 	sort.SliceStable(fn.Dcl, func(i, j int) bool {
-		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j])
+		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j], mls)
 	})
+
+	if mls != nil {
+		// Rewrite fn.Dcl to reposition followers (subsumed vars) to
+		// be immediately following the leader var in their partition.
+		followers := []*ir.Name{}
+		newdcl := make([]*ir.Name, 0, len(fn.Dcl))
+		for i := 0; i < len(fn.Dcl); i++ {
+			n := fn.Dcl[i]
+			if mls.Subsumed(n) {
+				continue
+			}
+			newdcl = append(newdcl, n)
+			if mls.IsLeader(n) {
+				followers = mls.Followers(n, followers)
+				// position followers immediately after leader
+				newdcl = append(newdcl, followers...)
+			}
+		}
+		fn.Dcl = newdcl
+	}
 
 	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
 		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
@@ -178,14 +209,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			if !ssa.IsMergeCandidate(v) {
 				continue
 			}
-			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used())
-
+			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used(), v.Type().Size(), v.Type().Alignment(), v.Type().String())
 		}
-	}
-
-	var leaders map[*ir.Name]int64
-	if mls != nil {
-		leaders = make(map[*ir.Name]int64)
 	}
 
 	// Reassign stack offsets of the locals that are used.
@@ -233,39 +258,31 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	if mls != nil {
-		followers := []*ir.Name{}
-		newdcl := make([]*ir.Name, 0, len(fn.Dcl))
+		// Update offsets of followers (subsumed vars) to be the
+		// same as the leader var in their partition.
 		for i := 0; i < len(fn.Dcl); i++ {
 			n := fn.Dcl[i]
-			if mls.Subsumed(n) {
+			if !mls.Subsumed(n) {
 				continue
 			}
-			newdcl = append(newdcl, n)
-			if off, ok := leaders[n]; ok {
-				followers = mls.Followers(n, followers)
-				for _, f := range followers {
-					// Set the stack offset for each follower to be
-					// the same as the leader.
-					f.SetFrameOffset(off)
-				}
-				// position followers immediately after leader
-				newdcl = append(newdcl, followers...)
+			leader := mls.Leader(n)
+			off, ok := leaders[leader]
+			if !ok {
+				panic("internal error missing leader")
 			}
+			// Set the stack offset this subsumed (followed) var
+			// to be the same as the leader.
+			n.SetFrameOffset(off)
 		}
-		fn.Dcl = newdcl
-	}
 
-	if base.Debug.MergeLocalsTrace > 1 {
-		prolog := false
-		for i, v := range fn.Dcl {
-			if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
-				continue
+		if base.Debug.MergeLocalsTrace > 1 {
+			fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
+			for i, v := range fn.Dcl {
+				if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
+					continue
+				}
+				fmt.Fprintf(os.Stderr, " %d: %q frameoff %d isleader=%v subsumed=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, v.FrameOffset(), mls.IsLeader(v), mls.Subsumed(v), v.Type().Size(), v.Type().Alignment(), v.Type().String())
 			}
-			if !prolog {
-				fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
-				prolog = true
-			}
-			fmt.Fprintf(os.Stderr, " %d: %q frameoff %d used=%v\n", i, v.Sym().Name, v.FrameOffset(), v.Used())
 		}
 	}
 

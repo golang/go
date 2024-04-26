@@ -333,6 +333,9 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
 			// devirtualization. Instantiation of generic functions
 			// will likely need to be done at the devirtualization
 			// site, if at all.
+			if base.Debug.PGODebug >= 3 {
+				fmt.Printf("addIndirectEdges: %s attempting export data lookup\n", key.CalleeName)
+			}
 			fn, err := LookupFunc(key.CalleeName)
 			if err == nil {
 				if base.Debug.PGODebug >= 3 {

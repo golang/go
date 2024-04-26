@@ -5,6 +5,7 @@
 package strings
 
 import (
+	"internal/abi"
 	"internal/bytealg"
 	"unicode/utf8"
 	"unsafe"
@@ -22,19 +23,6 @@ type Builder struct {
 	buf []byte
 }
 
-// noescape hides a pointer from escape analysis. It is the identity function
-// but escape analysis doesn't think the output depends on the input.
-// noescape is inlined and currently compiles down to zero instructions.
-// USE CAREFULLY!
-// This was copied from the runtime; see issues 23382 and 7921.
-//
-//go:nosplit
-//go:nocheckptr
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
-}
-
 func (b *Builder) copyCheck() {
 	if b.addr == nil {
 		// This hack works around a failing of Go's escape analysis
@@ -42,7 +30,7 @@ func (b *Builder) copyCheck() {
 		// See issue 23382.
 		// TODO: once issue 7921 is fixed, this should be reverted to
 		// just "b.addr = b".
-		b.addr = (*Builder)(noescape(unsafe.Pointer(b)))
+		b.addr = (*Builder)(abi.NoEscape(unsafe.Pointer(b)))
 	} else if b.addr != b {
 		panic("strings: illegal use of non-zero Builder copied by value")
 	}

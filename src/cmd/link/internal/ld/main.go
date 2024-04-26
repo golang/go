@@ -499,7 +499,12 @@ func startProfile() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatalf("%v", err)
 		}
-		AtExit(pprof.StopCPUProfile)
+		AtExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				log.Fatalf("error closing cpu profile: %v", err)
+			}
+		})
 	}
 	if *memprofile != "" {
 		if *memprofilerate != 0 {

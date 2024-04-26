@@ -551,7 +551,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			cmd.Args = append(cmd.Args, "-race")
 		}
 		cmd.Args = append(cmd.Args, testPath)
-		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2", "GOEXPERIMENT=rangefunc")
+		cmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
 		// Add a stack ownership check. This is cheap enough for testing.
 		godebug := "tracecheckstackownership=1"
 		if stress {

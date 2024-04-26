@@ -111,20 +111,6 @@ type funcType = abi.FuncType
 
 type interfaceType = abi.InterfaceType
 
-// mapType represents a map type.
-type mapType struct {
-	rtype
-	Key    *abi.Type // map key type
-	Elem   *abi.Type // map element (value) type
-	Bucket *abi.Type // internal bucket structure
-	// function for hashing keys (ptr to key, seed) -> hash
-	Hasher     func(unsafe.Pointer, uintptr) uintptr
-	KeySize    uint8  // size of key slot
-	ValueSize  uint8  // size of value slot
-	BucketSize uint16 // size of bucket
-	Flags      uint32
-}
-
 // ptrType represents a pointer type.
 type ptrType = abi.PtrType
 
@@ -398,10 +384,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	// Noescape so this doesn't make i to escape. See the comment
-	// at Value.typ for why this is safe.
-	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
+	return toType(abi.TypeOf(i))
 }
 
 func (t rtype) Implements(u Type) bool {

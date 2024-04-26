@@ -6,7 +6,10 @@
 
 package codegen
 
-import "unsafe"
+import (
+	"cmp"
+	"unsafe"
+)
 
 // This file contains code generation tests related to the comparison
 // operators.
@@ -800,4 +803,25 @@ type Point struct {
 func invertLessThanNoov(p1, p2, p3 Point) bool {
 	// arm64:`CMP`,`CSET`,`CSEL`
 	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
+}
+
+func cmpstring1(x, y string) int {
+	// amd64:".*cmpstring"
+	if x < y {
+		return -1
+	}
+	// amd64:-".*cmpstring"
+	if x > y {
+		return +1
+	}
+	return 0
+}
+func cmpstring2(x, y string) int {
+	// We want to fail if there are two calls to cmpstring.
+	// They will both have the same line number, so a test
+	// like in cmpstring1 will not work. Instead, we
+	// look for spill/restore instructions, which only
+	// need to exist if there are 2 calls.
+	//amd64:-`MOVQ\t.*\(SP\)`
+	return cmp.Compare(x, y)
 }

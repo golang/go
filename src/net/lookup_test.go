@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+var goResolver = Resolver{PreferGo: true}
+
 func hasSuffixFold(s, suffix string) bool {
 	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
 }
@@ -1628,5 +1630,31 @@ func TestLookupNoSuchHost(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+func TestDNSErrorUnwrap(t *testing.T) {
+	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.DeadlineExceeded
+	}}
+	rCancelled := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.Canceled
+	}}
+
+	_, err := rDeadlineExcceeded.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("errors.Is(err, context.DeadlineExceeded) = false; want = true")
+	}
+
+	_, err = rCancelled.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = goResolver.LookupHost(ctx, "text.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
 	}
 }

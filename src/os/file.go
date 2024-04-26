@@ -34,9 +34,13 @@
 //	}
 //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
 //
-// Note: The maximum number of concurrent operations on a File may be limited by
-// the OS or the system. The number should be high, but exceeding it may degrade
-// performance or cause other issues.
+// # Concurrency
+//
+// The methods of [File] correspond to file system operations. All are
+// safe for concurrent use. The maximum number of concurrent
+// operations on a File may be limited by the OS or the system. The
+// number should be high, but exceeding it may degrade performance or
+// cause other issues.
 package os
 
 import (
@@ -53,6 +57,8 @@ import (
 )
 
 // Name returns the name of the file as presented to Open.
+//
+// It is safe to call Name after [Close].
 func (f *File) Name() string { return f.name }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
@@ -279,7 +285,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	r, e := f.seek(offset, whence)
-	if e == nil && f.dirinfo != nil && r != 0 {
+	if e == nil && f.dirinfo.Load() != nil && r != 0 {
 		e = syscall.EISDIR
 	}
 	if e != nil {

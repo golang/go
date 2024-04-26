@@ -1694,7 +1694,8 @@ func gcResetMarkState() {
 // Hooks for other packages
 
 var poolcleanup func()
-var boringCaches []unsafe.Pointer // for crypto/internal/boring
+var boringCaches []unsafe.Pointer  // for crypto/internal/boring
+var uniqueMapCleanup chan struct{} // for unique
 
 //go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
 func sync_runtime_registerPoolCleanup(f func()) {
@@ -1706,6 +1707,18 @@ func boring_registerCache(p unsafe.Pointer) {
 	boringCaches = append(boringCaches, p)
 }
 
+//go:linkname unique_runtime_registerUniqueMapCleanup unique.runtime_registerUniqueMapCleanup
+func unique_runtime_registerUniqueMapCleanup(f func()) {
+	// Start the goroutine in the runtime so it's counted as a system goroutine.
+	uniqueMapCleanup = make(chan struct{}, 1)
+	go func(cleanup func()) {
+		for {
+			<-uniqueMapCleanup
+			cleanup()
+		}
+	}(f)
+}
+
 func clearpools() {
 	// clear sync.Pools
 	if poolcleanup != nil {
@@ -1715,6 +1728,14 @@ func clearpools() {
 	// clear boringcrypto caches
 	for _, p := range boringCaches {
 		atomicstorep(p, nil)
+	}
+
+	// clear unique maps
+	if uniqueMapCleanup != nil {
+		select {
+		case uniqueMapCleanup <- struct{}{}:
+		default:
+		}
 	}
 
 	// Clear central sudog cache.

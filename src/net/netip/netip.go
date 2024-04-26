@@ -16,9 +16,9 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"unique"
 
 	"internal/bytealg"
-	"internal/intern"
 	"internal/itoa"
 )
 
@@ -53,22 +53,22 @@ type Addr struct {
 	// bytewise processing.
 	addr uint128
 
-	// z is a combination of the address family and the IPv6 zone.
-	//
-	// nil means invalid IP address (for a zero Addr).
-	// z4 means an IPv4 address.
-	// z6noz means an IPv6 address without a zone.
-	//
-	// Otherwise it's the interned zone name string.
-	z *intern.Value
+	// Details about the address, wrapped up together and canonicalized.
+	z unique.Handle[addrDetail]
+}
+
+// addrDetail represents the details of an Addr, like address family and IPv6 zone.
+type addrDetail struct {
+	IsV6   bool   // IPv4 is false, IPv6 is true.
+	ZoneV6 string // != nil only if IsV6 is true.
 }
 
 // z0, z4, and z6noz are sentinel Addr.z values.
 // See the Addr type's field docs.
 var (
-	z0    = (*intern.Value)(nil)
-	z4    = new(intern.Value)
-	z6noz = new(intern.Value)
+	z0    unique.Handle[addrDetail]
+	z4    = unique.Make(addrDetail{})
+	z6noz = unique.Make(addrDetail{IsV6: true})
 )
 
 // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
@@ -407,11 +407,10 @@ func (ip Addr) BitLen() int {
 
 // Zone returns ip's IPv6 scoped addressing zone, if any.
 func (ip Addr) Zone() string {
-	if ip.z == nil {
+	if ip.z == z0 {
 		return ""
 	}
-	zone, _ := ip.z.Get().(string)
-	return zone
+	return ip.z.Value().ZoneV6
 }
 
 // Compare returns an integer comparing two IPs.
@@ -496,7 +495,7 @@ func (ip Addr) WithZone(zone string) Addr {
 		ip.z = z6noz
 		return ip
 	}
-	ip.z = intern.GetByString(zone)
+	ip.z = unique.Make(addrDetail{IsV6: true, ZoneV6: zone})
 	return ip
 }
 

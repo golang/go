@@ -1938,21 +1938,25 @@ func TestClientCloseIdleConnections(t *testing.T) {
 	}
 }
 
+type testRoundTripper func(*Request) (*Response, error)
+
+func (t testRoundTripper) RoundTrip(req *Request) (*Response, error) {
+	return t(req)
+}
+
 func TestClientPropagatesTimeoutToContext(t *testing.T) {
-	errDial := errors.New("not actually dialing")
 	c := &Client{
 		Timeout: 5 * time.Second,
-		Transport: &Transport{
-			DialContext: func(ctx context.Context, netw, addr string) (net.Conn, error) {
-				deadline, ok := ctx.Deadline()
-				if !ok {
-					t.Error("no deadline")
-				} else {
-					t.Logf("deadline in %v", deadline.Sub(time.Now()).Round(time.Second/10))
-				}
-				return nil, errDial
-			},
-		},
+		Transport: testRoundTripper(func(req *Request) (*Response, error) {
+			ctx := req.Context()
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				t.Error("no deadline")
+			} else {
+				t.Logf("deadline in %v", deadline.Sub(time.Now()).Round(time.Second/10))
+			}
+			return nil, errors.New("not actually making a request")
+		}),
 	}
 	c.Get("https://example.tld/")
 }

@@ -77,6 +77,7 @@ var depsRules = `
 	< internal/race
 	< internal/msan
 	< internal/asan
+	< internal/weak
 	< sync
 	< internal/bisect
 	< internal/godebug
@@ -147,6 +148,9 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
+	RUNTIME, math/rand/v2
+	< internal/concurrent;
+
 	MATH, unicode/utf8
 	< strconv;
 
@@ -159,6 +163,9 @@ var depsRules = `
 
 	bufio, path, strconv
 	< STR;
+
+	RUNTIME, internal/concurrent
+	< unique;
 
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.
@@ -366,11 +373,7 @@ var depsRules = `
 	  golang.org/x/net/lif,
 	  golang.org/x/net/route;
 
-	os, runtime, strconv, sync, unsafe,
-	internal/godebug
-	< internal/intern;
-
-	internal/bytealg, internal/intern, internal/itoa, math/bits, sort, strconv
+	internal/bytealg, internal/itoa, math/bits, sort, strconv, unique
 	< net/netip;
 
 	# net is unavoidable when doing any networking,
@@ -453,7 +456,8 @@ var depsRules = `
 
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512;
+	  crypto/sha1, crypto/sha256, crypto/sha512,
+	  golang.org/x/crypto/sha3;
 
 	crypto/boring, crypto/internal/edwards25519/field
 	< crypto/ecdh;
@@ -467,7 +471,8 @@ var depsRules = `
 	crypto/rc4,
 	crypto/sha1,
 	crypto/sha256,
-	crypto/sha512
+	crypto/sha512,
+	golang.org/x/crypto/sha3
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;
@@ -476,6 +481,7 @@ var depsRules = `
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
 	< crypto/rand
+	< crypto/internal/mlkem768
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1

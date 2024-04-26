@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.22 (Feb 6, 2024)",
+	"Subtitle": "Language version go1.22 (April 25, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -674,7 +674,7 @@ and are discussed in that section.
 
 <p>
 Numeric constants represent exact values of arbitrary precision and do not overflow.
-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
+Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
 and not-a-number values.
 </p>
 
@@ -861,8 +861,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
 int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
 int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32     the set of all IEEE-754 32-bit floating-point numbers
-float64     the set of all IEEE-754 64-bit floating-point numbers
+float32     the set of all IEEE 754 32-bit floating-point numbers
+float64     the set of all IEEE 754 64-bit floating-point numbers
 
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
@@ -5022,7 +5022,7 @@ For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
 The result of a floating-point or complex division by zero is not specified beyond the
-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
 
@@ -5112,7 +5112,7 @@ These terms and the result of the comparisons are defined as follows:
 
 	<li>
 	Floating-point types are comparable and ordered.
-	Two floating-point values are compared as defined by the IEEE-754 standard.
+	Two floating-point values are compared as defined by the IEEE 754 standard.
 	</li>
 
 	<li>
@@ -5542,7 +5542,7 @@ When converting an integer or floating-point number to a floating-point type,
 or a <a href="#Numeric_types">complex number</a> to another complex type, the result value is rounded
 to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+may be stored using additional precision beyond that of an IEEE 754 32-bit number,
 but float32(x) represents the result of rounding <code>x</code>'s value to
 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
 of precision, but <code>float32(x + 0.1)</code> does not.
@@ -6644,8 +6644,8 @@ the range clause is equivalent to the same clause without that identifier.
 
 <p>
 The range expression <code>x</code> is evaluated once before beginning the loop,
-with one exception: if at most one iteration variable is present and
-<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
+with one exception: if at most one iteration variable is present and <code>x</code> or
+<a href="#Length_and_capacity"><code>len(x)</code></a> is <a href="#Constants">constant</a>,
 the range expression is not evaluated.
 </p>
 
@@ -6656,13 +6656,13 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                          1st value          2nd value
+Range expression                                   1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
-string          s  string type            index    i  int    see below  rune
-map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E, &lt;-chan E       element  e  E
-integer         n  integer type           value    i  see below
+array or slice  a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string          s  string type                     index    i  int          see below  rune
+map             m  map[K]V                         key      k  K            m[k]       V
+channel         c  chan E, &lt;-chan E                element  e  E
+integer value   n  integer type, or untyped int    value    i  see below
 </pre>
 
 <ol>
@@ -6703,8 +6703,17 @@ is <code>nil</code>, the range expression blocks forever.
 </li>
 
 <li>
-For an integer value <code>n</code>, the iteration values 0 through <code>n-1</code>
+For an integer value <code>n</code>, where <code>n</code> is of <a href="#Numeric_types">integer type</a>
+or an untyped <a href="#Constants">integer constant</a>, the iteration values 0 through <code>n-1</code>
 are produced in increasing order.
+If <code>n</code> is of integer type, the iteration values have that same type.
+Otherwise, the type of <code>n</code> is determined as if it were assigned to the
+iteration variable.
+Specifically:
+if the iteration variable is preexisting, the type of the iteration values is the type of the iteration
+variable, which must be of integer type.
+Otherwise, if the iteration variable is declared by the "range" clause or is absent,
+the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
 If <code>n</code> &lt= 0, the loop does not run any iterations.
 </li>
 </ol>
@@ -6716,11 +6725,7 @@ The iteration variables may be declared by the "range" clause using a form of
 In this case their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement
 and each iteration has its own new variables [<a href="#Go_1.22">Go 1.22</a>]
 (see also <a href="#For_clause">"for" statements with a ForClause</a>).
-If the range expression is a (possibly untyped) integer expression <code>n</code>,
-the variable has the same type as if it was
-<a href="#Variable_declarations">declared</a> with initialization
-expression <code>n</code>.
-Otherwise, the variables have the types of their respective iteration values.
+The variables have the types of their respective iteration values.
 </p>
 
 <p>
@@ -6728,9 +6733,6 @@ If the iteration variables are not explicitly declared by the "range" clause,
 they must be preexisting.
 In this case, the iteration values are assigned to the respective variables
 as in an <a href="#Assignment_statements">assignment statement</a>.
-If the range expression is a (possibly untyped) integer expression <code>n</code>,
-<code>n</code> too must be <a href="#Assignability">assignable</a> to the iteration variable;
-if there is no iteration variable, <code>n</code> must be assignable to <code>int</code>.
 </p>
 
 <pre>
@@ -6777,6 +6779,10 @@ for i := range 10 {
 // invalid: 256 cannot be assigned to uint8
 var u uint8
 for u = range 256 {
+}
+
+// invalid: 1e3 is a floating-point constant
+for range 1e3 {
 }
 </pre>
 

@@ -1,4 +1,4 @@
-# golang.org/x/crypto v0.22.0
+# golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab
 ## explicit; go 1.18
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
@@ -7,6 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
+golang.org/x/crypto/sha3
 # golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
 ## explicit; go 1.18
 golang.org/x/net/dns/dnsmessage

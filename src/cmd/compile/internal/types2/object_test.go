@@ -113,12 +113,9 @@ func TestObjectString(t *testing.T) {
 
 	for i, test := range testObjects {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			if test.alias {
-				t.Setenv("GODEBUG", "gotypesalias=1")
-			}
-
 			src := "package p; " + test.src
-			pkg, err := typecheck(src, nil, nil)
+			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
+			pkg, err := typecheck(src, &conf, nil)
 			if err != nil {
 				t.Fatalf("%s: %s", src, err)
 			}

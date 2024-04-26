@@ -21,7 +21,10 @@ var nopos syntax.Pos
 const debug = false // leave on during development
 
 // gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("#gotypesalias")
+// As of Apr 16 2024 they are used by default.
+// To disable their use, set GODEBUG to gotypesalias=0.
+// This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
+var gotypesalias = godebug.New("gotypesalias")
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -95,12 +98,6 @@ type actionDesc struct {
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
-
-	// If enableAlias is set, alias declarations produce an Alias type.
-	// Otherwise the alias information is only in the type name, which
-	// points directly to the actual (aliased) type.
-	enableAlias bool
-
 	conf *Config
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
@@ -166,9 +163,9 @@ func (check *Checker) addDeclDep(to Object) {
 
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
-// Not used if check.enableAlias is set.
+// Not used if check.conf.EnableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -178,14 +175,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	return check.brokenAliases[alias]
 }
 
@@ -255,14 +252,13 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		enableAlias: gotypesalias.Value() == "1",
-		conf:        conf,
-		ctxt:        conf.Context,
-		pkg:         pkg,
-		Info:        info,
-		version:     asGoVersion(conf.GoVersion),
-		objMap:      make(map[Object]*declInfo),
-		impMap:      make(map[importKey]*Package),
+		conf:    conf,
+		ctxt:    conf.Context,
+		pkg:     pkg,
+		Info:    info,
+		version: asGoVersion(conf.GoVersion),
+		objMap:  make(map[Object]*declInfo),
+		impMap:  make(map[importKey]*Package),
 	}
 }
 
@@ -604,7 +600,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 		return
 	}
 	t0, t1 := a[0].typ, a[1].typ
-	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
+	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

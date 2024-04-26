@@ -4566,6 +4566,53 @@ func TestNilErrorAfterClose(t *testing.T) {
 	}
 }
 
+// Issue #65201.
+//
+// If a RawBytes is reused across multiple queries,
+// subsequent queries shouldn't overwrite driver-owned memory from previous queries.
+func TestRawBytesReuse(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw RawBytes
+
+	// The RawBytes in this query aliases driver-owned memory.
+	rows, err := db.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // now raw is pointing to driver-owned memory
+	name1 := string(raw)
+	rows.Close()
+
+	// The RawBytes in this query does not alias driver-owned memory.
+	rows, err = db.Query("SELECT|people|age|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // this must not write to the driver-owned memory in raw
+	rows.Close()
+
+	// Repeat the first query. Nothing should have changed.
+	rows, err = db.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // raw points to driver-owned memory again
+	name2 := string(raw)
+	rows.Close()
+	if name1 != name2 {
+		t.Fatalf("Scan read name %q, want %q", name2, name1)
+	}
+}
+
 // badConn implements a bad driver.Conn, for TestBadDriver.
 // The Exec method panics.
 type badConn struct{}

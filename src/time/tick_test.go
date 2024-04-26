@@ -55,11 +55,11 @@ func TestTicker(t *testing.T) {
 		count, delta := test.count, test.delta
 		ticker := NewTicker(delta)
 		t0 := Now()
-		for i := 0; i < count/2; i++ {
+		for range count / 2 {
 			<-ticker.C
 		}
 		ticker.Reset(delta * 2)
-		for i := count / 2; i < count; i++ {
+		for range count - count/2 {
 			<-ticker.C
 		}
 		ticker.Stop()
@@ -114,7 +114,7 @@ func TestTeardown(t *testing.T) {
 	if testing.Short() {
 		Delta = 20 * Millisecond
 	}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		ticker := NewTicker(Delta)
 		<-ticker.C
 		ticker.Stop()
@@ -356,14 +356,19 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	// Windows in particular has very coarse timers so we have to
 	// wait 10ms just to make a timer go off.
 	const (
-		sched = 10 * Millisecond
-		tries = 100
+		sched      = 10 * Millisecond
+		tries      = 100
+		drainTries = 5
 	)
 
 	drain := func() {
-		select {
-		case <-C:
-		default:
+		for range drainTries {
+			select {
+			case <-C:
+				return
+			default:
+			}
+			Sleep(sched)
 		}
 	}
 	noTick := func() {
@@ -381,7 +386,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		case <-C:
 			return
 		}
-		for i := 0; i < tries; i++ {
+		for range tries {
 			Sleep(sched)
 			select {
 			default:
@@ -403,7 +408,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		if n = len(C); n == 1 {
 			return
 		}
-		for i := 0; i < tries; i++ {
+		for range tries {
 			Sleep(sched)
 			if n = len(C); n == 1 {
 				return
@@ -477,7 +482,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 
 	waitDone := func(done chan bool) {
 		t.Helper()
-		for i := 0; i < tries; i++ {
+		for range tries {
 			Sleep(sched)
 			select {
 			case <-done:
@@ -580,7 +585,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	// Test enqueueTimerChan when timer is stopped.
 	stop = make(chan bool)
 	done = make(chan bool, 2)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		go func() {
 			select {
 			case <-C:
@@ -641,7 +646,7 @@ func TestAfterTimes(t *testing.T) {
 	// Make sure it does.
 	// To avoid flakes due to very long scheduling delays,
 	// require 10 failures in a row before deciding something is wrong.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		start := Now()
 		c := After(10 * Millisecond)
 		Sleep(500 * Millisecond)
@@ -657,7 +662,7 @@ func TestAfterTimes(t *testing.T) {
 func TestTickTimes(t *testing.T) {
 	t.Parallel()
 	// See comment in TestAfterTimes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		start := Now()
 		c := Tick(10 * Millisecond)
 		Sleep(500 * Millisecond)

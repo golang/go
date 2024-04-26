@@ -395,8 +395,8 @@ func (check *Checker) collectObjects() {
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
 				name := d.decl.Name.Name
-				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
-				hasTParamError := false // avoid duplicate type parameter errors
+				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
+				hasTParamError := false                           // avoid duplicate type parameter errors
 				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
@@ -665,7 +665,7 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.enableAlias {
+	if check.conf._EnableAlias {
 		// With Alias nodes we can process declarations in any order.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)

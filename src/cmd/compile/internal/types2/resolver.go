@@ -677,7 +677,7 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if false && check.enableAlias {
+	if false && check.conf.EnableAlias {
 		// With Alias nodes we can process declarations in any order.
 		//
 		// TODO(adonovan): unfortunately, Alias nodes

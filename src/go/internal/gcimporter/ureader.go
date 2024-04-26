@@ -659,9 +659,10 @@ func pkgScope(pkg *types.Package) *types.Scope {
 
 // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
 func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
-	// When GODEBUG=gotypesalias=1, the Type() of the return value is a
+	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
 	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
-	if godebug.New("gotypesalias").Value() == "1" {
+	switch godebug.New("gotypesalias").Value() {
+	case "", "1":
 		tname := types.NewTypeName(pos, pkg, name, nil)
 		_ = types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
 		return tname

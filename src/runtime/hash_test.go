@@ -5,10 +5,13 @@
 package runtime_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"internal/race"
+	"internal/testenv"
 	"math"
 	"math/rand"
+	"os"
 	. "runtime"
 	"slices"
 	"strings"
@@ -621,6 +624,29 @@ func TestSmhasherSeed(t *testing.T) {
 	s := "hello"
 	for i := 0; i < N; i++ {
 		h.addS_seed(s, uintptr(i))
+	}
+	h.check(t)
+}
+
+func TestIssue66841(t *testing.T) {
+	testenv.MustHaveExec(t)
+	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
+		// We want to test the backup hash, so if we're running on a machine
+		// that uses aeshash, exec ourselves while turning aes off.
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestIssue66841$"))
+		cmd.Env = append(cmd.Env, "GODEBUG=cpu.aes=off", "TEST_ISSUE_66841=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("%s", string(out))
+		}
+		// Fall through. Might as well run this test when aeshash is on also.
+	}
+	h := newHashSet()
+	var b [16]byte
+	binary.LittleEndian.PutUint64(b[:8], 0xe7037ed1a0b428db) // runtime.m2
+	for i := 0; i < 1000; i++ {
+		binary.LittleEndian.PutUint64(b[8:], uint64(i))
+		h.addB(b[:])
 	}
 	h.check(t)
 }

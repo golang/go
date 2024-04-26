@@ -437,6 +437,7 @@ type g struct {
 	sched     gobuf
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
 	stktopsp  uintptr // expected sp at top of stack, to check in traceback
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
@@ -509,11 +510,11 @@ type g struct {
 	sleepWhen     int64          // when to sleep until
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
 
-	coroarg *coro // argument during coroutine transfers
-
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
 	goroutineProfiled goroutineProfileStateHolder
+
+	coroarg *coro // argument during coroutine transfers
 
 	// Per-G tracer state.
 	trace gTraceState
@@ -603,8 +604,8 @@ type m struct {
 	// there's no stack to put them on. That is their sole purpose.
 	waitunlockf          func(*g, unsafe.Pointer) bool
 	waitlock             unsafe.Pointer
-	waitTraceBlockReason traceBlockReason
 	waitTraceSkip        int
+	waitTraceBlockReason traceBlockReason
 
 	syscalltick uint32
 	freelink    *m // on sched.freem
@@ -1263,3 +1264,17 @@ var (
 
 // Must agree with internal/buildcfg.FramePointerEnabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+
+// getcallerfp returns the frame pointer of the caller of the caller
+// of this function.
+//
+//go:nosplit
+//go:noinline
+func getcallerfp() uintptr {
+	fp := getfp() // This frame's FP.
+	if fp != 0 {
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's FP.
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's caller's FP.
+	}
+	return fp
+}

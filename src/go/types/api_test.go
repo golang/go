@@ -2324,7 +2324,7 @@ func f(x int) { y := x; print(y) }
 				wantParent = false
 			}
 		case *Func:
-			if obj.Type().(*Signature).Recv() != nil { // method
+			if obj.Signature().Recv() != nil { // method
 				wantParent = false
 			}
 		}
@@ -2615,9 +2615,9 @@ func fn() {
 
 		// Methods and method fields
 		{"concreteMethod", lookup("t").(*Named).Method(0)},
-		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
-		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
-		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
+		{"recv", lookup("t").(*Named).Method(0).Signature().Recv()},
+		{"mParam", lookup("t").(*Named).Method(0).Signature().Params().At(0)},
+		{"mResult", lookup("t").(*Named).Method(0).Signature().Results().At(0)},
 
 		// Interface methods
 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
@@ -3006,19 +3006,29 @@ type T[_ any] struct{}
 type A T[B]
 type B = T[A]
 `
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "a.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pkg, err := new(Config).Check("a", fset, []*ast.File{f}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	pkg := mustTypecheck(src, nil, nil)
 	B := pkg.Scope().Lookup("B")
+
 	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
 	if got != want {
 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+	}
+}
+
+func TestAlias_Rhs(t *testing.T) {
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	const src = `package p
+
+type A = B
+type B = C
+type C = int
+`
+
+	pkg := mustTypecheck(src, nil, nil)
+	A := pkg.Scope().Lookup("A")
+
+	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
+	if got != want {
+		t.Errorf("A.Rhs = %s, want %s", got, want)
 	}
 }

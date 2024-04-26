@@ -391,7 +391,7 @@ func alginit() {
 		return
 	}
 	for i := range hashkey {
-		hashkey[i] = uintptr(rand()) | 1 // make sure these numbers are odd
+		hashkey[i] = uintptr(bootstrapRand())
 	}
 }
 

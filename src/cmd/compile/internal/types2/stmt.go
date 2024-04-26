@@ -923,19 +923,26 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
+			assert(obj.typ == nil)
+
+			// initialize lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				obj.typ = Typ[Invalid]
+				obj.used = true // don't complain about unused variable
+				continue
+			}
 
 			// initialize lhs variable
 			if constIntRange {
 				check.initVar(obj, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
 				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
-			} else {
-				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
 			}
+			assert(obj.typ != nil)
 		}
 
 		// declare variables
@@ -954,9 +961,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				continue
 			}
 
+			// assign to lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				continue
+			}
+
 			if constIntRange {
 				check.assignVar(lhs, nil, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
