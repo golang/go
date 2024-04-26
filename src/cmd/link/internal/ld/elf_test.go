@@ -194,12 +194,18 @@ func TestElfBindNow(t *testing.T) {
 		progC = `package main; import "C"; func main() {}`
 	)
 
-	// Note: for linux/amd64 and linux/arm64, for relro we'll always see
-	// a .got section when building with -buildmode=pie (in addition
-	// to .dynamic); for some other less mainstream archs (ppc64le,
-	// s390) this is not the case (on ppc64le for example we only see
-	// got refs from C objects). Hence we put ".dynamic" in the 'want RO'
-	// list below and ".got" in the 'want RO if present".
+	// Notes:
+	// - for linux/amd64 and linux/arm64, for relro we'll always see a
+	//   .got section when building with -buildmode=pie (in addition
+	//   to .dynamic); for some other less mainstream archs (ppc64le,
+	//   s390) this is not the case (on ppc64le for example we only
+	//   see got refs from C objects). Hence we put ".dynamic" in the
+	//   'want RO' list below and ".got" in the 'want RO if present".
+	// - when using the external linker, checking for read-only ".got"
+	//   is problematic since some linkers will only make the .got
+	//   read-only if its size is above a specific threshold, e.g.
+	//   https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/scripttempl/elf.sc;h=d5022fa502f24db23f396f337a6c8978fbc8415b;hb=6fde04116b4b835fa9ec3b3497fcac4e4a0637e2#l74 . For this reason, don't try to verify read-only .got
+	//   in the external linking case.
 
 	tests := []struct {
 		name                 string
@@ -256,8 +262,6 @@ func TestElfBindNow(t *testing.T) {
 			wantDf1Now:           true,
 			wantDf1Pie:           true,
 			wantSecsRO:           []string{".dynamic"},
-			// NB: external linker produces .plt.got, not .got.plt
-			wantSecsROIfPresent: []string{".got", ".got.plt"},
 		},
 	}
 
