@@ -906,12 +906,10 @@ func isValidTag(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		switch {
-		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
-			// Backslash and quote chars are reserved, but
-			// otherwise any punctuation chars are allowed
-			// in a tag name.
-		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+		// Backslash and quote chars are reserved, but
+		// otherwise any punctuation chars are allowed
+		// in a tag name.
+		if !(' ' <= c && c <= '~' && c != '"' && c != '\\' || unicode.IsLetter(c)) {
 			return false
 		}
 	}
