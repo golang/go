@@ -234,6 +234,9 @@
 //		Instead of absolute file system paths, the recorded file names
 //		will begin either a module path@version (when using modules),
 //		or a plain import path (when using the standard library, or GOPATH).
+//	-trimldflags
+//		Only meaningful with -trimpath. Controls reporting of ldflags in binary
+//		module information. May affect reproducible builds.
 //	-toolexec 'cmd args'
 //		a program to use to invoke toolchain programs like vet and asm.
 //		For example, instead of running asm, the go command will run

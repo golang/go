@@ -77,6 +77,7 @@ go/flag:build-pkgdir
 go/flag:build-race
 go/flag:build-tags
 go/flag:build-toolexec
+go/flag:build-trimldflags
 go/flag:build-trimpath
 go/flag:build-v
 go/flag:build-work
@@ -116,6 +117,7 @@ go/flag:clean-race
 go/flag:clean-tags
 go/flag:clean-testcache
 go/flag:clean-toolexec
+go/flag:clean-trimldflags
 go/flag:clean-trimpath
 go/flag:clean-v
 go/flag:clean-work
@@ -160,6 +162,7 @@ go/flag:fix-pkgdir
 go/flag:fix-race
 go/flag:fix-tags
 go/flag:fix-toolexec
+go/flag:fix-trimldflags
 go/flag:fix-trimpath
 go/flag:fix-v
 go/flag:fix-work
@@ -204,6 +207,7 @@ go/flag:generate-run
 go/flag:generate-skip
 go/flag:generate-tags
 go/flag:generate-toolexec
+go/flag:generate-trimldflags
 go/flag:generate-trimpath
 go/flag:generate-v
 go/flag:generate-work
@@ -242,6 +246,7 @@ go/flag:get-race
 go/flag:get-t
 go/flag:get-tags
 go/flag:get-toolexec
+go/flag:get-trimldflags
 go/flag:get-trimpath
 go/flag:get-u
 go/flag:get-v
@@ -279,6 +284,7 @@ go/flag:install-pkgdir
 go/flag:install-race
 go/flag:install-tags
 go/flag:install-toolexec
+go/flag:install-trimldflags
 go/flag:install-trimpath
 go/flag:install-v
 go/flag:install-work
@@ -326,6 +332,7 @@ go/flag:list-reuse
 go/flag:list-tags
 go/flag:list-test
 go/flag:list-toolexec
+go/flag:list-trimldflags
 go/flag:list-trimpath
 go/flag:list-u
 go/flag:list-v
@@ -499,6 +506,7 @@ go/flag:run-pkgdir
 go/flag:run-race
 go/flag:run-tags
 go/flag:run-toolexec
+go/flag:run-trimldflags
 go/flag:run-trimpath
 go/flag:run-v
 go/flag:run-work
@@ -594,6 +602,7 @@ go/flag:test-test.v
 go/flag:test-timeout
 go/flag:test-toolexec
 go/flag:test-trace
+go/flag:test-trimldflags
 go/flag:test-trimpath
 go/flag:test-v
 go/flag:test-vet
@@ -658,6 +667,7 @@ go/flag:vet-pkgdir
 go/flag:vet-race
 go/flag:vet-tags
 go/flag:vet-toolexec
+go/flag:vet-trimldflags
 go/flag:vet-trimpath
 go/flag:vet-v
 go/flag:vet-vettool

@@ -283,6 +283,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
 	if cfg.BuildTrimpath {
 		fmt.Fprintln(h, "trimpath")
+		if cfg.BuildTrimldflags {
+			fmt.Fprintln(h, "trimldflags")
+		}
 	}
 	if p.Internal.ForceLibrary {
 		fmt.Fprintf(h, "forcelibrary\n")
@@ -1368,6 +1371,9 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
 	if cfg.BuildTrimpath {
 		fmt.Fprintln(h, "trimpath")
+		if cfg.BuildTrimldflags {
+			fmt.Fprintln(h, "trimldflags")
+		}
 	}
 
 	// Toolchain-dependent configuration, shared with b.linkSharedActionID.
