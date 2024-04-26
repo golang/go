@@ -4628,6 +4628,24 @@ func rewriteValuePPC64_OpPPC64CLRLSLDI(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (CLRLSLDI [c] (SRDconst [s] x))
+	// cond: mergePPC64ClrlsldiSrd(int64(c),s) != 0
+	// result: (RLWINM [mergePPC64ClrlsldiSrd(int64(c),s)] x)
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		if v_0.Op != OpPPC64SRDconst {
+			break
+		}
+		s := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(mergePPC64ClrlsldiSrd(int64(c), s) != 0) {
+			break
+		}
+		v.reset(OpPPC64RLWINM)
+		v.AuxInt = int64ToAuxInt(mergePPC64ClrlsldiSrd(int64(c), s))
+		v.AddArg(x)
+		return true
+	}
 	// match: (CLRLSLDI [c] i:(RLWINM [s] x))
 	// cond: mergePPC64ClrlsldiRlwinm(c,s) != 0
 	// result: (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)
