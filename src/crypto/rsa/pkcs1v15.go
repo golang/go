@@ -352,6 +352,9 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 	}
 
 	em, encErr := encrypt(pub, sig)
+	// Only checking if em == nil to avoid timing attacks, encErr
+	// will be checked at the very end of the function.
+	// Please see https://golang.org/issue/67043
 	if em == nil {
 		return ErrVerification
 	}
