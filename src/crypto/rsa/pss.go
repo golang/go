@@ -368,6 +368,7 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	if em == nil {
 		return ErrVerification
 	}
+
 	// Like in signPSSWithSalt, deal with mismatches between emLen and the size
 	// of the modulus. The spec would have us wire emLen into the encoding
 	// function, but we'd rather always encode to the size of the modulus and
