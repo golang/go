@@ -3549,9 +3549,17 @@ func (v Value) Seq() iter.Seq[Value] {
 				}
 			}
 		}
-	case Array, Slice, String:
+	case Array, Slice:
 		return func(yield func(Value) bool) {
 			for i := range v.Len() {
+				if !yield(ValueOf(i)) {
+					return
+				}
+			}
+		}
+	case String:
+		return func(yield func(Value) bool) {
+			for i := range v.String() {
 				if !yield(ValueOf(i)) {
 					return
 				}
@@ -3601,10 +3609,18 @@ func (v Value) Seq2() iter.Seq2[Value, Value] {
 				}
 			}
 		}
-	case Array, Slice, String:
+	case Array, Slice:
 		return func(yield func(Value, Value) bool) {
 			for i := range v.Len() {
 				if !yield(ValueOf(i), v.Index(i)) {
+					return
+				}
+			}
+		}
+	case String:
+		return func(yield func(Value, Value) bool) {
+			for i, v := range v.String() {
+				if !yield(ValueOf(i), ValueOf(v)) {
 					return
 				}
 			}

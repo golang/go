@@ -241,10 +241,10 @@ type Type interface {
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
 
-	// CanSeq whether the report type can be use for range one iteration variables.
+	// CanSeq reports whether a [Value] with this type can be iterated over using [Value.Seq].
 	CanSeq() bool
 
-	// CanSeq2 whether the report type can be use for range two iteration variables.
+	// CanSeq2 reports whether a [Value] with this type can be iterated over using [Value.Seq2].
 	CanSeq2() bool
 
 	common() *abi.Type
