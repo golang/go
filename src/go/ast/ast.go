@@ -8,6 +8,7 @@ package ast
 
 import (
 	"go/token"
+	"runtime"
 	"strings"
 )
 
@@ -95,9 +96,16 @@ func (g *CommentGroup) Raw() string {
 	if g == nil {
 		return ""
 	}
-	var b strings.Builder
+	var (
+		b  strings.Builder
+		ls = "\n"
+	)
+	if runtime.GOOS == "windows" {
+		ls = "\r\n"
+	}
+
 	for _, c := range g.List {
-		b.WriteString(c.Text + "\n")
+		b.WriteString(c.Text + ls)
 	}
 	return b.String()
 }
