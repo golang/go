@@ -1559,6 +1559,14 @@ func TestPathValue(t *testing.T) {
 				"other": "there/is//more",
 			},
 		},
+		{
+			"/names/{name}/{other...}",
+			"/names/n/*",
+			map[string]string{
+				"name":  "n",
+				"other": "*",
+			},
+		},
 	} {
 		mux := NewServeMux()
 		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {

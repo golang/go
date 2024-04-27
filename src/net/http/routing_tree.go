@@ -34,8 +34,8 @@ type routingNode struct {
 	// special children keys:
 	//     "/"	trailing slash (resulting from {$})
 	//	   ""   single wildcard
-	//	   "*"  multi wildcard
 	children   mapping[string, *routingNode]
+	multiChild *routingNode // child with multi wildcard
 	emptyChild *routingNode // optimization: child with key ""
 }
 
@@ -63,7 +63,9 @@ func (n *routingNode) addSegments(segs []segment, p *pattern, h Handler) {
 		if len(segs) != 1 {
 			panic("multi wildcard not last")
 		}
-		n.addChild("*").set(p, h)
+		c := &routingNode{}
+		n.multiChild = c
+		c.set(p, h)
 	} else if seg.wild {
 		n.addChild("").addSegments(segs[1:], p, h)
 	} else {
@@ -185,7 +187,7 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
 	}
 	// Lastly, match the pattern (there can be at most one) that has a multi
 	// wildcard in this position to the rest of the path.
-	if c := n.findChild("*"); c != nil {
+	if c := n.multiChild; c != nil {
 		// Don't record a match for a nameless wildcard (which arises from a
 		// trailing slash in the pattern).
 		if c.pattern.lastSegment().s != "" {
