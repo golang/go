@@ -277,7 +277,9 @@ func pprof_fpunwindExpand(dst, src []uintptr) int {
 // sentinel. Physical frames are turned into logical frames via inline unwinding
 // and by applying the skip value that's stored in pcBuf[0].
 func fpunwindExpand(dst, pcBuf []uintptr) int {
-	if len(pcBuf) > 0 && pcBuf[0] == logicalStackSentinel {
+	if len(pcBuf) == 0 {
+		return 0
+	} else if len(pcBuf) > 0 && pcBuf[0] == logicalStackSentinel {
 		// pcBuf contains logical rather than inlined frames, skip has already been
 		// applied, just return it without the sentinel value in pcBuf[0].
 		return copy(dst, pcBuf[1:])
