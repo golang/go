@@ -54,6 +54,7 @@ func TestAnd32(t *testing.T) {
 func TestAnd64(t *testing.T) {
 	// Basic sanity check.
 	x := uint64(0xffffffffffffffff)
+	sink = &x
 	for i := uint64(0); i < 64; i++ {
 		old := x
 		v := atomic.And64(&x, ^(1 << i))
@@ -131,6 +132,7 @@ func TestOr32(t *testing.T) {
 func TestOr64(t *testing.T) {
 	// Basic sanity check.
 	x := uint64(0)
+	sink = &x
 	for i := uint64(0); i < 64; i++ {
 		old := x
 		v := atomic.Or64(&x, 1<<i)
