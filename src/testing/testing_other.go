@@ -27,5 +27,5 @@ func highPrecisionTimeNow() highPrecisionTime {
 
 // highPrecisionTimeSince returns duration since b.
 func highPrecisionTimeSince(b highPrecisionTime) time.Duration {
-	return time.Now().Sub(b.now)
+	return time.Since(b.now)
 }
