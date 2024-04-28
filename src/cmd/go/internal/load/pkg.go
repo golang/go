@@ -604,51 +604,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 // we return the same pointer each time.
 var packageCache = map[string]*Package{}
 
-// ClearPackageCache clears the in-memory package cache and the preload caches.
-// It is only for use by GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCache() {
-	clear(packageCache)
-	resolvedImportCache.Clear()
-	packageDataCache.Clear()
-}
-
-// ClearPackageCachePartial clears packages with the given import paths from the
-// in-memory package cache and the preload caches. It is only for use by
-// GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCachePartial(args []string) {
-	shouldDelete := make(map[string]bool)
-	for _, arg := range args {
-		shouldDelete[arg] = true
-		if p := packageCache[arg]; p != nil {
-			delete(packageCache, arg)
-		}
-	}
-	resolvedImportCache.DeleteIf(func(key importSpec) bool {
-		return shouldDelete[key.path]
-	})
-	packageDataCache.DeleteIf(func(key string) bool {
-		return shouldDelete[key]
-	})
-}
-
-// ReloadPackageNoFlags is like LoadImport but makes sure
-// not to use the package cache.
-// It is only for use by GOPATH-based "go get".
-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
-func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
-	p := packageCache[arg]
-	if p != nil {
-		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key importSpec) bool {
-			return key.path == p.ImportPath
-		})
-		packageDataCache.Delete(p.ImportPath)
-	}
-	return LoadPackage(context.TODO(), PackageOpts{}, arg, base.Cwd(), stk, nil, 0)
-}
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
 // to the directory. If the package lives in c:\home\gopher\my\pkg then
