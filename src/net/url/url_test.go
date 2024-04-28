@@ -2209,3 +2209,12 @@ func TestJoinPath(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParse(b *testing.B) {
+	for range b.N {
+		_, err := Parse("https://test.go.dev/test/url/path?query=1&param2=test#section")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

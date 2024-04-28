@@ -471,19 +471,27 @@ func getScheme(rawURL string) (scheme, path string, err error) {
 // without a scheme is invalid but may not necessarily return an
 // error, due to parsing ambiguities.
 func Parse(rawURL string) (*URL, error) {
+	var u URL
+	if err := u.parseURL(rawURL); err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (url *URL) parseURL(rawURL string) error {
 	// Cut off #frag
 	u, frag, _ := strings.Cut(rawURL, "#")
-	url, err := parse(u, false)
+	err := url.parse(u, false)
 	if err != nil {
-		return nil, &Error{"parse", u, err}
+		return &Error{"parse", u, err}
 	}
 	if frag == "" {
-		return url, nil
+		return nil
 	}
 	if err = url.setFragment(frag); err != nil {
-		return nil, &Error{"parse", rawURL, err}
+		return &Error{"parse", rawURL, err}
 	}
-	return url, nil
+	return nil
 }
 
 // ParseRequestURI parses a raw url into a [URL] structure. It assumes that
@@ -492,39 +500,38 @@ func Parse(rawURL string) (*URL, error) {
 // The string url is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseRequestURI(rawURL string) (*URL, error) {
-	url, err := parse(rawURL, true)
-	if err != nil {
-		return nil, &Error{"parse", rawURL, err}
+	var u URL
+	if err := u.parse(rawURL, true); err != nil {
+		return nil, err
 	}
-	return url, nil
+	return &u, nil
 }
 
 // parse parses a URL from a string in one of two contexts. If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
-func parse(rawURL string, viaRequest bool) (*URL, error) {
+func (url *URL) parse(rawURL string, viaRequest bool) error {
 	var rest string
 	var err error
 
 	if stringContainsCTLByte(rawURL) {
-		return nil, errors.New("net/url: invalid control character in URL")
+		return errors.New("net/url: invalid control character in URL")
 	}
 
 	if rawURL == "" && viaRequest {
-		return nil, errors.New("empty url")
+		return errors.New("empty url")
 	}
-	url := new(URL)
 
 	if rawURL == "*" {
 		url.Path = "*"
-		return url, nil
+		return nil
 	}
 
 	// Split off possible leading "http:", "mailto:", etc.
 	// Cannot contain escaped characters.
 	if url.Scheme, rest, err = getScheme(rawURL); err != nil {
-		return nil, err
+		return err
 	}
 	url.Scheme = strings.ToLower(url.Scheme)
 
@@ -539,10 +546,10 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		if url.Scheme != "" {
 			// We consider rootless paths per RFC 3986 as opaque.
 			url.Opaque = rest
-			return url, nil
+			return nil
 		}
 		if viaRequest {
-			return nil, errors.New("invalid URI for request")
+			return errors.New("invalid URI for request")
 		}
 
 		// Avoid confusion with malformed schemes, like cache_object:foo/bar.
@@ -553,7 +560,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		// in which case the first path segment cannot contain a colon (":") character.
 		if segment, _, _ := strings.Cut(rest, "/"); strings.Contains(segment, ":") {
 			// First path segment has colon. Not allowed in relative URL.
-			return nil, errors.New("first path segment in URL cannot contain colon")
+			return errors.New("first path segment in URL cannot contain colon")
 		}
 	}
 
@@ -565,7 +572,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 		}
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else if url.Scheme != "" && strings.HasPrefix(rest, "/") {
 		// OmitHost is set to true when rawURL has an empty host (authority).
@@ -578,9 +585,9 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
 	// the default escaping of Path is equivalent, to help make sure that people
 	// don't rely on it in general.
 	if err := url.setPath(rest); err != nil {
-		return nil, err
+		return err
 	}
-	return url, nil
+	return nil
 }
 
 func parseAuthority(authority string) (user *Userinfo, host string, err error) {
