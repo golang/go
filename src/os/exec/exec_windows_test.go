@@ -112,7 +112,7 @@ func TestChildCriticalEnv(t *testing.T) {
 func TestIssue66586(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	path := filepath.Join(testenv.GOROOT(t), "bin", "go")
-	cmd := exec.Command(path, "version")
+	cmd := exec.Cmd{Path: path, Args: []string{path, "version"}}
 	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)
