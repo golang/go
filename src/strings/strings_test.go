@@ -1183,7 +1183,7 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
-		7: {"-", maxInt, "out of"},
+		7: {"-", maxInt, " out of "}, // "out of range" or "out of memory", depending on OS
 	}
 
 	for i, tt := range tests {
