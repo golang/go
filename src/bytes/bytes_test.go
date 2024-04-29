@@ -1242,6 +1242,7 @@ func repeat(b []byte, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
+	const maxInt = int(^uint(0) >> 1)
 	tests := [...]struct {
 		s      string
 		count  int
