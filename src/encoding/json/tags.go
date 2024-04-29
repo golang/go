@@ -15,8 +15,15 @@ type tagOptions string
 // parseTag splits a struct field's json tag into its name and
 // comma-separated options.
 func parseTag(tag string) (string, tagOptions) {
-	tag, opt, _ := strings.Cut(tag, ",")
+	tag, opt := cutTag(tag)
 	return tag, tagOptions(opt)
+}
+
+func cutTag(tag string) (string, string) {
+	if i := strings.IndexByte(tag, ','); i >= 0 {
+		return tag[:i], tag[i+1:]
+	}
+	return tag, ""
 }
 
 // Contains reports whether a comma-separated list of options
@@ -29,7 +36,7 @@ func (o tagOptions) Contains(optionName string) bool {
 	s := string(o)
 	for s != "" {
 		var name string
-		name, s, _ = strings.Cut(s, ",")
+		name, s = cutTag(s)
 		if name == optionName {
 			return true
 		}
