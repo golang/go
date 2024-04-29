@@ -224,7 +224,7 @@ type CloseNotifier interface {
 	// that the channel receives a value.
 	//
 	// If the protocol is HTTP/1.1 and CloseNotify is called while
-	// processing an idempotent request (such a GET) while
+	// processing an idempotent request (such as GET) while
 	// HTTP/1.1 pipelining is in use, the arrival of a subsequent
 	// pipelined request may cause a value to be sent on the
 	// returned channel. In practice HTTP/1.1 pipelining is not
@@ -1102,9 +1102,9 @@ func (w *response) Header() Header {
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
 // consumed by a handler that the server will read from the client
-// in order to keep a connection alive. If there are more bytes than
-// this then the server to be paranoid instead sends a "Connection:
-// close" response.
+// in order to keep a connection alive. If there are more bytes
+// than this, the server, to be paranoid, instead sends a
+// "Connection close" response.
 //
 // This number is approximately what a typical machine's TCP buffer
 // size is anyway.  (if we have the bytes on the machine, we might as
