@@ -1315,6 +1315,17 @@ func Cut(s, sep string) (before, after string, found bool) {
 	return s, "", false
 }
 
+// CutByte slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, "", false.
+func CutByte(s string, sep byte) (before, after string, found bool) {
+	if i := IndexByte(s, sep); i >= 0 {
+		return s[:i], s[i+1:], true
+	}
+	return s, "", false
+}
+
 // CutPrefix returns s without the provided leading prefix string
 // and reports whether it found the prefix.
 // If s doesn't start with prefix, CutPrefix returns s, false.

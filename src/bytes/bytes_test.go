@@ -1742,6 +1742,26 @@ func TestCut(t *testing.T) {
 	}
 }
 
+var cutByteTests = []struct {
+	s             string
+	sep           byte
+	before, after string
+	found         bool
+}{
+	{"abc", 'b', "a", "c", true},
+	{"abc", 'a', "", "bc", true},
+	{"abc", 'c', "ab", "", true},
+	{"", 'd', "", "", false},
+}
+
+func TestCutByte(t *testing.T) {
+	for _, tt := range cutByteTests {
+		if before, after, found := CutByte([]byte(tt.s), tt.sep); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
 var cutPrefixTests = []struct {
 	s, sep string
 	after  string

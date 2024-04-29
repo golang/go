@@ -1336,6 +1336,19 @@ func Cut(s, sep []byte) (before, after []byte, found bool) {
 	return s, nil, false
 }
 
+// CutByte slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, nil, false.
+//
+// CutByte returns slices of the original slice s, not copies.
+func CutByte(s []byte, sep byte) (before, after []byte, found bool) {
+	if i := IndexByte(s, sep); i >= 0 {
+		return s[:i], s[i+1:], true
+	}
+	return s, nil, false
+}
+
 // Clone returns a copy of b[:len(b)].
 // The result may have additional unused capacity.
 // Clone(nil) returns nil.
