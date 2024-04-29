@@ -526,7 +526,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
-	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
+	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
 		tlsrsakex.IncNonDefault()
 	}
 
