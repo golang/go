@@ -5,7 +5,7 @@
 package strings
 
 import (
-	"unsafe"
+	"internal/stringslite"
 )
 
 // Clone returns a fresh copy of s.
@@ -19,10 +19,5 @@ import (
 // For strings of length zero the string "" will be returned
 // and no allocation is made.
 func Clone(s string) string {
-	if len(s) == 0 {
-		return ""
-	}
-	b := make([]byte, len(s))
-	copy(b, s)
-	return unsafe.String(&b[0], len(b))
+	return stringslite.Clone(s)
 }
