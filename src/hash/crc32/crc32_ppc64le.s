@@ -63,67 +63,56 @@ loop:
 	RLDICL	$40,R9,$56,R17	// p[7]
 	SLD	$2,R17,R17	// p[7]*4
 	RLDICL	$40,R7,$56,R8	// crc>>24
-	ADD	R17,R10,R17	// &tab[0][p[7]]
 	SLD	$2,R8,R8	// crc>>24*4
 	RLDICL	$48,R9,$56,R18	// p[6]
 	SLD	$2,R18,R18	// p[6]*4
+	MOVWZ	(R10)(R17),R21	// tab[0][p[7]]
 	ADD	$1024,R10,R10	// tab[1]
-	MOVWZ	0(R17),R21	// tab[0][p[7]]
 	RLDICL	$56,R9,$56,R19	// p[5]
-	ADD	R10,R18,R18	// &tab[1][p[6]]
 	SLD	$2,R19,R19	// p[5]*4:1
-	MOVWZ	0(R18),R22	// tab[1][p[6]]
+	MOVWZ	(R10)(R18),R22	// tab[1][p[6]]
 	ADD	$1024,R10,R10	// tab[2]
 	XOR	R21,R22,R21	// xor done R22
-	ADD	R19,R10,R19	// &tab[2][p[5]]
-	ANDCC	$255,R9,R20	// p[4] ??
-	SLD	$2,R20,R20	// p[4]*4
-	MOVWZ	0(R19),R23	// tab[2][p[5]]
+	CLRLSLDI $56,R9,$2,R20
+	MOVWZ	(R10)(R19),R23	// tab[2][p[5]]
 	ADD	$1024,R10,R10	// &tab[3]
-	ADD	R20,R10,R20	// tab[3][p[4]]
 	XOR	R21,R23,R21	// xor done R23
-	ADD	$1024,R10,R10	// &tab[4]
-	MOVWZ	0(R20),R24	// tab[3][p[4]]
-	ADD	R10,R8,R23	// &tab[4][crc>>24]
+	MOVWZ	(R10)(R20),R24	// tab[3][p[4]]
+	ADD 	$1024,R10,R10   // &tab[4]
 	XOR	R21,R24,R21	// xor done R24
-	MOVWZ	0(R23),R25	// tab[4][crc>>24]
+	MOVWZ	(R10)(R8),R25	// tab[4][crc>>24]
 	RLDICL	$48,R7,$56,R24	// crc>>16&0xFF
 	XOR	R21,R25,R21	// xor done R25
 	ADD	$1024,R10,R10	// &tab[5]
 	SLD	$2,R24,R24	// crc>>16&0xFF*4
-	ADD	R24,R10,R24	// &tab[5][crc>>16&0xFF]
-	MOVWZ	0(R24),R26	// tab[5][crc>>16&0xFF]
+	MOVWZ	(R10)(R24),R26	// tab[5][crc>>16&0xFF]
 	XOR	R21,R26,R21	// xor done R26
 	RLDICL	$56,R7,$56,R25	// crc>>8
 	ADD	$1024,R10,R10	// &tab[6]
 	SLD	$2,R25,R25	// crc>>8&FF*2
-	ADD	R25,R10,R25	// &tab[6][crc>>8&0xFF]
 	MOVBZ   R7,R26          // crc&0xFF
-	ADD     $1024,R10,R10   // &tab[7]
-	MOVWZ	0(R25),R27	// tab[6][crc>>8&0xFF]
+	MOVWZ	(R10)(R25),R27	// tab[6][crc>>8&0xFF]
+	ADD 	$1024,R10,R10   // &tab[7]
 	SLD	$2,R26,R26	// crc&0xFF*2
 	XOR	R21,R27,R21	// xor done R27
-	ADD	R26,R10,R26	// &tab[7][crc&0xFF]
 	ADD     $8,R5           // p = p[8:]
-	MOVWZ	0(R26),R28	// tab[7][crc&0xFF]
+	MOVWZ	(R10)(R26),R28	// tab[7][crc&0xFF]
 	XOR	R21,R28,R21	// xor done R28
 	MOVWZ	R21,R7		// crc for next round
-	BC	16,0,loop	// next 8 bytes
+	BDNZ 	loop
 	ANDCC	$7,R6,R8	// any leftover bytes
 	BEQ	done		// none --> done
 	MOVD	R8,CTR		// byte count
 	PCALIGN $16             // align short loop
 short:
-	MOVBZ   0(R5),R8        // get v
-	MOVBZ   R7,R9           // byte(crc) -> R8 BE vs LE?
-	SRD     $8,R7,R14       // crc>>8
-	XOR     R8,R9,R8        // byte(crc)^v -> R8
-	ADD	$1,R5		// ptr to next v
-	SLD     $2,R8           // convert index-> bytes
-	ADD     R8,R4,R9        // &tab[byte(crc)^v]
-	MOVWZ   0(R9),R10       // tab[byte(crc)^v]
-	XOR     R10,R14,R7       // loop crc in R7
-	BC      16,0,short
+	MOVBZ 	0(R5),R8	// get v
+	XOR 	R8,R7,R8	// byte(crc)^v -> R8
+	RLDIC	$2,R8,$54,R8	// rldicl r8,r8,2,22
+	SRD 	$8,R7,R14	// crc>>8
+	MOVWZ	(R4)(R8),R10
+	ADD	$1,R5
+	XOR 	R10,R14,R7	// loop crc in R7
+	BDNZ 	short
 done:
 	NOR     R7,R7,R7        // ^crc
 	MOVW    R7,ret+40(FP)   // return crc
@@ -333,7 +322,7 @@ cool_top:
 	LVX	(R4+off112),V23	// next in buffer
 
 	ADD	$128,R4		// bump up buffer pointer
-	BC	16,0,cool_top	// are we done?
+	BDNZ	cool_top	// are we done?
 
 first_cool_down:
 
