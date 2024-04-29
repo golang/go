@@ -355,20 +355,21 @@ func Clone[S ~[]E, E any](s S) S {
 // which may have a smaller length.
 // Compact zeroes the elements between the new length and the original length.
 func Compact[S ~[]E, E comparable](s S) S {
-	if len(s) > 1 {
-		for k := 1; k < len(s); k++ {
-			if s[k] == s[k-1] {
-				s2 := s[k:]
-				for k2 := 1; k2 < len(s2); k2++ {
-					if s2[k2] != s2[k2-1] {
-						s[k] = s2[k2]
-						k++
-					}
+	if len(s) < 2 {
+		return s
+	}
+	for k := 1; k < len(s); k++ {
+		if s[k] == s[k-1] {
+			s2 := s[k:]
+			for k2 := 1; k2 < len(s2); k2++ {
+				if s2[k2] != s2[k2-1] {
+					s[k] = s2[k2]
+					k++
 				}
-
-				clear(s[k:]) // zero/nil out the obsolete elements, for GC
-				return s[:k]
 			}
+
+			clear(s[k:]) // zero/nil out the obsolete elements, for GC
+			return s[:k]
 		}
 	}
 	return s
@@ -378,20 +379,21 @@ func Compact[S ~[]E, E comparable](s S) S {
 // For runs of elements that compare equal, CompactFunc keeps the first one.
 // CompactFunc zeroes the elements between the new length and the original length.
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
-	if len(s) > 1 {
-		for k := 1; k < len(s); k++ {
-			if eq(s[k], s[k-1]) {
-				s2 := s[k:]
-				for k2 := 1; k2 < len(s2); k2++ {
-					if !eq(s2[k2], s2[k2-1]) {
-						s[k] = s2[k2]
-						k++
-					}
+	if len(s) < 2 {
+		return s
+	}
+	for k := 1; k < len(s); k++ {
+		if eq(s[k], s[k-1]) {
+			s2 := s[k:]
+			for k2 := 1; k2 < len(s2); k2++ {
+				if !eq(s2[k2], s2[k2-1]) {
+					s[k] = s2[k2]
+					k++
 				}
-
-				clear(s[k:]) // zero/nil out the obsolete elements, for GC
-				return s[:k]
 			}
+
+			clear(s[k:]) // zero/nil out the obsolete elements, for GC
+			return s[:k]
 		}
 	}
 	return s

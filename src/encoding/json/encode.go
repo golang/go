@@ -12,13 +12,13 @@ package json
 
 import (
 	"bytes"
+	"cmp"
 	"encoding"
 	"encoding/base64"
 	"fmt"
 	"math"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1162,21 +1162,23 @@ func typeFields(t reflect.Type) structFields {
 		}
 	}
 
-	sort.Slice(fields, func(i, j int) bool {
-		x := fields
+	slices.SortFunc(fields, func(a, b field) int {
 		// sort field by name, breaking ties with depth, then
 		// breaking ties with "name came from json tag", then
 		// breaking ties with index sequence.
-		if x[i].name != x[j].name {
-			return x[i].name < x[j].name
+		if c := strings.Compare(a.name, b.name); c != 0 {
+			return c
 		}
-		if len(x[i].index) != len(x[j].index) {
-			return len(x[i].index) < len(x[j].index)
+		if c := cmp.Compare(len(a.index), len(b.index)); c != 0 {
+			return c
 		}
-		if x[i].tag != x[j].tag {
-			return x[i].tag
+		if a.tag != b.tag {
+			if a.tag {
+				return -1
+			}
+			return +1
 		}
-		return slices.Compare(x[i].index, x[j].index) == -1
+		return slices.Compare(a.index, b.index)
 	})
 
 	// Delete all fields that are hidden by the Go rules for embedded fields,
