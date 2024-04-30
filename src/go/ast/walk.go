@@ -13,29 +13,9 @@ type Visitor interface {
 	Visit(node Node) (w Visitor)
 }
 
-// Helper functions for common node lists. They may be empty.
-
-func walkIdentList(v Visitor, list []*Ident) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-func walkExprList(v Visitor, list []Expr) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-func walkStmtList(v Visitor, list []Stmt) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-func walkDeclList(v Visitor, list []Decl) {
-	for _, x := range list {
-		Walk(v, x)
+func walkList[N Node](v Visitor, list []N) {
+	for _, node := range list {
+		Walk(v, node)
 	}
 }
 
@@ -61,15 +41,13 @@ func Walk(v Visitor, node Node) {
 		// nothing to do
 
 	case *CommentGroup:
-		for _, c := range n.List {
-			Walk(v, c)
-		}
+		walkList(v, n.List)
 
 	case *Field:
 		if n.Doc != nil {
 			Walk(v, n.Doc)
 		}
-		walkIdentList(v, n.Names)
+		walkList(v, n.Names)
 		if n.Type != nil {
 			Walk(v, n.Type)
 		}
@@ -81,9 +59,7 @@ func Walk(v Visitor, node Node) {
 		}
 
 	case *FieldList:
-		for _, f := range n.List {
-			Walk(v, f)
-		}
+		walkList(v, n.List)
 
 	// Expressions
 	case *BadExpr, *Ident, *BasicLit:
@@ -102,7 +78,7 @@ func Walk(v Visitor, node Node) {
 		if n.Type != nil {
 			Walk(v, n.Type)
 		}
-		walkExprList(v, n.Elts)
+		walkList(v, n.Elts)
 
 	case *ParenExpr:
 		Walk(v, n.X)
@@ -117,9 +93,7 @@ func Walk(v Visitor, node Node) {
 
 	case *IndexListExpr:
 		Walk(v, n.X)
-		for _, index := range n.Indices {
-			Walk(v, index)
-		}
+		walkList(v, n.Indices)
 
 	case *SliceExpr:
 		Walk(v, n.X)
@@ -141,7 +115,7 @@ func Walk(v Visitor, node Node) {
 
 	case *CallExpr:
 		Walk(v, n.Fun)
-		walkExprList(v, n.Args)
+		walkList(v, n.Args)
 
 	case *StarExpr:
 		Walk(v, n.X)
@@ -213,8 +187,8 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 
 	case *AssignStmt:
-		walkExprList(v, n.Lhs)
-		walkExprList(v, n.Rhs)
+		walkList(v, n.Lhs)
+		walkList(v, n.Rhs)
 
 	case *GoStmt:
 		Walk(v, n.Call)
@@ -223,7 +197,7 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Call)
 
 	case *ReturnStmt:
-		walkExprList(v, n.Results)
+		walkList(v, n.Results)
 
 	case *BranchStmt:
 		if n.Label != nil {
@@ -231,7 +205,7 @@ func Walk(v Visitor, node Node) {
 		}
 
 	case *BlockStmt:
-		walkStmtList(v, n.List)
+		walkList(v, n.List)
 
 	case *IfStmt:
 		if n.Init != nil {
@@ -244,8 +218,8 @@ func Walk(v Visitor, node Node) {
 		}
 
 	case *CaseClause:
-		walkExprList(v, n.List)
-		walkStmtList(v, n.Body)
+		walkList(v, n.List)
+		walkList(v, n.Body)
 
 	case *SwitchStmt:
 		if n.Init != nil {
@@ -267,7 +241,7 @@ func Walk(v Visitor, node Node) {
 		if n.Comm != nil {
 			Walk(v, n.Comm)
 		}
-		walkStmtList(v, n.Body)
+		walkList(v, n.Body)
 
 	case *SelectStmt:
 		Walk(v, n.Body)
@@ -311,11 +285,11 @@ func Walk(v Visitor, node Node) {
 		if n.Doc != nil {
 			Walk(v, n.Doc)
 		}
-		walkIdentList(v, n.Names)
+		walkList(v, n.Names)
 		if n.Type != nil {
 			Walk(v, n.Type)
 		}
-		walkExprList(v, n.Values)
+		walkList(v, n.Values)
 		if n.Comment != nil {
 			Walk(v, n.Comment)
 		}
@@ -340,9 +314,7 @@ func Walk(v Visitor, node Node) {
 		if n.Doc != nil {
 			Walk(v, n.Doc)
 		}
-		for _, s := range n.Specs {
-			Walk(v, s)
-		}
+		walkList(v, n.Specs)
 
 	case *FuncDecl:
 		if n.Doc != nil {
@@ -363,7 +335,7 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Doc)
 		}
 		Walk(v, n.Name)
-		walkDeclList(v, n.Decls)
+		walkList(v, n.Decls)
 		// don't walk n.Comments - they have been
 		// visited already through the individual
 		// nodes
