@@ -225,7 +225,7 @@ func (x *FileSyntax) Cleanup() {
 			if ww == 0 {
 				continue
 			}
-			if ww == 1 {
+			if ww == 1 && len(stmt.RParen.Comments.Before) == 0 {
 				// Collapse block into single line.
 				line := &Line{
 					Comments: Comments{

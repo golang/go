@@ -14,6 +14,7 @@ import (
 	"go/types"
 	"os"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/analysisinternal"
 )
@@ -60,12 +61,16 @@ func HasSideEffects(info *types.Info, e ast.Expr) bool {
 
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
-func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := os.ReadFile(filename)
+func ReadFile(pass *analysis.Pass, filename string) ([]byte, *token.File, error) {
+	readFile := pass.ReadFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	content, err := readFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
-	tf := fset.AddFile(filename, -1, len(content))
+	tf := pass.Fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
 	return content, tf, nil
 }

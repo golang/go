@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
 # golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
 ## explicit; go 1.21
 golang.org/x/build/relnote
-# golang.org/x/mod v0.16.0
+# golang.org/x/mod v0.17.0
 ## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -36,7 +36,7 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sync v0.6.0
+# golang.org/x/sync v0.7.0
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
@@ -71,7 +71,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14
+# golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
 ## explicit; go 1.19
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -103,6 +103,7 @@ golang.org/x/tools/go/analysis/passes/shift
 golang.org/x/tools/go/analysis/passes/sigchanyzer
 golang.org/x/tools/go/analysis/passes/slog
 golang.org/x/tools/go/analysis/passes/stdmethods
+golang.org/x/tools/go/analysis/passes/stdversion
 golang.org/x/tools/go/analysis/passes/stringintconv
 golang.org/x/tools/go/analysis/passes/structtag
 golang.org/x/tools/go/analysis/passes/testinggoroutine

@@ -89,7 +89,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
+	content, tf, err := analysisutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}

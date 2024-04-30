@@ -173,7 +173,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}
