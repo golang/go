@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"internal/godebug"
 	"internal/syscall/windows"
 	"sync"
@@ -338,7 +339,7 @@ func (fs *fileStat) loadFileId() error {
 // and set name from path.
 func (fs *fileStat) saveInfoFromPath(path string) error {
 	fs.path = path
-	if !isAbs(fs.path) {
+	if !filepathlite.IsAbs(fs.path) {
 		var err error
 		fs.path, err = syscall.FullPath(fs.path)
 		if err != nil {

@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"internal/syscall/windows"
 	"syscall"
 )
@@ -42,18 +43,6 @@ func basename(name string) string {
 		}
 	}
 	return name
-}
-
-func isAbs(path string) (b bool) {
-	v := volumeName(path)
-	if v == "" {
-		return false
-	}
-	path = path[len(v):]
-	if path == "" {
-		return false
-	}
-	return IsPathSeparator(path[0])
 }
 
 func volumeName(path string) (v string) {
@@ -174,7 +163,7 @@ func addExtendedPrefix(path string) string {
 	// The MSDN docs appear to say that a normal path that is 248 bytes long
 	// will work; empirically the path must be less then 248 bytes long.
 	pathLength := len(path)
-	if !isAbs(path) {
+	if !filepathlite.IsAbs(path) {
 		// If the path is relative, we need to prepend the working directory
 		// plus a separator to the path before we can determine if it's too long.
 		// We don't want to call syscall.Getwd here, as that call is expensive to do

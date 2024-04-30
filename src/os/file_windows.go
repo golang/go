@@ -6,6 +6,7 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/godebug"
 	"internal/poll"
 	"internal/syscall/windows"
@@ -313,7 +314,7 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 	var o *uint16
-	if isAbs(oldname) {
+	if filepathlite.IsAbs(oldname) {
 		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
 	} else {
 		// Do not use fixLongPath on oldname for relative symlinks,
