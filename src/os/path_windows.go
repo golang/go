@@ -45,28 +45,6 @@ func basename(name string) string {
 	return name
 }
 
-func fromSlash(path string) string {
-	// Replace each '/' with '\\' if present
-	var pathbuf []byte
-	var lastSlash int
-	for i, b := range path {
-		if b == '/' {
-			if pathbuf == nil {
-				pathbuf = make([]byte, len(path))
-			}
-			copy(pathbuf[lastSlash:], path[lastSlash:i])
-			pathbuf[i] = '\\'
-			lastSlash = i + 1
-		}
-	}
-	if pathbuf == nil {
-		return path
-	}
-
-	copy(pathbuf[lastSlash:], path[lastSlash:])
-	return string(pathbuf)
-}
-
 func dirname(path string) string {
 	vol := filepathlite.VolumeName(path)
 	i := len(path) - 1

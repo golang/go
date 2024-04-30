@@ -288,7 +288,7 @@ func Link(oldname, newname string) error {
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	// '/' does not work in link's content
-	oldname = fromSlash(oldname)
+	oldname = filepathlite.FromSlash(oldname)
 
 	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
