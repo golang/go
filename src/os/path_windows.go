@@ -236,8 +236,6 @@ func addExtendedPrefix(path string) string {
 		if n <= uint32(len(buf)-len(prefix)) {
 			buf = buf[:n+uint32(len(prefix))]
 			break
-		} else {
-			continue
 		}
 	}
 	if isUNC {
