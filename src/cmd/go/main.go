@@ -3,12 +3,10 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
-//go:generate go test cmd/go -v -run=^TestCounterNamesUpToDate$ -update
 
 package main
 
 import (
-	"cmd/internal/telemetry"
 	"context"
 	"flag"
 	"fmt"
@@ -44,6 +42,7 @@ import (
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 	"cmd/go/internal/workcmd"
+	"cmd/internal/telemetry"
 )
 
 func init() {
@@ -89,7 +88,7 @@ func init() {
 
 var _ = go11tag
 
-var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-relative")
+var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-entry-relative")
 
 func main() {
 	log.SetFlags(0)

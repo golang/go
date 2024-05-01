@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -395,30 +394,11 @@ func readCounters(t *testing.T, telemetryDir string) map[string]uint64 {
 	return totals
 }
 
-//go:embed testdata/counters.txt
-var countersTxt string
-
-var (
-	allowedCountersOnce sync.Once
-	allowedCounters     = map[string]bool{} // Set of allowed counters.
-)
-
 func checkCounters(t *testing.T, telemetryDir string) {
-	allowedCountersOnce.Do(func() {
-		for _, counter := range strings.Fields(countersTxt) {
-			allowedCounters[counter] = true
-		}
-	})
 	counters := readCounters(t, telemetryDir)
 	if _, ok := scriptGoInvoked.Load(testing.TB(t)); ok {
 		if !disabledOnPlatform && len(counters) == 0 {
 			t.Fatal("go was invoked but no counters were incremented")
-		}
-	}
-	for name := range counters {
-		if !allowedCounters[name] {
-			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+
-				"Please update counters_test.go to produce an entry for it.", name)
 		}
 	}
 }

@@ -7,7 +7,6 @@
 package base
 
 import (
-	"cmd/internal/telemetry"
 	"context"
 	"flag"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 
@@ -223,28 +221,3 @@ func RunStdin(cmdline []string) {
 // Usage is the usage-reporting function, filled in by package main
 // but here for reference by other packages.
 var Usage func()
-
-var counterNames = map[string]bool{}
-
-type Counter interface {
-	Inc()
-}
-
-// NewCounter registers a new counter. It must be called from an init function
-// or global variable initializer.
-func NewCounter(name string) Counter {
-	if counterNames[name] {
-		panic(fmt.Errorf("counter %q initialized twice", name))
-	}
-	counterNames[name] = true
-	return telemetry.NewCounter(name)
-}
-
-func RegisteredCounterNames() []string {
-	var names []string
-	for name := range counterNames {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
