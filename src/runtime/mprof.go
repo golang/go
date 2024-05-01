@@ -9,7 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -954,9 +954,7 @@ func record(r *MemProfileRecord, b *bucket) {
 		asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 	}
 	copy(r.Stack0[:], b.stk())
-	for i := int(b.nstk); i < len(r.Stack0); i++ {
-		r.Stack0[i] = 0
-	}
+	clear(r.Stack0[b.nstk:])
 }
 
 func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {
@@ -981,8 +979,8 @@ type BlockProfileRecord struct {
 // If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
 // If len(p) < n, BlockProfile does not change p and returns n, false.
 //
-// Most clients should use the runtime/pprof package or
-// the testing package's -test.blockprofile flag instead
+// Most clients should use the [runtime/pprof] package or
+// the [testing] package's -test.blockprofile flag instead
 // of calling BlockProfile directly.
 func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 	lock(&profBlockLock)
@@ -1012,9 +1010,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 				asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 			}
 			i := copy(r.Stack0[:], b.stk())
-			for ; i < len(r.Stack0); i++ {
-				r.Stack0[i] = 0
-			}
+			clear(r.Stack0[i:])
 			p = p[1:]
 		}
 	}
@@ -1042,9 +1038,7 @@ func MutexProfile(p []BlockProfileRecord) (n int, ok bool) {
 			r.Count = int64(bp.count)
 			r.Cycles = bp.cycles
 			i := copy(r.Stack0[:], b.stk())
-			for ; i < len(r.Stack0); i++ {
-				r.Stack0[i] = 0
-			}
+			clear(r.Stack0[i:])
 			p = p[1:]
 		}
 	}
@@ -1132,6 +1126,14 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
 }
 
 func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if len(p) == 0 {
+		// An empty slice is obviously too small. Return a rough
+		// allocation estimate without bothering to STW. As long as
+		// this is close, then we'll only need to STW once (on the next
+		// call).
+		return int(gcount()), false
+	}
+
 	semacquire(&goroutineProfile.sema)
 
 	ourg := getg()

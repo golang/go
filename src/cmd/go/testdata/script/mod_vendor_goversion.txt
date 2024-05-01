@@ -7,7 +7,7 @@
 
 go build example.net/need117
 ! go build example.net/bad114
-stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y( .*)?$'
+stderr '^bad114[/\\]bad114.go:15:2: duplicate method .?Y.?( .*)?$'
 
 
 # With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
@@ -26,7 +26,7 @@ go mod vendor
 ! grep 1.17 vendor/modules.txt
 ! go build example.net/need117
 stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
-stderr 'conversion of slices to array pointers requires go1\.17 or later'
+stderr 'conversion of slice to array pointer requires go1\.17 or later'
 
 ! grep 1.13 vendor/modules.txt
 go build example.net/bad114
@@ -43,7 +43,7 @@ go build example.net/need117
 
 grep '^## explicit; go 1.13$' vendor/modules.txt
 ! go build example.net/bad114
-stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y( .+)?$'
+stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method .?Y.?( .*)?$'
 
 -- go.mod --
 module example.net/m

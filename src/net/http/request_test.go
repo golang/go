@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1053,6 +1054,33 @@ func TestRequestCloneTransferEncoding(t *testing.T) {
 	}
 }
 
+// Ensure that Request.Clone works correctly with PathValue.
+// See issue 64911.
+func TestRequestClonePathValue(t *testing.T) {
+	req, _ := http.NewRequest("GET", "https://example.org/", nil)
+	req.SetPathValue("p1", "orig")
+
+	clonedReq := req.Clone(context.Background())
+	clonedReq.SetPathValue("p2", "copy")
+
+	// Ensure that any modifications to the cloned
+	// request do not pollute the original request.
+	if g, w := req.PathValue("p2"), ""; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+	if g, w := req.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+
+	// Assert on the changes to the cloned request.
+	if g, w := clonedReq.PathValue("p1"), "orig"; g != w {
+		t.Fatalf("p1 mismatch got %q, want %q", g, w)
+	}
+	if g, w := clonedReq.PathValue("p2"), "copy"; g != w {
+		t.Fatalf("p2 mismatch got %q, want %q", g, w)
+	}
+}
+
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
@@ -1226,6 +1254,76 @@ func TestRequestCookie(t *testing.T) {
 		if c.Name != tt.name {
 			t.Errorf("got %s, want %v", tt.name, c.Name)
 		}
+	}
+}
+
+func TestRequestCookiesByName(t *testing.T) {
+	tests := []struct {
+		in     []*Cookie
+		filter string
+		want   []*Cookie
+	}{
+		{
+			in: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want:   []*Cookie{{Name: "foo", Value: "foo-1"}},
+		},
+		{
+			in: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "foo", Value: "foo-2"},
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "foo", Value: "foo-2"},
+			},
+		},
+		{
+			in: []*Cookie{
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want:   []*Cookie{},
+		},
+		{
+			in: []*Cookie{
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "",
+			want:   []*Cookie{},
+		},
+		{
+			in:     []*Cookie{},
+			filter: "foo",
+			want:   []*Cookie{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.filter, func(t *testing.T) {
+			req, err := NewRequest("GET", "http://example.com/", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, c := range tt.in {
+				req.AddCookie(c)
+			}
+
+			got := req.CookiesNamed(tt.filter)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				asStr := func(v any) string {
+					blob, _ := json.MarshalIndent(v, "", "  ")
+					return string(blob)
+				}
+				t.Fatalf("Result mismatch\n\tGot: %s\n\tWant: %s", asStr(got), asStr(tt.want))
+			}
+		})
 	}
 }
 
@@ -1459,6 +1557,14 @@ func TestPathValue(t *testing.T) {
 			map[string]string{
 				"name":  "john/doe",
 				"other": "there/is//more",
+			},
+		},
+		{
+			"/names/{name}/{other...}",
+			"/names/n/*",
+			map[string]string{
+				"name":  "n",
+				"other": "*",
 			},
 		},
 	} {

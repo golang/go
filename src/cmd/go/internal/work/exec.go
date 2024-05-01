@@ -139,10 +139,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		var err error
 		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
 			// TODO(matloob): Better action descriptions
-			desc := "Executing action "
+			desc := "Executing action (" + a.Mode
 			if a.Package != nil {
-				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+				desc += " " + a.Package.Desc()
 			}
+			desc += ")"
 			ctx, span := trace.StartSpan(ctx, desc)
 			a.traceSpan = span
 			for _, d := range a.Deps {
@@ -258,9 +259,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// when building things in GOROOT.
 		//
 		// The C compiler does not, but for packages in GOROOT we rewrite the path
-		// as though -trimpath were set, so that we don't invalidate the build cache
-		// (and especially any precompiled C archive files) when changing
-		// GOROOT_FINAL. (See https://go.dev/issue/50183.)
+		// as though -trimpath were set. This used to be so that we did not invalidate
+		// the build cache (and especially precompiled archive files) when changing
+		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
+		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
+		// (https://go.dev/issue/62047).
+		// TODO(bcmills): Figure out whether this behavior is still useful.
 		//
 		// b.WorkDir is always either trimmed or rewritten to
 		// the literal string "/tmp/go-build".
@@ -391,13 +395,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
 	}
-	if p.Internal.PGOProfile != "" {
-		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(p.Internal.PGOProfile))
-	}
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 != nil {
 			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
+		}
+		if a1.Mode == "preprocess PGO profile" {
+			fmt.Fprintf(h, "pgofile %s\n", b.fileHash(a1.built))
 		}
 	}
 
@@ -629,19 +633,6 @@ OverlayLoop:
 		}
 	}
 
-	// Run SWIG on each .swig and .swigcxx file.
-	// Each run will generate two files, a .go file and a .c or .cxx file.
-	// The .go file will use import "C" and is to be processed by cgo.
-	if p.UsesSwig() {
-		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
-		if err != nil {
-			return err
-		}
-		cgofiles = append(cgofiles, outGo...)
-		cfiles = append(cfiles, outC...)
-		cxxfiles = append(cxxfiles, outCXX...)
-	}
-
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if p.Internal.Cover.Mode != "" {
 		outfiles := []string{}
@@ -720,6 +711,22 @@ OverlayLoop:
 				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
 			}
 		}
+	}
+
+	// Run SWIG on each .swig and .swigcxx file.
+	// Each run will generate two files, a .go file and a .c or .cxx file.
+	// The .go file will use import "C" and is to be processed by cgo.
+	// For -cover test or build runs, this needs to happen after the cover
+	// tool is run; we don't want to instrument swig-generated Go files,
+	// see issue #64661.
+	if p.UsesSwig() {
+		outGo, outC, outCXX, err := b.swig(a, objdir, pcCFLAGS)
+		if err != nil {
+			return err
+		}
+		cgofiles = append(cgofiles, outGo...)
+		cfiles = append(cfiles, outC...)
+		cxxfiles = append(cxxfiles, outCXX...)
 	}
 
 	// Run cgo.
@@ -857,6 +864,18 @@ OverlayLoop:
 		embedcfg = js
 	}
 
+	// Find PGO profile if needed.
+	var pgoProfile string
+	for _, a1 := range a.Deps {
+		if a1.Mode != "preprocess PGO profile" {
+			continue
+		}
+		if pgoProfile != "" {
+			return fmt.Errorf("action contains multiple PGO profile dependencies")
+		}
+		pgoProfile = a1.built
+	}
+
 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
@@ -869,7 +888,7 @@ OverlayLoop:
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
 	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
@@ -1400,11 +1419,11 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
-		// The linker writes source file paths that say GOROOT_FINAL, but
-		// only if -trimpath is not specified (see ld() in gc.go).
-		gorootFinal := cfg.GOROOT_FINAL
+		// The linker writes source file paths that refer to GOROOT,
+		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
+		gorootFinal := cfg.GOROOT
 		if cfg.BuildTrimpath {
-			gorootFinal = trimPathGoRootFinal
+			gorootFinal = ""
 		}
 		fmt.Fprintf(h, "GOROOT=%s\n", gorootFinal)
 
@@ -2034,7 +2053,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2074,7 +2093,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -2127,7 +2146,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 	file = mkAbs(p.Dir, file)
 	outfile = mkAbs(p.Dir, outfile)
 
-	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
+	// Elide source directory paths if -trimpath is set.
 	// This is needed for source files (e.g., a .c file in a package directory).
 	// TODO(golang.org/issue/36072): cgo also generates files with #line
 	// directives pointing to the source directory. It should not generate those
@@ -3066,12 +3085,12 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		if !str.Contains(ldflags, "-no-pie") {
+		if !slices.Contains(ldflags, "-no-pie") {
 			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
 			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
 			ldflags = append(ldflags, "-pie")
 		}
-		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
+		if slices.Contains(ldflags, "-pie") && slices.Contains(ldflags, "-static") {
 			// -static -pie doesn't make sense, and causes link errors.
 			// Issue 26197.
 			n := make([]string, 0, len(ldflags)-1)
@@ -3245,7 +3264,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(context.TODO(), load.PackageOpts{}, srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil

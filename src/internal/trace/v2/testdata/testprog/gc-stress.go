@@ -11,7 +11,6 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"os"
 	"runtime"
 	"runtime/trace"
@@ -38,26 +37,31 @@ func makeTree(depth int) *node {
 }
 
 var trees [16]*node
-var ballast *[16]*[8192]*node
-var sink []byte
+var ballast *[16]*[1024]*node
+var sink [][]byte
 
 func main() {
 	for i := range trees {
 		trees[i] = makeTree(6)
 	}
-	ballast = new([16]*[8192]*node)
+	ballast = new([16]*[1024]*node)
 	for i := range ballast {
-		ballast[i] = new([8192]*node)
+		ballast[i] = new([1024]*node)
 		for j := range ballast[i] {
 			ballast[i][j] = &node{
 				data: [128]byte{1, 2, 3, 4},
 			}
 		}
 	}
-	for i := 0; i < runtime.GOMAXPROCS(-1); i++ {
+
+	procs := runtime.GOMAXPROCS(-1)
+	sink = make([][]byte, procs)
+
+	for i := 0; i < procs; i++ {
+		i := i
 		go func() {
 			for {
-				sink = make([]byte, rand.Intn(32<<10))
+				sink[i] = make([]byte, 4<<10)
 			}
 		}()
 	}

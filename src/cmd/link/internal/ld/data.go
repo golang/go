@@ -43,7 +43,9 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"log"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -121,10 +123,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		}
 
 		if ldr.SymValue(rs) == 0 && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
-			// Symbols in the same package are laid out together.
+			// Symbols in the same package are laid out together (if we
+			// don't randomize the function order).
 			// Except that if SymPkg(s) == "", it is a host object symbol
 			// which may call an external symbol via PLT.
-			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
+			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && *flagRandLayout == 0 {
 				// RISC-V is only able to reach +/-1MiB via a JAL instruction.
 				// We need to generate a trampoline when an address is
 				// currently unknown.
@@ -133,7 +136,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
 				}
 			}
 			// Runtime packages are laid out together.
-			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
+			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) && *flagRandLayout == 0 {
 				continue
 			}
 		}
@@ -1343,7 +1346,7 @@ func (p *GCProg) AddSym(s loader.Sym) {
 	}
 
 	sval := ldr.SymValue(s)
-	if decodetypeUsegcprog(p.ctxt.Arch, typData) == 0 {
+	if !decodetypeUsegcprog(p.ctxt.Arch, typData) {
 		// Copy pointers from mask into program.
 		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {
@@ -1847,7 +1850,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	}
 	ldr := ctxt.loader
 
-	// .got
+	// writable .got (note that for PIE binaries .got goes in relro)
 	if len(state.data[sym.SELFGOT]) > 0 {
 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
 	}
@@ -2103,6 +2106,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 			}
 		}
+		state.assignToSection(sect, sym.SELFRELROSECT, sym.SRODATA)
 
 		sect.Length = uint64(state.datsize) - sect.Vaddr
 	}
@@ -2396,6 +2400,26 @@ func (ctxt *Link) textaddress() {
 
 	ldr := ctxt.loader
 
+	if *flagRandLayout != 0 {
+		r := rand.New(rand.NewSource(*flagRandLayout))
+		textp := ctxt.Textp
+		i := 0
+		// don't move the buildid symbol
+		if len(textp) > 0 && ldr.SymName(textp[0]) == "go:buildid" {
+			i++
+		}
+		// Skip over C symbols, as functions in a (C object) section must stay together.
+		// TODO: maybe we can move a section as a whole.
+		// Note: we load C symbols before Go symbols, so we can scan from the start.
+		for i < len(textp) && (ldr.SubSym(textp[i]) != 0 || ldr.AttrSubSymbol(textp[i])) {
+			i++
+		}
+		textp = textp[i:]
+		r.Shuffle(len(textp), func(i, j int) {
+			textp[i], textp[j] = textp[j], textp[i]
+		})
+	}
+
 	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)
 	etext := ctxt.xdefine("runtime.etext", sym.STEXT, 0)
 	ldr.SetSymSect(text, sect)
@@ -2556,8 +2580,8 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		sect.Align = align
 	}
 
-	funcsize := uint64(MINFUNC) // spacing required for findfunctab
-	if ldr.SymSize(s) > MINFUNC {
+	funcsize := uint64(abi.MINFUNC) // spacing required for findfunctab
+	if ldr.SymSize(s) > abi.MINFUNC {
 		funcsize = uint64(ldr.SymSize(s))
 	}
 
@@ -2611,7 +2635,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 				// Assign its address directly in order to be the
 				// first symbol of this new section.
 				ntext.SetType(sym.STEXT)
-				ntext.SetSize(int64(MINFUNC))
+				ntext.SetSize(int64(abi.MINFUNC))
 				ntext.SetOnList(true)
 				ntext.SetAlign(sectAlign)
 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())

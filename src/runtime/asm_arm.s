@@ -333,6 +333,30 @@ noswitch:
 	MOVW.P	4(R13), R14	// restore LR
 	B	(R0)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVW	fn+0(FP), R7 // context register
+	MOVW	g_m(g), R1 // curm
+
+	// set g to gcrash
+	MOVW	$runtime·gcrash(SB), R0
+	BL	setg<>(SB)	// g = &gcrash
+	MOVW	R1, g_m(g)	// g.m = curm
+	MOVW	g, m_g0(R1)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVW	(g_stack+stack_hi)(g), R1
+	SUB	$(4*8), R1
+	MOVW	R1, R13
+
+	// call target function
+	MOVW	0(R7), R0
+	BL	(R0)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -349,6 +373,14 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R4
+
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVW	R13, (g_sched+gobuf_sp)(g)
+	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	R3, (g_sched+gobuf_lr)(g)
+	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+
 	CMP	g, R4
 	BNE	3(PC)
 	BL	runtime·badmorestackg0(SB)
@@ -360,13 +392,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
 	B	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_pc)(g)
-	MOVW	R3, (g_sched+gobuf_lr)(g)
-	MOVW	R7, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.

@@ -55,24 +55,6 @@ type typeSig struct {
 	mtype *types.Type
 }
 
-// Builds a type representing a Bucket structure for
-// the given map type. This type is not visible to users -
-// we include only enough information to generate a correct GC
-// program for it.
-// Make sure this stays in sync with runtime/map.go.
-//
-//	A "bucket" is a "struct" {
-//	      tophash [BUCKETSIZE]uint8
-//	      keys [BUCKETSIZE]keyType
-//	      elems [BUCKETSIZE]elemType
-//	      overflow *bucket
-//	    }
-const (
-	BUCKETSIZE  = abi.MapBucketCount
-	MAXKEYSIZE  = abi.MapMaxKeyBytes
-	MAXELEMSIZE = abi.MapMaxElemBytes
-)
-
 func commonSize() int { return int(rttype.Type.Size()) } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
@@ -89,6 +71,18 @@ func makefield(name string, t *types.Type) *types.Field {
 
 // MapBucketType makes the map bucket type given the type of the map.
 func MapBucketType(t *types.Type) *types.Type {
+	// Builds a type representing a Bucket structure for
+	// the given map type. This type is not visible to users -
+	// we include only enough information to generate a correct GC
+	// program for it.
+	// Make sure this stays in sync with runtime/map.go.
+	//
+	//	A "bucket" is a "struct" {
+	//	      tophash [abi.MapBucketCount]uint8
+	//	      keys [abi.MapBucketCount]keyType
+	//	      elems [abi.MapBucketCount]elemType
+	//	      overflow *bucket
+	//	    }
 	if t.MapType().Bucket != nil {
 		return t.MapType().Bucket
 	}
@@ -97,25 +91,25 @@ func MapBucketType(t *types.Type) *types.Type {
 	elemtype := t.Elem()
 	types.CalcSize(keytype)
 	types.CalcSize(elemtype)
-	if keytype.Size() > MAXKEYSIZE {
+	if keytype.Size() > abi.MapMaxKeyBytes {
 		keytype = types.NewPtr(keytype)
 	}
-	if elemtype.Size() > MAXELEMSIZE {
+	if elemtype.Size() > abi.MapMaxElemBytes {
 		elemtype = types.NewPtr(elemtype)
 	}
 
 	field := make([]*types.Field, 0, 5)
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := types.NewArray(types.Types[types.TUINT8], BUCKETSIZE)
+	arr := types.NewArray(types.Types[types.TUINT8], abi.MapBucketCount)
 	field = append(field, makefield("topbits", arr))
 
-	arr = types.NewArray(keytype, BUCKETSIZE)
+	arr = types.NewArray(keytype, abi.MapBucketCount)
 	arr.SetNoalg(true)
 	keys := makefield("keys", arr)
 	field = append(field, keys)
 
-	arr = types.NewArray(elemtype, BUCKETSIZE)
+	arr = types.NewArray(elemtype, abi.MapBucketCount)
 	arr.SetNoalg(true)
 	elems := makefield("elems", arr)
 	field = append(field, elems)
@@ -142,25 +136,25 @@ func MapBucketType(t *types.Type) *types.Type {
 	if !types.IsComparable(t.Key()) {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
-	if BUCKETSIZE < 8 {
-		base.Fatalf("bucket size %d too small for proper alignment %d", BUCKETSIZE, 8)
+	if abi.MapBucketCount < 8 {
+		base.Fatalf("bucket size %d too small for proper alignment %d", abi.MapBucketCount, 8)
 	}
-	if uint8(keytype.Alignment()) > BUCKETSIZE {
+	if uint8(keytype.Alignment()) > abi.MapBucketCount {
 		base.Fatalf("key align too big for %v", t)
 	}
-	if uint8(elemtype.Alignment()) > BUCKETSIZE {
-		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
+	if uint8(elemtype.Alignment()) > abi.MapBucketCount {
+		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, abi.MapBucketCount)
 	}
-	if keytype.Size() > MAXKEYSIZE {
+	if keytype.Size() > abi.MapMaxKeyBytes {
 		base.Fatalf("key size too large for %v", t)
 	}
-	if elemtype.Size() > MAXELEMSIZE {
+	if elemtype.Size() > abi.MapMaxElemBytes {
 		base.Fatalf("elem size too large for %v", t)
 	}
-	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
+	if t.Key().Size() > abi.MapMaxKeyBytes && !keytype.IsPtr() {
 		base.Fatalf("key indirect incorrect for %v", t)
 	}
-	if t.Elem().Size() > MAXELEMSIZE && !elemtype.IsPtr() {
+	if t.Elem().Size() > abi.MapMaxElemBytes && !elemtype.IsPtr() {
 		base.Fatalf("elem indirect incorrect for %v", t)
 	}
 	if keytype.Size()%keytype.Alignment() != 0 {
@@ -630,33 +624,33 @@ func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
 	r.Type = objabi.R_METHODOFF
 }
 
-var kinds = []int{
-	types.TINT:        objabi.KindInt,
-	types.TUINT:       objabi.KindUint,
-	types.TINT8:       objabi.KindInt8,
-	types.TUINT8:      objabi.KindUint8,
-	types.TINT16:      objabi.KindInt16,
-	types.TUINT16:     objabi.KindUint16,
-	types.TINT32:      objabi.KindInt32,
-	types.TUINT32:     objabi.KindUint32,
-	types.TINT64:      objabi.KindInt64,
-	types.TUINT64:     objabi.KindUint64,
-	types.TUINTPTR:    objabi.KindUintptr,
-	types.TFLOAT32:    objabi.KindFloat32,
-	types.TFLOAT64:    objabi.KindFloat64,
-	types.TBOOL:       objabi.KindBool,
-	types.TSTRING:     objabi.KindString,
-	types.TPTR:        objabi.KindPtr,
-	types.TSTRUCT:     objabi.KindStruct,
-	types.TINTER:      objabi.KindInterface,
-	types.TCHAN:       objabi.KindChan,
-	types.TMAP:        objabi.KindMap,
-	types.TARRAY:      objabi.KindArray,
-	types.TSLICE:      objabi.KindSlice,
-	types.TFUNC:       objabi.KindFunc,
-	types.TCOMPLEX64:  objabi.KindComplex64,
-	types.TCOMPLEX128: objabi.KindComplex128,
-	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
+var kinds = []abi.Kind{
+	types.TINT:        abi.Int,
+	types.TUINT:       abi.Uint,
+	types.TINT8:       abi.Int8,
+	types.TUINT8:      abi.Uint8,
+	types.TINT16:      abi.Int16,
+	types.TUINT16:     abi.Uint16,
+	types.TINT32:      abi.Int32,
+	types.TUINT32:     abi.Uint32,
+	types.TINT64:      abi.Int64,
+	types.TUINT64:     abi.Uint64,
+	types.TUINTPTR:    abi.Uintptr,
+	types.TFLOAT32:    abi.Float32,
+	types.TFLOAT64:    abi.Float64,
+	types.TBOOL:       abi.Bool,
+	types.TSTRING:     abi.String,
+	types.TPTR:        abi.Pointer,
+	types.TSTRUCT:     abi.Struct,
+	types.TINTER:      abi.Interface,
+	types.TCHAN:       abi.Chan,
+	types.TMAP:        abi.Map,
+	types.TARRAY:      abi.Array,
+	types.TSLICE:      abi.Slice,
+	types.TFUNC:       abi.Func,
+	types.TCOMPLEX64:  abi.Complex64,
+	types.TCOMPLEX128: abi.Complex128,
+	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
 var (
@@ -749,14 +743,14 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	i = kinds[t.Kind()]
+	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
-		i |= objabi.KindDirectIface
+		kind |= abi.KindDirectIface
 	}
 	if useGCProg {
-		i |= objabi.KindGCProg
+		kind |= abi.KindGCProg
 	}
-	c.Field("Kind_").WriteUint8(uint8(i))
+	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
@@ -1124,14 +1118,14 @@ func writeType(t *types.Type) *obj.LSym {
 		var flags uint32
 		// Note: flags must match maptype accessors in ../../../../runtime/type.go
 		// and maptype builder in ../../../../reflect/type.go:MapOf.
-		if t.Key().Size() > MAXKEYSIZE {
+		if t.Key().Size() > abi.MapMaxKeyBytes {
 			c.Field("KeySize").WriteUint8(uint8(types.PtrSize))
 			flags |= 1 // indirect key
 		} else {
 			c.Field("KeySize").WriteUint8(uint8(t.Key().Size()))
 		}
 
-		if t.Elem().Size() > MAXELEMSIZE {
+		if t.Elem().Size() > abi.MapMaxElemBytes {
 			c.Field("ValueSize").WriteUint8(uint8(types.PtrSize))
 			flags |= 2 // indirect value
 		} else {
@@ -1337,20 +1331,25 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	//   _      [4]byte
 	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 	// }
-	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
-	o = objw.SymPtr(lsym, o, writeType(typ), 0)
-	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
-	o += 4                                        // skip unused field
+	c := rttype.NewCursor(lsym, 0, rttype.ITab)
+	c.Field("Inter").WritePtr(writeType(iface))
+	c.Field("Type").WritePtr(writeType(typ))
+	c.Field("Hash").WriteUint32(types.TypeHash(typ)) // copy of type hash
+
+	var delta int64
+	c = c.Field("Fun")
 	if !completeItab {
 		// If typ doesn't implement iface, make method entries be zero.
-		o = objw.Uintptr(lsym, o, 0)
-		entries = entries[:0]
-	}
-	for _, fn := range entries {
-		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+		c.Elem(0).WriteUintptr(0)
+	} else {
+		var a rttype.ArrayCursor
+		a, delta = c.ModifyArray(len(entries))
+		for i, fn := range entries {
+			a.Elem(i).WritePtrWeak(fn) // method pointer for each method
+		}
 	}
 	// Nothing writes static itabs, so they are read only.
-	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+	objw.Global(lsym, int32(rttype.ITab.Size()+delta), int16(obj.DUPOK|obj.RODATA))
 	lsym.Set(obj.AttrContentAddressable, true)
 }
 
@@ -1499,39 +1498,6 @@ func (a typesByString) Less(i, j int) bool {
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
-// maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
-// which holds 1-bit entries describing where pointers are in a given type.
-// Above this length, the GC information is recorded as a GC program,
-// which can express repetition compactly. In either form, the
-// information is used by the runtime to initialize the heap bitmap,
-// and for large types (like 128 or more words), they are roughly the
-// same speed. GC programs are never much larger and often more
-// compact. (If large arrays are involved, they can be arbitrarily
-// more compact.)
-//
-// The cutoff must be large enough that any allocation large enough to
-// use a GC program is large enough that it does not share heap bitmap
-// bytes with any other objects, allowing the GC program execution to
-// assume an aligned start and not use atomic operations. In the current
-// runtime, this means all malloc size classes larger than the cutoff must
-// be multiples of four words. On 32-bit systems that's 16 bytes, and
-// all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
-// On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
-// for size classes >= 256 bytes. On a 64-bit system, 256 bytes allocated
-// is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
-// must be >= 4.
-//
-// We used to use 16 because the GC programs do have some constant overhead
-// to get started, and processing 128 pointers seems to be enough to
-// amortize that overhead well.
-//
-// To make sure that the runtime's chansend can call typeBitsBulkBarrier,
-// we raised the limit to 2048, so that even 32-bit systems are guaranteed to
-// use bitmaps for objects up to 64 kB in size.
-//
-// Also known to reflect/type.go.
-const maxPtrmaskBytes = 2048
-
 // GCSym returns a data symbol containing GC information for type t, along
 // with a boolean reporting whether the UseGCProg bit should be set in the
 // type kind, and the ptrdata field to record in the reflect type information.
@@ -1554,7 +1520,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 // When write is true, it writes the symbol data.
 func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
+	if ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
 		lsym = dgcptrmask(t, write)
 		return
 	}

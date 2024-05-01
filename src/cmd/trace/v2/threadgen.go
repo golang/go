@@ -17,6 +17,7 @@ type threadGenerator struct {
 	globalRangeGenerator
 	globalMetricGenerator
 	stackSampleGenerator[tracev2.ThreadID]
+	logEventGenerator[tracev2.ThreadID]
 
 	gStates map[tracev2.GoID]*gState[tracev2.ThreadID]
 	threads map[tracev2.ThreadID]struct{}
@@ -24,9 +25,11 @@ type threadGenerator struct {
 
 func newThreadGenerator() *threadGenerator {
 	tg := new(threadGenerator)
-	tg.stackSampleGenerator.getResource = func(ev *tracev2.Event) tracev2.ThreadID {
+	rg := func(ev *tracev2.Event) tracev2.ThreadID {
 		return ev.Thread()
 	}
+	tg.stackSampleGenerator.getResource = rg
+	tg.logEventGenerator.getResource = rg
 	tg.gStates = make(map[tracev2.GoID]*gState[tracev2.ThreadID])
 	tg.threads = make(map[tracev2.ThreadID]struct{})
 	return tg

@@ -530,13 +530,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
-		if ref != "" && ref != "HEAD" {
-			// If we do know the ref name, save the mapping locally
-			// so that (if it is a tag) it can show up in localTags
-			// on a future call. Also, some servers refuse to allow
-			// full hashes in ref specs, so prefer a ref name if known.
-			refspec = ref + ":" + ref
-		} else {
+		if ref == "HEAD" {
 			// Fetch the hash but give it a local name (refs/dummy),
 			// because that triggers the fetch behavior of creating any
 			// other known remote tags for the hash. We never use
@@ -544,13 +538,23 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			// overwritten in the next command, and that's fine.
 			ref = hash
 			refspec = hash + ":refs/dummy"
+		} else {
+			// If we do know the ref name, save the mapping locally
+			// so that (if it is a tag) it can show up in localTags
+			// on a future call. Also, some servers refuse to allow
+			// full hashes in ref specs, so prefer a ref name if known.
+			refspec = ref + ":" + ref
 		}
 
 		release, err := base.AcquireNet()
 		if err != nil {
 			return nil, err
 		}
-		_, err = Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+		// We explicitly set protocol.version=2 for this command to work around
+		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
+		// which causes the handler for protocol version 1 to sometimes miss
+		// tags that point to the requested commit (see https://go.dev/issue/56881).
+		_, err = Run(ctx, r.dir, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
 		release()
 
 		if err == nil {

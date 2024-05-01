@@ -510,19 +510,35 @@ func TestH12_HandlerWritesTooLittle(t *testing.T) {
 // doesn't make it possible to send bogus data. For those tests, see
 // transport_test.go (for HTTP/1) or x/net/http2/transport_test.go
 // (for HTTP/2).
-func TestH12_HandlerWritesTooMuch(t *testing.T) {
-	h12Compare{
-		Handler: func(w ResponseWriter, r *Request) {
-			w.Header().Set("Content-Length", "3")
-			w.(Flusher).Flush()
-			io.WriteString(w, "123")
-			w.(Flusher).Flush()
-			n, err := io.WriteString(w, "x") // too many
-			if n > 0 || err == nil {
-				t.Errorf("for proto %q, final write = %v, %v; want 0, some error", r.Proto, n, err)
-			}
-		},
-	}.run(t)
+func TestHandlerWritesTooMuch(t *testing.T) { run(t, testHandlerWritesTooMuch) }
+func testHandlerWritesTooMuch(t *testing.T, mode testMode) {
+	wantBody := []byte("123")
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		rc := NewResponseController(w)
+		w.Header().Set("Content-Length", fmt.Sprintf("%v", len(wantBody)))
+		rc.Flush()
+		w.Write(wantBody)
+		rc.Flush()
+		n, err := io.WriteString(w, "x") // too many
+		if err == nil {
+			err = rc.Flush()
+		}
+		// TODO: Check that this is ErrContentLength, not just any error.
+		if err == nil {
+			t.Errorf("for proto %q, final write = %v, %v; want _, some error", r.Proto, n, err)
+		}
+	}))
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	gotBody, _ := io.ReadAll(res.Body)
+	if !bytes.Equal(gotBody, wantBody) {
+		t.Fatalf("got response body: %q; want %q", gotBody, wantBody)
+	}
 }
 
 // Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.

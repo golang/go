@@ -23,6 +23,14 @@ go test testcache -run=TestLookupEnv
 go test testcache -run=TestLookupEnv
 stdout '\(cached\)'
 
+# GODEBUG is always read
+env GODEBUG=asdf=1
+go test testcache -run=TestLookupEnv
+! stdout '\(cached\)'
+go test testcache -run=TestLookupEnv
+stdout '\(cached\)'
+env GODEBUG=
+
 env TESTKEY=y
 go test testcache -run=TestLookupEnv
 ! stdout '\(cached\)'
@@ -113,6 +121,13 @@ go test testcache -run=TestOSArgs -failfast
 ! stdout '\(cached\)'
 go test testcache -run=TestOSArgs -failfast
 stdout '\(cached\)'
+
+# golang.org/issue/64638: that includes the `-fullpath` argument.
+go test testcache -run=TestOSArgs -fullpath
+! stdout '\(cached\)'
+go test testcache -run=TestOSArgs -fullpath
+stdout '\(cached\)'
+
 
 # Executables within GOROOT and GOPATH should affect caching,
 # even if the test does not stat them explicitly.

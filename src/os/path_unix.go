@@ -69,7 +69,3 @@ func splitPath(path string) (string, string) {
 
 	return dirname, basename
 }
-
-func volumeName(p string) string {
-	return ""
-}

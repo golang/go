@@ -849,10 +849,7 @@ func Benchmark(b *testing.B) {
 
 }
 
-const (
-	testUid = 10
-	testGid = 20
-)
+var _ fileInfoNames = fileInfoNames{}
 
 type fileInfoNames struct{}
 
@@ -880,39 +877,24 @@ func (f *fileInfoNames) Sys() any {
 	return nil
 }
 
-func (f *fileInfoNames) Uname(uid int) (string, error) {
-	if uid == testUid {
-		return "Uname", nil
-	}
-	return "", nil
+func (f *fileInfoNames) Uname() (string, error) {
+	return "Uname", nil
 }
 
-func (f *fileInfoNames) Gname(gid int) (string, error) {
-	if gid == testGid {
-		return "Gname", nil
-	}
-	return "", nil
+func (f *fileInfoNames) Gname() (string, error) {
+	return "Gname", nil
 }
 
 func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
-	origLoadUidAndGid := loadUidAndGid
-	defer func() {
-		loadUidAndGid = origLoadUidAndGid
-	}()
-	loadUidAndGid = func(fi fs.FileInfo, uid, gid *int) {
-		*uid = testUid
-		*gid = testGid
-	}
-
 	info := &fileInfoNames{}
 	header, err := FileInfoHeader(info, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if header.Uname != "Uname" {
-		t.Fatalf("header.Uname: got %v, want %v", header.Uname, "Uname")
+		t.Fatalf("header.Uname: got %s, want %s", header.Uname, "Uname")
 	}
 	if header.Gname != "Gname" {
-		t.Fatalf("header.Gname: got %v, want %v", header.Gname, "Gname")
+		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
 	}
 }

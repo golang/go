@@ -7,7 +7,7 @@ package inlheur
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/types"
 	"fmt"
 	"os"
@@ -590,7 +590,7 @@ func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
 
 // BudgetExpansion returns the amount to relax/expand the base
 // inlining budget when the new inliner is turned on; the inliner
-// will add the returned value to the hairyness budget.
+// will add the returned value to the hairiness budget.
 //
 // Background: with the new inliner, the score for a given callsite
 // can be adjusted down by some amount due to heuristics, however we
@@ -617,7 +617,7 @@ var allCallSites CallSiteTab
 // along with info on call site scoring and the adjustments made to a
 // given score. Here profile is the PGO profile in use (may be
 // nil), budgetCallback is a callback that can be invoked to find out
-// the original pre-adjustment hairyness limit for the function, and
+// the original pre-adjustment hairiness limit for the function, and
 // inlineHotMaxBudget is the constant of the same name used in the
 // inliner. Sample output lines:
 //
@@ -629,7 +629,7 @@ var allCallSites CallSiteTab
 //
 // In the dump above, "Score" is the final score calculated for the
 // callsite, "Adjustment" is the amount added to or subtracted from
-// the original hairyness estimate to form the score. "Status" shows
+// the original hairiness estimate to form the score. "Status" shows
 // whether anything changed with the site -- did the adjustment bump
 // it down just below the threshold ("PROMOTED") or instead bump it
 // above the threshold ("DEMOTED"); this will be blank ("---") if no
@@ -638,7 +638,7 @@ var allCallSites CallSiteTab
 // of the function called, "CallerPos" is the position of the
 // callsite, and "ScoreFlags" is a digest of the specific properties
 // we used to make adjustments to callsite score via heuristics.
-func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
+func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Func, profile *pgoir.Profile) (int32, bool)) {
 
 	var indirectlyDueToPromotion func(cs *CallSite) bool
 	indirectlyDueToPromotion = func(cs *CallSite) bool {

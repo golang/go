@@ -532,7 +532,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			c.Field("NCases").WriteInt(int64(len(interfaceCases)))
 			array, sizeDelta := c.Field("Cases").ModifyArray(len(interfaceCases))
 			for i, c := range interfaceCases {
-				array.Elem(i).WritePtr(reflectdata.TypeSym(c.typ.Type()).Linksym())
+				array.Elem(i).WritePtr(reflectdata.TypeLinksym(c.typ.Type()))
 			}
 			objw.Global(lsym, int32(rttype.InterfaceSwitch.Size()+sizeDelta), obj.LOCAL)
 			// The GC only needs to see the first pointer in the structure (all the others
@@ -700,7 +700,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	} else {
 		// runtime.itab's hash field
 		if itabHashField == nil {
-			itabHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+			itabHashField = runtimeField("hash", rttype.ITab.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = itabHashField
 	}

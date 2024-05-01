@@ -22,7 +22,7 @@ import (
 	"github.com/google/pprof/internal/report"
 )
 
-// stackView generates the new flamegraph view.
+// stackView generates the flamegraph view.
 func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
 	// Get all data in a report.
 	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {

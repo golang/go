@@ -13,6 +13,7 @@ import (
 	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
+	"strings"
 )
 
 /*
@@ -134,7 +135,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
+		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
 			x.mode = invalid
 			return
@@ -255,7 +256,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		// upon assignment or use.
 		if debug {
 			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
-			unreachable()
+			panic("unreachable")
 		}
 		return
 
@@ -301,7 +302,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) 
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// If the new type is not final and still untyped, just
@@ -524,7 +525,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
 		}
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	// comparison is ok
@@ -1016,6 +1017,35 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 }
 
+// langCompat reports an error if the representation of a numeric
+// literal is not compatible with the current language version.
+func (check *Checker) langCompat(lit *ast.BasicLit) {
+	s := lit.Value
+	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+		return
+	}
+	// len(s) > 2
+	if strings.Contains(s, "_") {
+		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+		return
+	}
+	if s[0] != '0' {
+		return
+	}
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
+		check.versionErrorf(lit, go1_13, "binary literal")
+		return
+	}
+	if radix == 'o' || radix == 'O' {
+		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+		return
+	}
+	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
+		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
+	}
+}
+
 // exprInternal contains the core of type checking of expressions.
 // Must only be called by rawExpr.
 // (See rawExpr for an explanation of the parameters.)
@@ -1092,7 +1122,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			x.mode = value
 			x.typ = sig
 		} else {
-			check.errorf(e, InvalidSyntaxTree, "invalid function literal %s", e)
+			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
 			goto Error
 		}
 
@@ -1164,9 +1194,14 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 						check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := fieldIndex(utyp.fields, check.pkg, key.Name)
+					i := fieldIndex(utyp.fields, check.pkg, key.Name, false)
 					if i < 0 {
-						check.errorf(kv, MissingLitField, "unknown field %s in struct literal of type %s", key.Name, base)
+						var alt Object
+						if j := fieldIndex(fields, check.pkg, key.Name, true); j >= 0 {
+							alt = fields[j]
+						}
+						msg := check.lookupError(base, key.Name, alt, true)
+						check.error(kv.Key, MissingLitField, msg)
 						continue
 					}
 					fld := fields[i]
@@ -1596,7 +1631,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			msg = "%s is not an expression"
 			code = NotAnExpr
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
 		x.mode = invalid

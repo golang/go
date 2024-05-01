@@ -45,7 +45,7 @@ func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, nf 
 	return analyzers
 }
 
-// makeParamAnalyzer creates a new helper object to analyze parameters
+// makeParamsAnalyzer creates a new helper object to analyze parameters
 // of function fn. If the function doesn't have any interesting
 // params, a nil helper is returned along with a set of default param
 // flags for the func.

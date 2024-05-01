@@ -200,6 +200,11 @@ func TestWriterFlush(t *testing.T) {
 	if n2 == n3 {
 		t.Fatal("Flush didn't flush any data")
 	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 // Multiple gzip files concatenated form a valid gzip file.

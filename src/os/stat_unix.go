@@ -10,8 +10,8 @@ import (
 	"syscall"
 )
 
-// Stat returns the FileInfo structure describing file.
-// If there is an error, it will be of type *PathError.
+// Stat returns the [FileInfo] structure describing file.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
@@ -19,7 +19,7 @@ func (f *File) Stat() (FileInfo, error) {
 	var fs fileStat
 	err := f.pfd.Fstat(&fs.sys)
 	if err != nil {
-		return nil, &PathError{Op: "stat", Path: f.name, Err: err}
+		return nil, f.wrapErr("stat", err)
 	}
 	fillFileStatFromSys(&fs, f.name)
 	return &fs, nil

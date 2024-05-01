@@ -264,7 +264,8 @@ func (s Stack) Frames(yield func(f StackFrame) bool) bool {
 		return true
 	}
 	stk := s.table.stacks.mustGet(s.id)
-	for _, f := range stk.frames {
+	for _, pc := range stk.pcs {
+		f := s.table.pcs[pc]
 		sf := StackFrame{
 			PC:   f.pc,
 			Func: s.table.strings.mustGet(f.funcID),
@@ -565,8 +566,12 @@ func (e Event) StateTransition() StateTransition {
 	case go122.EvProcStatus:
 		// N.B. ordering.advance populates e.base.extra.
 		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), go122ProcStatus2ProcState[e.base.args[1]])
-	case go122.EvGoCreate:
-		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoRunnable)
+	case go122.EvGoCreate, go122.EvGoCreateBlocked:
+		status := GoRunnable
+		if e.base.typ == go122.EvGoCreateBlocked {
+			status = GoWaiting
+		}
+		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, status)
 		s.Stack = Stack{table: e.table, id: stackID(e.base.args[1])}
 	case go122.EvGoCreateSyscall:
 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoSyscall)
@@ -585,7 +590,10 @@ func (e Event) StateTransition() StateTransition {
 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoUnblock:
+	case go122.EvGoUnblock, go122.EvGoSwitch, go122.EvGoSwitchDestroy:
+		// N.B. GoSwitch and GoSwitchDestroy both emit additional events, but
+		// the first thing they both do is unblock the goroutine they name,
+		// identically to an unblock event (even their arguments match).
 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
 	case go122.EvGoSyscallBegin:
 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
@@ -596,7 +604,7 @@ func (e Event) StateTransition() StateTransition {
 	case go122.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoStatus:
+	case go122.EvGoStatus, go122.EvGoStatusStack:
 		// N.B. ordering.advance populates e.base.extra.
 		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])
 	default:
@@ -645,6 +653,10 @@ var go122Type2Kind = [...]EventKind{
 	go122.EvUserRegionBegin:     EventRegionBegin,
 	go122.EvUserRegionEnd:       EventRegionEnd,
 	go122.EvUserLog:             EventLog,
+	go122.EvGoSwitch:            EventStateTransition,
+	go122.EvGoSwitchDestroy:     EventStateTransition,
+	go122.EvGoCreateBlocked:     EventStateTransition,
+	go122.EvGoStatusStack:       EventStateTransition,
 	evSync:                      EventSync,
 }
 

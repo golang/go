@@ -811,9 +811,7 @@ func (sr sparseFileReader) physicalRemaining() int64 {
 type zeroReader struct{}
 
 func (zeroReader) Read(b []byte) (int, error) {
-	for i := range b {
-		b[i] = 0
-	}
+	clear(b)
 	return len(b), nil
 }
 

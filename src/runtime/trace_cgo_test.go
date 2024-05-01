@@ -9,7 +9,6 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
-	"internal/goexperiment"
 	"internal/testenv"
 	"internal/trace"
 	tracev2 "internal/trace/v2"
@@ -60,25 +59,12 @@ func TestTraceUnwindCGO(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read trace: %s", err)
 		}
-		if goexperiment.ExecTracer2 {
-			for category := range logs {
-				event := mustFindLogV2(t, bytes.NewReader(traceData), category)
-				if wantEvent := logsV2[category]; wantEvent == nil {
-					logsV2[category] = &event
-				} else if got, want := dumpStackV2(&event), dumpStackV2(wantEvent); got != want {
-					t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
-				}
-			}
-		} else {
-			events := parseTrace(t, bytes.NewReader(traceData))
-
-			for category := range logs {
-				event := mustFindLog(t, events, category)
-				if wantEvent := logs[category]; wantEvent == nil {
-					logs[category] = event
-				} else if got, want := dumpStack(event), dumpStack(wantEvent); got != want {
-					t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
-				}
+		for category := range logs {
+			event := mustFindLogV2(t, bytes.NewReader(traceData), category)
+			if wantEvent := logsV2[category]; wantEvent == nil {
+				logsV2[category] = &event
+			} else if got, want := dumpStackV2(&event), dumpStackV2(wantEvent); got != want {
+				t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
 			}
 		}
 	}

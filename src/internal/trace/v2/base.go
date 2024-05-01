@@ -9,6 +9,7 @@ package trace
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"internal/trace/v2/event"
@@ -17,15 +18,23 @@ import (
 )
 
 // maxArgs is the maximum number of arguments for "plain" events,
-// i.e. anything that could reasonably be represented as a Base.
-const maxArgs = 5
+// i.e. anything that could reasonably be represented as a baseEvent.
+//
+// TODO(mknyszek): This is only 6 instead of 5 because GoStatusStack
+// has 5 arguments and needs to smuggle in a 6th. Figure out a way to
+// shrink this in the future.
+const maxArgs = 6
+
+// timedEventArgs is an array that is able to hold the arguments for any
+// timed event.
+type timedEventArgs [maxArgs - 1]uint64
 
 // baseEvent is the basic unprocessed event. This serves as a common
 // fundamental data structure across.
 type baseEvent struct {
 	typ  event.Type
 	time Time
-	args [maxArgs - 1]uint64
+	args timedEventArgs
 }
 
 // extra returns a slice representing extra available space in args
@@ -44,6 +53,7 @@ type evTable struct {
 	freq    frequency
 	strings dataTable[stringID, string]
 	stacks  dataTable[stackID, stack]
+	pcs     map[uint64]frame
 
 	// extraStrings are strings that get generated during
 	// parsing but haven't come directly from the trace, so
@@ -123,8 +133,12 @@ func (d *dataTable[EI, E]) compactify() {
 			minID = id
 		}
 	}
+	if maxID >= math.MaxInt {
+		// We can't create a slice big enough to hold maxID elements
+		return
+	}
 	// We're willing to waste at most 2x memory.
-	if int(maxID-minID) > 2*len(d.sparse) {
+	if int(maxID-minID) > max(len(d.sparse), 2*len(d.sparse)) {
 		return
 	}
 	if int(minID) > len(d.sparse) {
@@ -146,7 +160,7 @@ func (d *dataTable[EI, E]) get(id EI) (E, bool) {
 	if id == 0 {
 		return *new(E), true
 	}
-	if int(id) < len(d.dense) {
+	if uint64(id) < uint64(len(d.dense)) {
 		if d.present[id/8]&(uint8(1)<<(id%8)) != 0 {
 			return d.dense[id], true
 		}
@@ -236,12 +250,12 @@ func (s cpuSample) asEvent(table *evTable) Event {
 
 // stack represents a goroutine stack sample.
 type stack struct {
-	frames []frame
+	pcs []uint64
 }
 
 func (s stack) String() string {
 	var sb strings.Builder
-	for _, frame := range s.frames {
+	for _, frame := range s.pcs {
 		fmt.Fprintf(&sb, "\t%#v\n", frame)
 	}
 	return sb.String()

@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -86,6 +86,14 @@ func SetPendingDialHooks(before, after func()) {
 
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
+func SetTestHookProxyConnectTimeout(t *testing.T, f func(context.Context, time.Duration) (context.Context, context.CancelFunc)) {
+	orig := testHookProxyConnectTimeout
+	t.Cleanup(func() {
+		testHookProxyConnectTimeout = orig
+	})
+	testHookProxyConnectTimeout = f
+}
+
 func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 	return &timeoutHandler{
 		handler:     handler,
@@ -111,7 +119,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	for key := range t.idleConn {
 		keys = append(keys, key.String())
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return
 }
 
@@ -130,7 +138,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
 	}
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 
@@ -150,7 +158,7 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 		}
 	}
 
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 

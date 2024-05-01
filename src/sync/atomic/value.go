@@ -9,8 +9,8 @@ import (
 )
 
 // A Value provides an atomic load and store of a consistently typed value.
-// The zero value for a Value returns nil from Load.
-// Once Store has been called, a Value must not be copied.
+// The zero value for a Value returns nil from [Value.Load].
+// Once [Value.Store] has been called, a Value must not be copied.
 //
 // A Value must not be copied after first use.
 type Value struct {
@@ -41,7 +41,7 @@ func (v *Value) Load() (val any) {
 
 var firstStoreInProgress byte
 
-// Store sets the value of the Value v to val.
+// Store sets the value of the [Value] v to val.
 // All calls to Store for a given Value must use values of the same concrete type.
 // Store of an inconsistent type panics, as does Store(nil).
 func (v *Value) Store(val any) {
@@ -127,7 +127,7 @@ func (v *Value) Swap(new any) (old any) {
 	}
 }
 
-// CompareAndSwap executes the compare-and-swap operation for the Value.
+// CompareAndSwap executes the compare-and-swap operation for the [Value].
 //
 // All calls to CompareAndSwap for a given Value must use values of the same
 // concrete type. CompareAndSwap of an inconsistent type panics, as does

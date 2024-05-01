@@ -25,8 +25,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var goResolver = Resolver{PreferGo: true}
-
 // Test address from 192.0.2.0/24 block, reserved by RFC 5737 for documentation.
 var TestAddr = [4]byte{0xc0, 0x00, 0x02, 0x01}
 
@@ -89,6 +87,61 @@ func TestDNSTransportFallback(t *testing.T) {
 		}
 		if h.RCode != tt.rcode {
 			t.Errorf("got %v from %v; want %v", h.RCode, tt.server, tt.rcode)
+			continue
+		}
+	}
+}
+
+func TestDNSTransportNoFallbackOnTCP(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:        q.Header.ID,
+					Response:  true,
+					RCode:     dnsmessage.RCodeSuccess,
+					Truncated: true,
+				},
+				Questions: q.Questions,
+			}
+			if n == "tcp" {
+				r.Answers = []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:   q.Questions[0].Name,
+							Type:   dnsmessage.TypeA,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.AResource{
+							A: TestAddr,
+						},
+					},
+				}
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	for _, tt := range dnsTransportFallbackTests {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		p, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP, false)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if h.RCode != tt.rcode {
+			t.Errorf("got %v from %v; want %v", h.RCode, tt.server, tt.rcode)
+			continue
+		}
+		a, err := p.AllAnswers()
+		if err != nil {
+			t.Errorf("unexpected error %v getting all answers from %v", err, tt.server)
+			continue
+		}
+		if len(a) != 1 {
+			t.Errorf("got %d answers from %v; want 1", len(a), tt.server)
 			continue
 		}
 	}
@@ -748,13 +801,25 @@ func TestIgnoreLameReferrals(t *testing.T) {
 					},
 				}
 			}
+		} else if s == "192.0.2.1:53" {
+			if q.Questions[0].Type == dnsmessage.TypeA && strings.HasPrefix(q.Questions[0].Name.String(), "empty.com.") {
+				var edns0Hdr dnsmessage.ResourceHeader
+				edns0Hdr.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false)
+
+				r.Additionals = []dnsmessage.Resource{
+					{
+						Header: edns0Hdr,
+						Body:   &dnsmessage.OPTResource{},
+					},
+				}
+			}
 		}
 
 		return r, nil
 	}}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	addrs, err := r.LookupIPAddr(context.Background(), "www.golang.org")
+	addrs, err := r.LookupIP(context.Background(), "ip4", "www.golang.org")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -765,6 +830,15 @@ func TestIgnoreLameReferrals(t *testing.T) {
 
 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
 		t.Fatalf("got address %v, want %v", got, want)
+	}
+
+	_, err = r.LookupIP(context.Background(), "ip4", "empty.com")
+	de, ok := err.(*DNSError)
+	if !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	}
+	if de.Err != errNoSuchHost.Error() {
+		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
 	}
 }
 
@@ -1154,10 +1228,11 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeTimeout := func() error {
 		return &DNSError{
-			Err:       os.ErrDeadlineExceeded.Error(),
-			Name:      name,
-			Server:    server,
-			IsTimeout: true,
+			Err:         os.ErrDeadlineExceeded.Error(),
+			Name:        name,
+			Server:      server,
+			IsTimeout:   true,
+			IsTemporary: true,
 		}
 	}
 	makeNxDomain := func() error {
@@ -1410,10 +1485,11 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 		var wantRRs int
 		if strict {
 			wantErr = &DNSError{
-				Err:       os.ErrDeadlineExceeded.Error(),
-				Name:      name,
-				Server:    server,
-				IsTimeout: true,
+				Err:         os.ErrDeadlineExceeded.Error(),
+				Name:        name,
+				Server:      server,
+				IsTimeout:   true,
+				IsTemporary: true,
 			}
 		} else {
 			wantRRs = 1
@@ -1772,6 +1848,53 @@ func TestDNSUseTCP(t *testing.T) {
 	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly, false)
 	if err != nil {
 		t.Fatal("exchange failed:", err)
+	}
+}
+
+func TestDNSUseTCPTruncated(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:        q.Header.ID,
+					Response:  true,
+					RCode:     dnsmessage.RCodeSuccess,
+					Truncated: true,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:   q.Questions[0].Name,
+							Type:   dnsmessage.TypeA,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.AResource{
+							A: TestAddr,
+						},
+					},
+				},
+			}
+			if n == "udp" {
+				t.Fatal("udp protocol was used instead of tcp")
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly, false)
+	if err != nil {
+		t.Fatal("exchange failed:", err)
+	}
+	a, err := p.AllAnswers()
+	if err != nil {
+		t.Fatalf("unexpected error %v getting all answers", err)
+	}
+	if len(a) != 1 {
+		t.Fatalf("got %d answers; want 1", len(a))
 	}
 }
 

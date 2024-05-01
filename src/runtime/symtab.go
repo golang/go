@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -18,12 +18,15 @@ type Frames struct {
 	// callers is a slice of PCs that have not yet been expanded to frames.
 	callers []uintptr
 
+	// nextPC is a next PC to expand ahead of processing callers.
+	nextPC uintptr
+
 	// frames is a slice of Frames that have yet to be returned.
 	frames     []Frame
 	frameStore [2]Frame
 }
 
-// Frame is the information returned by Frames for each call frame.
+// Frame is the information returned by [Frames] for each call frame.
 type Frame struct {
 	// PC is the program counter for the location in this frame.
 	// For a frame that calls another frame, this will be the
@@ -79,15 +82,15 @@ func CallersFrames(callers []uintptr) *Frames {
 	return f
 }
 
-// Next returns a Frame representing the next call frame in the slice
+// Next returns a [Frame] representing the next call frame in the slice
 // of PC values. If it has already returned all call frames, Next
-// returns a zero Frame.
+// returns a zero [Frame].
 //
 // The more result indicates whether the next call to Next will return
-// a valid Frame. It does not necessarily indicate whether this call
+// a valid [Frame]. It does not necessarily indicate whether this call
 // returned one.
 //
-// See the Frames example for idiomatic usage.
+// See the [Frames] example for idiomatic usage.
 func (ci *Frames) Next() (frame Frame, more bool) {
 	for len(ci.frames) < 2 {
 		// Find the next frame.
@@ -96,8 +99,12 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		if len(ci.callers) == 0 {
 			break
 		}
-		pc := ci.callers[0]
-		ci.callers = ci.callers[1:]
+		var pc uintptr
+		if ci.nextPC != 0 {
+			pc, ci.nextPC = ci.nextPC, 0
+		} else {
+			pc, ci.callers = ci.callers[0], ci.callers[1:]
+		}
 		funcInfo := findfunc(pc)
 		if !funcInfo.valid() {
 			if cgoSymbolizer != nil {
@@ -125,6 +132,29 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 			// File/line from funcline1 below are already correct.
 			f = nil
+
+			// When CallersFrame is invoked using the PC list returned by Callers,
+			// the PC list includes virtual PCs corresponding to each outer frame
+			// around an innermost real inlined PC.
+			// We also want to support code passing in a PC list extracted from a
+			// stack trace, and there only the real PCs are printed, not the virtual ones.
+			// So check to see if the implied virtual PC for this PC (obtained from the
+			// unwinder itself) is the next PC in ci.callers. If not, insert it.
+			// The +1 here correspond to the pc-- above: the output of Callers
+			// and therefore the input to CallersFrames is return PCs from the stack;
+			// The pc-- backs up into the CALL instruction (not the first byte of the CALL
+			// instruction, but good enough to find it nonetheless).
+			// There are no cycles in implied virtual PCs (some number of frames were
+			// inlined, but that number is finite), so this unpacking cannot cause an infinite loop.
+			for unext := u.next(uf); unext.valid() && len(ci.callers) > 0 && ci.callers[0] != unext.pc+1; unext = u.next(unext) {
+				snext := u.srcFunc(unext)
+				if snext.funcID == abi.FuncIDWrapper && elideWrapperCalling(sf.funcID) {
+					// Skip, because tracebackPCs (inside runtime.Callers) would too.
+					continue
+				}
+				ci.nextPC = unext.pc + 1
+				break
+			}
 		}
 		ci.frames = append(ci.frames, Frame{
 			PC:        pc,
@@ -371,12 +401,11 @@ type moduledata struct {
 	modulehashes []modulehash
 
 	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+	bad     bool  // module failed to load and should be ignored
 
 	gcdatamask, gcbssmask bitvector
 
 	typemap map[typeOff]*_type // offset to *_rtype in previous module
-
-	bad bool // module failed to load and should be ignored
 
 	next *moduledata
 }
@@ -496,9 +525,6 @@ type textsect struct {
 	end      uintptr // vaddr + section length
 	baseaddr uintptr // relocated section address
 }
-
-const minfunc = 16                 // minimum function size
-const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
 
 // findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
@@ -781,8 +807,8 @@ func findfunc(pc uintptr) funcInfo {
 	}
 
 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
-	b := x / pcbucketsize
-	i := x % pcbucketsize / (pcbucketsize / nsub)
+	b := x / abi.FuncTabBucketSize
+	i := x % abi.FuncTabBucketSize / (abi.FuncTabBucketSize / nsub)
 
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])

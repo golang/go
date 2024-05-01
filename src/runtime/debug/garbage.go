@@ -63,9 +63,7 @@ func ReadGCStats(stats *GCStats) {
 
 	if len(stats.PauseQuantiles) > 0 {
 		if n == 0 {
-			for i := range stats.PauseQuantiles {
-				stats.PauseQuantiles[i] = 0
-			}
+			clear(stats.PauseQuantiles)
 		} else {
 			// There's room for a second copy of the data in stats.Pause.
 			// See the allocation at the top of the function.

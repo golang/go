@@ -7,6 +7,7 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"math/rand"
 	"strconv"
@@ -92,6 +93,22 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 func TestNewBuffer(t *testing.T) {
 	buf := NewBuffer(testBytes)
 	check(t, "NewBuffer", buf, testString)
+}
+
+var buf Buffer
+
+// Calling NewBuffer and immediately shallow copying the Buffer struct
+// should not result in any allocations.
+// This can be used to reset the underlying []byte of an existing Buffer.
+func TestNewBufferShallow(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	n := testing.AllocsPerRun(1000, func() {
+		buf = *NewBuffer(testBytes)
+	})
+	if n > 0 {
+		t.Errorf("allocations occurred while shallow copying")
+	}
+	check(t, "NewBuffer", &buf, testString)
 }
 
 func TestNewBufferString(t *testing.T) {

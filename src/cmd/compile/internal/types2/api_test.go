@@ -152,7 +152,7 @@ func TestValuesInfo(t *testing.T) {
 		// look for expression
 		var expr syntax.Expr
 		for e := range info.Types {
-			if syntax.String(e) == test.expr {
+			if ExprString(e) == test.expr {
 				expr = e
 				break
 			}
@@ -424,7 +424,7 @@ func TestTypesInfo(t *testing.T) {
 		// look for expression type
 		var typ Type
 		for e, tv := range info.Types {
-			if syntax.String(e) == test.expr {
+			if ExprString(e) == test.expr {
 				typ = tv.Type
 				break
 			}
@@ -1135,8 +1135,8 @@ func TestPredicatesInfo(t *testing.T) {
 		// look for expression predicates
 		got := "<missing>"
 		for e, tv := range info.Types {
-			//println(name, syntax.String(e))
-			if syntax.String(e) == test.expr {
+			//println(name, ExprString(e))
+			if ExprString(e) == test.expr {
 				got = predString(tv)
 				break
 			}
@@ -2195,6 +2195,12 @@ func TestIssue61737(t *testing.T) {
 	iface.NumMethods() // unlike go/types, there is no Complete() method, so we complete implicitly
 }
 
+func TestNewAlias_Issue65455(t *testing.T) {
+	obj := NewTypeName(nopos, nil, "A", nil)
+	alias := NewAlias(obj, Typ[Int])
+	alias.Underlying() // must not panic
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	f := mustParse(src)
@@ -2929,5 +2935,90 @@ func TestFileVersions(t *testing.T) {
 		if n != 1 {
 			t.Errorf("%q: incorrect number of map entries: got %d", src, n)
 		}
+	}
+}
+
+// TestTooNew ensures that "too new" errors are emitted when the file
+// or module is tagged with a newer version of Go than this go/types.
+func TestTooNew(t *testing.T) {
+	for _, test := range []struct {
+		goVersion   string // package's Go version (as if derived from go.mod file)
+		fileVersion string // file's Go version (becomes a build tag)
+		wantErr     string // expected substring of concatenation of all errors
+	}{
+		{"go1.98", "", "package requires newer Go version go1.98"},
+		{"", "go1.99", "p:2:9: file requires newer Go version go1.99"},
+		{"go1.98", "go1.99", "package requires newer Go version go1.98"}, // (two
+		{"go1.98", "go1.99", "file requires newer Go version go1.99"},    // errors)
+	} {
+		var src string
+		if test.fileVersion != "" {
+			src = "//go:build " + test.fileVersion + "\n"
+		}
+		src += "package p; func f()"
+
+		var errs []error
+		conf := Config{
+			GoVersion: test.goVersion,
+			Error:     func(err error) { errs = append(errs, err) },
+		}
+		info := &Info{Defs: make(map[*syntax.Name]Object)}
+		typecheck(src, &conf, info)
+		got := fmt.Sprint(errs)
+		if !strings.Contains(got, test.wantErr) {
+			t.Errorf("%q: unexpected error: got %q, want substring %q",
+				src, got, test.wantErr)
+		}
+
+		// Assert that declarations were type checked nonetheless.
+		var gotObjs []string
+		for id, obj := range info.Defs {
+			if obj != nil {
+				objStr := strings.ReplaceAll(fmt.Sprintf("%s:%T", id.Value, obj), "types2", "types")
+				gotObjs = append(gotObjs, objStr)
+			}
+		}
+		wantObjs := "f:*types.Func"
+		if !strings.Contains(fmt.Sprint(gotObjs), wantObjs) {
+			t.Errorf("%q: got %s, want substring %q",
+				src, gotObjs, wantObjs)
+		}
+	}
+}
+
+// This is a regression test for #66704.
+func TestUnaliasTooSoonInCycle(t *testing.T) {
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	const src = `package a
+
+var x T[B] // this appears to cause Unalias to be called on B while still Invalid
+
+type T[_ any] struct{}
+type A T[B]
+type B = T[A]
+`
+	pkg := mustTypecheck(src, nil, nil)
+	B := pkg.Scope().Lookup("B")
+
+	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
+	if got != want {
+		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+	}
+}
+
+func TestAlias_Rhs(t *testing.T) {
+	const src = `package p
+
+type A = B
+type B = C
+type C = int
+`
+
+	pkg := mustTypecheck(src, &Config{EnableAlias: true}, nil)
+	A := pkg.Scope().Lookup("A")
+
+	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
+	if got != want {
+		t.Errorf("A.Rhs = %s, want %s", got, want)
 	}
 }

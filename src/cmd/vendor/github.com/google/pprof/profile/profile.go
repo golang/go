@@ -145,6 +145,7 @@ type Location struct {
 type Line struct {
 	Function *Function
 	Line     int64
+	Column   int64
 
 	functionIDX uint64
 }
@@ -436,7 +437,7 @@ func (p *Profile) CheckValid() error {
 // Aggregate merges the locations in the profile into equivalence
 // classes preserving the request attributes. It also updates the
 // samples to point to the merged locations.
-func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address bool) error {
+func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, columnnumber, address bool) error {
 	for _, m := range p.Mapping {
 		m.HasInlineFrames = m.HasInlineFrames && inlineFrame
 		m.HasFunctions = m.HasFunctions && function
@@ -458,7 +459,7 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
 	}
 
 	// Aggregate locations
-	if !inlineFrame || !address || !linenumber {
+	if !inlineFrame || !address || !linenumber || !columnnumber {
 		for _, l := range p.Location {
 			if !inlineFrame && len(l.Line) > 1 {
 				l.Line = l.Line[len(l.Line)-1:]
@@ -466,6 +467,12 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
 			if !linenumber {
 				for i := range l.Line {
 					l.Line[i].Line = 0
+					l.Line[i].Column = 0
+				}
+			}
+			if !columnnumber {
+				for i := range l.Line {
+					l.Line[i].Column = 0
 				}
 			}
 			if !address {
@@ -627,10 +634,11 @@ func (l *Location) string() string {
 	for li := range l.Line {
 		lnStr := "??"
 		if fn := l.Line[li].Function; fn != nil {
-			lnStr = fmt.Sprintf("%s %s:%d s=%d",
+			lnStr = fmt.Sprintf("%s %s:%d:%d s=%d",
 				fn.Name,
 				fn.Filename,
 				l.Line[li].Line,
+				l.Line[li].Column,
 				fn.StartLine)
 			if fn.Name != fn.SystemName {
 				lnStr = lnStr + "(" + fn.SystemName + ")"

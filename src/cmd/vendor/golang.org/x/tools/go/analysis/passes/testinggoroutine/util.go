@@ -30,7 +30,7 @@ func localFunctionDecls(info *types.Info, files []*ast.File) func(*types.Func) *
 				}
 			}
 		}
-		// TODO: once we only support go1.19+, set f = f.Origin() here.
+		// TODO: set f = f.Origin() here.
 		return fnDecls[f]
 	}
 }
@@ -57,7 +57,7 @@ func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
 
 func funcIdent(fun ast.Expr) *ast.Ident {
 	switch fun := astutil.Unparen(fun).(type) {
-	case *ast.IndexExpr, *typeparams.IndexListExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		x, _, _, _ := typeparams.UnpackIndexExpr(fun) // necessary?
 		id, _ := x.(*ast.Ident)
 		return id

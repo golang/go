@@ -6,6 +6,7 @@ package filepath
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"os"
 	"runtime"
 	"sort"
@@ -307,7 +308,7 @@ func cleanGlobPath(path string) string {
 
 // cleanGlobPathWindows is windows version of cleanGlobPath.
 func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
-	vollen := volumeNameLen(path)
+	vollen := filepathlite.VolumeNameLen(path)
 	switch {
 	case path == "":
 		return 0, "."

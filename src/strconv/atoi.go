@@ -72,7 +72,7 @@ const IntSize = intSize
 
 const maxUint64 = 1<<64 - 1
 
-// ParseUint is like ParseInt but for unsigned numbers.
+// ParseUint is like [ParseInt] but for unsigned numbers.
 //
 // A sign prefix is not permitted.
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
@@ -190,11 +190,11 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // correspond to int, int8, int16, int32, and int64.
 // If bitSize is below 0 or above 64, an error is returned.
 //
-// The errors that ParseInt returns have concrete type *NumError
+// The errors that ParseInt returns have concrete type [*NumError]
 // and include err.Num = s. If s is empty or contains invalid
-// digits, err.Err = ErrSyntax and the returned value is 0;
+// digits, err.Err = [ErrSyntax] and the returned value is 0;
 // if the value corresponding to s cannot be represented by a
-// signed integer of the given size, err.Err = ErrRange and the
+// signed integer of the given size, err.Err = [ErrRange] and the
 // returned value is the maximum magnitude integer of the
 // appropriate bitSize and sign.
 //

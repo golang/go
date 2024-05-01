@@ -8,8 +8,10 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/asan"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
 	"runtime"
@@ -25,7 +27,7 @@ const InvalidHandle = ^Handle(0)
 // with a terminating NUL added. If s contains a NUL byte this
 // function panics instead of returning an error.
 //
-// Deprecated: Use UTF16FromString instead.
+// Deprecated: Use [UTF16FromString] instead.
 func StringToUTF16(s string) []uint16 {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -36,7 +38,7 @@ func StringToUTF16(s string) []uint16 {
 
 // UTF16FromString returns the UTF-16 encoding of the UTF-8 string
 // s, with a terminating NUL added. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL). Unpaired surrogates
+// location, it returns (nil, [EINVAL]). Unpaired surrogates
 // are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
@@ -102,7 +104,7 @@ func utf16PtrToString(p *uint16) string {
 // contains a NUL byte this function panics instead of
 // returning an error.
 //
-// Deprecated: Use UTF16PtrFromString instead.
+// Deprecated: Use [UTF16PtrFromString] instead.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // UTF16PtrFromString returns pointer to the UTF-16 encoding of
@@ -119,7 +121,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 
 // Errno is the Windows error number.
 //
-// Errno values can be tested against error values using errors.Is.
+// Errno values can be tested against error values using [errors.Is].
 // For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -231,7 +233,6 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
-//sys	rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) = ntdll.RtlGetNtVersionNumbers
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
@@ -446,11 +447,11 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
 		}
 		race.Acquire(unsafe.Pointer(&ioSync))
 	}
-	if msanenabled && *done > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }
@@ -463,11 +464,11 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error 
 	if race.Enabled && *done > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
 	}
-	if msanenabled && *done > 0 {
-		msanRead(unsafe.Pointer(&p[0]), int(*done))
+	if msan.Enabled && *done > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
-	if asanenabled && *done > 0 {
-		asanRead(unsafe.Pointer(&p[0]), int(*done))
+	if asan.Enabled && *done > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
 	}
 	return err
 }
@@ -768,7 +769,7 @@ const socket_error = uintptr(^uint32(0))
 //sys	WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) [failretval==-1] = ws2_32.WSAEnumProtocolsW
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type RawSockaddrInet4 struct {
@@ -1163,7 +1164,12 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
+func GetsockoptInt(fd Handle, level, opt int) (int, error) {
+	optval := int32(0)
+	optlen := int32(unsafe.Sizeof(optval))
+	err := Getsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&optval)), &optlen)
+	return int(optval), err
+}
 
 func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
 	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}
@@ -1261,7 +1267,7 @@ func Fchdir(fd Handle) (err error) {
 	if err != nil {
 		return err
 	}
-	// When using VOLUME_NAME_DOS, the path is always pefixed by "\\?\".
+	// When using VOLUME_NAME_DOS, the path is always prefixed by "\\?\".
 	// That prefix tells the Windows APIs to disable all string parsing and to send
 	// the string that follows it straight to the file system.
 	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,
@@ -1438,7 +1444,7 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 // decrementing until index 0 is enumerated.
 //
 // Successive calls to this API must happen on the same OS thread,
-// so call runtime.LockOSThread before calling this function.
+// so call [runtime.LockOSThread] before calling this function.
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
 }

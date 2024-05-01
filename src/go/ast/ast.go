@@ -1032,9 +1032,12 @@ func (*FuncDecl) declNode() {}
 // positions). A [CommentMap] may be used to facilitate some of these operations.
 //
 // Whether and how a comment is associated with a node depends on the
-// interpretation of the syntax tree by the manipulating program: Except for Doc
+// interpretation of the syntax tree by the manipulating program: except for Doc
 // and [Comment] comments directly associated with nodes, the remaining comments
-// are "free-floating" (see also issues #18593, #20744).
+// are "free-floating" (see also issues [#18593], [#20744]).
+//
+// [#18593]: https://go.dev/issue/18593
+// [#20744]: https://go.dev/issue/20744
 type File struct {
 	Doc     *CommentGroup // associated documentation; or nil
 	Package token.Pos     // position of "package" keyword
@@ -1080,7 +1083,7 @@ func (p *Package) End() token.Pos { return token.NoPos }
 // not handwritten, by detecting the special comment described
 // at https://go.dev/s/generatedcode.
 //
-// The syntax tree must have been parsed with the ParseComments flag.
+// The syntax tree must have been parsed with the [parser.ParseComments] flag.
 // Example:
 //
 //	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.PackageClauseOnly)

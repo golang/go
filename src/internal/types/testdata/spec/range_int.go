@@ -7,6 +7,12 @@
 
 package p
 
+// test framework assumes 64-bit int/uint sizes by default
+const (
+	maxInt  = 1<<63 - 1
+	maxUint = 1<<64 - 1
+)
+
 type MyInt int32
 
 func _() {
@@ -38,7 +44,7 @@ func _() {
 	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
 		_, _ = i, j
 	}
-	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */ = range MyInt(10) {
+	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of type MyInt) as int value in range clause" */ (10) {
 		_ = i
 	}
 	for mi := range MyInt(10) {
@@ -61,5 +67,65 @@ func _[T int | int64](x T) {
 
 func _[T ~int](x T) {
 	for range x { // ok
+	}
+}
+
+func issue65133() {
+	for range maxInt {
+	}
+	for range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
+	}
+	for range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
+	}
+
+	for i := range maxInt {
+		_ = i
+	}
+	for i := range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
+		_ = i
+	}
+	for i := range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
+		_ = i
+	}
+
+	var i int
+	_ = i
+	for i = range maxInt {
+	}
+	for i = range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
+	}
+	for i = range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
+	}
+
+	var j uint
+	_ = j
+	for j = range maxInt {
+	}
+	for j = range maxInt + 1 {
+	}
+	for j = range maxUint {
+	}
+	for j = range maxUint /* ERROR "cannot use maxUint + 1 (untyped int constant 18446744073709551616) as uint value in range clause (overflows)" */ + 1 {
+	}
+
+	for range 256 {
+	}
+	for _ = range 256 {
+	}
+	for i = range 256 {
+	}
+	for i := range 256 {
+		_ = i
+	}
+
+	var u8 uint8
+	_ = u8
+	for u8 = range - /* ERROR "cannot use -1 (untyped int constant) as uint8 value in range clause (overflows)" */ 1 {
+	}
+	for u8 = range 0 {
+	}
+	for u8 = range 255 {
+	}
+	for u8 = range 256 /* ERROR "cannot use 256 (untyped int constant) as uint8 value in range clause (overflows)" */ {
 	}
 }

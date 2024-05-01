@@ -612,9 +612,7 @@ func (fi headerFileInfo) String() string {
 }
 
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
-var sysStat func(fi fs.FileInfo, h *Header) error
-
-var loadUidAndGid func(fi fs.FileInfo, uid, gid *int)
+var sysStat func(fi fs.FileInfo, h *Header, doNameLookups bool) error
 
 const (
 	// Mode constants from the USTAR spec:
@@ -643,8 +641,8 @@ const (
 // to provide the full path name of the file.
 //
 // If fi implements [FileInfoNames]
-// the Gname and Uname of the header are
-// provided by the methods of the interface.
+// Header.Gname and Header.Uname
+// are provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -717,36 +715,34 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 			}
 		}
 	}
+	var doNameLookups = true
 	if iface, ok := fi.(FileInfoNames); ok {
+		doNameLookups = false
 		var err error
-		if loadUidAndGid != nil {
-			loadUidAndGid(fi, &h.Uid, &h.Gid)
-		}
-		h.Gname, err = iface.Gname(h.Gid)
+		h.Gname, err = iface.Gname()
 		if err != nil {
 			return nil, err
 		}
-		h.Uname, err = iface.Uname(h.Uid)
+		h.Uname, err = iface.Uname()
 		if err != nil {
 			return nil, err
 		}
-		return h, nil
 	}
 	if sysStat != nil {
-		return h, sysStat(fi, h)
+		return h, sysStat(fi, h, doNameLookups)
 	}
 	return h, nil
 }
 
-// FileInfoNames extends [FileInfo] to translate UID/GID to names.
+// FileInfoNames extends [fs.FileInfo].
 // Passing an instance of this to [FileInfoHeader] permits the caller
-// to control UID/GID resolution.
+// to avoid a system-dependent name lookup by specifying the Uname and Gname directly.
 type FileInfoNames interface {
 	fs.FileInfo
-	// Uname should translate a UID into a user name.
-	Uname(uid int) (string, error)
-	// Gname should translate a GID into a group name.
-	Gname(gid int) (string, error)
+	// Uname should give a user name.
+	Uname() (string, error)
+	// Gname should give a group name.
+	Gname() (string, error)
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no

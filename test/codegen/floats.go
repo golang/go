@@ -156,3 +156,74 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
 	b = a
 	return
 }
+
+// ---------------- //
+//  Float Min/Max   //
+// ---------------- //
+
+func Float64Min(a, b float64) float64 {
+	// amd64:"MINSD"
+	// arm64:"FMIND"
+	// riscv64:"FMIN"
+	// ppc64/power9:"XSMINJDP"
+	// ppc64/power10:"XSMINJDP"
+	return min(a, b)
+}
+
+func Float64Max(a, b float64) float64 {
+	// amd64:"MINSD"
+	// arm64:"FMAXD"
+	// riscv64:"FMAX"
+	// ppc64/power9:"XSMAXJDP"
+	// ppc64/power10:"XSMAXJDP"
+	return max(a, b)
+}
+
+func Float32Min(a, b float32) float32 {
+	// amd64:"MINSS"
+	// arm64:"FMINS"
+	// riscv64:"FMINS"
+	// ppc64/power9:"XSMINJDP"
+	// ppc64/power10:"XSMINJDP"
+	return min(a, b)
+}
+
+func Float32Max(a, b float32) float32 {
+	// amd64:"MINSS"
+	// arm64:"FMAXS"
+	// riscv64:"FMAXS"
+	// ppc64/power9:"XSMAXJDP"
+	// ppc64/power10:"XSMAXJDP"
+	return max(a, b)
+}
+
+// ------------------------ //
+//  Constant Optimizations  //
+// ------------------------ //
+
+func Float32Constant() float32 {
+	// ppc64x/power8:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
+	// ppc64x/power9:"FMOVS\t[$]f32\\.42440000\\(SB\\)"
+	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
+	return 49.0
+}
+
+func Float64Constant() float64 {
+	// ppc64x/power8:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
+	// ppc64x/power9:"FMOVD\t[$]f64\\.4048800000000000\\(SB\\)"
+	// ppc64x/power10:"XXSPLTIDP\t[$]1111752704,"
+	return 49.0
+}
+
+func Float32DenormalConstant() float32 {
+	// ppc64x:"FMOVS\t[$]f32\\.00400000\\(SB\\)"
+	return 0x1p-127
+}
+
+// A float64 constant which can be exactly represented as a
+// denormal float32 value. On ppc64x, denormal values cannot
+// be used with XXSPLTIDP.
+func Float64DenormalFloat32Constant() float64 {
+	// ppc64x:"FMOVD\t[$]f64\\.3800000000000000\\(SB\\)"
+	return 0x1p-127
+}

@@ -6,6 +6,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -146,6 +147,19 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "a\rb", Value: "v"},
 		``,
 	},
+	// Quoted values (issue #46443)
+	{
+		&Cookie{Name: "cookie", Value: "quoted", Quoted: true},
+		`cookie="quoted"`,
+	},
+	{
+		&Cookie{Name: "cookie", Value: "quoted with spaces", Quoted: true},
+		`cookie="quoted with spaces"`,
+	},
+	{
+		&Cookie{Name: "cookie", Value: "quoted,with,commas", Quoted: true},
+		`cookie="quoted,with,commas"`,
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
@@ -156,7 +170,6 @@ func TestWriteSetCookies(t *testing.T) {
 	for i, tt := range writeSetCookiesTests {
 		if g, e := tt.Cookie.String(), tt.Raw; g != e {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
-			continue
 		}
 	}
 
@@ -214,6 +227,15 @@ var addCookieTests = []struct {
 		},
 		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
 	},
+	// Quoted values (issue #46443)
+	{
+		[]*Cookie{
+			{Name: "cookie-1", Value: "quoted", Quoted: true},
+			{Name: "cookie-2", Value: "quoted with spaces", Quoted: true},
+			{Name: "cookie-3", Value: "quoted,with,commas", Quoted: true},
+		},
+		`cookie-1="quoted"; cookie-2="quoted with spaces"; cookie-3="quoted,with,commas"`,
+	},
 }
 
 func TestAddCookie(t *testing.T) {
@@ -224,7 +246,6 @@ func TestAddCookie(t *testing.T) {
 		}
 		if g := req.Header.Get("Cookie"); g != tt.Raw {
 			t.Errorf("Test %d:\nwant: %s\n got: %s\n", i, tt.Raw, g)
-			continue
 		}
 	}
 }
@@ -325,15 +346,15 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-2=" z"`}},
-		[]*Cookie{{Name: "special-2", Value: " z", Raw: `special-2=" z"`}},
+		[]*Cookie{{Name: "special-2", Value: " z", Quoted: true, Raw: `special-2=" z"`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-3="a "`}},
-		[]*Cookie{{Name: "special-3", Value: "a ", Raw: `special-3="a "`}},
+		[]*Cookie{{Name: "special-3", Value: "a ", Quoted: true, Raw: `special-3="a "`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-4=" "`}},
-		[]*Cookie{{Name: "special-4", Value: " ", Raw: `special-4=" "`}},
+		[]*Cookie{{Name: "special-4", Value: " ", Quoted: true, Raw: `special-4=" "`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-5=a,z`}},
@@ -341,7 +362,7 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-6=",z"`}},
-		[]*Cookie{{Name: "special-6", Value: ",z", Raw: `special-6=",z"`}},
+		[]*Cookie{{Name: "special-6", Value: ",z", Quoted: true, Raw: `special-6=",z"`}},
 	},
 	{
 		Header{"Set-Cookie": {`special-7=a,`}},
@@ -349,13 +370,18 @@ var readSetCookiesTests = []struct {
 	},
 	{
 		Header{"Set-Cookie": {`special-8=","`}},
-		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
+		[]*Cookie{{Name: "special-8", Value: ",", Quoted: true, Raw: `special-8=","`}},
 	},
 	// Make sure we can properly read back the Set-Cookie headers
 	// for names containing spaces:
 	{
 		Header{"Set-Cookie": {`special-9 =","`}},
-		[]*Cookie{{Name: "special-9", Value: ",", Raw: `special-9 =","`}},
+		[]*Cookie{{Name: "special-9", Value: ",", Quoted: true, Raw: `special-9 =","`}},
+	},
+	// Quoted values (issue #46443)
+	{
+		Header{"Set-Cookie": {`cookie="quoted"`}},
+		[]*Cookie{{Name: "cookie", Value: "quoted", Quoted: true, Raw: `cookie="quoted"`}},
 	},
 
 	// TODO(bradfitz): users have reported seeing this in the
@@ -379,7 +405,6 @@ func TestReadSetCookies(t *testing.T) {
 			c := readSetCookies(tt.Header)
 			if !reflect.DeepEqual(c, tt.Cookies) {
 				t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
-				continue
 			}
 		}
 	}
@@ -424,15 +449,15 @@ var readCookiesTests = []struct {
 		Header{"Cookie": {`Cookie-1="v$1"; c2="v2"`}},
 		"",
 		[]*Cookie{
-			{Name: "Cookie-1", Value: "v$1"},
-			{Name: "c2", Value: "v2"},
+			{Name: "Cookie-1", Value: "v$1", Quoted: true},
+			{Name: "c2", Value: "v2", Quoted: true},
 		},
 	},
 	{
 		Header{"Cookie": {`Cookie-1="v$1"; c2=v2;`}},
 		"",
 		[]*Cookie{
-			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "Cookie-1", Value: "v$1", Quoted: true},
 			{Name: "c2", Value: "v2"},
 		},
 	},
@@ -449,7 +474,6 @@ func TestReadCookies(t *testing.T) {
 			c := readCookies(tt.Header, tt.Filter)
 			if !reflect.DeepEqual(c, tt.Cookies) {
 				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))
-				continue
 			}
 		}
 	}
@@ -485,23 +509,26 @@ func TestCookieSanitizeValue(t *testing.T) {
 	log.SetOutput(&logbuf)
 
 	tests := []struct {
-		in, want string
+		in     string
+		quoted bool
+		want   string
 	}{
-		{"foo", "foo"},
-		{"foo;bar", "foobar"},
-		{"foo\\bar", "foobar"},
-		{"foo\"bar", "foobar"},
-		{"\x00\x7e\x7f\x80", "\x7e"},
-		{`"withquotes"`, "withquotes"},
-		{"a z", `"a z"`},
-		{" z", `" z"`},
-		{"a ", `"a "`},
-		{"a,z", `"a,z"`},
-		{",z", `",z"`},
-		{"a,", `"a,"`},
+		{"foo", false, "foo"},
+		{"foo;bar", false, "foobar"},
+		{"foo\\bar", false, "foobar"},
+		{"foo\"bar", false, "foobar"},
+		{"\x00\x7e\x7f\x80", false, "\x7e"},
+		{`withquotes`, true, `"withquotes"`},
+		{`"withquotes"`, true, `"withquotes"`}, // double quotes are not valid octets
+		{"a z", false, `"a z"`},
+		{" z", false, `" z"`},
+		{"a ", false, `"a "`},
+		{"a,z", false, `"a,z"`},
+		{",z", false, `",z"`},
+		{"a,", false, `"a,"`},
 	}
 	for _, tt := range tests {
-		if got := sanitizeCookieValue(tt.in); got != tt.want {
+		if got := sanitizeCookieValue(tt.in, tt.quoted); got != tt.want {
 			t.Errorf("sanitizeCookieValue(%q) = %q; want %q", tt.in, got, tt.want)
 		}
 	}
@@ -648,5 +675,214 @@ func BenchmarkReadCookies(b *testing.B) {
 	}
 	if !reflect.DeepEqual(c, wantCookies) {
 		b.Fatalf("readCookies:\nhave: %s\nwant: %s\n", toJSON(c), toJSON(wantCookies))
+	}
+}
+
+func TestParseCookie(t *testing.T) {
+	tests := []struct {
+		line    string
+		cookies []*Cookie
+		err     error
+	}{
+		{
+			line:    "Cookie-1=v$1",
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}},
+		},
+		{
+			line:    "Cookie-1=v$1;c2=v2",
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1"}, {Name: "c2", Value: "v2"}},
+		},
+		{
+			line:    `Cookie-1="v$1";c2="v2"`,
+			cookies: []*Cookie{{Name: "Cookie-1", Value: "v$1", Quoted: true}, {Name: "c2", Value: "v2", Quoted: true}},
+		},
+		{
+			line:    "k1=",
+			cookies: []*Cookie{{Name: "k1", Value: ""}},
+		},
+		{
+			line: "",
+			err:  errBlankCookie,
+		},
+		{
+			line: "equal-not-found",
+			err:  errEqualNotFoundInCookie,
+		},
+		{
+			line: "=v1",
+			err:  errInvalidCookieName,
+		},
+		{
+			line: "k1=\\",
+			err:  errInvalidCookieValue,
+		},
+	}
+	for i, tt := range tests {
+		gotCookies, gotErr := ParseCookie(tt.line)
+		if !errors.Is(gotErr, tt.err) {
+			t.Errorf("#%d ParseCookie got error %v, want error %v", i, gotErr, tt.err)
+		}
+		if !reflect.DeepEqual(gotCookies, tt.cookies) {
+			t.Errorf("#%d ParseCookie:\ngot cookies: %s\nwant cookies: %s\n", i, toJSON(gotCookies), toJSON(tt.cookies))
+		}
+	}
+}
+
+func TestParseSetCookie(t *testing.T) {
+	tests := []struct {
+		line   string
+		cookie *Cookie
+		err    error
+	}{
+		{
+			line:   "Cookie-1=v$1",
+			cookie: &Cookie{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"},
+		},
+		{
+			line: "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+			cookie: &Cookie{
+				Name:       "NID",
+				Value:      "99=YsDT5i3E-CXax-",
+				Path:       "/",
+				Domain:     ".google.ch",
+				HttpOnly:   true,
+				Expires:    time.Date(2011, 11, 23, 1, 5, 3, 0, time.UTC),
+				RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
+				Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+			},
+		},
+		{
+			line: ".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly",
+			cookie: &Cookie{
+				Name:       ".ASPXAUTH",
+				Value:      "7E3AA",
+				Path:       "/",
+				Expires:    time.Date(2012, 3, 7, 14, 25, 6, 0, time.UTC),
+				RawExpires: "Wed, 07-Mar-2012 14:25:06 GMT",
+				HttpOnly:   true,
+				Raw:        ".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly",
+			},
+		},
+		{
+			line: "ASP.NET_SessionId=foo; path=/; HttpOnly",
+			cookie: &Cookie{
+				Name:     "ASP.NET_SessionId",
+				Value:    "foo",
+				Path:     "/",
+				HttpOnly: true,
+				Raw:      "ASP.NET_SessionId=foo; path=/; HttpOnly",
+			},
+		},
+		{
+			line: "samesitedefault=foo; SameSite",
+			cookie: &Cookie{
+				Name:     "samesitedefault",
+				Value:    "foo",
+				SameSite: SameSiteDefaultMode,
+				Raw:      "samesitedefault=foo; SameSite",
+			},
+		},
+		{
+			line: "samesiteinvalidisdefault=foo; SameSite=invalid",
+			cookie: &Cookie{
+				Name:     "samesiteinvalidisdefault",
+				Value:    "foo",
+				SameSite: SameSiteDefaultMode,
+				Raw:      "samesiteinvalidisdefault=foo; SameSite=invalid",
+			},
+		},
+		{
+			line: "samesitelax=foo; SameSite=Lax",
+			cookie: &Cookie{
+				Name:     "samesitelax",
+				Value:    "foo",
+				SameSite: SameSiteLaxMode,
+				Raw:      "samesitelax=foo; SameSite=Lax",
+			},
+		},
+		{
+			line: "samesitestrict=foo; SameSite=Strict",
+			cookie: &Cookie{
+				Name:     "samesitestrict",
+				Value:    "foo",
+				SameSite: SameSiteStrictMode,
+				Raw:      "samesitestrict=foo; SameSite=Strict",
+			},
+		},
+		{
+			line: "samesitenone=foo; SameSite=None",
+			cookie: &Cookie{
+				Name:     "samesitenone",
+				Value:    "foo",
+				SameSite: SameSiteNoneMode,
+				Raw:      "samesitenone=foo; SameSite=None",
+			},
+		},
+		// Make sure we can properly read back the Set-Cookie headers we create
+		// for values containing spaces or commas:
+		{
+			line:   `special-1=a z`,
+			cookie: &Cookie{Name: "special-1", Value: "a z", Raw: `special-1=a z`},
+		},
+		{
+			line:   `special-2=" z"`,
+			cookie: &Cookie{Name: "special-2", Value: " z", Quoted: true, Raw: `special-2=" z"`},
+		},
+		{
+			line:   `special-3="a "`,
+			cookie: &Cookie{Name: "special-3", Value: "a ", Quoted: true, Raw: `special-3="a "`},
+		},
+		{
+			line:   `special-4=" "`,
+			cookie: &Cookie{Name: "special-4", Value: " ", Quoted: true, Raw: `special-4=" "`},
+		},
+		{
+			line:   `special-5=a,z`,
+			cookie: &Cookie{Name: "special-5", Value: "a,z", Raw: `special-5=a,z`},
+		},
+		{
+			line:   `special-6=",z"`,
+			cookie: &Cookie{Name: "special-6", Value: ",z", Quoted: true, Raw: `special-6=",z"`},
+		},
+		{
+			line:   `special-7=a,`,
+			cookie: &Cookie{Name: "special-7", Value: "a,", Raw: `special-7=a,`},
+		},
+		{
+			line:   `special-8=","`,
+			cookie: &Cookie{Name: "special-8", Value: ",", Quoted: true, Raw: `special-8=","`},
+		},
+		// Make sure we can properly read back the Set-Cookie headers
+		// for names containing spaces:
+		{
+			line:   `special-9 =","`,
+			cookie: &Cookie{Name: "special-9", Value: ",", Quoted: true, Raw: `special-9 =","`},
+		},
+		{
+			line: "",
+			err:  errBlankCookie,
+		},
+		{
+			line: "equal-not-found",
+			err:  errEqualNotFoundInCookie,
+		},
+		{
+			line: "=v1",
+			err:  errInvalidCookieName,
+		},
+		{
+			line: "k1=\\",
+			err:  errInvalidCookieValue,
+		},
+	}
+	for i, tt := range tests {
+		gotCookie, gotErr := ParseSetCookie(tt.line)
+		if !errors.Is(gotErr, tt.err) {
+			t.Errorf("#%d ParseSetCookie got error %v, want error %v", i, gotErr, tt.err)
+			continue
+		}
+		if !reflect.DeepEqual(gotCookie, tt.cookie) {
+			t.Errorf("#%d ParseSetCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
+		}
 	}
 }

@@ -201,6 +201,8 @@ func TestCanceledTimeout(t *testing.T) {
 type key1 int
 type key2 int
 
+func (k key2) String() string { return fmt.Sprintf("%[1]T(%[1]d)", k) }
+
 var k1 = key1(1)
 var k2 = key2(1) // same int as k1, different type
 var k3 = key2(3) // same type as k2, different int
@@ -224,12 +226,16 @@ func TestValues(t *testing.T) {
 	c1 := WithValue(Background(), k1, "c1k1")
 	check(c1, "c1", "c1k1", "", "")
 
-	if got, want := fmt.Sprint(c1), `context.Background.WithValue(type context_test.key1, val c1k1)`; got != want {
+	if got, want := fmt.Sprint(c1), `context.Background.WithValue(context_test.key1, c1k1)`; got != want {
 		t.Errorf("c.String() = %q want %q", got, want)
 	}
 
 	c2 := WithValue(c1, k2, "c2k2")
 	check(c2, "c2", "c1k1", "c2k2", "")
+
+	if got, want := fmt.Sprint(c2), `context.Background.WithValue(context_test.key1, c1k1).WithValue(context_test.key2(1), c2k2)`; got != want {
+		t.Errorf("c.String() = %q want %q", got, want)
+	}
 
 	c3 := WithValue(c2, k3, "c3k3")
 	check(c3, "c2", "c1k1", "c2k2", "c3k3")
@@ -1058,7 +1064,7 @@ func TestAfterFuncNotCalledAfterStop(t *testing.T) {
 	}
 }
 
-// This test verifies that cancelling a context does not block waiting for AfterFuncs to finish.
+// This test verifies that canceling a context does not block waiting for AfterFuncs to finish.
 func TestAfterFuncCalledAsynchronously(t *testing.T) {
 	ctx, cancel := WithCancel(Background())
 	donec := make(chan struct{})

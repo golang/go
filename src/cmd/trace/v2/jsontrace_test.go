@@ -167,8 +167,8 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
 	if netBlockEv == nil {
 		t.Error("failed to find a network unblock")
 	}
-	if count == 0 || count > 2 {
-		t.Errorf("found too many network block events: want 1 or 2, found %d", count)
+	if count == 0 {
+		t.Errorf("found zero network block events, want at least one")
 	}
 	// TODO(mknyszek): Check for the flow of this event to some slice event of a goroutine running.
 }
@@ -283,7 +283,7 @@ func getTestTrace(t *testing.T, testPath string) *parsedTrace {
 	}
 
 	// Parse the test trace.
-	parsed, err := parseTrace(&trace)
+	parsed, err := parseTrace(&trace, int64(trace.Len()))
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}

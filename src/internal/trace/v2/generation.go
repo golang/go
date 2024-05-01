@@ -43,7 +43,9 @@ type spilledBatch struct {
 // batch read of the next generation, if any.
 func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
 	g := &generation{
-		evTable: new(evTable),
+		evTable: &evTable{
+			pcs: make(map[uint64]frame),
+		},
 		batches: make(map[ThreadID][]batch),
 	}
 	// Process the spilled batch.
@@ -106,7 +108,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	g.strings.compactify()
 
 	// Validate stacks.
-	if err := validateStackStrings(&g.stacks, &g.strings); err != nil {
+	if err := validateStackStrings(&g.stacks, &g.strings, g.pcs); err != nil {
 		return nil, nil, err
 	}
 
@@ -130,7 +132,7 @@ func processBatch(g *generation, b batch) error {
 			return err
 		}
 	case b.isStacksBatch():
-		if err := addStacks(&g.stacks, b); err != nil {
+		if err := addStacks(&g.stacks, g.pcs, b); err != nil {
 			return err
 		}
 	case b.isCPUSamplesBatch():
@@ -156,11 +158,20 @@ func processBatch(g *generation, b batch) error {
 
 // validateStackStrings makes sure all the string references in
 // the stack table are present in the string table.
-func validateStackStrings(stacks *dataTable[stackID, stack], strings *dataTable[stringID, string]) error {
+func validateStackStrings(
+	stacks *dataTable[stackID, stack],
+	strings *dataTable[stringID, string],
+	frames map[uint64]frame,
+) error {
 	var err error
 	stacks.forEach(func(id stackID, stk stack) bool {
-		for _, frame := range stk.frames {
-			_, ok := strings.get(frame.funcID)
+		for _, pc := range stk.pcs {
+			frame, ok := frames[pc]
+			if !ok {
+				err = fmt.Errorf("found unknown pc %x for stack %d", pc, id)
+				return false
+			}
+			_, ok = strings.get(frame.funcID)
 			if !ok {
 				err = fmt.Errorf("found invalid func string ID %d for stack %d", frame.funcID, id)
 				return false
@@ -237,7 +248,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 // addStacks takes a batch whose first byte is an EvStacks event
 // (indicating that the batch contains only stacks) and adds each
 // string contained therein to the provided stacks map.
-func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
+func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b batch) error {
 	if !b.isStacksBatch() {
 		return fmt.Errorf("internal error: addStacks called on non-stacks batch")
 	}
@@ -273,7 +284,7 @@ func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
 		}
 
 		// Each frame consists of 4 fields: pc, funcID (string), fileID (string), line.
-		frames := make([]frame, 0, nFrames)
+		frames := make([]uint64, 0, nFrames)
 		for i := uint64(0); i < nFrames; i++ {
 			// Read the frame data.
 			pc, err := binary.ReadUvarint(r)
@@ -292,16 +303,20 @@ func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
 			if err != nil {
 				return fmt.Errorf("reading frame %d's line for stack %d: %w", i+1, id, err)
 			}
-			frames = append(frames, frame{
-				pc:     pc,
-				funcID: stringID(funcID),
-				fileID: stringID(fileID),
-				line:   line,
-			})
+			frames = append(frames, pc)
+
+			if _, ok := pcs[pc]; !ok {
+				pcs[pc] = frame{
+					pc:     pc,
+					funcID: stringID(funcID),
+					fileID: stringID(fileID),
+					line:   line,
+				}
+			}
 		}
 
 		// Add the stack to the map.
-		if err := stackTable.insert(stackID(id), stack{frames: frames}); err != nil {
+		if err := stackTable.insert(stackID(id), stack{pcs: frames}); err != nil {
 			return err
 		}
 	}
@@ -313,7 +328,7 @@ func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
 // sample contained therein to the provided samples list.
 func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	if !b.isCPUSamplesBatch() {
-		return nil, fmt.Errorf("internal error: addStrings called on non-string batch")
+		return nil, fmt.Errorf("internal error: addCPUSamples called on non-CPU-sample batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.

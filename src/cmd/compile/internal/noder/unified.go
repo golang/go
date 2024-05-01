@@ -15,7 +15,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -27,7 +27,7 @@ import (
 // later.
 var localPkgReader *pkgReader
 
-// LookupMethodFunc returns the ir.Func for an arbitrary full symbol name if
+// LookupFunc returns the ir.Func for an arbitrary full symbol name if
 // that function exists in the set of available export data.
 //
 // This allows lookup of arbitrary functions and methods that aren't otherwise
@@ -80,7 +80,11 @@ func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
 		return nil, fmt.Errorf("func sym %v missing objReader", sym)
 	}
 
-	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", sym, err)
+	}
+	name := node.(*ir.Name)
 	if name.Op() != ir.ONAME || name.Class != ir.PFUNC {
 		return nil, fmt.Errorf("func sym %v refers to non-function name: %v", sym, name)
 	}
@@ -105,12 +109,19 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 		return nil, fmt.Errorf("type sym %v missing objReader", typ)
 	}
 
-	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", typ, err)
+	}
+	name := node.(*ir.Name)
 	if name.Op() != ir.OTYPE {
 		return nil, fmt.Errorf("type sym %v refers to non-type name: %v", typ, name)
 	}
 	if name.Alias() {
 		return nil, fmt.Errorf("type sym %v refers to alias", typ)
+	}
+	if name.Type().IsInterface() {
+		return nil, fmt.Errorf("type sym %v refers to interface type", typ)
 	}
 
 	for _, m := range name.Type().Methods() {
@@ -167,7 +178,7 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
-	pgo.LookupFunc = LookupFunc
+	pgoir.LookupFunc = LookupFunc
 
 	data := writePkgStub(m, noders)
 

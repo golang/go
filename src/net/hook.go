@@ -6,7 +6,6 @@ package net
 
 import (
 	"context"
-	"time"
 )
 
 var (
@@ -21,7 +20,8 @@ var (
 	) ([]IPAddr, error) {
 		return fn(ctx, network, host)
 	}
-	testHookSetKeepAlive = func(time.Duration) {}
+	testPreHookSetKeepAlive = func(*netFD) {}
+	testHookSetKeepAlive    = func(KeepAliveConfig) {}
 
 	// testHookStepTime sleeps until time has moved forward by a nonzero amount.
 	// This helps to avoid flakes in timeout tests by ensuring that an implausibly

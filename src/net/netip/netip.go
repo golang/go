@@ -16,9 +16,9 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"unique"
 
 	"internal/bytealg"
-	"internal/intern"
 	"internal/itoa"
 )
 
@@ -53,22 +53,22 @@ type Addr struct {
 	// bytewise processing.
 	addr uint128
 
-	// z is a combination of the address family and the IPv6 zone.
-	//
-	// nil means invalid IP address (for a zero Addr).
-	// z4 means an IPv4 address.
-	// z6noz means an IPv6 address without a zone.
-	//
-	// Otherwise it's the interned zone name string.
-	z *intern.Value
+	// Details about the address, wrapped up together and canonicalized.
+	z unique.Handle[addrDetail]
+}
+
+// addrDetail represents the details of an Addr, like address family and IPv6 zone.
+type addrDetail struct {
+	IsV6   bool   // IPv4 is false, IPv6 is true.
+	ZoneV6 string // != nil only if IsV6 is true.
 }
 
 // z0, z4, and z6noz are sentinel Addr.z values.
 // See the Addr type's field docs.
 var (
-	z0    = (*intern.Value)(nil)
-	z4    = new(intern.Value)
-	z6noz = new(intern.Value)
+	z0    unique.Handle[addrDetail]
+	z4    = unique.Make(addrDetail{})
+	z6noz = unique.Make(addrDetail{IsV6: true})
 )
 
 // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
@@ -128,7 +128,7 @@ func ParseAddr(s string) (Addr, error) {
 	return Addr{}, parseAddrError{in: s, msg: "unable to parse IP"}
 }
 
-// MustParseAddr calls ParseAddr(s) and panics on error.
+// MustParseAddr calls [ParseAddr](s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
 func MustParseAddr(s string) Addr {
 	ip, err := ParseAddr(s)
@@ -152,44 +152,53 @@ func (err parseAddrError) Error() string {
 	return "ParseAddr(" + q(err.in) + "): " + err.msg
 }
 
-// parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
-func parseIPv4(s string) (ip Addr, err error) {
-	var fields [4]uint8
+func parseIPv4Fields(in string, off, end int, fields []uint8) error {
 	var val, pos int
 	var digLen int // number of digits in current octet
+	s := in[off:end]
 	for i := 0; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' {
 			if digLen == 1 && val == 0 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has octet with leading zero"}
+				return parseAddrError{in: in, msg: "IPv4 field has octet with leading zero"}
 			}
 			val = val*10 + int(s[i]) - '0'
 			digLen++
 			if val > 255 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field has value >255"}
+				return parseAddrError{in: in, msg: "IPv4 field has value >255"}
 			}
 		} else if s[i] == '.' {
 			// .1.2.3
 			// 1.2.3.
 			// 1..2.3
 			if i == 0 || i == len(s)-1 || s[i-1] == '.' {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 field must have at least one digit", at: s[i:]}
+				return parseAddrError{in: in, msg: "IPv4 field must have at least one digit", at: s[i:]}
 			}
 			// 1.2.3.4.5
 			if pos == 3 {
-				return Addr{}, parseAddrError{in: s, msg: "IPv4 address too long"}
+				return parseAddrError{in: in, msg: "IPv4 address too long"}
 			}
 			fields[pos] = uint8(val)
 			pos++
 			val = 0
 			digLen = 0
 		} else {
-			return Addr{}, parseAddrError{in: s, msg: "unexpected character", at: s[i:]}
+			return parseAddrError{in: in, msg: "unexpected character", at: s[i:]}
 		}
 	}
 	if pos < 3 {
-		return Addr{}, parseAddrError{in: s, msg: "IPv4 address too short"}
+		return parseAddrError{in: in, msg: "IPv4 address too short"}
 	}
 	fields[3] = uint8(val)
+	return nil
+}
+
+// parseIPv4 parses s as an IPv4 address (in form "192.168.0.1").
+func parseIPv4(s string) (ip Addr, err error) {
+	var fields [4]uint8
+	err = parseIPv4Fields(s, 0, len(s), fields[:])
+	if err != nil {
+		return Addr{}, err
+	}
 	return AddrFrom4(fields), nil
 }
 
@@ -242,6 +251,10 @@ func parseIPv6(in string) (Addr, error) {
 			} else {
 				break
 			}
+			if off > 3 {
+				//more than 4 digits in group, fail.
+				return Addr{}, parseAddrError{in: in, msg: "each group must have 4 or less digits", at: s}
+			}
 			if acc > math.MaxUint16 {
 				// Overflow, fail.
 				return Addr{}, parseAddrError{in: in, msg: "IPv6 field has value >=2^16", at: s}
@@ -262,17 +275,15 @@ func parseIPv6(in string) (Addr, error) {
 				// Not enough room.
 				return Addr{}, parseAddrError{in: in, msg: "too many hex fields to fit an embedded IPv4 at the end of the address", at: s}
 			}
-			// TODO: could make this a bit faster by having a helper
-			// that parses to a [4]byte, and have both parseIPv4 and
-			// parseIPv6 use it.
-			ip4, err := parseIPv4(s)
-			if err != nil {
-				return Addr{}, parseAddrError{in: in, msg: err.Error(), at: s}
+
+			end := len(in)
+			if len(zone) > 0 {
+				end -= len(zone) + 1
 			}
-			ip[i] = ip4.v4(0)
-			ip[i+1] = ip4.v4(1)
-			ip[i+2] = ip4.v4(2)
-			ip[i+3] = ip4.v4(3)
+			err := parseIPv4Fields(in, end-len(s), end, ip[i:i+4])
+			if err != nil {
+				return Addr{}, err
+			}
 			s = ""
 			i += 4
 			break
@@ -324,9 +335,7 @@ func parseIPv6(in string) (Addr, error) {
 		for j := i - 1; j >= ellipsis; j-- {
 			ip[j+n] = ip[j]
 		}
-		for j := ellipsis + n - 1; j >= ellipsis; j-- {
-			ip[j] = 0
-		}
+		clear(ip[ellipsis : ellipsis+n])
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
 		return Addr{}, parseAddrError{in: in, msg: "the :: must expand to at least one field of zeros"}
@@ -335,8 +344,8 @@ func parseIPv6(in string) (Addr, error) {
 }
 
 // AddrFromSlice parses the 4- or 16-byte byte slice as an IPv4 or IPv6 address.
-// Note that a net.IP can be passed directly as the []byte argument.
-// If slice's length is not 4 or 16, AddrFromSlice returns Addr{}, false.
+// Note that a [net.IP] can be passed directly as the []byte argument.
+// If slice's length is not 4 or 16, AddrFromSlice returns [Addr]{}, false.
 func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
 	switch len(slice) {
 	case 4:
@@ -376,13 +385,13 @@ func (ip Addr) isZero() bool {
 	return ip.z == z0
 }
 
-// IsValid reports whether the Addr is an initialized address (not the zero Addr).
+// IsValid reports whether the [Addr] is an initialized address (not the zero Addr).
 //
 // Note that "0.0.0.0" and "::" are both valid values.
 func (ip Addr) IsValid() bool { return ip.z != z0 }
 
 // BitLen returns the number of bits in the IP address:
-// 128 for IPv6, 32 for IPv4, and 0 for the zero Addr.
+// 128 for IPv6, 32 for IPv4, and 0 for the zero [Addr].
 //
 // Note that IPv4-mapped IPv6 addresses are considered IPv6 addresses
 // and therefore have bit length 128.
@@ -398,16 +407,15 @@ func (ip Addr) BitLen() int {
 
 // Zone returns ip's IPv6 scoped addressing zone, if any.
 func (ip Addr) Zone() string {
-	if ip.z == nil {
+	if ip.z == z0 {
 		return ""
 	}
-	zone, _ := ip.z.Get().(string)
-	return zone
+	return ip.z.Value().ZoneV6
 }
 
 // Compare returns an integer comparing two IPs.
 // The result will be 0 if ip == ip2, -1 if ip < ip2, and +1 if ip > ip2.
-// The definition of "less than" is the same as the Less method.
+// The definition of "less than" is the same as the [Addr.Less] method.
 func (ip Addr) Compare(ip2 Addr) int {
 	f1, f2 := ip.BitLen(), ip2.BitLen()
 	if f1 < f2 {
@@ -449,7 +457,7 @@ func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
 
 // Is4 reports whether ip is an IPv4 address.
 //
-// It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
+// It returns false for IPv4-mapped IPv6 addresses. See [Addr.Unmap].
 func (ip Addr) Is4() bool {
 	return ip.z == z4
 }
@@ -487,7 +495,7 @@ func (ip Addr) WithZone(zone string) Addr {
 		ip.z = z6noz
 		return ip
 	}
-	ip.z = intern.GetByString(zone)
+	ip.z = unique.Make(addrDetail{IsV6: true, ZoneV6: zone})
 	return ip
 }
 
@@ -583,7 +591,7 @@ func (ip Addr) IsLinkLocalMulticast() bool {
 // IANA-allocated 2000::/3 global unicast space, with the exception of the
 // link-local address space. It also returns true even if ip is in the IPv4
 // private address space or IPv6 unique local address space.
-// It returns false for the zero Addr.
+// It returns false for the zero [Addr].
 //
 // For reference, see RFC 1122, RFC 4291, and RFC 4632.
 func (ip Addr) IsGlobalUnicast() bool {
@@ -607,7 +615,7 @@ func (ip Addr) IsGlobalUnicast() bool {
 // IsPrivate reports whether ip is a private address, according to RFC 1918
 // (IPv4 addresses) and RFC 4193 (IPv6 addresses). That is, it reports whether
 // ip is in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, or fc00::/7. This is the
-// same as net.IP.IsPrivate.
+// same as [net.IP.IsPrivate].
 func (ip Addr) IsPrivate() bool {
 	// Match the stdlib's IsPrivate logic.
 	if ip.Is4() {
@@ -630,14 +638,14 @@ func (ip Addr) IsPrivate() bool {
 // IsUnspecified reports whether ip is an unspecified address, either the IPv4
 // address "0.0.0.0" or the IPv6 address "::".
 //
-// Note that the zero Addr is not an unspecified address.
+// Note that the zero [Addr] is not an unspecified address.
 func (ip Addr) IsUnspecified() bool {
 	return ip == IPv4Unspecified() || ip == IPv6Unspecified()
 }
 
 // Prefix keeps only the top b bits of IP, producing a Prefix
 // of the specified length.
-// If ip is a zero Addr, Prefix always returns a zero Prefix and a nil error.
+// If ip is a zero [Addr], Prefix always returns a zero Prefix and a nil error.
 // Otherwise, if bits is less than zero or greater than ip.BitLen(),
 // Prefix returns an error.
 func (ip Addr) Prefix(b int) (Prefix, error) {
@@ -665,7 +673,7 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 // As16 returns the IP address in its 16-byte representation.
 // IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
 // IPv6 addresses with zones are returned without their zone (use the
-// Zone method to get it).
+// [Addr.Zone] method to get it).
 // The ip zero value returns all zeroes.
 func (ip Addr) As16() (a16 [16]byte) {
 	bePutUint64(a16[:8], ip.addr.hi)
@@ -674,7 +682,7 @@ func (ip Addr) As16() (a16 [16]byte) {
 }
 
 // As4 returns an IPv4 or IPv4-in-IPv6 address in its 4-byte representation.
-// If ip is the zero Addr or an IPv6 address, As4 panics.
+// If ip is the zero [Addr] or an IPv6 address, As4 panics.
 // Note that 0.0.0.0 is not the zero Addr.
 func (ip Addr) As4() (a4 [4]byte) {
 	if ip.z == z4 || ip.Is4In6() {
@@ -705,7 +713,7 @@ func (ip Addr) AsSlice() []byte {
 }
 
 // Next returns the address following ip.
-// If there is none, it returns the zero Addr.
+// If there is none, it returns the zero [Addr].
 func (ip Addr) Next() Addr {
 	ip.addr = ip.addr.addOne()
 	if ip.Is4() {
@@ -739,10 +747,10 @@ func (ip Addr) Prev() Addr {
 // String returns the string form of the IP address ip.
 // It returns one of 5 forms:
 //
-//   - "invalid IP", if ip is the zero Addr
+//   - "invalid IP", if ip is the zero [Addr]
 //   - IPv4 dotted decimal ("192.0.2.1")
 //   - IPv6 ("2001:db8::1")
-//   - "::ffff:1.2.3.4" (if Is4In6)
+//   - "::ffff:1.2.3.4" (if [Addr.Is4In6])
 //   - IPv6 with zone ("fe80:db8::1%eth0")
 //
 // Note that unlike package net's IP.String method,
@@ -756,18 +764,14 @@ func (ip Addr) String() string {
 		return ip.string4()
 	default:
 		if ip.Is4In6() {
-			if z := ip.Zone(); z != "" {
-				return "::ffff:" + ip.Unmap().string4() + "%" + z
-			} else {
-				return "::ffff:" + ip.Unmap().string4()
-			}
+			return ip.string4In6()
 		}
 		return ip.string6()
 	}
 }
 
 // AppendTo appends a text encoding of ip,
-// as generated by MarshalText,
+// as generated by [Addr.MarshalText],
 // to b and returns the extended buffer.
 func (ip Addr) AppendTo(b []byte) []byte {
 	switch ip.z {
@@ -777,13 +781,7 @@ func (ip Addr) AppendTo(b []byte) []byte {
 		return ip.appendTo4(b)
 	default:
 		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b
+			return ip.appendTo4In6(b)
 		}
 		return ip.appendTo6(b)
 	}
@@ -847,6 +845,23 @@ func (ip Addr) appendTo4(ret []byte) []byte {
 	return ret
 }
 
+func (ip Addr) string4In6() string {
+	const max = len("::ffff:255.255.255.255%enp5s0")
+	ret := make([]byte, 0, max)
+	ret = ip.appendTo4In6(ret)
+	return string(ret)
+}
+
+func (ip Addr) appendTo4In6(ret []byte) []byte {
+	ret = append(ret, "::ffff:"...)
+	ret = ip.Unmap().appendTo4(ret)
+	if ip.z != z6noz {
+		ret = append(ret, '%')
+		ret = append(ret, ip.Zone()...)
+	}
+	return ret
+}
+
 // string6 formats ip in IPv6 textual representation. It follows the
 // guidelines in section 4 of RFC 5952
 // (https://tools.ietf.org/html/rfc5952#section-4): no unnecessary
@@ -899,7 +914,7 @@ func (ip Addr) appendTo6(ret []byte) []byte {
 	return ret
 }
 
-// StringExpanded is like String but IPv6 addresses are expanded with leading
+// StringExpanded is like [Addr.String] but IPv6 addresses are expanded with leading
 // zeroes and no "::" compression. For example, "2001:db8::1" becomes
 // "2001:0db8:0000:0000:0000:0000:0000:0001".
 func (ip Addr) StringExpanded() string {
@@ -927,9 +942,9 @@ func (ip Addr) StringExpanded() string {
 	return string(ret)
 }
 
-// MarshalText implements the encoding.TextMarshaler interface,
-// The encoding is the same as returned by String, with one exception:
-// If ip is the zero Addr, the encoding is the empty string.
+// MarshalText implements the [encoding.TextMarshaler] interface,
+// The encoding is the same as returned by [Addr.String], with one exception:
+// If ip is the zero [Addr], the encoding is the empty string.
 func (ip Addr) MarshalText() ([]byte, error) {
 	switch ip.z {
 	case z0:
@@ -939,26 +954,21 @@ func (ip Addr) MarshalText() ([]byte, error) {
 		b := make([]byte, 0, max)
 		return ip.appendTo4(b), nil
 	default:
+		if ip.Is4In6() {
+			max := len("::ffff:255.255.255.255%enp5s0")
+			b := make([]byte, 0, max)
+			return ip.appendTo4In6(b), nil
+		}
 		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
 		b := make([]byte, 0, max)
-		if ip.Is4In6() {
-			b = append(b, "::ffff:"...)
-			b = ip.Unmap().appendTo4(b)
-			if z := ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
-			return b, nil
-		}
 		return ip.appendTo6(b), nil
 	}
-
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-// The IP address is expected in a form accepted by ParseAddr.
+// The IP address is expected in a form accepted by [ParseAddr].
 //
-// If text is empty, UnmarshalText sets *ip to the zero Addr and
+// If text is empty, UnmarshalText sets *ip to the zero [Addr] and
 // returns no error.
 func (ip *Addr) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
@@ -988,15 +998,15 @@ func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
 	return b
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-// It returns a zero-length slice for the zero Addr,
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// It returns a zero-length slice for the zero [Addr],
 // the 4-byte form for an IPv4 address,
 // and the 16-byte form with zone appended for an IPv6 address.
 func (ip Addr) MarshalBinary() ([]byte, error) {
 	return ip.marshalBinaryWithTrailingBytes(0), nil
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
 // It expects data in the form generated by MarshalBinary.
 func (ip *Addr) UnmarshalBinary(b []byte) error {
 	n := len(b)
@@ -1023,7 +1033,7 @@ type AddrPort struct {
 	port uint16
 }
 
-// AddrPortFrom returns an AddrPort with the provided IP and port.
+// AddrPortFrom returns an [AddrPort] with the provided IP and port.
 // It does not allocate.
 func AddrPortFrom(ip Addr, port uint16) AddrPort { return AddrPort{ip: ip, port: port} }
 
@@ -1062,7 +1072,7 @@ func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
 	return ip, port, v6, nil
 }
 
-// ParseAddrPort parses s as an AddrPort.
+// ParseAddrPort parses s as an [AddrPort].
 //
 // It doesn't do any name resolution: both the address and the port
 // must be numeric.
@@ -1089,7 +1099,7 @@ func ParseAddrPort(s string) (AddrPort, error) {
 	return ipp, nil
 }
 
-// MustParseAddrPort calls ParseAddrPort(s) and panics on error.
+// MustParseAddrPort calls [ParseAddrPort](s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
 func MustParseAddrPort(s string) AddrPort {
 	ip, err := ParseAddrPort(s)
@@ -1114,24 +1124,35 @@ func (p AddrPort) Compare(p2 AddrPort) int {
 }
 
 func (p AddrPort) String() string {
+	var b []byte
 	switch p.ip.z {
 	case z0:
 		return "invalid AddrPort"
 	case z4:
 		const max = len("255.255.255.255:65535")
-		buf := make([]byte, 0, max)
-		buf = p.ip.appendTo4(buf)
-		buf = append(buf, ':')
-		buf = strconv.AppendUint(buf, uint64(p.port), 10)
-		return string(buf)
+		b = make([]byte, 0, max)
+		b = p.ip.appendTo4(b)
 	default:
-		// TODO: this could be more efficient allocation-wise:
-		return "[" + p.ip.String() + "]:" + itoa.Uitoa(uint(p.port))
+		if p.ip.Is4In6() {
+			const max = len("[::ffff:255.255.255.255%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo4In6(b)
+		} else {
+			const max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+			b = make([]byte, 0, max)
+			b = append(b, '[')
+			b = p.ip.appendTo6(b)
+		}
+		b = append(b, ']')
 	}
+	b = append(b, ':')
+	b = strconv.AppendUint(b, uint64(p.port), 10)
+	return string(b)
 }
 
 // AppendTo appends a text encoding of p,
-// as generated by MarshalText,
+// as generated by [AddrPort.MarshalText],
 // to b and returns the extended buffer.
 func (p AddrPort) AppendTo(b []byte) []byte {
 	switch p.ip.z {
@@ -1140,15 +1161,10 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	case z4:
 		b = p.ip.appendTo4(b)
 	default:
+		b = append(b, '[')
 		if p.ip.Is4In6() {
-			b = append(b, "[::ffff:"...)
-			b = p.ip.Unmap().appendTo4(b)
-			if z := p.ip.Zone(); z != "" {
-				b = append(b, '%')
-				b = append(b, z...)
-			}
+			b = p.ip.appendTo4In6(b)
 		} else {
-			b = append(b, '[')
 			b = p.ip.appendTo6(b)
 		}
 		b = append(b, ']')
@@ -1158,9 +1174,9 @@ func (p AddrPort) AppendTo(b []byte) []byte {
 	return b
 }
 
-// MarshalText implements the encoding.TextMarshaler interface. The
-// encoding is the same as returned by String, with one exception: if
-// p.Addr() is the zero Addr, the encoding is the empty string.
+// MarshalText implements the [encoding.TextMarshaler] interface. The
+// encoding is the same as returned by [AddrPort.String], with one exception: if
+// p.Addr() is the zero [Addr], the encoding is the empty string.
 func (p AddrPort) MarshalText() ([]byte, error) {
 	var max int
 	switch p.ip.z {
@@ -1176,8 +1192,8 @@ func (p AddrPort) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler
-// interface. The AddrPort is expected in a form
-// generated by MarshalText or accepted by ParseAddrPort.
+// interface. The [AddrPort] is expected in a form
+// generated by [AddrPort.MarshalText] or accepted by [ParseAddrPort].
 func (p *AddrPort) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
 		*p = AddrPort{}
@@ -1188,8 +1204,8 @@ func (p *AddrPort) UnmarshalText(text []byte) error {
 	return err
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-// It returns Addr.MarshalBinary with an additional two bytes appended
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// It returns [Addr.MarshalBinary] with an additional two bytes appended
 // containing the port in little-endian.
 func (p AddrPort) MarshalBinary() ([]byte, error) {
 	b := p.Addr().marshalBinaryWithTrailingBytes(2)
@@ -1197,8 +1213,8 @@ func (p AddrPort) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
-// It expects data in the form generated by MarshalBinary.
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+// It expects data in the form generated by [AddrPort.MarshalBinary].
 func (p *AddrPort) UnmarshalBinary(b []byte) error {
 	if len(b) < 2 {
 		return errors.New("unexpected slice size")
@@ -1214,7 +1230,7 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
 
 // Prefix is an IP address prefix (CIDR) representing an IP network.
 //
-// The first Bits() of Addr() are specified. The remaining bits match any address.
+// The first [Prefix.Bits]() of [Addr]() are specified. The remaining bits match any address.
 // The range of Bits() is [0,32] for IPv4 or [0,128] for IPv6.
 type Prefix struct {
 	ip Addr
@@ -1224,13 +1240,13 @@ type Prefix struct {
 	bitsPlusOne uint8
 }
 
-// PrefixFrom returns a Prefix with the provided IP address and bit
+// PrefixFrom returns a [Prefix] with the provided IP address and bit
 // prefix length.
 //
-// It does not allocate. Unlike Addr.Prefix, PrefixFrom does not mask
+// It does not allocate. Unlike [Addr.Prefix], [PrefixFrom] does not mask
 // off the host bits of ip.
 //
-// If bits is less than zero or greater than ip.BitLen, Prefix.Bits
+// If bits is less than zero or greater than ip.BitLen, [Prefix.Bits]
 // will return an invalid value -1.
 func PrefixFrom(ip Addr, bits int) Prefix {
 	var bitsPlusOne uint8
@@ -1252,8 +1268,8 @@ func (p Prefix) Addr() Addr { return p.ip }
 func (p Prefix) Bits() int { return int(p.bitsPlusOne) - 1 }
 
 // IsValid reports whether p.Bits() has a valid range for p.Addr().
-// If p.Addr() is the zero Addr, IsValid returns false.
-// Note that if p is the zero Prefix, then p.IsValid() == false.
+// If p.Addr() is the zero [Addr], IsValid returns false.
+// Note that if p is the zero [Prefix], then p.IsValid() == false.
 func (p Prefix) IsValid() bool { return p.bitsPlusOne > 0 }
 
 func (p Prefix) isZero() bool { return p == Prefix{} }
@@ -1261,12 +1277,15 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
-// Compare returns an integer comparing two prefixes.
+// compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
 // Prefixes sort first by validity (invalid before valid), then
 // address family (IPv4 before IPv6), then prefix length, then
 // address.
-func (p Prefix) Compare(p2 Prefix) int {
+//
+// Unexported for Go 1.22 because we may want to compare by p.Addr first.
+// See post-acceptance discussion on go.dev/issue/61642.
+func (p Prefix) compare(p2 Prefix) int {
 	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
 		return c
 	}
@@ -1274,6 +1293,15 @@ func (p Prefix) Compare(p2 Prefix) int {
 		return c
 	}
 	return p.Addr().Compare(p2.Addr())
+}
+
+type parsePrefixError struct {
+	in  string // the string given to ParsePrefix
+	msg string // an explanation of the parse failure
+}
+
+func (err parsePrefixError) Error() string {
+	return "netip.ParsePrefix(" + strconv.Quote(err.in) + "): " + err.msg
 }
 
 // ParsePrefix parses s as an IP address prefix.
@@ -1286,39 +1314,39 @@ func (p Prefix) Compare(p2 Prefix) int {
 func ParsePrefix(s string) (Prefix, error) {
 	i := bytealg.LastIndexByteString(s, '/')
 	if i < 0 {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
+		return Prefix{}, parsePrefixError{in: s, msg: "no '/'"}
 	}
 	ip, err := ParseAddr(s[:i])
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
+		return Prefix{}, parsePrefixError{in: s, msg: err.Error()}
 	}
 	// IPv6 zones are not allowed: https://go.dev/issue/51899
 	if ip.Is6() && ip.z != z6noz {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+		return Prefix{}, parsePrefixError{in: s, msg: "IPv6 zones cannot be present in a prefix"}
 	}
 
 	bitsStr := s[i+1:]
 
 	// strconv.Atoi accepts a leading sign and leading zeroes, but we don't want that.
 	if len(bitsStr) > 1 && (bitsStr[0] < '1' || bitsStr[0] > '9') {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 	maxBits := 32
 	if ip.Is6() {
 		maxBits = 128
 	}
 	if bits < 0 || bits > maxBits {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): prefix length out of range")
+		return Prefix{}, parsePrefixError{in: s, msg: "prefix length out of range"}
 	}
 	return PrefixFrom(ip, bits), nil
 }
 
-// MustParsePrefix calls ParsePrefix(s) and panics on error.
+// MustParsePrefix calls [ParsePrefix](s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
 func MustParsePrefix(s string) Prefix {
 	ip, err := ParsePrefix(s)
@@ -1331,7 +1359,7 @@ func MustParsePrefix(s string) Prefix {
 // Masked returns p in its canonical form, with all but the high
 // p.Bits() bits of p.Addr() masked off.
 //
-// If p is zero or otherwise invalid, Masked returns the zero Prefix.
+// If p is zero or otherwise invalid, Masked returns the zero [Prefix].
 func (p Prefix) Masked() Prefix {
 	m, _ := p.ip.Prefix(p.Bits())
 	return m
@@ -1408,7 +1436,7 @@ func (p Prefix) Overlaps(o Prefix) bool {
 }
 
 // AppendTo appends a text encoding of p,
-// as generated by MarshalText,
+// as generated by [Prefix.MarshalText],
 // to b and returns the extended buffer.
 func (p Prefix) AppendTo(b []byte) []byte {
 	if p.isZero() {
@@ -1435,8 +1463,8 @@ func (p Prefix) AppendTo(b []byte) []byte {
 	return b
 }
 
-// MarshalText implements the encoding.TextMarshaler interface,
-// The encoding is the same as returned by String, with one exception:
+// MarshalText implements the [encoding.TextMarshaler] interface,
+// The encoding is the same as returned by [Prefix.String], with one exception:
 // If p is the zero value, the encoding is the empty string.
 func (p Prefix) MarshalText() ([]byte, error) {
 	var max int
@@ -1453,8 +1481,8 @@ func (p Prefix) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
-// The IP address is expected in a form accepted by ParsePrefix
-// or generated by MarshalText.
+// The IP address is expected in a form accepted by [ParsePrefix]
+// or generated by [Prefix.MarshalText].
 func (p *Prefix) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
 		*p = Prefix{}
@@ -1465,8 +1493,8 @@ func (p *Prefix) UnmarshalText(text []byte) error {
 	return err
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-// It returns Addr.MarshalBinary with an additional byte appended
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// It returns [Addr.MarshalBinary] with an additional byte appended
 // containing the prefix bits.
 func (p Prefix) MarshalBinary() ([]byte, error) {
 	b := p.Addr().withoutZone().marshalBinaryWithTrailingBytes(1)
@@ -1474,8 +1502,8 @@ func (p Prefix) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
-// It expects data in the form generated by MarshalBinary.
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+// It expects data in the form generated by [Prefix.MarshalBinary].
 func (p *Prefix) UnmarshalBinary(b []byte) error {
 	if len(b) < 1 {
 		return errors.New("unexpected slice size")

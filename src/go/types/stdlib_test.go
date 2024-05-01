@@ -312,6 +312,7 @@ func TestStdFixed(t *testing.T) {
 
 	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+		"bug398.go",      // go/types doesn't check for anonymous interface cycles (go.dev/issue/56103)
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
 		"issue16369.go",  // go/types handles this correctly - not an issue

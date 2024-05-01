@@ -14,6 +14,7 @@ import (
 )
 
 // provided by runtime
+//
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
 

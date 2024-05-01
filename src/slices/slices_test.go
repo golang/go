@@ -557,7 +557,7 @@ func TestInsertPanics(t *testing.T) {
 		{"with out-of-bounds index and = cap", a[:1:2], 2, b[:]},
 		{"with out-of-bounds index and < cap", a[:1:3], 2, b[:]},
 	} {
-		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
+		if !panics(func() { _ = Insert(test.s, test.i, test.v...) }) {
 			t.Errorf("Insert %s: got no panic, want panic", test.name)
 		}
 	}
@@ -684,7 +684,7 @@ func TestDeletePanics(t *testing.T) {
 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
 		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
 	} {
-		if !panics(func() { Delete(test.s, test.i, test.j) }) {
+		if !panics(func() { _ = Delete(test.s, test.i, test.j) }) {
 			t.Errorf("Delete %s: got no panic, want panic", test.name)
 		}
 	}
@@ -763,7 +763,7 @@ var compactTests = []struct {
 		[]int{1, 2, 3},
 	},
 	{
-		"1 item",
+		"2 items",
 		[]int{1, 1, 2},
 		[]int{1, 2},
 	},
@@ -802,12 +802,26 @@ func BenchmarkCompact(b *testing.B) {
 }
 
 func BenchmarkCompact_Large(b *testing.B) {
-	type Large [4 * 1024]byte
+	type Large [16]int
+	const N = 1024
 
-	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
-		_ = Compact(ss)
-	}
+	b.Run("all_dup", func(b *testing.B) {
+		ss := make([]Large, N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = Compact(ss)
+		}
+	})
+	b.Run("no_dup", func(b *testing.B) {
+		ss := make([]Large, N)
+		for i := range ss {
+			ss[i][0] = i
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = Compact(ss)
+		}
+	})
 }
 
 func TestCompactFunc(t *testing.T) {
@@ -873,13 +887,40 @@ func TestCompactFuncClearTail(t *testing.T) {
 	}
 }
 
-func BenchmarkCompactFunc_Large(b *testing.B) {
-	type Large [4 * 1024]byte
-
-	ss := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
-		_ = CompactFunc(ss, func(a, b Large) bool { return a == b })
+func BenchmarkCompactFunc(b *testing.B) {
+	for _, c := range compactTests {
+		b.Run(c.name, func(b *testing.B) {
+			ss := make([]int, 0, 64)
+			for k := 0; k < b.N; k++ {
+				ss = ss[:0]
+				ss = append(ss, c.s...)
+				_ = CompactFunc(ss, func(a, b int) bool { return a == b })
+			}
+		})
 	}
+}
+
+func BenchmarkCompactFunc_Large(b *testing.B) {
+	type Element = int
+	const N = 1024 * 1024
+
+	b.Run("all_dup", func(b *testing.B) {
+		ss := make([]Element, N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+		}
+	})
+	b.Run("no_dup", func(b *testing.B) {
+		ss := make([]Element, N)
+		for i := range ss {
+			ss[i] = i
+		}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+		}
+	})
 }
 
 func TestGrow(t *testing.T) {
@@ -906,10 +947,10 @@ func TestGrow(t *testing.T) {
 	}
 
 	// Test number of allocations.
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)) }); n != 0 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)) }); n != 0 {
 		t.Errorf("Grow should not allocate when given sufficient capacity; allocated %v times", n)
 	}
-	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
+	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
 		if race.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
@@ -921,7 +962,7 @@ func TestGrow(t *testing.T) {
 	var gotPanic bool
 	func() {
 		defer func() { gotPanic = recover() != nil }()
-		Grow(s1, -1)
+		_ = Grow(s1, -1)
 	}()
 	if !gotPanic {
 		t.Errorf("Grow(-1) did not panic; expected a panic")
@@ -1037,7 +1078,7 @@ func TestReplacePanics(t *testing.T) {
 		{"s[i:j] is valid and j > len(s)", s, nil, 0, 4},
 	} {
 		ss, vv := Clone(test.s), Clone(test.v)
-		if !panics(func() { Replace(ss, test.i, test.j, vv...) }) {
+		if !panics(func() { _ = Replace(ss, test.i, test.j, vv...) }) {
 			t.Errorf("Replace %s: should have panicked", test.name)
 		}
 	}
@@ -1117,6 +1158,19 @@ func TestReplaceOverlap(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestReplaceEndClearTail(t *testing.T) {
+	s := []int{11, 22, 33}
+	v := []int{99}
+	// case when j == len(s)
+	i, j := 1, 3
+	s = Replace(s, i, j, v...)
+
+	x := s[:3][2]
+	if want := 0; x != want {
+		t.Errorf("TestReplaceEndClearTail: obsolete element is %d, want %d", x, want)
 	}
 }
 
@@ -1319,6 +1373,80 @@ func TestConcat_too_large(t *testing.T) {
 		if didPanic := r != nil; didPanic != tc.shouldPanic {
 			t.Errorf("slices.Concat(lens(%v)) got panic == %v",
 				tc.lengths, didPanic)
+		}
+	}
+}
+
+func TestRepeat(t *testing.T) {
+	// normal cases
+	for _, tc := range []struct {
+		x     []int
+		count int
+		want  []int
+	}{
+		{x: []int(nil), count: 0, want: []int{}},
+		{x: []int(nil), count: 1, want: []int{}},
+		{x: []int(nil), count: math.MaxInt, want: []int{}},
+		{x: []int{}, count: 0, want: []int{}},
+		{x: []int{}, count: 1, want: []int{}},
+		{x: []int{}, count: math.MaxInt, want: []int{}},
+		{x: []int{0}, count: 0, want: []int{}},
+		{x: []int{0}, count: 1, want: []int{0}},
+		{x: []int{0}, count: 2, want: []int{0, 0}},
+		{x: []int{0}, count: 3, want: []int{0, 0, 0}},
+		{x: []int{0}, count: 4, want: []int{0, 0, 0, 0}},
+		{x: []int{0, 1}, count: 0, want: []int{}},
+		{x: []int{0, 1}, count: 1, want: []int{0, 1}},
+		{x: []int{0, 1}, count: 2, want: []int{0, 1, 0, 1}},
+		{x: []int{0, 1}, count: 3, want: []int{0, 1, 0, 1, 0, 1}},
+		{x: []int{0, 1}, count: 4, want: []int{0, 1, 0, 1, 0, 1, 0, 1}},
+		{x: []int{0, 1, 2}, count: 0, want: []int{}},
+		{x: []int{0, 1, 2}, count: 1, want: []int{0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 2, want: []int{0, 1, 2, 0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 3, want: []int{0, 1, 2, 0, 1, 2, 0, 1, 2}},
+		{x: []int{0, 1, 2}, count: 4, want: []int{0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2}},
+	} {
+		if got := Repeat(tc.x, tc.count); got == nil || cap(got) != cap(tc.want) || !Equal(got, tc.want) {
+			t.Errorf("Repeat(%v, %v): got: %v, want: %v, (got == nil): %v, cap(got): %v, cap(want): %v",
+				tc.x, tc.count, got, tc.want, got == nil, cap(got), cap(tc.want))
+		}
+	}
+
+	// big slices
+	for _, tc := range []struct {
+		x     []struct{}
+		count int
+		want  []struct{}
+	}{
+		{x: make([]struct{}, math.MaxInt/1-0), count: 1, want: make([]struct{}, 1*(math.MaxInt/1-0))},
+		{x: make([]struct{}, math.MaxInt/2-1), count: 2, want: make([]struct{}, 2*(math.MaxInt/2-1))},
+		{x: make([]struct{}, math.MaxInt/3-2), count: 3, want: make([]struct{}, 3*(math.MaxInt/3-2))},
+		{x: make([]struct{}, math.MaxInt/4-3), count: 4, want: make([]struct{}, 4*(math.MaxInt/4-3))},
+		{x: make([]struct{}, math.MaxInt/5-4), count: 5, want: make([]struct{}, 5*(math.MaxInt/5-4))},
+		{x: make([]struct{}, math.MaxInt/6-5), count: 6, want: make([]struct{}, 6*(math.MaxInt/6-5))},
+		{x: make([]struct{}, math.MaxInt/7-6), count: 7, want: make([]struct{}, 7*(math.MaxInt/7-6))},
+		{x: make([]struct{}, math.MaxInt/8-7), count: 8, want: make([]struct{}, 8*(math.MaxInt/8-7))},
+		{x: make([]struct{}, math.MaxInt/9-8), count: 9, want: make([]struct{}, 9*(math.MaxInt/9-8))},
+	} {
+		if got := Repeat(tc.x, tc.count); got == nil || len(got) != len(tc.want) || cap(got) != cap(tc.want) {
+			t.Errorf("Repeat(make([]struct{}, %v), %v): (got == nil): %v, len(got): %v, len(want): %v, cap(got): %v, cap(want): %v",
+				len(tc.x), tc.count, got == nil, len(got), len(tc.want), cap(got), cap(tc.want))
+		}
+	}
+}
+
+func TestRepeatPanics(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		x     []struct{}
+		count int
+	}{
+		{name: "cannot be negative", x: make([]struct{}, 0), count: -1},
+		{name: "the result of (len(x) * count) overflows, hi > 0", x: make([]struct{}, 3), count: math.MaxInt},
+		{name: "the result of (len(x) * count) overflows, lo > maxInt", x: make([]struct{}, 2), count: 1 + math.MaxInt/2},
+	} {
+		if !panics(func() { _ = Repeat(test.x, test.count) }) {
+			t.Errorf("Repeat %s: got no panic, want panic", test.name)
 		}
 	}
 }

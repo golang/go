@@ -69,7 +69,7 @@
 // all pprof commands.
 //
 // For more information about pprof, see
-// https://github.com/google/pprof/blob/master/doc/README.md.
+// https://github.com/google/pprof/blob/main/doc/README.md.
 package pprof
 
 import (
@@ -352,7 +352,7 @@ func (p *Profile) Remove(value any) {
 //
 // The debug parameter enables additional output.
 // Passing debug=0 writes the gzip-compressed protocol buffer described
-// in https://github.com/google/pprof/tree/master/proto#overview.
+// in https://github.com/google/pprof/tree/main/proto#overview.
 // Passing debug=1 writes the legacy text format with comments
 // translating addresses to function names and line numbers, so that a
 // programmer can read the profile without tools.
@@ -765,6 +765,7 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
 	var p []runtime.StackRecord
 	var labels []unsafe.Pointer
 	n, ok := fetch(nil, nil)
+
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added

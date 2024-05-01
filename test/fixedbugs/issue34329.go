@@ -10,5 +10,5 @@ type I interface { M() }
 
 type _ interface {
 	I
-	I // ERROR "duplicate method M"
+	I // ERROR "duplicate method `M'"
 }

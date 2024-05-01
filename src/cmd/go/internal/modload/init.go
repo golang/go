@@ -1001,8 +1001,14 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 }
 
 func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
-	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work lists go %s; to update it:\n\tgo work use",
-		base.ShortPath(filepath.Dir(gomod)), goVers, gover.FromGoWork(wf))
+	verb := "lists"
+	if wf == nil || wf.Go == nil {
+		// A go.work file implicitly requires go1.18
+		// even when it doesn't list any version.
+		verb = "implicitly requires"
+	}
+	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work %s go %s; to update it:\n\tgo work use",
+		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf))
 }
 
 // CreateModFile initializes a new module by creating a go.mod file.
@@ -1343,9 +1349,16 @@ func appendGoAndToolchainRoots(roots []module.Version, goVersion, toolchain stri
 func setDefaultBuildMod() {
 	if cfg.BuildModExplicit {
 		if inWorkspaceMode() && cfg.BuildMod != "readonly" && cfg.BuildMod != "vendor" {
-			base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
-				"\n\tRemove the -mod flag to use the default readonly value, "+
-				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
+			switch cfg.CmdName {
+			case "work sync", "mod graph", "mod verify", "mod why":
+				// These commands run with BuildMod set to mod, but they don't take the
+				// -mod flag, so we should never get here.
+				panic("in workspace mode and -mod was set explicitly, but command doesn't support setting -mod")
+			default:
+				base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
+					"\n\tRemove the -mod flag to use the default readonly value, "+
+					"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
+			}
 		}
 		// Don't override an explicit '-mod=' argument.
 		return
@@ -1452,6 +1465,7 @@ func modulesTextIsForWorkspace(vendorDir string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer f.Close()
 	var buf [512]byte
 	n, err := f.Read(buf[:])
 	if err != nil && err != io.EOF {

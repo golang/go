@@ -348,7 +348,6 @@ func reassoc_load_uint32(b []byte) uint32 {
 func extrashift_load_uint32(b []byte) uint32 {
 	// amd64:`MOVL\s\([A-Z]+\)`,`SHLL\s[$]2`,-`MOV[BW]`,-`OR`
 	return uint32(b[0])<<2 | uint32(b[1])<<10 | uint32(b[2])<<18 | uint32(b[3])<<26
-
 }
 
 func outoforder_load_uint32(b []byte) uint32 {
@@ -918,4 +917,24 @@ func store16be(p *struct{ a, b uint16 }, x uint32) {
 	// ppc64:-"MOVH",-"SRW"
 	// s390x:-"MOVH",-"SRW"
 	p.b = uint16(x)
+}
+
+func storeBoolConst(p *struct{ a, b bool }) {
+	// amd64:"MOVW",-"MOVB"
+	// arm64:"MOVH",-"MOVB"
+	p.a = true
+	p.b = true
+}
+func issue66413(p *struct {
+	a byte
+	b bool
+	c bool
+	d int8
+}) {
+	// amd64:"MOVL",-"MOVB"
+	// arm64:"MOVW",-"MOVB"
+	p.a = 31
+	p.b = false
+	p.c = true
+	p.d = 12
 }

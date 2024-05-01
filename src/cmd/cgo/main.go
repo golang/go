@@ -385,11 +385,11 @@ func main() {
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 
 	if *objDir == "" {
-		// make sure that _obj directory exists, so that we can write
-		// all the output files there.
-		os.Mkdir("_obj", 0777)
 		*objDir = "_obj"
 	}
+	// make sure that `objDir` directory exists, so that we can write
+	// all the output files there.
+	os.MkdirAll(*objDir, 0o700)
 	*objDir += string(filepath.Separator)
 
 	for i, input := range goFiles {

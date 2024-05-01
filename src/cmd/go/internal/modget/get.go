@@ -1673,7 +1673,6 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			base.Error(err)
 		}
 	}
-	base.ExitIfErrors()
 }
 
 // reportChanges logs version changes to os.Stderr.

@@ -257,13 +257,12 @@ func TestIssue22525(t *testing.T) {
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	typecheck(src, &conf, nil) // do not crash
-	want := `
-p:1:27: a declared and not used
-p:1:30: b declared and not used
-p:1:33: c declared and not used
-p:1:36: d declared and not used
-p:1:39: e declared and not used
-`
+	want := "\n" +
+		"p:1:27: `a' declared and not used\n" +
+		"p:1:30: `b' declared and not used\n" +
+		"p:1:33: `c' declared and not used\n" +
+		"p:1:36: `d' declared and not used\n" +
+		"p:1:39: `e' declared and not used\n"
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
 	}
@@ -698,14 +697,14 @@ func TestIssue51093(t *testing.T) {
 				n++
 				tpar, _ := tv.Type.(*TypeParam)
 				if tpar == nil {
-					t.Fatalf("%s: got type %s, want type parameter", syntax.String(x), tv.Type)
+					t.Fatalf("%s: got type %s, want type parameter", ExprString(x), tv.Type)
 				}
 				if name := tpar.Obj().Name(); name != "P" {
-					t.Fatalf("%s: got type parameter name %s, want P", syntax.String(x), name)
+					t.Fatalf("%s: got type parameter name %s, want P", ExprString(x), name)
 				}
 				// P(val) must not be constant
 				if tv.Value != nil {
-					t.Errorf("%s: got constant value %s (%s), want no constant", syntax.String(x), tv.Value, tv.Value.String())
+					t.Errorf("%s: got constant value %s (%s), want no constant", ExprString(x), tv.Value, tv.Value.String())
 				}
 			}
 		}
@@ -989,8 +988,8 @@ type A = []int
 type S struct{ A }
 `
 
-	t.Setenv("GODEBUG", "gotypesalias=1")
-	pkg := mustTypecheck(src, nil, nil)
+	conf := Config{EnableAlias: true}
+	pkg := mustTypecheck(src, &conf, nil)
 
 	S := pkg.Scope().Lookup("S")
 	if S == nil {
@@ -1075,4 +1074,21 @@ func TestIssue59831(t *testing.T) {
 			t.Errorf("package %s: got %q, want %q", pkg.Name(), errmsg, test.err)
 		}
 	}
+}
+
+func TestIssue64759(t *testing.T) {
+	const src = `
+//go:build go1.18
+package p
+
+func f[S ~[]E, E any](S) {}
+
+func _() {
+	f([]string{})
+}
+`
+	// Per the go:build directive, the source must typecheck
+	// even though the (module) Go version is set to go1.17.
+	conf := Config{GoVersion: "go1.17"}
+	mustTypecheck(src, &conf, nil)
 }

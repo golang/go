@@ -1,8 +1,8 @@
 [short] skip
 
-# If GOROOT_FINAL is set, 'go build -trimpath' bakes that into the resulting
-# binary instead of GOROOT. Explicitly unset it here.
-env GOROOT_FINAL=
+# If GOROOT is set, 'go build -trimpath' bakes that into the resulting
+# binary. Explicitly unset it here.
+env GOROOT=
 
 # Set up two identical directories that can be used as GOPATH.
 env GO111MODULE=on
@@ -21,14 +21,13 @@ cd $WORK/a/src/paths
 go build -o $WORK/paths-dbg.exe .
 exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
 stdout 'binary contains module root: true'
-stdout 'binary contains GOROOT: true'
+stdout 'binary contains an empty GOROOT'
 
-# A binary built with -trimpath should not contain the current workspace
-# or GOROOT.
+# A binary built with -trimpath should not contain the current workspace.
 go build -trimpath -o $WORK/paths-a.exe .
 exec $WORK/paths-a.exe $WORK/paths-a.exe
 stdout 'binary contains module root: false'
-stdout 'binary contains GOROOT: false'
+stdout 'binary contains an empty GOROOT'
 
 # A binary from an external module built with -trimpath should not contain
 # the current workspace or GOROOT.
@@ -36,7 +35,7 @@ go get rsc.io/fortune
 go install -trimpath rsc.io/fortune
 exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
 stdout 'binary contains module root: false'
-stdout 'binary contains GOROOT: false'
+stdout 'binary contains an empty GOROOT'
 go mod edit -droprequire rsc.io/fortune
 
 # Two binaries built from identical packages in different directories
@@ -53,14 +52,13 @@ cd $WORK/a/src/paths
 go build -overlay overlay.json -o $WORK/paths-dbg.exe ./overlaydir
 exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
 stdout 'binary contains module root: true'
-stdout 'binary contains GOROOT: true'
+stdout 'binary contains an empty GOROOT'
 
-# A binary built with -trimpath should not contain the current workspace
-# or GOROOT.
+# A binary built with -trimpath should not contain the current workspace.
 go build -overlay overlay.json -trimpath -o $WORK/paths-a.exe ./overlaydir
 exec $WORK/paths-a.exe $WORK/paths-a.exe
 stdout 'binary contains module root: false'
-stdout 'binary contains GOROOT: false'
+stdout 'binary contains an empty GOROOT'
 
 # Two binaries built from identical packages in different directories
 # should be identical.
@@ -77,13 +75,13 @@ env GOPATH=$WORK/a
 go build -o paths-dbg.exe paths
 exec ./paths-dbg.exe paths-dbg.exe
 stdout 'binary contains GOPATH: true'
-stdout 'binary contains GOROOT: true'
+stdout 'binary contains an empty GOROOT'
 
-# A binary built with -trimpath should not contain GOPATH or GOROOT.
+# A binary built with -trimpath should not contain GOPATH.
 go build -trimpath -o paths-a.exe paths
 exec ./paths-a.exe paths-a.exe
 stdout 'binary contains GOPATH: false'
-stdout 'binary contains GOROOT: false'
+stdout 'binary contains an empty GOROOT'
 
 # Two binaries built from identical packages in different GOPATH roots
 # should be identical.
@@ -103,13 +101,14 @@ env GOPATH=$WORK/a
 go build -compiler=gccgo -o paths-dbg.exe paths
 exec ./paths-dbg.exe paths-dbg.exe
 stdout 'binary contains GOPATH: true'
-stdout 'binary contains GOROOT: false' # gccgo doesn't load std from GOROOT.
+stdout 'binary contains an empty GOROOT'
 
+# gccgo doesn't load std from GOROOT.
 # A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
 go build -compiler=gccgo -trimpath -o paths-a.exe paths
 exec ./paths-a.exe paths-a.exe
 stdout 'binary contains GOPATH: false'
-stdout 'binary contains GOROOT: false'
+stdout 'binary contains an empty GOROOT'
 
 # Two binaries built from identical packages in different directories
 # should be identical.
@@ -152,6 +151,10 @@ func main() {
 }
 
 func check(data []byte, desc, dir string) {
+	if dir == "" {
+		fmt.Printf("binary contains an empty %s\n", desc)
+		return
+	}
 	containsDir := bytes.Contains(data, []byte(dir))
 	containsSlashDir := bytes.Contains(data, []byte(filepath.ToSlash(dir)))
 	fmt.Printf("binary contains %s: %v\n", desc, containsDir || containsSlashDir)

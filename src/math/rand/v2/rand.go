@@ -14,7 +14,7 @@
 //
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
-// crypto/rand package.
+// [crypto/rand] package.
 package rand
 
 import (

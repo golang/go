@@ -12,6 +12,8 @@ package runtime
 // timer precision to keep the timer error acceptable.
 const osRelaxMinNS = 0
 
+var haveHighResSleep = true
+
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 func osRelax(relax bool) {}
@@ -19,3 +21,8 @@ func osRelax(relax bool) {}
 // enableWER is called by setTraceback("wer").
 // Windows Error Reporting (WER) is only supported on Windows.
 func enableWER() {}
+
+// winlibcall is not implemented on non-Windows systems,
+// but it is used in non-OS-specific parts of the runtime.
+// Define it as an empty struct to avoid wasting stack space.
+type winlibcall struct{}

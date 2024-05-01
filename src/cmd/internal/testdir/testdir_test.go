@@ -62,6 +62,7 @@ var (
 	goarch       string // Target GOARCH
 	cgoEnabled   bool
 	goExperiment string
+	goDebug      string
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -100,6 +101,7 @@ func Test(t *testing.T) {
 		GOOS         string
 		GOARCH       string
 		GOEXPERIMENT string
+		GODEBUG      string
 		CGO_ENABLED  string
 	}
 	if err := json.NewDecoder(stdout).Decode(&env); err != nil {
@@ -112,6 +114,7 @@ func Test(t *testing.T) {
 	goarch = env.GOARCH
 	cgoEnabled, _ = strconv.ParseBool(env.CGO_ENABLED)
 	goExperiment = env.GOEXPERIMENT
+	goDebug = env.GODEBUG
 
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
@@ -537,6 +540,7 @@ func (t test) run() error {
 	}
 
 	goexp := goExperiment
+	godebug := goDebug
 
 	// collect flags
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
@@ -568,6 +572,14 @@ func (t test) run() error {
 			}
 			goexp += args[0]
 			runenv = append(runenv, "GOEXPERIMENT="+goexp)
+
+		case "-godebug": // set GODEBUG environment
+			args = args[1:]
+			if godebug != "" {
+				godebug += ","
+			}
+			godebug += args[0]
+			runenv = append(runenv, "GODEBUG="+godebug)
 
 		default:
 			flags = append(flags, args[0])
@@ -1014,7 +1026,7 @@ func (t test) run() error {
 		runInDir = ""
 		var out []byte
 		var err error
-		if len(flags)+len(args) == 0 && t.goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS && goexp == goExperiment {
+		if len(flags)+len(args) == 0 && t.goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS && goexp == goExperiment && godebug == goDebug {
 			// If we're not using special go command flags,
 			// skip all the go command machinery.
 			// This avoids any time the go command would
@@ -1447,7 +1459,19 @@ var (
 	// Regexp to extract an architecture check: architecture name (or triplet),
 	// followed by semi-colon, followed by a comma-separated list of opcode checks.
 	// Extraneous spaces are ignored.
-	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
+	//
+	// An example: arm64/v8.1 : -`ADD` , `SUB`
+	//	"(\w+)" matches "arm64" (architecture name)
+	//	"(/[\w.]+)?" matches "v8.1" (architecture version)
+	//	"(/\w*)?" doesn't match anything here (it's an optional part of the triplet)
+	//	"\s*:\s*" matches " : " (semi-colon)
+	//	"(" starts a capturing group
+	//      first reMatchCheck matches "-`ADD`"
+	//	`(?:" starts a non-capturing group
+	//	"\s*,\s*` matches " , "
+	//	second reMatchCheck matches "`SUB`"
+	//	")*)" closes started groups; "*" means that there might be other elements in the comma-separated list
+	rxAsmPlatform = regexp.MustCompile(`(\w+)(/[\w.]+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
 
 	// Regexp to extract a single opcoded check
 	rxAsmCheck = regexp.MustCompile(reMatchCheck)
@@ -1459,7 +1483,7 @@ var (
 		"386":     {"GO386", "sse2", "softfloat"},
 		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
 		"arm":     {"GOARM", "5", "6", "7", "7,softfloat"},
-		"arm64":   {},
+		"arm64":   {"GOARM64", "v8.0", "v8.1"},
 		"loong64": {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
@@ -1468,7 +1492,7 @@ var (
 		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
 		"s390x":   {},
 		"wasm":    {},
-		"riscv64": {},
+		"riscv64": {"GORISCV64", "rva20u64", "rva22u64"},
 	}
 )
 

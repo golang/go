@@ -94,7 +94,7 @@ func (v Value) typ() *abi.Type {
 	// types, held in the central map). So there is no need to
 	// escape types. noescape here help avoid unnecessary escape
 	// of v.
-	return (*abi.Type)(noescape(unsafe.Pointer(v.typ_)))
+	return (*abi.Type)(abi.NoEscape(unsafe.Pointer(v.typ_)))
 }
 
 // pointer returns the underlying pointer represented by v.
@@ -113,7 +113,7 @@ func (v Value) pointer() unsafe.Pointer {
 func packEface(v Value) any {
 	t := v.typ()
 	var i any
-	e := (*emptyInterface)(unsafe.Pointer(&i))
+	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
 	case ifaceIndir(t):
@@ -123,34 +123,32 @@ func packEface(v Value) any {
 		// Value is indirect, and so is the interface we're making.
 		ptr := v.ptr
 		if v.flag&flagAddr != 0 {
-			// TODO: pass safe boolean from valueInterface so
-			// we don't need to copy if safe==true?
 			c := unsafe_New(t)
 			typedmemmove(t, c, ptr)
 			ptr = c
 		}
-		e.word = ptr
+		e.Data = ptr
 	case v.flag&flagIndir != 0:
 		// Value is indirect, but interface is direct. We need
 		// to load the data at v.ptr into the interface data word.
-		e.word = *(*unsafe.Pointer)(v.ptr)
+		e.Data = *(*unsafe.Pointer)(v.ptr)
 	default:
 		// Value is direct, and so is the interface.
-		e.word = v.ptr
+		e.Data = v.ptr
 	}
 	// Now, fill in the type portion. We're very careful here not
 	// to have any operation between the e.word and e.typ assignments
 	// that would let the garbage collector observe the partially-built
 	// interface value.
-	e.typ = t
+	e.Type = t
 	return i
 }
 
 // unpackEface converts the empty interface i to a Value.
 func unpackEface(i any) Value {
-	e := (*emptyInterface)(unsafe.Pointer(&i))
+	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
-	t := e.typ
+	t := e.Type
 	if t == nil {
 		return Value{}
 	}
@@ -158,7 +156,7 @@ func unpackEface(i any) Value {
 	if ifaceIndir(t) {
 		f |= flagIndir
 	}
-	return Value{t, e.word, f}
+	return Value{t, e.Data, f}
 }
 
 // A ValueError occurs when a Value method is invoked on
@@ -185,12 +183,6 @@ func methodName() string {
 		return "unknown method"
 	}
 	return f.Name()
-}
-
-// emptyInterface is the header for an interface{} value.
-type emptyInterface struct {
-	typ  *abi.Type
-	word unsafe.Pointer
 }
 
 // mustBeExported panics if f records that the value was obtained using
@@ -285,7 +277,6 @@ func valueInterface(v Value) any {
 		})(v.ptr)
 	}
 
-	// TODO: pass safe to packEface so we don't need to copy if safe==true?
 	return packEface(v)
 }
 
@@ -484,10 +475,4 @@ func escapes(x any) {
 var dummy struct {
 	b bool
 	x any
-}
-
-//go:nosplit
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
 }

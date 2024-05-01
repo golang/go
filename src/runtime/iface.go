@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -66,19 +66,19 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 
 	// Entry doesn't exist yet. Make a new entry & add it.
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
-	m.inter = inter
-	m._type = typ
+	m.Inter = inter
+	m.Type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
 	// for all interface/type pairs used in switches (which are added to itabTable
 	// in itabsinit). The dynamically-generated itab's never participate in type switches,
 	// and thus the hash is irrelevant.
-	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
-	m.hash = 0
-	m.init()
+	// Note: m.Hash is _not_ the hash used for the runtime itabTable hash table.
+	m.Hash = 0
+	itabInit(m, true)
 	itabAdd(m)
 	unlock(&itabLock)
 finish:
-	if m.fun[0] != 0 {
+	if m.Fun[0] != 0 {
 		return m
 	}
 	if canfail {
@@ -90,7 +90,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: m.init()})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m, false)})
 }
 
 // find finds the given interface/type pair in t.
@@ -110,7 +110,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 		if m == nil {
 			return nil
 		}
-		if m.inter == inter && m._type == typ {
+		if m.Inter == inter && m.Type == typ {
 			return m
 		}
 		h += i
@@ -161,7 +161,7 @@ func (t *itabTableType) add(m *itab) {
 	// See comment in find about the probe sequence.
 	// Insert new itab in the first empty spot in the probe sequence.
 	mask := t.size - 1
-	h := itabHashFunc(m.inter, m._type) & mask
+	h := itabHashFunc(m.Inter, m.Type) & mask
 	for i := uintptr(1); ; i++ {
 		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
 		m2 := *p
@@ -186,13 +186,15 @@ func (t *itabTableType) add(m *itab) {
 	}
 }
 
-// init fills in the m.fun array with all the code pointers for
-// the m.inter/m._type pair. If the type does not implement the interface,
-// it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
-// It is ok to call this multiple times on the same m, even concurrently.
-func (m *itab) init() string {
-	inter := m.inter
-	typ := m._type
+// itabInit fills in the m.Fun array with all the code pointers for
+// the m.Inter/m.Type pair. If the type does not implement the interface,
+// it sets m.Fun[0] to 0 and returns the name of an interface function that is missing.
+// If !firstTime, itabInit will not write anything to m.Fun (see issue 65962).
+// It is ok to call this multiple times on the same m, even concurrently
+// (although it will only be called once with firstTime==true).
+func itabInit(m *itab, firstTime bool) string {
+	inter := m.Inter
+	typ := m.Type
 	x := typ.Uncommon()
 
 	// both inter and typ have method sorted by name,
@@ -203,7 +205,7 @@ func (m *itab) init() string {
 	nt := int(x.Mcount)
 	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
 	j := 0
-	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.Fun[0]))[:ni:ni]
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
@@ -227,8 +229,8 @@ imethods:
 				if tname.IsExported() || pkgPath == ipkg {
 					ifn := rtyp.textOff(t.Ifn)
 					if k == 0 {
-						fun0 = ifn // we'll set m.fun[0] at the end
-					} else {
+						fun0 = ifn // we'll set m.Fun[0] at the end
+					} else if firstTime {
 						methods[k] = ifn
 					}
 					continue imethods
@@ -236,10 +238,12 @@ imethods:
 			}
 		}
 		// didn't find method
-		m.fun[0] = 0
+		// Leaves m.Fun[0] set to 0.
 		return iname
 	}
-	m.fun[0] = uintptr(fun0)
+	if firstTime {
+		m.Fun[0] = uintptr(fun0)
+	}
 	return ""
 }
 
@@ -267,7 +271,7 @@ func panicdottypeE(have, want, iface *_type) {
 func panicdottypeI(have *itab, want, iface *_type) {
 	var t *_type
 	if have != nil {
-		t = have._type
+		t = have.Type
 	}
 	panicdottypeE(t, want, iface)
 }

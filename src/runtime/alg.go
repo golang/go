@@ -100,7 +100,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	if tab == nil {
 		return h
 	}
-	t := tab._type
+	t := tab.Type
 	if t.Equal == nil {
 		// Check hashability here. We could do this check inside
 		// typehash, but we want to report the topmost type in
@@ -154,30 +154,30 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 			return memhash(p, h, t.Size_)
 		}
 	}
-	switch t.Kind_ & kindMask {
-	case kindFloat32:
+	switch t.Kind_ & abi.KindMask {
+	case abi.Float32:
 		return f32hash(p, h)
-	case kindFloat64:
+	case abi.Float64:
 		return f64hash(p, h)
-	case kindComplex64:
+	case abi.Complex64:
 		return c64hash(p, h)
-	case kindComplex128:
+	case abi.Complex128:
 		return c128hash(p, h)
-	case kindString:
+	case abi.String:
 		return strhash(p, h)
-	case kindInterface:
+	case abi.Interface:
 		i := (*interfacetype)(unsafe.Pointer(t))
 		if len(i.Methods) == 0 {
 			return nilinterhash(p, h)
 		}
 		return interhash(p, h)
-	case kindArray:
+	case abi.Array:
 		a := (*arraytype)(unsafe.Pointer(t))
 		for i := uintptr(0); i < a.Len; i++ {
 			h = typehash(a.Elem, add(p, i*a.Elem.Size_), h)
 		}
 		return h
-	case kindStruct:
+	case abi.Struct:
 		s := (*structtype)(unsafe.Pointer(t))
 		for _, f := range s.Fields {
 			if f.Name.IsBlank() {
@@ -204,10 +204,10 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 	if t.TFlag&abi.TFlagRegularMemory != 0 {
 		return nil
 	}
-	switch t.Kind_ & kindMask {
-	case kindFloat32, kindFloat64, kindComplex64, kindComplex128, kindString:
+	switch t.Kind_ & abi.KindMask {
+	case abi.Float32, abi.Float64, abi.Complex64, abi.Complex128, abi.String:
 		return nil
-	case kindInterface:
+	case abi.Interface:
 		i := (*interfacetype)(unsafe.Pointer(t))
 		var t *_type
 		var pdata *unsafe.Pointer
@@ -223,7 +223,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 			if a.tab == nil {
 				return nil
 			}
-			t = a.tab._type
+			t = a.tab.Type
 			pdata = &a.data
 		}
 
@@ -236,7 +236,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 		} else {
 			return mapKeyError2(t, *pdata)
 		}
-	case kindArray:
+	case abi.Array:
 		a := (*arraytype)(unsafe.Pointer(t))
 		for i := uintptr(0); i < a.Len; i++ {
 			if err := mapKeyError2(a.Elem, add(p, i*a.Elem.Size_)); err != nil {
@@ -244,7 +244,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
 			}
 		}
 		return nil
-	case kindStruct:
+	case abi.Struct:
 		s := (*structtype)(unsafe.Pointer(t))
 		for _, f := range s.Fields {
 			if f.Name.IsBlank() {
@@ -329,7 +329,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 	if tab == nil {
 		return true
 	}
-	t := tab._type
+	t := tab.Type
 	eq := t.Equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
@@ -391,7 +391,7 @@ func alginit() {
 		return
 	}
 	for i := range hashkey {
-		hashkey[i] = uintptr(rand()) | 1 // make sure these numbers are odd
+		hashkey[i] = uintptr(bootstrapRand())
 	}
 }
 

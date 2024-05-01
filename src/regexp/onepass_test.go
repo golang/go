@@ -5,8 +5,8 @@
 package regexp
 
 import (
-	"reflect"
 	"regexp/syntax"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -125,10 +125,10 @@ var runeMergeTests = []struct {
 func TestMergeRuneSet(t *testing.T) {
 	for ix, test := range runeMergeTests {
 		merged, next := mergeRuneSets(&test.left, &test.right, test.leftPC, test.rightPC)
-		if !reflect.DeepEqual(merged, test.merged) {
+		if !slices.Equal(merged, test.merged) {
 			t.Errorf("mergeRuneSet :%d (%v, %v) merged\n have\n%v\nwant\n%v", ix, test.left, test.right, merged, test.merged)
 		}
-		if !reflect.DeepEqual(next, test.next) {
+		if !slices.Equal(next, test.next) {
 			t.Errorf("mergeRuneSet :%d(%v, %v) next\n have\n%v\nwant\n%v", ix, test.left, test.right, next, test.next)
 		}
 	}

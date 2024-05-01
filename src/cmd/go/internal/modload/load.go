@@ -99,12 +99,13 @@ import (
 	"fmt"
 	"go/build"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
 	pathpkg "path"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1181,7 +1182,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.error(err)
 			break
 		}
-		if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+		if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 			// Something is deeply wrong. resolveMissingImports gave us a non-empty
 			// set of modules to add to the graph, but adding those modules had no
 			// effect — either they were already in the graph, or updateRoots did not
@@ -1319,7 +1320,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 	// imports.AnyTags, then we didn't necessarily load every package that
 	// contributes “direct” imports — so we can't safely mark existing direct
 	// dependencies in ld.requirements as indirect-only. Propagate them as direct.
-	loadedDirect := ld.allPatternIsRoot && reflect.DeepEqual(ld.Tags, imports.AnyTags())
+	loadedDirect := ld.allPatternIsRoot && maps.Equal(ld.Tags, imports.AnyTags())
 	if loadedDirect {
 		direct = make(map[string]bool)
 	} else {
@@ -1465,7 +1466,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		// packages present in the standard library. If it has changed, it's best to
 		// reload packages once more to be sure everything is stable.
 		changed = true
-	} else if rs != ld.requirements && !reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+	} else if rs != ld.requirements && !slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 		// The roots of the module graph have changed in some way (not just the
 		// "direct" markings). Check whether the changes affected any of the loaded
 		// packages.
@@ -1779,7 +1780,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 		ld.exitIfErrors(ctx)
 		return false
 	}
-	if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+	if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 		// Something is deeply wrong. resolveMissingImports gave us a non-empty
 		// set of modules to add to the graph, but adding those modules had no
 		// effect — either they were already in the graph, or updateRoots did not

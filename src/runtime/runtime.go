@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/abi"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -167,12 +168,17 @@ func (g *godebugInc) IncNonDefault() {
 		if newInc == nil {
 			return
 		}
-		// If other goroutines are racing here, no big deal. One will win,
-		// and all the inc functions will be using the same underlying
-		// *godebug.Setting.
 		inc = new(func())
 		*inc = (*newInc)(g.name)
-		g.inc.Store(inc)
+		if raceenabled {
+			racereleasemerge(unsafe.Pointer(&g.inc))
+		}
+		if !g.inc.CompareAndSwap(nil, inc) {
+			inc = g.inc.Load()
+		}
+	}
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&g.inc))
 	}
 	(*inc)()
 }
@@ -212,10 +218,75 @@ func syscall_runtimeUnsetenv(key string) {
 }
 
 // writeErrStr writes a string to descriptor 2.
+// If SetCrashOutput(f) was called, it also writes to f.
 //
 //go:nosplit
 func writeErrStr(s string) {
-	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
+	writeErrData(unsafe.StringData(s), int32(len(s)))
+}
+
+// writeErrData is the common parts of writeErr{,Str}.
+//
+//go:nosplit
+func writeErrData(data *byte, n int32) {
+	write(2, unsafe.Pointer(data), n)
+
+	// If crashing, print a copy to the SetCrashOutput fd.
+	gp := getg()
+	if gp != nil && gp.m.dying > 0 ||
+		gp == nil && panicking.Load() > 0 {
+		if fd := crashFD.Load(); fd != ^uintptr(0) {
+			write(fd, unsafe.Pointer(data), n)
+		}
+	}
+}
+
+// crashFD is an optional file descriptor to use for fatal panics, as
+// set by debug.SetCrashOutput (see #42888). If it is a valid fd (not
+// all ones), writeErr and related functions write to it in addition
+// to standard error.
+//
+// Initialized to -1 in schedinit.
+var crashFD atomic.Uintptr
+
+//go:linkname setCrashFD
+func setCrashFD(fd uintptr) uintptr {
+	// Don't change the crash FD if a crash is already in progress.
+	//
+	// Unlike the case below, this is not required for correctness, but it
+	// is generally nicer to have all of the crash output go to the same
+	// place rather than getting split across two different FDs.
+	if panicking.Load() > 0 {
+		return ^uintptr(0)
+	}
+
+	old := crashFD.Swap(fd)
+
+	// If we are panicking, don't return the old FD to runtime/debug for
+	// closing. writeErrData may have already read the old FD from crashFD
+	// before the swap and closing it would cause the write to be lost [1].
+	// The old FD will never be closed, but we are about to crash anyway.
+	//
+	// On the writeErrData thread, panicking.Add(1) happens-before
+	// crashFD.Load() [2].
+	//
+	// On this thread, swapping old FD for new in crashFD happens-before
+	// panicking.Load() > 0.
+	//
+	// Therefore, if panicking.Load() == 0 here (old FD will be closed), it
+	// is impossible for the writeErrData thread to observe
+	// crashFD.Load() == old FD.
+	//
+	// [1] Or, if really unlucky, another concurrent open could reuse the
+	// FD, sending the write into an unrelated file.
+	//
+	// [2] If gp != nil, it occurs when incrementing gp.m.dying in
+	// startpanic_m. If gp == nil, we read panicking.Load() > 0, so an Add
+	// must have happened-before.
+	if panicking.Load() > 0 {
+		return ^uintptr(0)
+	}
+	return old
 }
 
 // auxv is populated on relevant platforms but defined here for all platforms
@@ -226,3 +297,5 @@ func writeErrStr(s string) {
 var auxv []uintptr
 
 func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336
+
+var zeroVal [abi.ZeroValSize]byte

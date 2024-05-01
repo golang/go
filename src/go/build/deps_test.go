@@ -66,15 +66,19 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos
 	< internal/bytealg
+	< internal/stringslite
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
-	< runtime/internal/syscall
-	< runtime/internal/atomic
+	< internal/runtime/syscall
+	< internal/runtime/atomic
 	< runtime/internal/math
 	< runtime
 	< sync/atomic
 	< internal/race
+	< internal/msan
+	< internal/asan
+	< internal/weak
 	< sync
 	< internal/bisect
 	< internal/godebug
@@ -145,6 +149,9 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
+	RUNTIME, math/rand/v2
+	< internal/concurrent;
+
 	MATH, unicode/utf8
 	< strconv;
 
@@ -158,13 +165,16 @@ var depsRules = `
 	bufio, path, strconv
 	< STR;
 
+	RUNTIME, internal/concurrent
+	< unique;
+
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.
 	# OS does not include reflection.
 	io/fs
 	< internal/testlog
 	< internal/poll
-	< internal/safefilepath
+	< internal/filepathlite
 	< os
 	< os/signal;
 
@@ -173,7 +183,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, internal/safefilepath, STR
+	os/signal, internal/filepathlite, STR
 	< path/filepath
 	< io/ioutil;
 
@@ -319,8 +329,9 @@ var depsRules = `
 	# databases
 	FMT
 	< database/sql/internal
-	< database/sql/driver
-	< database/sql;
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
 
 	# images
 	FMT, compress/lzw, compress/zlib
@@ -363,11 +374,7 @@ var depsRules = `
 	  golang.org/x/net/lif,
 	  golang.org/x/net/route;
 
-	os, runtime, strconv, sync, unsafe,
-	internal/godebug
-	< internal/intern;
-
-	internal/bytealg, internal/intern, internal/itoa, math/bits, sort, strconv
+	internal/bytealg, internal/itoa, math/bits, sort, strconv, unique
 	< net/netip;
 
 	# net is unavoidable when doing any networking,
@@ -450,7 +457,8 @@ var depsRules = `
 
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512;
+	  crypto/sha1, crypto/sha256, crypto/sha512,
+	  golang.org/x/crypto/sha3;
 
 	crypto/boring, crypto/internal/edwards25519/field
 	< crypto/ecdh;
@@ -464,7 +472,8 @@ var depsRules = `
 	crypto/rc4,
 	crypto/sha1,
 	crypto/sha256,
-	crypto/sha512
+	crypto/sha512,
+	golang.org/x/crypto/sha3
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;
@@ -473,6 +482,7 @@ var depsRules = `
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
 	< crypto/rand
+	< crypto/internal/mlkem768
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
@@ -630,7 +640,10 @@ var depsRules = `
 	FMT, encoding/binary, internal/trace/v2/version
 	< internal/trace/v2/raw;
 
-	FMT, encoding/binary, internal/trace/v2/version
+	FMT, internal/trace/v2/event, internal/trace/v2/version, io, sort, encoding/binary
+	< internal/trace/v2/internal/oldtrace;
+
+	FMT, encoding/binary, internal/trace/v2/version, internal/trace/v2/internal/oldtrace
 	< internal/trace/v2;
 
 	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
@@ -672,7 +685,7 @@ var depsRules = `
 	internal/coverage, crypto/sha256, FMT
 	< cmd/internal/cov/covcmd;
 
-    encoding/json,
+	encoding/json,
 	runtime/debug,
 	internal/coverage/calloc,
 	internal/coverage/cformat,
@@ -680,6 +693,11 @@ var depsRules = `
 	internal/coverage/encodecounter, internal/coverage/encodemeta,
 	internal/coverage/pods
 	< runtime/coverage;
+
+	# Test-only packages can have anything they want
+	CGO, internal/syscall/unix < net/internal/cgotest;
+
+
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

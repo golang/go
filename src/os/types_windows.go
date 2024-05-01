@@ -5,6 +5,8 @@
 package os
 
 import (
+	"internal/filepathlite"
+	"internal/godebug"
 	"internal/syscall/windows"
 	"sync"
 	"syscall"
@@ -48,18 +50,14 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		return nil, &PathError{Op: "GetFileInformationByHandle", Path: path, Err: err}
 	}
 
-	var ti windows.FILE_ATTRIBUTE_TAG_INFO
-	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
-	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
-			// It appears calling GetFileInformationByHandleEx with
-			// FILE_ATTRIBUTE_TAG_INFO fails on FAT file system with
-			// ERROR_INVALID_PARAMETER. Clear ti.ReparseTag in that
-			// instance to indicate no symlinks are possible.
-			ti.ReparseTag = 0
-		} else {
+	var reparseTag uint32
+	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		var ti windows.FILE_ATTRIBUTE_TAG_INFO
+		err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+		if err != nil {
 			return nil, &PathError{Op: "GetFileInformationByHandleEx", Path: path, Err: err}
 		}
+		reparseTag = ti.ReparseTag
 	}
 
 	return &fileStat{
@@ -73,11 +71,24 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		vol:            d.VolumeSerialNumber,
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
-		ReparseTag:     ti.ReparseTag,
+		ReparseTag:     reparseTag,
 		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
 	}, nil
+}
+
+// newFileStatFromWin32FileAttributeData copies all required information
+// from syscall.Win32FileAttributeData d into the newly created fileStat.
+func newFileStatFromWin32FileAttributeData(d *syscall.Win32FileAttributeData) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   d.FileSizeHigh,
+		FileSizeLow:    d.FileSizeLow,
+	}
 }
 
 // newFileStatFromFileIDBothDirInfo copies all required information
@@ -142,50 +153,63 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 // and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
 func (fs *fileStat) isReparseTagNameSurrogate() bool {
 	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
-	return fs.ReparseTag&0x20000000 != 0
-}
-
-func (fs *fileStat) isSymlink() bool {
-	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
-	// symlinks because otherwise certain directory junction tests in the
-	// path/filepath package would fail.
-	//
-	// However,
-	// https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions
-	// seems to suggest that directory junctions should be treated like hard
-	// links, not symlinks.
-	//
-	// TODO(bcmills): Get more input from Microsoft on what the behavior ought to
-	// be for MOUNT_POINT reparse points.
-
-	return fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
-		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT
+	return fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && fs.ReparseTag&0x20000000 != 0
 }
 
 func (fs *fileStat) Size() int64 {
 	return int64(fs.FileSizeHigh)<<32 + int64(fs.FileSizeLow)
 }
 
-func (fs *fileStat) Mode() (m FileMode) {
+var winsymlink = godebug.New("winsymlink")
+
+func (fs *fileStat) Mode() FileMode {
+	m := fs.mode()
+	if winsymlink.Value() == "0" {
+		old := fs.modePreGo1_23()
+		if old != m {
+			winsymlink.IncNonDefault()
+			m = old
+		}
+	}
+	return m
+}
+
+func (fs *fileStat) mode() (m FileMode) {
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
 		m |= 0666
 	}
-	if fs.isSymlink() {
-		return m | ModeSymlink
+
+	// Windows reports the FILE_ATTRIBUTE_DIRECTORY bit for reparse points
+	// that refer to directories, such as symlinks and mount points.
+	// However, we follow symlink POSIX semantics and do not set the mode bits.
+	// This allows users to walk directories without following links
+	// by just calling "fi, err := os.Lstat(name); err == nil && fi.IsDir()".
+	// Note that POSIX only defines the semantics for symlinks, not for
+	// mount points or other surrogate reparse points, but we treat them
+	// the same way for consistency. Also, mount points can contain infinite
+	// loops, so it is not safe to walk them without special handling.
+	if !fs.isReparseTagNameSurrogate() {
+		if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+			m |= ModeDir | 0111
+		}
+
+		switch fs.filetype {
+		case syscall.FILE_TYPE_PIPE:
+			m |= ModeNamedPipe
+		case syscall.FILE_TYPE_CHAR:
+			m |= ModeDevice | ModeCharDevice
+		}
 	}
-	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-		m |= ModeDir | 0111
-	}
-	switch fs.filetype {
-	case syscall.FILE_TYPE_PIPE:
-		m |= ModeNamedPipe
-	case syscall.FILE_TYPE_CHAR:
-		m |= ModeDevice | ModeCharDevice
-	}
-	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && m&ModeType == 0 {
-		if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
+
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		switch fs.ReparseTag {
+		case syscall.IO_REPARSE_TAG_SYMLINK:
+			m |= ModeSymlink
+		case windows.IO_REPARSE_TAG_AF_UNIX:
+			m |= ModeSocket
+		case windows.IO_REPARSE_TAG_DEDUP:
 			// If the Data Deduplication service is enabled on Windows Server, its
 			// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
 			// whenever that job runs.
@@ -199,8 +223,46 @@ func (fs *fileStat) Mode() (m FileMode) {
 			// raw device files on Linux, POSIX FIFO special files, and so on), so
 			// to avoid files changing unpredictably from regular to irregular we will
 			// consider DEDUP files to be close enough to regular to treat as such.
-		} else {
+		default:
 			m |= ModeIrregular
+		}
+	}
+	return
+}
+
+// modePreGo1_23 returns the FileMode for the fileStat, using the pre-Go 1.23
+// logic for determining the file mode.
+// The logic is subtle and not well-documented, so it is better to keep it
+// separate from the new logic.
+func (fs *fileStat) modePreGo1_23() (m FileMode) {
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+		m |= 0444
+	} else {
+		m |= 0666
+	}
+	if fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
+		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT {
+		return m | ModeSymlink
+	}
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+		m |= ModeDir | 0111
+	}
+	switch fs.filetype {
+	case syscall.FILE_TYPE_PIPE:
+		m |= ModeNamedPipe
+	case syscall.FILE_TYPE_CHAR:
+		m |= ModeDevice | ModeCharDevice
+	}
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		if fs.ReparseTag == windows.IO_REPARSE_TAG_AF_UNIX {
+			m |= ModeSocket
+		}
+		if m&ModeType == 0 {
+			if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
+				// See comment in fs.Mode.
+			} else {
+				m |= ModeIrregular
+			}
 		}
 	}
 	return m
@@ -277,7 +339,7 @@ func (fs *fileStat) loadFileId() error {
 // and set name from path.
 func (fs *fileStat) saveInfoFromPath(path string) error {
 	fs.path = path
-	if !isAbs(fs.path) {
+	if !filepathlite.IsAbs(fs.path) {
 		var err error
 		fs.path, err = syscall.FullPath(fs.path)
 		if err != nil {

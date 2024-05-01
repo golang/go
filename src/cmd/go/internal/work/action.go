@@ -384,6 +384,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		if err != nil {
 			base.Fatal(fmt.Errorf("failed to open shared library: %v", err))
 		}
+		defer f.Close()
 		sect := f.Section(".go_export")
 		if sect == nil {
 			base.Fatal(fmt.Errorf("%s: missing .go_export section", shlibpath))
@@ -460,6 +461,69 @@ func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return b.build(ctx, a)
 }
 
+// pgoActionID computes the action ID for a preprocess PGO action.
+func (b *Builder) pgoActionID(input string) cache.ActionID {
+	h := cache.NewHash("preprocess PGO profile " + input)
+
+	fmt.Fprintf(h, "preprocess PGO profile\n")
+	fmt.Fprintf(h, "preprofile %s\n", b.toolID("preprofile"))
+	fmt.Fprintf(h, "input %q\n", b.fileHash(input))
+
+	return h.Sum()
+}
+
+// pgoActor implements the Actor interface for preprocessing PGO profiles.
+type pgoActor struct {
+	// input is the path to the original pprof profile.
+	input string
+}
+
+func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
+	if b.useCache(a, b.pgoActionID(p.input), a.Target, !b.IsCmdList) || b.IsCmdList {
+		return nil
+	}
+	defer b.flushOutput(a)
+
+	sh := b.Shell(a)
+
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
+	if err := sh.run(".", p.input, nil, cfg.BuildToolexec, base.Tool("preprofile"), "-o", a.Target, "-i", p.input); err != nil {
+		return err
+	}
+
+	// N.B. Builder.build looks for the out in a.built, regardless of
+	// whether this came from cache.
+	a.built = a.Target
+
+	if !cfg.BuildN {
+		// Cache the output.
+		//
+		// N.B. We don't use updateBuildID here, as preprocessed PGO profiles
+		// do not contain a build ID. updateBuildID is typically responsible
+		// for adding to the cache, thus we must do so ourselves instead.
+
+		r, err := os.Open(a.Target)
+		if err != nil {
+			return fmt.Errorf("error opening target for caching: %w", err)
+		}
+
+		c := cache.Default()
+		outputID, _, err := c.Put(a.actionID, r)
+		r.Close()
+		if err != nil {
+			return fmt.Errorf("error adding target to cache: %w", err)
+		}
+		if cfg.BuildX {
+			sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", a.Target, c.OutputFile(outputID))))
+		}
+	}
+
+	return nil
+}
+
 // CompileAction returns the action for compiling and possibly installing
 // (according to mode) the given package. The resulting action is only
 // for building packages (archives), never for linking executables.
@@ -491,6 +555,20 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			for _, p1 := range p.Internal.Imports {
 				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
 			}
+		}
+
+		if p.Internal.PGOProfile != "" {
+			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
+				a := &Action{
+					Mode:    "preprocess PGO profile",
+					Actor:   &pgoActor{input: p.Internal.PGOProfile},
+					Objdir:  b.NewObjdir(),
+				}
+				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
+
+				return a
+			})
+			a.Deps = append(a.Deps, pgoAction)
 		}
 
 		if p.Standard {

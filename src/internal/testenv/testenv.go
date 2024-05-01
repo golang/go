@@ -189,15 +189,13 @@ func findGOROOT() (string, error) {
 			// If runtime.GOROOT() is non-empty, assume that it is valid.
 			//
 			// (It might not be: for example, the user may have explicitly set GOROOT
-			// to the wrong directory, or explicitly set GOROOT_FINAL but not GOROOT
-			// and hasn't moved the tree to GOROOT_FINAL yet. But those cases are
+			// to the wrong directory. But this case is
 			// rare, and if that happens the user can fix what they broke.)
 			return
 		}
 
 		// runtime.GOROOT doesn't know where GOROOT is (perhaps because the test
-		// binary was built with -trimpath, or perhaps because GOROOT_FINAL was set
-		// without GOROOT and the tree hasn't been moved there yet).
+		// binary was built with -trimpath).
 		//
 		// Since this is internal/testenv, we can cheat and assume that the caller
 		// is a test of some package in a subdirectory of GOROOT/src. ('go test'
@@ -368,6 +366,15 @@ func MustInternalLink(t testing.TB, withCgo bool) {
 			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
 		}
 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// MustInternalLinkPIE checks whether the current system can link PIE binary using
+// internal linking.
+// If not, MustInternalLinkPIE calls t.Skip with an explanation.
+func MustInternalLinkPIE(t testing.TB) {
+	if !platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping test: internal linking for buildmode=pie on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
 	}
 }
 

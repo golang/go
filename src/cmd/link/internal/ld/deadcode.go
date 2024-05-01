@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 	"unicode"
@@ -201,7 +202,7 @@ func (d *deadcodePass) flood() {
 				rs := r.Sym()
 				if d.ldr.IsItab(rs) {
 					// This relocation can also point at an itab, in which case it
-					// means "the _type field of that itab".
+					// means "the Type field of that itab".
 					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
 				}
 				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
@@ -511,7 +512,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 	if p == nil {
 		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
 	}
-	if decodetypeKind(arch, p)&kindMask != kindInterface {
+	if decodetypeKind(arch, p) != abi.Interface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
 	relocs := ldr.Relocs(symIdx)
@@ -532,22 +533,22 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
 	}
 	off := commonsize(arch) // reflect.rtype
-	switch decodetypeKind(arch, p) & kindMask {
-	case kindStruct: // reflect.structType
+	switch decodetypeKind(arch, p) {
+	case abi.Struct: // reflect.structType
 		off += 4 * arch.PtrSize
-	case kindPtr: // reflect.ptrType
+	case abi.Pointer: // reflect.ptrType
 		off += arch.PtrSize
-	case kindFunc: // reflect.funcType
+	case abi.Func: // reflect.funcType
 		off += arch.PtrSize // 4 bytes, pointer aligned
-	case kindSlice: // reflect.sliceType
+	case abi.Slice: // reflect.sliceType
 		off += arch.PtrSize
-	case kindArray: // reflect.arrayType
+	case abi.Array: // reflect.arrayType
 		off += 3 * arch.PtrSize
-	case kindChan: // reflect.chanType
+	case abi.Chan: // reflect.chanType
 		off += 2 * arch.PtrSize
-	case kindMap: // reflect.mapType
+	case abi.Map: // reflect.mapType
 		off += 4*arch.PtrSize + 8
-	case kindInterface: // reflect.interfaceType
+	case abi.Interface: // reflect.interfaceType
 		off += 3 * arch.PtrSize
 	default:
 		// just Sizeof(rtype)

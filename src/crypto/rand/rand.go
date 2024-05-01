@@ -11,13 +11,14 @@ import "io"
 // Reader is a global, shared instance of a cryptographically
 // secure random number generator.
 //
-// On Linux, FreeBSD, Dragonfly, NetBSD and Solaris, Reader uses getrandom(2) if
-// available, /dev/urandom otherwise.
-// On OpenBSD and macOS, Reader uses getentropy(2).
-// On other Unix-like systems, Reader reads from /dev/urandom.
-// On Windows systems, Reader uses the ProcessPrng API.
-// On JS/Wasm, Reader uses the Web Crypto API.
-// On WASIP1/Wasm, Reader uses random_get from wasi_snapshot_preview1.
+//   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2)
+//     if available, and /dev/urandom otherwise.
+//   - On macOS and iOS, Reader uses arc4random_buf(3).
+//   - On OpenBSD and NetBSD, Reader uses getentropy(2).
+//   - On other Unix-like systems, Reader reads from /dev/urandom.
+//   - On Windows, Reader uses the ProcessPrng API.
+//   - On js/wasm, Reader uses the Web Crypto API.
+//   - On wasip1/wasm, Reader uses random_get from wasi_snapshot_preview1.
 var Reader io.Reader
 
 // Read is a helper function that calls Reader.Read using io.ReadFull.

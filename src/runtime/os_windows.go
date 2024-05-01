@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -20,7 +20,6 @@ const (
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
-//go:cgo_import_dynamic runtime._CreateFileA CreateFileA%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
@@ -44,6 +43,7 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryPerformanceFrequency QueryPerformanceFrequency%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
@@ -78,7 +78,6 @@ var (
 	_AddVectoredExceptionHandler,
 	_CloseHandle,
 	_CreateEventA,
-	_CreateFileA,
 	_CreateIoCompletionPort,
 	_CreateThread,
 	_CreateWaitableTimerA,
@@ -102,6 +101,7 @@ var (
 	_LoadLibraryW,
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
+	_QueryPerformanceFrequency,
 	_RaiseFailFastException,
 	_ResumeThread,
 	_RtlLookupFunctionEntry,
@@ -133,13 +133,15 @@ var (
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
-	_RtlGetCurrentPeb       stdFunction
-	_RtlGetNtVersionNumbers stdFunction
+	_NtCreateWaitCompletionPacket    stdFunction
+	_NtAssociateWaitCompletionPacket stdFunction
+	_NtCancelWaitCompletionPacket    stdFunction
+	_RtlGetCurrentPeb                stdFunction
+	_RtlGetVersion                   stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
 	_timeEndPeriod,
-	_WSAGetOverlappedResult,
 	_ stdFunction
 )
 
@@ -148,7 +150,6 @@ var (
 	ntdlldll            = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
 	powrprofdll         = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
 	winmmdll            = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
-	ws2_32dll           = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
 )
 
 // Function to be called by windows CreateThread
@@ -165,7 +166,9 @@ type mOS struct {
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
 
-	highResTimer uintptr // high resolution timer handle used in usleep
+	highResTimer   uintptr // high resolution timer handle used in usleep
+	waitIocpTimer  uintptr // high resolution timer handle used in netpoll
+	waitIocpHandle uintptr // wait completion handle used in netpoll
 
 	// preemptExtLock synchronizes preemptM with entry/exit from
 	// external C code.
@@ -213,6 +216,8 @@ func asmstdcall(fn unsafe.Pointer)
 
 var asmstdcallAddr unsafe.Pointer
 
+type winlibcall libcall
+
 func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	if name[len(name)-1] != 0 {
 		throw("usage")
@@ -243,6 +248,20 @@ func windowsLoadSystemLib(name []uint16) uintptr {
 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 }
 
+//go:linkname windows_QueryPerformanceCounter internal/syscall/windows.QueryPerformanceCounter
+func windows_QueryPerformanceCounter() int64 {
+	var counter int64
+	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+	return counter
+}
+
+//go:linkname windows_QueryPerformanceFrequency internal/syscall/windows.QueryPerformanceFrequency
+func windows_QueryPerformanceFrequency() int64 {
+	var frequency int64
+	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
+	return frequency
+}
+
 func loadOptionalSyscalls() {
 	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll[:])
 	if bcryptPrimitives == 0 {
@@ -254,27 +273,20 @@ func loadOptionalSyscalls() {
 	if n32 == 0 {
 		throw("ntdll.dll not found")
 	}
+	_NtCreateWaitCompletionPacket = windowsFindfunc(n32, []byte("NtCreateWaitCompletionPacket\000"))
+	if _NtCreateWaitCompletionPacket != nil {
+		// These functions should exists if NtCreateWaitCompletionPacket exists.
+		_NtAssociateWaitCompletionPacket = windowsFindfunc(n32, []byte("NtAssociateWaitCompletionPacket\000"))
+		if _NtAssociateWaitCompletionPacket == nil {
+			throw("NtCreateWaitCompletionPacket exists but NtAssociateWaitCompletionPacket does not")
+		}
+		_NtCancelWaitCompletionPacket = windowsFindfunc(n32, []byte("NtCancelWaitCompletionPacket\000"))
+		if _NtCancelWaitCompletionPacket == nil {
+			throw("NtCreateWaitCompletionPacket exists but NtCancelWaitCompletionPacket does not")
+		}
+	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
-	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
-
-	m32 := windowsLoadSystemLib(winmmdll[:])
-	if m32 == 0 {
-		throw("winmm.dll not found")
-	}
-	_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
-	_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
-	if _timeBeginPeriod == nil || _timeEndPeriod == nil {
-		throw("timeBegin/EndPeriod not found")
-	}
-
-	ws232 := windowsLoadSystemLib(ws2_32dll[:])
-	if ws232 == 0 {
-		throw("ws2_32.dll not found")
-	}
-	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
-	if _WSAGetOverlappedResult == nil {
-		throw("WSAGetOverlappedResult not found")
-	}
+	_RtlGetVersion = windowsFindfunc(n32, []byte("RtlGetVersion\000"))
 }
 
 func monitorSuspendResume() {
@@ -308,21 +320,6 @@ func monitorSuspendResume() {
 	handle := uintptr(0)
 	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
-}
-
-//go:nosplit
-func getLoadLibrary() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryW))
-}
-
-//go:nosplit
-func getLoadLibraryEx() uintptr {
-	return uintptr(unsafe.Pointer(_LoadLibraryExW))
-}
-
-//go:nosplit
-func getGetProcAddress() uintptr {
-	return uintptr(unsafe.Pointer(_GetProcAddress))
 }
 
 func getproccount() int32 {
@@ -397,6 +394,13 @@ func osRelax(relax bool) uint32 {
 // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag is available.
 var haveHighResTimer = false
 
+// haveHighResSleep indicates that NtCreateWaitCompletionPacket
+// exists and haveHighResTimer is true.
+// NtCreateWaitCompletionPacket has been available since Windows 10,
+// but has just been publicly documented, so some platforms, like Wine,
+// doesn't support it yet.
+var haveHighResSleep = false
+
 // createHighResTimer calls CreateWaitableTimerEx with
 // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag to create high
 // resolution timer. createHighResTimer returns new timer
@@ -420,77 +424,49 @@ func initHighResTimer() {
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
+		haveHighResSleep = _NtCreateWaitCompletionPacket != nil
 		stdcall1(_CloseHandle, h)
+	} else {
+		// Only load winmm.dll if we need it.
+		// This avoids a dependency on winmm.dll for Go programs
+		// that run on new Windows versions.
+		m32 := windowsLoadSystemLib(winmmdll[:])
+		if m32 == 0 {
+			print("runtime: LoadLibraryExW failed; errno=", getlasterror(), "\n")
+			throw("winmm.dll not found")
+		}
+		_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
+		_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
+		if _timeBeginPeriod == nil || _timeEndPeriod == nil {
+			print("runtime: GetProcAddress failed; errno=", getlasterror(), "\n")
+			throw("timeBegin/EndPeriod not found")
+		}
 	}
 }
 
-//go:linkname canUseLongPaths os.canUseLongPaths
+//go:linkname canUseLongPaths internal/syscall/windows.CanUseLongPaths
 var canUseLongPaths bool
 
-// We want this to be large enough to hold the contents of sysDirectory, *plus*
-// a slash and another component that itself is greater than MAX_PATH.
-var longFileName [(_MAX_PATH+1)*2 + 1]byte
-
-// initLongPathSupport initializes the canUseLongPaths variable, which is
-// linked into os.canUseLongPaths for determining whether or not long paths
-// need to be fixed up. In the best case, this function is running on newer
-// Windows 10 builds, which have a bit field member of the PEB called
-// "IsLongPathAwareProcess." When this is set, we don't need to go through the
-// error-prone fixup function in order to access long paths. So this init
-// function first checks the Windows build number, sets the flag, and then
-// tests to see if it's actually working. If everything checks out, then
-// canUseLongPaths is set to true, and later when called, os.fixLongPath
-// returns early without doing work.
+// initLongPathSupport enables long path support.
 func initLongPathSupport() {
 	const (
 		IsLongPathAwareProcess = 0x80
 		PebBitFieldOffset      = 3
-		OPEN_EXISTING          = 3
-		ERROR_PATH_NOT_FOUND   = 3
 	)
 
 	// Check that we're ≥ 10.0.15063.
-	var maj, min, build uint32
-	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
-	if maj < 10 || (maj == 10 && min == 0 && build&0xffff < 15063) {
+	info := _OSVERSIONINFOW{}
+	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+	stdcall1(_RtlGetVersion, uintptr(unsafe.Pointer(&info)))
+	if info.majorVersion < 10 || (info.majorVersion == 10 && info.minorVersion == 0 && info.buildNumber < 15063) {
 		return
 	}
 
 	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
+	// This flag is not documented, but it's known to be used
+	// by Windows to enable long path support.
 	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
-	originalBitField := *bitField
 	*bitField |= IsLongPathAwareProcess
-
-	// Check that this actually has an effect, by constructing a large file
-	// path and seeing whether we get ERROR_PATH_NOT_FOUND, rather than
-	// some other error, which would indicate the path is too long, and
-	// hence long path support is not successful. This whole section is NOT
-	// strictly necessary, but is a nice validity check for the near to
-	// medium term, when this functionality is still relatively new in
-	// Windows.
-	targ := longFileName[len(longFileName)-33 : len(longFileName)-1]
-	if readRandom(targ) != len(targ) {
-		readTimeRandom(targ)
-	}
-	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
-	const dig = "0123456789abcdef"
-	for i := 0; i < 32; i++ {
-		longFileName[start+i*2] = dig[longFileName[len(longFileName)-33+i]>>4]
-		longFileName[start+i*2+1] = dig[longFileName[len(longFileName)-33+i]&0xf]
-	}
-	start += 64
-	for i := start; i < len(longFileName)-1; i++ {
-		longFileName[i] = 'A'
-	}
-	stdcall7(_CreateFileA, uintptr(unsafe.Pointer(&longFileName[0])), 0, 0, 0, OPEN_EXISTING, 0, 0)
-	// The ERROR_PATH_NOT_FOUND error value is distinct from
-	// ERROR_FILE_NOT_FOUND or ERROR_INVALID_NAME, the latter of which we
-	// expect here due to the final component being too long.
-	if getlasterror() == ERROR_PATH_NOT_FOUND {
-		*bitField = originalBitField
-		println("runtime: warning: IsLongPathAwareProcess failed to enable long paths; proceeding in fixup mode")
-		return
-	}
 
 	canUseLongPaths = true
 }
@@ -850,7 +826,7 @@ func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, cannot allocate memory.
+// Called on the new thread, cannot allocate Go memory.
 func minit() {
 	var thandle uintptr
 	if stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
@@ -869,6 +845,19 @@ func minit() {
 		if mp.highResTimer == 0 {
 			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
 			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+	}
+	if mp.waitIocpHandle == 0 && haveHighResSleep {
+		mp.waitIocpTimer = createHighResTimer()
+		if mp.waitIocpTimer == 0 {
+			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+		const GENERIC_ALL = 0x10000000
+		errno := stdcall3(_NtCreateWaitCompletionPacket, uintptr(unsafe.Pointer(&mp.waitIocpHandle)), GENERIC_ALL, 0)
+		if mp.waitIocpHandle == 0 {
+			print("runtime: NtCreateWaitCompletionPacket failed; errno=", errno, "\n")
+			throw("NtCreateWaitCompletionPacket failed")
 		}
 	}
 	unlock(&mp.threadLock)
@@ -924,6 +913,14 @@ func mdestroy(mp *m) {
 	if mp.highResTimer != 0 {
 		stdcall1(_CloseHandle, mp.highResTimer)
 		mp.highResTimer = 0
+	}
+	if mp.waitIocpTimer != 0 {
+		stdcall1(_CloseHandle, mp.waitIocpTimer)
+		mp.waitIocpTimer = 0
+	}
+	if mp.waitIocpHandle != 0 {
+		stdcall1(_CloseHandle, mp.waitIocpHandle)
+		mp.waitIocpHandle = 0
 	}
 	if mp.waitsema != 0 {
 		stdcall1(_CloseHandle, mp.waitsema)

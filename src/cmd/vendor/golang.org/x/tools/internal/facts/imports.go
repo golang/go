@@ -7,7 +7,7 @@ package facts
 import (
 	"go/types"
 
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/aliases"
 )
 
 // importMap computes the import map for a package by traversing the
@@ -47,6 +47,8 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 
 	addType = func(T types.Type) {
 		switch T := T.(type) {
+		case *aliases.Alias:
+			addType(aliases.Unalias(T))
 		case *types.Basic:
 			// nop
 		case *types.Named:
@@ -55,7 +57,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			// infinite expansions:
 			//     type N[T any] struct { F *N[N[T]] }
 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
-			T = typeparams.NamedTypeOrigin(T)
+			T = T.Origin()
 			if !typs[T] {
 				typs[T] = true
 				addObj(T.Obj())
@@ -63,12 +65,12 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 				for i := 0; i < T.NumMethods(); i++ {
 					addObj(T.Method(i))
 				}
-				if tparams := typeparams.ForNamed(T); tparams != nil {
+				if tparams := T.TypeParams(); tparams != nil {
 					for i := 0; i < tparams.Len(); i++ {
 						addType(tparams.At(i))
 					}
 				}
-				if targs := typeparams.NamedTypeArgs(T); targs != nil {
+				if targs := T.TypeArgs(); targs != nil {
 					for i := 0; i < targs.Len(); i++ {
 						addType(targs.At(i))
 					}
@@ -88,7 +90,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		case *types.Signature:
 			addType(T.Params())
 			addType(T.Results())
-			if tparams := typeparams.ForSignature(T); tparams != nil {
+			if tparams := T.TypeParams(); tparams != nil {
 				for i := 0; i < tparams.Len(); i++ {
 					addType(tparams.At(i))
 				}
@@ -108,11 +110,11 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			for i := 0; i < T.NumEmbeddeds(); i++ {
 				addType(T.EmbeddedType(i)) // walk Embedded for implicits
 			}
-		case *typeparams.Union:
+		case *types.Union:
 			for i := 0; i < T.Len(); i++ {
 				addType(T.Term(i).Type())
 			}
-		case *typeparams.TypeParam:
+		case *types.TypeParam:
 			if !typs[T] {
 				typs[T] = true
 				addObj(T.Obj())

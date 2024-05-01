@@ -14,15 +14,14 @@ import (
 	tracev2 "internal/trace/v2"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 )
 
 func pprofByGoroutine(compute computePprofFunc, t *parsedTrace) traceviewer.ProfileFunc {
 	return func(r *http.Request) ([]traceviewer.ProfileRecord, error) {
-		id := r.FormValue("id")
-		gToIntervals, err := pprofMatchingGoroutines(id, t)
+		name := r.FormValue("name")
+		gToIntervals, err := pprofMatchingGoroutines(name, t)
 		if err != nil {
 			return nil, err
 		}
@@ -44,20 +43,12 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
 	}
 }
 
-// pprofMatchingGoroutines parses the goroutine type id string (i.e. pc)
-// and returns the ids of goroutines of the matching type and its interval.
+// pprofMatchingGoroutines returns the ids of goroutines of the matching name and its interval.
 // If the id string is empty, returns nil without an error.
-func pprofMatchingGoroutines(id string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
-	if id == "" {
-		return nil, nil
-	}
-	pc, err := strconv.ParseUint(id, 10, 64) // id is string
-	if err != nil {
-		return nil, fmt.Errorf("invalid goroutine type: %v", id)
-	}
+func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
 	res := make(map[tracev2.GoID][]interval)
 	for _, g := range t.summary.Goroutines {
-		if g.PC != pc {
+		if name != "" && g.Name != name {
 			continue
 		}
 		endTime := g.EndTime
@@ -66,8 +57,8 @@ func pprofMatchingGoroutines(id string, t *parsedTrace) (map[tracev2.GoID][]inte
 		}
 		res[g.ID] = []interval{{start: g.StartTime, end: endTime}}
 	}
-	if len(res) == 0 && id != "" {
-		return nil, fmt.Errorf("failed to find matching goroutines for ID: %s", id)
+	if len(res) == 0 {
+		return nil, fmt.Errorf("failed to find matching goroutines for name: %s", name)
 	}
 	return res, nil
 }

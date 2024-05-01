@@ -54,7 +54,7 @@ func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath strin
 
 func h32(x uint32, h hash.Hash, tmp []byte) {
 	tmp = tmp[:0]
-	tmp = append(tmp, []byte{0, 0, 0, 0}...)
+	tmp = append(tmp, 0, 0, 0, 0)
 	binary.LittleEndian.PutUint32(tmp, x)
 	h.Write(tmp)
 }
@@ -117,7 +117,7 @@ func (b *CoverageMetaDataBuilder) reportWriteError(err error) {
 
 func (b *CoverageMetaDataBuilder) wrUint32(w io.WriteSeeker, v uint32) {
 	b.tmp = b.tmp[:0]
-	b.tmp = append(b.tmp, []byte{0, 0, 0, 0}...)
+	b.tmp = append(b.tmp, 0, 0, 0, 0)
 	binary.LittleEndian.PutUint32(b.tmp, v)
 	if nw, err := w.Write(b.tmp); err != nil {
 		b.reportWriteError(err)

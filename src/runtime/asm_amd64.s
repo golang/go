@@ -456,6 +456,10 @@ goodm:
 	PUSHQ	AX	// open up space for fn's arg spill slot
 	MOVQ	0(DX), R12
 	CALL	R12		// fn(g)
+	// The Windows native stack unwinder incorrectly classifies the next instruction
+	// as part of the function epilogue, producing a wrong call stack.
+	// Add a NOP to work around this issue. See go.dev/issue/67007.
+	BYTE	$0x90
 	POPQ	AX
 	JMP	runtime·badmcall2(SB)
 	RET

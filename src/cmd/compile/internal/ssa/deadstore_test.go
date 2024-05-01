@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"testing"
 )
 
@@ -44,6 +45,7 @@ func TestDeadStore(t *testing.T) {
 		t.Errorf("dead store (zero) not removed")
 	}
 }
+
 func TestDeadStorePhi(t *testing.T) {
 	// make sure we don't get into an infinite loop with phi values.
 	c := testConfig(t)
@@ -125,5 +127,48 @@ func TestDeadStoreUnsafe(t *testing.T) {
 	v := fun.values["store1"]
 	if v.Op == OpCopy {
 		t.Errorf("store %s incorrectly removed", v)
+	}
+}
+
+func TestDeadStoreSmallStructInit(t *testing.T) {
+	c := testConfig(t)
+	ptrType := c.config.Types.BytePtr
+	typ := types.NewStruct([]*types.Field{
+		types.NewField(src.NoXPos, &types.Sym{Name: "A"}, c.config.Types.Int),
+		types.NewField(src.NoXPos, &types.Sym{Name: "B"}, c.config.Types.Int),
+	})
+	name := c.Temp(typ)
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("zero", OpConst64, c.config.Types.Int, 0, nil),
+			Valu("v6", OpLocalAddr, ptrType, 0, name, "sp", "start"),
+			Valu("v3", OpOffPtr, ptrType, 8, nil, "v6"),
+			Valu("v22", OpOffPtr, ptrType, 0, nil, "v6"),
+			Valu("zerostore1", OpStore, types.TypeMem, 0, c.config.Types.Int, "v22", "zero", "start"),
+			Valu("zerostore2", OpStore, types.TypeMem, 0, c.config.Types.Int, "v3", "zero", "zerostore1"),
+			Valu("v8", OpLocalAddr, ptrType, 0, name, "sp", "zerostore2"),
+			Valu("v23", OpOffPtr, ptrType, 8, nil, "v8"),
+			Valu("v25", OpOffPtr, ptrType, 0, nil, "v8"),
+			Valu("zerostore3", OpStore, types.TypeMem, 0, c.config.Types.Int, "v25", "zero", "zerostore2"),
+			Valu("zerostore4", OpStore, types.TypeMem, 0, c.config.Types.Int, "v23", "zero", "zerostore3"),
+			Goto("exit")),
+		Bloc("exit",
+			Exit("zerostore4")))
+
+	fun.f.Name = "smallstructinit"
+	CheckFunc(fun.f)
+	cse(fun.f)
+	dse(fun.f)
+	CheckFunc(fun.f)
+
+	v1 := fun.values["zerostore1"]
+	if v1.Op != OpCopy {
+		t.Errorf("dead store not removed")
+	}
+	v2 := fun.values["zerostore2"]
+	if v2.Op != OpCopy {
+		t.Errorf("dead store not removed")
 	}
 }

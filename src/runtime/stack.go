@@ -9,7 +9,7 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1136,21 +1136,40 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
 
 // isShrinkStackSafe returns whether it's safe to attempt to shrink
 // gp's stack. Shrinking the stack is only safe when we have precise
-// pointer maps for all frames on the stack.
+// pointer maps for all frames on the stack. The caller must hold the
+// _Gscan bit for gp or must be running gp itself.
 func isShrinkStackSafe(gp *g) bool {
 	// We can't copy the stack if we're in a syscall.
 	// The syscall might have pointers into the stack and
 	// often we don't have precise pointer maps for the innermost
 	// frames.
-	//
+	if gp.syscallsp != 0 {
+		return false
+	}
 	// We also can't copy the stack if we're at an asynchronous
 	// safe-point because we don't have precise pointer maps for
 	// all frames.
-	//
+	if gp.asyncSafePoint {
+		return false
+	}
 	// We also can't *shrink* the stack in the window between the
 	// goroutine calling gopark to park on a channel and
 	// gp.activeStackChans being set.
-	return gp.syscallsp == 0 && !gp.asyncSafePoint && !gp.parkingOnChan.Load()
+	if gp.parkingOnChan.Load() {
+		return false
+	}
+	// We also can't copy the stack while tracing is enabled, and
+	// gp is in _Gwaiting solely to make itself available to the GC.
+	// In these cases, the G is actually executing on the system
+	// stack, and the execution tracer may want to take a stack trace
+	// of the G's stack. Note: it's safe to access gp.waitreason here.
+	// We're only checking if this is true if we took ownership of the
+	// G with the _Gscan bit. This prevents the goroutine from transitioning,
+	// which prevents gp.waitreason from changing.
+	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForGC() {
+		return false
+	}
+	return true
 }
 
 // Maybe shrink the stack being used by gp.

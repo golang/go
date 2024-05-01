@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"internal/platform"
 	"io"
 	"log"
@@ -28,9 +29,6 @@ import (
 
 // Tests can override this by setting $TESTGO_TOOLCHAIN_VERSION.
 var ToolchainVersion = runtime.Version()
-
-// The 'path' used for GOROOT_FINAL when -trimpath is specified
-const trimPathGoRootFinal string = "$GOROOT"
 
 // The Go toolchain.
 
@@ -55,7 +53,7 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
@@ -114,8 +112,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Internal.Cover.Cfg != "" {
 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
 	}
-	if p.Internal.PGOProfile != "" {
-		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+p.Internal.PGOProfile)
+	if pgoProfile != "" {
+		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+pgoProfile)
 	}
 	if symabis != "" {
 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
@@ -361,17 +359,30 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 	}
 
+	if cfg.Goarch == "riscv64" {
+		// Define GORISCV64_value from cfg.GORISCV64.
+		args = append(args, "-D", "GORISCV64_"+cfg.GORISCV64)
+	}
+
 	if cfg.Goarch == "arm" {
-		// Define GOARM_value from cfg.GOARM.
-		switch cfg.GOARM {
-		case "7":
+		// Define GOARM_value from cfg.GOARM, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(cfg.GOARM, "7"):
 			args = append(args, "-D", "GOARM_7")
 			fallthrough
-		case "6":
+		case strings.Contains(cfg.GOARM, "6"):
 			args = append(args, "-D", "GOARM_6")
 			fallthrough
 		default:
 			args = append(args, "-D", "GOARM_5")
+		}
+	}
+
+	if cfg.Goarch == "arm64" {
+		g, err := buildcfg.ParseGoarm64(cfg.GOARM64)
+		if err == nil && g.LSE {
+			args = append(args, "-D", "GOARM64_LSE")
 		}
 	}
 
@@ -663,8 +674,11 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	}
 
 	env := []string{}
+	// When -trimpath is used, GOROOT is cleared
 	if cfg.BuildTrimpath {
-		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
+		env = append(env, "GOROOT=")
+	} else {
+		env = append(env, "GOROOT="+cfg.GOROOT)
 	}
 	return b.Shell(root).run(dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
 }

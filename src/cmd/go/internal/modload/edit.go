@@ -842,6 +842,12 @@ func (t *dqTracker) check(m module.Version, pruning modPruning) dqState {
 // If m is not disqualified, path returns (nil, nil).
 func (t *dqTracker) path(m module.Version, pruning modPruning) (path []module.Version, err error) {
 	for {
+		if rootPruning, isRoot := t.extendedRootPruning[m]; isRoot && rootPruning == unpruned {
+			// Since m is a root, any other module that requires it would cause
+			// its full unpruned dependencies to be included in the module graph.
+			// Those dependencies must also be considered as part of the path to the conflict.
+			pruning = unpruned
+		}
 		dq := t.dqReason[m].from(pruning)
 		if !dq.isDisqualified() {
 			return path, nil

@@ -481,6 +481,9 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
 	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
 	fn.SetIsHiddenClosure(outerfn != nil)
+	if outerfn != nil {
+		fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
+	}
 
 	clo := &ClosureExpr{Func: fn}
 	clo.op = OCLOSURE
@@ -539,7 +542,7 @@ func FuncPC(pos src.XPos, n Node, wantABI obj.ABI) Node {
 		if abi != wantABI {
 			base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s expects an %v function, %s is defined as %v", wantABI, wantABI, name.Sym().Name, abi)
 		}
-		var e Node = NewLinksymExpr(pos, name.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+		var e Node = NewLinksymExpr(pos, name.LinksymABI(abi), types.Types[types.TUINTPTR])
 		e = NewAddrExpr(pos, e)
 		e.SetType(types.Types[types.TUINTPTR].PtrTo())
 		e = NewConvExpr(pos, OCONVNOP, types.Types[types.TUINTPTR], e)

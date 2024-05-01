@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build amd64 || arm64
+//go:build (amd64 || arm64) && !purego
 
 package aes
 
@@ -45,7 +45,7 @@ var _ gcmAble = (*aesCipherGCM)(nil)
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
 // called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
-	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+	g := &gcmAsm{ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
 	gcmAesInit(&g.productTable, g.ks)
 	return g, nil
 }
@@ -176,9 +176,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
 
 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
-		for i := range out {
-			out[i] = 0
-		}
+		clear(out)
 		return nil, errOpen
 	}
 

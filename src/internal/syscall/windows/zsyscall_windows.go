@@ -42,6 +42,7 @@ var (
 	modiphlpapi         = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32         = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
 	modnetapi32         = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+	modntdll            = syscall.NewLazyDLL(sysdll.Add("ntdll.dll"))
 	modpsapi            = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 	moduserenv          = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modws2_32           = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
@@ -82,10 +83,12 @@ var (
 	procNetShareAdd                       = modnetapi32.NewProc("NetShareAdd")
 	procNetShareDel                       = modnetapi32.NewProc("NetShareDel")
 	procNetUserGetLocalGroups             = modnetapi32.NewProc("NetUserGetLocalGroups")
+	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
 	procGetProfilesDirectoryW             = moduserenv.NewProc("GetProfilesDirectoryW")
+	procWSAGetOverlappedResult            = modws2_32.NewProc("WSAGetOverlappedResult")
 	procWSASocketW                        = modws2_32.NewProc("WSASocketW")
 )
 
@@ -342,7 +345,7 @@ func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry
 	return
 }
 
-func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
+func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -390,6 +393,11 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
 	return
 }
 
+func rtlGetVersion(info *_OSVERSIONINFOW) {
+	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+	return
+}
+
 func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(memCounters)), uintptr(cb))
 	if r1 == 0 {
@@ -420,6 +428,18 @@ func DestroyEnvironmentBlock(block *uint16) (err error) {
 
 func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetProfilesDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) {
+	var _p0 uint32
+	if wait {
+		_p0 = 1
+	}
+	r1, _, e1 := syscall.Syscall6(procWSAGetOverlappedResult.Addr(), 5, uintptr(h), uintptr(unsafe.Pointer(o)), uintptr(unsafe.Pointer(bytes)), uintptr(_p0), uintptr(unsafe.Pointer(flags)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

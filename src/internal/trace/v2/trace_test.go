@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/race"
 	"internal/testenv"
 	"internal/trace/v2"
 	"internal/trace/v2/testtrace"
@@ -213,7 +214,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 		// Check to make sure that no goroutine in the "special" trace region
 		// ends up blocking, unblocking, then immediately blocking again.
 		//
-		// The goroutines are careful to call runtime.GoSched in between blocking,
+		// The goroutines are careful to call runtime.Gosched in between blocking,
 		// so there should never be a clean block/unblock on the goroutine unless
 		// the runtime was generating extraneous events.
 		const (
@@ -521,6 +522,19 @@ func TestTraceManyStartStop(t *testing.T) {
 	testTraceProg(t, "many-start-stop.go", nil)
 }
 
+func TestTraceWaitOnPipe(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		testTraceProg(t, "wait-on-pipe.go", nil)
+		return
+	}
+	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
+}
+
+func TestTraceIterPull(t *testing.T) {
+	testTraceProg(t, "iter-pull.go", nil)
+}
+
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
 	testenv.MustHaveGoRun(t)
 
@@ -532,15 +546,23 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 	testName := progName
 	runTest := func(t *testing.T, stress bool) {
 		// Run the program and capture the trace, which is always written to stdout.
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "run", testPath)
-		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
-		if stress {
-			// Advance a generation constantly.
-			cmd.Env = append(cmd.Env, "GODEBUG=traceadvanceperiod=0")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
+		if race.Enabled {
+			cmd.Args = append(cmd.Args, "-race")
 		}
+		cmd.Args = append(cmd.Args, testPath)
+		cmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
+		// Add a stack ownership check. This is cheap enough for testing.
+		godebug := "tracecheckstackownership=1"
+		if stress {
+			// Advance a generation constantly to stress the tracer.
+			godebug += ",traceadvanceperiod=0"
+		}
+		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
+
 		// Capture stdout and stderr.
 		//
-		// The protoocol for these programs is that stdout contains the trace data
+		// The protocol for these programs is that stdout contains the trace data
 		// and stderr is an expectation in string format.
 		var traceBuf, errBuf bytes.Buffer
 		cmd.Stdout = &traceBuf

@@ -43,10 +43,10 @@ type PkgSpecial struct {
 var runtimePkgs = []string{
 	"runtime",
 
-	"runtime/internal/atomic",
+	"internal/runtime/atomic",
 	"runtime/internal/math",
 	"runtime/internal/sys",
-	"runtime/internal/syscall",
+	"internal/runtime/syscall",
 
 	"internal/abi",
 	"internal/bytealg",
@@ -73,7 +73,7 @@ var extraNoInstrumentPkgs = []string{
 	"-internal/bytealg",
 }
 
-var noRaceFuncPkgs = []string{"sync", "sync/atomic"}
+var noRaceFuncPkgs = []string{"sync", "sync/atomic", "internal/runtime/atomic"}
 
 var allowAsmABIPkgs = []string{
 	"runtime",
@@ -81,7 +81,7 @@ var allowAsmABIPkgs = []string{
 	"syscall",
 	"internal/bytealg",
 	"internal/chacha8rand",
-	"runtime/internal/syscall",
+	"internal/runtime/syscall",
 	"runtime/internal/startlinetest",
 }
 

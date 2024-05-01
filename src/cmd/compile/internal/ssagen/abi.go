@@ -403,7 +403,7 @@ func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams [
 	return wfs
 }
 
-// setupTextLSym initializes the LSym for a with-body text symbol.
+// setupWasmABI calculates the params and results in terms of WebAssembly values for the given function.
 func setupWasmABI(f *ir.Func) {
 	wi := obj.WasmImport{
 		Module: f.WasmImport.Module,
