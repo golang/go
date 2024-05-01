@@ -139,7 +139,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 
 func (v *Value) AuxArm64BitField() arm64BitField {
 	if opcodeTable[v.Op].auxType != auxARM64BitField {
-		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
+		v.Fatalf("op %s doesn't have a ARM64BitField aux field", v.Op)
 	}
 	return arm64BitField(v.AuxInt)
 }
