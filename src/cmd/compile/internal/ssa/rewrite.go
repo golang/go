@@ -1653,6 +1653,56 @@ func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
 	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
+// Test if RLWINM feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
+// or 0 if they cannot be merged.
+func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
+	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
+	mask_out := (mask_rlw & uint64(mask))
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if !isPPC64WordRotateMask(int64(mask_out)) {
+		return 0
+	}
+	return encodePPC64RotateMask(r, int64(mask_out), 32)
+}
+
+// Test if AND feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
+// or 0 if they cannot be merged.
+func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
+	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
+
+	// Rotate the input mask, combine with the rlwnm mask, and test if it is still a valid rlwinm mask.
+	r_mask := bits.RotateLeft32(mask, int(r))
+
+	mask_out := (mask_rlw & uint64(r_mask))
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if !isPPC64WordRotateMask(int64(mask_out)) {
+		return 0
+	}
+	return encodePPC64RotateMask(r, int64(mask_out), 32)
+}
+
+// Test if RLWINM feeding into SRDconst can be merged. Return the encoded RLIWNM constant,
+// or 0 if they cannot be merged.
+func mergePPC64SldiRlwinm(sldi, rlw int64) int64 {
+	r_1, mb, me, mask_1 := DecodePPC64RotateMask(rlw)
+	if mb > me || mb < sldi {
+		// Wrapping masks cannot be merged as the upper 32 bits are effectively undefined in this case.
+		// Likewise, if mb is less than the shift amount, it cannot be merged.
+		return 0
+	}
+	// combine the masks, and adjust for the final left shift.
+	mask_3 := mask_1 << sldi
+	r_3 := (r_1 + sldi) & 31 // This can wrap.
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if uint64(uint32(mask_3)) != mask_3 {
+		return 0
+	}
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
+}
+
 // Compute the encoded RLWINM constant from combining (SLDconst [sld] (SRWconst [srw] x)),
 // or return 0 if they cannot be combined.
 func mergePPC64SldiSrw(sld, srw int64) int64 {
