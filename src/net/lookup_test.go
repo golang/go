@@ -1634,6 +1634,10 @@ func TestLookupNoSuchHost(t *testing.T) {
 }
 
 func TestDNSErrorUnwrap(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// The Plan 9 implementation of the resolver doesn't use the Dial function yet. See https://go.dev/cl/409234
+		t.Skip("skipping on plan9")
+	}
 	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
 		return nil, context.DeadlineExceeded
 	}}

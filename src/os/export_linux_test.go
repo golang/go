@@ -7,6 +7,5 @@ package os
 var (
 	PollCopyFileRangeP  = &pollCopyFileRange
 	PollSpliceFile      = &pollSplice
-	PollSendFile        = &pollSendFile
 	GetPollFDAndNetwork = getPollFDAndNetwork
 )

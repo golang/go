@@ -169,10 +169,7 @@ func (v *Map) Init() *Map {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	v.keys = v.keys[:0]
-	v.m.Range(func(k, _ any) bool {
-		v.m.Delete(k)
-		return true
-	})
+	v.m.Clear()
 	return v
 }
 

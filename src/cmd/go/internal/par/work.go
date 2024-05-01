@@ -189,10 +189,7 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
 func (c *Cache[K, V]) Clear() {
-	c.m.Range(func(key, value any) bool {
-		c.m.Delete(key)
-		return true
-	})
+	c.m.Clear()
 }
 
 // Delete removes an entry from the map. It is safe to call Delete for an

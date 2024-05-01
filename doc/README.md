@@ -4,7 +4,9 @@ The `initial` and `next` subdirectories of this directory are for release notes.
 
 ## For developers
 
-Release notes should be added to `next` by editing existing files or creating new files.
+Release notes should be added to `next` by editing existing files or creating
+new files. **Do not add RELNOTE=yes comments in CLs.** Instead, add a file to
+the CL (or ask the author to do so).
 
 At the end of the development cycle, the files will be merged by being
 concatenated in sorted order by pathname. Files in the directory matching the

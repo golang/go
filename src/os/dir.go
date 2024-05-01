@@ -5,7 +5,7 @@
 package os
 
 import (
-	"internal/safefilepath"
+	"internal/filepathlite"
 	"io"
 	"io/fs"
 	"sort"
@@ -146,7 +146,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 			return err
 		}
 
-		fpath, err := safefilepath.Localize(path)
+		fpath, err := filepathlite.Localize(path)
 		if err != nil {
 			return err
 		}
@@ -157,7 +157,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 
 		// TODO(panjf2000): handle symlinks with the help of fs.ReadLinkFS
 		// 		once https://go.dev/issue/49580 is done.
-		//		we also need safefilepath.IsLocal from https://go.dev/cl/564295.
+		//		we also need filepathlite.IsLocal from https://go.dev/cl/564295.
 		if !d.Type().IsRegular() {
 			return &PathError{Op: "CopyFS", Path: path, Err: ErrInvalid}
 		}

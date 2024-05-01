@@ -6,6 +6,7 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/godebug"
 	"internal/poll"
 	"internal/syscall/windows"
@@ -287,14 +288,14 @@ func Link(oldname, newname string) error {
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	// '/' does not work in link's content
-	oldname = fromSlash(oldname)
+	oldname = filepathlite.FromSlash(oldname)
 
 	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
-	if v := volumeName(oldname); v == "" {
+	if v := filepathlite.VolumeName(oldname); v == "" {
 		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
 			// oldname is relative to the volume containing newname.
-			if v = volumeName(newname); v != "" {
+			if v = filepathlite.VolumeName(newname); v != "" {
 				// Prepend the volume explicitly, because it may be different from the
 				// volume of the current working directory.
 				destpath = v + oldname
@@ -313,7 +314,7 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
 	var o *uint16
-	if isAbs(oldname) {
+	if filepathlite.IsAbs(oldname) {
 		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
 	} else {
 		// Do not use fixLongPath on oldname for relative symlinks,

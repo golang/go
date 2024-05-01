@@ -488,3 +488,14 @@ func FinalPath(h syscall.Handle, flags uint32) (string, error) {
 	}
 	return syscall.UTF16ToString(buf), nil
 }
+
+// QueryPerformanceCounter retrieves the current value of performance counter.
+//
+//go:linkname QueryPerformanceCounter
+func QueryPerformanceCounter() int64 // Implemented in runtime package.
+
+// QueryPerformanceFrequency retrieves the frequency of the performance counter.
+// The returned value is represented as counts per second.
+//
+//go:linkname QueryPerformanceFrequency
+func QueryPerformanceFrequency() int64 // Implemented in runtime package.

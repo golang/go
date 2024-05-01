@@ -68,10 +68,10 @@ func Make[T any](ptr *T) Pointer[T] {
 // Strong creates a strong pointer from the weak pointer.
 // Returns nil if the original value for the weak pointer was reclaimed by
 // the garbage collector.
-// If a weak pointer points to an object with a finalizer, thhen Strong will
+// If a weak pointer points to an object with a finalizer, then Strong will
 // return nil as soon as the object's finalizer is queued for execution.
 func (p Pointer[T]) Strong() *T {
-	return (*T)(runtime_makeStrongFromWeak(unsafe.Pointer(p.u)))
+	return (*T)(runtime_makeStrongFromWeak(p.u))
 }
 
 // Implemented in runtime.

@@ -4,6 +4,6 @@
 
 //go:build !windows
 
-package filepath
+package filepathlite
 
 func postClean(out *lazybuf) {}

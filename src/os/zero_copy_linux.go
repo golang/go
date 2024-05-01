@@ -13,7 +13,6 @@ import (
 var (
 	pollCopyFileRange = poll.CopyFileRange
 	pollSplice        = poll.Splice
-	pollSendFile      = poll.SendFile
 )
 
 // wrapSyscallError takes an error and a syscall name. If the error is
@@ -38,7 +37,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	}
 
 	rerr := sc.Read(func(fd uintptr) (done bool) {
-		written, err, handled = pollSendFile(pfd, int(fd), 1<<63-1)
+		written, err, handled = poll.SendFile(pfd, int(fd), 1<<63-1)
 		return true
 	})
 
