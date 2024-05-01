@@ -27,7 +27,7 @@ type OID struct {
 // ParseOID parses a Object Identifier string, represented by ASCII numbers separated by dots.
 func ParseOID(oid string) (OID, error) {
 	var o OID
-	return o, o.UnmarshalText([]byte(oid))
+	return o, o.unmarshalOIDText(oid)
 }
 
 func newOIDFromDER(der []byte) (OID, bool) {
@@ -119,8 +119,10 @@ func (o OID) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements [encoding.TextUnmarshaler]
 func (o *OID) UnmarshalText(text []byte) error {
-	oid := string(text)
+	return o.unmarshalOIDText(string(text))
+}
 
+func (o *OID) unmarshalOIDText(oid string) error {
 	// (*big.Int).SetString allows +/- signs, but we don't want
 	// to allow them in the string representation of Object Identifier, so
 	// reject such encodings.
