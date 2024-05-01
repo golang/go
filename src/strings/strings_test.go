@@ -1170,7 +1170,8 @@ func repeat(s string, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	tests := [...]struct {
+	const maxInt = int(^uint(0) >> 1)
+	tests := []struct {
 		s      string
 		count  int
 		errStr string
@@ -1182,6 +1183,12 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+		7: {"-", maxInt, "out of range"},
+	}
+
+	const _64bit = 1 << (^uintptr(0) >> 63) / 2
+	if _64bit == 0 {
+		tests = tests[:7]
 	}
 
 	for i, tt := range tests {
