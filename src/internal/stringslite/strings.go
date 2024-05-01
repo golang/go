@@ -103,6 +103,12 @@ func Index(s, substr string) int {
 }
 
 func Cut(s, sep string) (before, after string, found bool) {
+	if len(sep) == 1 {
+		if i := IndexByte(s, sep[0]); i >= 0 {
+			return s[:i], s[i+1:], true
+		}
+		return s, "", false
+	}
 	if i := Index(s, sep); i >= 0 {
 		return s[:i], s[i+len(sep):], true
 	}

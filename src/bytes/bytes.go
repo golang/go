@@ -1330,6 +1330,12 @@ func Index(s, sep []byte) int {
 //
 // Cut returns slices of the original slice s, not copies.
 func Cut(s, sep []byte) (before, after []byte, found bool) {
+	if len(sep) == 1 {
+		if i := IndexByte(s, sep[0]); i >= 0 {
+			return s[:i], s[i+1:], true
+		}
+		return s, nil, false
+	}
 	if i := Index(s, sep); i >= 0 {
 		return s[:i], s[i+len(sep):], true
 	}

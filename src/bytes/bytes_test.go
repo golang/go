@@ -2263,3 +2263,31 @@ func TestClone(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkCut(b *testing.B) {
+	b.ReportAllocs()
+
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		s := Repeat(append(append(Repeat([]byte(" "), skip), 'a', 'a'), Repeat([]byte(" "), skip)...), 1<<16/skip)
+		b.Run(fmt.Sprintf("Cut-One/%d", skip), func(b *testing.B) {
+			for range b.N {
+				_, _, _ = Cut(s, []byte{'a'})
+			}
+		})
+		b.Run(fmt.Sprintf("Cut-Two/%d", skip), func(b *testing.B) {
+			for range b.N {
+				_, _, _ = Cut(s, []byte{'a', 'a'})
+			}
+		})
+		b.Run(fmt.Sprintf("Cut-One-Nil/%d", skip), func(b *testing.B) {
+			for range b.N {
+				_, _, _ = Cut(s, []byte{'c'})
+			}
+		})
+		b.Run(fmt.Sprintf("Cut-Two-Nil/%d", skip), func(b *testing.B) {
+			for range b.N {
+				_, _, _ = Cut(s, []byte{'c', 'c'})
+			}
+		})
+	}
+}
