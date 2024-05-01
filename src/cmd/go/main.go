@@ -252,7 +252,14 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		telemetry.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
+		prefix := "go/flag:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-"
+		cmd.Flag.Visit(func(f *flag.Flag) {
+			counterName := prefix + f.Name
+			if f.Name == "buildmode" { // Special case: there is a limited set of buildmode values
+				counterName += "-" + f.Value.String()
+			}
+			telemetry.Inc(counterName)
+		})
 		args = cmd.Flag.Args()
 	}
 
