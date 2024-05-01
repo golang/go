@@ -1170,49 +1170,48 @@ func repeat(s string, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	const maxInt = int(^uint(0) >> 1)
-	tests := [...]struct {
+	type testCase = struct {
 		s      string
 		count  int
 		errStr string
-		_32bit bool // for 32-bit systems
-		_64bit bool // for 64-bit systems
-	}{
-		0: {"--", -2147483647, "negative", true, true},
-		1: {"", maxInt, "", true, true},
-		2: {"-", 10, "", true, true},
-		3: {"gopher", 0, "", true, true},
-		4: {"-", -1, "negative", true, true},
-		5: {"--", -102, "negative", true, true},
-		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow", true, true},
-		7: {"-", maxInt, "out of range", false, true},
 	}
+
+	runTestCases := func(prefix string, tests []testCase) {
+		for i, tt := range tests {
+			err := repeat(tt.s, tt.count)
+			if tt.errStr == "" {
+				if err != nil {
+					t.Errorf("#%d panicked %v", i, err)
+				}
+				continue
+			}
+
+			if err == nil || !Contains(err.Error(), tt.errStr) {
+				t.Errorf("%s#%d expected %q got %q", prefix, i, tt.errStr, err)
+			}
+		}
+	}
+
+	const maxInt = int(^uint(0) >> 1)
+
+	runTestCases("", []testCase{
+		0: {"--", -2147483647, "negative"},
+		1: {"", maxInt, ""},
+		2: {"-", 10, ""},
+		3: {"gopher", 0, ""},
+		4: {"-", -1, "negative"},
+		5: {"--", -102, "negative"},
+		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+	})
 
 	const _64bit = 1<<(^uintptr(0)>>63)/2 != 0
-
-	for i, tt := range tests {
-		if _64bit {
-			if !tt._64bit {
-				continue
-			}
-		} else {
-			if !tt._32bit {
-				continue
-			}
-		}
-
-		err := repeat(tt.s, tt.count)
-		if tt.errStr == "" {
-			if err != nil {
-				t.Errorf("#%d panicked %v", i, err)
-			}
-			continue
-		}
-
-		if err == nil || !Contains(err.Error(), tt.errStr) {
-			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
-		}
+	if !_64bit {
+		return
 	}
+
+	runTestCases("64-bit", []testCase{
+		0: {"-", maxInt, "out of range"},
+	})
 }
 
 func runesEqual(a, b []rune) bool {
