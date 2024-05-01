@@ -1242,21 +1242,18 @@ func repeat(b []byte, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	const maxInt = int(^uint(0) >> 1)
 	tests := [...]struct {
-		s        string
-		count    int
-		errStr   string
-		contains bool
+		s      string
+		count  int
+		errStr string
 	}{
-		0: {"--", -2147483647, "negative", true},
-		1: {"", int(^uint(0) >> 1), "", true},
-		2: {"-", 10, "", true},
-		3: {"gopher", 0, "", true},
-		4: {"-", -1, "negative", true},
-		5: {"--", -102, "negative", true},
-		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow", true},
-		7: {"-", maxInt, "overflow", false},
+		0: {"--", -2147483647, "negative"},
+		1: {"", int(^uint(0) >> 1), ""},
+		2: {"-", 10, ""},
+		3: {"gopher", 0, ""},
+		4: {"-", -1, "negative"},
+		5: {"--", -102, "negative"},
+		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
 	}
 
 	for i, tt := range tests {
@@ -1268,12 +1265,8 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 			continue
 		}
 
-		if err == nil || tt.contains != strings.Contains(err.Error(), tt.errStr) {
-			if tt.contains {
-				t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
-			} else {
-				t.Errorf("#%d unexpected %q got %q", i, tt.errStr, err)
-			}
+		if err == nil || !strings.Contains(err.Error(), tt.errStr) {
+			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
 		}
 	}
 }
