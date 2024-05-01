@@ -1170,7 +1170,7 @@ func repeat(s string, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	type testCase = struct {
+	type testCase struct {
 		s      string
 		count  int
 		errStr string
