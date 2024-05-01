@@ -8,6 +8,7 @@ package maphash
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"math/rand"
 	"runtime"
@@ -30,6 +31,7 @@ var fixedSeed = MakeSeed()
 // hash should not depend on values outside key.
 // hash should not depend on alignment.
 func TestSmhasherSanity(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewSource(1234))
 	const REP = 10
 	const KEYMAX = 128
@@ -118,6 +120,7 @@ func (s *hashSet) check(t *testing.T) {
 
 // a string plus adding zeros must make distinct hashes
 func TestSmhasherAppendedZeros(t *testing.T) {
+	t.Parallel()
 	s := "hello" + strings.Repeat("\x00", 256)
 	h := newHashSet()
 	for i := 0; i <= len(s); i++ {
@@ -128,6 +131,7 @@ func TestSmhasherAppendedZeros(t *testing.T) {
 
 // All 0-3 byte strings have distinct hashes.
 func TestSmhasherSmallKeys(t *testing.T) {
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	var b [3]byte
 	for i := 0; i < 256; i++ {
@@ -149,6 +153,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
 
 // Different length strings of all zeros have distinct hashes.
 func TestSmhasherZeros(t *testing.T) {
+	t.Parallel()
 	N := 256 * 1024
 	if testing.Short() {
 		N = 1024
@@ -169,6 +174,7 @@ func TestSmhasherTwoNonzero(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	for n := 2; n <= 16; n++ {
 		twoNonZero(h, n)
@@ -211,6 +217,7 @@ func TestSmhasherCyclic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	r := rand.New(rand.NewSource(1234))
 	const REPEAT = 8
 	const N = 1000000
@@ -240,6 +247,7 @@ func TestSmhasherSparse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	h := newHashSet()
 	sparse(t, h, 32, 6)
 	sparse(t, h, 40, 6)
@@ -278,6 +286,7 @@ func TestSmhasherPermutation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
 	permutation(t, h, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
@@ -344,6 +353,7 @@ func TestSmhasherAvalanche(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	avalancheTest1(t, &bytesKey{make([]byte, 2)})
 	avalancheTest1(t, &bytesKey{make([]byte, 4)})
 	avalancheTest1(t, &bytesKey{make([]byte, 8)})
@@ -407,6 +417,7 @@ func avalancheTest1(t *testing.T, k key) {
 
 // All bit rotations of a set of distinct keys
 func TestSmhasherWindowed(t *testing.T) {
+	t.Parallel()
 	windowed(t, &bytesKey{make([]byte, 128)})
 }
 func windowed(t *testing.T, k key) {
@@ -438,6 +449,7 @@ func TestSmhasherText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	h := newHashSet()
 	text(t, h, "Foo", "Bar")
 	text(t, h, "FooBar", "")
@@ -472,6 +484,7 @@ func TestSmhasherSeed(t *testing.T) {
 	if unsafe.Sizeof(uintptr(0)) == 4 {
 		t.Skip("32-bit platforms don't have ideal seed-input distributions (see issue 33988)")
 	}
+	t.Parallel()
 	h := newHashSet()
 	const N = 100000
 	s := "hello"
