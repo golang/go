@@ -173,7 +173,7 @@ In summary,
 Atomics
 =======
 
-The runtime uses its own atomics package at `runtime/internal/atomic`.
+The runtime uses its own atomics package at `internal/runtime/atomic`.
 This corresponds to `sync/atomic`, but functions have different names
 for historical reasons and there are a few additional functions needed
 by the runtime.

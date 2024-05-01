@@ -43,5 +43,6 @@ var stdPkgs = []string{
 	"testing",
 	"time",
 	"unicode",
+	"unique",
 	"unsafe",
 }

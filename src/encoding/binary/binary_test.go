@@ -631,6 +631,31 @@ func BenchmarkWriteStruct(b *testing.B) {
 	}
 }
 
+func BenchmarkWriteSlice1000Structs(b *testing.B) {
+	slice := make([]Struct, 1000)
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(int64(Size(slice)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, slice)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkReadSlice1000Structs(b *testing.B) {
+	bsr := &byteSliceReader{}
+	slice := make([]Struct, 1000)
+	buf := make([]byte, Size(slice))
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf
+		Read(bsr, BigEndian, slice)
+	}
+}
+
 func BenchmarkReadInts(b *testing.B) {
 	var ls Struct
 	bsr := &byteSliceReader{}

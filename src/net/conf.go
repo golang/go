@@ -190,7 +190,7 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
 	if runtime.GOOS == "plan9" {
 		// TODO(bradfitz): for now we only permit use of the PreferGo
 		// implementation when there's a non-nil Resolver with a
-		// non-nil Dialer. This is a sign that they the code is trying
+		// non-nil Dialer. This is a sign that the code is trying
 		// to use their DNS-speaking net.Conn (such as an in-memory
 		// DNS cache) and they don't want to actually hit the network.
 		// Once we add support for looking the default DNS servers
@@ -338,13 +338,6 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	if stringsHasSuffix(hostname, ".") {
 		hostname = hostname[:len(hostname)-1]
 	}
-	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
-		// Per RFC 6762, the ".local" TLD is special. And
-		// because Go's native resolver doesn't do mDNS or
-		// similar local resolution mechanisms, assume that
-		// libc might (via Avahi, etc) and use cgo.
-		return hostLookupCgo, dnsConf
-	}
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
@@ -404,9 +397,13 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 				}
 				continue
 			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
-				// e.g. "mdns4", "mdns4_minimal"
-				// We already returned true before if it was *.local.
-				// libc wouldn't have found a hit on this anyway.
+				if stringsHasSuffixFold(hostname, ".local") {
+					// Per RFC 6762, the ".local" TLD is special. And
+					// because Go's native resolver doesn't do mDNS or
+					// similar local resolution mechanisms, assume that
+					// libc might (via Avahi, etc) and use cgo.
+					return hostLookupCgo, dnsConf
+				}
 
 				// We don't parse mdns.allow files. They're rare. If one
 				// exists, it might list other TLDs (besides .local) or even

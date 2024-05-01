@@ -92,7 +92,7 @@ package runtime
 
 import (
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -281,14 +281,18 @@ type scavengerState struct {
 	// g is the goroutine the scavenger is bound to.
 	g *g
 
-	// parked is whether or not the scavenger is parked.
-	parked bool
-
 	// timer is the timer used for the scavenger to sleep.
 	timer *timer
 
 	// sysmonWake signals to sysmon that it should wake the scavenger.
 	sysmonWake atomic.Uint32
+
+	// parked is whether or not the scavenger is parked.
+	parked bool
+
+	// printControllerReset instructs printScavTrace to signal that
+	// the controller was reset.
+	printControllerReset bool
 
 	// targetCPUFraction is the target CPU overhead for the scavenger.
 	targetCPUFraction float64
@@ -311,10 +315,6 @@ type scavengerState struct {
 	// using the controller and we hold sleepRatio at a conservative
 	// value. Used if the controller's assumptions fail to hold.
 	controllerCooldown int64
-
-	// printControllerReset instructs printScavTrace to signal that
-	// the controller was reset.
-	printControllerReset bool
 
 	// sleepStub is a stub used for testing to avoid actually having
 	// the scavenger sleep.
@@ -361,10 +361,10 @@ func (s *scavengerState) init() {
 	s.g = getg()
 
 	s.timer = new(timer)
-	s.timer.arg = s
-	s.timer.f = func(s any, _ uintptr) {
+	f := func(s any, _ uintptr, _ int64) {
 		s.(*scavengerState).wake()
 	}
+	s.timer.init(f, s)
 
 	// input: fraction of CPU time actually used.
 	// setpoint: ideal CPU fraction.
@@ -497,7 +497,7 @@ func (s *scavengerState) sleep(worked float64) {
 		// because we can't close over any variables without
 		// failing escape analysis.
 		start := nanotime()
-		resetTimer(s.timer, start+sleepTime)
+		s.timer.reset(start+sleepTime, 0)
 
 		// Mark ourselves as asleep and go to sleep.
 		s.parked = true
@@ -512,7 +512,7 @@ func (s *scavengerState) sleep(worked float64) {
 		// reason we might fail is that we've already woken up, but the timer
 		// might be in the process of firing on some other P; essentially we're
 		// racing with it. That's totally OK. Double wake-ups are perfectly safe.
-		stopTimer(s.timer)
+		s.timer.stop()
 		unlock(&s.lock)
 	} else {
 		unlock(&s.lock)

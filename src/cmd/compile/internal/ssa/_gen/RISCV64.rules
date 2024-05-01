@@ -216,8 +216,8 @@
 // Rotates.
 (RotateLeft8  <t> x y) => (OR (SLL  <t> x (ANDI [7]  <y.Type> y)) (SRL <t> (ZeroExt8to64  x) (ANDI [7]  <y.Type> (NEG <y.Type> y))))
 (RotateLeft16 <t> x y) => (OR (SLL  <t> x (ANDI [15] <y.Type> y)) (SRL <t> (ZeroExt16to64 x) (ANDI [15] <y.Type> (NEG <y.Type> y))))
-(RotateLeft32 <t> x y) => (OR (SLLW <t> x y) (SRLW <t> x (NEG <y.Type> y)))
-(RotateLeft64 <t> x y) => (OR (SLL  <t> x y) (SRL  <t> x (NEG <y.Type> y)))
+(RotateLeft32 ...) => (ROLW ...)
+(RotateLeft64 ...) => (ROL  ...)
 
 (Less64  ...) => (SLT  ...)
 (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
@@ -665,6 +665,9 @@
 (MOVWreg x:(DIVUW _ _)) => (MOVDreg x)
 (MOVWreg x:(REMW  _ _)) => (MOVDreg x)
 (MOVWreg x:(REMUW _ _)) => (MOVDreg x)
+(MOVWreg x:(ROLW  _ _)) => (MOVDreg x)
+(MOVWreg x:(RORW  _ _)) => (MOVDreg x)
+(MOVWreg x:(RORIW   _)) => (MOVDreg x)
 
 // Fold double extensions.
 (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
@@ -731,6 +734,10 @@
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
 (OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)
+(ROL  x (MOVDconst [val])) => (RORI  [int64(int8(-val)&63)] x)
+(ROLW x (MOVDconst [val])) => (RORIW [int64(int8(-val)&31)] x)
+(ROR  x (MOVDconst [val])) => (RORI  [int64(val&63)] x)
+(RORW x (MOVDconst [val])) => (RORIW [int64(val&31)] x)
 (SLL  x (MOVDconst [val])) => (SLLI [int64(val&63)] x)
 (SRL  x (MOVDconst [val])) => (SRLI [int64(val&63)] x)
 (SLLW x (MOVDconst [val])) => (SLLIW [int64(val&31)] x)
@@ -739,6 +746,10 @@
 (SRAW x (MOVDconst [val])) => (SRAIW [int64(val&31)] x)
 (SLT  x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTI  [val] x)
 (SLTU x (MOVDconst [val])) && val >= -2048 && val <= 2047 => (SLTIU [val] x)
+
+// Replace negated left rotation with right rotation.
+(ROL  x (NEG y)) => (ROR  x y)
+(ROLW x (NEG y)) => (RORW x y)
 
 // Convert const subtraction into ADDI with negative immediate, where possible.
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)

@@ -184,6 +184,7 @@ func ParseFlags() {
 	Debug.SyncFrames = -1 // disable sync markers by default
 	Debug.ZeroCopy = 1
 	Debug.RangeFuncCheck = 1
+	Debug.MergeLocals = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
@@ -259,6 +260,9 @@ func ParseFlags() {
 	}
 	if Debug.PGOHash != "" {
 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+	}
+	if Debug.MergeLocalsHash != "" {
+		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {

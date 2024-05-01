@@ -13,11 +13,3 @@ func PidFDSendSignal(pidfd uintptr, s syscall.Signal) error {
 	}
 	return nil
 }
-
-func PidFDOpen(pid, flags int) (uintptr, error) {
-	pidfd, _, errno := syscall.Syscall(pidfdOpenTrap, uintptr(pid), uintptr(flags), 0)
-	if errno != 0 {
-		return ^uintptr(0), errno
-	}
-	return uintptr(pidfd), nil
-}

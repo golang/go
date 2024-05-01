@@ -13,9 +13,7 @@ import (
 // source code to 0.
 func ResetCoverage() {
 	cov := coverage()
-	for i := range cov {
-		cov[i] = 0
-	}
+	clear(cov)
 }
 
 // SnapshotCoverage copies the current counter values into coverageSnapshot,

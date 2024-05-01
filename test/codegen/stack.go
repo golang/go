@@ -113,3 +113,32 @@ func Defer() {
 	// amd64:`CALL\truntime\.deferprocStack`
 	defer func() {}()
 }
+
+// Check that stack slots are shared among values of the same
+// type, but not pointer-identical types. See issue 65783.
+
+func spillSlotReuse() {
+	// The return values of getp1 and getp2 need to be
+	// spilled around the calls to nopInt. Make sure that
+	// spill slot gets reused.
+
+	//arm64:`.*autotmp_2-8\(SP\)`
+	getp1()[nopInt()] = 0
+	//arm64:`.*autotmp_2-8\(SP\)`
+	getp2()[nopInt()] = 0
+}
+
+//go:noinline
+func nopInt() int {
+	return 0
+}
+
+//go:noinline
+func getp1() *[4]int {
+	return nil
+}
+
+//go:noinline
+func getp2() *[4]int {
+	return nil
+}

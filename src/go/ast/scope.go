@@ -144,10 +144,10 @@ func (obj *Object) Pos() token.Pos {
 	return token.NoPos
 }
 
-// ObjKind describes what an object represents.
+// ObjKind describes what an [Object] represents.
 type ObjKind int
 
-// The list of possible Object kinds.
+// The list of possible [Object] kinds.
 const (
 	Bad ObjKind = iota // for error handling
 	Pkg                // package

@@ -211,6 +211,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
 	and debugging the execution tracer.
 
+	tracecheckstackownership: setting tracecheckstackownership=1 enables a debug check in the
+	execution tracer to double-check stack ownership before taking a stack trace.
+
 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
 	asynchronous goroutine preemption. This makes some loops
 	non-preemptible for long periods, which may delay GC and
@@ -294,7 +297,7 @@ import (
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	rpc := make([]uintptr, 1)
-	n := callers(skip+1, rpc[:])
+	n := callers(skip+1, rpc)
 	if n < 1 {
 		return
 	}

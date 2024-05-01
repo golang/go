@@ -13,8 +13,16 @@ import (
 var (
 	pollCopyFileRange = poll.CopyFileRange
 	pollSplice        = poll.Splice
-	pollSendFile      = poll.SendFile
 )
+
+// wrapSyscallError takes an error and a syscall name. If the error is
+// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+func wrapSyscallError(name string, err error) error {
+	if _, ok := err.(syscall.Errno); ok {
+		err = NewSyscallError(name, err)
+	}
+	return err
+}
 
 func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	pfd, network := getPollFDAndNetwork(w)
@@ -29,7 +37,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	}
 
 	rerr := sc.Read(func(fd uintptr) (done bool) {
-		written, err, handled = pollSendFile(pfd, int(fd), 1<<63-1)
+		written, err, handled = poll.SendFile(pfd, int(fd), 1<<63-1)
 		return true
 	})
 
@@ -78,14 +86,13 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 		return
 	}
 
-	var syscallName string
-	written, handled, syscallName, err = pollSplice(&f.pfd, pfd, remain)
+	written, handled, err = pollSplice(&f.pfd, pfd, remain)
 
 	if lr != nil {
 		lr.N = remain - written
 	}
 
-	return written, handled, wrapSyscallError(syscallName, err)
+	return written, handled, wrapSyscallError("splice", err)
 }
 
 func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err error) {

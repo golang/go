@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/version"
 	"internal/goversion"
-	"strings"
 )
 
 // A goVersion is a Go language version string of the form "go1.%d"
@@ -50,60 +49,28 @@ var (
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
 )
 
-// langCompat reports an error if the representation of a numeric
-// literal is not compatible with the current language version.
-func (check *Checker) langCompat(lit *syntax.BasicLit) {
-	s := lit.Value
-	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
-		return
-	}
-	// len(s) > 2
-	if strings.Contains(s, "_") {
-		check.versionErrorf(lit, go1_13, "underscores in numeric literals")
-		return
-	}
-	if s[0] != '0' {
-		return
-	}
-	radix := s[1]
-	if radix == 'b' || radix == 'B' {
-		check.versionErrorf(lit, go1_13, "binary literals")
-		return
-	}
-	if radix == 'o' || radix == 'O' {
-		check.versionErrorf(lit, go1_13, "0o/0O-style octal literals")
-		return
-	}
-	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
-		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literals")
-	}
-}
-
-// allowVersion reports whether the given package is allowed to use version v.
-func (check *Checker) allowVersion(pkg *Package, at poser, v goVersion) bool {
-	// We assume that imported packages have all been checked,
-	// so we only have to check for the local package.
-	if pkg != check.pkg {
-		return true
-	}
-
-	// If no explicit file version is specified,
-	// fileVersion corresponds to the module version.
-	var fileVersion goVersion
+// allowVersion reports whether the current package at the given position
+// is allowed to use version v. If the position is unknown, the specified
+// module version (Config.GoVersion) is used. If that version is invalid,
+// allowVersion returns true.
+func (check *Checker) allowVersion(at poser, v goVersion) bool {
+	fileVersion := check.conf.GoVersion
 	if pos := at.Pos(); pos.IsKnown() {
-		// We need version.Lang below because file versions
-		// can be (unaltered) Config.GoVersion strings that
-		// may contain dot-release information.
-		fileVersion = asGoVersion(check.versions[base(pos)])
+		fileVersion = check.versions[base(pos)]
 	}
-	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
+
+	// We need asGoVersion (which calls version.Lang) below
+	// because fileVersion may be the (unaltered) Config.GoVersion
+	// string which may contain dot-release information.
+	version := asGoVersion(fileVersion)
+
+	return !version.isValid() || version.cmp(v) >= 0
 }
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
-// which are used to report a version error if allowVersion returns false. It uses the
-// current package.
+// which are used to report a version error if allowVersion returns false.
 func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args ...interface{}) bool {
-	if !check.allowVersion(check.pkg, at, v) {
+	if !check.allowVersion(at, v) {
 		check.versionErrorf(at, v, format, args...)
 		return false
 	}

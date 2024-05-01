@@ -53,10 +53,10 @@ type int32 int32
 // Range: -9223372036854775808 through 9223372036854775807.
 type int64 int64
 
-// float32 is the set of all IEEE-754 32-bit floating-point numbers.
+// float32 is the set of all IEEE 754 32-bit floating-point numbers.
 type float32 float32
 
-// float64 is the set of all IEEE-754 64-bit floating-point numbers.
+// float64 is the set of all IEEE 754 64-bit floating-point numbers.
 type float64 float64
 
 // complex64 is the set of all complex numbers with float32 real and

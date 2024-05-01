@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/syscall/windows"
 	"os"
 	"runtime"
 	"syscall"
@@ -20,22 +21,52 @@ const (
 )
 
 func setKeepAliveIdle(fd *netFD, d time.Duration) error {
-	return setKeepAliveIdleAndInterval(fd, d, -1)
+	if !windows.SupportTCPKeepAliveIdle() {
+		return setKeepAliveIdleAndInterval(fd, d, -1)
+	}
+
+	if d == 0 {
+		d = defaultTCPKeepAliveIdle
+	} else if d < 0 {
+		return nil
+	}
+	// The kernel expects seconds so round to next highest second.
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPIDLE, secs)
+	runtime.KeepAlive(fd)
+	return os.NewSyscallError("setsockopt", err)
 }
 
 func setKeepAliveInterval(fd *netFD, d time.Duration) error {
-	return setKeepAliveIdleAndInterval(fd, -1, d)
+	if !windows.SupportTCPKeepAliveInterval() {
+		return setKeepAliveIdleAndInterval(fd, -1, d)
+	}
+
+	if d == 0 {
+		d = defaultTCPKeepAliveInterval
+	} else if d < 0 {
+		return nil
+	}
+	// The kernel expects seconds so round to next highest second.
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPINTVL, secs)
+	runtime.KeepAlive(fd)
+	return os.NewSyscallError("setsockopt", err)
 }
 
-func setKeepAliveCount(_ *netFD, n int) error {
-	if n < 0 {
+func setKeepAliveCount(fd *netFD, n int) error {
+	if n == 0 {
+		n = defaultTCPKeepAliveCount
+	} else if n < 0 {
 		return nil
 	}
 
-	// This value is not capable to be changed on Windows.
-	return syscall.WSAENOPROTOOPT
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPCNT, n)
+	runtime.KeepAlive(fd)
+	return os.NewSyscallError("setsockopt", err)
 }
 
+// setKeepAliveIdleAndInterval serves for kernels prior to Windows 10, version 1709.
 func setKeepAliveIdleAndInterval(fd *netFD, idle, interval time.Duration) error {
 	// WSAIoctl with SIO_KEEPALIVE_VALS control code requires all fields in
 	// `tcp_keepalive` struct to be provided.

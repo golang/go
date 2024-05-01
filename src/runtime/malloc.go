@@ -102,9 +102,8 @@ package runtime
 
 import (
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
@@ -425,25 +424,23 @@ func mallocinit() {
 		print("pagesPerArena (", pagesPerArena, ") is not divisible by pagesPerReclaimerChunk (", pagesPerReclaimerChunk, ")\n")
 		throw("bad pagesPerReclaimerChunk")
 	}
-	if goexperiment.AllocHeaders {
-		// Check that the minimum size (exclusive) for a malloc header is also
-		// a size class boundary. This is important to making sure checks align
-		// across different parts of the runtime.
-		minSizeForMallocHeaderIsSizeClass := false
-		for i := 0; i < len(class_to_size); i++ {
-			if minSizeForMallocHeader == uintptr(class_to_size[i]) {
-				minSizeForMallocHeaderIsSizeClass = true
-				break
-			}
+	// Check that the minimum size (exclusive) for a malloc header is also
+	// a size class boundary. This is important to making sure checks align
+	// across different parts of the runtime.
+	minSizeForMallocHeaderIsSizeClass := false
+	for i := 0; i < len(class_to_size); i++ {
+		if minSizeForMallocHeader == uintptr(class_to_size[i]) {
+			minSizeForMallocHeaderIsSizeClass = true
+			break
 		}
-		if !minSizeForMallocHeaderIsSizeClass {
-			throw("min size of malloc header is not a size class boundary")
-		}
-		// Check that the pointer bitmap for all small sizes without a malloc header
-		// fits in a word.
-		if minSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
-			throw("max pointer/scan bitmap size for headerless objects is too large")
-		}
+	}
+	if !minSizeForMallocHeaderIsSizeClass {
+		throw("min size of malloc header is not a size class boundary")
+	}
+	// Check that the pointer bitmap for all small sizes without a malloc header
+	// fits in a word.
+	if minSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
+		throw("max pointer/scan bitmap size for headerless objects is too large")
 	}
 
 	if minTagBits > taggedPointerBits {
@@ -1043,7 +1040,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	var span *mspan
 	var header **_type
 	var x unsafe.Pointer
-	noscan := typ == nil || typ.PtrBytes == 0
+	noscan := typ == nil || !typ.Pointers()
 	// In some cases block zeroing can profitably (for latency reduction purposes)
 	// be delayed till preemption is possible; delayedZeroing tracks that state.
 	delayedZeroing := false
@@ -1132,7 +1129,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			size = maxTinySize
 		} else {
 			hasHeader := !noscan && !heapBitsInSpan(size)
-			if goexperiment.AllocHeaders && hasHeader {
+			if hasHeader {
 				size += mallocHeaderSize
 			}
 			var sizeclass uint8
@@ -1152,7 +1149,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			if needzero && span.needzero != 0 {
 				memclrNoHeapPointers(x, size)
 			}
-			if goexperiment.AllocHeaders && hasHeader {
+			if hasHeader {
 				header = (**_type)(x)
 				x = add(x, mallocHeaderSize)
 				size -= mallocHeaderSize
@@ -1168,34 +1165,16 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		size = span.elemsize
 		x = unsafe.Pointer(span.base())
 		if needzero && span.needzero != 0 {
-			if noscan {
-				delayedZeroing = true
-			} else {
-				memclrNoHeapPointers(x, size)
-			}
+			delayedZeroing = true
 		}
-		if goexperiment.AllocHeaders && !noscan {
+		if !noscan {
+			// Tell the GC not to look at this yet.
+			span.largeType = nil
 			header = &span.largeType
 		}
 	}
-	if !noscan {
-		if goexperiment.AllocHeaders {
-			c.scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
-		} else {
-			var scanSize uintptr
-			heapBitsSetType(uintptr(x), size, dataSize, typ)
-			if dataSize > typ.Size_ {
-				// Array allocation. If there are any
-				// pointers, GC has to scan to the last
-				// element.
-				if typ.PtrBytes != 0 {
-					scanSize = dataSize - typ.Size_ + typ.PtrBytes
-				}
-			} else {
-				scanSize = typ.PtrBytes
-			}
-			c.scanAlloc += scanSize
-		}
+	if !noscan && !delayedZeroing {
+		c.scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
 	}
 
 	// Ensure that the stores above that initialize x to
@@ -1243,19 +1222,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		asanunpoison(x, userSize)
 	}
 
-	// If !goexperiment.AllocHeaders, "size" doesn't include the
-	// allocation header, so use span.elemsize as the "full" size
-	// for various computations below.
-	//
 	// TODO(mknyszek): We should really count the header as part
-	// of gc_sys or something, but it's risky to change the
-	// accounting so much right now. Just pretend its internal
-	// fragmentation and match the GC's accounting by using the
-	// whole allocation slot.
-	fullSize := size
-	if goexperiment.AllocHeaders {
-		fullSize = span.elemsize
-	}
+	// of gc_sys or something. The code below just pretends it is
+	// internal fragmentation and matches the GC's accounting by
+	// using the whole allocation slot.
+	fullSize := span.elemsize
 	if rate := MemProfileRate; rate > 0 {
 		// Note cache c only valid while m acquired; see #47302
 		//
@@ -1270,17 +1241,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 0
 	releasem(mp)
 
-	// Pointerfree data can be zeroed late in a context where preemption can occur.
+	// Objects can be zeroed late in a context where preemption can occur.
+	// If the object contains pointers, its pointer data must be cleared
+	// or otherwise indicate that the GC shouldn't scan it.
 	// x will keep the memory alive.
 	if delayedZeroing {
-		if !noscan {
-			throw("delayed zeroing on data that may contain pointers")
-		}
-		if goexperiment.AllocHeaders && header != nil {
-			throw("unexpected malloc header in delayed zeroing of large object")
-		}
 		// N.B. size == fullSize always in this case.
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
+
+		// Finish storing the type information for this case.
+		if !noscan {
+			mp := acquirem()
+			getMCache(mp).scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
+
+			// Publish the type information with the zeroed memory.
+			publicationBarrier()
+			releasem(mp)
+		}
 	}
 
 	if debug.malloc {

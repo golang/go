@@ -5,6 +5,7 @@
 package fstest
 
 import (
+	"errors"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -74,5 +75,42 @@ func TestShuffledFS(t *testing.T) {
 	}
 	if err := TestFS(fsys, "tmp/one", "tmp/two", "tmp/three"); err != nil {
 		t.Error(err)
+	}
+}
+
+// failPermFS is a filesystem that always fails with fs.ErrPermission.
+type failPermFS struct{}
+
+func (f failPermFS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
+	}
+	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrPermission}
+}
+
+func TestTestFSWrappedErrors(t *testing.T) {
+	err := TestFS(failPermFS{})
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	t.Logf("Error (expecting wrapped fs.ErrPermission):\n%v", err)
+
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Errorf("error should be a wrapped ErrPermission: %#v", err)
+	}
+
+	// TestFS is expected to return a list of errors.
+	// Enforce that the list can be extracted for browsing.
+	var errs interface{ Unwrap() []error }
+	if !errors.As(err, &errs) {
+		t.Errorf("caller should be able to extract the errors as a list: %#v", err)
+	} else {
+		for _, err := range errs.Unwrap() {
+			// ErrPermission is expected
+			// but any other error must be reported.
+			if !errors.Is(err, fs.ErrPermission) {
+				t.Errorf("unexpected error: %v", err)
+			}
+		}
 	}
 }

@@ -325,7 +325,7 @@ func TestFileServerCleans(t *testing.T) {
 
 func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
 func testFileServerEscapesNames(t *testing.T, mode testMode) {
-	const dirListPrefix = "<pre>\n"
+	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n"
 	const dirListSuffix = "\n</pre>\n"
 	tests := []struct {
 		name, escaped string
@@ -1667,4 +1667,30 @@ func (grw gzipResponseWriter) Flush() {
 	if fw, ok := grw.ResponseWriter.(http.Flusher); ok {
 		fw.Flush()
 	}
+}
+
+// Issue 63769
+func TestFileServerDirWithRootFile(t *testing.T) { run(t, testFileServerDirWithRootFile) }
+func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+	testDirFile := func(t *testing.T, h Handler) {
+		ts := newClientServerTest(t, mode, h).ts
+		defer ts.Close()
+
+		res, err := ts.Client().Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := res.StatusCode, StatusInternalServerError; g != w {
+			t.Errorf("StatusCode mismatch: got %d, want: %d", g, w)
+		}
+		res.Body.Close()
+	}
+
+	t.Run("FileServer", func(t *testing.T) {
+		testDirFile(t, FileServer(Dir("testdata/index.html")))
+	})
+
+	t.Run("FileServerFS", func(t *testing.T) {
+		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
+	})
 }

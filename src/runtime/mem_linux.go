@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -150,7 +150,8 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysFaultOS(v unsafe.Pointer, n uintptr) {
-	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+	mprotect(v, n, _PROT_NONE)
+	madvise(v, n, _MADV_DONTNEED)
 }
 
 func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {

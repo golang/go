@@ -37,6 +37,7 @@ type State struct {
 //
 // Next is //go:nosplit to allow its use in the runtime
 // with per-m data without holding the per-m lock.
+//
 //go:nosplit
 func (s *State) Next() (uint64, bool) {
 	i := s.i

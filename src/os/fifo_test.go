@@ -10,6 +10,7 @@ import (
 	"errors"
 	"internal/syscall/unix"
 	"internal/testenv"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestFifoEOF(t *testing.T) {
@@ -190,6 +192,7 @@ func TestNewFileNonBlocking(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	if !nonblock {
 		t.Error("pipe blocking after NewFile")
 	}
@@ -203,5 +206,58 @@ func TestNewFileNonBlocking(t *testing.T) {
 	}
 	if !nonblock {
 		t.Error("pipe blocking after Fd")
+	}
+}
+
+func TestFIFONonBlockingEOF(t *testing.T) {
+	fifoName := filepath.Join(t.TempDir(), "issue-66239-fifo")
+	if err := syscall.Mkfifo(fifoName, 0600); err != nil {
+		t.Fatalf("Error creating fifo: %v", err)
+	}
+
+	r, err := os.OpenFile(fifoName, os.O_RDONLY|syscall.O_NONBLOCK, os.ModeNamedPipe)
+	if err != nil {
+		t.Fatalf("Error opening fifo for read: %v", err)
+	}
+	defer r.Close()
+
+	w, err := os.OpenFile(fifoName, os.O_WRONLY, os.ModeNamedPipe)
+	if err != nil {
+		t.Fatalf("Error opening fifo for write: %v", err)
+	}
+	defer w.Close()
+
+	data := "Hello Gophers!"
+	if _, err := w.WriteString(data); err != nil {
+		t.Fatalf("Error writing to fifo: %v", err)
+	}
+
+	// Close the writer after a short delay to open a gap for the reader
+	// of FIFO to fall into polling. See https://go.dev/issue/66239#issuecomment-1987620476
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := w.Close(); err != nil {
+			t.Errorf("Error closing writer: %v", err)
+		}
+	})
+
+	buf := make([]byte, len(data))
+	n, err := io.ReadAtLeast(r, buf, len(data))
+	if n != len(data) || string(buf) != data || err != nil {
+		t.Errorf("ReadAtLeast: %v; got %q, want %q", err, buf, data)
+		return
+	}
+
+	// Loop reading from FIFO until EOF to ensure that the reader
+	// is not blocked infinitely, otherwise there is something wrong
+	// with the netpoller.
+	for {
+		_, err = r.Read(buf)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil && !errors.Is(err, syscall.EAGAIN) {
+			t.Errorf("Error reading bytes from fifo: %v", err)
+			return
+		}
 	}
 }

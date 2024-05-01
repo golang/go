@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
-		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
+		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", quote(v.name))
 	}
 
 	for _, scope := range scope.children {
@@ -260,11 +260,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if Identical(v.typ, vt.typ) {
-					var err error_
-					err.code = DuplicateCase
-					err.errorf(&v, "duplicate case %s in expression switch", &v)
-					err.errorf(vt.pos, "previous case")
-					check.report(&err)
+					err := check.newError(DuplicateCase)
+					err.addf(&v, "duplicate case %s in expression switch", &v)
+					err.addf(vt.pos, "previous case")
+					err.report()
 					continue L
 				}
 			}
@@ -307,11 +306,10 @@ L:
 				if T != nil {
 					Ts = TypeString(T, check.qualifier)
 				}
-				var err error_
-				err.code = DuplicateCase
-				err.errorf(e, "duplicate case %s in type switch", Ts)
-				err.errorf(other, "previous case")
-				check.report(&err)
+				err := check.newError(DuplicateCase)
+				err.addf(e, "duplicate case %s in type switch", Ts)
+				err.addf(other, "previous case")
+				err.report()
 				continue L
 			}
 		}
@@ -350,11 +348,10 @@ L:
 // 			if T != nil {
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
-// 			var err error_
-//			err.code = _DuplicateCase
-// 			err.errorf(e, "duplicate case %s in type switch", Ts)
-// 			err.errorf(other, "previous case")
-// 			check.report(&err)
+// 			err := check.newError(_DuplicateCase)
+// 			err.addf(e, "duplicate case %s in type switch", Ts)
+// 			err.addf(other, "previous case")
+// 			err.report()
 // 			continue L
 // 		}
 // 		seen[hash] = e
@@ -498,11 +495,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// with the same name as a result parameter is in scope at the place of the return."
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
-					var err error_
-					err.code = OutOfScopeResult
-					err.errorf(s, "result parameter %s not in scope at return", obj.name)
-					err.errorf(alt, "inner declaration of %s", obj)
-					check.report(&err)
+					err := check.newError(OutOfScopeResult)
+					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
+					err.addf(alt, "inner declaration of %s", obj)
+					err.report()
 					// ok to continue
 				}
 			}
@@ -862,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(check.pkg, x.expr, v)
+			return check.allowVersion(x.expr, v)
 		})
 		switch {
 		case !ok && cause != "":
@@ -927,19 +923,26 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
+			assert(obj.typ == nil)
+
+			// initialize lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				obj.typ = Typ[Invalid]
+				obj.used = true // don't complain about unused variable
+				continue
+			}
 
 			// initialize lhs variable
 			if constIntRange {
 				check.initVar(obj, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
 				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
-			} else {
-				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
 			}
+			assert(obj.typ != nil)
 		}
 
 		// declare variables
@@ -958,9 +961,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				continue
 			}
 
+			// assign to lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				continue
+			}
+
 			if constIntRange {
 				check.assignVar(lhs, nil, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ

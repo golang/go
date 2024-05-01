@@ -624,33 +624,33 @@ func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
 	r.Type = objabi.R_METHODOFF
 }
 
-var kinds = []int{
-	types.TINT:        objabi.KindInt,
-	types.TUINT:       objabi.KindUint,
-	types.TINT8:       objabi.KindInt8,
-	types.TUINT8:      objabi.KindUint8,
-	types.TINT16:      objabi.KindInt16,
-	types.TUINT16:     objabi.KindUint16,
-	types.TINT32:      objabi.KindInt32,
-	types.TUINT32:     objabi.KindUint32,
-	types.TINT64:      objabi.KindInt64,
-	types.TUINT64:     objabi.KindUint64,
-	types.TUINTPTR:    objabi.KindUintptr,
-	types.TFLOAT32:    objabi.KindFloat32,
-	types.TFLOAT64:    objabi.KindFloat64,
-	types.TBOOL:       objabi.KindBool,
-	types.TSTRING:     objabi.KindString,
-	types.TPTR:        objabi.KindPtr,
-	types.TSTRUCT:     objabi.KindStruct,
-	types.TINTER:      objabi.KindInterface,
-	types.TCHAN:       objabi.KindChan,
-	types.TMAP:        objabi.KindMap,
-	types.TARRAY:      objabi.KindArray,
-	types.TSLICE:      objabi.KindSlice,
-	types.TFUNC:       objabi.KindFunc,
-	types.TCOMPLEX64:  objabi.KindComplex64,
-	types.TCOMPLEX128: objabi.KindComplex128,
-	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
+var kinds = []abi.Kind{
+	types.TINT:        abi.Int,
+	types.TUINT:       abi.Uint,
+	types.TINT8:       abi.Int8,
+	types.TUINT8:      abi.Uint8,
+	types.TINT16:      abi.Int16,
+	types.TUINT16:     abi.Uint16,
+	types.TINT32:      abi.Int32,
+	types.TUINT32:     abi.Uint32,
+	types.TINT64:      abi.Int64,
+	types.TUINT64:     abi.Uint64,
+	types.TUINTPTR:    abi.Uintptr,
+	types.TFLOAT32:    abi.Float32,
+	types.TFLOAT64:    abi.Float64,
+	types.TBOOL:       abi.Bool,
+	types.TSTRING:     abi.String,
+	types.TPTR:        abi.Pointer,
+	types.TSTRUCT:     abi.Struct,
+	types.TINTER:      abi.Interface,
+	types.TCHAN:       abi.Chan,
+	types.TMAP:        abi.Map,
+	types.TARRAY:      abi.Array,
+	types.TSLICE:      abi.Slice,
+	types.TFUNC:       abi.Func,
+	types.TCOMPLEX64:  abi.Complex64,
+	types.TCOMPLEX128: abi.Complex128,
+	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
 var (
@@ -743,14 +743,14 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	i = kinds[t.Kind()]
+	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
-		i |= objabi.KindDirectIface
+		kind |= abi.KindDirectIface
 	}
 	if useGCProg {
-		i |= objabi.KindGCProg
+		kind |= abi.KindGCProg
 	}
-	c.Field("Kind_").WriteUint8(uint8(i))
+	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)

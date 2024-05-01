@@ -73,10 +73,10 @@ SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
 used on the system. Note that not all of these signals are available
 on all systems.
 
-If the program was started with SIGHUP or SIGINT ignored, and Notify
+If the program was started with SIGHUP or SIGINT ignored, and [Notify]
 is called for either signal, a signal handler will be installed for
-that signal and it will no longer be ignored. If, later, Reset or
-Ignore is called for that signal, or Stop is called on all channels
+that signal and it will no longer be ignored. If, later, [Reset] or
+[Ignore] is called for that signal, or [Stop] is called on all channels
 passed to Notify for that signal, the signal will once again be
 ignored. Reset will restore the system default behavior for the
 signal, while Ignore will cause the system to ignore the signal

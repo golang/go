@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"syscall"
 )
 
@@ -43,7 +44,7 @@ func MkdirAll(path string, perm FileMode) error {
 
 	// If there is a parent directory, and it is not the volume name,
 	// recurse to ensure parent directory exists.
-	if parent := path[:i]; len(parent) > len(volumeName(path)) {
+	if parent := path[:i]; len(parent) > len(filepathlite.VolumeName(path)) {
 		err = MkdirAll(parent, perm)
 		if err != nil {
 			return err
@@ -68,7 +69,7 @@ func MkdirAll(path string, perm FileMode) error {
 // It removes everything it can but returns the first error
 // it encounters. If the path does not exist, RemoveAll
 // returns nil (no error).
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func RemoveAll(path string) error {
 	return removeAll(path)
 }

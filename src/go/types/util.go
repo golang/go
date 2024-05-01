@@ -36,6 +36,9 @@ func dddErrPos(call *ast.CallExpr) positioner { return atPos(call.Ellipsis) }
 // argErrPos returns positioner for reportign an invalid argument count.
 func argErrPos(call *ast.CallExpr) positioner { return inNode(call, call.Rparen) }
 
+// startPos returns the start position of node n.
+func startPos(n ast.Node) token.Pos { return n.Pos() }
+
 // endPos returns the position of the first character immediately after node n.
 func endPos(n ast.Node) token.Pos { return n.End() }
 

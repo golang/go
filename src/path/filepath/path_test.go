@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -233,6 +232,73 @@ func TestIsLocal(t *testing.T) {
 	for _, test := range tests {
 		if got := filepath.IsLocal(test.path); got != test.isLocal {
 			t.Errorf("IsLocal(%q) = %v, want %v", test.path, got, test.isLocal)
+		}
+	}
+}
+
+type LocalizeTest struct {
+	path string
+	want string
+}
+
+var localizetests = []LocalizeTest{
+	{"", ""},
+	{".", "."},
+	{"..", ""},
+	{"a/..", ""},
+	{"/", ""},
+	{"/a", ""},
+	{"a\xffb", ""},
+	{"a/", ""},
+	{"a/./b", ""},
+	{"\x00", ""},
+	{"a", "a"},
+	{"a/b/c", "a/b/c"},
+}
+
+var plan9localizetests = []LocalizeTest{
+	{"#a", ""},
+	{`a\b:c`, `a\b:c`},
+}
+
+var unixlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{`a\b:c`, `a\b:c`},
+}
+
+var winlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{"c:", ""},
+	{`a\b`, ""},
+	{`a:b`, ""},
+	{`a/b:c`, ""},
+	{`NUL`, ""},
+	{`a/NUL`, ""},
+	{`./com1`, ""},
+	{`a/nul/b`, ""},
+}
+
+func TestLocalize(t *testing.T) {
+	tests := localizetests
+	switch runtime.GOOS {
+	case "plan9":
+		tests = append(tests, plan9localizetests...)
+	case "windows":
+		tests = append(tests, winlocalizetests...)
+		for i := range tests {
+			tests[i].want = filepath.FromSlash(tests[i].want)
+		}
+	default:
+		tests = append(tests, unixlocalizetests...)
+	}
+	for _, test := range tests {
+		got, err := filepath.Localize(test.path)
+		wantErr := "<nil>"
+		if test.want == "" {
+			wantErr = "error"
+		}
+		if got != test.want || ((err == nil) != (test.want != "")) {
+			t.Errorf("IsLocal(%q) = %q, %v want %q, %v", test.path, got, err, test.want, wantErr)
 		}
 	}
 }
@@ -1403,6 +1469,9 @@ func TestAbs(t *testing.T) {
 		}
 	}
 
+	// Make sure the global absTests slice is not
+	// modified by multiple invocations of TestAbs.
+	tests := absTests
 	if runtime.GOOS == "windows" {
 		vol := filepath.VolumeName(root)
 		var extra []string
@@ -1413,7 +1482,7 @@ func TestAbs(t *testing.T) {
 			path = vol + path
 			extra = append(extra, path)
 		}
-		absTests = append(absTests, extra...)
+		tests = append(slices.Clip(tests), extra...)
 	}
 
 	err = os.Chdir(absTestDirs[0])
@@ -1421,7 +1490,7 @@ func TestAbs(t *testing.T) {
 		t.Fatal("chdir failed: ", err)
 	}
 
-	for _, path := range absTests {
+	for _, path := range tests {
 		path = strings.ReplaceAll(path, "$", root)
 		info, err := os.Stat(path)
 		if err != nil {
@@ -1720,7 +1789,7 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(visited)
+	slices.Sort(visited)
 	want := []string{".", "link"}
 	if fmt.Sprintf("%q", visited) != fmt.Sprintf("%q", want) {
 		t.Errorf("unexpected paths visited %q, want %q", visited, want)
@@ -1908,5 +1977,18 @@ func TestEscaping(t *testing.T) {
 		for _, e := range ents {
 			t.Fatalf("found: %v", e.Name())
 		}
+	}
+}
+
+func TestEvalSymlinksTooManyLinks(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	dir := filepath.Join(t.TempDir(), "dir")
+	err := os.Symlink(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = filepath.EvalSymlinks(dir)
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

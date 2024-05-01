@@ -199,7 +199,7 @@ var supportedTypes = map[reflect.Type]bool{
 // the (*F).Fuzz function are (*F).Failed and (*F).Name.
 //
 // This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutatable input arguments, or pointers to them,
+// depend on shared state. No mutable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
 // modify the underlying data of the arguments provided by the fuzzing engine.
@@ -674,7 +674,7 @@ func fRunner(f *F, fn func(*F)) {
 			}
 			for root := &f.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += time.Since(root.start)
+				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -687,7 +687,7 @@ func fRunner(f *F, fn func(*F)) {
 		}
 
 		// No panic or inappropriate Goexit.
-		f.duration += time.Since(f.start)
+		f.duration += highPrecisionTimeSince(f.start)
 
 		if len(f.sub) > 0 {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
@@ -700,9 +700,9 @@ func fRunner(f *F, fn func(*F)) {
 			for _, sub := range f.sub {
 				<-sub.signal
 			}
-			cleanupStart := time.Now()
+			cleanupStart := highPrecisionTimeNow()
 			err := f.runCleanup(recoverAndReturnPanic)
-			f.duration += time.Since(cleanupStart)
+			f.duration += highPrecisionTimeSince(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -719,7 +719,7 @@ func fRunner(f *F, fn func(*F)) {
 		}
 	}()
 
-	f.start = time.Now()
+	f.start = highPrecisionTimeNow()
 	f.resetRaces()
 	fn(f)
 

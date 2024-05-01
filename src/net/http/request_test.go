@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1256,6 +1257,76 @@ func TestRequestCookie(t *testing.T) {
 	}
 }
 
+func TestRequestCookiesByName(t *testing.T) {
+	tests := []struct {
+		in     []*Cookie
+		filter string
+		want   []*Cookie
+	}{
+		{
+			in: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want:   []*Cookie{{Name: "foo", Value: "foo-1"}},
+		},
+		{
+			in: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "foo", Value: "foo-2"},
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want: []*Cookie{
+				{Name: "foo", Value: "foo-1"},
+				{Name: "foo", Value: "foo-2"},
+			},
+		},
+		{
+			in: []*Cookie{
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "foo",
+			want:   []*Cookie{},
+		},
+		{
+			in: []*Cookie{
+				{Name: "bar", Value: "bar"},
+			},
+			filter: "",
+			want:   []*Cookie{},
+		},
+		{
+			in:     []*Cookie{},
+			filter: "foo",
+			want:   []*Cookie{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.filter, func(t *testing.T) {
+			req, err := NewRequest("GET", "http://example.com/", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, c := range tt.in {
+				req.AddCookie(c)
+			}
+
+			got := req.CookiesNamed(tt.filter)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				asStr := func(v any) string {
+					blob, _ := json.MarshalIndent(v, "", "  ")
+					return string(blob)
+				}
+				t.Fatalf("Result mismatch\n\tGot: %s\n\tWant: %s", asStr(got), asStr(tt.want))
+			}
+		})
+	}
+}
+
 const (
 	fileaContents = "This is a test file."
 	filebContents = "Another test file."
@@ -1486,6 +1557,14 @@ func TestPathValue(t *testing.T) {
 			map[string]string{
 				"name":  "john/doe",
 				"other": "there/is//more",
+			},
+		},
+		{
+			"/names/{name}/{other...}",
+			"/names/n/*",
+			map[string]string{
+				"name":  "n",
+				"other": "*",
 			},
 		},
 	} {

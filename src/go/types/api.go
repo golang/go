@@ -10,19 +10,23 @@
 //
 // Type-checking consists of several interdependent phases:
 //
-// Name resolution maps each identifier (ast.Ident) in the program to the
-// language object ([Object]) it denotes.
-// Use [Info].{Defs,Uses,Implicits} for the results of name resolution.
+// Name resolution maps each identifier ([ast.Ident]) in the program
+// to the symbol ([Object]) it denotes. Use the Defs and Uses fields
+// of [Info] or the [Info.ObjectOf] method to find the symbol for an
+// identifier, and use the Implicits field of [Info] to find the
+// symbol for certain other kinds of syntax node.
 //
-// Constant folding computes the exact constant value (constant.Value)
-// for every expression (ast.Expr) that is a compile-time constant.
-// Use Info.Types[expr].Value for the results of constant folding.
+// Constant folding computes the exact constant value
+// ([constant.Value]) of every expression ([ast.Expr]) that is a
+// compile-time constant. Use the Types field of [Info] to find the
+// results of constant folding for an expression.
 //
-// [Type] inference computes the type ([Type]) of every expression ([ast.Expr])
-// and checks for compliance with the language specification.
-// Use [Info.Types][expr].Type for the results of type inference.
+// Type deduction computes the type ([Type]) of every expression
+// ([ast.Expr]) and checks for compliance with the language
+// specification. Use the Types field of [Info] for the results of
+// type deduction.
 //
-// For a tutorial, see https://golang.org/s/types-tutorial.
+// For a tutorial, see https://go.dev/s/types-tutorial.
 package types
 
 import (
@@ -176,6 +180,12 @@ type Config struct {
 	// of an error message. ErrorURL must be a format string containing
 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
 	_ErrorURL string
+
+	// If _EnableAlias is set, alias declarations produce an Alias type.
+	// Otherwise the alias information is only in the type name, which
+	// points directly to the actual (aliased) type.
+	// This flag will eventually be removed (with Go 1.24 at the earliest).
+	_EnableAlias bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

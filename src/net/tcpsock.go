@@ -118,12 +118,17 @@ type TCPConn struct {
 // If the Idle, Interval, or Count fields are zero, a default value is chosen.
 // If a field is negative, the corresponding socket-level option will be left unchanged.
 //
-// Note that Windows doesn't support setting the KeepAliveIdle and KeepAliveInterval separately.
-// It's recommended to set both Idle and Interval to non-negative values on Windows if you
-// intend to customize the TCP keep-alive settings.
-// By contrast, if only one of Idle and Interval is set to a non-negative value, the other will
-// be set to the system default value, and ultimately, set both Idle and Interval to negative
-// values if you want to leave them unchanged.
+// Note that prior to Windows 10 version 1709, neither setting Idle and Interval
+// separately nor changing Count (which is usually 10) is supported.
+// Therefore, it's recommended to set both Idle and Interval to non-negative values
+// in conjunction with a -1 for Count on those old Windows if you intend to customize
+// the TCP keep-alive settings.
+// By contrast, if only one of Idle and Interval is set to a non-negative value,
+// the other will be set to the system default value, and ultimately,
+// set both Idle and Interval to negative values if you want to leave them unchanged.
+//
+// Note that Solaris and its derivatives do not support setting Interval to a non-negative value
+// and Count to a negative value, or vice-versa.
 type KeepAliveConfig struct {
 	// If Enable is true, keep-alive probes are enabled.
 	Enable bool
@@ -236,11 +241,11 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets the idle duration the connection
-// needs to remain idle before TCP starts sending keepalive probes.
+// SetKeepAlivePeriod sets the duration the connection needs to
+// remain idle before TCP starts sending keepalive probes.
 //
-// Note that calling this method on Windows will reset the KeepAliveInterval
-// to the default system value, which is normally 1 second.
+// Note that calling this method on Windows prior to Windows 10 version 1709
+// will reset the KeepAliveInterval to the default system value, which is normally 1 second.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL

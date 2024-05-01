@@ -169,7 +169,7 @@ func TestCoverOnPackageWithNoTestFiles(t *testing.T) {
 	// For packages with no test files, the new "go test -cover"
 	// strategy is to run cmd/cover on the package in a special
 	// "EmitMetaFile" mode. When running in this mode, cmd/cover walks
-	// the package doing instrumention, but when finished, instead of
+	// the package doing instrumentation, but when finished, instead of
 	// writing out instrumented source files, it directly emits a
 	// meta-data file for the package in question, essentially
 	// simulating the effect that you would get if you added a dummy

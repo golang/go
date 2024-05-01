@@ -30,11 +30,11 @@ type Writer struct {
 	w           io.Writer
 	level       int
 	wroteHeader bool
+	closed      bool
+	buf         [10]byte
 	compressor  *flate.Writer
 	digest      uint32 // CRC-32, IEEE polynomial (section 8)
 	size        uint32 // Uncompressed size (section 2.3.1)
-	closed      bool
-	buf         [10]byte
 	err         error
 }
 

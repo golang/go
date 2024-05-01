@@ -220,10 +220,7 @@ func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
 	n := log2Lookup[size]
 	if n > len(p) {
 		// Pad with black.
-		fill := dst[3*len(p) : 3*n]
-		for i := range fill {
-			fill[i] = 0
-		}
+		clear(dst[3*len(p) : 3*n])
 	}
 	return 3 * n, nil
 }

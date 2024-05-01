@@ -357,12 +357,11 @@ func (check *Checker) returnError(at poser, lhs []*Var, rhs []*operand) {
 	} else if r > 0 {
 		at = rhs[r-1] // report at last value
 	}
-	var err error_
-	err.code = WrongResultCount
-	err.errorf(at, "%s return values", qualifier)
-	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
-	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
-	check.report(&err)
+	err := check.newError(WrongResultCount)
+	err.addf(at, "%s return values", qualifier)
+	err.addf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+	err.addf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+	err.report()
 }
 
 // initVars type-checks assignments of initialization expressions orig_rhs

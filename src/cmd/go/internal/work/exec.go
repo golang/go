@@ -139,10 +139,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		var err error
 		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
 			// TODO(matloob): Better action descriptions
-			desc := "Executing action "
+			desc := "Executing action (" + a.Mode
 			if a.Package != nil {
-				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+				desc += " " + a.Package.Desc()
 			}
+			desc += ")"
 			ctx, span := trace.StartSpan(ctx, desc)
 			a.traceSpan = span
 			for _, d := range a.Deps {
@@ -394,13 +395,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
 	}
-	if p.Internal.PGOProfile != "" {
-		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(p.Internal.PGOProfile))
-	}
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 != nil {
 			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
+		}
+		if a1.Mode == "preprocess PGO profile" {
+			fmt.Fprintf(h, "pgofile %s\n", b.fileHash(a1.built))
 		}
 	}
 
@@ -863,6 +864,18 @@ OverlayLoop:
 		embedcfg = js
 	}
 
+	// Find PGO profile if needed.
+	var pgoProfile string
+	for _, a1 := range a.Deps {
+		if a1.Mode != "preprocess PGO profile" {
+			continue
+		}
+		if pgoProfile != "" {
+			return fmt.Errorf("action contains multiple PGO profile dependencies")
+		}
+		pgoProfile = a1.built
+	}
+
 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
@@ -875,7 +888,7 @@ OverlayLoop:
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
 	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
@@ -2040,7 +2053,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2080,7 +2093,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -3251,7 +3264,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(context.TODO(), load.PackageOpts{}, srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil

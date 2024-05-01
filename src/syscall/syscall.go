@@ -16,7 +16,7 @@
 // the manuals for the appropriate operating system.
 // These calls return err == nil to indicate success; otherwise
 // err is an operating system error describing the failure.
-// On most systems, that error has type syscall.Errno.
+// On most systems, that error has type [Errno].
 //
 // NOTE: Most of the functions, types, and constants defined in
 // this package are also available in the [golang.org/x/sys] package.
@@ -44,7 +44,7 @@ func StringByteSlice(s string) []byte {
 
 // ByteSliceFromString returns a NUL-terminated slice of bytes
 // containing the text of s. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL).
+// location, it returns (nil, [EINVAL]).
 func ByteSliceFromString(s string) ([]byte, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
 		return nil, EINVAL
@@ -58,12 +58,12 @@ func ByteSliceFromString(s string) ([]byte, error) {
 // If s contains a NUL byte this function panics instead of returning
 // an error.
 //
-// Deprecated: Use BytePtrFromString instead.
+// Deprecated: Use [BytePtrFromString] instead.
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
 
 // BytePtrFromString returns a pointer to a NUL-terminated array of
 // bytes containing the text of s. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL).
+// location, it returns (nil, [EINVAL]).
 func BytePtrFromString(s string) (*byte, error) {
 	a, err := ByteSliceFromString(s)
 	if err != nil {

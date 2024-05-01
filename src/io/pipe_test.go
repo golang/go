@@ -286,7 +286,7 @@ func TestWriteNil(t *testing.T) {
 
 func TestWriteAfterWriterClose(t *testing.T) {
 	r, w := Pipe()
-
+	defer r.Close()
 	done := make(chan bool)
 	var writeErr error
 	go func() {

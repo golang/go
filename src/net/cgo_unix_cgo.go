@@ -7,7 +7,7 @@
 package net
 
 /*
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 
 #cgo CFLAGS: -fno-stack-protector
 #include <sys/types.h>

@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"sync"
 	"time"
 	_ "unsafe" // for go:linkname

@@ -102,7 +102,7 @@ func ExampleBuffer_Read() {
 	fmt.Println(n)
 	fmt.Println(b.String())
 	fmt.Println(string(rdbuf))
-	// Output
+	// Output:
 	// 1
 	// bcde
 	// a
@@ -118,7 +118,7 @@ func ExampleBuffer_ReadByte() {
 	}
 	fmt.Println(c)
 	fmt.Println(b.String())
-	// Output
+	// Output:
 	// 97
 	// bcde
 }

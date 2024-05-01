@@ -149,10 +149,7 @@ func parseProxy(proxy string) (*url.URL, error) {
 	}
 
 	proxyURL, err := url.Parse(proxy)
-	if err != nil ||
-		(proxyURL.Scheme != "http" &&
-			proxyURL.Scheme != "https" &&
-			proxyURL.Scheme != "socks5") {
+	if err != nil || proxyURL.Scheme == "" || proxyURL.Host == "" {
 		// proxy was bogus. Try prepending "http://" to it and
 		// see if that parses correctly. If not, we fall
 		// through and complain about the original one.

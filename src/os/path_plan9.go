@@ -13,7 +13,3 @@ const (
 func IsPathSeparator(c uint8) bool {
 	return PathSeparator == c
 }
-
-func volumeName(p string) string {
-	return ""
-}

@@ -6,7 +6,7 @@ package inlheur
 
 import (
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"fmt"
 	"os"
@@ -220,7 +220,7 @@ func (cstb *callSiteTableBuilder) nodeVisitPre(n ir.Node) {
 		}
 	case ir.OCALLFUNC:
 		ce := n.(*ir.CallExpr)
-		callee := pgo.DirectCallee(ce.Fun)
+		callee := pgoir.DirectCallee(ce.Fun)
 		if callee != nil && callee.Inl != nil {
 			cstb.addCallSite(callee, ce)
 		}

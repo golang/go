@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || freebsd || linux || netbsd || dragonfly || darwin || solaris || windows
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || solaris || windows
 
 package net
 
@@ -11,12 +11,8 @@ import (
 	"testing"
 )
 
-func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
 		testPreHookSetKeepAlive = func(*netFD) {}
@@ -26,7 +22,7 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
 	}
 
 	handler := func(ls *localServer, ln Listener) {
@@ -66,19 +62,15 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfigListener(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
 		testPreHookSetKeepAlive = func(*netFD) {}
@@ -88,7 +80,7 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
 	}
 
 	ch := make(chan Conn, 1)
@@ -125,19 +117,15 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestTCPConnSetKeepAliveConfig(t *testing.T) {
-	// TODO(panjf2000): stop skipping this test on Solaris
-	//  when https://go.dev/issue/64251 is fixed.
-	if runtime.GOOS == "solaris" {
-		t.Skip("skipping on solaris for now")
-	}
+func TestTCPConnKeepAliveConfig(t *testing.T) {
+	maybeSkipKeepAliveTest(t)
 
 	handler := func(ls *localServer, ln Listener) {
 		for {
@@ -153,18 +141,15 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	ra, err := ResolveTCPAddr("tcp", ls.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, cfg := range testConfigs {
-		c, err := DialTCP("tcp", nil, ra)
+		d := Dialer{KeepAlive: -1} // avoid setting default values before the test
+		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer c.Close()
 
-		sc, err := c.SyscallConn()
+		sc, err := c.(*TCPConn).SyscallConn()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -174,7 +159,7 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
 			oldCfg  KeepAliveConfig
 		)
 		if err := sc.Control(func(fd uintptr) {
-			oldCfg, errHook = getCurrentKeepAliveSettings(int(fd))
+			oldCfg, errHook = getCurrentKeepAliveSettings(fdType(fd))
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -182,12 +167,22 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
 			t.Fatal(errHook)
 		}
 
-		if err := c.SetKeepAliveConfig(cfg); err != nil {
-			t.Fatal(err)
+		err = c.(*TCPConn).SetKeepAliveConfig(cfg)
+		if err != nil {
+			if runtime.GOOS == "solaris" {
+				// Solaris prior to 11.4 does not support TCP_KEEPINTVL and TCP_KEEPCNT,
+				// so it will return syscall.ENOPROTOOPT when only one of Interval and Count
+				// is negative. This is expected, so skip the error check in this case.
+				if cfg.Interval >= 0 && cfg.Count >= 0 {
+					t.Fatal(err)
+				}
+			} else {
+				t.Fatal(err)
+			}
 		}
 
 		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
+			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
 		}); err != nil {
 			t.Fatal(err)
 		}

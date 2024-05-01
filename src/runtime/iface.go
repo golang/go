@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -74,7 +74,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	// and thus the hash is irrelevant.
 	// Note: m.Hash is _not_ the hash used for the runtime itabTable hash table.
 	m.Hash = 0
-	itabInit(m)
+	itabInit(m, true)
 	itabAdd(m)
 	unlock(&itabLock)
 finish:
@@ -90,7 +90,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m)})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m, false)})
 }
 
 // find finds the given interface/type pair in t.
@@ -186,11 +186,13 @@ func (t *itabTableType) add(m *itab) {
 	}
 }
 
-// init fills in the m.Fun array with all the code pointers for
+// itabInit fills in the m.Fun array with all the code pointers for
 // the m.Inter/m.Type pair. If the type does not implement the interface,
 // it sets m.Fun[0] to 0 and returns the name of an interface function that is missing.
-// It is ok to call this multiple times on the same m, even concurrently.
-func itabInit(m *itab) string {
+// If !firstTime, itabInit will not write anything to m.Fun (see issue 65962).
+// It is ok to call this multiple times on the same m, even concurrently
+// (although it will only be called once with firstTime==true).
+func itabInit(m *itab, firstTime bool) string {
 	inter := m.Inter
 	typ := m.Type
 	x := typ.Uncommon()
@@ -228,7 +230,7 @@ imethods:
 					ifn := rtyp.textOff(t.Ifn)
 					if k == 0 {
 						fun0 = ifn // we'll set m.Fun[0] at the end
-					} else {
+					} else if firstTime {
 						methods[k] = ifn
 					}
 					continue imethods
@@ -236,10 +238,12 @@ imethods:
 			}
 		}
 		// didn't find method
-		m.Fun[0] = 0
+		// Leaves m.Fun[0] set to 0.
 		return iname
 	}
-	m.Fun[0] = uintptr(fun0)
+	if firstTime {
+		m.Fun[0] = uintptr(fun0)
+	}
 	return ""
 }
 

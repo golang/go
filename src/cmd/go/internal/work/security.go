@@ -210,8 +210,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
 	re(`-Wl,--(no-)?warn-([^,]+)`),
 	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
-	re(`-Wl,-z,(no)?execstack`),
-	re(`-Wl,-z,relro`),
+	re(`-Wl(,-z,(relro|now|(no)?execstack))+`),
 
 	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so|tbd)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),

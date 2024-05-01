@@ -24,5 +24,5 @@ func Pipe() (r *File, w *File, err error) {
 	syscall.CloseOnExec(p[1])
 	syscall.ForkLock.RUnlock()
 
-	return newFile(p[0], "|0", kindPipe), newFile(p[1], "|1", kindPipe), nil
+	return newFile(p[0], "|0", kindPipe, false), newFile(p[1], "|1", kindPipe, false), nil
 }

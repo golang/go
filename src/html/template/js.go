@@ -171,13 +171,31 @@ func jsValEscaper(args ...any) string {
 	// cyclic data. This may be an unacceptable DoS risk.
 	b, err := json.Marshal(a)
 	if err != nil {
-		// Put a space before comment so that if it is flush against
+		// While the standard JSON marshaler does not include user controlled
+		// information in the error message, if a type has a MarshalJSON method,
+		// the content of the error message is not guaranteed. Since we insert
+		// the error into the template, as part of a comment, we attempt to
+		// prevent the error from either terminating the comment, or the script
+		// block itself.
+		//
+		// In particular we:
+		//   * replace "*/" comment end tokens with "* /", which does not
+		//     terminate the comment
+		//   * replace "</script" with "\x3C/script", and "<!--" with
+		//     "\x3C!--", which prevents confusing script block termination
+		//     semantics
+		//
+		// We also put a space before the comment so that if it is flush against
 		// a division operator it is not turned into a line comment:
 		//     x/{{y}}
 		// turning into
 		//     x//* error marshaling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
+		errStr := err.Error()
+		errStr = strings.ReplaceAll(errStr, "*/", "* /")
+		errStr = strings.ReplaceAll(errStr, "</script", `\x3C/script`)
+		errStr = strings.ReplaceAll(errStr, "<!--", `\x3C!--`)
+		return fmt.Sprintf(" /* %s */null ", errStr)
 	}
 
 	// TODO: maybe post-process output to prevent it from containing

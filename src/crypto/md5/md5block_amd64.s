@@ -5,6 +5,8 @@
 // Translated from Perl generating GNU assembly into
 // #defines generating 6a assembly by the Go Authors.
 
+//go:build !purego
+
 #include "textflag.h"
 
 // MD5 optimized for AMD64.

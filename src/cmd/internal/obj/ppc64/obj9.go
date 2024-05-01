@@ -35,8 +35,11 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
+	"internal/buildcfg"
 	"log"
+	"math"
 	"math/bits"
+	"strings"
 )
 
 // Test if this value can encoded as a mask for
@@ -72,6 +75,45 @@ func encodePPC64RLDCMask(mask int64) (mb, me int) {
 	return mb, me - 1
 }
 
+// Is this a symbol which should never have a TOC prologue generated?
+// These are special functions which should not have a TOC regeneration
+// prologue.
+func isNOTOCfunc(name string) bool {
+	switch {
+	case name == "runtime.duffzero":
+		return true
+	case name == "runtime.duffcopy":
+		return true
+	case strings.HasPrefix(name, "runtime.elf_"):
+		return true
+	default:
+		return false
+	}
+}
+
+// Try converting FMOVD/FMOVS to XXSPLTIDP. If it is converted,
+// return true.
+func convertFMOVtoXXSPLTIDP(p *obj.Prog) bool {
+	if p.From.Type != obj.TYPE_FCONST || buildcfg.GOPPC64 < 10 {
+		return false
+	}
+	v := p.From.Val.(float64)
+	if float64(float32(v)) != v {
+		return false
+	}
+	// Secondly, is this value a normal value?
+	ival := int64(math.Float32bits(float32(v)))
+	isDenorm := ival&0x7F800000 == 0 && ival&0x007FFFFF != 0
+	if !isDenorm {
+		p.As = AXXSPLTIDP
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = ival
+		// Convert REG_Fx into equivalent REG_VSx
+		p.To.Reg = REG_VS0 + (p.To.Reg & 31)
+	}
+	return !isDenorm
+}
+
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p.From.Class = 0
 	p.To.Class = 0
@@ -93,7 +135,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	case AFMOVS:
-		if p.From.Type == obj.TYPE_FCONST {
+		if p.From.Type == obj.TYPE_FCONST && !convertFMOVtoXXSPLTIDP(p) {
 			f32 := float32(p.From.Val.(float64))
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float32Sym(f32)
@@ -105,7 +147,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
 			// Constant not needed in memory for float +/- 0
-			if f64 != 0 {
+			if f64 != 0 && !convertFMOVtoXXSPLTIDP(p) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Sym = ctxt.Float64Sym(f64)
 				p.From.Name = obj.NAME_EXTERN
@@ -158,8 +200,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			// Is this a shifted 16b constant? If so, rewrite it to avoid a creating and loading a constant.
 			val := p.From.Offset
 			shift := bits.TrailingZeros64(uint64(val))
-			mask := 0xFFFF << shift
-			if val&int64(mask) == val || (val>>(shift+16) == -1 && (val>>shift)<<shift == val) {
+			mask := int64(0xFFFF) << shift
+			if val&mask == val || (val>>(shift+16) == -1 && (val>>shift)<<shift == val) {
 				// Rewrite this value into MOVD $const>>shift, Rto; SLD $shift, Rto
 				q := obj.Appendp(p, c.newprog)
 				q.As = ASLD
@@ -203,17 +245,48 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 
 	case ASUB:
-		if p.From.Type == obj.TYPE_CONST {
-			p.From.Offset = -p.From.Offset
-			p.As = AADD
+		if p.From.Type != obj.TYPE_CONST {
+			break
 		}
+		// Rewrite SUB $const,... into ADD $-const,...
+		p.From.Offset = -p.From.Offset
+		p.As = AADD
+		// This is now an ADD opcode, try simplifying it below.
+		fallthrough
 
 	// Rewrite ADD/OR/XOR/ANDCC $const,... forms into ADDIS/ORIS/XORIS/ANDISCC
 	case AADD:
-		// AADD can encode signed 34b values, ensure it is a valid signed 32b integer too.
-		if p.From.Type == obj.TYPE_CONST && p.From.Offset&0xFFFF == 0 && int64(int32(p.From.Offset)) == p.From.Offset && p.From.Offset != 0 {
+		// Don't rewrite if this is not adding a constant value, or is not an int32
+		if p.From.Type != obj.TYPE_CONST || p.From.Offset == 0 || int64(int32(p.From.Offset)) != p.From.Offset {
+			break
+		}
+		if p.From.Offset&0xFFFF == 0 {
+			// The constant can be added using ADDIS
 			p.As = AADDIS
 			p.From.Offset >>= 16
+		} else if buildcfg.GOPPC64 >= 10 {
+			// Let the assembler generate paddi for large constants.
+			break
+		} else if (p.From.Offset < -0x8000 && int64(int32(p.From.Offset)) == p.From.Offset) || (p.From.Offset > 0xFFFF && p.From.Offset < 0x7FFF8000) {
+			// For a constant x, 0xFFFF (UINT16_MAX) < x < 0x7FFF8000 or -0x80000000 (INT32_MIN) <= x < -0x8000 (INT16_MIN)
+			// This is not done for 0x7FFF < x < 0x10000; the assembler will generate a slightly faster instruction sequence.
+			//
+			// The constant x can be rewritten as ADDIS + ADD as follows:
+			//     ADDIS $x>>16 + (x>>15)&1, rX, rY
+			//     ADD   $int64(int16(x)), rY, rY
+			// The range is slightly asymmetric as 0x7FFF8000 and above overflow the sign bit, whereas for
+			// negative values, this would happen with constant values between -1 and -32768 which can
+			// assemble into a single addi.
+			is := p.From.Offset>>16 + (p.From.Offset>>15)&1
+			i := int64(int16(p.From.Offset))
+			p.As = AADDIS
+			p.From.Offset = is
+			q := obj.Appendp(p, c.newprog)
+			q.As = AADD
+			q.From.SetConst(i)
+			q.Reg = p.To.Reg
+			q.To = p.To
+			p = q
 		}
 	case AOR:
 		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset)&0xFFFFFFFF0000FFFF == 0 && p.From.Offset != 0 {
@@ -762,7 +835,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			q = p
 
-			if NeedTOCpointer(c.ctxt) && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
+			if NeedTOCpointer(c.ctxt) && !isNOTOCfunc(c.cursym.Name) {
 				// When compiling Go into PIC, without PCrel support, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//

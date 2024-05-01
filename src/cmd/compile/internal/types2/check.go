@@ -8,7 +8,6 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
-	"errors"
 	"fmt"
 	"go/constant"
 	"internal/godebug"
@@ -22,7 +21,10 @@ var nopos syntax.Pos
 const debug = false // leave on during development
 
 // gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("#gotypesalias")
+// As of Apr 16 2024 they are used by default.
+// To disable their use, set GODEBUG to gotypesalias=0.
+// This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
+var gotypesalias = godebug.New("gotypesalias")
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -96,12 +98,6 @@ type actionDesc struct {
 type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
-
-	// If enableAlias is set, alias declarations produce an Alias type.
-	// Otherwise the alias information is only in the type name, which
-	// points directly to the actual (aliased) type.
-	enableAlias bool
-
 	conf *Config
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
@@ -110,7 +106,8 @@ type Checker struct {
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
+	// see TODO in validtype.go
+	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -126,7 +123,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*syntax.File              // list of package files
-	versions      map[*syntax.PosBase]string  // maps file bases to version strings (each file has an entry)
+	versions      map[*syntax.PosBase]string  // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
@@ -166,9 +163,9 @@ func (check *Checker) addDeclDep(to Object) {
 
 // brokenAlias records that alias doesn't have a determined type yet.
 // It also sets alias.typ to Typ[Invalid].
-// Not used if check.enableAlias is set.
+// Not used if check.conf.EnableAlias is set.
 func (check *Checker) brokenAlias(alias *TypeName) {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	if check.brokenAliases == nil {
 		check.brokenAliases = make(map[*TypeName]bool)
 	}
@@ -178,14 +175,14 @@ func (check *Checker) brokenAlias(alias *TypeName) {
 
 // validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
 func (check *Checker) validAlias(alias *TypeName, typ Type) {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	delete(check.brokenAliases, alias)
 	alias.typ = typ
 }
 
 // isBrokenAlias reports whether alias doesn't have a determined type yet.
 func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	assert(!check.enableAlias)
+	assert(!check.conf.EnableAlias)
 	return check.brokenAliases[alias]
 }
 
@@ -255,14 +252,13 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		enableAlias: gotypesalias.Value() == "1",
-		conf:        conf,
-		ctxt:        conf.Context,
-		pkg:         pkg,
-		Info:        info,
-		version:     asGoVersion(conf.GoVersion),
-		objMap:      make(map[Object]*declInfo),
-		impMap:      make(map[importKey]*Package),
+		conf:    conf,
+		ctxt:    conf.Context,
+		pkg:     pkg,
+		Info:    info,
+		version: asGoVersion(conf.GoVersion),
+		objMap:  make(map[Object]*declInfo),
+		impMap:  make(map[importKey]*Package),
 	}
 }
 
@@ -297,7 +293,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file, MismatchedPkgName, "package %s; expected %s", name, pkg.name)
+			check.errorf(file, MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
 			// ignore this file
 		}
 	}
@@ -310,6 +306,10 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	check.versions = versions
 
 	pkgVersionOk := check.version.isValid()
+	if pkgVersionOk && len(files) > 0 && check.version.cmp(go_current) > 0 {
+		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
+			check.version, go_current)
+	}
 	downgradeOk := check.version.cmp(go1_21) >= 0
 
 	// determine Go version for each file
@@ -318,11 +318,12 @@ func (check *Checker) initFiles(files []*syntax.File) {
 		// (This version string may contain dot-release numbers as in go1.20.1,
 		// unlike file versions which are Go language versions only, if valid.)
 		v := check.conf.GoVersion
-		// use the file version, if applicable
-		// (file versions are either the empty string or of the form go1.dd)
-		if pkgVersionOk {
-			fileVersion := asGoVersion(file.GoVersion)
-			if fileVersion.isValid() {
+
+		fileVersion := asGoVersion(file.GoVersion)
+		if fileVersion.isValid() {
+			// use the file version, if applicable
+			// (file versions are either the empty string or of the form go1.dd)
+			if pkgVersionOk {
 				cmp := fileVersion.cmp(check.version)
 				// Go 1.21 introduced the feature of setting the go.mod
 				// go line to an early version of Go and allowing //go:build lines
@@ -345,6 +346,15 @@ func (check *Checker) initFiles(files []*syntax.File) {
 					v = file.GoVersion
 				}
 			}
+
+			// Report a specific error for each tagged file that's too new.
+			// (Normally the build system will have filtered files by version,
+			// but clients can present arbitrary files to the type checker.)
+			if fileVersion.cmp(go_current) > 0 {
+				// Use position of 'package [p]' for types/types2 consistency.
+				// (Ideally we would use the //build tag itself.)
+				check.errorf(file.PkgName, TooNew, "file requires newer Go version %v", fileVersion)
+			}
 		}
 		versions[base(file.Pos())] = v // base(file.Pos()) may be nil for tests
 	}
@@ -365,11 +375,7 @@ func (check *Checker) handleBailout(err *error) {
 }
 
 // Files checks the provided files as part of the checker's package.
-func (check *Checker) Files(files []*syntax.File) error { return check.checkFiles(files) }
-
-var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
-
-func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+func (check *Checker) Files(files []*syntax.File) (err error) {
 	if check.pkg == Unsafe {
 		// Defensive handling for Unsafe, which cannot be type checked, and must
 		// not be mutated. See https://go.dev/issue/61212 for an example of where
@@ -377,16 +383,20 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 		return nil
 	}
 
-	// Note: NewChecker doesn't return an error, so we need to check the version here.
-	if check.version.cmp(go_current) > 0 {
-		return fmt.Errorf("package requires newer Go version %v", check.version)
-	}
-	if check.conf.FakeImportC && check.conf.go115UsesCgo {
-		return errBadCgo
-	}
+	// Avoid early returns here! Nearly all errors can be
+	// localized to a piece of syntax and needn't prevent
+	// type-checking of the rest of the package.
 
 	defer check.handleBailout(&err)
+	check.checkFiles(files)
+	return
+}
 
+// checkFiles type-checks the specified files. Errors are reported as
+// a side effect, not by returning early, to ensure that well-formed
+// syntax is properly type annotated even in a package containing
+// errors.
+func (check *Checker) checkFiles(files []*syntax.File) {
 	print := func(msg string) {
 		if check.conf.Trace {
 			fmt.Println()
@@ -439,8 +449,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	check.ctxt = nil
 
 	// TODO(gri) There's more memory we should release at this point.
-
-	return
 }
 
 // processDelayed processes all delayed actions pushed after top.
@@ -592,7 +600,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 		return
 	}
 	t0, t1 := a[0].typ, a[1].typ
-	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
+	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

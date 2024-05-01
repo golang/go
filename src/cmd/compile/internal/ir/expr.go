@@ -856,13 +856,19 @@ func IsAddressable(n Node) bool {
 // "g()" expression.
 func StaticValue(n Node) Node {
 	for {
-		if n.Op() == OCONVNOP {
-			n = n.(*ConvExpr).X
-			continue
-		}
-
-		if n.Op() == OINLCALL {
-			n = n.(*InlinedCallExpr).SingleResult()
+		switch n1 := n.(type) {
+		case *ConvExpr:
+			if n1.Op() == OCONVNOP {
+				n = n1.X
+				continue
+			}
+		case *InlinedCallExpr:
+			if n1.Op() == OINLCALL {
+				n = n1.SingleResult()
+				continue
+			}
+		case *ParenExpr:
+			n = n1.X
 			continue
 		}
 

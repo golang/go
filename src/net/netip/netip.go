@@ -16,9 +16,9 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"unique"
 
 	"internal/bytealg"
-	"internal/intern"
 	"internal/itoa"
 )
 
@@ -53,22 +53,22 @@ type Addr struct {
 	// bytewise processing.
 	addr uint128
 
-	// z is a combination of the address family and the IPv6 zone.
-	//
-	// nil means invalid IP address (for a zero Addr).
-	// z4 means an IPv4 address.
-	// z6noz means an IPv6 address without a zone.
-	//
-	// Otherwise it's the interned zone name string.
-	z *intern.Value
+	// Details about the address, wrapped up together and canonicalized.
+	z unique.Handle[addrDetail]
+}
+
+// addrDetail represents the details of an Addr, like address family and IPv6 zone.
+type addrDetail struct {
+	IsV6   bool   // IPv4 is false, IPv6 is true.
+	ZoneV6 string // != nil only if IsV6 is true.
 }
 
 // z0, z4, and z6noz are sentinel Addr.z values.
 // See the Addr type's field docs.
 var (
-	z0    = (*intern.Value)(nil)
-	z4    = new(intern.Value)
-	z6noz = new(intern.Value)
+	z0    unique.Handle[addrDetail]
+	z4    = unique.Make(addrDetail{})
+	z6noz = unique.Make(addrDetail{IsV6: true})
 )
 
 // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
@@ -251,6 +251,10 @@ func parseIPv6(in string) (Addr, error) {
 			} else {
 				break
 			}
+			if off > 3 {
+				//more than 4 digits in group, fail.
+				return Addr{}, parseAddrError{in: in, msg: "each group must have 4 or less digits", at: s}
+			}
 			if acc > math.MaxUint16 {
 				// Overflow, fail.
 				return Addr{}, parseAddrError{in: in, msg: "IPv6 field has value >=2^16", at: s}
@@ -331,9 +335,7 @@ func parseIPv6(in string) (Addr, error) {
 		for j := i - 1; j >= ellipsis; j-- {
 			ip[j+n] = ip[j]
 		}
-		for j := ellipsis + n - 1; j >= ellipsis; j-- {
-			ip[j] = 0
-		}
+		clear(ip[ellipsis : ellipsis+n])
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
 		return Addr{}, parseAddrError{in: in, msg: "the :: must expand to at least one field of zeros"}
@@ -405,11 +407,10 @@ func (ip Addr) BitLen() int {
 
 // Zone returns ip's IPv6 scoped addressing zone, if any.
 func (ip Addr) Zone() string {
-	if ip.z == nil {
+	if ip.z == z0 {
 		return ""
 	}
-	zone, _ := ip.z.Get().(string)
-	return zone
+	return ip.z.Value().ZoneV6
 }
 
 // Compare returns an integer comparing two IPs.
@@ -494,7 +495,7 @@ func (ip Addr) WithZone(zone string) Addr {
 		ip.z = z6noz
 		return ip
 	}
-	ip.z = intern.GetByString(zone)
+	ip.z = unique.Make(addrDetail{IsV6: true, ZoneV6: zone})
 	return ip
 }
 
@@ -1294,6 +1295,15 @@ func (p Prefix) compare(p2 Prefix) int {
 	return p.Addr().Compare(p2.Addr())
 }
 
+type parsePrefixError struct {
+	in  string // the string given to ParsePrefix
+	msg string // an explanation of the parse failure
+}
+
+func (err parsePrefixError) Error() string {
+	return "netip.ParsePrefix(" + strconv.Quote(err.in) + "): " + err.msg
+}
+
 // ParsePrefix parses s as an IP address prefix.
 // The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
 // the CIDR notation defined in RFC 4632 and RFC 4291.
@@ -1304,34 +1314,34 @@ func (p Prefix) compare(p2 Prefix) int {
 func ParsePrefix(s string) (Prefix, error) {
 	i := bytealg.LastIndexByteString(s, '/')
 	if i < 0 {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
+		return Prefix{}, parsePrefixError{in: s, msg: "no '/'"}
 	}
 	ip, err := ParseAddr(s[:i])
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): " + err.Error())
+		return Prefix{}, parsePrefixError{in: s, msg: err.Error()}
 	}
 	// IPv6 zones are not allowed: https://go.dev/issue/51899
 	if ip.Is6() && ip.z != z6noz {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): IPv6 zones cannot be present in a prefix")
+		return Prefix{}, parsePrefixError{in: s, msg: "IPv6 zones cannot be present in a prefix"}
 	}
 
 	bitsStr := s[i+1:]
 
 	// strconv.Atoi accepts a leading sign and leading zeroes, but we don't want that.
 	if len(bitsStr) > 1 && (bitsStr[0] < '1' || bitsStr[0] > '9') {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 
 	bits, err := strconv.Atoi(bitsStr)
 	if err != nil {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): bad bits after slash: " + strconv.Quote(bitsStr))
+		return Prefix{}, parsePrefixError{in: s, msg: "bad bits after slash: " + strconv.Quote(bitsStr)}
 	}
 	maxBits := 32
 	if ip.Is6() {
 		maxBits = 128
 	}
 	if bits < 0 || bits > maxBits {
-		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): prefix length out of range")
+		return Prefix{}, parsePrefixError{in: s, msg: "prefix length out of range"}
 	}
 	return PrefixFrom(ip, bits), nil
 }

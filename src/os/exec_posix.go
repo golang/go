@@ -13,10 +13,6 @@ import (
 	"syscall"
 )
 
-// unsetHandle is a value for Process.handle used when the handle is not set.
-// Same as syscall.InvalidHandle for Windows.
-const unsetHandle = ^uintptr(0)
-
 // The only signal values guaranteed to be present in the os package on all
 // systems are os.Interrupt (send the process an interrupt) and os.Kill (force
 // the process to exit). On Windows, sending os.Interrupt to a process with
@@ -42,7 +38,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
 		Env: attr.Env,
-		Sys: ensurePidfd(attr.Sys),
+		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
 		sysattr.Env, err = execenv.Default(sysattr.Sys)
@@ -62,10 +58,6 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 
 	if e != nil {
 		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
-	}
-
-	if runtime.GOOS == "linux" {
-		h = getPidfd(sysattr.Sys)
 	}
 
 	return newProcess(pid, h), nil

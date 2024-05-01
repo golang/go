@@ -23,7 +23,7 @@ const bitSize16 = 2
 
 // ErrorString implements Error's String method by returning itself.
 //
-// ErrorString values can be tested against error values using errors.Is.
+// ErrorString values can be tested against error values using [errors.Is].
 // For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -99,7 +99,7 @@ var (
 )
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)

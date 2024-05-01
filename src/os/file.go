@@ -6,9 +6,9 @@
 // functionality. The design is Unix-like, although the error handling is
 // Go-like; failing calls return values of type error rather than error numbers.
 // Often, more information is available within the error. For example,
-// if a call that takes a file name fails, such as Open or Stat, the error
+// if a call that takes a file name fails, such as [Open] or [Stat], the error
 // will include the failing file name when printed and will be of type
-// *PathError, which may be unpacked for more information.
+// [*PathError], which may be unpacked for more information.
 //
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
@@ -34,15 +34,19 @@
 //	}
 //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
 //
-// Note: The maximum number of concurrent operations on a File may be limited by
-// the OS or the system. The number should be high, but exceeding it may degrade
-// performance or cause other issues.
+// # Concurrency
+//
+// The methods of [File] correspond to file system operations. All are
+// safe for concurrent use. The maximum number of concurrent
+// operations on a File may be limited by the OS or the system. The
+// number should be high, but exceeding it may degrade performance or
+// cause other issues.
 package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/poll"
-	"internal/safefilepath"
 	"internal/testlog"
 	"io"
 	"io/fs"
@@ -53,6 +57,8 @@ import (
 )
 
 // Name returns the name of the file as presented to Open.
+//
+// It is safe to call Name after [Close].
 func (f *File) Name() string { return f.name }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
@@ -279,7 +285,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	r, e := f.seek(offset, whence)
-	if e == nil && f.dirinfo != nil && r != 0 {
+	if e == nil && f.dirinfo.Load() != nil && r != 0 {
 		e = syscall.EISDIR
 	}
 	if e != nil {
@@ -337,6 +343,11 @@ func Chdir(dir string) error {
 		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
+	if runtime.GOOS == "windows" {
+		getwdCache.Lock()
+		getwdCache.dir = dir
+		getwdCache.Unlock()
+	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
 		if err == nil {
@@ -378,6 +389,14 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	f.appendMode = flag&O_APPEND != 0
 
 	return f, nil
+}
+
+// openDir opens a file which is assumed to be a directory. As such, it skips
+// the syscalls that make the file descriptor non-blocking as these take time
+// and will fail on file descriptors for directories.
+func openDir(name string) (*File, error) {
+	testlog.Open(name)
+	return openDirNolog(name)
 }
 
 // lstat is overridden in tests.
@@ -747,10 +766,7 @@ func (dir dirFS) join(name string) (string, error) {
 	if dir == "" {
 		return "", errors.New("os: DirFS with empty root")
 	}
-	if !fs.ValidPath(name) {
-		return "", ErrInvalid
-	}
-	name, err := safefilepath.FromFS(name)
+	name, err := filepathlite.Localize(name)
 	if err != nil {
 		return "", ErrInvalid
 	}

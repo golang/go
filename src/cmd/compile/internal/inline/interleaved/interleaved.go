@@ -12,14 +12,14 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/inline/inlheur"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"fmt"
 )
 
 // DevirtualizeAndInlinePackage interleaves devirtualization and inlining on
 // all functions within pkg.
-func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
+func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	if profile != nil && base.Debug.PGODevirtualize > 0 {
 		// TODO(mdempsky): Integrate into DevirtualizeAndInlineFunc below.
 		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
@@ -34,7 +34,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
 		inlheur.SetupScoreAdjustments()
 	}
 
-	var inlProfile *pgo.Profile // copy of profile for inlining
+	var inlProfile *pgoir.Profile // copy of profile for inlining
 	if base.Debug.PGOInline != 0 {
 		inlProfile = profile
 	}
@@ -66,7 +66,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
 
 // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
 // on a single function.
-func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgo.Profile) {
+func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 	ir.WithFunc(fn, func() {
 		if base.Flag.LowerL != 0 {
 			if inlheur.Enabled() && !fn.Wrapper() {
@@ -83,39 +83,108 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgo.Profile) {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		// Walk fn's body and apply devirtualization and inlining.
-		var inlCalls []*ir.InlinedCallExpr
-		var edit func(ir.Node) ir.Node
-		edit = func(n ir.Node) ir.Node {
+		match := func(n ir.Node) bool {
 			switch n := n.(type) {
+			case *ir.CallExpr:
+				return true
 			case *ir.TailCallStmt:
 				n.Call.NoInline = true // can't inline yet
 			}
+			return false
+		}
 
-			ir.EditChildren(n, edit)
-
-			if call, ok := n.(*ir.CallExpr); ok {
-				devirtualize.StaticCall(call)
-
-				if inlCall := inline.TryInlineCall(fn, call, bigCaller, profile); inlCall != nil {
-					inlCalls = append(inlCalls, inlCall)
-					n = inlCall
-				}
+		edit := func(n ir.Node) ir.Node {
+			call, ok := n.(*ir.CallExpr)
+			if !ok { // previously inlined
+				return nil
 			}
 
-			return n
+			devirtualize.StaticCall(call)
+			if inlCall := inline.TryInlineCall(fn, call, bigCaller, profile); inlCall != nil {
+				return inlCall
+			}
+			return nil
 		}
-		ir.EditChildren(fn, edit)
 
-		// If we inlined any calls, we want to recursively visit their
-		// bodies for further devirtualization and inlining. However, we
-		// need to wait until *after* the original function body has been
-		// expanded, or else inlCallee can have false positives (e.g.,
-		// #54632).
-		for len(inlCalls) > 0 {
-			call := inlCalls[0]
-			inlCalls = inlCalls[1:]
-			ir.EditChildren(call, edit)
-		}
+		fixpoint(fn, match, edit)
 	})
+}
+
+// fixpoint repeatedly edits a function until it stabilizes.
+//
+// First, fixpoint applies match to every node n within fn. Then it
+// iteratively applies edit to each node satisfying match(n).
+//
+// If edit(n) returns nil, no change is made. Otherwise, the result
+// replaces n in fn's body, and fixpoint iterates at least once more.
+//
+// After an iteration where all edit calls return nil, fixpoint
+// returns.
+func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node) {
+	// Consider the expression "f(g())". We want to be able to replace
+	// "g()" in-place with its inlined representation. But if we first
+	// replace "f(...)" with its inlined representation, then "g()" will
+	// instead appear somewhere within this new AST.
+	//
+	// To mitigate this, each matched node n is wrapped in a ParenExpr,
+	// so we can reliably replace n in-place by assigning ParenExpr.X.
+	// It's safe to use ParenExpr here, because typecheck already
+	// removed them all.
+
+	var parens []*ir.ParenExpr
+	var mark func(ir.Node) ir.Node
+	mark = func(n ir.Node) ir.Node {
+		if _, ok := n.(*ir.ParenExpr); ok {
+			return n // already visited n.X before wrapping
+		}
+
+		ok := match(n)
+
+		ir.EditChildren(n, mark)
+
+		if ok {
+			paren := ir.NewParenExpr(n.Pos(), n)
+			paren.SetType(n.Type())
+			paren.SetTypecheck(n.Typecheck())
+
+			parens = append(parens, paren)
+			n = paren
+		}
+
+		return n
+	}
+	ir.EditChildren(fn, mark)
+
+	// Edit until stable.
+	for {
+		done := true
+
+		for i := 0; i < len(parens); i++ { // can't use "range parens" here
+			paren := parens[i]
+			if new := edit(paren.X); new != nil {
+				// Update AST and recursively mark nodes.
+				paren.X = new
+				ir.EditChildren(new, mark) // mark may append to parens
+				done = false
+			}
+		}
+
+		if done {
+			break
+		}
+	}
+
+	// Finally, remove any parens we inserted.
+	if len(parens) == 0 {
+		return // short circuit
+	}
+	var unparen func(ir.Node) ir.Node
+	unparen = func(n ir.Node) ir.Node {
+		if paren, ok := n.(*ir.ParenExpr); ok {
+			n = paren.X
+		}
+		ir.EditChildren(n, unparen)
+		return n
+	}
+	ir.EditChildren(fn, unparen)
 }

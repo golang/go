@@ -515,7 +515,7 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 
 	if module.IsPseudoVersion(statVers) {
 		// Validate the go.mod location and major version before
-		// we check for an ancestor tagged with the pseude-version base.
+		// we check for an ancestor tagged with the pseudo-version base.
 		//
 		// We can rule out an invalid subdirectory or major version with only
 		// shallow commit information, but checking the pseudo-version base may

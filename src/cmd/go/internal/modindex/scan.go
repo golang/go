@@ -104,7 +104,7 @@ type parseError struct {
 
 // parseErrorToString converts the error from parsing the file into a string
 // representation. A nil error is converted to an empty string, and all other
-// errors are converted to a JSON-marshalled parseError struct, with ErrorList
+// errors are converted to a JSON-marshaled parseError struct, with ErrorList
 // set for errors of type scanner.ErrorList, and ErrorString set to the error's
 // string representation for all other errors.
 func parseErrorToString(err error) string {
@@ -126,7 +126,7 @@ func parseErrorToString(err error) string {
 
 // parseErrorFromString converts a string produced by parseErrorToString back
 // to an error.  An empty string is converted to a nil error, and all
-// other strings are expected to be JSON-marshalled parseError structs.
+// other strings are expected to be JSON-marshaled parseError structs.
 // The two functions are meant to preserve the structure of an
 // error of type scanner.ErrorList in a round trip, but may not preserve the
 // structure of other errors.

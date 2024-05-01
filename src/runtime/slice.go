@@ -53,7 +53,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 	}
 
 	var to unsafe.Pointer
-	if et.PtrBytes == 0 {
+	if !et.Pointers() {
 		to = mallocgc(tomem, nil, false)
 		if copymem < tomem {
 			memclrNoHeapPointers(add(to, copymem), tomem-copymem)
@@ -183,7 +183,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	// For 1 we don't need any division/multiplication.
 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
 	// For powers of 2, use a variable shift.
-	noscan := et.PtrBytes == 0
+	noscan := !et.Pointers()
 	switch {
 	case et.Size_ == 1:
 		lenmem = uintptr(oldLen)
@@ -238,7 +238,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 	}
 
 	var p unsafe.Pointer
-	if et.PtrBytes == 0 {
+	if !et.Pointers() {
 		p = mallocgc(capmem, nil, false)
 		// The append() that calls growslice is going to overwrite from oldLen to newLen.
 		// Only clear the part that will not be overwritten.
@@ -308,7 +308,7 @@ func reflect_growslice(et *_type, old slice, num int) slice {
 	// the memory will be overwritten by an append() that called growslice.
 	// Since the caller of reflect_growslice is not append(),
 	// zero out this region before returning the slice to the reflect package.
-	if et.PtrBytes == 0 {
+	if !et.Pointers() {
 		oldcapmem := uintptr(old.cap) * et.Size_
 		newlenmem := uintptr(new.len) * et.Size_
 		memclrNoHeapPointers(add(new.array, oldcapmem), newlenmem-oldcapmem)

@@ -516,6 +516,7 @@ func Add64R(x, y, ci uint64) uint64 {
 	r, _ := bits.Add64(x, y, ci)
 	return r
 }
+
 func Add64M(p, q, r *[3]uint64) {
 	var c uint64
 	r[0], c = bits.Add64(p[0], q[0], c)
@@ -525,6 +526,15 @@ func Add64M(p, q, r *[3]uint64) {
 	// s390x:"ADDE",-"ADDC\t[$]-1,"
 	r[1], c = bits.Add64(p[1], q[1], c)
 	r[2], c = bits.Add64(p[2], q[2], c)
+}
+
+func Add64M0(p, q, r *[3]uint64) {
+	var c uint64
+	r[0], c = bits.Add64(p[0], q[0], 0)
+	// ppc64x: -"ADDC", -"ADDE", "ADDZE\tR[1-9]"
+	r[1], c = bits.Add64(p[1], 0, c)
+	// ppc64x: -"ADDC", "ADDE", -"ADDZE"
+	r[2], c = bits.Add64(p[2], p[2], c)
 }
 
 func Add64MSaveC(p, q, r, c *[2]uint64) {

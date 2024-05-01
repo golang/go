@@ -42,7 +42,7 @@ func Unwrap(err error) error {
 // an example in the standard library. An Is method should only shallowly
 // compare err and the target and not call [Unwrap] on either.
 func Is(err, target error) bool {
-	if target == nil {
+	if err == nil || target == nil {
 		return err == target
 	}
 

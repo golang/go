@@ -41,7 +41,7 @@ const (
 	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
-	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, status]
+	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
 
 	// STW.
 	EvSTWBegin // STW start [timestamp, kind]
@@ -66,7 +66,15 @@ const (
 	EvUserTaskEnd     // end of a task [timestamp, internal task ID, stack ID]
 	EvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	EvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
-	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, stack, value string ID]
+	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, value string ID, stack]
+
+	// Coroutines. Added in Go 1.23.
+	EvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
+	EvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
+	EvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+
+	// GoStatus with stack.
+	EvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
 )
 
 // EventString returns the name of a Go 1.22 event.
@@ -108,7 +116,7 @@ var specs = [...]event.Spec{
 	},
 	EvCPUSample: event.Spec{
 		Name: "CPUSample",
-		Args: []string{"time", "p", "g", "m", "stack"},
+		Args: []string{"time", "m", "p", "g", "stack"},
 		// N.B. There's clearly a timestamp here, but these Events
 		// are special in that they don't appear in the regular
 		// M streams.
@@ -331,6 +339,28 @@ var specs = [...]event.Spec{
 		IsTimedEvent: true,
 		StackIDs:     []int{4},
 		StringIDs:    []int{2, 3},
+	},
+	EvGoSwitch: event.Spec{
+		Name:         "GoSwitch",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoSwitchDestroy: event.Spec{
+		Name:         "GoSwitchDestroy",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoCreateBlocked: event.Spec{
+		Name:         "GoCreateBlocked",
+		Args:         []string{"dt", "new_g", "new_stack", "stack"},
+		IsTimedEvent: true,
+		StackIDs:     []int{3, 2},
+	},
+	EvGoStatusStack: event.Spec{
+		Name:         "GoStatusStack",
+		Args:         []string{"dt", "g", "m", "gstatus", "stack"},
+		IsTimedEvent: true,
+		StackIDs:     []int{4},
 	},
 }
 

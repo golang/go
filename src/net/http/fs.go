@@ -9,7 +9,6 @@ package http
 import (
 	"errors"
 	"fmt"
-	"internal/safefilepath"
 	"io"
 	"io/fs"
 	"mime"
@@ -29,7 +28,7 @@ import (
 // specific directory tree.
 //
 // While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
-// value is a filename on the native file system, not a URL, so it is separated
+// value is a directory path on the native file system, not a URL, so it is separated
 // by [filepath.Separator], which isn't necessarily '/'.
 //
 // Note that Dir could expose sensitive files and directories. Dir will follow
@@ -70,7 +69,11 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
 // Open implements [FileSystem] using [os.Open], opening files for reading rooted
 // and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
-	path, err := safefilepath.FromFS(path.Clean("/" + name))
+	path := path.Clean("/" + name)[1:]
+	if path == "" {
+		path = "."
+	}
+	path, err := filepath.Localize(path)
 	if err != nil {
 		return nil, errors.New("http: invalid or unsafe file path")
 	}
@@ -151,6 +154,8 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, "<!doctype html>\n")
+	fmt.Fprintf(w, "<meta name=\"viewport\" content=\"width=device-width\">\n")
 	fmt.Fprintf(w, "<pre>\n")
 	for i, n := 0, dirs.len(); i < n; i++ {
 		name := dirs.name(i)
@@ -660,11 +665,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				localRedirect(w, r, path.Base(url)+"/")
 				return
 			}
-		} else {
-			if url[len(url)-1] == '/' {
-				localRedirect(w, r, "../"+path.Base(url))
+		} else if url[len(url)-1] == '/' {
+			base := path.Base(url)
+			if base == "/" || base == "." {
+				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
+				msg := "http: attempting to traverse a non-directory"
+				Error(w, msg, StatusInternalServerError)
 				return
 			}
+			localRedirect(w, r, "../"+base)
+			return
 		}
 	}
 
@@ -737,7 +747,7 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // If the provided file or directory name is a relative path, it is
 // interpreted relative to the current directory and may ascend to
 // parent directories. If the provided name is constructed from user
-// input, it should be sanitized before calling ServeFile.
+// input, it should be sanitized before calling [ServeFile].
 //
 // As a precaution, ServeFile will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
@@ -769,22 +779,20 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 // ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
 //
-// If the provided file or directory name is a relative path, it is
-// interpreted relative to the current directory and may ascend to
-// parent directories. If the provided name is constructed from user
-// input, it should be sanitized before calling [ServeFile].
+// If the provided name is constructed from user input, it should be
+// sanitized before calling [ServeFileFS].
 //
-// As a precaution, ServeFile will reject requests where r.URL.Path
+// As a precaution, ServeFileFS will reject requests where r.URL.Path
 // contains a ".." path element; this protects against callers who
 // might unsafely use [filepath.Join] on r.URL.Path without sanitizing
 // it and then use that filepath.Join result as the name argument.
 //
-// As another special case, ServeFile redirects any request where r.URL.Path
+// As another special case, ServeFileFS redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
-// use ServeContent.
+// use [ServeContent].
 //
-// Outside of those two special cases, ServeFile does not use
+// Outside of those two special cases, ServeFileFS does not use
 // r.URL.Path for selecting the file or directory to serve; only the
 // file or directory provided in the name argument is used.
 func ServeFileFS(w ResponseWriter, r *Request, fsys fs.FS, name string) {

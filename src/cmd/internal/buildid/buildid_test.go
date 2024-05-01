@@ -149,7 +149,7 @@ func TestReadFile(t *testing.T) {
 			// Because we clobbered the note type above,
 			// we don't expect to see a Go build ID.
 			// The issue we are testing for was a crash
-			// in Readefile; see issue #62097.
+			// in Readfile; see issue #62097.
 			if id != "" || err != nil {
 				t.Errorf("ReadFile with zero ELF Align = %q, %v, want %q, nil", id, err, "")
 				continue

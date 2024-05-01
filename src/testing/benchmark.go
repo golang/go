@@ -123,7 +123,7 @@ func (b *B) StartTimer() {
 		runtime.ReadMemStats(&memStats)
 		b.startAllocs = memStats.Mallocs
 		b.startBytes = memStats.TotalAlloc
-		b.start = time.Now()
+		b.start = highPrecisionTimeNow()
 		b.timerOn = true
 	}
 }
@@ -133,7 +133,7 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Since(b.start)
+		b.duration += highPrecisionTimeSince(b.start)
 		runtime.ReadMemStats(&memStats)
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
@@ -156,7 +156,7 @@ func (b *B) ResetTimer() {
 		runtime.ReadMemStats(&memStats)
 		b.startAllocs = memStats.Mallocs
 		b.startBytes = memStats.TotalAlloc
-		b.start = time.Now()
+		b.start = highPrecisionTimeNow()
 	}
 	b.duration = 0
 	b.netAllocs = 0
@@ -325,7 +325,7 @@ func (b *B) launch() {
 func (b *B) Elapsed() time.Duration {
 	d := b.duration
 	if b.timerOn {
-		d += time.Since(b.start)
+		d += highPrecisionTimeSince(b.start)
 	}
 	return d
 }

@@ -19,15 +19,14 @@
 
 #define POLY1305_MUL(h0, h1, h2, r0, r1, t0, t1, t2, t3, t4, t5) \
 	MULLD  r0, h0, t0;  \
-	MULLD  r0, h1, t4;  \
 	MULHDU r0, h0, t1;  \
+	MULLD  r0, h1, t4;  \
 	MULHDU r0, h1, t5;  \
 	ADDC   t4, t1, t1;  \
 	MULLD  r0, h2, t2;  \
-	ADDZE  t5;          \
 	MULHDU r1, h0, t4;  \
 	MULLD  r1, h0, h0;  \
-	ADD    t5, t2, t2;  \
+	ADDE   t5, t2, t2;  \
 	ADDC   h0, t1, t1;  \
 	MULLD  h2, r1, t3;  \
 	ADDZE  t4, h0;      \
@@ -37,13 +36,11 @@
 	ADDE   t5, t3, t3;  \
 	ADDC   h0, t2, t2;  \
 	MOVD   $-4, t4;     \
-	MOVD   t0, h0;      \
-	MOVD   t1, h1;      \
 	ADDZE  t3;          \
-	ANDCC  $3, t2, h2;  \
-	AND    t2, t4, t0;  \
+	RLDICL $0, t2, $62, h2; \
+	AND    t2, t4, h0;  \
 	ADDC   t0, h0, h0;  \
-	ADDE   t3, h1, h1;  \
+	ADDE   t3, t1, h1;  \
 	SLD    $62, t3, t4; \
 	SRD    $2, t2;      \
 	ADDZE  h2;          \
@@ -75,6 +72,7 @@ TEXT ·update(SB), $0-32
 loop:
 	POLY1305_ADD(R4, R8, R9, R10, R20, R21, R22)
 
+	PCALIGN $16
 multiply:
 	POLY1305_MUL(R8, R9, R10, R11, R12, R16, R17, R18, R14, R20, R21)
 	ADD $-16, R5

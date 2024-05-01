@@ -534,7 +534,7 @@ func combineStores(root *Value, n int64) bool {
 	isConst := true
 	for i := int64(0); i < n; i++ {
 		switch a[i].store.Args[1].Op {
-		case OpConst32, OpConst16, OpConst8:
+		case OpConst32, OpConst16, OpConst8, OpConstBool:
 		default:
 			isConst = false
 			break

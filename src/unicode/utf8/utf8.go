@@ -316,7 +316,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	return r, size
 }
 
-// RuneLen returns the number of bytes required to encode the rune.
+// RuneLen returns the number of bytes in the UTF-8 encoding of the rune.
 // It returns -1 if the rune is not a valid value to encode in UTF-8.
 func RuneLen(r rune) int {
 	switch {
