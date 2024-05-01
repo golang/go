@@ -513,13 +513,10 @@ func SyscallIsNotSupported(err error) bool {
 	return syscallIsNotSupported(err)
 }
 
-// Parallel call t.Parallel()
-// unless there is a case that cannot be parallel.
-//
-// know that there are cannot parallel cases:
-//
-//   - in 32-bit machine may raise OOM (see go.dev/issue/65823)
-func Parallel(t *testing.T) {
+// ParallelOn64Bit calls t.Parallel() unless there is a case that cannot be parallel.
+// This function should be used when it is necessary to avoid t.Parallel on
+// 32-bit machines, typically because the test uses lots of memory.
+func ParallelOn64Bit(t *testing.T) {
 	if goarch.PtrSize == 4 {
 		return
 	}
