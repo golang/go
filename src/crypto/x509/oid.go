@@ -126,23 +126,22 @@ func (o *OID) UnmarshalText(text []byte) error {
 	// reject such encodings.
 	for _, c := range oid {
 		isDigit := c >= '0' && c <= '9'
-		if !isDigit && c != ' ' && c != '.' {
+		if !isDigit && c != '.' {
 			return errInvalidOID
 		}
 	}
 
-	end := strings.IndexByte(oid, '.')
-	if end == -1 {
+	var (
+		firstNum  string
+		secondNum string
+	)
+
+	var nextComponentExists bool
+	firstNum, oid, nextComponentExists = strings.Cut(oid, ".")
+	if !nextComponentExists {
 		return errInvalidOID
 	}
-
-	firstNum := oid[:end]
-	oid = oid[end+1:]
-	end = strings.IndexByte(oid, '.')
-	if end == -1 {
-		end = len(oid)
-	}
-	secondNum := oid[:end]
+	secondNum, oid, nextComponentExists = strings.Cut(oid, ".")
 
 	var (
 		first  = big.NewInt(0)
@@ -165,25 +164,14 @@ func (o *OID) UnmarshalText(text []byte) error {
 
 	der := appendBase128BigInt(make([]byte, 0, 32), firstComponent)
 
-	if end != len(oid) {
-		oid = oid[end+1:]
-		for {
-			end := strings.IndexByte(oid, '.')
-			if end == -1 {
-				end = len(oid)
-			}
-
-			b, ok := big.NewInt(0).SetString(oid[:end], 10)
-			if !ok {
-				return errInvalidOID
-			}
-			der = appendBase128BigInt(der, b)
-
-			if end == len(oid) {
-				break
-			}
-			oid = oid[end+1:]
+	for nextComponentExists {
+		var strNum string
+		strNum, oid, nextComponentExists = strings.Cut(oid, ".")
+		b, ok := big.NewInt(0).SetString(strNum, 10)
+		if !ok {
+			return errInvalidOID
 		}
+		der = appendBase128BigInt(der, b)
 	}
 
 	o.der = der
