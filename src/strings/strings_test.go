@@ -1183,6 +1183,8 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+
+		// Note: the following cases are only for 64-bit systems.
 		7: {"-", maxInt, "out of range"},
 	}
 
