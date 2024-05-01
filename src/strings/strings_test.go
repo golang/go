@@ -1175,26 +1175,30 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 		s      string
 		count  int
 		errStr string
+		_32bit bool // for 32-bit systems
+		_64bit bool // for 64-bit systems
 	}{
-		0: {"--", -2147483647, "negative"},
-		1: {"", int(^uint(0) >> 1), ""},
-		2: {"-", 10, ""},
-		3: {"gopher", 0, ""},
-		4: {"-", -1, "negative"},
-		5: {"--", -102, "negative"},
-		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
-		7: {}, // Note: the following cases are only for 64-bit systems.
-		8: {"-", maxInt, "out of range"},
+		0: {"--", -2147483647, "negative", true, true},
+		1: {"", maxInt, "", true, true},
+		2: {"-", 10, "", true, true},
+		3: {"gopher", 0, "", true, true},
+		4: {"-", -1, "negative", true, true},
+		5: {"--", -102, "negative", true, true},
+		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow", true, true},
+		7: {"-", maxInt, "out of range", false, true},
 	}
 
-	const _64bit = 1 << (^uintptr(0) >> 63) / 2
+	const _64bit = 1<<(^uintptr(0)>>63)/2 != 0
 
 	for i, tt := range tests {
-		if tt.s == "" {
-			if _64bit == 0 {
-				break
+		if _64bit {
+			if !tt._64bit {
+				continue
 			}
-			continue
+		} else {
+			if !tt._32bit {
+				continue
+			}
 		}
 
 		err := repeat(tt.s, tt.count)
