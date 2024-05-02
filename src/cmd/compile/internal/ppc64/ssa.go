@@ -629,18 +629,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 		// Auxint holds mask
 
-	case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICR:
+	case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICLCC, ssa.OpPPC64RLDICR:
 		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
 		switch v.Op {
-		case ssa.OpPPC64RLDICL:
+		case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICLCC:
 			p.AddRestSourceConst(mb)
 		case ssa.OpPPC64RLDICR:
 			p.AddRestSourceConst(me)
 		}
 		p.Reg = v.Args[0].Reg()
-		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.ResultReg()}
 
 	case ssa.OpPPC64RLWNM:
 		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
@@ -691,7 +691,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64ADDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst,
 		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst,
-		ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst, ssa.OpPPC64MULLWconst, ssa.OpPPC64MULLDconst:
+		ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst, ssa.OpPPC64EXTSWSLconst, ssa.OpPPC64MULLWconst, ssa.OpPPC64MULLDconst,
+		ssa.OpPPC64ANDconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
 		p.From.Type = obj.TYPE_CONST

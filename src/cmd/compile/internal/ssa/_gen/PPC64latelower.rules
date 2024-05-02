@@ -18,11 +18,8 @@
 (SETBC [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [1] (MOVDconst [1]) cmp)
 (SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)
 
-// Avoid using ANDCCconst if the value for CR0 is not needed, since ANDCCconst
-// always sets it.
-(Select0 z:(ANDCCconst [m] x)) && z.Uses == 1 && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] x)
 // The upper bits of the smaller than register values is undefined. Take advantage of that.
-(AND <t> x:(MOVDconst [m]) n) && t.Size() <= 2 => (Select0 (ANDCCconst [int64(int16(m))] n))
+(AND <t> x:(MOVDconst [m]) n) && t.Size() <= 2 => (ANDconst [int64(int16(m))] n)
 
 // Convert simple bit masks to an equivalent rldic[lr] if possible.
 (AND x:(MOVDconst [m]) n) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] n)
@@ -47,9 +44,17 @@
 // Note: to minimize potentially expensive regeneration of CC opcodes during the flagalloc pass, only rewrite if
 //       both ops are in the same block.
 (CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
-(CMPconst [0] z:((NEG|CNTLZD) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+(CMPconst [0] z:((NEG|CNTLZD|RLDICL) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 // Note: ADDCCconst only assembles to 1 instruction for int16 constants.
 (CMPconst [0] z:(ADDconst [c] x)) && int64(int16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+(CMPconst [0] z:(ANDconst [c] x)) && int64(uint16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
 // And finally, fixup the flag user.
 (CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR)CC x y))) => (Select1 <t> z)
-(CMPconst <t> [0] (Select0 z:((ADDCCconst|NEGCC|CNTLZDCC) y))) => (Select1 <t> z)
+(CMPconst <t> [0] (Select0 z:((ADDCCconst|ANDCCconst|NEGCC|CNTLZDCC|RLDICLCC) y))) => (Select1 <t> z)
+
+// After trying to convert ANDconst to ANDCCconst above, if the CC result is not needed, try to avoid using
+// ANDconst which clobbers CC.
+(ANDconst [m] x) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] x)
+
+// Likewise, trying converting RLDICLCC back to ANDCCconst as it is faster.
+(RLDICLCC [a] x) && convertPPC64RldiclAndccconst(a) != 0 => (ANDCCconst [convertPPC64RldiclAndccconst(a)] x)

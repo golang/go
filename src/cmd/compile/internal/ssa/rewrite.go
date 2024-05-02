@@ -1745,9 +1745,11 @@ func convertPPC64OpToOpCC(op *Value) *Value {
 		OpPPC64ADD:      OpPPC64ADDCC,
 		OpPPC64ADDconst: OpPPC64ADDCCconst,
 		OpPPC64AND:      OpPPC64ANDCC,
+		OpPPC64ANDconst: OpPPC64ANDCCconst,
 		OpPPC64ANDN:     OpPPC64ANDNCC,
 		OpPPC64CNTLZD:   OpPPC64CNTLZDCC,
 		OpPPC64OR:       OpPPC64ORCC,
+		OpPPC64RLDICL:   OpPPC64RLDICLCC,
 		OpPPC64SUB:      OpPPC64SUBCC,
 		OpPPC64NEG:      OpPPC64NEGCC,
 		OpPPC64NOR:      OpPPC64NORCC,
@@ -1759,6 +1761,15 @@ func convertPPC64OpToOpCC(op *Value) *Value {
 	op.reset(OpSelect0)
 	op.AddArgs(opCC)
 	return op
+}
+
+// Try converting a RLDICL to ANDCC. If successful, return the mask otherwise 0.
+func convertPPC64RldiclAndccconst(sauxint int64) int64 {
+	r, _, _, mask := DecodePPC64RotateMask(sauxint)
+	if r != 0 || mask&0xFFFF != mask {
+		return 0
+	}
+	return int64(mask)
 }
 
 // Convenience function to rotate a 32 bit constant value by another constant.
