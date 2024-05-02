@@ -1259,7 +1259,7 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 			}
 
 			if err == nil || !strings.Contains(err.Error(), tt.errStr) {
-				t.Errorf("%s#%d expected %q got %q", prefix, i, tt.errStr, err)
+				t.Errorf("%s#%d got %q want %q", prefix, i, err, tt.errStr)
 			}
 		}
 	}
