@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/goarch"
 	"runtime"
 	"unsafe"
 )
@@ -16,7 +17,7 @@ func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
 	if len(b) < int(off+size) {
 		return 0, false
 	}
-	if isBigEndian {
+	if goarch.BigEndian {
 		return readIntBE(b[off:], size), true
 	}
 	return readIntLE(b[off:], size), true

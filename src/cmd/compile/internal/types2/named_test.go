@@ -102,7 +102,7 @@ type Inst = *Tree[int]
 		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)
 	}
 
-	Inst := pkg.Scope().Lookup("Inst").Type().(*Pointer).Elem().(*Named)
+	Inst := Unalias(pkg.Scope().Lookup("Inst").Type()).(*Pointer).Elem().(*Named)
 	Node := firstFieldType(Inst)
 	Tree := firstFieldType(Node)
 	if !Identical(Inst, Tree) {

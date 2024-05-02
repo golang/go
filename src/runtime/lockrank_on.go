@@ -7,7 +7,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -104,12 +104,16 @@ func printHeldLocks(gp *g) {
 	}
 }
 
-// acquireLockRank acquires a rank which is not associated with a mutex lock
+// acquireLockRankAndM acquires a rank which is not associated with a mutex
+// lock. To maintain the invariant that an M with m.locks==0 does not hold any
+// lock-like resources, it also acquires the M.
 //
 // This function may be called in nosplit context and thus must be nosplit.
 //
 //go:nosplit
-func acquireLockRank(rank lockRank) {
+func acquireLockRankAndM(rank lockRank) {
+	acquirem()
+
 	gp := getg()
 	// Log the new class. See comment on lockWithRank.
 	systemstack(func() {
@@ -189,12 +193,14 @@ func unlockWithRank(l *mutex) {
 	})
 }
 
-// releaseLockRank releases a rank which is not associated with a mutex lock
+// releaseLockRankAndM releases a rank which is not associated with a mutex
+// lock. To maintain the invariant that an M with m.locks==0 does not hold any
+// lock-like resources, it also releases the M.
 //
 // This function may be called in nosplit context and thus must be nosplit.
 //
 //go:nosplit
-func releaseLockRank(rank lockRank) {
+func releaseLockRankAndM(rank lockRank) {
 	gp := getg()
 	systemstack(func() {
 		found := false
@@ -211,6 +217,8 @@ func releaseLockRank(rank lockRank) {
 			throw("lockRank release without matching lockRank acquire")
 		}
 	})
+
+	releasem(getg().m)
 }
 
 // nosplit because it may be called from nosplit contexts.

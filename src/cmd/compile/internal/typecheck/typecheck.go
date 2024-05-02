@@ -160,11 +160,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	lno := ir.SetPos(n)
 	defer func() { base.Pos = lno }()
 
-	// Skip over parens.
-	for n.Op() == ir.OPAREN {
-		n = n.(*ir.ParenExpr).X
-	}
-
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
@@ -216,6 +211,11 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
+	// Skip over parens.
+	for n.Op() == ir.OPAREN {
+		n = n.(*ir.ParenExpr).X
+	}
+
 	switch n.Op() {
 	default:
 		ir.Dump("typecheck", n)

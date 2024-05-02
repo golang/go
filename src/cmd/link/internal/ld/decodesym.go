@@ -5,7 +5,6 @@
 package ld
 
 import (
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -38,13 +37,13 @@ func structfieldSize(arch *sys.Arch) int { return abi.StructFieldSize(arch.PtrSi
 func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }           // runtime.uncommontype
 
 // Type.commonType.kind
-func decodetypeKind(arch *sys.Arch, p []byte) uint8 {
-	return p[2*arch.PtrSize+7] & objabi.KindMask //  0x13 / 0x1f
+func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
+	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
-func decodetypeUsegcprog(arch *sys.Arch, p []byte) uint8 {
-	return p[2*arch.PtrSize+7] & objabi.KindGCProg //  0x13 / 0x1f
+func decodetypeUsegcprog(arch *sys.Arch, p []byte) bool {
+	return abi.Kind(p[2*arch.PtrSize+7])&abi.KindGCProg != 0 //  0x13 / 0x1f
 }
 
 // Type.commonType.size
@@ -80,19 +79,6 @@ func decodetypeFuncOutCount(arch *sys.Arch, p []byte) int {
 func decodetypeIfaceMethodCount(arch *sys.Arch, p []byte) int64 {
 	return int64(decodeInuxi(arch, p[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
 }
-
-// Matches runtime/typekind.go and reflect.Kind.
-const (
-	kindArray     = 17
-	kindChan      = 18
-	kindFunc      = 19
-	kindInterface = 20
-	kindMap       = 21
-	kindPtr       = 22
-	kindSlice     = 23
-	kindStruct    = 25
-	kindMask      = (1 << 5) - 1
-)
 
 func decodeReloc(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc {
 	for j := 0; j < relocs.Count(); j++ {

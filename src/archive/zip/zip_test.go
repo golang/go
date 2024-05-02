@@ -814,8 +814,6 @@ func TestSuffixSaver(t *testing.T) {
 type zeros struct{}
 
 func (zeros) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = 0
-	}
+	clear(p)
 	return len(p), nil
 }

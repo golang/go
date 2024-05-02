@@ -1275,6 +1275,10 @@ func TestDefaultGOPATH(t *testing.T) {
 	tg.parallel()
 	tg.tempDir("home/go")
 	tg.setenv(homeEnvName(), tg.path("home"))
+	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
+	// so that the counter uploading code doesn't write
+	// the counter token file to the temp dir after the test finishes.
+	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
 
 	tg.run("env", "GOPATH")
 	tg.grepStdout(regexp.QuoteMeta(tg.path("home/go")), "want GOPATH=$HOME/go")
@@ -1295,6 +1299,10 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 	tg.setenv("GOPATH", "")
 	tg.tempDir("home")
 	tg.setenv(homeEnvName(), tg.path("home"))
+	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
+	// so that the counter uploading code doesn't write
+	// the counter token file to the temp dir after the test finishes.
+	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
 
 	tg.runFail("install", "github.com/golang/example/hello")
 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")

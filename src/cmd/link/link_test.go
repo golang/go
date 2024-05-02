@@ -1198,8 +1198,8 @@ func main() {}
 	}
 	exe := filepath.Join(tmpdir, "x.exe")
 
-	// Use a deterministc tmp directory so the temporary file paths are
-	// deterministc.
+	// Use a deterministic tmp directory so the temporary file paths are
+	// deterministic.
 	linktmp := filepath.Join(tmpdir, "linktmp")
 	if err := os.Mkdir(linktmp, 0777); err != nil {
 		t.Fatal(err)
@@ -1219,7 +1219,7 @@ func main() {}
 			t.Fatal(err)
 		}
 
-		// extract the "host link" invocaton
+		// extract the "host link" invocation
 		j := bytes.Index(out, []byte("\nhost link:"))
 		if j == -1 {
 			t.Fatalf("host link step not found, output:\n%s", out)

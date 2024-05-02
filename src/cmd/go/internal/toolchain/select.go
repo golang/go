@@ -81,6 +81,8 @@ func FilterEnv(env []string) []string {
 	return out
 }
 
+var counterErrorsInvalidToolchainInFile = base.NewCounter("go/errors:invalid-toolchain-in-file")
+
 // Select invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
 // or go.mod file.
@@ -105,6 +107,14 @@ func Select() {
 	// where -newflag is a flag known to Go 1.999 but not known to us.
 	if (len(os.Args) == 3 && os.Args[1] == "env" && os.Args[2] == "GOTOOLCHAIN") ||
 		(len(os.Args) == 4 && os.Args[1] == "env" && os.Args[2] == "-w" && strings.HasPrefix(os.Args[3], "GOTOOLCHAIN=")) {
+		return
+	}
+
+	// As a special case, let "go env GOMOD" and "go env GOWORK" be handled by
+	// the local toolchain. Users expect to be able to look up GOMOD and GOWORK
+	// since the go.mod and go.work file need to be determined to determine
+	// the minimum toolchain. See issue #61455.
+	if len(os.Args) == 3 && os.Args[1] == "env" && (os.Args[2] == "GOMOD" || os.Args[2] == "GOWORK") {
 		return
 	}
 
@@ -174,6 +184,7 @@ func Select() {
 				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
 				toolVers := gover.FromToolchain(toolchain)
 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
+					counterErrorsInvalidToolchainInFile.Inc()
 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
 				}
 				if gover.Compare(toolVers, minVers) > 0 {
@@ -230,8 +241,11 @@ func Select() {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
 	}
 
+	counterSelectExec.Inc()
 	Exec(gotoolchain)
 }
+
+var counterSelectExec = base.NewCounter("go/toolchain/select-exec")
 
 // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
 // Valid settings are:

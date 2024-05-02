@@ -2,20 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package typeparams contains common utilities for writing tools that interact
-// with generic Go code, as introduced with Go 1.18.
-//
-// Many of the types and functions in this package are proxies for the new APIs
-// introduced in the standard library with Go 1.18. For example, the
-// typeparams.Union type is an alias for go/types.Union, and the ForTypeSpec
-// function returns the value of the go/ast.TypeSpec.TypeParams field. At Go
-// versions older than 1.18 these helpers are implemented as stubs, allowing
-// users of this package to write code that handles generic constructs inline,
-// even if the Go version being used to compile does not support generics.
-//
-// Additionally, this package contains common utilities for working with the
-// new generic constructs, to supplement the standard library APIs. Notably,
-// the StructuralTerms API computes a minimal representation of the structural
+// Package typeparams contains common utilities for writing tools that
+// interact with generic Go code, as introduced with Go 1.18. It
+// supplements the standard library APIs. Notably, the StructuralTerms
+// API computes a minimal representation of the structural
 // restrictions on a type parameter.
 //
 // An external version of these APIs is available in the
@@ -23,10 +13,11 @@
 package typeparams
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/internal/aliases"
 )
 
 // UnpackIndexExpr extracts data from AST nodes that represent index
@@ -72,66 +63,10 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 	}
 }
 
-// IsTypeParam reports whether t is a type parameter.
+// IsTypeParam reports whether t is a type parameter (or an alias of one).
 func IsTypeParam(t types.Type) bool {
-	_, ok := t.(*types.TypeParam)
+	_, ok := aliases.Unalias(t).(*types.TypeParam)
 	return ok
-}
-
-// OriginMethod returns the origin method associated with the method fn.
-// For methods on a non-generic receiver base type, this is just
-// fn. However, for methods with a generic receiver, OriginMethod returns the
-// corresponding method in the method set of the origin type.
-//
-// As a special case, if fn is not a method (has no receiver), OriginMethod
-// returns fn.
-func OriginMethod(fn *types.Func) *types.Func {
-	recv := fn.Type().(*types.Signature).Recv()
-	if recv == nil {
-		return fn
-	}
-	base := recv.Type()
-	p, isPtr := base.(*types.Pointer)
-	if isPtr {
-		base = p.Elem()
-	}
-	named, isNamed := base.(*types.Named)
-	if !isNamed {
-		// Receiver is a *types.Interface.
-		return fn
-	}
-	if named.TypeParams().Len() == 0 {
-		// Receiver base has no type parameters, so we can avoid the lookup below.
-		return fn
-	}
-	orig := named.Origin()
-	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
-
-	// This is a fix for a gopls crash (#60628) due to a go/types bug (#60634). In:
-	// 	package p
-	//      type T *int
-	//      func (*T) f() {}
-	// LookupFieldOrMethod(T, true, p, f)=nil, but NewMethodSet(*T)={(*T).f}.
-	// Here we make them consistent by force.
-	// (The go/types bug is general, but this workaround is reached only
-	// for generic T thanks to the early return above.)
-	if gfn == nil {
-		mset := types.NewMethodSet(types.NewPointer(orig))
-		for i := 0; i < mset.Len(); i++ {
-			m := mset.At(i)
-			if m.Obj().Id() == fn.Id() {
-				gfn = m.Obj()
-				break
-			}
-		}
-	}
-
-	// In golang/go#61196, we observe another crash, this time inexplicable.
-	if gfn == nil {
-		panic(fmt.Sprintf("missing origin method for %s.%s; named == origin: %t, named.NumMethods(): %d, origin.NumMethods(): %d", named, fn, named == orig, named.NumMethods(), orig.NumMethods()))
-	}
-
-	return gfn.(*types.Func)
 }
 
 // GenericAssignableTo is a generalization of types.AssignableTo that
@@ -158,6 +93,9 @@ func OriginMethod(fn *types.Func) *types.Func {
 // In this case, GenericAssignableTo reports that instantiations of Container
 // are assignable to the corresponding instantiation of Interface.
 func GenericAssignableTo(ctxt *types.Context, V, T types.Type) bool {
+	V = aliases.Unalias(V)
+	T = aliases.Unalias(T)
+
 	// If V and T are not both named, or do not have matching non-empty type
 	// parameter lists, fall back on types.AssignableTo.
 

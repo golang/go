@@ -293,12 +293,18 @@ func (c *Counter) refresh() {
 // Read reads the given counter.
 // This is the implementation of x/telemetry/counter/countertest.ReadCounter.
 func Read(c *Counter) (uint64, error) {
+	if c.file.current.Load() == nil {
+		return c.state.load().extra(), nil
+	}
 	pf, err := readFile(c.file)
 	if err != nil {
 		return 0, err
 	}
-	// counter doesn't write the entry to file until the value becomes non-zero.
-	return pf.Count[c.name], nil
+	v, ok := pf.Count[DecodeStack(c.Name())]
+	if !ok {
+		return v, fmt.Errorf("not found:%q", DecodeStack(c.Name()))
+	}
+	return v, nil
 }
 
 func readFile(f *file) (*File, error) {
@@ -325,4 +331,29 @@ func readFile(f *file) (*File, error) {
 		return nil, fmt.Errorf("failed to parse: %v", err)
 	}
 	return pf, nil
+}
+
+// ReadFile reads the counters and stack counters from the given file.
+// This is the implementation of x/telemetry/counter/countertest.Read
+func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
+	// TODO: Document the format of the stackCounters names.
+
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
+	}
+	pf, err := Parse(name, data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse: %v", err)
+	}
+	counters = make(map[string]uint64)
+	stackCounters = make(map[string]uint64)
+	for k, v := range pf.Count {
+		if IsStackCounter(k) {
+			stackCounters[DecodeStack(k)] = v
+		} else {
+			counters[k] = v
+		}
+	}
+	return counters, stackCounters, nil
 }

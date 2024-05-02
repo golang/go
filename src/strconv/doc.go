@@ -7,7 +7,7 @@
 //
 // # Numeric Conversions
 //
-// The most common numeric conversions are Atoi (string to int) and Itoa (int to string).
+// The most common numeric conversions are [Atoi] (string to int) and [Itoa] (int to string).
 //
 //	i, err := strconv.Atoi("-42")
 //	s := strconv.Itoa(-42)

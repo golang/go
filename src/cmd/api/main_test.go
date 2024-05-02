@@ -843,6 +843,9 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 		buf.WriteString(s)
 		w.writeType(buf, typ.Elem())
 
+	case *types.Alias:
+		w.writeType(buf, types.Unalias(typ))
+
 	case *types.Named:
 		obj := typ.Obj()
 		pkg := obj.Pkg()

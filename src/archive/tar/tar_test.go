@@ -848,3 +848,53 @@ func Benchmark(b *testing.B) {
 	})
 
 }
+
+var _ fileInfoNames = fileInfoNames{}
+
+type fileInfoNames struct{}
+
+func (f *fileInfoNames) Name() string {
+	return "tmp"
+}
+
+func (f *fileInfoNames) Size() int64 {
+	return 0
+}
+
+func (f *fileInfoNames) Mode() fs.FileMode {
+	return 0777
+}
+
+func (f *fileInfoNames) ModTime() time.Time {
+	return time.Time{}
+}
+
+func (f *fileInfoNames) IsDir() bool {
+	return false
+}
+
+func (f *fileInfoNames) Sys() any {
+	return nil
+}
+
+func (f *fileInfoNames) Uname() (string, error) {
+	return "Uname", nil
+}
+
+func (f *fileInfoNames) Gname() (string, error) {
+	return "Gname", nil
+}
+
+func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
+	info := &fileInfoNames{}
+	header, err := FileInfoHeader(info, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if header.Uname != "Uname" {
+		t.Fatalf("header.Uname: got %s, want %s", header.Uname, "Uname")
+	}
+	if header.Gname != "Gname" {
+		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
+	}
+}

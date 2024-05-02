@@ -10,6 +10,10 @@ package http
 // Changes are minimal: aside from the different receiver type,
 // they mostly involve renaming functions, usually by unexporting them.
 
+// servemux121.go exists solely to provide a snapshot of
+// the pre-Go 1.22 ServeMux implementation for backwards compatibility.
+// Do not modify this file, it should remain frozen.
+
 import (
 	"internal/godebug"
 	"net/url"

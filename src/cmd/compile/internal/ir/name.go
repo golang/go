@@ -192,9 +192,9 @@ const (
 	nameInlLocal                 // PAUTO created by inliner, derived from callee local
 	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
 	nameLibfuzzer8BitCounter     // if PEXTERN should be assigned to __sancov_cntrs section
-	nameCoverageCounter          // instrumentation counter var for cmd/cover
-	nameCoverageAuxVar           // instrumentation pkg ID variable cmd/cover
+	nameCoverageAuxVar           // instrumentation counter var or pkg ID for cmd/cover
 	nameAlias                    // is type name an alias
+	nameNonMergeable             // not a candidate for stack slot merging
 )
 
 func (n *Name) Readonly() bool                 { return n.flags&nameReadonly != 0 }
@@ -209,8 +209,8 @@ func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal !=
 func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
 func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
 func (n *Name) Libfuzzer8BitCounter() bool     { return n.flags&nameLibfuzzer8BitCounter != 0 }
-func (n *Name) CoverageCounter() bool          { return n.flags&nameCoverageCounter != 0 }
 func (n *Name) CoverageAuxVar() bool           { return n.flags&nameCoverageAuxVar != 0 }
+func (n *Name) NonMergeable() bool             { return n.flags&nameNonMergeable != 0 }
 
 func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
 func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
@@ -224,8 +224,8 @@ func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal, 
 func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
 func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
 func (n *Name) SetLibfuzzer8BitCounter(b bool)     { n.flags.set(nameLibfuzzer8BitCounter, b) }
-func (n *Name) SetCoverageCounter(b bool)          { n.flags.set(nameCoverageCounter, b) }
 func (n *Name) SetCoverageAuxVar(b bool)           { n.flags.set(nameCoverageAuxVar, b) }
+func (n *Name) SetNonMergeable(b bool)             { n.flags.set(nameNonMergeable, b) }
 
 // OnStack reports whether variable n may reside on the stack.
 func (n *Name) OnStack() bool {

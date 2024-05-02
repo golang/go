@@ -40,14 +40,6 @@ func ctEq(x, y uint) choice {
 	return not(choice(c1 | c2))
 }
 
-// ctGeq returns 1 if x >= y, and 0 otherwise. The execution time of this
-// function does not depend on its inputs.
-func ctGeq(x, y uint) choice {
-	// If x < y, then x - y generates a carry.
-	_, carry := bits.Sub(x, y, 0)
-	return not(choice(carry))
-}
-
 // Nat represents an arbitrary natural number
 //
 // Each Nat has an announced length, which is the number of limbs it has stored.
@@ -84,9 +76,7 @@ func (x *Nat) expand(n int) *Nat {
 		return x
 	}
 	extraLimbs := x.limbs[len(x.limbs):n]
-	for i := range extraLimbs {
-		extraLimbs[i] = 0
-	}
+	clear(extraLimbs)
 	x.limbs = x.limbs[:n]
 	return x
 }
@@ -97,9 +87,7 @@ func (x *Nat) reset(n int) *Nat {
 		x.limbs = make([]uint, n)
 		return x
 	}
-	for i := range x.limbs {
-		x.limbs[i] = 0
-	}
+	clear(x.limbs)
 	x.limbs = x.limbs[:n]
 	return x
 }

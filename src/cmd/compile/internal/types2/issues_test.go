@@ -257,13 +257,12 @@ func TestIssue22525(t *testing.T) {
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	typecheck(src, &conf, nil) // do not crash
-	want := `
-p:1:27: a declared and not used
-p:1:30: b declared and not used
-p:1:33: c declared and not used
-p:1:36: d declared and not used
-p:1:39: e declared and not used
-`
+	want := "\n" +
+		"p:1:27: `a' declared and not used\n" +
+		"p:1:30: `b' declared and not used\n" +
+		"p:1:33: `c' declared and not used\n" +
+		"p:1:36: `d' declared and not used\n" +
+		"p:1:39: `e' declared and not used\n"
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
 	}
@@ -989,8 +988,8 @@ type A = []int
 type S struct{ A }
 `
 
-	t.Setenv("GODEBUG", "gotypesalias=1")
-	pkg := mustTypecheck(src, nil, nil)
+	conf := Config{EnableAlias: true}
+	pkg := mustTypecheck(src, &conf, nil)
 
 	S := pkg.Scope().Lookup("S")
 	if S == nil {

@@ -36,15 +36,15 @@ const (
 type Writer struct {
 	// w is the writer that compressed bytes are written to.
 	w writer
+	// litWidth is the width in bits of literal codes.
+	litWidth uint
 	// order, write, bits, nBits and width are the state for
 	// converting a code stream into a byte stream.
 	order Order
 	write func(*Writer, uint32) error
-	bits  uint32
 	nBits uint
 	width uint
-	// litWidth is the width in bits of literal codes.
-	litWidth uint
+	bits  uint32
 	// hi is the code implied by the next code emission.
 	// overflow is the code at which hi overflows the code width.
 	hi, overflow uint32

@@ -1091,10 +1091,10 @@ func TestIssue7113(t *testing.T) {
 	}
 
 	if a.XMLName.Space != structSpace {
-		t.Errorf("overidding with empty namespace: unmarshalling, got %s, want %s\n", a.XMLName.Space, structSpace)
+		t.Errorf("overidding with empty namespace: unmarshaling, got %s, want %s\n", a.XMLName.Space, structSpace)
 	}
 	if len(a.C.XMLName.Space) != 0 {
-		t.Fatalf("overidding with empty namespace: unmarshalling, got %s, want empty\n", a.C.XMLName.Space)
+		t.Fatalf("overidding with empty namespace: unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
 	}
 
 	var b []byte
@@ -1106,7 +1106,7 @@ func TestIssue7113(t *testing.T) {
 		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
 	}
 	if string(b) != xmlTest {
-		t.Fatalf("overidding with empty namespace: marshalling, got %s, want %s\n", b, xmlTest)
+		t.Fatalf("overidding with empty namespace: marshaling, got %s, want %s\n", b, xmlTest)
 	}
 	var c A
 	err = Unmarshal(b, &c)
@@ -1346,16 +1346,16 @@ func TestParseErrors(t *testing.T) {
 		{withDefaultHeader(`<!- not ok -->`), `invalid sequence <!- not part of <!--`},
 		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},
 		{withDefaultHeader(`<![not ok]>`), `invalid <![ sequence`},
+		{withDefaultHeader(`<zzz:foo xmlns:zzz="http://example.com"><bar>baz</bar></foo>`),
+			`element <foo> in space zzz closed by </foo> in space ""`},
 		{withDefaultHeader("\xf1"), `invalid UTF-8`},
 
 		// Header-related errors.
 		{`<?xml version="1.1" encoding="UTF-8"?>`, `unsupported version "1.1"; only version 1.0 is supported`},
-		{`<foo><?xml version="1.0"?>`, `XML declaration after start of document`},
 
 		// Cases below are for "no errors".
 		{withDefaultHeader(`<?ok?>`), ``},
 		{withDefaultHeader(`<?ok version="ok"?>`), ``},
-		{`  <?xml version="1.0"?>`, ``},
 	}
 
 	for _, test := range tests {
@@ -1379,7 +1379,7 @@ func TestParseErrors(t *testing.T) {
 			continue
 		}
 		if !strings.Contains(err.Error(), test.err) {
-			t.Errorf("parse %s: can't find %q error sudbstring\nerror: %q", test.src, test.err, err)
+			t.Errorf("parse %s: can't find %q error substring\nerror: %q", test.src, test.err, err)
 			continue
 		}
 	}

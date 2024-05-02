@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/stringslite"
 	"runtime"
 	"unsafe"
 )
@@ -468,19 +469,11 @@ func joinPath(dir, file string) string {
 }
 
 func isAbs(path string) bool {
-	return hasPrefix(path, "/")
+	return stringslite.HasPrefix(path, "/")
 }
 
 func isDir(path string) bool {
-	return hasSuffix(path, "/")
-}
-
-func hasPrefix(s, p string) bool {
-	return len(s) >= len(p) && s[:len(p)] == p
-}
-
-func hasSuffix(s, x string) bool {
-	return len(s) >= len(x) && s[len(s)-len(x):] == x
+	return stringslite.HasSuffix(path, "/")
 }
 
 // preparePath returns the preopen file descriptor of the directory to perform
@@ -500,7 +493,7 @@ func preparePath(path string) (int32, unsafe.Pointer, size) {
 	path = joinPath(dir, path)
 
 	for _, p := range preopens {
-		if len(p.name) > len(dirName) && hasPrefix(path, p.name) {
+		if len(p.name) > len(dirName) && stringslite.HasPrefix(path, p.name) {
 			dirFd, dirName = p.fd, p.name
 		}
 	}
@@ -566,7 +559,7 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 	if errno == EISDIR && oflags == 0 && fdflags == 0 && ((rights & writeRights) == 0) {
 		// wasmtime and wasmedge will error if attempting to open a directory
 		// because we are asking for too many rights. However, we cannot
-		// determine ahread of time if the path we are about to open is a
+		// determine ahead of time if the path we are about to open is a
 		// directory, so instead we fallback to a second call to path_open with
 		// a more limited set of rights.
 		//

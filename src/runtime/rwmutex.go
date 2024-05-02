@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 )
 
 // This is a copy of sync/rwmutex.go rewritten to work in the runtime.
@@ -26,7 +26,7 @@ type rwmutex struct {
 	readerCount atomic.Int32 // number of pending readers
 	readerWait  atomic.Int32 // number of departing readers
 
-	readRank  lockRank // semantic lock rank for read locking
+	readRank lockRank // semantic lock rank for read locking
 }
 
 // Lock ranking an rwmutex has two aspects:
@@ -50,13 +50,13 @@ type rwmutex struct {
 // acquire of readRank for the duration of a read lock.
 //
 // The lock ranking must document this ordering:
-// - readRankInternal is a leaf lock.
-// - readRank is taken before readRankInternal.
-// - writeRank is taken before readRankInternal.
-// - readRank is placed in the lock order wherever a read lock of this rwmutex
-//   belongs.
-// - writeRank is placed in the lock order wherever a write lock of this
-//   rwmutex belongs.
+//   - readRankInternal is a leaf lock.
+//   - readRank is taken before readRankInternal.
+//   - writeRank is taken before readRankInternal.
+//   - readRank is placed in the lock order wherever a read lock of this rwmutex
+//     belongs.
+//   - writeRank is placed in the lock order wherever a write lock of this
+//     rwmutex belongs.
 func (rw *rwmutex) init(readRank, readRankInternal, writeRank lockRank) {
 	rw.readRank = readRank
 
@@ -72,9 +72,7 @@ func (rw *rwmutex) rlock() {
 	// things blocking on the lock may consume all of the Ps and
 	// deadlock (issue #20903). Alternatively, we could drop the P
 	// while sleeping.
-	acquirem()
-
-	acquireLockRank(rw.readRank)
+	acquireLockRankAndM(rw.readRank)
 	lockWithRankMayAcquire(&rw.rLock, getLockRank(&rw.rLock))
 
 	if rw.readerCount.Add(1) < 0 {
@@ -116,8 +114,7 @@ func (rw *rwmutex) runlock() {
 			unlock(&rw.rLock)
 		}
 	}
-	releaseLockRank(rw.readRank)
-	releasem(getg().m)
+	releaseLockRankAndM(rw.readRank)
 }
 
 // lock locks rw for writing.

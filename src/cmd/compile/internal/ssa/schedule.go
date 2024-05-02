@@ -562,7 +562,7 @@ func (v *Value) hasFlagInput() bool {
 	// PPC64 carry dependencies are conveyed through their final argument,
 	// so we treat those operations as taking flags as well.
 	switch v.Op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
+	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
 		return true
 	}
 	return false

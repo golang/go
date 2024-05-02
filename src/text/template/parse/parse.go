@@ -42,7 +42,7 @@ const (
 	SkipFuncCheck                  // do not check that functions are defined
 )
 
-// Copy returns a copy of the Tree. Any parsing state is discarded.
+// Copy returns a copy of the [Tree]. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
 	if t == nil {
 		return nil
@@ -55,7 +55,7 @@ func (t *Tree) Copy() *Tree {
 	}
 }
 
-// Parse returns a map from template name to parse.Tree, created by parsing the
+// Parse returns a map from template name to [Tree], created by parsing the
 // templates described in the argument string. The top-level template will be
 // given the specified name. If an error is encountered, parsing stops and an
 // empty map is returned with the error.

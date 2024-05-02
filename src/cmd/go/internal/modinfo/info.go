@@ -43,7 +43,7 @@ type moduleErrorNoMethods ModuleError
 
 // UnmarshalJSON accepts both {"Err":"text"} and "text",
 // so that the output of go mod download -json can still
-// be unmarshalled into a ModulePublic during -reuse processing.
+// be unmarshaled into a ModulePublic during -reuse processing.
 func (e *ModuleError) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '"' {
 		return json.Unmarshal(data, &e.Err)

@@ -45,8 +45,8 @@ func main() {
 		log.Fatalf("expected cmd/compile to fail")
 	}
 	wantErrs := []string{
-		"7:9: n declared and not used",
-		"7:12: err declared and not used",
+		"7:9: `n' declared and not used",
+		"7:12: `err' declared and not used",
 	}
 	outStr := string(out)
 	for _, want := range wantErrs {

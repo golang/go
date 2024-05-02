@@ -554,7 +554,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
 		// which causes the handler for protocol version 1 to sometimes miss
 		// tags that point to the requested commit (see https://go.dev/issue/56881).
-		_, err = Run(ctx, r.dir, "git", "fetch", "-f", "-c", "protocol.version=2", "--depth=1", r.remote, refspec)
+		_, err = Run(ctx, r.dir, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
 		release()
 
 		if err == nil {

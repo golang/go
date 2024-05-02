@@ -552,7 +552,7 @@ loop:
 		n = n1
 		if i, ok := seen[n]; ok {
 			// cycle
-			check.cycleError(path[i:])
+			check.cycleError(path[i:], firstInSrc(path[i:]))
 			u = Typ[Invalid]
 			break
 		}

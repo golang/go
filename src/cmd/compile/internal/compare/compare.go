@@ -18,8 +18,7 @@ import (
 
 // IsRegularMemory reports whether t can be compared/hashed as regular memory.
 func IsRegularMemory(t *types.Type) bool {
-	a, _ := types.AlgType(t)
-	return a == types.AMEM
+	return types.AlgType(t) == types.AMEM
 }
 
 // Memrun finds runs of struct fields for which memory-only algs are appropriate.

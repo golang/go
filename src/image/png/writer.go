@@ -295,12 +295,6 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func zeroMemory(v []uint8) {
-	for i := range v {
-		v[i] = 0
-	}
-}
-
 func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) error {
 	if e.zw == nil || e.zwLevel != level {
 		zw, err := zlib.NewWriterLevel(w, level)
@@ -359,7 +353,7 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 		e.pr = make([]uint8, sz)
 	} else {
 		e.pr = e.pr[:sz]
-		zeroMemory(e.pr)
+		clear(e.pr)
 	}
 	pr := e.pr
 

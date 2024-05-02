@@ -7,48 +7,16 @@
 package net
 
 import (
-	"internal/syscall/windows/registry"
+	"internal/syscall/windows"
 	"os"
 	"reflect"
-	"runtime"
-	"strconv"
 	"testing"
 )
 
-func isBuild17063() bool {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.READ)
-	if err != nil {
-		return false
-	}
-	defer k.Close()
-
-	s, _, err := k.GetStringValue("CurrentBuild")
-	if err != nil {
-		return false
-	}
-	ver, err := strconv.Atoi(s)
-	if err != nil {
-		return false
-	}
-	return ver >= 17063
-}
-
-func skipIfUnixSocketNotSupported(t *testing.T) {
-	// TODO: the isBuild17063 check should be enough, investigate why 386 and arm
-	// can't run these tests on newer Windows.
-	switch runtime.GOARCH {
-	case "386":
-		t.Skip("not supported on windows/386, see golang.org/issue/27943")
-	case "arm":
-		t.Skip("not supported on windows/arm, see golang.org/issue/28061")
-	}
-	if !isBuild17063() {
+func TestUnixConnLocalWindows(t *testing.T) {
+	if !windows.SupportUnixSocket() {
 		t.Skip("unix test")
 	}
-}
-
-func TestUnixConnLocalWindows(t *testing.T) {
-	skipIfUnixSocketNotSupported(t)
 	handler := func(ls *localServer, ln Listener) {}
 	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
@@ -102,7 +70,10 @@ func TestUnixConnLocalWindows(t *testing.T) {
 }
 
 func TestModeSocket(t *testing.T) {
-	skipIfUnixSocketNotSupported(t)
+	if !windows.SupportUnixSocket() {
+		t.Skip("unix test")
+	}
+
 	addr := testUnixAddr(t)
 
 	l, err := Listen("unix", addr)

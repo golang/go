@@ -7,10 +7,11 @@ package devirtualize
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/pgo"
 	"cmd/internal/src"
 	"testing"
 )
@@ -32,32 +33,32 @@ func makePos(b *src.PosBase, line, col uint) src.XPos {
 }
 
 type profileBuilder struct {
-	p *pgo.Profile
+	p *pgoir.Profile
 }
 
 func newProfileBuilder() *profileBuilder {
-	// findHotConcreteCallee only uses pgo.Profile.WeightedCG, so we're
+	// findHotConcreteCallee only uses pgoir.Profile.WeightedCG, so we're
 	// going to take a shortcut and only construct that.
 	return &profileBuilder{
-		p: &pgo.Profile{
-			WeightedCG: &pgo.IRGraph{
-				IRNodes: make(map[string]*pgo.IRNode),
+		p: &pgoir.Profile{
+			WeightedCG: &pgoir.IRGraph{
+				IRNodes: make(map[string]*pgoir.IRNode),
 			},
 		},
 	}
 }
 
 // Profile returns the constructed profile.
-func (p *profileBuilder) Profile() *pgo.Profile {
+func (p *profileBuilder) Profile() *pgoir.Profile {
 	return p.p
 }
 
 // NewNode creates a new IRNode and adds it to the profile.
 //
 // fn may be nil, in which case the node will set LinkerSymbolName.
-func (p *profileBuilder) NewNode(name string, fn *ir.Func) *pgo.IRNode {
-	n := &pgo.IRNode{
-		OutEdges: make(map[pgo.NamedCallEdge]*pgo.IREdge),
+func (p *profileBuilder) NewNode(name string, fn *ir.Func) *pgoir.IRNode {
+	n := &pgoir.IRNode{
+		OutEdges: make(map[pgo.NamedCallEdge]*pgoir.IREdge),
 	}
 	if fn != nil {
 		n.AST = fn
@@ -69,13 +70,13 @@ func (p *profileBuilder) NewNode(name string, fn *ir.Func) *pgo.IRNode {
 }
 
 // Add a new call edge from caller to callee.
-func addEdge(caller, callee *pgo.IRNode, offset int, weight int64) {
+func addEdge(caller, callee *pgoir.IRNode, offset int, weight int64) {
 	namedEdge := pgo.NamedCallEdge{
 		CallerName:     caller.Name(),
 		CalleeName:     callee.Name(),
 		CallSiteOffset: offset,
 	}
-	irEdge := &pgo.IREdge{
+	irEdge := &pgoir.IREdge{
 		Src:            caller,
 		Dst:            callee,
 		CallSiteOffset: offset,

@@ -126,60 +126,60 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 
 	pkey = C._goboringcrypto_EVP_PKEY_new()
 	if pkey == nil {
-		return nil, nil, fail("EVP_PKEY_new")
+		return pkey, ctx, fail("EVP_PKEY_new")
 	}
 	if withKey(func(key *C.GO_RSA) C.int {
 		return C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key)
 	}) == 0 {
-		return nil, nil, fail("EVP_PKEY_set1_RSA")
+		return pkey, ctx, fail("EVP_PKEY_set1_RSA")
 	}
 	ctx = C._goboringcrypto_EVP_PKEY_CTX_new(pkey, nil)
 	if ctx == nil {
-		return nil, nil, fail("EVP_PKEY_CTX_new")
+		return pkey, ctx, fail("EVP_PKEY_CTX_new")
 	}
 	if init(ctx) == 0 {
-		return nil, nil, fail("EVP_PKEY_operation_init")
+		return pkey, ctx, fail("EVP_PKEY_operation_init")
 	}
 	if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_padding(ctx, padding) == 0 {
-		return nil, nil, fail("EVP_PKEY_CTX_set_rsa_padding")
+		return pkey, ctx, fail("EVP_PKEY_CTX_set_rsa_padding")
 	}
 	if padding == C.GO_RSA_PKCS1_OAEP_PADDING {
 		md := hashToMD(h)
 		if md == nil {
-			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
+			return pkey, ctx, errors.New("crypto/rsa: unsupported hash function")
 		}
 		mgfMD := hashToMD(mgfHash)
 		if mgfMD == nil {
-			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
+			return pkey, ctx, errors.New("crypto/rsa: unsupported hash function")
 		}
 		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md) == 0 {
-			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
+			return pkey, ctx, fail("EVP_PKEY_set_rsa_oaep_md")
 		}
 		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, mgfMD) == 0 {
-			return nil, nil, fail("EVP_PKEY_set_rsa_mgf1_md")
+			return pkey, ctx, fail("EVP_PKEY_set_rsa_mgf1_md")
 		}
 		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
 		clabel := (*C.uint8_t)(C._goboringcrypto_OPENSSL_malloc(C.size_t(len(label))))
 		if clabel == nil {
-			return nil, nil, fail("OPENSSL_malloc")
+			return pkey, ctx, fail("OPENSSL_malloc")
 		}
 		copy((*[1 << 30]byte)(unsafe.Pointer(clabel))[:len(label)], label)
 		if C._goboringcrypto_EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, clabel, C.size_t(len(label))) == 0 {
-			return nil, nil, fail("EVP_PKEY_CTX_set0_rsa_oaep_label")
+			return pkey, ctx, fail("EVP_PKEY_CTX_set0_rsa_oaep_label")
 		}
 	}
 	if padding == C.GO_RSA_PKCS1_PSS_PADDING {
 		if saltLen != 0 {
 			if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, C.int(saltLen)) == 0 {
-				return nil, nil, fail("EVP_PKEY_set_rsa_pss_saltlen")
+				return pkey, ctx, fail("EVP_PKEY_set_rsa_pss_saltlen")
 			}
 		}
 		md := cryptoHashToMD(ch)
 		if md == nil {
-			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
+			return pkey, ctx, errors.New("crypto/rsa: unsupported hash function")
 		}
 		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, md) == 0 {
-			return nil, nil, fail("EVP_PKEY_set_rsa_mgf1_md")
+			return pkey, ctx, fail("EVP_PKEY_set_rsa_mgf1_md")
 		}
 	}
 

@@ -18,6 +18,17 @@ import (
 	_ "unsafe" // for go:linkname
 )
 
+// newTimerFunc simulates NewTimer using AfterFunc,
+// but this version will not hit the special cases for channels
+// that are used when calling NewTimer.
+// This makes it easy to test both paths.
+func newTimerFunc(d Duration) *Timer {
+	c := make(chan Time, 1)
+	t := AfterFunc(d, func() { c <- Now() })
+	t.C = c
+	return t
+}
+
 // haveHighResSleep is true if the system supports at least ~1ms sleeps.
 //
 //go:linkname haveHighResSleep runtime.haveHighResSleep
@@ -52,13 +63,13 @@ func TestSleep(t *testing.T) {
 	start := Now()
 	Sleep(delay)
 	delayadj := adjustDelay(t, delay)
-	duration := Now().Sub(start)
+	duration := Since(start)
 	if duration < delayadj {
 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
 	}
 }
 
-// Test the basic function calling behavior. Correct queueing
+// Test the basic function calling behavior. Correct queuing
 // behavior is tested elsewhere, since After and AfterFunc share
 // the same code.
 func TestAfterFunc(t *testing.T) {
@@ -79,7 +90,7 @@ func TestAfterFunc(t *testing.T) {
 	<-c
 }
 
-func TestAfterStress(t *testing.T) {
+func TestTickerStress(t *testing.T) {
 	var stop atomic.Bool
 	go func() {
 		for !stop.Load() {
@@ -98,6 +109,33 @@ func TestAfterStress(t *testing.T) {
 	stop.Store(true)
 }
 
+func TestTickerConcurrentStress(t *testing.T) {
+	var stop atomic.Bool
+	go func() {
+		for !stop.Load() {
+			runtime.GC()
+			// Yield so that the OS can wake up the timer thread,
+			// so that it can generate channel sends for the main goroutine,
+			// which will eventually set stop = 1 for us.
+			Sleep(Nanosecond)
+		}
+	}()
+	ticker := NewTicker(1)
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				<-ticker.C
+			}
+		}()
+	}
+	wg.Wait()
+	ticker.Stop()
+	stop.Store(true)
+}
+
 func TestAfterFuncStarvation(t *testing.T) {
 	// Start two goroutines ping-ponging on a channel send.
 	// At any given time, at least one of these goroutines is runnable:
@@ -111,11 +149,6 @@ func TestAfterFuncStarvation(t *testing.T) {
 	// the AfterFunc goroutine instead of the runnable channel goroutine.
 	// However, in https://go.dev/issue/65178 this was observed to live-lock
 	// on wasip1/wasm and js/wasm after <10000 runs.
-
-	if runtime.GOARCH == "wasm" {
-		testenv.SkipFlaky(t, 65178)
-	}
-
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
 	var (
@@ -142,8 +175,7 @@ func TestAfterFuncStarvation(t *testing.T) {
 	wg.Wait()
 }
 
-func benchmark(b *testing.B, bench func(n int)) {
-
+func benchmark(b *testing.B, bench func(*testing.PB)) {
 	// Create equal number of garbage timers on each P before starting
 	// the benchmark.
 	var wg sync.WaitGroup
@@ -162,11 +194,7 @@ func benchmark(b *testing.B, bench func(n int)) {
 	wg.Wait()
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			bench(1000)
-		}
-	})
+	b.RunParallel(bench)
 	b.StopTimer()
 
 	for _, garbage := range garbageAll {
@@ -176,85 +204,116 @@ func benchmark(b *testing.B, bench func(n int)) {
 	}
 }
 
-func BenchmarkAfterFunc(b *testing.B) {
-	benchmark(b, func(n int) {
-		c := make(chan bool)
-		var f func()
-		f = func() {
-			n--
-			if n >= 0 {
-				AfterFunc(0, f)
-			} else {
-				c <- true
+func BenchmarkAfterFunc1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			n := 1000
+			c := make(chan bool)
+			var f func()
+			f = func() {
+				n--
+				if n >= 0 {
+					AfterFunc(0, f)
+				} else {
+					c <- true
+				}
 			}
+			AfterFunc(0, f)
+			<-c
 		}
-
-		AfterFunc(0, f)
-		<-c
 	})
 }
 
 func BenchmarkAfter(b *testing.B) {
-	benchmark(b, func(n int) {
-		for i := 0; i < n; i++ {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
 			<-After(1)
 		}
 	})
 }
 
 func BenchmarkStop(b *testing.B) {
-	benchmark(b, func(n int) {
-		for i := 0; i < n; i++ {
-			NewTimer(1 * Second).Stop()
+	b.Run("impl=chan", func(b *testing.B) {
+		benchmark(b, func(pb *testing.PB) {
+			for pb.Next() {
+				NewTimer(1 * Second).Stop()
+			}
+		})
+	})
+	b.Run("impl=func", func(b *testing.B) {
+		benchmark(b, func(pb *testing.PB) {
+			for pb.Next() {
+				newTimerFunc(1 * Second).Stop()
+			}
+		})
+	})
+}
+
+func BenchmarkSimultaneousAfterFunc1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			n := 1000
+			var wg sync.WaitGroup
+			wg.Add(n)
+			for range n {
+				AfterFunc(0, wg.Done)
+			}
+			wg.Wait()
 		}
 	})
 }
 
-func BenchmarkSimultaneousAfterFunc(b *testing.B) {
-	benchmark(b, func(n int) {
-		var wg sync.WaitGroup
-		wg.Add(n)
-		for i := 0; i < n; i++ {
-			AfterFunc(0, wg.Done)
-		}
-		wg.Wait()
-	})
-}
+func BenchmarkStartStop1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const N = 1000
+			timers := make([]*Timer, N)
+			for i := range timers {
+				timers[i] = AfterFunc(Hour, nil)
+			}
 
-func BenchmarkStartStop(b *testing.B) {
-	benchmark(b, func(n int) {
-		timers := make([]*Timer, n)
-		for i := 0; i < n; i++ {
-			timers[i] = AfterFunc(Hour, nil)
-		}
-
-		for i := 0; i < n; i++ {
-			timers[i].Stop()
+			for i := range timers {
+				timers[i].Stop()
+			}
 		}
 	})
 }
 
 func BenchmarkReset(b *testing.B) {
-	benchmark(b, func(n int) {
-		t := NewTimer(Hour)
-		for i := 0; i < n; i++ {
-			t.Reset(Hour)
-		}
-		t.Stop()
+	b.Run("impl=chan", func(b *testing.B) {
+		benchmark(b, func(pb *testing.PB) {
+			t := NewTimer(Hour)
+			for pb.Next() {
+				t.Reset(Hour)
+			}
+			t.Stop()
+		})
+	})
+	b.Run("impl=func", func(b *testing.B) {
+		benchmark(b, func(pb *testing.PB) {
+			t := newTimerFunc(Hour)
+			for pb.Next() {
+				t.Reset(Hour)
+			}
+			t.Stop()
+		})
 	})
 }
 
-func BenchmarkSleep(b *testing.B) {
-	benchmark(b, func(n int) {
-		var wg sync.WaitGroup
-		wg.Add(n)
-		for i := 0; i < n; i++ {
-			go func() {
-				Sleep(Nanosecond)
-				wg.Done()
-			}()
+func BenchmarkSleep1000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const N = 1000
+			var wg sync.WaitGroup
+			wg.Add(N)
+			for range N {
+				go func() {
+					Sleep(Nanosecond)
+					wg.Done()
+				}()
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 	})
 }
 
@@ -263,7 +322,7 @@ func TestAfter(t *testing.T) {
 	start := Now()
 	end := <-After(delay)
 	delayadj := adjustDelay(t, delay)
-	if duration := Now().Sub(start); duration < delayadj {
+	if duration := Since(start); duration < delayadj {
 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
 	}
 	if min := start.Add(delayadj); end.Before(min) {
@@ -272,6 +331,7 @@ func TestAfter(t *testing.T) {
 }
 
 func TestAfterTick(t *testing.T) {
+	t.Parallel()
 	const Count = 10
 	Delta := 100 * Millisecond
 	if testing.Short() {
@@ -293,6 +353,15 @@ func TestAfterTick(t *testing.T) {
 }
 
 func TestAfterStop(t *testing.T) {
+	t.Run("impl=chan", func(t *testing.T) {
+		testAfterStop(t, NewTimer)
+	})
+	t.Run("impl=func", func(t *testing.T) {
+		testAfterStop(t, newTimerFunc)
+	})
+}
+
+func testAfterStop(t *testing.T, newTimer func(Duration) *Timer) {
 	// We want to test that we stop a timer before it runs.
 	// We also want to test that it didn't run after a longer timer.
 	// Since we don't want the test to run for too long, we don't
@@ -308,7 +377,7 @@ func TestAfterStop(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		AfterFunc(100*Millisecond, func() {})
-		t0 := NewTimer(50 * Millisecond)
+		t0 := newTimer(50 * Millisecond)
 		c1 := make(chan bool, 1)
 		t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
 		c2 := After(200 * Millisecond)
@@ -349,13 +418,22 @@ func TestAfterStop(t *testing.T) {
 }
 
 func TestAfterQueuing(t *testing.T) {
+	t.Run("impl=chan", func(t *testing.T) {
+		testAfterQueuing(t, After)
+	})
+	t.Run("impl=func", func(t *testing.T) {
+		testAfterQueuing(t, func(d Duration) <-chan Time { return newTimerFunc(d).C })
+	})
+}
+
+func testAfterQueuing(t *testing.T, after func(Duration) <-chan Time) {
 	// This test flakes out on some systems,
 	// so we'll try it a few times before declaring it a failure.
 	const attempts = 5
 	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
 		delta := Duration(20+i*50) * Millisecond
-		if err = testAfterQueuing(delta); err != nil {
+		if err = testAfterQueuing1(delta, after); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
 		}
 	}
@@ -375,9 +453,9 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
 	result <- afterResult{slot, <-ac}
 }
 
-func testAfterQueuing(delta Duration) error {
+func testAfterQueuing1(delta Duration, after func(Duration) <-chan Time) error {
 	// make the result channel buffered because we don't want
-	// to depend on channel queueing semantics that might
+	// to depend on channel queuing semantics that might
 	// possibly change in the future.
 	result := make(chan afterResult, len(slots))
 
@@ -411,6 +489,7 @@ func TestTimerStopStress(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	t.Parallel()
 	for i := 0; i < 100; i++ {
 		go func(i int) {
 			timer := AfterFunc(2*Second, func() {
@@ -571,13 +650,29 @@ func TestZeroTimerStopPanics(t *testing.T) {
 
 // Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
 func TestZeroTimer(t *testing.T) {
+	t.Run("impl=chan", func(t *testing.T) {
+		testZeroTimer(t, NewTimer)
+	})
+	t.Run("impl=func", func(t *testing.T) {
+		testZeroTimer(t, newTimerFunc)
+	})
+	t.Run("impl=cache", func(t *testing.T) {
+		timer := newTimerFunc(Hour)
+		testZeroTimer(t, func(d Duration) *Timer {
+			timer.Reset(d)
+			return timer
+		})
+	})
+}
+
+func testZeroTimer(t *testing.T, newTimer func(Duration) *Timer) {
 	if testing.Short() {
 		t.Skip("-short")
 	}
 
 	for i := 0; i < 1000000; i++ {
 		s := Now()
-		ti := NewTimer(0)
+		ti := newTimer(0)
 		<-ti.C
 		if diff := Since(s); diff > 2*Second {
 			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
@@ -596,7 +691,7 @@ func TestTimerModifiedEarlier(t *testing.T) {
 	count := 1000
 	fail := 0
 	for i := 0; i < count; i++ {
-		timer := NewTimer(Hour)
+		timer := newTimerFunc(Hour)
 		for j := 0; j < 10; j++ {
 			if !timer.Stop() {
 				<-timer.C
@@ -643,7 +738,8 @@ func TestAdjustTimers(t *testing.T) {
 
 		switch state {
 		case 0:
-			timers[i] = NewTimer(0)
+			timers[i] = newTimerFunc(0)
+
 		case 1:
 			<-timer.C // Timer is now idle.
 
@@ -874,4 +970,22 @@ func doWork(dur Duration) {
 	start := Now()
 	for Since(start) < dur {
 	}
+}
+
+func BenchmarkAdjustTimers10000(b *testing.B) {
+	benchmark(b, func(pb *testing.PB) {
+		for pb.Next() {
+			const n = 10000
+			timers := make([]*Timer, 0, n)
+			for range n {
+				t := AfterFunc(Hour, func() {})
+				timers = append(timers, t)
+			}
+			timers[n-1].Reset(Nanosecond)
+			Sleep(Microsecond)
+			for _, t := range timers {
+				t.Stop()
+			}
+		}
+	})
 }

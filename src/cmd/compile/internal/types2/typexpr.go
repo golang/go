@@ -87,7 +87,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 
 	switch obj := obj.(type) {
 	case *PkgName:
-		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", obj.name)
+		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", quote(obj.name))
 		return
 
 	case *Const:
@@ -108,8 +108,8 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = constant_
 
 	case *TypeName:
-		if !check.enableAlias && check.isBrokenAlias(obj) {
-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+		if !check.conf.EnableAlias && check.isBrokenAlias(obj) {
+			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
 			return
 		}
 		x.mode = typexpr

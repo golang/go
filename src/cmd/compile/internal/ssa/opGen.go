@@ -2116,6 +2116,8 @@ const (
 	OpPPC64SUBFCconst
 	OpPPC64FSUB
 	OpPPC64FSUBS
+	OpPPC64XSMINJDP
+	OpPPC64XSMAXJDP
 	OpPPC64MULLD
 	OpPPC64MULLW
 	OpPPC64MULLDconst
@@ -2146,6 +2148,7 @@ const (
 	OpPPC64ADDCconst
 	OpPPC64SUBCconst
 	OpPPC64ADDE
+	OpPPC64ADDZE
 	OpPPC64SUBE
 	OpPPC64ADDZEzero
 	OpPPC64SUBZEzero
@@ -2399,13 +2402,19 @@ const (
 	OpRISCV64SRAIW
 	OpRISCV64SRLI
 	OpRISCV64SRLIW
-	OpRISCV64XOR
-	OpRISCV64XORI
-	OpRISCV64OR
-	OpRISCV64ORI
 	OpRISCV64AND
 	OpRISCV64ANDI
 	OpRISCV64NOT
+	OpRISCV64OR
+	OpRISCV64ORI
+	OpRISCV64ROL
+	OpRISCV64ROLW
+	OpRISCV64ROR
+	OpRISCV64RORI
+	OpRISCV64RORIW
+	OpRISCV64RORW
+	OpRISCV64XOR
+	OpRISCV64XORI
 	OpRISCV64SEQZ
 	OpRISCV64SNEZ
 	OpRISCV64SLT
@@ -28391,6 +28400,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "XSMINJDP",
+		argLen: 2,
+		asm:    ppc64.AXSMINJDP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+				{1, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+			},
+			outputs: []outputInfo{
+				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+			},
+		},
+	},
+	{
+		name:   "XSMAXJDP",
+		argLen: 2,
+		asm:    ppc64.AXSMAXJDP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+				{1, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+			},
+			outputs: []outputInfo{
+				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
+			},
+		},
+	},
+	{
 		name:        "MULLD",
 		argLen:      2,
 		commutative: true,
@@ -28828,6 +28865,22 @@ var opcodeTable = [...]opInfo{
 				{2, 9223372036854775808}, // XER
 				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775808, // XER
+			outputs: []outputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "ADDZE",
+		argLen: 2,
+		asm:    ppc64.AADDZE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 9223372036854775808}, // XER
+				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			clobbers: 9223372036854775808, // XER
 			outputs: []outputInfo{
@@ -32202,10 +32255,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "XOR",
+		name:        "AND",
 		argLen:      2,
 		commutative: true,
-		asm:         riscv.AXOR,
+		asm:         riscv.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -32217,10 +32270,23 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "XORI",
+		name:    "ANDI",
 		auxType: auxInt64,
 		argLen:  1,
-		asm:     riscv.AXORI,
+		asm:     riscv.AANDI,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "NOT",
+		argLen: 1,
+		asm:    riscv.ANOT,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -32260,10 +32326,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "AND",
-		argLen:      2,
-		commutative: true,
-		asm:         riscv.AAND,
+		name:   "ROL",
+		argLen: 2,
+		asm:    riscv.AROL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -32275,10 +32340,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ANDI",
+		name:   "ROLW",
+		argLen: 2,
+		asm:    riscv.AROLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "ROR",
+		argLen: 2,
+		asm:    riscv.AROR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:    "RORI",
 		auxType: auxInt64,
 		argLen:  1,
-		asm:     riscv.AANDI,
+		asm:     riscv.ARORI,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -32289,9 +32382,53 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "NOT",
-		argLen: 1,
-		asm:    riscv.ANOT,
+		name:    "RORIW",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     riscv.ARORIW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "RORW",
+		argLen: 2,
+		asm:    riscv.ARORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:        "XOR",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AXOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:    "XORI",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     riscv.AXORI,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30

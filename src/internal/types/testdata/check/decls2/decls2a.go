@@ -16,7 +16,7 @@ type T1 struct{
 
 func (T1) m() {}
 func (T1) m /* ERROR "already declared" */ () {}
-func (x *T1) f /* ERROR "field and method" */ () {}
+func (x *T1) f /* ERROR "field and method with the same name `f'" */ () {}
 
 // Conflict between embedded field and method name,
 // with the embedded field being a basic type.
@@ -30,7 +30,7 @@ type T1c struct {
 	time.Time
 }
 
-func (T1c) Time /* ERROR "field and method" */ () int { return 0 }
+func (T1c) Time /* ERROR "field and method with the same name `Time'" */ () int { return 0 }
 
 // Disabled for now: LookupFieldOrMethod will find Pointer even though
 // it's double-declared (it would cost extra in the common case to verify

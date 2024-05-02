@@ -112,3 +112,8 @@ func panicunsafeslicenilptr1(pc uintptr) {
 	panicCheck1(pc, "unsafe.Slice: ptr is nil and len is not zero")
 	panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
 }
+
+//go:linkname reflect_unsafeslice reflect.unsafeslice
+func reflect_unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+	unsafeslice(et, ptr, len)
+}

@@ -14,15 +14,7 @@ case "$GOWASIRUNTIME" in
 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	"wasmtime" | "")
-		# Match the major version in "wasmtime-cli 14.0.0". For versions before 14
-		# we need to use the old CLI. This requires Bash v3.0 and above.
-		# TODO(johanbrandhorst): Remove this condition once 1.22 is released.
-		# From 1.23 onwards we'll only support the new wasmtime CLI.
-		if [[ "$(wasmtime --version)" =~ wasmtime-cli[[:space:]]([0-9]+)\.[0-9]+\.[0-9]+ && "${BASH_REMATCH[1]}" -lt 14 ]]; then
-			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
-		else
-			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
-		fi
+		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	*)
 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"

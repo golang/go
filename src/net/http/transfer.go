@@ -16,7 +16,7 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -318,7 +318,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 			keys = append(keys, k)
 		}
 		if len(keys) > 0 {
-			sort.Strings(keys)
+			slices.Sort(keys)
 			// TODO: could do better allocation-wise here, but trailers are rare,
 			// so being lazy for now.
 			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {
@@ -1043,7 +1043,7 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
 	return bl.b.readLocked(p)
 }
 
-var laxContentLength = godebug.New("httplaxcontentlength")
+var httplaxcontentlength = godebug.New("httplaxcontentlength")
 
 // parseContentLength checks that the header is valid and then trims
 // whitespace. It returns -1 if no value is set otherwise the value
@@ -1057,8 +1057,8 @@ func parseContentLength(clHeaders []string) (int64, error) {
 	// The Content-Length must be a valid numeric value.
 	// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
 	if cl == "" {
-		if laxContentLength.Value() == "1" {
-			laxContentLength.IncNonDefault()
+		if httplaxcontentlength.Value() == "1" {
+			httplaxcontentlength.IncNonDefault()
 			return -1, nil
 		}
 		return 0, badStringError("invalid empty Content-Length", cl)

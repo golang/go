@@ -201,7 +201,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 
 // Double implements [Curve.Double].
 //
-// Deprecated: the [CurveParams】 methods are deprecated and are not guaranteed to
+// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the [crypto/ecdh] package.
 // For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
 // from [P224], [P256], [P384], or [P521].

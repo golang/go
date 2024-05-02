@@ -130,7 +130,7 @@ type Logger interface {
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
-	// Fatal reports a compiler error and exits.
+	// Fatalf reports a compiler error and exits.
 	Fatalf(pos src.XPos, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests

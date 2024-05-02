@@ -195,5 +195,5 @@ func openFdAt(dirfd int, name string) (*File, error) {
 	}
 
 	// We use kindNoPoll because we know that this is a directory.
-	return newFile(r, name, kindNoPoll), nil
+	return newFile(r, name, kindNoPoll, false), nil
 }

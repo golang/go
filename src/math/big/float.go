@@ -48,10 +48,10 @@ const debugFloat = false // enable for debugging
 //
 // By setting the desired precision to 24 or 53 and using matching rounding
 // mode (typically [ToNearestEven]), Float operations produce the same results
-// as the corresponding float32 or float64 IEEE-754 arithmetic for operands
+// as the corresponding float32 or float64 IEEE 754 arithmetic for operands
 // that correspond to normal (i.e., not denormal) float32 or float64 numbers.
 // Exponent underflow and overflow lead to a 0 or an Infinity for different
-// values than IEEE-754 because Float exponents have a much larger range.
+// values than IEEE 754 because Float exponents have a much larger range.
 //
 // The zero (uninitialized) value for a Float is ready to use and represents
 // the number +0.0 exactly, with precision 0 and rounding mode [ToNearestEven].
@@ -73,7 +73,7 @@ type Float struct {
 }
 
 // An ErrNaN panic is raised by a [Float] operation that would lead to
-// a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
+// a NaN under IEEE 754 rules. An ErrNaN implements the error interface.
 type ErrNaN struct {
 	msg string
 }

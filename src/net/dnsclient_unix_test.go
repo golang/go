@@ -25,8 +25,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var goResolver = Resolver{PreferGo: true}
-
 // Test address from 192.0.2.0/24 block, reserved by RFC 5737 for documentation.
 var TestAddr = [4]byte{0xc0, 0x00, 0x02, 0x01}
 
@@ -1230,10 +1228,11 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeTimeout := func() error {
 		return &DNSError{
-			Err:       os.ErrDeadlineExceeded.Error(),
-			Name:      name,
-			Server:    server,
-			IsTimeout: true,
+			Err:         os.ErrDeadlineExceeded.Error(),
+			Name:        name,
+			Server:      server,
+			IsTimeout:   true,
+			IsTemporary: true,
 		}
 	}
 	makeNxDomain := func() error {
@@ -1486,10 +1485,11 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 		var wantRRs int
 		if strict {
 			wantErr = &DNSError{
-				Err:       os.ErrDeadlineExceeded.Error(),
-				Name:      name,
-				Server:    server,
-				IsTimeout: true,
+				Err:         os.ErrDeadlineExceeded.Error(),
+				Name:        name,
+				Server:      server,
+				IsTimeout:   true,
+				IsTemporary: true,
 			}
 		} else {
 			wantRRs = 1

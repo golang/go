@@ -1,0 +1,1 @@
+pkg net/http, type Cookie struct, Quoted bool #46443

@@ -385,12 +385,11 @@ func TestCopyError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-
 	res, err := http.ReadResponse(bufio.NewReader(conn), req)
 	if err != nil {
 		t.Fatalf("ReadResponse: %v", err)
 	}
-
+	defer res.Body.Close()
 	var buf [5000]byte
 	n, err := io.ReadFull(res.Body, buf[:])
 	if err != nil {

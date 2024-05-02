@@ -133,7 +133,7 @@ func dumpTraceToText(t *testing.T, b []byte) string {
 		t.Fatalf("dumping trace: %v", err)
 	}
 	var sb strings.Builder
-	tw, err := raw.NewTextWriter(&sb, version.Go122)
+	tw, err := raw.NewTextWriter(&sb, version.Current)
 	if err != nil {
 		t.Fatalf("dumping trace: %v", err)
 	}

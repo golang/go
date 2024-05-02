@@ -17,7 +17,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
@@ -215,10 +215,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgo-load-profile")
-	var profile *pgo.Profile
+	var profile *pgoir.Profile
 	if base.Flag.PgoProfile != "" {
 		var err error
-		profile, err = pgo.New(base.Flag.PgoProfile)
+		profile, err = pgoir.New(base.Flag.PgoProfile)
 		if err != nil {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}

@@ -221,13 +221,19 @@ func init() {
 		{name: "SRLIW", argLength: 1, reg: gp11, asm: "SRLIW", aux: "Int64"}, // arg0 >> auxint, shift amount 0-31, logical right shift of 32 bit value, sign extended to 64 bits
 
 		// Bitwise ops
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
-		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},    // arg0 ^ auxint
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},   // arg0 | arg1
-		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},      // arg0 | auxint
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},    // arg0 & auxint
 		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                    // ^arg0
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},   // arg0 | arg1
+		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},      // arg0 | auxint
+		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                    // rotate left arg0 by (arg1 & 63)
+		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                  // rotate left least significant word of arg0 by (arg1 & 31), sign extended
+		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                    // rotate right arg0 by (arg1 & 63)
+		{name: "RORI", argLength: 1, reg: gp11, asm: "RORI", aux: "Int64"},    // rotate right arg0 by auxint, shift amount 0-63
+		{name: "RORIW", argLength: 1, reg: gp11, asm: "RORIW", aux: "Int64"},  // rotate right least significant word of arg0 by auxint, shift amount 0-31, sign extended
+		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                  // rotate right least significant word of arg0 by (arg1 & 31), sign extended
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
+		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},    // arg0 ^ auxint
 
 		// Generate boolean values
 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1

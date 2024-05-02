@@ -201,6 +201,12 @@ type Type struct {
 	intRegs, floatRegs uint8 // registers needed for ABIInternal
 
 	flags bitset8
+	alg   AlgKind // valid if Align > 0
+
+	// size of prefix of object that contains all pointers. valid if Align > 0.
+	// Note that for pointers, this is always PtrSize even if the element type
+	// is NotInHeap. See size.go:PtrDataSize for details.
+	ptrBytes int64
 
 	// For defined (named) generic types, a pointer to the list of type params
 	// (in order) of this type that need to be instantiated. For instantiated
@@ -548,6 +554,9 @@ func NewArray(elem *Type, bound int64) *Type {
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
+	if elem.NotInHeap() {
+		t.SetNotInHeap(true)
+	}
 	return t
 }
 
@@ -657,6 +666,14 @@ func NewPtr(elem *Type) *Type {
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
+	t.alg = AMEM
+	if elem.Noalg() {
+		t.SetNoalg(true)
+		t.alg = ANOALG
+	}
+	// Note: we can't check elem.NotInHeap here because it might
+	// not be set yet. See size.go:PtrDataSize.
+	t.ptrBytes = int64(PtrSize)
 	return t
 }
 
@@ -827,7 +844,7 @@ func (t *Type) wantEtype(et Kind) {
 	}
 }
 
-// ResultTuple returns the result type of signature type t as a tuple.
+// ResultsTuple returns the result type of signature type t as a tuple.
 // This can be used as the type of multi-valued call expressions.
 func (t *Type) ResultsTuple() *Type { return t.funcType().resultsTuple }
 
@@ -841,7 +858,7 @@ func (t *Type) Params() []*Field { return t.funcType().params() }
 // Results returns a slice of result parameters of signature type t.
 func (t *Type) Results() []*Field { return t.funcType().results() }
 
-// RecvsParamsResults returns a slice containing all of the
+// RecvParamsResults returns a slice containing all of the
 // signature's parameters in receiver (if any), (normal) parameters,
 // and then results.
 func (t *Type) RecvParamsResults() []*Field { return t.funcType().allParams }
@@ -1628,9 +1645,17 @@ func init() {
 func NewNamed(obj Object) *Type {
 	t := newType(TFORW)
 	t.obj = obj
-	if obj.Sym().Pkg == ShapePkg {
+	sym := obj.Sym()
+	if sym.Pkg == ShapePkg {
 		t.SetIsShape(true)
 		t.SetHasShape(true)
+	}
+	if sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
+		// Recognize the special not-in-heap type. Any type including
+		// this type will also be not-in-heap.
+		// This logic is duplicated in go/types and
+		// cmd/compile/internal/types2.
+		t.SetNotInHeap(true)
 	}
 	return t
 }
@@ -1657,6 +1682,8 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	t.extra = underlying.extra
 	t.width = underlying.width
 	t.align = underlying.align
+	t.alg = underlying.alg
+	t.ptrBytes = underlying.ptrBytes
 	t.intRegs = underlying.intRegs
 	t.floatRegs = underlying.floatRegs
 	t.underlying = underlying.underlying
@@ -1765,6 +1792,13 @@ func NewStruct(fields []*Field) *Type {
 	if fieldsHasShape(fields) {
 		t.SetHasShape(true)
 	}
+	for _, f := range fields {
+		if f.Type.NotInHeap() {
+			t.SetNotInHeap(true)
+			break
+		}
+	}
+
 	return t
 }
 

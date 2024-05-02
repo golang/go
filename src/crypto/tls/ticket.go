@@ -289,7 +289,7 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 
 // sessionState returns a partially filled-out [SessionState] with information
 // from the current connection.
-func (c *Conn) sessionState() (*SessionState, error) {
+func (c *Conn) sessionState() *SessionState {
 	return &SessionState{
 		version:           c.vers,
 		cipherSuite:       c.cipherSuite,
@@ -302,7 +302,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
 		isClient:          c.isClient,
 		extMasterSecret:   c.extMasterSecret,
 		verifiedChains:    c.verifiedChains,
-	}, nil
+	}
 }
 
 // EncryptTicket encrypts a ticket with the [Config]'s configured (or default)

@@ -188,7 +188,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	scope.Squash(func(obj, alt Object) {
 		err := check.newError(DuplicateDecl)
 		err.addf(obj, "%s redeclared in this block", obj.Name())
-		err.recordAltDecl(alt)
+		err.addAltDecl(alt)
 		err.report()
 	})
 

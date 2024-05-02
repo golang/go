@@ -14,10 +14,10 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"internal/runtime/atomic"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/internal/atomic"
 	"strings"
 	"unsafe"
 )
@@ -247,7 +247,7 @@ type pkfunc struct {
 }
 
 func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]struct{}) error {
-	// Unmarshall the information on available aux metafiles into
+	// Unmarshal the information on available aux metafiles into
 	// a MetaFileCollection struct.
 	var mfc coverage.MetaFileCollection
 	data, err := os.ReadFile(metafiles)

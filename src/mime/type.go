@@ -22,18 +22,11 @@ var (
 	extensions   sync.Map   // map[string][]string; slice values are append-only.
 )
 
-func clearSyncMap(m *sync.Map) {
-	m.Range(func(k, _ any) bool {
-		m.Delete(k)
-		return true
-	})
-}
-
 // setMimeTypes is used by initMime's non-test path, and by tests.
 func setMimeTypes(lowerExt, mixExt map[string]string) {
-	clearSyncMap(&mimeTypes)
-	clearSyncMap(&mimeTypesLower)
-	clearSyncMap(&extensions)
+	mimeTypes.Clear()
+	mimeTypesLower.Clear()
+	extensions.Clear()
 
 	for k, v := range lowerExt {
 		mimeTypesLower.Store(k, v)

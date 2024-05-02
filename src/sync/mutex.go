@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package sync provides basic synchronization primitives such as mutual
-// exclusion locks. Other than the Once and WaitGroup types, most are intended
+// exclusion locks. Other than the [Once] and [WaitGroup] types, most are intended
 // for use by low-level library routines. Higher-level synchronization is
 // better done via channels and communication.
 //
@@ -26,9 +26,9 @@ func fatal(string)
 // A Mutex must not be copied after first use.
 //
 // In the terminology of the Go memory model,
-// the n'th call to Unlock “synchronizes before” the m'th call to Lock
+// the n'th call to [Mutex.Unlock] “synchronizes before” the m'th call to [Mutex.Lock]
 // for any n < m.
-// A successful call to TryLock is equivalent to a call to Lock.
+// A successful call to [Mutex.TryLock] is equivalent to a call to Lock.
 // A failed call to TryLock does not establish any “synchronizes before”
 // relation at all.
 type Mutex struct {
@@ -206,7 +206,7 @@ func (m *Mutex) lockSlow() {
 // Unlock unlocks m.
 // It is a run-time error if m is not locked on entry to Unlock.
 //
-// A locked Mutex is not associated with a particular goroutine.
+// A locked [Mutex] is not associated with a particular goroutine.
 // It is allowed for one goroutine to lock a Mutex and then
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {

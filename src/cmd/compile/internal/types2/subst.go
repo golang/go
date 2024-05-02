@@ -421,7 +421,7 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
 	out = in
 	for i, method := range in {
-		sig := method.Type().(*Signature)
+		sig := method.Signature()
 		if sig.recv != nil && sig.recv.Type() == old {
 			if !copied {
 				// Allocate a new methods slice before mutating for the first time.

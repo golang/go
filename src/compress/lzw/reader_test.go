@@ -170,9 +170,7 @@ func TestReaderReset(t *testing.T) {
 type devZero struct{}
 
 func (devZero) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = 0
-	}
+	clear(p)
 	return len(p), nil
 }
 

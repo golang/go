@@ -424,7 +424,7 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
 	// to recreate the problem in the issue (#59041).
 	ttyFD, err := syscall.Open(ttyName, syscall.O_RDWR, 0)
 	if err != nil {
-		t.Skipf("skipping test becaused failed to open tty: %v", err)
+		t.Skipf("skipping test because failed to open tty: %v", err)
 	}
 	defer syscall.Close(ttyFD)
 
@@ -693,21 +693,20 @@ type spliceFileHook struct {
 
 	written int64
 	handled bool
-	sc      string
 	err     error
 
-	original func(dst, src *poll.FD, remain int64) (int64, bool, string, error)
+	original func(dst, src *poll.FD, remain int64) (int64, bool, error)
 }
 
 func (h *spliceFileHook) install() {
 	h.original = *PollSpliceFile
-	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, string, error) {
+	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
 		h.called = true
 		h.dstfd = dst.Sysfd
 		h.srcfd = src.Sysfd
 		h.remain = remain
-		h.written, h.handled, h.sc, h.err = h.original(dst, src, remain)
-		return h.written, h.handled, h.sc, h.err
+		h.written, h.handled, h.err = h.original(dst, src, remain)
+		return h.written, h.handled, h.err
 	}
 }
 

@@ -530,6 +530,14 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64OR(v)
 	case OpRISCV64ORI:
 		return rewriteValueRISCV64_OpRISCV64ORI(v)
+	case OpRISCV64ROL:
+		return rewriteValueRISCV64_OpRISCV64ROL(v)
+	case OpRISCV64ROLW:
+		return rewriteValueRISCV64_OpRISCV64ROLW(v)
+	case OpRISCV64ROR:
+		return rewriteValueRISCV64_OpRISCV64ROR(v)
+	case OpRISCV64RORW:
+		return rewriteValueRISCV64_OpRISCV64RORW(v)
 	case OpRISCV64SEQZ:
 		return rewriteValueRISCV64_OpRISCV64SEQZ(v)
 	case OpRISCV64SLL:
@@ -569,9 +577,11 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpRotateLeft16:
 		return rewriteValueRISCV64_OpRotateLeft16(v)
 	case OpRotateLeft32:
-		return rewriteValueRISCV64_OpRotateLeft32(v)
+		v.Op = OpRISCV64ROLW
+		return true
 	case OpRotateLeft64:
-		return rewriteValueRISCV64_OpRotateLeft64(v)
+		v.Op = OpRISCV64ROL
+		return true
 	case OpRotateLeft8:
 		return rewriteValueRISCV64_OpRotateLeft8(v)
 	case OpRound32F:
@@ -5624,6 +5634,39 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVWreg x:(ROLW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64ROLW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(RORW _ _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64RORW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(RORIW _))
+	// result: (MOVDreg x)
+	for {
+		x := v_0
+		if x.Op != OpRISCV64RORIW {
+			break
+		}
+		v.reset(OpRISCV64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWreg x:(MOVBreg _))
 	// result: (MOVDreg x)
 	for {
@@ -5993,6 +6036,102 @@ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
 		v.reset(OpRISCV64ORI)
 		v.AuxInt = int64ToAuxInt(x | y)
 		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64ROL(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROL x (MOVDconst [val]))
+	// result: (RORI [int64(int8(-val)&63)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpRISCV64RORI)
+		v.AuxInt = int64ToAuxInt(int64(int8(-val) & 63))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ROL x (NEG y))
+	// result: (ROR x y)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64NEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64ROR)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64ROLW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROLW x (MOVDconst [val]))
+	// result: (RORIW [int64(int8(-val)&31)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpRISCV64RORIW)
+		v.AuxInt = int64ToAuxInt(int64(int8(-val) & 31))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ROLW x (NEG y))
+	// result: (RORW x y)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64NEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64RORW)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64ROR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ROR x (MOVDconst [val]))
+	// result: (RORI [int64(val&63)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpRISCV64RORI)
+		v.AuxInt = int64ToAuxInt(int64(val & 63))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64RORW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (RORW x (MOVDconst [val]))
+	// result: (RORIW [int64(val&31)] x)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64MOVDconst {
+			break
+		}
+		val := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpRISCV64RORIW)
+		v.AuxInt = int64ToAuxInt(int64(val & 31))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -6686,48 +6825,6 @@ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {
 		v4.AddArg(v5)
 		v2.AddArg2(v3, v4)
 		v.AddArg2(v0, v2)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpRotateLeft32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (RotateLeft32 <t> x y)
-	// result: (OR (SLLW <t> x y) (SRLW <t> x (NEG <y.Type> y)))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64OR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLW, t)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, OpRISCV64SRLW, t)
-		v2 := b.NewValue0(v.Pos, OpRISCV64NEG, y.Type)
-		v2.AddArg(y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpRotateLeft64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (RotateLeft64 <t> x y)
-	// result: (OR (SLL <t> x y) (SRL <t> x (NEG <y.Type> y)))
-	for {
-		t := v.Type
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64OR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64SLL, t)
-		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, OpRISCV64SRL, t)
-		v2 := b.NewValue0(v.Pos, OpRISCV64NEG, y.Type)
-		v2.AddArg(y)
-		v1.AddArg2(x, v2)
-		v.AddArg2(v0, v1)
 		return true
 	}
 }

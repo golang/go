@@ -8,6 +8,7 @@ package ld
 
 import (
 	"debug/elf"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -180,5 +181,231 @@ func main() {
 		if section.Offset >= p.Off && section.Offset < p.Off+p.Filesz {
 			t.Fatalf("badly formed .shstrtab, is contained in segment %d", idx)
 		}
+	}
+}
+
+func TestElfBindNow(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+
+	const (
+		prog = `package main; func main() {}`
+		// with default buildmode code compiles in a statically linked binary, hence CGO
+		progC = `package main; import "C"; func main() {}`
+	)
+
+	// Notes:
+	// - for linux/amd64 and linux/arm64, for relro we'll always see a
+	//   .got section when building with -buildmode=pie (in addition
+	//   to .dynamic); for some other less mainstream archs (ppc64le,
+	//   s390) this is not the case (on ppc64le for example we only
+	//   see got refs from C objects). Hence we put ".dynamic" in the
+	//   'want RO' list below and ".got" in the 'want RO if present".
+	// - when using the external linker, checking for read-only ".got"
+	//   is problematic since some linkers will only make the .got
+	//   read-only if its size is above a specific threshold, e.g.
+	//   https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/scripttempl/elf.sc;h=d5022fa502f24db23f396f337a6c8978fbc8415b;hb=6fde04116b4b835fa9ec3b3497fcac4e4a0637e2#l74 . For this reason, don't try to verify read-only .got
+	//   in the external linking case.
+
+	tests := []struct {
+		name                 string
+		args                 []string
+		prog                 string
+		wantSecsRO           []string
+		wantSecsROIfPresent  []string
+		mustHaveBuildModePIE bool
+		mustHaveCGO          bool
+		mustInternalLink     bool
+		wantDfBindNow        bool
+		wantDf1Now           bool
+		wantDf1Pie           bool
+	}{
+		{name: "default", prog: prog},
+		{
+			name:                 "pie-linkmode-internal",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=internal"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			mustInternalLink:     true,
+			wantDf1Pie:           true,
+			wantSecsRO:           []string{".dynamic"},
+			wantSecsROIfPresent:  []string{".got"},
+		},
+		{
+			name:             "bindnow-linkmode-internal",
+			args:             []string{"-ldflags", "-bindnow -linkmode=internal"},
+			prog:             progC,
+			mustHaveCGO:      true,
+			mustInternalLink: true,
+			wantDfBindNow:    true,
+			wantDf1Now:       true,
+		},
+		{
+			name:                 "bindnow-pie-linkmode-internal",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=internal"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			mustInternalLink:     true,
+			wantDfBindNow:        true,
+			wantDf1Now:           true,
+			wantDf1Pie:           true,
+			wantSecsRO:           []string{".dynamic"},
+			wantSecsROIfPresent:  []string{".got", ".got.plt"},
+		},
+		{
+			name:                 "bindnow-pie-linkmode-external",
+			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=external"},
+			prog:                 prog,
+			mustHaveBuildModePIE: true,
+			mustHaveCGO:          true,
+			wantDfBindNow:        true,
+			wantDf1Now:           true,
+			wantDf1Pie:           true,
+			wantSecsRO:           []string{".dynamic"},
+		},
+	}
+
+	gotDynFlag := func(flags []uint64, dynFlag uint64) bool {
+		for _, flag := range flags {
+			if gotFlag := dynFlag&flag != 0; gotFlag {
+				return true
+			}
+		}
+		return false
+	}
+
+	segContainsSec := func(p *elf.Prog, s *elf.Section) bool {
+		return s.Addr >= p.Vaddr &&
+			s.Addr+s.FileSize <= p.Vaddr+p.Filesz
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.mustInternalLink {
+				testenv.MustInternalLink(t, test.mustHaveCGO)
+			}
+			if test.mustHaveCGO {
+				testenv.MustHaveCGO(t)
+			}
+			if test.mustHaveBuildModePIE {
+				testenv.MustHaveBuildMode(t, "pie")
+			}
+			if test.mustHaveBuildModePIE && test.mustInternalLink {
+				testenv.MustInternalLinkPIE(t)
+			}
+
+			var (
+				dir     = t.TempDir()
+				src     = filepath.Join(dir, fmt.Sprintf("elf_%s.go", test.name))
+				binFile = filepath.Join(dir, test.name)
+			)
+
+			if err := os.WriteFile(src, []byte(test.prog), 0666); err != nil {
+				t.Fatal(err)
+			}
+
+			cmdArgs := append([]string{"build", "-o", binFile}, append(test.args, src)...)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), cmdArgs...)
+
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("failed to build %v: %v:\n%s", cmd.Args, err, out)
+			}
+
+			fi, err := os.Open(binFile)
+			if err != nil {
+				t.Fatalf("failed to open built file: %v", err)
+			}
+			defer fi.Close()
+
+			elfFile, err := elf.NewFile(fi)
+			if err != nil {
+				t.Skip("The system may not support ELF, skipped.")
+			}
+			defer elfFile.Close()
+
+			flags, err := elfFile.DynValue(elf.DT_FLAGS)
+			if err != nil {
+				t.Fatalf("failed to get DT_FLAGS: %v", err)
+			}
+
+			flags1, err := elfFile.DynValue(elf.DT_FLAGS_1)
+			if err != nil {
+				t.Fatalf("failed to get DT_FLAGS_1: %v", err)
+			}
+
+			gotDfBindNow := gotDynFlag(flags, uint64(elf.DF_BIND_NOW))
+			gotDf1Now := gotDynFlag(flags1, uint64(elf.DF_1_NOW))
+
+			bindNowFlagsMatch := gotDfBindNow == test.wantDfBindNow && gotDf1Now == test.wantDf1Now
+
+			// some external linkers may set one of the two flags but not both.
+			if !test.mustInternalLink {
+				bindNowFlagsMatch = gotDfBindNow == test.wantDfBindNow || gotDf1Now == test.wantDf1Now
+			}
+
+			if !bindNowFlagsMatch {
+				t.Fatalf("Dynamic flags mismatch:\n"+
+					"DT_FLAGS BIND_NOW	got: %v,	want: %v\n"+
+					"DT_FLAGS_1 DF_1_NOW	got: %v,	want: %v",
+					gotDfBindNow, test.wantDfBindNow, gotDf1Now, test.wantDf1Now)
+			}
+
+			if gotDf1Pie := gotDynFlag(flags1, uint64(elf.DF_1_PIE)); gotDf1Pie != test.wantDf1Pie {
+				t.Fatalf("DT_FLAGS_1 DF_1_PIE got: %v, want: %v", gotDf1Pie, test.wantDf1Pie)
+			}
+
+			wsrolists := [][]string{test.wantSecsRO, test.wantSecsROIfPresent}
+			for k, wsrolist := range wsrolists {
+				for _, wsroname := range wsrolist {
+					// Locate section of interest.
+					var wsro *elf.Section
+					for _, s := range elfFile.Sections {
+						if s.Name == wsroname {
+							wsro = s
+							break
+						}
+					}
+					if wsro == nil {
+						if k == 0 {
+							t.Fatalf("test %s: can't locate %q section",
+								test.name, wsroname)
+						}
+						continue
+					}
+
+					// Now walk the program headers. Section should be part of
+					// some segment that is readonly.
+					foundRO := false
+					foundSegs := []*elf.Prog{}
+					for _, p := range elfFile.Progs {
+						if segContainsSec(p, wsro) {
+							foundSegs = append(foundSegs, p)
+							if p.Flags == elf.PF_R {
+								foundRO = true
+							}
+						}
+					}
+					if !foundRO {
+						// Things went off the rails. Write out some
+						// useful information for a human looking at the
+						// test failure.
+						t.Logf("test %s: %q section not in readonly segment",
+							wsro.Name, test.name)
+						t.Logf("section %s location: st=0x%x en=0x%x\n",
+							wsro.Name, wsro.Addr, wsro.Addr+wsro.FileSize)
+						t.Logf("sec %s found in these segments: ", wsro.Name)
+						for _, p := range foundSegs {
+							t.Logf(" %q", p.Type)
+						}
+						t.Logf("\nall segments: \n")
+						for k, p := range elfFile.Progs {
+							t.Logf("%d t=%s fl=%s st=0x%x en=0x%x\n",
+								k, p.Type, p.Flags, p.Vaddr, p.Vaddr+p.Filesz)
+						}
+						t.Fatalf("test %s failed", test.name)
+					}
+				}
+			}
+		})
 	}
 }

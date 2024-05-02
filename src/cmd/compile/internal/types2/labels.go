@@ -28,9 +28,11 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
 			msg = "goto %s jumps into block"
 			alt.(*Label).used = true // avoid another error
 			code = JumpIntoBlock
+			// don't quote name here because "goto L" matches the code
 		} else {
 			msg = "label %s not declared"
 			code = UndeclaredLabel
+			name = quote(name)
 		}
 		check.errorf(jmp.Label, code, msg, name)
 	}
@@ -39,7 +41,7 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
 	for name, obj := range all.elems {
 		obj = resolve(name, obj)
 		if lbl := obj.(*Label); !lbl.used {
-			check.softErrorf(lbl.pos, UnusedLabel, "label %s declared and not used", lbl.name)
+			check.softErrorf(lbl.pos, UnusedLabel, "label %s declared and not used", quote(lbl.name))
 		}
 	}
 }
@@ -135,8 +137,8 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				if alt := all.Insert(lbl); alt != nil {
 					err := check.newError(DuplicateLabel)
 					err.soft = true
-					err.addf(lbl.pos, "label %s already declared", name)
-					err.recordAltDecl(alt)
+					err.addf(lbl.pos, "label %s already declared", quote(name))
+					err.addAltDecl(alt)
 					err.report()
 					// ok to continue
 				} else {
@@ -191,7 +193,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 					}
 				}
 				if !valid {
-					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", name)
+					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", quote(name))
 					return
 				}
 
@@ -206,7 +208,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 					}
 				}
 				if !valid {
-					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", name)
+					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", quote(name))
 					return
 				}
 

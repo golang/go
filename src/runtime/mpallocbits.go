@@ -85,18 +85,14 @@ func (b *pageBits) clearRange(i, n uint) {
 	_ = b[j/64]
 	// Clear leading bits.
 	b[i/64] &^= ^uint64(0) << (i % 64)
-	for k := i/64 + 1; k < j/64; k++ {
-		b[k] = 0
-	}
+	clear(b[i/64+1 : j/64])
 	// Clear trailing bits.
 	b[j/64] &^= (uint64(1) << (j%64 + 1)) - 1
 }
 
 // clearAll frees all the bits of b.
 func (b *pageBits) clearAll() {
-	for i := range b {
-		b[i] = 0
-	}
+	clear(b[:])
 }
 
 // clearBlock64 clears the 64-bit aligned block of bits containing the i'th bit that

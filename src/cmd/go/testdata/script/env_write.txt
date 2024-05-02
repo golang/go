@@ -65,14 +65,16 @@ go env -u GOPATH
 ! stderr .+
 
 # go env -w rejects unknown or bad variables
-! go env -w GODEBUG=gctrace=1
-stderr 'unknown go command variable GODEBUG'
+! go env -w GOGC=off
+stderr 'unknown go command variable GOGC'
 ! go env -w GOEXE=.bat
 stderr 'GOEXE cannot be modified'
 ! go env -w GOVERSION=customversion
 stderr 'GOVERSION cannot be modified'
 ! go env -w GOENV=/env
 stderr 'GOENV can only be set using the OS environment'
+! go env -w GODEBUG=gctrace=1
+stderr 'GODEBUG can only be set using the OS environment'
 
 # go env -w can set multiple variables
 env CC=

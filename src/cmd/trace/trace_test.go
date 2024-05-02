@@ -7,16 +7,12 @@
 package main
 
 import (
-	"context"
 	"internal/trace"
 	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
 	"io"
-	rtrace "runtime/trace"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 )
 
 // stacks is a fake stack map populated for test.
@@ -178,93 +174,5 @@ func TestPreemptedMarkAssist(t *testing.T) {
 
 	if marks != 2 {
 		t.Errorf("Got %v MARK ASSIST events, want %v", marks, 2)
-	}
-}
-
-func TestFoo(t *testing.T) {
-	prog0 := func() {
-		ctx, task := rtrace.NewTask(context.Background(), "ohHappyDay")
-		rtrace.Log(ctx, "", "log before task ends")
-		task.End()
-		rtrace.Log(ctx, "", "log after task ends") // log after task ends
-	}
-	if err := traceProgram(t, prog0, "TestFoo"); err != nil {
-		t.Fatalf("failed to trace the program: %v", err)
-	}
-	res, err := parseTrace()
-	if err != nil {
-		t.Fatalf("failed to parse the trace: %v", err)
-	}
-	annotRes, _ := analyzeAnnotations()
-	var task *taskDesc
-	for _, t := range annotRes.tasks {
-		if t.name == "ohHappyDay" {
-			task = t
-			break
-		}
-	}
-	if task == nil {
-		t.Fatal("failed to locate expected task event")
-	}
-
-	params := &traceParams{
-		parsed:    res,
-		mode:      traceviewer.ModeTaskOriented,
-		startTime: task.firstTimestamp() - 1,
-		endTime:   task.lastTimestamp() + 1,
-		tasks:     []*taskDesc{task},
-	}
-
-	c := traceviewer.ViewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
-
-	var logBeforeTaskEnd, logAfterTaskEnd bool
-	c.ConsumeViewerEvent = func(ev *format.Event, _ bool) {
-		if ev.Name == "log before task ends" {
-			logBeforeTaskEnd = true
-		}
-		if ev.Name == "log after task ends" {
-			logAfterTaskEnd = true
-		}
-	}
-	if err := generateTrace(params, c); err != nil {
-		t.Fatalf("generateTrace failed: %v", err)
-	}
-	if !logBeforeTaskEnd {
-		t.Error("failed to find 'log before task ends'")
-	}
-	if !logAfterTaskEnd {
-		t.Error("failed to find 'log after task ends'")
-	}
-
-}
-
-func TestDirectSemaphoreHandoff(t *testing.T) {
-	prog0 := func() {
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		mu.Lock()
-		// This is modeled after src/sync/mutex_test.go to trigger Mutex
-		// starvation mode, in which the goroutine that calls Unlock hands off
-		// both the semaphore and its remaining time slice. See issue 36186.
-		for i := 0; i < 2; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for i := 0; i < 100; i++ {
-					mu.Lock()
-					time.Sleep(100 * time.Microsecond)
-					mu.Unlock()
-				}
-			}()
-		}
-		mu.Unlock()
-		wg.Wait()
-	}
-	if err := traceProgram(t, prog0, "TestDirectSemaphoreHandoff"); err != nil {
-		t.Fatalf("failed to trace the program: %v", err)
-	}
-	_, err := parseTrace()
-	if err != nil {
-		t.Fatalf("failed to parse the trace: %v", err)
 	}
 }

@@ -89,7 +89,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 		var params []*Var
 		var reverse bool
 		if T != nil && sig.tparams != nil {
-			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
 				if ix != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
 				} else {
@@ -374,7 +374,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
-	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
+	if n > 0 && check.allowVersion(elist[0], go1_21) {
 		infer = false
 	}
 
@@ -542,7 +542,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	// collect type parameters of callee
 	n := sig.TypeParams().Len()
 	if n > 0 {
-		if !check.allowVersion(check.pkg, call, go1_18) {
+		if !check.allowVersion(call, go1_18) {
 			switch call.Fun.(type) {
 			case *ast.IndexExpr, *ast.IndexListExpr:
 				ix := typeparams.UnpackIndexExpr(call.Fun)
@@ -722,7 +722,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", sel, pkg.name)
+					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
 					// ok to continue
 				}
 			}
@@ -770,7 +770,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 	case typexpr:
 		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && def.typ == x.typ {
-			check.cycleError([]Object{def})
+			check.cycleError([]Object{def}, 0)
 			goto Error
 		}
 	case builtin:

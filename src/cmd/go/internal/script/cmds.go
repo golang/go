@@ -916,7 +916,7 @@ func removeAll(dir string) error {
 }
 
 // Sleep sleeps for the given Go duration or until the script's context is
-// cancelled, whichever happens first.
+// canceled, whichever happens first.
 func Sleep() Cmd {
 	return Command(
 		CmdUsage{

@@ -202,7 +202,7 @@ func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) boo
 	if alt := oset.insert(obj); alt != nil {
 		err := check.newError(DuplicateDecl)
 		err.addf(pos, "%s redeclared", obj.Name())
-		err.recordAltDecl(alt)
+		err.addAltDecl(alt)
 		err.report()
 		return false
 	}

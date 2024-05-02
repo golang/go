@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
-		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
+		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", quote(v.name))
 	}
 
 	for _, scope := range scope.children {
@@ -496,7 +496,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
 					err := check.newError(OutOfScopeResult)
-					err.addf(s, "result parameter %s not in scope at return", obj.name)
+					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
 					err.addf(alt, "inner declaration of %s", obj)
 					err.report()
 					// ok to continue
@@ -858,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(check.pkg, x.expr, v)
+			return check.allowVersion(x.expr, v)
 		})
 		switch {
 		case !ok && cause != "":
@@ -923,19 +923,26 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
+			assert(obj.typ == nil)
+
+			// initialize lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				obj.typ = Typ[Invalid]
+				obj.used = true // don't complain about unused variable
+				continue
+			}
 
 			// initialize lhs variable
 			if constIntRange {
 				check.initVar(obj, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ
 				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
-			} else {
-				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
 			}
+			assert(obj.typ != nil)
 		}
 
 		// declare variables
@@ -954,9 +961,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				continue
 			}
 
+			// assign to lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				continue
+			}
+
 			if constIntRange {
 				check.assignVar(lhs, nil, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
+			} else {
 				x.mode = value
 				x.expr = lhs // we don't have a better rhs expression to use here
 				x.typ = typ

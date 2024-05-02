@@ -199,8 +199,10 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 
 func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		check.errorf(atPos(pos), DuplicateDecl, "%s redeclared", obj.Name())
-		check.reportAltDecl(alt)
+		err := check.newError(DuplicateDecl)
+		err.addf(atPos(pos), "%s redeclared", obj.Name())
+		err.addAltDecl(alt)
+		err.report()
 		return false
 	}
 	return true

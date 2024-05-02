@@ -18,15 +18,23 @@ import (
 )
 
 // maxArgs is the maximum number of arguments for "plain" events,
-// i.e. anything that could reasonably be represented as a Base.
-const maxArgs = 5
+// i.e. anything that could reasonably be represented as a baseEvent.
+//
+// TODO(mknyszek): This is only 6 instead of 5 because GoStatusStack
+// has 5 arguments and needs to smuggle in a 6th. Figure out a way to
+// shrink this in the future.
+const maxArgs = 6
+
+// timedEventArgs is an array that is able to hold the arguments for any
+// timed event.
+type timedEventArgs [maxArgs - 1]uint64
 
 // baseEvent is the basic unprocessed event. This serves as a common
 // fundamental data structure across.
 type baseEvent struct {
 	typ  event.Type
 	time Time
-	args [maxArgs - 1]uint64
+	args timedEventArgs
 }
 
 // extra returns a slice representing extra available space in args

@@ -10,6 +10,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -158,8 +159,8 @@ func ExampleOr_sort() {
 	// Sort by customer first, product second, and last by higher price
 	slices.SortFunc(orders, func(a, b Order) int {
 		return cmp.Or(
-			cmp.Compare(a.Customer, b.Customer),
-			cmp.Compare(a.Product, b.Product),
+			strings.Compare(a.Customer, b.Customer),
+			strings.Compare(a.Product, b.Product),
 			cmp.Compare(b.Price, a.Price),
 		)
 	})

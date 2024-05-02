@@ -309,16 +309,24 @@ func (a nodeQueue) Swap(i, j int) {
 
 func (a nodeQueue) Less(i, j int) bool {
 	x, y := a[i], a[j]
+
+	// Prioritize all constants before non-constants. See go.dev/issue/66575/.
+	_, xConst := x.obj.(*Const)
+	_, yConst := y.obj.(*Const)
+	if xConst != yConst {
+		return xConst
+	}
+
 	// nodes are prioritized by number of incoming dependencies (1st key)
 	// and source order (2nd key)
 	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
-func (a *nodeQueue) Push(x interface{}) {
+func (a *nodeQueue) Push(x any) {
 	panic("unreachable")
 }
 
-func (a *nodeQueue) Pop() interface{} {
+func (a *nodeQueue) Pop() any {
 	n := len(*a)
 	x := (*a)[n-1]
 	x.index = -1 // for safety

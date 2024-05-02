@@ -92,6 +92,7 @@ func New(o *Options) (*Jar, error) {
 type entry struct {
 	Name       string
 	Value      string
+	Quoted     bool
 	Domain     string
 	Path       string
 	SameSite   string
@@ -220,7 +221,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		return s[i].seqNum < s[j].seqNum
 	})
 	for _, e := range selected {
-		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value})
+		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value, Quoted: e.Quoted})
 	}
 
 	return cookies
@@ -362,6 +363,13 @@ func jarKey(host string, psl PublicSuffixList) string {
 
 // isIP reports whether host is an IP address.
 func isIP(host string) bool {
+	if strings.ContainsAny(host, ":%") {
+		// Probable IPv6 address.
+		// Hostnames can't contain : or %, so this is definitely not a valid host.
+		// Treating it as an IP is the more conservative option, and avoids the risk
+		// of interpreting ::1%.www.example.com as a subdomain of www.example.com.
+		return true
+	}
 	return net.ParseIP(host) != nil
 }
 
@@ -422,6 +430,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 	}
 
 	e.Value = c.Value
+	e.Quoted = c.Quoted
 	e.Secure = c.Secure
 	e.HttpOnly = c.HttpOnly
 

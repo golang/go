@@ -60,7 +60,7 @@ type gState[R resource] struct {
 	}
 
 	// startBlockReason is the StateTransition.Reason of the most recent
-	// event that caused a gorotuine to transition to GoWaiting.
+	// event that caused a goroutine to transition to GoWaiting.
 	startBlockReason string
 
 	// startCause is the event that allowed this goroutine to start running.

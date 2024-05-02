@@ -52,6 +52,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// Hex constant 0xFFFFFFFE00000001
 	MOVD $-8589934591, R5           // 38a0ffff or 0602000038a00001
 
+	// For #66955. Verify this opcode turns into a load and assembles.
+	MOVD $-6795364578871345152, R5  // 3ca00000e8a50000 or 04100000e4a00000
+
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a
@@ -90,6 +93,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
 	MOVHBR (R3)(R0), R5             // 7ca01e2c
 	MOVHBR (R3), R5                 // 7ca01e2c
+	OR $0, R0, R0
 	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40 or 0600ef0038a1cc40
 	MOVD $foo(SB), R5               // 3ca0000038a50000 or 0610000038a00000
 
@@ -192,8 +196,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	//      this is OK since r0 == $0, but the latter is preferred.
 	ADD $0, R6, R5             	// 7ca60214
 
-	ADD $1234567, R5                // 641f001263ffd6877cbf2a14 or 0600001238a5d687
-	ADD $1234567, R5, R6            // 641f001263ffd6877cdf2a14 or 0600001238c5d687
+        //TODO: the assembler rewrites these into ADDIS $19, R5, Rx and ADD $-10617, Rx, Rx, but the test only sees the first ADDIS
+	ADD $1234567, R5                // 3ca50013 or 0600001238a5d687
+	ADD $1234567, R5, R6            // 3cc50013 or 0600001238c5d687
+
 	ADDEX R3, R5, $3, R6            // 7cc32f54
 	ADDEX R3, $3, R5, R6            // 7cc32f54
 	ADDIS $8, R3                    // 3c630008
@@ -230,10 +236,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	OR $-32767, R5, R6              // 3be080017fe62b78
 	OR $-32768, R6                  // 3be080007fe63378
 	OR $-32768, R6, R7              // 3be080007fe73378
-	OR $1234567, R5                 // 641f001263ffd6877fe52b78
-	OR $1234567, R5, R3             // 641f001263ffd6877fe32b78
+	OR $1234567, R5                 // 64a5001260a5d687
+	OR $1234567, R5, R3             // 64a300126063d687
 	OR $2147483648, R5, R3          // 64a38000
-	OR $2147483649, R5, R3          // 641f800063ff00017fe32b78
+	OR $2147483649, R5, R3          // 64a3800060630001
 	ORIS $255, R3, R4               // 646400ff
 	OR $16711680, R3, R4            // 646400ff
 
@@ -249,8 +255,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XOR $-32767, R5, R6             // 3be080017fe62a78
 	XOR $-32768, R6                 // 3be080007fe63278
 	XOR $-32768, R6, R7             // 3be080007fe73278
-	XOR $1234567, R5                // 641f001263ffd6877fe52a78
-	XOR $1234567, R5, R3            // 641f001263ffd6877fe32a78
+	XOR $1234567, R5                // 6ca5001268a5d687
+	XOR $1234567, R5, R3            // 6ca300126863d687
 	XORIS $15, R3, R4               // 6c64000f
 	XOR   $983040, R3, R4           // 6c64000f
 
@@ -1131,7 +1137,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100
-	VCLZLSBB V1, R2			// 10400e02
-	VCTZLSBB V1, R2			// 10410e02
+	VCLZLSBB V1,R2                  // 10400e02
+	VCTZLSBB V1,R2                  // 10410e02
+
+	XSMAXJDP VS1,VS2,VS3            // f0611480
+	XSMINJDP VS1,VS2,VS3            // f06114c0
 
 	RET

@@ -26,8 +26,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -553,31 +552,44 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
 			// This object is not marked and has at least one special record.
-			// Pass 1: see if it has at least one finalizer.
-			hasFin := false
+			// Pass 1: see if it has a finalizer.
+			hasFinAndRevived := false
 			endOffset := p - s.base() + size
 			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
 					mbits.setMarkedNonAtomic()
-					hasFin = true
+					hasFinAndRevived = true
 					break
 				}
 			}
-			// Pass 2: queue all finalizers _or_ handle profile record.
-			for siter.valid() && uintptr(siter.s.offset) < endOffset {
-				// Find the exact byte for which the special was setup
-				// (as opposed to object beginning).
-				special := siter.s
-				p := s.base() + uintptr(special.offset)
-				if special.kind == _KindSpecialFinalizer || !hasFin {
+			if hasFinAndRevived {
+				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
+				// before finalization as specified by the internal/weak package. See the documentation
+				// for that package for more details.
+				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+					// Find the exact byte for which the special was setup
+					// (as opposed to object beginning).
+					special := siter.s
+					p := s.base() + uintptr(special.offset)
+					if special.kind == _KindSpecialFinalizer || special.kind == _KindSpecialWeakHandle {
+						siter.unlinkAndNext()
+						freeSpecial(special, unsafe.Pointer(p), size)
+					} else {
+						// All other specials only apply when an object is freed,
+						// so just keep the special record.
+						siter.next()
+					}
+				}
+			} else {
+				// Pass 2: the object is truly dead, free (and handle) all specials.
+				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+					// Find the exact byte for which the special was setup
+					// (as opposed to object beginning).
+					special := siter.s
+					p := s.base() + uintptr(special.offset)
 					siter.unlinkAndNext()
 					freeSpecial(special, unsafe.Pointer(p), size)
-				} else {
-					// The object has finalizers, so we're keeping it alive.
-					// All other specials only apply when an object is freed,
-					// so just keep the special record.
-					siter.next()
 				}
 			}
 		} else {
@@ -790,8 +802,8 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
-				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
+			if s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
+				// The unrolled GCProg bitmap is allocated separately.
 				// Free the space for the unrolled bitmap.
 				systemstack(func() {
 					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
