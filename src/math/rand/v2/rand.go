@@ -253,7 +253,7 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 
 // globalRand is the source of random numbers for the top-level
 // convenience functions.
-var globalRand = &Rand{src: &runtimeSource{}}
+var globalRand = &Rand{src: runtimeSource{}}
 
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
@@ -261,7 +261,7 @@ func runtime_rand() uint64
 // runtimeSource is a Source that uses the runtime fastrand functions.
 type runtimeSource struct{}
 
-func (*runtimeSource) Uint64() uint64 {
+func (runtimeSource) Uint64() uint64 {
 	return runtime_rand()
 }
 
