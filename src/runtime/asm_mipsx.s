@@ -204,6 +204,29 @@ noswitch:
 	ADD	$4, R29
 	JMP	(R4)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVW	fn+0(FP), REGCTXT	// context register
+	MOVW	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVW	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)
+	MOVW	R2, g_m(g)	// g.m = curm
+	MOVW	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVW	(g_stack+stack_hi)(g), R2
+	ADDU	$(-4*8), R2, R29
+
+	// call target function
+	MOVW	0(REGCTXT), R25
+	JAL	(R25)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -217,6 +240,13 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVW	R29, (g_sched+gobuf_sp)(g)
+	MOVW	R31, (g_sched+gobuf_pc)(g)
+	MOVW	R3, (g_sched+gobuf_lr)(g)
+	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R7
 	MOVW	m_g0(R7), R8
@@ -229,13 +259,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	g, R8, 3(PC)
 	JAL	runtime·badmorestackgsignal(SB)
 	JAL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVW	R29, (g_sched+gobuf_sp)(g)
-	MOVW	R31, (g_sched+gobuf_pc)(g)
-	MOVW	R3, (g_sched+gobuf_lr)(g)
-	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
