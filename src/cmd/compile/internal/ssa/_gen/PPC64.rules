@@ -322,11 +322,11 @@
 (If (FGreaterThan cc) yes no) => (FGT cc yes no)
 (If (FGreaterEqual cc) yes no) => (FGE cc yes no)
 
-(If cond yes no) => (NE (CMPWconst [0] (Select0 <typ.UInt32> (ANDCCconst [1] cond))) yes no)
+(If cond yes no) => (NE (Select1 <types.TypeFlags> (ANDCCconst [1] cond)) yes no)
 
 // Absorb boolean tests into block
-(NE (CMPWconst [0] (Select0 (ANDCCconst [1] ((Equal|NotEqual|LessThan|LessEqual|GreaterThan|GreaterEqual) cc)))) yes no) => ((EQ|NE|LT|LE|GT|GE) cc yes no)
-(NE (CMPWconst [0] (Select0 (ANDCCconst [1] ((FLessThan|FLessEqual|FGreaterThan|FGreaterEqual) cc)))) yes no) => ((FLT|FLE|FGT|FGE) cc yes no)
+(NE (Select1 (ANDCCconst [1] ((Equal|NotEqual|LessThan|LessEqual|GreaterThan|GreaterEqual) cc))) yes no) => ((EQ|NE|LT|LE|GT|GE) cc yes no)
+(NE (Select1 (ANDCCconst [1] ((FLessThan|FLessEqual|FGreaterThan|FGreaterEqual) cc))) yes no) => ((FLT|FLE|FGT|FGE) cc yes no)
 
 // absorb flag constants into branches
 (EQ (FlagEQ) yes no) => (First yes no)
@@ -894,6 +894,9 @@
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 ((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
+// n is always a zero-extended uint16 value, so n & z is always a non-negative 32 or 64 bit value. Use the flag result of ANDCCconst.
+((CMP|CMPW|CMPU|CMPWU)const [0] (Select0 a:(ANDCCconst [n] z))) => (Select1 <types.TypeFlags> a)
+
 // SETBC auxInt values 0=LT 1=GT 2=EQ   Crbit==1 ? 1 : 0
 // SETBCR auxInt values 0=LT 1=GT 2=EQ   Crbit==1 ? 0 : 1
 (Equal cmp) => (SETBC [2] cmp)
@@ -950,8 +953,6 @@
 (ISEL [4] x _ (Flag(EQ|GT))) => x
 (ISEL [4] _ y (FlagLT)) => y
 
-(ISEL [2] x y ((CMP|CMPW)const [0] (Select0 (ANDCCconst [n] z)))) => (ISEL [2] x y (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
-(ISEL [6] x y ((CMP|CMPW)const [0] (Select0 (ANDCCconst [n] z)))) => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
 (SETBC [n] (InvertFlags bool)) => (SETBCR [n] bool)
 (SETBCR [n] (InvertFlags bool)) => (SETBC [n] bool)
 
@@ -961,11 +962,8 @@
 (XORconst [1] (SETBCR [n] cmp)) => (SETBC [n] cmp)
 (XORconst [1] (SETBC [n] cmp)) => (SETBCR [n] cmp)
 
-(SETBC [2] ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (XORconst [1] (Select0 <typ.UInt64> (ANDCCconst [1] z )))
-(SETBCR [2] ((CMP|CMPW)const [0] (Select0 (ANDCCconst [1] z)))) => (Select0 <typ.UInt64> (ANDCCconst [1] z ))
-
-(SETBC [2] (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (SETBC [2] (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
-(SETBCR [2] (CMPWconst [0] (Select0 (ANDCCconst [n] z)))) => (SETBCR [2] (Select1 <types.TypeFlags> (ANDCCconst [n] z )))
+(SETBC  [2] (Select1 a:(ANDCCconst <t> [1] _))) => (XORconst [1] (Select0 <t.FieldType(0)> a))
+(SETBCR [2] (Select1 a:(ANDCCconst     [1] _))) => (Select0 a)
 
 // Only CMPconst for these in case AND|OR|XOR result is > 32 bits
 (SETBC [2] (CMPconst [0] a:(AND y z))) && a.Uses == 1 => (SETBC [2] (Select1 <types.TypeFlags> (ANDCC y z )))
