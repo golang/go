@@ -187,7 +187,7 @@ func (o OID) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements [encoding.BinaryUnmarshaler]
 func (o *OID) UnmarshalBinary(b []byte) error {
-	oid, ok := newOIDFromDER(b)
+	oid, ok := newOIDFromDER(bytes.Clone(b))
 	if !ok {
 		return errInvalidOID
 	}
