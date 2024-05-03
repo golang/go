@@ -570,7 +570,7 @@ func Repeat(s string, count int) string {
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	}
-	if len(s) >= maxInt/count {
+	if len(s) > maxInt/count {
 		panic("strings: Repeat output length overflow")
 	}
 	n := len(s) * count

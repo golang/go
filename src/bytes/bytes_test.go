@@ -1242,33 +1242,48 @@ func repeat(b []byte, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	tests := [...]struct {
+	type testCase struct {
 		s      string
 		count  int
 		errStr string
-	}{
+	}
+
+	runTestCases := func(prefix string, tests []testCase) {
+		for i, tt := range tests {
+			err := repeat([]byte(tt.s), tt.count)
+			if tt.errStr == "" {
+				if err != nil {
+					t.Errorf("#%d panicked %v", i, err)
+				}
+				continue
+			}
+
+			if err == nil || !strings.Contains(err.Error(), tt.errStr) {
+				t.Errorf("%s#%d got %q want %q", prefix, i, err, tt.errStr)
+			}
+		}
+	}
+
+	const maxInt = int(^uint(0) >> 1)
+
+	runTestCases("", []testCase{
 		0: {"--", -2147483647, "negative"},
-		1: {"", int(^uint(0) >> 1), ""},
+		1: {"", maxInt, ""},
 		2: {"-", 10, ""},
 		3: {"gopher", 0, ""},
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+	})
+
+	const is64Bit = 1<<(^uintptr(0)>>63)/2 != 0
+	if !is64Bit {
+		return
 	}
 
-	for i, tt := range tests {
-		err := repeat([]byte(tt.s), tt.count)
-		if tt.errStr == "" {
-			if err != nil {
-				t.Errorf("#%d panicked %v", i, err)
-			}
-			continue
-		}
-
-		if err == nil || !strings.Contains(err.Error(), tt.errStr) {
-			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
-		}
-	}
+	runTestCases("64-bit", []testCase{
+		0: {"-", maxInt, "out of range"},
+	})
 }
 
 func runesEqual(a, b []rune) bool {
