@@ -11,25 +11,14 @@ import (
 	"sync"
 )
 
-var cpuInfo struct {
-	once sync.Once
-	name string
-}
+var CPUName = sync.OnceValue(func() string {
+	if name := cpu.Name(); name != "" {
+		return name
+	}
 
-func CPUName() string {
-	cpuInfo.once.Do(func() {
-		// Try to get the information from internal/cpu.
-		if name := cpu.Name(); name != "" {
-			cpuInfo.name = name
-			return
-		}
+	if name := osCpuInfoName(); name != "" {
+		return name
+	}
 
-		// TODO(martisch): use /proc/cpuinfo and /sys/devices/system/cpu/ on Linux as fallback.
-		if name := osCpuInfoName(); name != "" {
-			cpuInfo.name = name
-			return
-		}
-	})
-
-	return cpuInfo.name
-}
+	return ""
+})
