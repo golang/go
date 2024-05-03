@@ -1075,19 +1075,13 @@ func TrimSpace(s string) string {
 // TrimPrefix returns s without the provided leading prefix string.
 // If s doesn't start with prefix, s is returned unchanged.
 func TrimPrefix(s, prefix string) string {
-	if HasPrefix(s, prefix) {
-		return s[len(prefix):]
-	}
-	return s
+	return stringslite.TrimPrefix(s, prefix)
 }
 
 // TrimSuffix returns s without the provided trailing suffix string.
 // If s doesn't end with suffix, s is returned unchanged.
 func TrimSuffix(s, suffix string) string {
-	if HasSuffix(s, suffix) {
-		return s[:len(s)-len(suffix)]
-	}
-	return s
+	return stringslite.TrimSuffix(s, suffix)
 }
 
 // Replace returns a copy of the string s with the first n

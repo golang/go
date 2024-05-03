@@ -122,3 +122,17 @@ func CutSuffix(s, suffix string) (before string, found bool) {
 	}
 	return s[:len(s)-len(suffix)], true
 }
+
+func TrimPrefix(s, prefix string) string {
+	if HasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
+}
+
+func TrimSuffix(s, suffix string) string {
+	if HasSuffix(s, suffix) {
+		return s[:len(s)-len(suffix)]
+	}
+	return s
+}
