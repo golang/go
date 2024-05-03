@@ -2395,7 +2395,14 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// determine whether they may refer to system paths. If we do that, we can
 		// redact only those paths from the recorded -ldflags setting and still
 		// record the system-independent parts of the flags.
-		if !cfg.BuildTrimpath {
+		//
+		// For now add a toggle to always allow ldflags reporting, it may make
+		// non-reproducible builds, but it will stop hiding valuable version
+		// information as used by security vulnerability scanners. Although maybe
+		// vcs.describe or vcs.modhash should be added instead.
+		if cfg.BuildTrimpath && cfg.BuildTrimldflags {
+			appendSetting("-trimldflags", "true")
+		} else {
 			appendSetting("-ldflags", ldflags)
 		}
 	}

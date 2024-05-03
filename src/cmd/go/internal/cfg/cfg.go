@@ -86,6 +86,7 @@ var (
 	BuildToolexec      []string                // -toolexec flag
 	BuildToolchainName string
 	BuildTrimpath      bool // -trimpath flag
+	BuildTrimldflags   bool // -trimldflags flag
 	BuildV             bool // -v flag
 	BuildWork          bool // -work flag
 	BuildX             bool // -x flag
