@@ -1366,8 +1366,6 @@ HaveSpan:
 	}
 	memstats.heapStats.release()
 
-	pageTraceAlloc(pp, now, base, npages)
-
 	// Trace the span alloc.
 	if traceAllocFreeEnabled() {
 		trace := traceAcquire()
@@ -1556,8 +1554,6 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
-
 		// Trace the span free.
 		if traceAllocFreeEnabled() {
 			trace := traceAcquire()
@@ -1597,8 +1593,6 @@ func (h *mheap) freeSpan(s *mspan) {
 //
 //go:systemstack
 func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
-	pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
-
 	// Trace the span free.
 	if traceAllocFreeEnabled() {
 		trace := traceAcquire()

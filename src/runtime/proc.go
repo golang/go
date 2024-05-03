@@ -784,10 +784,9 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	godebug := getGodebugEarly()
-	initPageTrace(godebug) // must run after mallocinit but before anything allocates
-	cpuinit(godebug)       // must run before alginit
-	randinit()             // must run before alginit, mcommoninit
-	alginit()              // maps, hash, rand must not be used before this call
+	cpuinit(godebug) // must run before alginit
+	randinit()       // must run before alginit, mcommoninit
+	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
