@@ -1204,8 +1204,8 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
 	})
 
-	const _64bit = 1<<(^uintptr(0)>>63)/2 != 0
-	if !_64bit {
+	const is64Bit = 1<<(^uintptr(0)>>63)/2 != 0
+	if !is64Bit {
 		return
 	}
 
