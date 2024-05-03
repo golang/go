@@ -89,7 +89,7 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
 	if buildcfg.Experiment.SwissMap {
-		_ = types.NewPtr(reflectdata.SwissMapType()) // *runtime.hmap
+		_ = types.NewPtr(reflectdata.SwissMapType()) // *internal/runtime/maps.Map
 	} else {
 		_ = types.NewPtr(reflectdata.OldMapType()) // *runtime.hmap
 	}
@@ -5480,8 +5480,13 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	s.startBlock(bElse)
 	switch n.Op() {
 	case ir.OLEN:
-		// length is stored in the first word for map/chan
-		s.vars[n] = s.load(lenType, x)
+		if buildcfg.Experiment.SwissMap && n.X.Type().IsMap() {
+			// length is stored in the first word.
+			s.vars[n] = s.load(lenType, x)
+		} else {
+			// length is stored in the first word for map/chan
+			s.vars[n] = s.load(lenType, x)
+		}
 	case ir.OCAP:
 		// capacity is stored in the second word for chan
 		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Size(), x)

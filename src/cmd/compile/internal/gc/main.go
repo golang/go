@@ -104,6 +104,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
 	ir.Pkgs.Runtime.Prefix = "runtime"
 
+	if buildcfg.Experiment.SwissMap {
+		// Pseudo-package that contains the compiler's builtin
+		// declarations for maps.
+		ir.Pkgs.InternalMaps = types.NewPkg("go.internal/runtime/maps", "internal/runtime/maps")
+		ir.Pkgs.InternalMaps.Prefix = "internal/runtime/maps"
+	}
+
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
 	ir.Pkgs.Itab.Prefix = "go:itab"

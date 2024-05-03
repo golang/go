@@ -8,10 +8,36 @@ package runtime_test
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"runtime"
 	"slices"
 	"testing"
 )
+
+func TestHmapSize(t *testing.T) {
+	// The structure of hmap is defined in runtime/map.go
+	// and in cmd/compile/internal/reflectdata/map.go and must be in sync.
+	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
+	if runtime.RuntimeHmapSize != hmapSize {
+		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+	}
+}
+
+func TestLoadFactor(t *testing.T) {
+	for b := uint8(0); b < 20; b++ {
+		count := 13 * (1 << b) / 2 // 6.5
+		if b == 0 {
+			count = 8
+		}
+		if runtime.OverLoadFactor(count, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
+		}
+		if !runtime.OverLoadFactor(count+1, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
+		}
+	}
+}
 
 func TestMapIterOrder(t *testing.T) {
 	sizes := []int{3, 7, 9, 15}

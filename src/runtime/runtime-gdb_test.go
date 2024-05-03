@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -185,6 +186,9 @@ func TestGdbPythonCgo(t *testing.T) {
 }
 
 func testGdbPython(t *testing.T, cgo bool) {
+	if goexperiment.SwissMap {
+		t.Skip("TODO(prattmic): swissmap DWARF")
+	}
 	if cgo {
 		testenv.MustHaveCGO(t)
 	}
@@ -527,6 +531,10 @@ func main() {
 // TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
 // See bug #17830.
 func TestGdbAutotmpTypes(t *testing.T) {
+	if goexperiment.SwissMap {
+		t.Skip("TODO(prattmic): swissmap DWARF")
+	}
+
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)

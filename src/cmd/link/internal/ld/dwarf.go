@@ -810,7 +810,7 @@ func (d *dwctxt) findprotodie(ctxt *Link, name string) *dwarf.DWDie {
 		die = prototypedies[name]
 	}
 	if die == nil {
-		log.Fatalf("internal error: DIE generation failed for %s\n", name)
+		log.Fatalf("internal error: DIE generation failed for %s\nprototypedies: %+v", name, prototypedies)
 	}
 	return die
 }
@@ -873,8 +873,8 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 func (d *dwctxt) synthesizemaptypesSwiss(ctxt *Link, die *dwarf.DWDie) {
-	hash := walktypedef(d.findprotodie(ctxt, "type:runtime.hmap"))
-	bucket := walktypedef(d.findprotodie(ctxt, "type:runtime.bmap"))
+	hash := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.table"))
+	//bucket := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.Map"))
 
 	if hash == nil {
 		return
@@ -887,79 +887,82 @@ func (d *dwctxt) synthesizemaptypesSwiss(ctxt *Link, die *dwarf.DWDie) {
 		gotype := loader.Sym(getattr(die, dwarf.DW_AT_type).Data.(dwSym))
 		keytype := decodetypeMapKey(d.ldr, d.arch, gotype)
 		valtype := decodetypeMapValue(d.ldr, d.arch, gotype)
-		keydata := d.ldr.Data(keytype)
-		valdata := d.ldr.Data(valtype)
-		keysize, valsize := decodetypeSize(d.arch, keydata), decodetypeSize(d.arch, valdata)
+		//keydata := d.ldr.Data(keytype)
+		//valdata := d.ldr.Data(valtype)
+		//keysize, valsize := decodetypeSize(d.arch, keydata), decodetypeSize(d.arch, valdata)
 		keytype, valtype = d.walksymtypedef(d.defgotype(keytype)), d.walksymtypedef(d.defgotype(valtype))
 
 		// compute size info like hashmap.c does.
-		indirectKey, indirectVal := false, false
-		if keysize > abi.SwissMapMaxKeyBytes {
-			keysize = int64(d.arch.PtrSize)
-			indirectKey = true
-		}
-		if valsize > abi.SwissMapMaxElemBytes {
-			valsize = int64(d.arch.PtrSize)
-			indirectVal = true
-		}
+		//indirectKey, indirectVal := false, false
+		//if keysize > abi.SwissMapMaxKeyBytes {
+		//	keysize = int64(d.arch.PtrSize)
+		//	indirectKey = true
+		//}
+		//if valsize > abi.SwissMapMaxElemBytes {
+		//	valsize = int64(d.arch.PtrSize)
+		//	indirectVal = true
+		//}
 
 		// Construct type to represent an array of BucketSize keys
+		// TODO
 		keyname := d.nameFromDIESym(keytype)
-		dwhks := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *dwarf.DWDie) {
-			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount*keysize, 0)
-			t := keytype
-			if indirectKey {
-				t = d.defptrto(keytype)
-			}
-			d.newrefattr(dwhk, dwarf.DW_AT_type, t)
-			fld := d.newdie(dwhk, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount, 0)
-			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
-		})
+		//dwhks := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *dwarf.DWDie) {
+		//	newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount*keysize, 0)
+		//	t := keytype
+		//	if indirectKey {
+		//		t = d.defptrto(keytype)
+		//	}
+		//	d.newrefattr(dwhk, dwarf.DW_AT_type, t)
+		//	fld := d.newdie(dwhk, dwarf.DW_ABRV_ARRAYRANGE, "size")
+		//	newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount, 0)
+		//	d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
+		//})
 
 		// Construct type to represent an array of BucketSize values
+		// TODO
 		valname := d.nameFromDIESym(valtype)
-		dwhvs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *dwarf.DWDie) {
-			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount*valsize, 0)
-			t := valtype
-			if indirectVal {
-				t = d.defptrto(valtype)
-			}
-			d.newrefattr(dwhv, dwarf.DW_AT_type, t)
-			fld := d.newdie(dwhv, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount, 0)
-			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
-		})
+		//dwhvs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *dwarf.DWDie) {
+		//	newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount*valsize, 0)
+		//	t := valtype
+		//	if indirectVal {
+		//		t = d.defptrto(valtype)
+		//	}
+		//	d.newrefattr(dwhv, dwarf.DW_AT_type, t)
+		//	fld := d.newdie(dwhv, dwarf.DW_ABRV_ARRAYRANGE, "size")
+		//	newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount, 0)
+		//	d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
+		//})
 
 		// Construct bucket<K,V>
-		dwhbs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "bucket", keyname, valname, func(dwhb *dwarf.DWDie) {
-			// Copy over all fields except the field "data" from the generic
-			// bucket. "data" will be replaced with keys/values below.
-			d.copychildrenexcept(ctxt, dwhb, bucket, findchild(bucket, "data"))
+		// TODO
+		//dwhbs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "bucket", keyname, valname, func(dwhb *dwarf.DWDie) {
+		//	// Copy over all fields except the field "data" from the generic
+		//	// bucket. "data" will be replaced with keys/values below.
+		//	d.copychildrenexcept(ctxt, dwhb, bucket, findchild(bucket, "data"))
 
-			fld := d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "keys")
-			d.newrefattr(fld, dwarf.DW_AT_type, dwhks)
-			newmemberoffsetattr(fld, abi.SwissMapBucketCount)
-			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "values")
-			d.newrefattr(fld, dwarf.DW_AT_type, dwhvs)
-			newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*int32(keysize))
-			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow")
-			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.dtolsym(dwhb.Sym)))
-			newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*(int32(keysize)+int32(valsize)))
-			if d.arch.RegSize > d.arch.PtrSize {
-				fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad")
-				d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
-				newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
-			}
+		//	fld := d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "keys")
+		//	d.newrefattr(fld, dwarf.DW_AT_type, dwhks)
+		//	newmemberoffsetattr(fld, abi.SwissMapBucketCount)
+		//	fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "values")
+		//	d.newrefattr(fld, dwarf.DW_AT_type, dwhvs)
+		//	newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*int32(keysize))
+		//	fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow")
+		//	d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.dtolsym(dwhb.Sym)))
+		//	newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*(int32(keysize)+int32(valsize)))
+		//	if d.arch.RegSize > d.arch.PtrSize {
+		//		fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad")
+		//		d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
+		//		newmemberoffsetattr(fld, abi.SwissMapBucketCount+abi.SwissMapBucketCount*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
+		//	}
 
-			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount+abi.SwissMapBucketCount*keysize+abi.SwissMapBucketCount*valsize+int64(d.arch.RegSize), 0)
-		})
+		//	newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.SwissMapBucketCount+abi.SwissMapBucketCount*keysize+abi.SwissMapBucketCount*valsize+int64(d.arch.RegSize), 0)
+		//})
 
 		// Construct hash<K,V>
 		dwhs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "hash", keyname, valname, func(dwh *dwarf.DWDie) {
 			d.copychildren(ctxt, dwh, hash)
-			d.substitutetype(dwh, "buckets", d.defptrto(dwhbs))
-			d.substitutetype(dwh, "oldbuckets", d.defptrto(dwhbs))
+			//d.substitutetype(dwh, "buckets", d.defptrto(dwhbs))
+			//d.substitutetype(dwh, "oldbuckets", d.defptrto(dwhbs))
 			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(hash, dwarf.DW_AT_byte_size).Value, nil)
 		})
 
@@ -1874,11 +1877,15 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	prototypedies = map[string]*dwarf.DWDie{
 		"type:runtime.stringStructDWARF": nil,
 		"type:runtime.slice":             nil,
-		"type:runtime.hmap":              nil,
-		"type:runtime.bmap":              nil,
 		"type:runtime.sudog":             nil,
 		"type:runtime.waitq":             nil,
 		"type:runtime.hchan":             nil,
+	}
+	if buildcfg.Experiment.SwissMap {
+		prototypedies["type:internal/runtime/maps.table"] = nil
+	} else {
+		prototypedies["type:runtime.hmap"] = nil
+		prototypedies["type:runtime.bmap"] = nil
 	}
 
 	// Needed by the prettyprinter code for interface inspection.

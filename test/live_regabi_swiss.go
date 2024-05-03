@@ -38,3 +38,22 @@ func f17c() {
 }
 
 func f17d() *byte
+
+func printnl()
+
+type T40 struct {
+	m map[int]int
+}
+
+//go:noescape
+func useT40(*T40)
+
+func good40() {
+	ret := T40{}              // ERROR "stack object ret T40$"
+	ret.m = make(map[int]int) // ERROR "stack object .autotmp_[0-9]+ internal/runtime/maps.table$"
+	t := &ret
+	printnl() // ERROR "live at call to printnl: ret$"
+	// Note: ret is live at the printnl because the compiler moves &ret
+	// from before the printnl to after.
+	useT40(t)
+}

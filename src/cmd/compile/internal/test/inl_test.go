@@ -39,10 +39,7 @@ func TestIntendedInlining(t *testing.T) {
 			"adjustpointer",
 			"alignDown",
 			"alignUp",
-			"bucketMask",
-			"bucketShift",
 			"chanbuf",
-			"evacuated",
 			"fastlog2",
 			"float64bits",
 			"funcspdelta",
@@ -62,9 +59,6 @@ func TestIntendedInlining(t *testing.T) {
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
-			"tophash",
-			"(*bmap).keys",
-			"(*bmap).overflow",
 			"(*waitq).enqueue",
 			"funcInfo.entry",
 
@@ -236,6 +230,15 @@ func TestIntendedInlining(t *testing.T) {
 		},
 	}
 
+	if !goexperiment.SwissMap {
+		// Maps
+		want["runtime"] = append(want["runtime"], "bucketMask")
+		want["runtime"] = append(want["runtime"], "bucketShift")
+		want["runtime"] = append(want["runtime"], "evacuated")
+		want["runtime"] = append(want["runtime"], "tophash")
+		want["runtime"] = append(want["runtime"], "(*bmap).keys")
+		want["runtime"] = append(want["runtime"], "(*bmap).overflow")
+	}
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.

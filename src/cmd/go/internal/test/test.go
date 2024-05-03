@@ -929,15 +929,16 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// unlikely to be useful. Most of these are used by the testing or
 		// internal/fuzz packages concurrently with fuzzing.
 		var skipInstrumentation = map[string]bool{
-			"context":       true,
-			"internal/fuzz": true,
-			"reflect":       true,
-			"runtime":       true,
-			"sync":          true,
-			"sync/atomic":   true,
-			"syscall":       true,
-			"testing":       true,
-			"time":          true,
+			"context":               true,
+			"internal/fuzz":         true,
+			"internal/runtime/maps": true,
+			"reflect":               true,
+			"runtime":               true,
+			"sync":                  true,
+			"sync/atomic":           true,
+			"syscall":               true,
+			"testing":               true,
+			"time":                  true,
 		}
 		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
 			if !skipInstrumentation[p.ImportPath] {

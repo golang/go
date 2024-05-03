@@ -52,6 +52,7 @@ var rtPkgs = [...]string{
 	"internal/chacha8rand",
 	"internal/runtime/sys",
 	"internal/abi",
+	"internal/runtime/maps",
 	"internal/runtime/math",
 	"internal/bytealg",
 	"internal/goexperiment",

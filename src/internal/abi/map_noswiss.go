@@ -52,4 +52,3 @@ func (mt *OldMapType) NeedKeyUpdate() bool { // true if we need to update key on
 func (mt *OldMapType) HashMightPanic() bool { // true if hash function might panic
 	return mt.Flags&16 != 0
 }
-

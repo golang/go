@@ -6,7 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goarch"
+	"internal/goexperiment"
 	"internal/testenv"
 	"math"
 	"os"
@@ -19,17 +19,6 @@ import (
 	"testing"
 	"unsafe"
 )
-
-func TestHmapSize(t *testing.T) {
-	// The structure of hmap is defined in runtime/map.go
-	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
-	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
-	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
-	if runtime.RuntimeHmapSize != hmapSize {
-		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
-	}
-
-}
 
 // negative zero is a good test because:
 //  1. 0 and -0 are equal, yet have distinct representations.
@@ -430,6 +419,12 @@ func TestEmptyKeyAndValue(t *testing.T) {
 	if len(a) != 1 {
 		t.Errorf("empty value insert problem")
 	}
+	if len(b) != 1 {
+		t.Errorf("empty key insert problem")
+	}
+	if len(c) != 1 {
+		t.Errorf("empty key+value insert problem")
+	}
 	if b[empty{}] != 1 {
 		t.Errorf("empty key returned wrong value")
 	}
@@ -668,33 +663,37 @@ func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
 var testNonEscapingMapVariable int = 8
 
 func TestNonEscapingMap(t *testing.T) {
+	if goexperiment.SwissMap {
+		t.Skip("TODO(go.dev/issue/54766): implement stack allocated maps")
+	}
+
 	n := testing.AllocsPerRun(1000, func() {
 		m := map[int]int{}
 		m[0] = 0
 	})
 	if n != 0 {
-		t.Fatalf("mapliteral: want 0 allocs, got %v", n)
+		t.Errorf("mapliteral: want 0 allocs, got %v", n)
 	}
 	n = testing.AllocsPerRun(1000, func() {
 		m := make(map[int]int)
 		m[0] = 0
 	})
 	if n != 0 {
-		t.Fatalf("no hint: want 0 allocs, got %v", n)
+		t.Errorf("no hint: want 0 allocs, got %v", n)
 	}
 	n = testing.AllocsPerRun(1000, func() {
 		m := make(map[int]int, 8)
 		m[0] = 0
 	})
 	if n != 0 {
-		t.Fatalf("with small hint: want 0 allocs, got %v", n)
+		t.Errorf("with small hint: want 0 allocs, got %v", n)
 	}
 	n = testing.AllocsPerRun(1000, func() {
 		m := make(map[int]int, testNonEscapingMapVariable)
 		m[0] = 0
 	})
 	if n != 0 {
-		t.Fatalf("with variable hint: want 0 allocs, got %v", n)
+		t.Errorf("with variable hint: want 0 allocs, got %v", n)
 	}
 
 }
@@ -1246,22 +1245,11 @@ func TestEmptyMapWithInterfaceKey(t *testing.T) {
 	})
 }
 
-func TestLoadFactor(t *testing.T) {
-	for b := uint8(0); b < 20; b++ {
-		count := 13 * (1 << b) / 2 // 6.5
-		if b == 0 {
-			count = 8
-		}
-		if runtime.OverLoadFactor(count, b) {
-			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
-		}
-		if !runtime.OverLoadFactor(count+1, b) {
-			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
-		}
-	}
-}
-
 func TestMapKeys(t *testing.T) {
+	if goexperiment.SwissMap {
+		t.Skip("mapkeys not implemented for swissmaps")
+	}
+
 	type key struct {
 		s   string
 		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
@@ -1277,6 +1265,10 @@ func TestMapKeys(t *testing.T) {
 }
 
 func TestMapValues(t *testing.T) {
+	if goexperiment.SwissMap {
+		t.Skip("mapvalues not implemented for swissmaps")
+	}
+
 	type val struct {
 		s   string
 		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes

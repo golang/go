@@ -5,8 +5,8 @@
 package maps
 
 import (
+	"internal/abi"
 	"internal/goarch"
-	"internal/runtime/maps/internal/abi"
 	"internal/runtime/sys"
 	"unsafe"
 )

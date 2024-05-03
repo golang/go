@@ -6,8 +6,8 @@ package maps_test
 
 import (
 	"fmt"
+	"internal/abi"
 	"internal/runtime/maps"
-	"internal/runtime/maps/internal/abi"
 	"math"
 	"testing"
 	"unsafe"
@@ -443,5 +443,12 @@ func TestTableZeroSizeSlot(t *testing.T) {
 	gotElem := *(*struct{})(got)
 	if gotElem != elem {
 		t.Errorf("Get(%d) got elem %d want %d", key, gotElem, elem)
+	}
+
+	start := tab.GroupsStart()
+	length := tab.GroupsLength()
+	end := unsafe.Pointer(uintptr(start) + length*tab.Type().Group.Size() - 1) // inclusive to ensure we have a valid pointer
+	if uintptr(got) < uintptr(start) || uintptr(got) > uintptr(end) {
+		t.Errorf("elem address outside groups allocation; got %p want [%p, %p]", got, start, end)
 	}
 }

@@ -434,7 +434,7 @@ func f28(b bool) {
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hiter$"
+		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hiter|internal/runtime/maps.Iter)$"
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
@@ -639,16 +639,6 @@ func bad40() {
 	t := newT40()
 	_ = t
 	printnl()
-}
-
-func good40() {
-	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
-	t := &ret
-	printnl() // ERROR "live at call to printnl: ret$"
-	// Note: ret is live at the printnl because the compiler moves &ret
-	// from before the printnl to after.
-	useT40(t)
 }
 
 func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"

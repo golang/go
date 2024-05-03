@@ -11,6 +11,12 @@ import (
 	"unsafe"
 )
 
+const RuntimeHmapSize = unsafe.Sizeof(hmap{})
+
+func OverLoadFactor(count int, B uint8) bool {
+	return overLoadFactor(count, B)
+}
+
 func MapBucketsCount(m map[int]int) int {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return 1 << h.B

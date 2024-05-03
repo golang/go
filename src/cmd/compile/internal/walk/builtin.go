@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.walk/bui
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -332,62 +332,8 @@ func walkMakeSwissMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// h = &hv
 		h = stackTempAddr(init, hmapType)
 
-		// Allocate one bucket pointed to by hmap.buckets on stack if hint
-		// is not larger than BUCKETSIZE. In case hint is larger than
-		// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
-		// Maximum key and elem size is 128 bytes, larger objects
-		// are stored with an indirection. So max bucket size is 2048+eps.
-		if !ir.IsConst(hint, constant.Int) ||
-			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapBucketCount)) {
-
-			// In case hint is larger than BUCKETSIZE runtime.makemap
-			// will allocate the buckets on the heap, see #20184
-			//
-			// if hint <= BUCKETSIZE {
-			//     var bv bmap
-			//     b = &bv
-			//     h.buckets = b
-			// }
-
-			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.SwissMapBucketCount)), nil, nil)
-			nif.Likely = true
-
-			// var bv bmap
-			// b = &bv
-			b := stackTempAddr(&nif.Body, reflectdata.SwissMapBucketType(t))
-
-			// h.buckets = b
-			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
-			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, bsym), typecheck.ConvNop(b, types.Types[types.TUNSAFEPTR]))
-			nif.Body.Append(na)
-			appendWalkStmt(init, nif)
-		}
-	}
-
-	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapBucketCount)) {
-		// Handling make(map[any]any) and
-		// make(map[any]any, hint) where hint <= BUCKETSIZE
-		// special allows for faster map initialization and
-		// improves binary size by using calls with fewer arguments.
-		// For hint <= BUCKETSIZE overLoadFactor(hint, 0) is false
-		// and no buckets will be allocated by makemap. Therefore,
-		// no buckets need to be allocated in this code path.
-		if n.Esc() == ir.EscNone {
-			// Only need to initialize h.hash0 since
-			// hmap h has been allocated on the stack already.
-			// h.hash0 = rand32()
-			rand := mkcall("rand32", types.Types[types.TUINT32], init)
-			hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
-			return typecheck.ConvNop(h, t)
-		}
-		// Call runtime.makehmap to allocate an
-		// hmap on the heap and initialize hmap's hash0 field.
-		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
-		return mkcall1(fn, n.Type(), init)
-	}
-
-	if n.Esc() != ir.EscNone {
+		// TODO(go.dev/issue/54766): Stack allocated table/groups.
+	} else {
 		h = typecheck.NodNil()
 	}
 	// Map initialization with a variable or large hint is
