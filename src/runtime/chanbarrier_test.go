@@ -54,8 +54,6 @@ func TestChanSendBarrier(t *testing.T) {
 	testChanSendBarrier(false)
 }
 
-var globalMu sync.Mutex
-
 func testChanSendBarrier(useSelect bool) {
 	var wg sync.WaitGroup
 	outer := 100
@@ -75,12 +73,15 @@ func testChanSendBarrier(useSelect bool) {
 				if !ok {
 					panic(1)
 				}
-				garbage = make([]byte, 1<<10)
+				garbage = makeByte()
 			}
-			globalMu.Lock()
-			global = garbage
-			globalMu.Unlock()
+			_ = garbage
 		}()
 	}
 	wg.Wait()
+}
+
+//go:noinline
+func makeByte() []byte {
+	return make([]byte, 1<<10)
 }
