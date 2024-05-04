@@ -8,7 +8,10 @@
 // Tests for these functions are in the strings package.
 package stringslite
 
-import "internal/bytealg"
+import (
+	"internal/bytealg"
+	"unsafe"
+)
 
 func HasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
@@ -135,4 +138,13 @@ func TrimSuffix(s, suffix string) string {
 		return s[:len(s)-len(suffix)]
 	}
 	return s
+}
+
+func Clone(s string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	b := make([]byte, len(s))
+	copy(b, s)
+	return unsafe.String(&b[0], len(b))
 }
