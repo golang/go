@@ -143,7 +143,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
-	t.Parallel()
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	var b [3]byte
 	for i := 0; i < 256; i++ {
@@ -189,7 +189,7 @@ func TestSmhasherTwoNonzero(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
-	t.Parallel()
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	for n := 2; n <= 16; n++ {
 		twoNonZero(h, n)
@@ -265,6 +265,7 @@ func TestSmhasherSparse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	h := newHashSet()
 	sparse(t, h, 32, 6)
 	sparse(t, h, 40, 6)
@@ -306,6 +307,7 @@ func TestSmhasherPermutation(t *testing.T) {
 	if race.Enabled {
 		t.Skip("Too long for race mode")
 	}
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
 	permutation(t, h, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
@@ -551,6 +553,7 @@ func TestSmhasherWindowed(t *testing.T) {
 		t.Skip("Too long for race mode")
 	}
 	t.Parallel()
+	h := newHashSet()
 	t.Logf("32 bit keys")
 	windowed(t, h, &Int32Key{})
 	t.Logf("64 bit keys")
@@ -594,9 +597,10 @@ func TestSmhasherText(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 	t.Parallel()
-	text(t, "Foo", "Bar")
-	text(t, "FooBar", "")
-	text(t, "", "FooBar")
+	h := newHashSet()
+	text(t, h, "Foo", "Bar")
+	text(t, h, "FooBar", "")
+	text(t, h, "", "FooBar")
 }
 func text(t *testing.T, h *HashSet, prefix, suffix string) {
 	const N = 4
