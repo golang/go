@@ -9,6 +9,3 @@ package binary
 type nativeEndian struct {
 	littleEndian
 }
-
-// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
-var NativeEndian nativeEndian

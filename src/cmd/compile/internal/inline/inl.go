@@ -531,7 +531,7 @@ opSwitch:
 					// explicitly mark encoding/binary methods as cheap,
 					// because in practice they are, even though our inlining
 					// budgeting system does not see that. See issue 42958.
-					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "encoding/binary" {
+					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "internal/binary" {
 						switch s.Name {
 						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
 							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
