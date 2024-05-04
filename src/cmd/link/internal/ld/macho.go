@@ -195,12 +195,12 @@ const (
 )
 
 const (
-	PLATFORM_MACOS    		MachoPlatform = 1
-	PLATFORM_IOS      		MachoPlatform = 2
-	PLATFORM_TVOS     		MachoPlatform = 3
-	PLATFORM_WATCHOS  		MachoPlatform = 4
-	PLATFORM_BRIDGEOS 		MachoPlatform = 5
-	PLATFORM_MACCATALYST 	MachoPlatform = 6
+	PLATFORM_MACOS		MachoPlatform = 1
+	PLATFORM_IOS		MachoPlatform = 2
+	PLATFORM_TVOS		MachoPlatform = 3
+	PLATFORM_WATCHOS	MachoPlatform = 4
+	PLATFORM_BRIDGEOS	MachoPlatform = 5
+	PLATFORM_MACCATALYST	MachoPlatform = 6
 )
 
 // rebase table opcode
