@@ -54,9 +54,10 @@ func TestChanSendBarrier(t *testing.T) {
 	testChanSendBarrier(false)
 }
 
+var globalMu sync.Mutex
+
 func testChanSendBarrier(useSelect bool) {
 	var wg sync.WaitGroup
-	var globalMu sync.Mutex
 	outer := 100
 	inner := 100000
 	if testing.Short() || runtime.GOARCH == "wasm" {
