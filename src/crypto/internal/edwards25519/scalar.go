@@ -6,7 +6,7 @@ package edwards25519
 
 import (
 	"errors"
-	"internal/binary"
+	"internal/binarylite"
 )
 
 // A Scalar is an integer modulo
@@ -271,7 +271,7 @@ func (s *Scalar) nonAdjacentForm(w uint) [256]int8 {
 	var digits [5]uint64
 
 	for i := 0; i < 4; i++ {
-		digits[i] = binary.LittleEndian.Uint64(b[i*8:])
+		digits[i] = binarylite.LittleEndian.Uint64(b[i*8:])
 	}
 
 	width := uint64(1 << w)

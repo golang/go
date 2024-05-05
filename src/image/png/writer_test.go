@@ -11,7 +11,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"testing"
 )
@@ -160,7 +160,7 @@ func TestWriterPaletted(t *testing.T) {
 			i = len(pngHeader)
 
 			for i < len(data)-chunkFieldsLength {
-				length := binary.BigEndian.Uint32(data[i : i+4])
+				length := binarylite.BigEndian.Uint32(data[i : i+4])
 				name := string(data[i+4 : i+8])
 
 				switch name {

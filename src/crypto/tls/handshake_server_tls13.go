@@ -12,7 +12,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"hash"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"time"
 )
@@ -866,7 +866,7 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 	if _, err := c.config.rand().Read(ageAdd); err != nil {
 		return err
 	}
-	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+	m.ageAdd = binarylite.LittleEndian.Uint32(ageAdd)
 
 	if earlyData {
 		// RFC 9001, Section 4.6.1

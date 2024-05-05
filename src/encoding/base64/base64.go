@@ -6,7 +6,7 @@
 package base64
 
 import (
-	"internal/binary"
+	"encoding/binary"
 	"io"
 	"slices"
 	"strconv"

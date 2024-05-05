@@ -7,7 +7,7 @@ package pprof
 import (
 	"errors"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"os"
 )
 
@@ -35,14 +35,14 @@ func elfBuildID(file string) (string, error) {
 		return "", errBadELF
 	}
 
-	var byteOrder binary.ByteOrder
+	var byteOrder binarylite.ByteOrder
 	switch buf[5] {
 	default:
 		return "", errBadELF
 	case 1: // little-endian
-		byteOrder = binary.LittleEndian
+		byteOrder = binarylite.LittleEndian
 	case 2: // big-endian
-		byteOrder = binary.BigEndian
+		byteOrder = binarylite.BigEndian
 	}
 
 	var shnum int

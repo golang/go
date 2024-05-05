@@ -23,7 +23,7 @@ package binary
 
 import (
 	"errors"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"math"
 	"reflect"
@@ -56,13 +56,13 @@ type AppendByteOrder interface {
 }
 
 // LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
-var LittleEndian = binary.LittleEndian
+var LittleEndian = binarylite.LittleEndian
 
 // BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
-var BigEndian = binary.BigEndian
+var BigEndian = binarylite.BigEndian
 
 // NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
-var NativeEndian = binary.NativeEndian
+var NativeEndian = binarylite.NativeEndian
 
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice

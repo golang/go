@@ -6,7 +6,7 @@ package slicereader
 
 import (
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"unsafe"
 )
@@ -79,14 +79,14 @@ func (r *Reader) ReadUint8() uint8 {
 
 func (r *Reader) ReadUint32() uint32 {
 	end := int(r.off) + 4
-	rv := binary.LittleEndian.Uint32(r.b[int(r.off):end:end])
+	rv := binarylite.LittleEndian.Uint32(r.b[int(r.off):end:end])
 	r.off += 4
 	return rv
 }
 
 func (r *Reader) ReadUint64() uint64 {
 	end := int(r.off) + 8
-	rv := binary.LittleEndian.Uint64(r.b[int(r.off):end:end])
+	rv := binarylite.LittleEndian.Uint64(r.b[int(r.off):end:end])
 	r.off += 8
 	return rv
 }

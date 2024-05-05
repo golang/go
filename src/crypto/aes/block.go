@@ -37,16 +37,16 @@
 package aes
 
 import (
-	"internal/binary"
+	"internal/binarylite"
 )
 
 // Encrypt one block from src into dst, using the expanded key xk.
 func encryptBlockGo(xk []uint32, dst, src []byte) {
 	_ = src[15] // early bounds check
-	s0 := binary.BigEndian.Uint32(src[0:4])
-	s1 := binary.BigEndian.Uint32(src[4:8])
-	s2 := binary.BigEndian.Uint32(src[8:12])
-	s3 := binary.BigEndian.Uint32(src[12:16])
+	s0 := binarylite.BigEndian.Uint32(src[0:4])
+	s1 := binarylite.BigEndian.Uint32(src[4:8])
+	s2 := binarylite.BigEndian.Uint32(src[8:12])
+	s3 := binarylite.BigEndian.Uint32(src[12:16])
 
 	// First round just XORs input with key.
 	s0 ^= xk[0]
@@ -80,19 +80,19 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
 	s3 ^= xk[k+3]
 
 	_ = dst[15] // early bounds check
-	binary.BigEndian.PutUint32(dst[0:4], s0)
-	binary.BigEndian.PutUint32(dst[4:8], s1)
-	binary.BigEndian.PutUint32(dst[8:12], s2)
-	binary.BigEndian.PutUint32(dst[12:16], s3)
+	binarylite.BigEndian.PutUint32(dst[0:4], s0)
+	binarylite.BigEndian.PutUint32(dst[4:8], s1)
+	binarylite.BigEndian.PutUint32(dst[8:12], s2)
+	binarylite.BigEndian.PutUint32(dst[12:16], s3)
 }
 
 // Decrypt one block from src into dst, using the expanded key xk.
 func decryptBlockGo(xk []uint32, dst, src []byte) {
 	_ = src[15] // early bounds check
-	s0 := binary.BigEndian.Uint32(src[0:4])
-	s1 := binary.BigEndian.Uint32(src[4:8])
-	s2 := binary.BigEndian.Uint32(src[8:12])
-	s3 := binary.BigEndian.Uint32(src[12:16])
+	s0 := binarylite.BigEndian.Uint32(src[0:4])
+	s1 := binarylite.BigEndian.Uint32(src[4:8])
+	s2 := binarylite.BigEndian.Uint32(src[8:12])
+	s3 := binarylite.BigEndian.Uint32(src[12:16])
 
 	// First round just XORs input with key.
 	s0 ^= xk[0]
@@ -126,10 +126,10 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
 	s3 ^= xk[k+3]
 
 	_ = dst[15] // early bounds check
-	binary.BigEndian.PutUint32(dst[0:4], s0)
-	binary.BigEndian.PutUint32(dst[4:8], s1)
-	binary.BigEndian.PutUint32(dst[8:12], s2)
-	binary.BigEndian.PutUint32(dst[12:16], s3)
+	binarylite.BigEndian.PutUint32(dst[0:4], s0)
+	binarylite.BigEndian.PutUint32(dst[4:8], s1)
+	binarylite.BigEndian.PutUint32(dst[8:12], s2)
+	binarylite.BigEndian.PutUint32(dst[12:16], s3)
 }
 
 // Apply sbox0 to each byte in w.
@@ -150,7 +150,7 @@ func expandKeyGo(key []byte, enc, dec []uint32) {
 	var i int
 	nk := len(key) / 4
 	for i = 0; i < nk; i++ {
-		enc[i] = binary.BigEndian.Uint32(key[4*i:])
+		enc[i] = binarylite.BigEndian.Uint32(key[4*i:])
 	}
 	for ; i < len(enc); i++ {
 		t := enc[i-1]

@@ -9,7 +9,7 @@ import (
 	"compress/flate"
 	"fmt"
 	"hash/crc32"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"io/fs"
 	"math/rand"
@@ -346,7 +346,7 @@ func TestWriterDirAttributes(t *testing.T) {
 	b := buf.Bytes()
 
 	var sig [4]byte
-	binary.LittleEndian.PutUint32(sig[:], uint32(fileHeaderSignature))
+	binarylite.LittleEndian.PutUint32(sig[:], uint32(fileHeaderSignature))
 
 	idx := bytes.Index(b, sig[:])
 	if idx == -1 {
@@ -362,7 +362,7 @@ func TestWriterDirAttributes(t *testing.T) {
 		t.Errorf("unexpected crc, compress and uncompressed size to be 0 was: %v", b[14:26])
 	}
 
-	binary.LittleEndian.PutUint32(sig[:], uint32(dataDescriptorSignature))
+	binarylite.LittleEndian.PutUint32(sig[:], uint32(dataDescriptorSignature))
 	if bytes.Contains(b, sig[:]) {
 		t.Error("there should be no data descriptor")
 	}

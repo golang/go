@@ -10,7 +10,7 @@ package lockedfile_test
 
 import (
 	"bytes"
-	"internal/binary"
+	"internal/binarylite"
 	"math/rand"
 	"path/filepath"
 	"testing"
@@ -43,7 +43,7 @@ func TestTransform(t *testing.T) {
 	const maxChunkWords = 8 << 10
 	buf := make([]byte, 2*maxChunkWords*8)
 	for i := uint64(0); i < 2*maxChunkWords; i++ {
-		binary.LittleEndian.PutUint64(buf[i*8:], i)
+		binarylite.LittleEndian.PutUint64(buf[i*8:], i)
 	}
 	if err := lockedfile.Write(path, bytes.NewReader(buf[:8]), 0666); err != nil {
 		t.Fatal(err)
@@ -80,9 +80,9 @@ func TestTransform(t *testing.T) {
 					return chunk, nil
 				}
 
-				u := binary.LittleEndian.Uint64(data)
+				u := binarylite.LittleEndian.Uint64(data)
 				for i := 1; i < words; i++ {
-					next := binary.LittleEndian.Uint64(data[i*8:])
+					next := binarylite.LittleEndian.Uint64(data[i*8:])
 					if next != u+1 {
 						t.Errorf("wrote sequential integers, but read integer out of sequence at offset %d", i)
 						return chunk, nil

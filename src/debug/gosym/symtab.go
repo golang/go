@@ -10,7 +10,7 @@ package gosym
 import (
 	"bytes"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"strconv"
 	"strings"
 )
@@ -194,7 +194,7 @@ func walksymtab(data []byte, fn func(sym) error) error {
 	if len(data) == 0 { // missing symtab is okay
 		return nil
 	}
-	var order binary.ByteOrder = binary.BigEndian
+	var order binarylite.ByteOrder = binarylite.BigEndian
 	newTable := false
 	switch {
 	case bytes.HasPrefix(data, oldLittleEndianSymtab):
@@ -202,12 +202,12 @@ func walksymtab(data []byte, fn func(sym) error) error {
 		// Format was used during interim development between Go 1.0 and Go 1.1.
 		// Should not be widespread, but easy to support.
 		data = data[6:]
-		order = binary.LittleEndian
+		order = binarylite.LittleEndian
 	case bytes.HasPrefix(data, bigEndianSymtab):
 		newTable = true
 	case bytes.HasPrefix(data, littleEndianSymtab):
 		newTable = true
-		order = binary.LittleEndian
+		order = binarylite.LittleEndian
 	}
 	var ptrsz int
 	if newTable {
@@ -379,7 +379,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 				nz++
 			}
 			for i := 0; i < len(s.name); i += 2 {
-				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2])
+				eltIdx := binarylite.BigEndian.Uint16(s.name[i : i+2])
 				elt, ok := fname[eltIdx]
 				if !ok {
 					return &DecodingError{-1, "bad filename code", eltIdx}

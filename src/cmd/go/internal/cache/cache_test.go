@@ -7,7 +7,7 @@ package cache
 import (
 	"bytes"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -146,7 +146,7 @@ func TestVerifyPanic(t *testing.T) {
 
 func dummyID(x int) [HashSize]byte {
 	var out [HashSize]byte
-	binary.LittleEndian.PutUint64(out[:], uint64(x))
+	binarylite.LittleEndian.PutUint64(out[:], uint64(x))
 	return out
 }
 

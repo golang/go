@@ -6,7 +6,7 @@ package fuzz
 
 import (
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"math"
 	"unsafe"
 )
@@ -24,11 +24,11 @@ func (m *mutator) rand(n int) int {
 	return m.r.intn(n)
 }
 
-func (m *mutator) randByteOrder() binary.ByteOrder {
+func (m *mutator) randByteOrder() binarylite.ByteOrder {
 	if m.r.bool() {
-		return binary.LittleEndian
+		return binarylite.LittleEndian
 	}
-	return binary.BigEndian
+	return binarylite.BigEndian
 }
 
 // chooseLen chooses length of range mutation in range [1,n]. It gives

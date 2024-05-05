@@ -13,7 +13,7 @@ import (
 	"crypto/internal/boring"
 	"errors"
 	"hash"
-	"internal/binary"
+	"internal/binarylite"
 )
 
 func init() {
@@ -51,14 +51,14 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = binary.BigEndian.AppendUint32(b, d.h[0])
-	b = binary.BigEndian.AppendUint32(b, d.h[1])
-	b = binary.BigEndian.AppendUint32(b, d.h[2])
-	b = binary.BigEndian.AppendUint32(b, d.h[3])
-	b = binary.BigEndian.AppendUint32(b, d.h[4])
+	b = binarylite.BigEndian.AppendUint32(b, d.h[0])
+	b = binarylite.BigEndian.AppendUint32(b, d.h[1])
+	b = binarylite.BigEndian.AppendUint32(b, d.h[2])
+	b = binarylite.BigEndian.AppendUint32(b, d.h[3])
+	b = binarylite.BigEndian.AppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = binary.BigEndian.AppendUint64(b, d.len)
+	b = binarylite.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -167,7 +167,7 @@ func (d *digest) checkSum() [Size]byte {
 	// Length in bits.
 	len <<= 3
 	padlen := tmp[:t+8]
-	binary.BigEndian.PutUint64(padlen[t:], len)
+	binarylite.BigEndian.PutUint64(padlen[t:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -176,11 +176,11 @@ func (d *digest) checkSum() [Size]byte {
 
 	var digest [Size]byte
 
-	binary.BigEndian.PutUint32(digest[0:], d.h[0])
-	binary.BigEndian.PutUint32(digest[4:], d.h[1])
-	binary.BigEndian.PutUint32(digest[8:], d.h[2])
-	binary.BigEndian.PutUint32(digest[12:], d.h[3])
-	binary.BigEndian.PutUint32(digest[16:], d.h[4])
+	binarylite.BigEndian.PutUint32(digest[0:], d.h[0])
+	binarylite.BigEndian.PutUint32(digest[4:], d.h[1])
+	binarylite.BigEndian.PutUint32(digest[8:], d.h[2])
+	binarylite.BigEndian.PutUint32(digest[12:], d.h[3])
+	binarylite.BigEndian.PutUint32(digest[16:], d.h[4])
 
 	return digest
 }

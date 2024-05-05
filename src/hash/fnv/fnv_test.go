@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding"
 	"hash"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"testing"
 )
@@ -201,12 +201,12 @@ func testIntegrity(t *testing.T, h hash.Hash) {
 	switch h.Size() {
 	case 4:
 		sum32 := h.(hash.Hash32).Sum32()
-		if sum32 != binary.BigEndian.Uint32(sum) {
+		if sum32 != binarylite.BigEndian.Uint32(sum) {
 			t.Fatalf("Sum()=0x%x, but Sum32()=0x%x", sum, sum32)
 		}
 	case 8:
 		sum64 := h.(hash.Hash64).Sum64()
-		if sum64 != binary.BigEndian.Uint64(sum) {
+		if sum64 != binarylite.BigEndian.Uint64(sum) {
 			t.Fatalf("Sum()=0x%x, but Sum64()=0x%x", sum, sum64)
 		}
 	case 16:

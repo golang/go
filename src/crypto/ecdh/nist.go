@@ -9,7 +9,7 @@ import (
 	"crypto/internal/nistec"
 	"crypto/internal/randutil"
 	"errors"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"math/bits"
 )
@@ -156,7 +156,7 @@ func isLess(a, b []byte) bool {
 	// Perform a subtraction with borrow.
 	var borrow uint64
 	for i := 0; i < len(bufA); i += 8 {
-		limbA, limbB := binary.LittleEndian.Uint64(bufA[i:]), binary.LittleEndian.Uint64(bufB[i:])
+		limbA, limbB := binarylite.LittleEndian.Uint64(bufA[i:]), binarylite.LittleEndian.Uint64(bufB[i:])
 		_, borrow = bits.Sub64(limbA, limbB, borrow)
 	}
 

@@ -7,7 +7,7 @@ package chacha8rand_test
 import (
 	"bytes"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	. "internal/chacha8rand"
 	"slices"
 	"testing"
@@ -77,10 +77,10 @@ func TestBlockGeneric(t *testing.T) {
 	var b1, b2 [32]uint64
 	s := seed // byte seed
 	seed := [4]uint64{
-		binary.LittleEndian.Uint64(s[0*8:]),
-		binary.LittleEndian.Uint64(s[1*8:]),
-		binary.LittleEndian.Uint64(s[2*8:]),
-		binary.LittleEndian.Uint64(s[3*8:]),
+		binarylite.LittleEndian.Uint64(s[0*8:]),
+		binarylite.LittleEndian.Uint64(s[1*8:]),
+		binarylite.LittleEndian.Uint64(s[2*8:]),
+		binarylite.LittleEndian.Uint64(s[3*8:]),
 	}
 
 	Block(&seed, &b1, 4)

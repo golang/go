@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"debug/elf"
-	"internal/binary"
+	"internal/binarylite"
 	"internal/obscuretestdata"
 	"os"
 	"reflect"
@@ -105,10 +105,10 @@ func TestReadFile(t *testing.T) {
 			if elf.Data(data[elf.EI_DATA]) != elf.ELFDATA2LSB {
 				continue
 			}
-			order := binary.LittleEndian
+			order := binarylite.LittleEndian
 
 			var hdr elf.Header64
-			if err := binary.Read(bytes.NewReader(data), order, &hdr); err != nil {
+			if err := binarylite.Read(bytes.NewReader(data), order, &hdr); err != nil {
 				t.Error(err)
 				continue
 			}
@@ -119,7 +119,7 @@ func TestReadFile(t *testing.T) {
 
 			for i := 0; i < phnum; i++ {
 				var phdr elf.Prog64
-				if err := binary.Read(bytes.NewReader(data[phoff:]), order, &phdr); err != nil {
+				if err := binarylite.Read(bytes.NewReader(data[phoff:]), order, &phdr); err != nil {
 					t.Error(err)
 					continue
 				}

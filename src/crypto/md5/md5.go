@@ -14,7 +14,7 @@ import (
 	"crypto"
 	"errors"
 	"hash"
-	"internal/binary"
+	"internal/binarylite"
 )
 
 func init() {
@@ -59,13 +59,13 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = binary.BigEndian.AppendUint32(b, d.s[0])
-	b = binary.BigEndian.AppendUint32(b, d.s[1])
-	b = binary.BigEndian.AppendUint32(b, d.s[2])
-	b = binary.BigEndian.AppendUint32(b, d.s[3])
+	b = binarylite.BigEndian.AppendUint32(b, d.s[0])
+	b = binarylite.BigEndian.AppendUint32(b, d.s[1])
+	b = binarylite.BigEndian.AppendUint32(b, d.s[2])
+	b = binarylite.BigEndian.AppendUint32(b, d.s[3])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = binary.BigEndian.AppendUint64(b, d.len)
+	b = binarylite.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -88,11 +88,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], binary.BigEndian.Uint64(b[0:8])
+	return b[8:], binarylite.BigEndian.Uint64(b[0:8])
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], binary.BigEndian.Uint32(b[0:4])
+	return b[4:], binarylite.BigEndian.Uint32(b[0:4])
 }
 
 // New returns a new hash.Hash computing the MD5 checksum. The Hash also
@@ -156,8 +156,8 @@ func (d *digest) checkSum() [Size]byte {
 	//
 	// 1 byte end marker :: 0-63 padding bytes :: 8 byte length
 	tmp := [1 + 63 + 8]byte{0x80}
-	pad := (55 - d.len) % 64                             // calculate number of padding bytes
-	binary.LittleEndian.PutUint64(tmp[1+pad:], d.len<<3) // append length in bits
+	pad := (55 - d.len) % 64                                 // calculate number of padding bytes
+	binarylite.LittleEndian.PutUint64(tmp[1+pad:], d.len<<3) // append length in bits
 	d.Write(tmp[:1+pad+8])
 
 	// The previous write ensures that a whole number of
@@ -167,10 +167,10 @@ func (d *digest) checkSum() [Size]byte {
 	}
 
 	var digest [Size]byte
-	binary.LittleEndian.PutUint32(digest[0:], d.s[0])
-	binary.LittleEndian.PutUint32(digest[4:], d.s[1])
-	binary.LittleEndian.PutUint32(digest[8:], d.s[2])
-	binary.LittleEndian.PutUint32(digest[12:], d.s[3])
+	binarylite.LittleEndian.PutUint32(digest[0:], d.s[0])
+	binarylite.LittleEndian.PutUint32(digest[4:], d.s[1])
+	binarylite.LittleEndian.PutUint32(digest[8:], d.s[2])
+	binarylite.LittleEndian.PutUint32(digest[12:], d.s[3])
 	return digest
 }
 

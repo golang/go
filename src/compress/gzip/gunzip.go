@@ -11,7 +11,7 @@ import (
 	"compress/flate"
 	"errors"
 	"hash/crc32"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"time"
 )
@@ -34,7 +34,7 @@ var (
 	ErrHeader = errors.New("gzip: invalid header")
 )
 
-var le = binary.LittleEndian
+var le = binarylite.LittleEndian
 
 // noEOF converts io.EOF to io.ErrUnexpectedEOF.
 func noEOF(err error) error {

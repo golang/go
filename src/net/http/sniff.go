@@ -6,7 +6,7 @@ package http
 
 import (
 	"bytes"
-	"internal/binary"
+	"internal/binarylite"
 )
 
 // The algorithm uses at most sniffLen bytes to make its decision.
@@ -268,7 +268,7 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 	if len(data) < 12 {
 		return ""
 	}
-	boxSize := int(binary.BigEndian.Uint32(data[:4]))
+	boxSize := int(binarylite.BigEndian.Uint32(data[:4]))
 	if len(data) < boxSize || boxSize%4 != 0 {
 		return ""
 	}

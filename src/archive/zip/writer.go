@@ -9,7 +9,7 @@ import (
 	"errors"
 	"hash"
 	"hash/crc32"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"io/fs"
 	"strings"
@@ -658,16 +658,16 @@ func (b *writeBuf) uint8(v uint8) {
 }
 
 func (b *writeBuf) uint16(v uint16) {
-	binary.LittleEndian.PutUint16(*b, v)
+	binarylite.LittleEndian.PutUint16(*b, v)
 	*b = (*b)[2:]
 }
 
 func (b *writeBuf) uint32(v uint32) {
-	binary.LittleEndian.PutUint32(*b, v)
+	binarylite.LittleEndian.PutUint32(*b, v)
 	*b = (*b)[4:]
 }
 
 func (b *writeBuf) uint64(v uint64) {
-	binary.LittleEndian.PutUint64(*b, v)
+	binarylite.LittleEndian.PutUint64(*b, v)
 	*b = (*b)[8:]
 }

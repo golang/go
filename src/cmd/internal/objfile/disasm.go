@@ -10,7 +10,7 @@ import (
 	"container/list"
 	"debug/gosym"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,14 +29,14 @@ import (
 
 // Disasm is a disassembler for a given File.
 type Disasm struct {
-	syms      []Sym            //symbols in file, sorted by address
-	pcln      Liner            // pcln table
-	text      []byte           // bytes of text segment (actual instructions)
-	textStart uint64           // start PC of text
-	textEnd   uint64           // end PC of text
-	goarch    string           // GOARCH string
-	disasm    disasmFunc       // disassembler function for goarch
-	byteOrder binary.ByteOrder // byte order for goarch
+	syms      []Sym                //symbols in file, sorted by address
+	pcln      Liner                // pcln table
+	text      []byte               // bytes of text segment (actual instructions)
+	textStart uint64               // start PC of text
+	textEnd   uint64               // end PC of text
+	goarch    string               // GOARCH string
+	disasm    disasmFunc           // disassembler function for goarch
+	byteOrder binarylite.ByteOrder // byte order for goarch
 }
 
 // Disasm returns a disassembler for the file f.
@@ -291,13 +291,13 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, gnuAsm bool, f func(p
 }
 
 type lookupFunc = func(addr uint64) (sym string, base uint64)
-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binary.ByteOrder, _ bool) (text string, size int)
+type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binarylite.ByteOrder, _ bool) (text string, size int)
 
-func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binarylite.ByteOrder, gnuAsm bool) (string, int) {
 	return disasm_x86(code, pc, lookup, 32, gnuAsm)
 }
 
-func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binarylite.ByteOrder, gnuAsm bool) (string, int) {
 	return disasm_x86(code, pc, lookup, 64, gnuAsm)
 }
 
@@ -338,7 +338,7 @@ func (r textReader) ReadAt(data []byte, off int64) (n int, err error) {
 	return
 }
 
-func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binarylite.ByteOrder, gnuAsm bool) (string, int) {
 	inst, err := armasm.Decode(code, armasm.ModeARM)
 	var text string
 	size := inst.Len
@@ -353,7 +353,7 @@ func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, g
 	return text, size
 }
 
-func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binarylite.ByteOrder, gnuAsm bool) (string, int) {
 	inst, err := arm64asm.Decode(code)
 	var text string
 	if err != nil || inst.Op == 0 {
@@ -366,7 +366,7 @@ func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	return text, 4
 }
 
-func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binarylite.ByteOrder, gnuAsm bool) (string, int) {
 	inst, err := ppc64asm.Decode(code, byteOrder)
 	var text string
 	size := inst.Len
@@ -392,14 +392,14 @@ var disasms = map[string]disasmFunc{
 	"ppc64le": disasm_ppc64,
 }
 
-var byteOrders = map[string]binary.ByteOrder{
-	"386":     binary.LittleEndian,
-	"amd64":   binary.LittleEndian,
-	"arm":     binary.LittleEndian,
-	"arm64":   binary.LittleEndian,
-	"ppc64":   binary.BigEndian,
-	"ppc64le": binary.LittleEndian,
-	"s390x":   binary.BigEndian,
+var byteOrders = map[string]binarylite.ByteOrder{
+	"386":     binarylite.LittleEndian,
+	"amd64":   binarylite.LittleEndian,
+	"arm":     binarylite.LittleEndian,
+	"arm64":   binarylite.LittleEndian,
+	"ppc64":   binarylite.BigEndian,
+	"ppc64le": binarylite.LittleEndian,
+	"s390x":   binarylite.BigEndian,
 }
 
 type Liner interface {

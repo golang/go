@@ -6,7 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"internal/race"
 	"internal/testenv"
 	"math"
@@ -652,9 +652,9 @@ func TestIssue66841(t *testing.T) {
 	}
 	h := newHashSet()
 	var b [16]byte
-	binary.LittleEndian.PutUint64(b[:8], 0xe7037ed1a0b428db) // runtime.m2
+	binarylite.LittleEndian.PutUint64(b[:8], 0xe7037ed1a0b428db) // runtime.m2
 	for i := 0; i < 1000; i++ {
-		binary.LittleEndian.PutUint64(b[8:], uint64(i))
+		binarylite.LittleEndian.PutUint64(b[8:], uint64(i))
 		h.addB(b[:])
 	}
 	h.check(t)

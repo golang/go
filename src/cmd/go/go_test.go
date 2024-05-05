@@ -12,7 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"internal/binary"
+	"internal/binarylite"
 	"internal/godebug"
 	"internal/platform"
 	"internal/testenv"
@@ -2145,7 +2145,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 				_                 [3]uint32
 			}
 			var e IMAGE_EXPORT_DIRECTORY
-			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
+			if err := binarylite.Read(section.Open(), binarylite.LittleEndian, &e); err != nil {
 				t.Fatalf("binary.Read failed: %v", err)
 			}
 

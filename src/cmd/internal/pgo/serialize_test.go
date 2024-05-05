@@ -7,7 +7,7 @@ package pgo
 import (
 	"bytes"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"reflect"
 	"strings"
 	"testing"
@@ -125,7 +125,7 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 			return 0, false
 		}
 
-		return int64(binary.LittleEndian.Uint64(b)), true
+		return int64(binarylite.LittleEndian.Uint64(b)), true
 	}
 
 	d := emptyProfile()

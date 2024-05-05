@@ -1,4 +1,4 @@
-package binary
+package binarylite
 
 // A ByteOrder specifies how to convert byte slices into
 // 16-, 32-, or 64-bit unsigned integers.

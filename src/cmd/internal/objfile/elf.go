@@ -10,7 +10,7 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"io"
 )
 
@@ -121,7 +121,7 @@ func (f *elfFile) goarch() string {
 	case elf.EM_AARCH64:
 		return "arm64"
 	case elf.EM_PPC64:
-		if f.elf.ByteOrder == binary.LittleEndian {
+		if f.elf.ByteOrder == binarylite.LittleEndian {
 			return "ppc64le"
 		}
 		return "ppc64"

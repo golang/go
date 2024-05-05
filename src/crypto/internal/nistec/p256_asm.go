@@ -17,7 +17,7 @@ package nistec
 import (
 	_ "embed"
 	"errors"
-	"internal/binary"
+	"internal/binarylite"
 	"math/bits"
 	"runtime"
 	"unsafe"
@@ -327,7 +327,7 @@ func init() {
 	if runtime.GOARCH == "s390x" {
 		var newTable [43 * 32 * 2 * 4]uint64
 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256PrecomputedPtr) {
-			newTable[i] = binary.LittleEndian.Uint64(x[:])
+			newTable[i] = binarylite.LittleEndian.Uint64(x[:])
 		}
 		newTablePtr := unsafe.Pointer(&newTable)
 		p256PrecomputedPtr = &newTablePtr

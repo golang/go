@@ -10,7 +10,7 @@ package gosym
 
 import (
 	"bytes"
-	"internal/binary"
+	"internal/binarylite"
 	"sort"
 	"sync"
 )
@@ -52,7 +52,7 @@ type LineTable struct {
 	version version
 
 	// Go 1.2/1.16/1.18 state
-	binary      binary.ByteOrder
+	binary      binarylite.ByteOrder
 	quantum     uint32
 	ptrsize     uint32
 	textStart   uint64 // address of runtime.text symbol (1.18+)
@@ -97,7 +97,7 @@ func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64,
 				b = b[0:0]
 				break
 			}
-			val := binary.BigEndian.Uint32(b)
+			val := binarylite.BigEndian.Uint32(b)
 			b = b[4:]
 			line += int(val)
 		case code <= 64:
@@ -220,25 +220,25 @@ func (t *LineTable) parsePclnTab() {
 	}
 
 	var possibleVersion version
-	leMagic := binary.LittleEndian.Uint32(t.Data)
-	beMagic := binary.BigEndian.Uint32(t.Data)
+	leMagic := binarylite.LittleEndian.Uint32(t.Data)
+	beMagic := binarylite.BigEndian.Uint32(t.Data)
 	switch {
 	case leMagic == go12magic:
-		t.binary, possibleVersion = binary.LittleEndian, ver12
+		t.binary, possibleVersion = binarylite.LittleEndian, ver12
 	case beMagic == go12magic:
-		t.binary, possibleVersion = binary.BigEndian, ver12
+		t.binary, possibleVersion = binarylite.BigEndian, ver12
 	case leMagic == go116magic:
-		t.binary, possibleVersion = binary.LittleEndian, ver116
+		t.binary, possibleVersion = binarylite.LittleEndian, ver116
 	case beMagic == go116magic:
-		t.binary, possibleVersion = binary.BigEndian, ver116
+		t.binary, possibleVersion = binarylite.BigEndian, ver116
 	case leMagic == go118magic:
-		t.binary, possibleVersion = binary.LittleEndian, ver118
+		t.binary, possibleVersion = binarylite.LittleEndian, ver118
 	case beMagic == go118magic:
-		t.binary, possibleVersion = binary.BigEndian, ver118
+		t.binary, possibleVersion = binarylite.BigEndian, ver118
 	case leMagic == go120magic:
-		t.binary, possibleVersion = binary.LittleEndian, ver120
+		t.binary, possibleVersion = binarylite.LittleEndian, ver120
 	case beMagic == go120magic:
-		t.binary, possibleVersion = binary.BigEndian, ver120
+		t.binary, possibleVersion = binarylite.BigEndian, ver120
 	default:
 		return
 	}

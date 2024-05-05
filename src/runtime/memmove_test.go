@@ -7,7 +7,7 @@ package runtime_test
 import (
 	"crypto/rand"
 	"fmt"
-	"internal/binary"
+	"internal/binarylite"
 	"internal/race"
 	"internal/testenv"
 	. "runtime"
@@ -899,9 +899,9 @@ func BenchmarkIssue18740(b *testing.B) {
 		nbyte int
 		f     func([]byte) uint64
 	}{
-		{"2byte", 2, func(buf []byte) uint64 { return uint64(binary.LittleEndian.Uint16(buf)) }},
-		{"4byte", 4, func(buf []byte) uint64 { return uint64(binary.LittleEndian.Uint32(buf)) }},
-		{"8byte", 8, func(buf []byte) uint64 { return binary.LittleEndian.Uint64(buf) }},
+		{"2byte", 2, func(buf []byte) uint64 { return uint64(binarylite.LittleEndian.Uint16(buf)) }},
+		{"4byte", 4, func(buf []byte) uint64 { return uint64(binarylite.LittleEndian.Uint32(buf)) }},
+		{"8byte", 8, func(buf []byte) uint64 { return binarylite.LittleEndian.Uint64(buf) }},
 	}
 
 	var g [4096]byte
