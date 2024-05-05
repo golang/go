@@ -4,7 +4,9 @@
 
 package zstd
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 // readLiterals reads and decompresses the literals from data at off.
 // The literals are appended to outbuf, which is returned.

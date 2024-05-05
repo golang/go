@@ -5,7 +5,7 @@
 package slicereader
 
 import (
-	"internal/binarylite"
+	"encoding/binary"
 	"io"
 	"testing"
 )
@@ -15,12 +15,12 @@ func TestSliceReader(t *testing.T) {
 
 	bt := make([]byte, 4)
 	e32 := uint32(1030507)
-	binarylite.LittleEndian.PutUint32(bt, e32)
+	binary.LittleEndian.PutUint32(bt, e32)
 	b = append(b, bt...)
 
 	bt = make([]byte, 8)
 	e64 := uint64(907050301)
-	binarylite.LittleEndian.PutUint64(bt, e64)
+	binary.LittleEndian.PutUint64(bt, e64)
 	b = append(b, bt...)
 
 	b = appendUleb128(b, uint(e32))

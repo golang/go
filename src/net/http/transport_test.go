@@ -17,10 +17,10 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"go/token"
-	"internal/binarylite"
 	"internal/nettrace"
 	"io"
 	"log"
@@ -1326,7 +1326,7 @@ func testSOCKS5Proxy(t *testing.T, mode testMode) {
 			return
 		}
 		ip := net.IP(buf[4 : ipLen+4])
-		port := binarylite.BigEndian.Uint16(buf[ipLen+4 : ipLen+6])
+		port := binary.BigEndian.Uint16(buf[ipLen+4 : ipLen+6])
 		copy(buf[:3], []byte{5, 0, 0})
 		if _, err := s.Write(buf[:ipLen+6]); err != nil {
 			t.Errorf("socks5 proxy connect write: %v", err)

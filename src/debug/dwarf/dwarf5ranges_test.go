@@ -5,7 +5,7 @@
 package dwarf
 
 import (
-	"internal/binarylite"
+	"encoding/binary"
 	"os"
 	"reflect"
 	"testing"
@@ -18,7 +18,7 @@ func TestDwarf5Ranges(t *testing.T) {
 	}
 
 	d := &Data{}
-	d.order = binarylite.LittleEndian
+	d.order = binary.LittleEndian
 	if err := d.AddSection(".debug_rnglists", rngLists); err != nil {
 		t.Fatal(err)
 	}

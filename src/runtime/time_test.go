@@ -6,8 +6,8 @@ package runtime_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
-	"internal/binarylite"
 	"internal/testenv"
 	"os/exec"
 	"reflect"
@@ -86,9 +86,9 @@ func parseFakeTime(x []byte) ([]fakeTimeFrame, error) {
 			return nil, errors.New("bad magic")
 		}
 		x = x[len(magic):]
-		time := binarylite.BigEndian.Uint64(x)
+		time := binary.BigEndian.Uint64(x)
 		x = x[8:]
-		dlen := binarylite.BigEndian.Uint32(x)
+		dlen := binary.BigEndian.Uint32(x)
 		x = x[4:]
 		data := string(x[:dlen])
 		x = x[dlen:]

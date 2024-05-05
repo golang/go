@@ -9,10 +9,10 @@ import (
 	"bytes"
 	"cmd/cgo/internal/cgotest"
 	"debug/elf"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"go/build"
-	"internal/binarylite"
 	"internal/platform"
 	"internal/testenv"
 	"io"
@@ -417,18 +417,18 @@ func readNotes(f *elf.File) ([]*note, error) {
 		r := sect.Open()
 		for {
 			var namesize, descsize, tag int32
-			err := binarylite.Read(r, f.ByteOrder, &namesize)
+			err := binary.Read(r, f.ByteOrder, &namesize)
 			if err != nil {
 				if err == io.EOF {
 					break
 				}
 				return nil, fmt.Errorf("read namesize failed: %v", err)
 			}
-			err = binarylite.Read(r, f.ByteOrder, &descsize)
+			err = binary.Read(r, f.ByteOrder, &descsize)
 			if err != nil {
 				return nil, fmt.Errorf("read descsize failed: %v", err)
 			}
-			err = binarylite.Read(r, f.ByteOrder, &tag)
+			err = binary.Read(r, f.ByteOrder, &tag)
 			if err != nil {
 				return nil, fmt.Errorf("read type failed: %v", err)
 			}

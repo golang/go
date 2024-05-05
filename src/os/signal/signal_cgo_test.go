@@ -12,8 +12,8 @@ package signal_test
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
-	"internal/binarylite"
 	"internal/syscall/unix"
 	"internal/testenv"
 	"internal/testpty"
@@ -176,7 +176,7 @@ func TestTerminalSignal(t *testing.T) {
 	if n != 8 {
 		t.Fatalf("unexpected short read n = %d\n", n)
 	}
-	pid := binarylite.LittleEndian.Uint64(b[:])
+	pid := binary.LittleEndian.Uint64(b[:])
 	process, err := os.FindProcess(int(pid))
 	if err != nil {
 		t.Fatalf("unable to find child process: %v", err)
@@ -280,7 +280,7 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
 
 	fn := func() error {
 		var b [8]byte
-		binarylite.LittleEndian.PutUint64(b[:], uint64(cmd.Process.Pid))
+		binary.LittleEndian.PutUint64(b[:], uint64(cmd.Process.Pid))
 		_, err := controlW.Write(b[:])
 		if err != nil {
 			return fmt.Errorf("error writing child pid: %w", err)

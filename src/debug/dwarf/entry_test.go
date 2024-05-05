@@ -6,7 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
-	"internal/binarylite"
+	"encoding/binary"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -216,7 +216,7 @@ func Test64Bit(t *testing.T) {
 		name      string
 		info      []byte
 		addrSize  int
-		byteOrder binarylite.ByteOrder
+		byteOrder binary.ByteOrder
 	}{
 		{
 			"32-bit little",
@@ -231,7 +231,7 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
-			8, binarylite.LittleEndian,
+			8, binary.LittleEndian,
 		},
 		{
 			"64-bit little",
@@ -246,7 +246,7 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
-			8, binarylite.LittleEndian,
+			8, binary.LittleEndian,
 		},
 		{
 			"64-bit big",
@@ -261,7 +261,7 @@ func Test64Bit(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 			},
-			8, binarylite.BigEndian,
+			8, binary.BigEndian,
 		},
 	}
 

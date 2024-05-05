@@ -6,8 +6,8 @@ package zip
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
-	"internal/binarylite"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
@@ -788,7 +788,7 @@ func TestInvalidFiles(t *testing.T) {
 
 	// repeated directoryEndSignatures
 	sig := make([]byte, 4)
-	binarylite.LittleEndian.PutUint32(sig, directoryEndSignature)
+	binary.LittleEndian.PutUint32(sig, directoryEndSignature)
 	for i := 0; i < size-4; i += 4 {
 		copy(b[i:i+4], sig)
 	}

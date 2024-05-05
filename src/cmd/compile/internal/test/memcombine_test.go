@@ -5,7 +5,7 @@
 package test
 
 import (
-	"internal/binarylite"
+	"encoding/binary"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ var gv = [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8}
 
 //go:noinline
 func readGlobalUnaligned() uint64 {
-	return binarylite.LittleEndian.Uint64(gv[1:])
+	return binary.LittleEndian.Uint64(gv[1:])
 }
 
 func TestUnalignedGlobal(t *testing.T) {
@@ -45,25 +45,25 @@ func TestSpillOfExtendedEndianLoads(t *testing.T) {
 }
 
 func readUint16le(b []byte) uint64 {
-	y := uint64(binarylite.LittleEndian.Uint16(b))
+	y := uint64(binary.LittleEndian.Uint16(b))
 	nop() // force spill
 	return y
 }
 
 func readUint16be(b []byte) uint64 {
-	y := uint64(binarylite.BigEndian.Uint16(b))
+	y := uint64(binary.BigEndian.Uint16(b))
 	nop() // force spill
 	return y
 }
 
 func readUint32le(b []byte) uint64 {
-	y := uint64(binarylite.LittleEndian.Uint32(b))
+	y := uint64(binary.LittleEndian.Uint32(b))
 	nop() // force spill
 	return y
 }
 
 func readUint32be(b []byte) uint64 {
-	y := uint64(binarylite.BigEndian.Uint32(b))
+	y := uint64(binary.BigEndian.Uint32(b))
 	nop() // force spill
 	return y
 }

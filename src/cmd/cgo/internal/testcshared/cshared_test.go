@@ -10,9 +10,9 @@ import (
 	"cmd/cgo/internal/cgotest"
 	"debug/elf"
 	"debug/pe"
+	"encoding/binary"
 	"flag"
 	"fmt"
-	"internal/binarylite"
 	"internal/testenv"
 	"log"
 	"os"
@@ -432,7 +432,7 @@ func main() {
 		_                 [3]uint32
 	}
 	var e IMAGE_EXPORT_DIRECTORY
-	if err := binarylite.Read(section.Open(), binarylite.LittleEndian, &e); err != nil {
+	if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
 		t.Fatalf("binary.Read failed: %v", err)
 	}
 

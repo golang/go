@@ -46,7 +46,6 @@ var depsRules = `
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/trace/traceviewer/format,
-	  internal/binarylite,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
