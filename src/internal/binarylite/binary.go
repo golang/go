@@ -1,13 +1,10 @@
 package binarylite
 
-// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
-var LittleEndian littleEndian
-
-// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
-var BigEndian bigEndian
-
-// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
-var NativeEndian nativeEndian
+var (
+	LittleEndian littleEndian
+	BigEndian    bigEndian
+	NativeEndian nativeEndian
+)
 
 type littleEndian struct{}
 
