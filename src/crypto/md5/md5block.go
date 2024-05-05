@@ -7,7 +7,7 @@
 package md5
 
 import (
-	"internal/binarylite"
+	"internal/binary"
 	"math/bits"
 )
 
