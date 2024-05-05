@@ -770,6 +770,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		if nfreed != 0 {
 			// Free large object span to heap.
 
+			// Count the free in the consistent, external stats.
+			//
+			// Do this before freeSpan, which might update heapStats' inHeap
+			// value. If it does so, then metrics that subtract object footprint
+			// from inHeap might overflow. See #67019.
+			stats := memstats.heapStats.acquire()
+			atomic.Xadd64(&stats.largeFreeCount, 1)
+			atomic.Xadd64(&stats.largeFree, int64(size))
+			memstats.heapStats.release()
+
+			// Count the free in the inconsistent, internal stats.
+			gcController.totalFree.Add(int64(size))
+
 			// NOTE(rsc,dvyukov): The original implementation of efence
 			// in CL 22060046 used sysFree instead of sysFault, so that
 			// the operating system would eventually give the memory
@@ -802,16 +815,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
 				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
 			}
-
-			// Count the free in the consistent, external stats.
-			stats := memstats.heapStats.acquire()
-			atomic.Xadd64(&stats.largeFreeCount, 1)
-			atomic.Xadd64(&stats.largeFree, int64(size))
-			memstats.heapStats.release()
-
-			// Count the free in the inconsistent, internal stats.
-			gcController.totalFree.Add(int64(size))
-
 			return true
 		}
 
