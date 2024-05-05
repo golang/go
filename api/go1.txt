@@ -2294,8 +2294,8 @@ pkg encoding/binary, type ByteOrder interface, String() string
 pkg encoding/binary, type ByteOrder interface, Uint16([]uint8) uint16
 pkg encoding/binary, type ByteOrder interface, Uint32([]uint8) uint32
 pkg encoding/binary, type ByteOrder interface, Uint64([]uint8) uint64
-pkg encoding/binary, var BigEndian bigEndian
-pkg encoding/binary, var LittleEndian littleEndian
+pkg encoding/binary, var BigEndian binarylite.bigEndian
+pkg encoding/binary, var LittleEndian binarylite.littleEndian
 pkg encoding/csv, func NewReader(io.Reader) *Reader
 pkg encoding/csv, func NewWriter(io.Writer) *Writer
 pkg encoding/csv, method (*ParseError) Error() string

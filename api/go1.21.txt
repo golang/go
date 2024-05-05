@@ -162,7 +162,7 @@ pkg debug/elf, method (DynFlag1) GoString() string #56887
 pkg debug/elf, method (DynFlag1) String() string #56887
 pkg debug/elf, method (*File) DynValue(DynTag) ([]uint64, error) #56892
 pkg debug/elf, type DynFlag1 uint32 #56887
-pkg encoding/binary, var NativeEndian nativeEndian #57237
+pkg encoding/binary, var NativeEndian binarylite.nativeEndian #57237
 pkg errors, var ErrUnsupported error #41198
 pkg flag, func BoolFunc(string, string, func(string) error) #53747
 pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747
