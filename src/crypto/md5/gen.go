@@ -201,7 +201,7 @@ var program = `// Copyright 2013 The Go Authors. All rights reserved.
 package md5
 
 import (
-	"internal/binary"
+	"internal/binarylite"
 	"math/bits"
 )
 
