@@ -66,7 +66,7 @@ var (
 	NativeEndian = nativeEndian
 )
 
-// Definitions to hide the intrnal/binarylite package from docs.
+// Definitions to hide the internal/binarylite package from docs.
 var (
 	littleEndian = binarylite.LittleEndian
 	bigEndian    = binarylite.BigEndian
