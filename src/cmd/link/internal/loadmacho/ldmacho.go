@@ -12,8 +12,8 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"encoding/binary"
 	"fmt"
-	"internal/binary"
 )
 
 /*

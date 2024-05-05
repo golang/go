@@ -26,10 +26,10 @@ package zlib
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/adler32"
-	"internal/binary"
 	"io"
 )
 

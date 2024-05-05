@@ -20,9 +20,9 @@ package goobj
 
 import (
 	"cmd/internal/bio"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/binary"
 	"unsafe"
 )
 

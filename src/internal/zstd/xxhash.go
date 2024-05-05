@@ -5,7 +5,7 @@
 package zstd
 
 import (
-	"internal/binary"
+	"encoding/binary"
 	"math/bits"
 )
 

@@ -7,7 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"internal/binary"
+	"encoding/binary"
 )
 
 // Target holds the configuration we're building for.

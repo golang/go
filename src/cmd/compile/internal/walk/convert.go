@@ -5,8 +5,8 @@
 package walk
 
 import (
+	"encoding/binary"
 	"go/constant"
-	"internal/binary"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"

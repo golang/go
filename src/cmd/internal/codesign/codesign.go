@@ -12,7 +12,7 @@ package codesign
 
 import (
 	"debug/macho"
-	"internal/binary"
+	"encoding/binary"
 	"io"
 
 	"cmd/internal/notsha256"

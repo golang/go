@@ -11,9 +11,9 @@
 package dwarf
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/binary"
 	"strconv"
 )
 

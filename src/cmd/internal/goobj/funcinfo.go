@@ -6,8 +6,8 @@ package goobj
 
 import (
 	"bytes"
+	"encoding/binary"
 	"internal/abi"
-	"internal/binary"
 )
 
 // CUFileIndex is used to index the filenames that are stored in the

@@ -7,8 +7,8 @@ package ld
 import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
+	"encoding/binary"
 	"errors"
-	"internal/binary"
 	"log"
 	"os"
 )

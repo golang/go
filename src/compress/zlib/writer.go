@@ -6,10 +6,10 @@ package zlib
 
 import (
 	"compress/flate"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"hash/adler32"
-	"internal/binary"
 	"io"
 )
 
