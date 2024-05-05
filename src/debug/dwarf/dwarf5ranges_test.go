@@ -5,7 +5,7 @@
 package dwarf
 
 import (
-	"encoding/binary"
+	"internal/binary"
 	"os"
 	"reflect"
 	"testing"

@@ -5,8 +5,8 @@
 package runtime_test
 
 import (
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"internal/race"
 	"internal/testenv"
 	"math"

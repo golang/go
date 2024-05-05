@@ -5,8 +5,8 @@
 package edwards25519
 
 import (
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 )
 
 // A Scalar is an integer modulo

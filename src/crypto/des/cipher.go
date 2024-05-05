@@ -7,7 +7,7 @@ package des
 import (
 	"crypto/cipher"
 	"crypto/internal/alias"
-	"encoding/binary"
+	"internal/binary"
 	"strconv"
 )
 

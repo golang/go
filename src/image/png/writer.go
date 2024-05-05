@@ -7,10 +7,10 @@ package png
 import (
 	"bufio"
 	"compress/zlib"
-	"encoding/binary"
 	"hash/crc32"
 	"image"
 	"image/color"
+	"internal/binary"
 	"io"
 	"strconv"
 )

@@ -5,7 +5,7 @@
 package zstd
 
 import (
-	"encoding/binary"
+	"internal/binary"
 )
 
 // readLiterals reads and decompresses the literals from data at off.

@@ -11,8 +11,8 @@
 package notsha256
 
 import (
-	"encoding/binary"
 	"hash"
+	"internal/binary"
 )
 
 // The size of a checksum in bytes.

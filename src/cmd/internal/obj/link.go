@@ -37,9 +37,9 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
-	"encoding/binary"
 	"fmt"
 	"internal/abi"
+	"internal/binary"
 	"sync"
 	"sync/atomic"
 )

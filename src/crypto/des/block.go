@@ -5,7 +5,7 @@
 package des
 
 import (
-	"encoding/binary"
+	"internal/binary"
 	"sync"
 )
 

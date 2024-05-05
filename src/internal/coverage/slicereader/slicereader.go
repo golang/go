@@ -5,8 +5,8 @@
 package slicereader
 
 import (
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"io"
 	"unsafe"
 )

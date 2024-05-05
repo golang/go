@@ -2,11 +2,11 @@ package tls
 
 import (
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"internal/binary"
 	"internal/testenv"
 	"io"
 	"log"

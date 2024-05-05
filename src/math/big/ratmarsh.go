@@ -7,9 +7,9 @@
 package big
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/binary"
 	"math"
 )
 

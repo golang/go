@@ -7,8 +7,8 @@ package cipher
 import (
 	"crypto/internal/alias"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 )
 
 // AEAD is a cipher mode providing authenticated encryption with associated

@@ -9,7 +9,7 @@ package rand
 
 import (
 	"crypto/aes"
-	"encoding/binary"
+	"internal/binary"
 	"io"
 	"os"
 	"sync"

@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"debug/elf"
-	"encoding/binary"
+	"internal/binary"
 	"internal/obscuretestdata"
 	"os"
 	"reflect"

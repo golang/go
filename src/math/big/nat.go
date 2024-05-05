@@ -14,7 +14,7 @@
 package big
 
 import (
-	"encoding/binary"
+	"internal/binary"
 	"math/bits"
 	"math/rand"
 	"sync"

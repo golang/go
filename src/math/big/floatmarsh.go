@@ -7,9 +7,9 @@
 package big
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/binary"
 )
 
 // Gob codec version. Permits backward-compatible changes to the encoding.

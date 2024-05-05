@@ -7,8 +7,8 @@ package fnv
 import (
 	"bytes"
 	"encoding"
-	"encoding/binary"
 	"hash"
+	"internal/binary"
 	"io"
 	"testing"
 )

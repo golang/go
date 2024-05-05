@@ -6,8 +6,8 @@ package cache
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"internal/testenv"
 	"os"
 	"path/filepath"

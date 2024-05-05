@@ -5,7 +5,7 @@
 package test
 
 import (
-	"encoding/binary"
+	"internal/binary"
 	"testing"
 )
 

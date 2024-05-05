@@ -13,9 +13,9 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/pe"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/binary"
 	"io"
 	"strings"
 )

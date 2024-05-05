@@ -6,8 +6,8 @@ package ld
 
 import (
 	"cmd/link/internal/loader"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"os"
 )
 

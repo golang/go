@@ -7,9 +7,9 @@ package zip
 import (
 	"bytes"
 	"compress/flate"
-	"encoding/binary"
 	"fmt"
 	"hash/crc32"
+	"internal/binary"
 	"io"
 	"io/fs"
 	"math/rand"

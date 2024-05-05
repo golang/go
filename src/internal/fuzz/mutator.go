@@ -5,8 +5,8 @@
 package fuzz
 
 import (
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"math"
 	"unsafe"
 )

@@ -8,8 +8,8 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/nistec"
 	"crypto/internal/randutil"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"io"
 	"math/bits"
 )

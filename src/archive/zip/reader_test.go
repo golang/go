@@ -6,8 +6,8 @@ package zip
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
+	"internal/binary"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"

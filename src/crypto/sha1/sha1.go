@@ -11,9 +11,9 @@ package sha1
 import (
 	"crypto"
 	"crypto/internal/boring"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/binary"
 )
 
 func init() {

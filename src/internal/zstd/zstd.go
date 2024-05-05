@@ -7,9 +7,9 @@
 package zstd
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/binary"
 	"io"
 )
 

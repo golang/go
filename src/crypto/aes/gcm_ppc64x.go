@@ -9,8 +9,8 @@ package aes
 import (
 	"crypto/cipher"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"runtime"
 )
 

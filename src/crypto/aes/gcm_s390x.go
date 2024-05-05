@@ -10,8 +10,8 @@ import (
 	"crypto/cipher"
 	"crypto/internal/alias"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"internal/cpu"
 )
 

@@ -9,9 +9,9 @@ package gzip
 import (
 	"bufio"
 	"compress/flate"
-	"encoding/binary"
 	"errors"
 	"hash/crc32"
+	"internal/binary"
 	"io"
 	"time"
 )

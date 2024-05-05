@@ -37,7 +37,7 @@
 package aes
 
 import (
-	"encoding/binary"
+	"internal/binary"
 )
 
 // Encrypt one block from src into dst, using the expanded key xk.

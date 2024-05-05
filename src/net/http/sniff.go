@@ -6,7 +6,7 @@ package http
 
 import (
 	"bytes"
-	"encoding/binary"
+	"internal/binary"
 )
 
 // The algorithm uses at most sniffLen bytes to make its decision.

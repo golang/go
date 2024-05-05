@@ -7,8 +7,8 @@ package field
 
 import (
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"math/bits"
 )
 

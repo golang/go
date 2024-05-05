@@ -6,8 +6,8 @@ package runtime_test
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"internal/race"
 	"internal/testenv"
 	. "runtime"

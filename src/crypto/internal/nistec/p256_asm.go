@@ -16,8 +16,8 @@ package nistec
 
 import (
 	_ "embed"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"math/bits"
 	"runtime"
 	"unsafe"

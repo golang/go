@@ -6,7 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
-	"encoding/binary"
+	"internal/binary"
 	"path/filepath"
 	"reflect"
 	"testing"

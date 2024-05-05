@@ -9,7 +9,7 @@ package aes
 import (
 	"crypto/cipher"
 	"crypto/internal/alias"
-	"encoding/binary"
+	"internal/binary"
 )
 
 // Assert that aesCipherAsm implements the ctrAble interface.

@@ -6,10 +6,10 @@ package zip
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
+	"internal/binary"
 	"internal/godebug"
 	"io"
 	"io/fs"

@@ -9,8 +9,8 @@ package objfile
 import (
 	"debug/dwarf"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"io"
 )
 

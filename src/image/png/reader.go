@@ -9,12 +9,12 @@ package png
 
 import (
 	"compress/zlib"
-	"encoding/binary"
 	"fmt"
 	"hash"
 	"hash/crc32"
 	"image"
 	"image/color"
+	"internal/binary"
 	"io"
 )
 

@@ -30,8 +30,8 @@ package mlkem768
 import (
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 
 	"golang.org/x/crypto/sha3"
 )

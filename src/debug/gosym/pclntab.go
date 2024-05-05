@@ -10,7 +10,7 @@ package gosym
 
 import (
 	"bytes"
-	"encoding/binary"
+	"internal/binary"
 	"sort"
 	"sync"
 )

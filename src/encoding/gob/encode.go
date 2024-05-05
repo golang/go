@@ -8,7 +8,7 @@ package gob
 
 import (
 	"encoding"
-	"encoding/binary"
+	"internal/binary"
 	"math"
 	"math/bits"
 	"reflect"

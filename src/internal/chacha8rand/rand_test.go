@@ -6,8 +6,8 @@ package chacha8rand_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	. "internal/chacha8rand"
 	"slices"
 	"testing"

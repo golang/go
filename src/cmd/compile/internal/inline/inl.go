@@ -528,7 +528,7 @@ opSwitch:
 						cheap = true
 					}
 					// Special case: on architectures that can do unaligned loads,
-					// explicitly mark encoding/binary methods as cheap,
+					// explicitly mark internal/binary methods as cheap,
 					// because in practice they are, even though our inlining
 					// budgeting system does not see that. See issue 42958.
 					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "internal/binary" {

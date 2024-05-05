@@ -6,8 +6,8 @@ package types
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"strconv"
 	"sync"
 

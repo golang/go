@@ -6,8 +6,8 @@ package runtime_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"internal/testenv"
 	"os/exec"
 	"reflect"

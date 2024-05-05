@@ -9,8 +9,8 @@ package gosym
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"strconv"
 	"strings"
 )

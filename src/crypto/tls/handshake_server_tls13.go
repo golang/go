@@ -10,9 +10,9 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/binary"
 	"io"
 	"time"
 )

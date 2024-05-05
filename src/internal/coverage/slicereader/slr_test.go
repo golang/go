@@ -5,7 +5,7 @@
 package slicereader
 
 import (
-	"encoding/binary"
+	"internal/binary"
 	"io"
 	"testing"
 )

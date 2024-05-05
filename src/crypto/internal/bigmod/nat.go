@@ -5,8 +5,8 @@
 package bigmod
 
 import (
-	"encoding/binary"
 	"errors"
+	"internal/binary"
 	"math/big"
 	"math/bits"
 )

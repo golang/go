@@ -32,9 +32,9 @@ package mips
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"encoding/binary"
 	"fmt"
 	"internal/abi"
+	"internal/binary"
 	"log"
 	"math"
 )

@@ -5,9 +5,9 @@
 package pprof
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/binary"
 	"os"
 )
 

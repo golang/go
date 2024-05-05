@@ -9,9 +9,9 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"encoding/binary"
 	"fmt"
 	"internal/abi"
+	"internal/binary"
 	"io"
 	"math"
 )

@@ -7,11 +7,11 @@ package png
 import (
 	"bytes"
 	"compress/zlib"
-	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	"internal/binary"
 	"io"
 	"testing"
 )

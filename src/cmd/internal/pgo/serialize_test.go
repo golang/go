@@ -6,8 +6,8 @@ package pgo
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,25 +67,25 @@ func TestRoundTrip(t *testing.T) {
 		NamedEdgeMap: NamedEdgeMap{
 			ByWeight: []NamedCallEdge{
 				{
-					CallerName: "a",
-					CalleeName: "b",
+					CallerName:     "a",
+					CalleeName:     "b",
 					CallSiteOffset: 14,
 				},
 				{
-					CallerName: "c",
-					CalleeName: "d",
+					CallerName:     "c",
+					CalleeName:     "d",
 					CallSiteOffset: 15,
 				},
 			},
 			Weight: map[NamedCallEdge]int64{
 				{
-					CallerName: "a",
-					CalleeName: "b",
+					CallerName:     "a",
+					CalleeName:     "b",
 					CallSiteOffset: 14,
 				}: 2,
 				{
-					CallerName: "c",
-					CalleeName: "d",
+					CallerName:     "c",
+					CalleeName:     "d",
 					CallSiteOffset: 15,
 				}: 1,
 			},
@@ -157,8 +157,8 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 		}
 
 		edge := NamedCallEdge{
-			CallerName: caller,
-			CalleeName: callee,
+			CallerName:     caller,
+			CalleeName:     callee,
 			CallSiteOffset: int(line),
 		}
 

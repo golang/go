@@ -12,8 +12,8 @@ package signal_test
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
+	"internal/binary"
 	"internal/syscall/unix"
 	"internal/testenv"
 	"internal/testpty"

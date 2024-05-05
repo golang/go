@@ -12,9 +12,9 @@ package md5
 
 import (
 	"crypto"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/binary"
 )
 
 func init() {
