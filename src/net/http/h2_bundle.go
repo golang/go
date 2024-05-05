@@ -29,9 +29,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/binarylite"
 	"io"
 	"io/fs"
 	"log"
@@ -1647,7 +1647,7 @@ func http2readFrameHeader(buf []byte, r io.Reader) (http2FrameHeader, error) {
 		Length:   (uint32(buf[0])<<16 | uint32(buf[1])<<8 | uint32(buf[2])),
 		Type:     http2FrameType(buf[3]),
 		Flags:    http2Flags(buf[4]),
-		StreamID: binarylite.BigEndian.Uint32(buf[5:]) & (1<<31 - 1),
+		StreamID: binary.BigEndian.Uint32(buf[5:]) & (1<<31 - 1),
 		valid:    true,
 	}, nil
 }
@@ -2181,8 +2181,8 @@ func (f *http2SettingsFrame) Value(id http2SettingID) (v uint32, ok bool) {
 func (f *http2SettingsFrame) Setting(i int) http2Setting {
 	buf := f.p
 	return http2Setting{
-		ID:  http2SettingID(binarylite.BigEndian.Uint16(buf[i*6 : i*6+2])),
-		Val: binarylite.BigEndian.Uint32(buf[i*6+2 : i*6+6]),
+		ID:  http2SettingID(binary.BigEndian.Uint16(buf[i*6 : i*6+2])),
+		Val: binary.BigEndian.Uint32(buf[i*6+2 : i*6+6]),
 	}
 }
 
@@ -2318,8 +2318,8 @@ func http2parseGoAwayFrame(_ *http2frameCache, fh http2FrameHeader, countError f
 	}
 	return &http2GoAwayFrame{
 		http2FrameHeader: fh,
-		LastStreamID:     binarylite.BigEndian.Uint32(p[:4]) & (1<<31 - 1),
-		ErrCode:          http2ErrCode(binarylite.BigEndian.Uint32(p[4:8])),
+		LastStreamID:     binary.BigEndian.Uint32(p[:4]) & (1<<31 - 1),
+		ErrCode:          http2ErrCode(binary.BigEndian.Uint32(p[4:8])),
 		debugData:        p[8:],
 	}, nil
 }
@@ -2365,7 +2365,7 @@ func http2parseWindowUpdateFrame(_ *http2frameCache, fh http2FrameHeader, countE
 		countError("frame_windowupdate_bad_len")
 		return nil, http2ConnectionError(http2ErrCodeFrameSize)
 	}
-	inc := binarylite.BigEndian.Uint32(p[:4]) & 0x7fffffff // mask off high reserved bit
+	inc := binary.BigEndian.Uint32(p[:4]) & 0x7fffffff // mask off high reserved bit
 	if inc == 0 {
 		// A receiver MUST treat the receipt of a
 		// WINDOW_UPDATE frame with an flow control window
@@ -2579,7 +2579,7 @@ func http2parsePriorityFrame(_ *http2frameCache, fh http2FrameHeader, countError
 		countError("frame_priority_bad_length")
 		return nil, http2connError{http2ErrCodeFrameSize, fmt.Sprintf("PRIORITY frame payload size was %d; want 5", len(payload))}
 	}
-	v := binarylite.BigEndian.Uint32(payload[:4])
+	v := binary.BigEndian.Uint32(payload[:4])
 	streamID := v & 0x7fffffff // mask off high bit
 	return &http2PriorityFrame{
 		http2FrameHeader: fh,
@@ -2628,7 +2628,7 @@ func http2parseRSTStreamFrame(_ *http2frameCache, fh http2FrameHeader, countErro
 		countError("frame_rststream_zero_stream")
 		return nil, http2ConnectionError(http2ErrCodeProtocol)
 	}
-	return &http2RSTStreamFrame{fh, http2ErrCode(binarylite.BigEndian.Uint32(p[:4]))}, nil
+	return &http2RSTStreamFrame{fh, http2ErrCode(binary.BigEndian.Uint32(p[:4]))}, nil
 }
 
 // WriteRSTStream writes a RST_STREAM frame.
@@ -2814,7 +2814,7 @@ func http2readUint32(p []byte) (remain []byte, v uint32, err error) {
 	if len(p) < 4 {
 		return nil, 0, io.ErrUnexpectedEOF
 	}
-	return p[4:], binarylite.BigEndian.Uint32(p[:4]), nil
+	return p[4:], binary.BigEndian.Uint32(p[:4]), nil
 }
 
 type http2streamEnder interface {
