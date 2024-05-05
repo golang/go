@@ -55,14 +55,23 @@ type AppendByteOrder interface {
 	String() string
 }
 
-// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
-var LittleEndian = binarylite.LittleEndian
+var (
+	// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
+	LittleEndian = littleEndian
 
-// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
-var BigEndian = binarylite.BigEndian
+	// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
+	BigEndian = bigEndian
 
-// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
-var NativeEndian = binarylite.NativeEndian
+	// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
+	NativeEndian = nativeEndian
+)
+
+// Definitions to hide the intrnal/binarylite package from docs.
+var (
+	littleEndian = binarylite.LittleEndian
+	bigEndian    = binarylite.BigEndian
+	nativeEndian = binarylite.NativeEndian
+)
 
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
