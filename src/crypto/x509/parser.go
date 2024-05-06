@@ -964,7 +964,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
 					}
 					oidStr := ext.Id.String()
 					if seenExts[oidStr] {
-						return nil, errors.New("x509: certificate contains duplicate extension %s", oidStr)
+						return nil, fmt.Errorf("x509: certificate contains duplicate extension with OID %q", oidStr)
 					}
 					seenExts[oidStr] = true
 					cert.Extensions = append(cert.Extensions, ext)
