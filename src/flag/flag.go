@@ -145,6 +145,31 @@ func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
 
 func (b *boolValue) IsBoolFlag() bool { return true }
 
+// -- bools Value
+type boolsValue []bool
+
+func newBoolsValue(val []bool, p *[]bool) *boolsValue {
+	*p = val
+	return (*boolsValue)(p)
+}
+
+func (b *boolsValue) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		err = errParse
+	}
+	*b = append(*b, v)
+	return err
+}
+
+func (b *boolsValue) Get() any { return []bool(*b) }
+
+func (b *boolsValue) String() string { return fmt.Sprint([]bool(*b)) }
+
+func (b *boolsValue) IsBoolFlag() bool {
+	return true
+}
+
 // optional interface to indicate boolean flags that can be
 // supplied without "=value" text
 type boolFlag interface {
@@ -173,6 +198,27 @@ func (i *intValue) Get() any { return int(*i) }
 
 func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
 
+// -- ints Value
+type intsValue []int
+
+func newIntsValue(val []int, p *[]int) *intsValue {
+	*p = val
+	return (*intsValue)(p)
+}
+
+func (i *intsValue) Set(s string) error {
+	v, err := strconv.ParseInt(s, 0, strconv.IntSize)
+	if err != nil {
+		err = numError(err)
+	}
+	*i = append(*i, int(v))
+	return err
+}
+
+func (i *intsValue) Get() any { return []int(*i) }
+
+func (i *intsValue) String() string { return fmt.Sprint([]int(*i)) }
+
 // -- int64 Value
 type int64Value int64
 
@@ -193,6 +239,27 @@ func (i *int64Value) Set(s string) error {
 func (i *int64Value) Get() any { return int64(*i) }
 
 func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
+
+// -- int64s Value
+type int64sValue []int64
+
+func newInt64sValue(val []int64, p *[]int64) *int64sValue {
+	*p = val
+	return (*int64sValue)(p)
+}
+
+func (i *int64sValue) Set(s string) error {
+	v, err := strconv.ParseInt(s, 0, 64)
+	if err != nil {
+		err = numError(err)
+	}
+	*i = append(*i, v)
+	return err
+}
+
+func (i *int64sValue) Get() any { return []int64(*i) }
+
+func (i *int64sValue) String() string { return fmt.Sprint([]int64(*i)) }
 
 // -- uint Value
 type uintValue uint
@@ -215,6 +282,27 @@ func (i *uintValue) Get() any { return uint(*i) }
 
 func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
+// -- uints Value
+type uintsValue []uint
+
+func newUintsValue(val []uint, p *[]uint) *uintsValue {
+	*p = val
+	return (*uintsValue)(p)
+}
+
+func (i *uintsValue) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, strconv.IntSize)
+	if err != nil {
+		err = numError(err)
+	}
+	*i = append(*i, uint(v))
+	return err
+}
+
+func (i *uintsValue) Get() any { return []uint(*i) }
+
+func (i *uintsValue) String() string { return fmt.Sprint([]uint(*i)) }
+
 // -- uint64 Value
 type uint64Value uint64
 
@@ -236,6 +324,27 @@ func (i *uint64Value) Get() any { return uint64(*i) }
 
 func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
+// -- uint64s Value
+type uint64sValue []uint64
+
+func newUint64sValue(val []uint64, p *[]uint64) *uint64sValue {
+	*p = val
+	return (*uint64sValue)(p)
+}
+
+func (i *uint64sValue) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		err = numError(err)
+	}
+	*i = append(*i, v)
+	return err
+}
+
+func (i *uint64sValue) Get() any { return []uint64(*i) }
+
+func (i *uint64sValue) String() string { return fmt.Sprint([]uint64(*i)) }
+
 // -- string Value
 type stringValue string
 
@@ -252,6 +361,23 @@ func (s *stringValue) Set(val string) error {
 func (s *stringValue) Get() any { return string(*s) }
 
 func (s *stringValue) String() string { return string(*s) }
+
+// -- strings Value
+type stringsValue []string
+
+func newStringsValue(val []string, p *[]string) *stringsValue {
+	*p = val
+	return (*stringsValue)(p)
+}
+
+func (s *stringsValue) Set(val string) error {
+	*s = append(*s, val)
+	return nil
+}
+
+func (s *stringsValue) Get() any { return []string(*s) }
+
+func (s *stringsValue) String() string { return fmt.Sprint([]string(*s)) }
 
 // -- float64 Value
 type float64Value float64
@@ -274,6 +400,27 @@ func (f *float64Value) Get() any { return float64(*f) }
 
 func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
 
+// -- float64s Value
+type float64sValue []float64
+
+func newFloat64sValue(val []float64, p *[]float64) *float64sValue {
+	*p = val
+	return (*float64sValue)(p)
+}
+
+func (f *float64sValue) Set(s string) error {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		err = numError(err)
+	}
+	*f = append(*f, v)
+	return err
+}
+
+func (f *float64sValue) Get() any { return []float64(*f) }
+
+func (f *float64sValue) String() string { return fmt.Sprint([]float64(*f)) }
+
 // -- time.Duration Value
 type durationValue time.Duration
 
@@ -294,6 +441,27 @@ func (d *durationValue) Set(s string) error {
 func (d *durationValue) Get() any { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+
+// -- time.Durations Value
+type durationsValue []time.Duration
+
+func newDurationsValue(val []time.Duration, p *[]time.Duration) *durationsValue {
+	*p = val
+	return (*durationsValue)(p)
+}
+
+func (d *durationsValue) Set(s string) error {
+	v, err := time.ParseDuration(s)
+	if err != nil {
+		err = errParse
+	}
+	*d = append(*d, v)
+	return err
+}
+
+func (d *durationsValue) Get() any { return []time.Duration(*d) }
+
+func (d *durationsValue) String() string { return fmt.Sprint([]time.Duration(*d)) }
 
 // -- encoding.TextUnmarshaler Value
 type textValue struct{ p encoding.TextUnmarshaler }
@@ -494,6 +662,7 @@ func Lookup(name string) *Flag {
 func (f *FlagSet) Set(name, value string) error {
 	return f.set(name, value)
 }
+
 func (f *FlagSet) set(name, value string) error {
 	flag, ok := f.formal[name]
 	if !ok {
@@ -589,14 +758,24 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 		}
 	case *durationValue:
 		name = "duration"
+	case *durationsValue:
+		name = "durations"
 	case *float64Value:
 		name = "float"
+	case *float64sValue:
+		name = "floats"
 	case *intValue, *int64Value:
 		name = "int"
+	case *intsValue, *int64sValue:
+		name = "ints"
 	case *stringValue:
 		name = "string"
+	case *stringsValue:
+		name = "strings"
 	case *uintValue, *uint64Value:
 		name = "uint"
+	case *uintsValue, *uint64sValue:
+		name = "uints"
 	}
 	return
 }
@@ -749,10 +928,22 @@ func (f *FlagSet) BoolVar(p *bool, name string, value bool, usage string) {
 	f.Var(newBoolValue(value, p), name, usage)
 }
 
+// BoolsVar defines a bool flag with specified name, default value, and usage string.
+// The argument p points to a bool variable in which to store the value of the flag.
+func (f *FlagSet) BoolsVar(p *[]bool, name string, value []bool, usage string) {
+	f.Var(newBoolsValue(value, p), name, usage)
+}
+
 // BoolVar defines a bool flag with specified name, default value, and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
 func BoolVar(p *bool, name string, value bool, usage string) {
 	CommandLine.Var(newBoolValue(value, p), name, usage)
+}
+
+// BoolsVar defines a bool flag with specified name, default value, and usage string.
+// The argument p points to a bool variable in which to store the value of the flag.
+func BoolsVar(p *[]bool, name string, value []bool, usage string) {
+	CommandLine.Var(newBoolsValue(value, p), name, usage)
 }
 
 // Bool defines a bool flag with specified name, default value, and usage string.
@@ -763,10 +954,24 @@ func (f *FlagSet) Bool(name string, value bool, usage string) *bool {
 	return p
 }
 
+// Bools defines a bool flag with specified name, default value, and usage string.
+// The return value is the address of a bool variable that stores the value of the flag.
+func (f *FlagSet) Bools(name string, value []bool, usage string) *[]bool {
+	p := new([]bool)
+	f.BoolsVar(p, name, value, usage)
+	return p
+}
+
 // Bool defines a bool flag with specified name, default value, and usage string.
 // The return value is the address of a bool variable that stores the value of the flag.
 func Bool(name string, value bool, usage string) *bool {
 	return CommandLine.Bool(name, value, usage)
+}
+
+// Bools defines a bool flag with specified name, default value, and usage string.
+// The return value is the address of a bool variable that stores the value of the flag.
+func Bools(name string, value []bool, usage string) *[]bool {
+	return CommandLine.Bools(name, value, usage)
 }
 
 // IntVar defines an int flag with specified name, default value, and usage string.
@@ -775,10 +980,22 @@ func (f *FlagSet) IntVar(p *int, name string, value int, usage string) {
 	f.Var(newIntValue(value, p), name, usage)
 }
 
+// IntsVar defines an int flag with specified name, default value, and usage string.
+// The argument p points to an int variable in which to store the value of the flag.
+func (f *FlagSet) IntsVar(p *[]int, name string, value []int, usage string) {
+	f.Var(newIntsValue(value, p), name, usage)
+}
+
 // IntVar defines an int flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
 func IntVar(p *int, name string, value int, usage string) {
 	CommandLine.Var(newIntValue(value, p), name, usage)
+}
+
+// IntsVar defines an int flag with specified name, default value, and usage string.
+// The argument p points to an int variable in which to store the value of the flag.
+func IntsVar(p *[]int, name string, value []int, usage string) {
+	CommandLine.Var(newIntsValue(value, p), name, usage)
 }
 
 // Int defines an int flag with specified name, default value, and usage string.
@@ -789,10 +1006,24 @@ func (f *FlagSet) Int(name string, value int, usage string) *int {
 	return p
 }
 
+// Ints defines an int flag with specified name, default value, and usage string.
+// The return value is the address of an int variable that stores the value of the flag.
+func (f *FlagSet) Ints(name string, value []int, usage string) *[]int {
+	p := new([]int)
+	f.IntsVar(p, name, value, usage)
+	return p
+}
+
 // Int defines an int flag with specified name, default value, and usage string.
 // The return value is the address of an int variable that stores the value of the flag.
 func Int(name string, value int, usage string) *int {
 	return CommandLine.Int(name, value, usage)
+}
+
+// Ints defines an int flag with specified name, default value, and usage string.
+// The return value is the address of an int variable that stores the value of the flag.
+func Ints(name string, value []int, usage string) *[]int {
+	return CommandLine.Ints(name, value, usage)
 }
 
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
@@ -801,10 +1032,22 @@ func (f *FlagSet) Int64Var(p *int64, name string, value int64, usage string) {
 	f.Var(newInt64Value(value, p), name, usage)
 }
 
+// Int64sVar defines an int64 flag with specified name, default value, and usage string.
+// The argument p points to an int64 variable in which to store the value of the flag.
+func (f *FlagSet) Int64sVar(p *[]int64, name string, value []int64, usage string) {
+	f.Var(newInt64sValue(value, p), name, usage)
+}
+
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
 func Int64Var(p *int64, name string, value int64, usage string) {
 	CommandLine.Var(newInt64Value(value, p), name, usage)
+}
+
+// Int64sVar defines an int64 flag with specified name, default value, and usage string.
+// The argument p points to an int64 variable in which to store the value of the flag.
+func Int64sVar(p *[]int64, name string, value []int64, usage string) {
+	CommandLine.Var(newInt64sValue(value, p), name, usage)
 }
 
 // Int64 defines an int64 flag with specified name, default value, and usage string.
@@ -815,10 +1058,24 @@ func (f *FlagSet) Int64(name string, value int64, usage string) *int64 {
 	return p
 }
 
+// Int64s defines an int64 flag with specified name, default value, and usage string.
+// The return value is the address of an int64 variable that stores the value of the flag.
+func (f *FlagSet) Int64s(name string, value []int64, usage string) *[]int64 {
+	p := new([]int64)
+	f.Int64sVar(p, name, value, usage)
+	return p
+}
+
 // Int64 defines an int64 flag with specified name, default value, and usage string.
 // The return value is the address of an int64 variable that stores the value of the flag.
 func Int64(name string, value int64, usage string) *int64 {
 	return CommandLine.Int64(name, value, usage)
+}
+
+// Int64s defines an int64 flag with specified name, default value, and usage string.
+// The return value is the address of an int64 variable that stores the value of the flag.
+func Int64s(name string, value []int64, usage string) *[]int64 {
+	return CommandLine.Int64s(name, value, usage)
 }
 
 // UintVar defines a uint flag with specified name, default value, and usage string.
@@ -827,10 +1084,22 @@ func (f *FlagSet) UintVar(p *uint, name string, value uint, usage string) {
 	f.Var(newUintValue(value, p), name, usage)
 }
 
+// UintsVar defines a uint flag with specified name, default value, and usage string.
+// The argument p points to a uint variable in which to store the value of the flag.
+func (f *FlagSet) UintsVar(p *[]uint, name string, value []uint, usage string) {
+	f.Var(newUintsValue(value, p), name, usage)
+}
+
 // UintVar defines a uint flag with specified name, default value, and usage string.
 // The argument p points to a uint variable in which to store the value of the flag.
 func UintVar(p *uint, name string, value uint, usage string) {
 	CommandLine.Var(newUintValue(value, p), name, usage)
+}
+
+// UintsVar defines a uint flag with specified name, default value, and usage string.
+// The argument p points to a uint variable in which to store the value of the flag.
+func UintsVar(p *[]uint, name string, value []uint, usage string) {
+	CommandLine.Var(newUintsValue(value, p), name, usage)
 }
 
 // Uint defines a uint flag with specified name, default value, and usage string.
@@ -841,10 +1110,24 @@ func (f *FlagSet) Uint(name string, value uint, usage string) *uint {
 	return p
 }
 
+// Uints defines a uint flag with specified name, default value, and usage string.
+// The return value is the address of a uint variable that stores the value of the flag.
+func (f *FlagSet) Uints(name string, value []uint, usage string) *[]uint {
+	p := new([]uint)
+	f.UintsVar(p, name, value, usage)
+	return p
+}
+
 // Uint defines a uint flag with specified name, default value, and usage string.
 // The return value is the address of a uint variable that stores the value of the flag.
 func Uint(name string, value uint, usage string) *uint {
 	return CommandLine.Uint(name, value, usage)
+}
+
+// Uints defines a uint flag with specified name, default value, and usage string.
+// The return value is the address of a uint variable that stores the value of the flag.
+func Uints(name string, value []uint, usage string) *[]uint {
+	return CommandLine.Uints(name, value, usage)
 }
 
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
@@ -853,10 +1136,22 @@ func (f *FlagSet) Uint64Var(p *uint64, name string, value uint64, usage string) 
 	f.Var(newUint64Value(value, p), name, usage)
 }
 
+// Uint64sVar defines a uint64 flag with specified name, default value, and usage string.
+// The argument p points to a uint64 variable in which to store the value of the flag.
+func (f *FlagSet) Uint64sVar(p *[]uint64, name string, value []uint64, usage string) {
+	f.Var(newUint64sValue(value, p), name, usage)
+}
+
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
 // The argument p points to a uint64 variable in which to store the value of the flag.
 func Uint64Var(p *uint64, name string, value uint64, usage string) {
 	CommandLine.Var(newUint64Value(value, p), name, usage)
+}
+
+// Uint64sVar defines a uint64 flag with specified name, default value, and usage string.
+// The argument p points to a uint64 variable in which to store the value of the flag.
+func Uint64sVar(p *[]uint64, name string, value []uint64, usage string) {
+	CommandLine.Var(newUint64sValue(value, p), name, usage)
 }
 
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
@@ -867,10 +1162,24 @@ func (f *FlagSet) Uint64(name string, value uint64, usage string) *uint64 {
 	return p
 }
 
+// Uint64s defines a uint64 flag with specified name, default value, and usage string.
+// The return value is the address of a uint64 variable that stores the value of the flag.
+func (f *FlagSet) Uint64s(name string, value []uint64, usage string) *[]uint64 {
+	p := new([]uint64)
+	f.Uint64sVar(p, name, value, usage)
+	return p
+}
+
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
 // The return value is the address of a uint64 variable that stores the value of the flag.
 func Uint64(name string, value uint64, usage string) *uint64 {
 	return CommandLine.Uint64(name, value, usage)
+}
+
+// Uint64s defines a uint64 flag with specified name, default value, and usage string.
+// The return value is the address of a uint64 variable that stores the value of the flag.
+func Uint64s(name string, value []uint64, usage string) *[]uint64 {
+	return CommandLine.Uint64s(name, value, usage)
 }
 
 // StringVar defines a string flag with specified name, default value, and usage string.
@@ -879,10 +1188,22 @@ func (f *FlagSet) StringVar(p *string, name string, value string, usage string) 
 	f.Var(newStringValue(value, p), name, usage)
 }
 
+// StringsVar defines a string flag with specified name, default value, and usage string.
+// The argument p points to a string variable in which to store the value of the flag.
+func (f *FlagSet) StringsVar(p *[]string, name string, value []string, usage string) {
+	f.Var(newStringsValue(value, p), name, usage)
+}
+
 // StringVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
 func StringVar(p *string, name string, value string, usage string) {
 	CommandLine.Var(newStringValue(value, p), name, usage)
+}
+
+// StringsVar defines a string flag with specified name, default value, and usage string.
+// The argument p points to a string variable in which to store the value of the flag.
+func StringsVar(p *[]string, name string, value []string, usage string) {
+	CommandLine.Var(newStringsValue(value, p), name, usage)
 }
 
 // String defines a string flag with specified name, default value, and usage string.
@@ -893,10 +1214,24 @@ func (f *FlagSet) String(name string, value string, usage string) *string {
 	return p
 }
 
+// Strings defines a string flag with specified name, default value, and usage string.
+// The return value is the address of a string variable that stores the value of the flag.
+func (f *FlagSet) Strings(name string, value []string, usage string) *[]string {
+	p := new([]string)
+	f.StringsVar(p, name, value, usage)
+	return p
+}
+
 // String defines a string flag with specified name, default value, and usage string.
 // The return value is the address of a string variable that stores the value of the flag.
 func String(name string, value string, usage string) *string {
 	return CommandLine.String(name, value, usage)
+}
+
+// Strings defines a string flag with specified name, default value, and usage string.
+// The return value is the address of a string variable that stores the value of the flag.
+func Strings(name string, value []string, usage string) *[]string {
+	return CommandLine.Strings(name, value, usage)
 }
 
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
@@ -905,10 +1240,22 @@ func (f *FlagSet) Float64Var(p *float64, name string, value float64, usage strin
 	f.Var(newFloat64Value(value, p), name, usage)
 }
 
+// Float64sVar defines a float64 flag with specified name, default value, and usage string.
+// The argument p points to a float64 variable in which to store the value of the flag.
+func (f *FlagSet) Float64sVar(p *[]float64, name string, value []float64, usage string) {
+	f.Var(newFloat64sValue(value, p), name, usage)
+}
+
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
 func Float64Var(p *float64, name string, value float64, usage string) {
 	CommandLine.Var(newFloat64Value(value, p), name, usage)
+}
+
+// Float64sVar defines a float64 flag with specified name, default value, and usage string.
+// The argument p points to a float64 variable in which to store the value of the flag.
+func Float64sVar(p *[]float64, name string, value []float64, usage string) {
+	CommandLine.Var(newFloat64sValue(value, p), name, usage)
 }
 
 // Float64 defines a float64 flag with specified name, default value, and usage string.
@@ -919,10 +1266,24 @@ func (f *FlagSet) Float64(name string, value float64, usage string) *float64 {
 	return p
 }
 
+// Float64s defines a float64 flag with specified name, default value, and usage string.
+// The return value is the address of a float64 variable that stores the value of the flag.
+func (f *FlagSet) Float64s(name string, value []float64, usage string) *[]float64 {
+	p := new([]float64)
+	f.Float64sVar(p, name, value, usage)
+	return p
+}
+
 // Float64 defines a float64 flag with specified name, default value, and usage string.
 // The return value is the address of a float64 variable that stores the value of the flag.
 func Float64(name string, value float64, usage string) *float64 {
 	return CommandLine.Float64(name, value, usage)
+}
+
+// Float64s defines a float64 flag with specified name, default value, and usage string.
+// The return value is the address of a float64 variable that stores the value of the flag.
+func Float64s(name string, value []float64, usage string) *[]float64 {
+	return CommandLine.Float64s(name, value, usage)
 }
 
 // DurationVar defines a time.Duration flag with specified name, default value, and usage string.
@@ -932,11 +1293,25 @@ func (f *FlagSet) DurationVar(p *time.Duration, name string, value time.Duration
 	f.Var(newDurationValue(value, p), name, usage)
 }
 
+// DurationsVar defines a time.Duration flag with specified name, default value, and usage string.
+// The argument p points to a time.Duration variable in which to store the value of the flag.
+// The flag accepts a value acceptable to time.ParseDuration.
+func (f *FlagSet) DurationsVar(p *[]time.Duration, name string, value []time.Duration, usage string) {
+	f.Var(newDurationsValue(value, p), name, usage)
+}
+
 // DurationVar defines a time.Duration flag with specified name, default value, and usage string.
 // The argument p points to a time.Duration variable in which to store the value of the flag.
 // The flag accepts a value acceptable to time.ParseDuration.
 func DurationVar(p *time.Duration, name string, value time.Duration, usage string) {
 	CommandLine.Var(newDurationValue(value, p), name, usage)
+}
+
+// DurationsVar defines a time.Duration flag with specified name, default value, and usage string.
+// The argument p points to a time.Duration variable in which to store the value of the flag.
+// The flag accepts a value acceptable to time.ParseDuration.
+func DurationsVar(p *[]time.Duration, name string, value []time.Duration, usage string) {
+	CommandLine.Var(newDurationsValue(value, p), name, usage)
 }
 
 // Duration defines a time.Duration flag with specified name, default value, and usage string.
@@ -948,11 +1323,27 @@ func (f *FlagSet) Duration(name string, value time.Duration, usage string) *time
 	return p
 }
 
+// Durations defines a time.Duration flag with specified name, default value, and usage string.
+// The return value is the address of a time.Duration variable that stores the value of the flag.
+// The flag accepts a value acceptable to time.ParseDuration.
+func (f *FlagSet) Durations(name string, value []time.Duration, usage string) *[]time.Duration {
+	p := new([]time.Duration)
+	f.DurationsVar(p, name, value, usage)
+	return p
+}
+
 // Duration defines a time.Duration flag with specified name, default value, and usage string.
 // The return value is the address of a time.Duration variable that stores the value of the flag.
 // The flag accepts a value acceptable to time.ParseDuration.
 func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
+}
+
+// Durations defines a time.Duration flag with specified name, default value, and usage string.
+// The return value is the address of a time.Duration variable that stores the value of the flag.
+// The flag accepts a value acceptable to time.ParseDuration.
+func Durations(name string, value []time.Duration, usage string) *[]time.Duration {
+	return CommandLine.Durations(name, value, usage)
 }
 
 // TextVar defines a flag with a specified name, default value, and usage string.
