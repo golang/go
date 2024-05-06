@@ -67,9 +67,9 @@ var (
 )
 
 type (
-	littleEndian = binarylite.LittleEndianOrder
-	bigEndian    = binarylite.BigEndianOrder
-	nativeEndian = binarylite.NativeEndianOrder
+	littleEndian struct{ binarylite.LittleEndianOrder }
+	bigEndian    struct{ binarylite.BigEndianOrder }
+	nativeEndian = struct{ binarylite.NativeEndianOrder }
 )
 
 // Read reads structured binary data from r into data.
