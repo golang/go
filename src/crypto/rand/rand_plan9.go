@@ -9,7 +9,7 @@ package rand
 
 import (
 	"crypto/aes"
-	"internal/binarylite"
+	"encoding/binary"
 	"io"
 	"os"
 	"sync"
@@ -66,7 +66,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		if counter == 0 {
 			panic("crypto/rand counter wrapped")
 		}
-		binarylite.LittleEndian.PutUint64(block[:], counter)
+		binary.LittleEndian.PutUint64(block[:], counter)
 	}
 	blockCipher.Encrypt(r.key[:aes.BlockSize], block[:])
 	inc()

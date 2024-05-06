@@ -201,7 +201,7 @@ var program = `// Copyright 2013 The Go Authors. All rights reserved.
 package md5
 
 import (
-	"internal/binarylite"
+	"encoding/binary"
 	"math/bits"
 )
 
@@ -219,7 +219,7 @@ func blockGeneric(dig *digest, p []byte) {
 
 		// load input block
 		{{range $i := seq 16 -}}
-			{{printf "x%x := binarylite.LittleEndian.Uint32(q[4*%#x:])" $i $i}}
+			{{printf "x%x := binary.LittleEndian.Uint32(q[4*%#x:])" $i $i}}
 		{{end}}
 
 		// round 1
@@ -227,19 +227,19 @@ func blockGeneric(dig *digest, p []byte) {
 			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg2^arg3)&arg1)^arg3)+arg0+x%x+%#08x, %d)" (idx 1 $i) (index $.Table1 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
-
+	
 		// round 2
 		{{range $i, $s := dup 4 .Shift2 -}}
 			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg1^arg2)&arg3)^arg2)+arg0+x%x+%#08x, %d)" (idx 2 $i) (index $.Table2 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
-
+	
 		// round 3
 		{{range $i, $s := dup 4 .Shift3 -}}
 			{{printf "arg0 = arg1 + bits.RotateLeft32((arg1^arg2^arg3)+arg0+x%x+%#08x, %d)" (idx 3 $i) (index $.Table3 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
-
+	
 		// round 4
 		{{range $i, $s := dup 4 .Shift4 -}}
 			{{printf "arg0 = arg1 + bits.RotateLeft32((arg2^(arg1|^arg3))+arg0+x%x+%#08x, %d)" (idx 4 $i) (index $.Table4 $i) $s | relabel}}

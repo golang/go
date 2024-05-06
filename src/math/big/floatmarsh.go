@@ -7,9 +7,9 @@
 package big
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/binarylite"
 )
 
 // Gob codec version. Permits backward-compatible changes to the encoding.
@@ -48,10 +48,10 @@ func (x *Float) GobEncode() ([]byte, error) {
 		b |= 1
 	}
 	buf[1] = b
-	binarylite.BigEndian.PutUint32(buf[2:], x.prec)
+	binary.BigEndian.PutUint32(buf[2:], x.prec)
 
 	if x.form == finite {
-		binarylite.BigEndian.PutUint32(buf[6:], uint32(x.exp))
+		binary.BigEndian.PutUint32(buf[6:], uint32(x.exp))
 		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
 	}
 
@@ -84,13 +84,13 @@ func (z *Float) GobDecode(buf []byte) error {
 	z.acc = Accuracy((b>>3)&3) - 1
 	z.form = form((b >> 1) & 3)
 	z.neg = b&1 != 0
-	z.prec = binarylite.BigEndian.Uint32(buf[2:])
+	z.prec = binary.BigEndian.Uint32(buf[2:])
 
 	if z.form == finite {
 		if len(buf) < 10 {
 			return errors.New("Float.GobDecode: buffer too small for finite form float")
 		}
-		z.exp = int32(binarylite.BigEndian.Uint32(buf[6:]))
+		z.exp = int32(binary.BigEndian.Uint32(buf[6:]))
 		z.mant = z.mant.setBytes(buf[10:])
 	}
 

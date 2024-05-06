@@ -9,12 +9,12 @@ package png
 
 import (
 	"compress/zlib"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"hash/crc32"
 	"image"
 	"image/color"
-	"internal/binarylite"
 	"io"
 )
 
@@ -155,8 +155,8 @@ func (d *decoder) parseIHDR(length uint32) error {
 	}
 	d.interlace = int(d.tmp[12])
 
-	w := int32(binarylite.BigEndian.Uint32(d.tmp[0:4]))
-	h := int32(binarylite.BigEndian.Uint32(d.tmp[4:8]))
+	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
+	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
 	if w <= 0 || h <= 0 {
 		return FormatError("non-positive dimension")
 	}
@@ -343,7 +343,7 @@ func (d *decoder) Read(p []byte) (int, error) {
 		if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 			return 0, err
 		}
-		d.idatLength = binarylite.BigEndian.Uint32(d.tmp[:4])
+		d.idatLength = binary.BigEndian.Uint32(d.tmp[:4])
 		if string(d.tmp[4:8]) != "IDAT" {
 			return 0, FormatError("not enough pixel data")
 		}
@@ -872,7 +872,7 @@ func (d *decoder) parseChunk(configOnly bool) error {
 	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
 	}
-	length := binarylite.BigEndian.Uint32(d.tmp[:4])
+	length := binary.BigEndian.Uint32(d.tmp[:4])
 	d.crc.Reset()
 	d.crc.Write(d.tmp[4:8])
 
@@ -947,7 +947,7 @@ func (d *decoder) verifyChecksum() error {
 	if _, err := io.ReadFull(d.r, d.tmp[:4]); err != nil {
 		return err
 	}
-	if binarylite.BigEndian.Uint32(d.tmp[:4]) != d.crc.Sum32() {
+	if binary.BigEndian.Uint32(d.tmp[:4]) != d.crc.Sum32() {
 		return FormatError("invalid checksum")
 	}
 	return nil

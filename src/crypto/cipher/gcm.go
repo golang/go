@@ -7,8 +7,8 @@ package cipher
 import (
 	"crypto/internal/alias"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
-	"internal/binarylite"
 )
 
 // AEAD is a cipher mode providing authenticated encryption with associated
@@ -137,8 +137,8 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
 	// would expect, say, 4*key to be in index 4 of the table but due to
 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
 	x := gcmFieldElement{
-		binarylite.BigEndian.Uint64(key[:8]),
-		binarylite.BigEndian.Uint64(key[8:]),
+		binary.BigEndian.Uint64(key[:8]),
+		binary.BigEndian.Uint64(key[8:]),
 	}
 	g.productTable[reverseBits(1)] = x
 
@@ -321,8 +321,8 @@ func (g *gcm) mul(y *gcmFieldElement) {
 // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
 func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
 	for len(blocks) > 0 {
-		y.low ^= binarylite.BigEndian.Uint64(blocks)
-		y.high ^= binarylite.BigEndian.Uint64(blocks[8:])
+		y.low ^= binary.BigEndian.Uint64(blocks)
+		y.high ^= binary.BigEndian.Uint64(blocks[8:])
 		g.mul(y)
 		blocks = blocks[gcmBlockSize:]
 	}
@@ -345,7 +345,7 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
 // and increments it.
 func gcmInc32(counterBlock *[16]byte) {
 	ctr := counterBlock[len(counterBlock)-4:]
-	binarylite.BigEndian.PutUint32(ctr, binarylite.BigEndian.Uint32(ctr)+1)
+	binary.BigEndian.PutUint32(ctr, binary.BigEndian.Uint32(ctr)+1)
 }
 
 // sliceForAppend takes a slice and a requested number of bytes. It returns a
@@ -401,8 +401,8 @@ func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 		g.update(&y, nonce)
 		y.high ^= uint64(len(nonce)) * 8
 		g.mul(&y)
-		binarylite.BigEndian.PutUint64(counter[:8], y.low)
-		binarylite.BigEndian.PutUint64(counter[8:], y.high)
+		binary.BigEndian.PutUint64(counter[:8], y.low)
+		binary.BigEndian.PutUint64(counter[8:], y.high)
 	}
 }
 
@@ -418,8 +418,8 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 
 	g.mul(&y)
 
-	binarylite.BigEndian.PutUint64(out, y.low)
-	binarylite.BigEndian.PutUint64(out[8:], y.high)
+	binary.BigEndian.PutUint64(out, y.low)
+	binary.BigEndian.PutUint64(out[8:], y.high)
 
 	subtle.XORBytes(out, out, tagMask[:])
 }

@@ -6,10 +6,10 @@ package zip
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
-	"internal/binarylite"
 	"internal/godebug"
 	"io"
 	"io/fs"
@@ -716,19 +716,19 @@ func (b *readBuf) uint8() uint8 {
 }
 
 func (b *readBuf) uint16() uint16 {
-	v := binarylite.LittleEndian.Uint16(*b)
+	v := binary.LittleEndian.Uint16(*b)
 	*b = (*b)[2:]
 	return v
 }
 
 func (b *readBuf) uint32() uint32 {
-	v := binarylite.LittleEndian.Uint32(*b)
+	v := binary.LittleEndian.Uint32(*b)
 	*b = (*b)[4:]
 	return v
 }
 
 func (b *readBuf) uint64() uint64 {
-	v := binarylite.LittleEndian.Uint64(*b)
+	v := binary.LittleEndian.Uint64(*b)
 	*b = (*b)[8:]
 	return v
 }

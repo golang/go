@@ -6,10 +6,10 @@ package zip
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
-	"internal/binarylite"
 	"io"
 	"io/fs"
 	"strings"
@@ -658,16 +658,16 @@ func (b *writeBuf) uint8(v uint8) {
 }
 
 func (b *writeBuf) uint16(v uint16) {
-	binarylite.LittleEndian.PutUint16(*b, v)
+	binary.LittleEndian.PutUint16(*b, v)
 	*b = (*b)[2:]
 }
 
 func (b *writeBuf) uint32(v uint32) {
-	binarylite.LittleEndian.PutUint32(*b, v)
+	binary.LittleEndian.PutUint32(*b, v)
 	*b = (*b)[4:]
 }
 
 func (b *writeBuf) uint64(v uint64) {
-	binarylite.LittleEndian.PutUint64(*b, v)
+	binary.LittleEndian.PutUint64(*b, v)
 	*b = (*b)[8:]
 }

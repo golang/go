@@ -7,10 +7,10 @@ package png
 import (
 	"bufio"
 	"compress/zlib"
+	"encoding/binary"
 	"hash/crc32"
 	"image"
 	"image/color"
-	"internal/binarylite"
 	"io"
 	"strconv"
 )
@@ -102,7 +102,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 		e.err = UnsupportedError(name + " chunk is too large: " + strconv.Itoa(len(b)))
 		return
 	}
-	binarylite.BigEndian.PutUint32(e.header[:4], n)
+	binary.BigEndian.PutUint32(e.header[:4], n)
 	e.header[4] = name[0]
 	e.header[5] = name[1]
 	e.header[6] = name[2]
@@ -110,7 +110,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 	crc := crc32.NewIEEE()
 	crc.Write(e.header[4:8])
 	crc.Write(b)
-	binarylite.BigEndian.PutUint32(e.footer[:4], crc.Sum32())
+	binary.BigEndian.PutUint32(e.footer[:4], crc.Sum32())
 
 	_, e.err = e.w.Write(e.header[:8])
 	if e.err != nil {
@@ -125,8 +125,8 @@ func (e *encoder) writeChunk(b []byte, name string) {
 
 func (e *encoder) writeIHDR() {
 	b := e.m.Bounds()
-	binarylite.BigEndian.PutUint32(e.tmp[0:4], uint32(b.Dx()))
-	binarylite.BigEndian.PutUint32(e.tmp[4:8], uint32(b.Dy()))
+	binary.BigEndian.PutUint32(e.tmp[0:4], uint32(b.Dx()))
+	binary.BigEndian.PutUint32(e.tmp[4:8], uint32(b.Dy()))
 	// Set bit depth and color type.
 	switch e.cb {
 	case cbG8:

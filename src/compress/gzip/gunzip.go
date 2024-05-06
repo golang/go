@@ -9,9 +9,9 @@ package gzip
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash/crc32"
-	"internal/binarylite"
 	"io"
 	"time"
 )
@@ -34,7 +34,7 @@ var (
 	ErrHeader = errors.New("gzip: invalid header")
 )
 
-var le = binarylite.LittleEndian
+var le = binary.LittleEndian
 
 // noEOF converts io.EOF to io.ErrUnexpectedEOF.
 func noEOF(err error) error {

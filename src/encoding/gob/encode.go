@@ -8,7 +8,7 @@ package gob
 
 import (
 	"encoding"
-	"internal/binarylite"
+	"encoding/binary"
 	"math"
 	"math/bits"
 	"reflect"
@@ -110,7 +110,7 @@ func (state *encoderState) encodeUint(x uint64) {
 		return
 	}
 
-	binarylite.BigEndian.PutUint64(state.buf[1:], x)
+	binary.BigEndian.PutUint64(state.buf[1:], x)
 	bc := bits.LeadingZeros64(x) >> 3      // 8 - bytelen(x)
 	state.buf[bc] = uint8(bc - uint64Size) // and then we subtract 8 to get -bytelen(x)
 
