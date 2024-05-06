@@ -61,7 +61,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	}
 
 	return &fileStat{
-		name:           basename(path),
+		name:           filepathlite.Base(path),
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
 		LastAccessTime: d.LastAccessTime,
@@ -346,7 +346,7 @@ func (fs *fileStat) saveInfoFromPath(path string) error {
 			return &PathError{Op: "FullPath", Path: path, Err: err}
 		}
 	}
-	fs.name = basename(path)
+	fs.name = filepathlite.Base(path)
 	return nil
 }
 
