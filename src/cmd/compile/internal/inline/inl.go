@@ -533,12 +533,12 @@ opSwitch:
 					// budgeting system does not see that. See issue 42958.
 					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "internal/binarylite" {
 						switch s.Name {
-						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
-							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
-							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
-							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16",
-							"littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
-							"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16":
+						case "LittleEndianOrder.Uint64", "LittleEndianOrder.Uint32", "LittleEndianOrder.Uint16",
+							"BigEndianOrder.Uint64", "BigEndianOrder.Uint32", "BigEndianOrder.Uint16",
+							"LittleEndianOrder.PutUint64", "LittleEndianOrder.PutUint32", "LittleEndianOrder.PutUint16",
+							"BigEndianOrder.PutUint64", "BigEndianOrder.PutUint32", "BigEndianOrder.PutUint16",
+							"LittleEndianOrder.AppendUint64", "LittleEndianOrder.AppendUint32", "LittleEndianOrder.AppendUint16",
+							"BigEndianOrder.AppendUint64", "BigEndianOrder.AppendUint32", "BigEndianOrder.AppendUint16":
 							cheap = true
 						}
 					}

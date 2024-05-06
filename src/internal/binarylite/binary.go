@@ -1,37 +1,37 @@
 package binarylite
 
 var (
-	LittleEndian littleEndian
-	BigEndian    bigEndian
-	NativeEndian nativeEndian
+	LittleEndian LittleEndianOrder
+	BigEndian    BigEndianOrder
+	NativeEndian NativeEndianOrder
 )
 
-type littleEndian struct{}
+type LittleEndianOrder struct{}
 
-func (littleEndian) Uint16(b []byte) uint16 {
+func (LittleEndianOrder) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
 }
 
-func (littleEndian) PutUint16(b []byte, v uint16) {
+func (LittleEndianOrder) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 }
 
-func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
+func (LittleEndianOrder) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v),
 		byte(v>>8),
 	)
 }
 
-func (littleEndian) Uint32(b []byte) uint32 {
+func (LittleEndianOrder) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
-func (littleEndian) PutUint32(b []byte, v uint32) {
+func (LittleEndianOrder) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
@@ -39,7 +39,7 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v >> 24)
 }
 
-func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
+func (LittleEndianOrder) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v),
 		byte(v>>8),
@@ -48,13 +48,13 @@ func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
-func (littleEndian) Uint64(b []byte) uint64 {
+func (LittleEndianOrder) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
-func (littleEndian) PutUint64(b []byte, v uint64) {
+func (LittleEndianOrder) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
@@ -66,7 +66,7 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v >> 56)
 }
 
-func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
+func (LittleEndianOrder) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v),
 		byte(v>>8),
@@ -79,36 +79,36 @@ func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
 	)
 }
 
-func (littleEndian) String() string { return "LittleEndian" }
+func (LittleEndianOrder) String() string { return "LittleEndian" }
 
-func (littleEndian) GoString() string { return "binary.LittleEndian" }
+func (LittleEndianOrder) GoString() string { return "binary.LittleEndian" }
 
-type bigEndian struct{}
+type BigEndianOrder struct{}
 
-func (bigEndian) Uint16(b []byte) uint16 {
+func (BigEndianOrder) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[1]) | uint16(b[0])<<8
 }
 
-func (bigEndian) PutUint16(b []byte, v uint16) {
+func (BigEndianOrder) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
 }
 
-func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
+func (BigEndianOrder) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v>>8),
 		byte(v),
 	)
 }
 
-func (bigEndian) Uint32(b []byte) uint32 {
+func (BigEndianOrder) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
-func (bigEndian) PutUint32(b []byte, v uint32) {
+func (BigEndianOrder) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 24)
 	b[1] = byte(v >> 16)
@@ -116,7 +116,7 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v)
 }
 
-func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
+func (BigEndianOrder) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v>>24),
 		byte(v>>16),
@@ -125,13 +125,13 @@ func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
-func (bigEndian) Uint64(b []byte) uint64 {
+func (BigEndianOrder) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
-func (bigEndian) PutUint64(b []byte, v uint64) {
+func (BigEndianOrder) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)
@@ -143,7 +143,7 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
-func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
+func (BigEndianOrder) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v>>56),
 		byte(v>>48),
@@ -156,10 +156,10 @@ func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
 	)
 }
 
-func (bigEndian) String() string { return "BigEndian" }
+func (BigEndianOrder) String() string { return "BigEndian" }
 
-func (bigEndian) GoString() string { return "binary.BigEndian" }
+func (BigEndianOrder) GoString() string { return "binary.BigEndian" }
 
-func (nativeEndian) String() string { return "NativeEndian" }
+func (NativeEndianOrder) String() string { return "NativeEndian" }
 
-func (nativeEndian) GoString() string { return "binary.NativeEndian" }
+func (NativeEndianOrder) GoString() string { return "binary.NativeEndian" }

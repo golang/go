@@ -6,6 +6,6 @@
 
 package binarylite
 
-type nativeEndian struct {
-	littleEndian
+type NativeEndianOrder struct {
+	LittleEndianOrder
 }
