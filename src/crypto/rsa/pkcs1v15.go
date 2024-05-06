@@ -351,16 +351,15 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
-	em, encErr := encrypt(pub, sig)
-	// Only checking if em == nil to avoid timing attacks, encErr
-	// will be checked at the very end of the function.
-	// Please see https://golang.org/issue/67043
+	em, ok := timingSafeEncrypt(pub, sig)
+	// Not checking ok to avoid timing attacks, ok will be checked at the very
+	// end of the function. See https://golang.org/issue/67043
 	if em == nil {
 		return ErrVerification
 	}
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 
-	ok := subtle.ConstantTimeByteEq(em[0], 0)
+	ok &= subtle.ConstantTimeByteEq(em[0], 0)
 	ok &= subtle.ConstantTimeByteEq(em[1], 1)
 	ok &= subtle.ConstantTimeCompare(em[k-hashLen:k], hashed)
 	ok &= subtle.ConstantTimeCompare(em[k-tLen:k-hashLen], prefix)
@@ -370,7 +369,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		ok &= subtle.ConstantTimeByteEq(em[i], 0xff)
 	}
 
-	if ok != 1 || encErr != nil {
+	if ok != 1 {
 		return ErrVerification
 	}
 

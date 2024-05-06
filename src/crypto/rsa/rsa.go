@@ -20,9 +20,9 @@
 // Decrypter and Signer interfaces from the crypto package.
 //
 // Operations in this package are implemented using constant-time algorithms,
-// except for [GenerateKey], [PrivateKey.Precompute], and [PrivateKey.Validate].
-// Every other operation only leaks the bit size of the involved values, which
-// all depend on the selected key size.
+// except for encrypt, [GenerateKey], [PrivateKey.Precompute],
+// and [PrivateKey.Validate]. Every other operation only leaks the bit size of
+// the involved values, which all depend on the selected key size.
 package rsa
 
 import (
@@ -479,6 +479,11 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 // be returned if the size of the salt is too large.
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
 
+// WARNING: encrypt contains a timing channel that reveals if the signature
+// is numerically larger than the modulus N, potentially leaking a bit of
+// the public key or the plaintext. See https://golang.org/issue/67043
+//
+// To avoid this timing channel use timeSafeEncrypt instead
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
@@ -486,11 +491,32 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := bigmod.NewNat()
-	_, encErr := m.SetOverflowingBytes(plaintext, N)
+	m, err := bigmod.NewNat().SetBytes(plaintext, N)
+	if err != nil {
+		return nil, err
+	}
 	e := uint(pub.E)
 
-	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), encErr
+	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
+}
+
+// timingSafeEncrypt performs the same operation as encrypt but doesn't
+// leak information about the signature or public key via a timing channel.
+func timingSafeEncrypt(pub *PublicKey, plaintext []byte) ([]byte, int) {
+	boring.Unreachable()
+
+	N, err := bigmod.NewModulusFromBig(pub.N)
+	if err != nil {
+		return nil, 0
+	}
+	m, overflowed, err := bigmod.NewNat().SetOverflowingBytes(plaintext, N)
+	if err != nil {
+		return nil, 0
+	}
+	e := uint(pub.E)
+
+	ok := int(overflowed ^ 1)
+	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), ok
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.

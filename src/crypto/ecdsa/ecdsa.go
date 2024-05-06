@@ -304,7 +304,7 @@ func signNISTEC[Point nistPoint[Point]](c *nistCurve[Point], priv *PrivateKey, c
 	if err != nil {
 		return nil, err
 	}
-	r, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
+	r, _, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func hashToNat[Point nistPoint[Point]](c *nistCurve[Point], e *bigmod.Nat, hash 
 			}
 		}
 	}
-	_, err := e.SetOverflowingBytes(hash, c.N)
+	_, _, err := e.SetOverflowingBytes(hash, c.N)
 	if err != nil {
 		panic("ecdsa: internal error: truncated hash is too long")
 	}
@@ -536,7 +536,7 @@ func verifyNISTEC[Point nistPoint[Point]](c *nistCurve[Point], pub *PublicKey, h
 		return false
 	}
 
-	v, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
+	v, _, err := bigmod.NewNat().SetOverflowingBytes(Rx, c.N)
 	if err != nil {
 		return false
 	}
