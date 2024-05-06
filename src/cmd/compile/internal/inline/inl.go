@@ -502,7 +502,9 @@ opSwitch:
 				if types.ReflectSymName(name.Sym()) == "noescape" {
 					cheap = true
 				}
+
 			}
+
 			// Special case for coverage counter updates; although
 			// these correspond to real operations, we treat them as
 			// zero cost for the moment. This is due to the existence
@@ -528,23 +530,44 @@ opSwitch:
 						cheap = true
 					}
 					// Special case: on architectures that can do unaligned loads,
-					// explicitly mark internal/binarylite methods as cheap,
+					// explicitly mark encoding/binary methods as cheap,
 					// because in practice they are, even though our inlining
 					// budgeting system does not see that. See issue 42958.
-					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "internal/binarylite" {
+					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "encoding/binary" {
 						switch s.Name {
-						case "LittleEndianOrder.Uint64", "LittleEndianOrder.Uint32", "LittleEndianOrder.Uint16",
-							"BigEndianOrder.Uint64", "BigEndianOrder.Uint32", "BigEndianOrder.Uint16",
-							"LittleEndianOrder.PutUint64", "LittleEndianOrder.PutUint32", "LittleEndianOrder.PutUint16",
-							"BigEndianOrder.PutUint64", "BigEndianOrder.PutUint32", "BigEndianOrder.PutUint16",
-							"LittleEndianOrder.AppendUint64", "LittleEndianOrder.AppendUint32", "LittleEndianOrder.AppendUint16",
-							"BigEndianOrder.AppendUint64", "BigEndianOrder.AppendUint32", "BigEndianOrder.AppendUint16":
+						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16", "bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
+							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
+							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16",
+							"littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
+							"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16":
 							cheap = true
 						}
 					}
 				}
 			}
 		}
+
+		if n.Fun.Op() == ir.ONAME {
+			name := n.Fun.(*ir.Name)
+			if name.Class == ir.PFUNC {
+				// Special case: on architectures that can do unaligned loads,
+				// explicitly mark internal/binarylite methods as cheap,
+				// because in practice they are, even though our inlining
+				// budgeting system does not see that. See issue 42958.
+				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/binarylite" {
+					switch name.Sym().Name {
+					case "LeUint64", "LeUint32", "LeUint16",
+						"BeUint64", "BeUint32", "BeUint16",
+						"LePutUint64", "LePutUint32", "LePutUint16",
+						"BePutUint64", "BePutUint32", "BePutUint16",
+						"LeAppendUint64", "LeAppendUint32", "LeAppendUint16",
+						"BeAppendUint64", "BeAppendUint32", "BeAppendUint16":
+						cheap = true
+					}
+				}
+			}
+		}
+
 		if cheap {
 			break // treat like any other node, that is, cost of 1
 		}
