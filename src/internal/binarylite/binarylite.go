@@ -6,14 +6,6 @@
 // encoded as little or big endian.
 package binarylite
 
-func test() []byte {
-	b := make([]byte, 0, 32)
-	b = BeAppendUint64(b, 1100)
-	b = BeAppendUint64(b, 1100)
-	b = BeAppendUint64(b, 1100)
-	return b
-}
-
 func LeUint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
