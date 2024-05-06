@@ -24,6 +24,11 @@ import "unsafe"
 type coro struct {
 	gp guintptr
 	f  func(*coro)
+
+	// State for validating thread-lock interactions.
+	mp        *m
+	lockedExt uint32 // mp's external LockOSThread counter at coro creation time.
+	lockedInt uint32 // mp's internal lockOSThread counter at coro creation time.
 }
 
 //go:linkname newcoro
@@ -37,9 +42,18 @@ func newcoro(f func(*coro)) *coro {
 	pc := getcallerpc()
 	gp := getg()
 	systemstack(func() {
+		mp := gp.m
 		start := corostart
 		startfv := *(**funcval)(unsafe.Pointer(&start))
 		gp = newproc1(startfv, gp, pc, true, waitReasonCoroutine)
+
+		// Scribble down locked thread state if needed and/or donate
+		// thread-lock state to the new goroutine.
+		if mp.lockedExt+mp.lockedInt != 0 {
+			c.mp = mp
+			c.lockedExt = mp.lockedExt
+			c.lockedInt = mp.lockedInt
+		}
 	})
 	gp.coroarg = c
 	c.gp.set(gp)
@@ -90,16 +104,27 @@ func coroswitch(c *coro) {
 // It is important not to add more atomic operations or other
 // expensive operations to the fast path.
 func coroswitch_m(gp *g) {
-	// TODO(go.dev/issue/65889): Something really nasty will happen if either
-	// goroutine in this handoff tries to lock itself to an OS thread.
-	// There's an explicit multiplexing going on here that needs to be
-	// disabled if either the consumer or the iterator ends up in such
-	// a state.
 	c := gp.coroarg
 	gp.coroarg = nil
 	exit := gp.coroexit
 	gp.coroexit = false
 	mp := gp.m
+
+	// Track and validate thread-lock interactions.
+	//
+	// The rules with thread-lock interactions are simple. When a coro goroutine is switched to,
+	// the same thread must be used, and the locked state must match with the thread-lock state of
+	// the goroutine which called newcoro. Thread-lock state consists of the thread and the number
+	// of internal (cgo callback, etc.) and external (LockOSThread) thread locks.
+	locked := gp.lockedm != 0
+	if c.mp != nil || locked {
+		if mp != c.mp || mp.lockedInt != c.lockedInt || mp.lockedExt != c.lockedExt {
+			print("coro: got thread ", unsafe.Pointer(mp), ", want ", unsafe.Pointer(c.mp), "\n")
+			print("coro: got lock internal ", mp.lockedInt, ", want ", c.lockedInt, "\n")
+			print("coro: got lock external ", mp.lockedExt, ", want ", c.lockedExt, "\n")
+			throw("coro: OS thread locking must match locking at coroutine creation")
+		}
+	}
 
 	// Acquire tracer for writing for the duration of this call.
 	//
@@ -109,11 +134,18 @@ func coroswitch_m(gp *g) {
 	// emitting an event for every single transition.
 	trace := traceAcquire()
 
+	if locked {
+		// Detach the goroutine from the thread; we'll attach to the goroutine we're
+		// switching to before returning.
+		gp.lockedm.set(nil)
+	}
+
 	if exit {
-		// TODO(65889): If we're locked to the current OS thread and
-		// we exit here while tracing is enabled, we're going to end up
-		// in a really bad place (traceAcquire also calls acquirem; there's
-		// no releasem before the thread exits).
+		// The M might have a non-zero OS thread lock count when we get here, gdestroy
+		// will avoid destroying the M if the G isn't explicitly locked to it via lockedm,
+		// which we cleared above. It's fine to gdestroy here also, even when locked to
+		// the thread, because we'll be switching back to another goroutine anyway, which
+		// will take back its thread-lock state before returning.
 		gdestroy(gp)
 		gp = nil
 	} else {
@@ -156,6 +188,14 @@ func coroswitch_m(gp *g) {
 		}
 	}
 
+	// Check if we're switching to ourselves. This case is able to break our
+	// thread-lock invariants and an unbuffered channel implementation of
+	// coroswitch would deadlock. It's clear that this case should just not
+	// work.
+	if gnext == gp {
+		throw("coroswitch of a goroutine to itself")
+	}
+
 	// Emit the trace event after getting gnext but before changing curg.
 	// GoSwitch expects that the current G is running and that we haven't
 	// switched yet for correct status emission.
@@ -173,6 +213,12 @@ func coroswitch_m(gp *g) {
 		// coordinating with the garbage collector about the state change.
 		casgstatus(gnext, _Gwaiting, _Grunnable)
 		casgstatus(gnext, _Grunnable, _Grunning)
+	}
+
+	// Donate locked state.
+	if locked {
+		mp.lockedg.set(gnext)
+		gnext.lockedm.set(mp)
 	}
 
 	// Release the trace locker. We've completed all the necessary transitions..

@@ -4217,9 +4217,9 @@ func gdestroy(gp *g) {
 		return
 	}
 
-	if mp.lockedInt != 0 {
-		print("invalid m->lockedInt = ", mp.lockedInt, "\n")
-		throw("internal lockOSThread error")
+	if locked && mp.lockedInt != 0 {
+		print("runtime: mp.lockedInt = ", mp.lockedInt, "\n")
+		throw("exited a goroutine internally locked to the OS thread")
 	}
 	gfput(pp, gp)
 	if locked {
