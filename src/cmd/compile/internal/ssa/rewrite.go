@@ -1589,7 +1589,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 	return encodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
-// Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
+// Test if a word shift right feeding into a CLRLSLDI can be merged into RLWINM.
 // Return the encoded RLWINM constant, or 0 if they cannot be merged.
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
@@ -1607,6 +1607,31 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 		return 0
 	}
 	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+}
+
+// Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
+// Return the encoded RLWINM constant, or 0 if they cannot be merged.
+func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
+	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
+	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+
+	// Rewrite mask to apply after the final left shift.
+	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
+
+	r_1 := 64 - srd
+	r_2 := GetPPC64Shiftsh(sld)
+	r_3 := (r_1 + r_2) & 63 // This can wrap.
+
+	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
+		return 0
+	}
+	// This combine only works when selecting and shifting the lower 32 bits.
+	v1 := bits.RotateLeft64(0xFFFFFFFF00000000, int(r_3))
+	if v1&mask_3 != 0 {
+		return 0
+	}
+	return encodePPC64RotateMask(int64(r_3-32), int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return

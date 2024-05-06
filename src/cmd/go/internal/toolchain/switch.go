@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
+	"cmd/internal/telemetry"
 )
 
 // A Switcher collects errors to be reported and then decides
@@ -103,7 +104,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 	panic("unreachable")
 }
 
-var counterSwitchExec = base.NewCounter("go/toolchain/switch-exec")
+var counterSwitchExec = telemetry.NewCounter("go/toolchain/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).

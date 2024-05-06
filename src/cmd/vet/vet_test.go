@@ -152,6 +152,37 @@ func TestVet(t *testing.T) {
 			t.Log("vet stderr:\n", cmd.Stderr)
 		}
 	})
+
+	// The stdversion analyzer requires a lower-than-tip go
+	// version in its go.mod file for it to report anything.
+	// So again we use a testdata go.mod file to "downgrade".
+	t.Run("stdversion", func(t *testing.T) {
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+		cmd.Dir = "testdata/stdversion"
+		cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
+		cmd.Run()
+		stderr := cmd.Stderr.(fmt.Stringer).String()
+
+		filename := filepath.FromSlash("testdata/stdversion/stdversion.go")
+
+		// Unlike the tests above, which runs vet in cmd/vet/, this one
+		// runs it in subdirectory, so the "full names" in the output
+		// are in fact short "./rangeloop.go".
+		// But we can't just pass "./rangeloop.go" as the "full name"
+		// argument to errorCheck as it does double duty as both a
+		// string that appears in the output, and as file name
+		// openable relative to the test directory, containing text
+		// expectations.
+		//
+		// So, we munge the file.
+		stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./stdversion.go"), filename)
+
+		if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
+			t.Errorf("error check failed: %s", err)
+			t.Log("vet stderr:\n", cmd.Stderr)
+		}
+	})
 }
 
 func cgoEnabled(t *testing.T) bool {

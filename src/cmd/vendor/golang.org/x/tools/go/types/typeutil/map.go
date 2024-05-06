@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package typeutil defines various utilities for types, such as Map,
-// a mapping from types.Type to interface{} values.
+// a mapping from types.Type to any values.
 package typeutil // import "golang.org/x/tools/go/types/typeutil"
 
 import (
@@ -17,7 +17,7 @@ import (
 )
 
 // Map is a hash-table-based mapping from types (types.Type) to
-// arbitrary interface{} values.  The concrete types that implement
+// arbitrary any values.  The concrete types that implement
 // the Type interface are pointers.  Since they are not canonicalized,
 // == cannot be used to check for equivalence, and thus we cannot
 // simply use a Go map.
@@ -34,7 +34,7 @@ type Map struct {
 // entry is an entry (key/value association) in a hash bucket.
 type entry struct {
 	key   types.Type
-	value interface{}
+	value any
 }
 
 // SetHasher sets the hasher used by Map.
@@ -82,7 +82,7 @@ func (m *Map) Delete(key types.Type) bool {
 
 // At returns the map entry for the given key.
 // The result is nil if the entry is not present.
-func (m *Map) At(key types.Type) interface{} {
+func (m *Map) At(key types.Type) any {
 	if m != nil && m.table != nil {
 		for _, e := range m.table[m.hasher.Hash(key)] {
 			if e.key != nil && types.Identical(key, e.key) {
@@ -95,7 +95,7 @@ func (m *Map) At(key types.Type) interface{} {
 
 // Set sets the map entry for key to val,
 // and returns the previous entry, if any.
-func (m *Map) Set(key types.Type, value interface{}) (prev interface{}) {
+func (m *Map) Set(key types.Type, value any) (prev any) {
 	if m.table != nil {
 		hash := m.hasher.Hash(key)
 		bucket := m.table[hash]
@@ -142,7 +142,7 @@ func (m *Map) Len() int {
 // f will not be invoked for it, but if f inserts a map entry that
 // Iterate has not yet reached, whether or not f will be invoked for
 // it is unspecified.
-func (m *Map) Iterate(f func(key types.Type, value interface{})) {
+func (m *Map) Iterate(f func(key types.Type, value any)) {
 	if m != nil {
 		for _, bucket := range m.table {
 			for _, e := range bucket {
@@ -158,7 +158,7 @@ func (m *Map) Iterate(f func(key types.Type, value interface{})) {
 // The order is unspecified.
 func (m *Map) Keys() []types.Type {
 	keys := make([]types.Type, 0, m.Len())
-	m.Iterate(func(key types.Type, _ interface{}) {
+	m.Iterate(func(key types.Type, _ any) {
 		keys = append(keys, key)
 	})
 	return keys
@@ -171,7 +171,7 @@ func (m *Map) toString(values bool) string {
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, "{")
 	sep := ""
-	m.Iterate(func(key types.Type, value interface{}) {
+	m.Iterate(func(key types.Type, value any) {
 		fmt.Fprint(&buf, sep)
 		sep = ", "
 		fmt.Fprint(&buf, key)
@@ -209,7 +209,7 @@ type Hasher struct {
 	memo map[types.Type]uint32
 
 	// ptrMap records pointer identity.
-	ptrMap map[interface{}]uint32
+	ptrMap map[any]uint32
 
 	// sigTParams holds type parameters from the signature being hashed.
 	// Signatures are considered identical modulo renaming of type parameters, so
@@ -227,7 +227,7 @@ type Hasher struct {
 func MakeHasher() Hasher {
 	return Hasher{
 		memo:       make(map[types.Type]uint32),
-		ptrMap:     make(map[interface{}]uint32),
+		ptrMap:     make(map[any]uint32),
 		sigTParams: nil,
 	}
 }
@@ -261,7 +261,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 		return uint32(t.Kind())
 
 	case *aliases.Alias:
-		return h.Hash(t.Underlying())
+		return h.Hash(aliases.Unalias(t))
 
 	case *types.Array:
 		return 9043 + 2*uint32(t.Len()) + 3*h.Hash(t.Elem())
@@ -432,7 +432,7 @@ func (h Hasher) hashTypeParam(t *types.TypeParam) uint32 {
 
 // hashPtr hashes the pointer identity of ptr. It uses h.ptrMap to ensure that
 // pointers values are not dependent on the GC.
-func (h Hasher) hashPtr(ptr interface{}) uint32 {
+func (h Hasher) hashPtr(ptr any) uint32 {
 	if hash, ok := h.ptrMap[ptr]; ok {
 		return hash
 	}
@@ -462,7 +462,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
 	// so there's no need to optimize anything else.
 	switch t := t.(type) {
 	case *aliases.Alias:
-		return h.shallowHash(t.Underlying())
+		return h.shallowHash(aliases.Unalias(t))
 
 	case *types.Signature:
 		var hash uint32 = 604171

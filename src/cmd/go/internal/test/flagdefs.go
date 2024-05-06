@@ -67,6 +67,7 @@ var passAnalyzersToVet = map[string]bool{
 	"sigchanyzer":      true,
 	"slog":             true,
 	"stdmethods":       true,
+	"stdversion":       true,
 	"stringintconv":    true,
 	"structtag":        true,
 	"testinggoroutine": true,

@@ -583,7 +583,7 @@ func Repeat(b []byte, count int) []byte {
 	if count < 0 {
 		panic("bytes: negative Repeat count")
 	}
-	if len(b) >= maxInt/count {
+	if len(b) > maxInt/count {
 		panic("bytes: Repeat output length overflow")
 	}
 	n := len(b) * count

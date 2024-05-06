@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
 	"golang.org/x/tools/go/analysis/passes/slog"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/stdversion"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
@@ -70,6 +71,7 @@ func main() {
 		sigchanyzer.Analyzer,
 		slog.Analyzer,
 		stdmethods.Analyzer,
+		stdversion.Analyzer,
 		stringintconv.Analyzer,
 		structtag.Analyzer,
 		tests.Analyzer,

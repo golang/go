@@ -72,14 +72,15 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        rand.Int()
 //	    }
 //	}
 //
 // The benchmark function must run the target code b.N times.
-// During benchmark execution, b.N is adjusted until the benchmark function lasts
-// long enough to be timed reliably. The output
+// It is called multiple times with b.N adjusted until the
+// benchmark function lasts long enough to be timed reliably.
+// The output
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
@@ -91,7 +92,7 @@
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
 //	    b.ResetTimer()
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        big.Len()
 //	    }
 //	}

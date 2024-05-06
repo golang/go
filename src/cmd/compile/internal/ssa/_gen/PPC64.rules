@@ -158,6 +158,7 @@
 
 // Merge shift right + shift left and clear left (e.g for a table lookup)
 (CLRLSLDI [c] (SRWconst [s] x)) && mergePPC64ClrlsldiSrw(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)
+(CLRLSLDI [c] (SRDconst [s] x)) && mergePPC64ClrlsldiSrd(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrd(int64(c),s)] x)
 (SLDconst [l] (SRWconst [r] x)) && mergePPC64SldiSrw(l,r) != 0 => (RLWINM [mergePPC64SldiSrw(l,r)] x)
 // The following reduction shows up frequently too. e.g b[(x>>14)&0xFF]
 (CLRLSLDI [c] i:(RLWINM [s] x)) && mergePPC64ClrlsldiRlwinm(c,s) != 0 => (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)

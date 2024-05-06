@@ -32,7 +32,7 @@ bases, and so on.
 
 # Analyzer
 
-The primary type in the API is Analyzer. An Analyzer statically
+The primary type in the API is [Analyzer]. An Analyzer statically
 describes an analysis function: its name, documentation, flags,
 relationship to other analyzers, and of course, its logic.
 
@@ -72,7 +72,7 @@ help that describes the analyses it performs.
 The doc comment contains a brief one-line summary,
 optionally followed by paragraphs of explanation.
 
-The Analyzer type has more fields besides those shown above:
+The [Analyzer] type has more fields besides those shown above:
 
 	type Analyzer struct {
 		Name             string
@@ -114,7 +114,7 @@ instance of the Pass type.
 
 # Pass
 
-A Pass describes a single unit of work: the application of a particular
+A [Pass] describes a single unit of work: the application of a particular
 Analyzer to a particular package of Go code.
 The Pass provides information to the Analyzer's Run function about the
 package being analyzed, and provides operations to the Run function for
@@ -135,16 +135,14 @@ reporting diagnostics and other information back to the driver.
 The Fset, Files, Pkg, and TypesInfo fields provide the syntax trees,
 type information, and source positions for a single package of Go code.
 
-The OtherFiles field provides the names, but not the contents, of non-Go
-files such as assembly that are part of this package. See the "asmdecl"
-or "buildtags" analyzers for examples of loading non-Go files and reporting
-diagnostics against them.
-
-The IgnoredFiles field provides the names, but not the contents,
-of ignored Go and non-Go source files that are not part of this package
-with the current build configuration but may be part of other build
-configurations. See the "buildtags" analyzer for an example of loading
-and checking IgnoredFiles.
+The OtherFiles field provides the names of non-Go
+files such as assembly that are part of this package.
+Similarly, the IgnoredFiles field provides the names of Go and non-Go
+source files that are not part of this package with the current build
+configuration but may be part of other build configurations.
+The contents of these files may be read using Pass.ReadFile;
+see the "asmdecl" or "buildtags" analyzers for examples of loading
+non-Go files and reporting diagnostics against them.
 
 The ResultOf field provides the results computed by the analyzers
 required by this one, as expressed in its Analyzer.Requires field. The
@@ -177,7 +175,7 @@ Diagnostic is defined as:
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
 
-The Diagnostic struct does not have a field to indicate its severity
+The [Diagnostic] struct does not have a field to indicate its severity
 because opinions about the relative importance of Analyzers and their
 diagnostics vary widely among users. The design of this framework does
 not hold each Analyzer responsible for identifying the severity of its
@@ -191,7 +189,7 @@ and buildtag, inspect the raw text of Go source files or even non-Go
 files such as assembly. To report a diagnostic against a line of a
 raw text file, use the following sequence:
 
-	content, err := os.ReadFile(filename)
+	content, err := pass.ReadFile(filename)
 	if err != nil { ... }
 	tf := fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
@@ -216,7 +214,7 @@ addition, it records which functions are printf wrappers for use by
 later analysis passes to identify other printf wrappers by induction.
 A result such as “f is a printf wrapper” that is not interesting by
 itself but serves as a stepping stone to an interesting result (such as
-a diagnostic) is called a "fact".
+a diagnostic) is called a [Fact].
 
 The analysis API allows an analysis to define new types of facts, to
 associate facts of these types with objects (named entities) declared
