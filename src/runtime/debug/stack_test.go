@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := SetCrashOutput(f); err != nil {
+		if err := SetCrashOutput(f, CrashOptions{}); err != nil {
 			log.Fatal(err) // e.g. EMFILE
 		}
 		println("hello")
