@@ -8,6 +8,7 @@ import (
 	. "io/fs"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,7 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Glob error for %q: %s", tt.pattern, err)
 			continue
 		}
-		if !contains(matches, tt.result) {
+		if !slices.Contains(matches, tt.result) {
 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
 		}
 	}
@@ -63,16 +64,6 @@ func TestCVE202230630(t *testing.T) {
 	if err != path.ErrBadPattern {
 		t.Fatalf("Glob returned err=%v, want %v", err, path.ErrBadPattern)
 	}
-}
-
-// contains reports whether vector contains the string s.
-func contains(vector []string, s string) bool {
-	for _, elem := range vector {
-		if elem == s {
-			return true
-		}
-	}
-	return false
 }
 
 type globOnly struct{ GlobFS }
