@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binarylite provides functions for decoding and encoding integer types,
-// encoded as little or big endian.
+// Package binarylite provides functions for decoding and encoding
+// little and big endian integer types.
 package binarylite
 
 func LeUint16(b []byte) uint16 {

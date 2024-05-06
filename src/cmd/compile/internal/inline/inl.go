@@ -502,9 +502,7 @@ opSwitch:
 				if types.ReflectSymName(name.Sym()) == "noescape" {
 					cheap = true
 				}
-
 			}
-
 			// Special case for coverage counter updates; although
 			// these correspond to real operations, we treat them as
 			// zero cost for the moment. This is due to the existence
