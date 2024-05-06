@@ -338,6 +338,11 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 // result of hashing the input message using the given hash function. The opts
 // argument may be nil, in which case sensible defaults are used. opts.Hash is
 // ignored.
+//
+// Note: As neither the signature nor the public key is viewed as secret;
+// VerifyPSS does not provide confidentiality guarantees on the public key or
+// signature and does not attempt to prevent timing channels which leak the
+// these values. See https://golang.org/issue/67043
 func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)

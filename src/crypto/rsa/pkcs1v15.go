@@ -321,6 +321,13 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 // function and sig is the signature. A valid signature is indicated by
 // returning a nil error. If hash is zero then hashed is used directly. This
 // isn't advisable except for interoperability.
+//
+// Note: VerifyPKCS1v15 has a timing channel that can leak bits of the
+// signature or public key. This timing channel is not possible if the
+// signature would verify under the public key (it only leaks invalid
+// signatures). As neither the signature nor the public key are viewed
+// as secret; this function does not provide confidentiality guarantees
+// on the signature or public key. See https://golang.org/issue/67043
 func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)

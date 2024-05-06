@@ -20,9 +20,9 @@
 // Decrypter and Signer interfaces from the crypto package.
 //
 // Operations in this package are implemented using constant-time algorithms,
-// except for [GenerateKey], [PrivateKey.Precompute], and [PrivateKey.Validate].
-// Every other operation only leaks the bit size of the involved values, which
-// all depend on the selected key size.
+// except for encrypt, [GenerateKey], [PrivateKey.Precompute],
+// and [PrivateKey.Validate]. Every other operation only leaks the bit size of
+// the involved values, which all depend on the selected key size.
 package rsa
 
 import (
@@ -479,6 +479,9 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 // be returned if the size of the salt is too large.
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
 
+// WARNING: encrypt contains a timing channel that reveals if the signature
+// is numerically larger than the modulus N, potentially leaking a bit of
+// the public key or the plaintext. See https://golang.org/issue/67043
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
