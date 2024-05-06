@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"internal/syscall/windows"
 	"syscall"
 	"unsafe"
@@ -107,7 +108,7 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
 	}
 	switch ft {
 	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
-		return &fileStat{name: basename(name), filetype: ft}, nil
+		return &fileStat{name: filepathlite.Base(name), filetype: ft}, nil
 	}
 	fs, err := newFileStatFromGetFileInformationByHandle(name, h)
 	if err != nil {
