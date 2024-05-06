@@ -213,7 +213,7 @@ func (z *Writer) Flush() error {
 		return nil
 	}
 	if !z.wroteHeader {
-		z.Write(nil)
+		_, z.err = z.Write(nil)
 		if z.err != nil {
 			return z.err
 		}
@@ -234,7 +234,7 @@ func (z *Writer) Close() error {
 	}
 	z.closed = true
 	if !z.wroteHeader {
-		z.Write(nil)
+		_, z.err = z.Write(nil)
 		if z.err != nil {
 			return z.err
 		}
