@@ -28,6 +28,7 @@ func Fuzz(data []byte) int {
 		NoCompression,
 		BestSpeed,
 		BestCompression,
+		HuffmanOnly,
 	}
 	for _, l := range levels {
 		var w bytes.Buffer

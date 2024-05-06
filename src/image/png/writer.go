@@ -59,6 +59,7 @@ const (
 	NoCompression      CompressionLevel = -1
 	BestSpeed          CompressionLevel = -2
 	BestCompression    CompressionLevel = -3
+	HuffmanOnly        CompressionLevel = -4
 
 	// Positive CompressionLevel values are reserved to mean a numeric zlib
 	// compression level, although that is not implemented yet.
@@ -572,6 +573,8 @@ func levelToZlib(l CompressionLevel) int {
 		return zlib.BestSpeed
 	case BestCompression:
 		return zlib.BestCompression
+	case HuffmanOnly:
+		return zlib.HuffmanOnly
 	default:
 		return zlib.DefaultCompression
 	}
