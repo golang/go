@@ -80,6 +80,9 @@ func TestRegress(t *testing.T) {
 					x = int(big)
 
 				case reflect.Uint:
+					if m.Name == "Uint" {
+						continue
+					}
 					big := uint64s[repeat%len(uint64s)]
 					if uint64(uint(big)) != big {
 						r.Uint64N(big) // what would happen on 64-bit machine, to keep stream in sync
@@ -118,7 +121,7 @@ func TestRegress(t *testing.T) {
 			if *update {
 				var val string
 				big := int64(1 << 60)
-				if int64(int(big)) != big && (m.Name == "Int" || m.Name == "IntN") {
+				if int64(int(big)) != big && (m.Name == "Int" || m.Name == "IntN" || m.Name == "Uint" || m.Name == "UintN") {
 					// 32-bit machine cannot print 64-bit results
 					val = "truncated"
 				} else if reflect.TypeOf(out).Kind() == reflect.Slice {
@@ -133,6 +136,9 @@ func TestRegress(t *testing.T) {
 				want := regressGolden[p]
 				if m.Name == "Int" {
 					want = int64(int(uint(want.(int64)) << 1 >> 1))
+				}
+				if m.Name == "Uint" {
+					want = uint64(uint(want.(uint64)))
 				}
 				if !reflect.DeepEqual(out, want) {
 					t.Errorf("r.%s(%s) = %v, want %v", m.Name, argstr, out, want)
@@ -455,6 +461,27 @@ var regressGolden = []any{
 	[]int{3, 2, 1, 0, 7, 5, 4, 6},       // Perm(8)
 	[]int{1, 3, 4, 5, 0, 2, 7, 8, 6},    // Perm(9)
 	[]int{1, 8, 4, 7, 2, 6, 5, 9, 0, 3}, // Perm(10)
+
+	uint64(14192431797130687760), // Uint()
+	uint64(11371241257079532652), // Uint()
+	uint64(14470142590855381128), // Uint()
+	uint64(14694613213362438554), // Uint()
+	uint64(4321634407747778896),  // Uint()
+	uint64(760102831717374652),   // Uint()
+	uint64(9221744211007427193),  // Uint()
+	uint64(8289669384274456462),  // Uint()
+	uint64(2449715415482412441),  // Uint()
+	uint64(3389241988064777392),  // Uint()
+	uint64(12210202232702069999), // Uint()
+	uint64(8204908297817606218),  // Uint()
+	uint64(17358349022401942459), // Uint()
+	uint64(2240328155279531677),  // Uint()
+	uint64(7311121042813227358),  // Uint()
+	uint64(14454429957748299131), // Uint()
+	uint64(13481244625344276711), // Uint()
+	uint64(9381769212557126946),  // Uint()
+	uint64(1350674201389090105),  // Uint()
+	uint64(6093522341581845358),  // Uint()
 
 	uint32(3304433030), // Uint32()
 	uint32(2647573421), // Uint32()
