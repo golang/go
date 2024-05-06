@@ -148,7 +148,7 @@ func calculateCostForType(t *types.Type) int64 {
 		return EqStructCost(t)
 	case types.TSLICE:
 		// Slices are not comparable.
-		base.Fatalf("calculateCostForType: unexpected slice type")
+		base.Fatalf("eqStructFieldCost: unexpected slice type")
 	case types.TARRAY:
 		elemCost := calculateCostForType(t.Elem())
 		cost = t.NumElem() * elemCost
@@ -374,11 +374,6 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 }
 
 func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
-	if !base.Ctxt.Arch.CanMergeLoads && t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
-		// We can't use larger comparisons if the value might not be aligned
-		// enough for the larger comparison. See issues 46283 and 67160.
-		size = 0
-	}
 	switch size {
 	default:
 		fn = typecheck.LookupRuntime("memequal")
