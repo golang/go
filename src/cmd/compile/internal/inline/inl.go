@@ -531,34 +531,15 @@ opSwitch:
 					// explicitly mark internal/binarylite methods as cheap,
 					// because in practice they are, even though our inlining
 					// budgeting system does not see that. See issue 42958.
-					if base.Ctxt.Arch.CanMergeLoads {
+					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "internal/binarylite" {
 						switch s.Name {
-						case "internal/binarylite":
-							switch s.Name {
-							case "LittleEndianOrder.Uint64", "LittleEndianOrder.Uint32", "LittleEndianOrder.Uint16",
-								"BigEndianOrder.Uint64", "BigEndianOrder.Uint32", "BigEndianOrder.Uint16",
-								"NativeEndianOrder.Uint64", "NativeEndianOrder.Uint32", "NativeEndianOrder.Uint16",
-								"LittleEndianOrder.PutUint64", "LittleEndianOrder.PutUint32", "LittleEndianOrder.PutUint16",
-								"BigEndianOrder.PutUint64", "BigEndianOrder.PutUint32", "BigEndianOrder.PutUint16",
-								"NativeEndianOrder.PutUint64", "NativeEndianOrder.PutUint32", "NativeEndianOrder.PutUint16",
-								"LittleEndianOrder.AppendUint64", "LittleEndianOrder.AppendUint32", "LittleEndianOrder.AppendUint16",
-								"BigEndianOrder.AppendUint64", "BigEndianOrder.AppendUint32", "BigEndianOrder.AppendUint16",
-								"NativeEndianOrder.AppendUint64", "NativeEndianOrder.AppendUint32", "NativeEndianOrder.AppendUint16":
-								cheap = true
-							}
-						case "encoding/binary":
-							switch s.Name {
-							case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
-								"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
-								"nativeEndian.Uint64", "nativeEndian.Uint32", "nativeEndian.Uint16",
-								"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
-								"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16",
-								"nativeEndian.PutUint64", "nativeEndian.PutUint32", "nativeEndian.PutUint16",
-								"littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
-								"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16",
-								"nativeEndian.AppendUint64", "nativeEndian.AppendUint32", "nativeEndian.AppendUint16":
-								cheap = true
-							}
+						case "LittleEndianOrder.Uint64", "LittleEndianOrder.Uint32", "LittleEndianOrder.Uint16",
+							"BigEndianOrder.Uint64", "BigEndianOrder.Uint32", "BigEndianOrder.Uint16",
+							"LittleEndianOrder.PutUint64", "LittleEndianOrder.PutUint32", "LittleEndianOrder.PutUint16",
+							"BigEndianOrder.PutUint64", "BigEndianOrder.PutUint32", "BigEndianOrder.PutUint16",
+							"LittleEndianOrder.AppendUint64", "LittleEndianOrder.AppendUint32", "LittleEndianOrder.AppendUint16",
+							"BigEndianOrder.AppendUint64", "BigEndianOrder.AppendUint32", "BigEndianOrder.AppendUint16":
+							cheap = true
 						}
 					}
 				}
