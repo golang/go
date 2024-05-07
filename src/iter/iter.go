@@ -50,10 +50,11 @@ func coroswitch(*coro)
 // simultaneously.
 func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 	var (
-		v     V
-		ok    bool
-		done  bool
-		racer int
+		v         V
+		ok        bool
+		done      bool
+		yieldNext bool
+		racer     int
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
@@ -61,6 +62,10 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 			if done {
 				return false
 			}
+			if !yieldNext {
+				panic("iter.Pull: yield called again before next")
+			}
+			yieldNext = false
 			v, ok = v1, true
 			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
@@ -78,6 +83,10 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		if done {
 			return
 		}
+		if yieldNext {
+			panic("iter.Pull: next called again before yield")
+		}
+		yieldNext = true
 		race.Release(unsafe.Pointer(&racer))
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&racer))
@@ -116,11 +125,12 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 // simultaneously.
 func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	var (
-		k     K
-		v     V
-		ok    bool
-		done  bool
-		racer int
+		k         K
+		v         V
+		ok        bool
+		done      bool
+		yieldNext bool
+		racer     int
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
@@ -128,6 +138,10 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 			if done {
 				return false
 			}
+			if !yieldNext {
+				panic("iter.Pull2: yield called again before next")
+			}
+			yieldNext = false
 			k, v, ok = k1, v1, true
 			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
@@ -146,6 +160,10 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		if done {
 			return
 		}
+		if yieldNext {
+			panic("iter.Pull2: next called again before yield")
+		}
+		yieldNext = true
 		race.Release(unsafe.Pointer(&racer))
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&racer))
