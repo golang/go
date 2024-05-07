@@ -2606,7 +2606,7 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
+	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
 		// structs of 1 direct iface type can be direct
 		typ.Kind_ |= abi.KindDirectIface
 	default:
@@ -2801,7 +2801,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && !ifaceIndir(typ):
+	case length == 1 && !typ.IfaceIndir():
 		// array of 1 direct iface type can be direct
 		array.Kind_ |= abi.KindDirectIface
 	default:
@@ -2901,11 +2901,6 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
 	})
 	lt := lti.(layoutType)
 	return lt.t, lt.framePool, lt.abid
-}
-
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&abi.KindDirectIface == 0
 }
 
 // Note: this type must agree with runtime.bitvector.
