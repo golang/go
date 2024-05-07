@@ -103,6 +103,7 @@ var (
 	// explanation why GOPATH is unset.
 	GoPathError   string
 	GOPATHChanged bool
+	CGOChanged    bool
 )
 
 func defaultContext() build.Context {
@@ -131,7 +132,7 @@ func defaultContext() build.Context {
 	//	3. Otherwise, use built-in default for GOOS/GOARCH.
 	// Recreate that logic here with the new GOOS/GOARCH setting.
 	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
-		ctxt.CgoEnabled = v[0] == '1'
+		ctxt.CgoEnabled, CGOChanged = v[0] == '1', v[0] != '0'
 	} else if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
 		ctxt.CgoEnabled = false
 	} else {
@@ -411,7 +412,7 @@ var (
 	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.GOMIPS)
 	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.GOMIPS64)
 	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
-	GORISCV64, gORISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
@@ -456,7 +457,7 @@ func GetArchEnv() (key, val string, changed bool) {
 	case "ppc64", "ppc64le":
 		return "GOPPC64", GOPPC64, goPPC64Changed
 	case "riscv64":
-		return "GORISCV64", GORISCV64, gORISCV64Changed
+		return "GORISCV64", GORISCV64, goRISCV64Changed
 	case "wasm":
 		return "GOWASM", GOWASM, goWASMChanged
 	}

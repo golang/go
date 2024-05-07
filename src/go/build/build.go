@@ -286,7 +286,7 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
-// defaultGOPATH now semantics are actually the same in cmd/go/internal/cfg.gopath.
+// Keep consistent with cmd/go/internal/cfg.defaultGOPATH.
 func defaultGOPATH() string {
 	env := "HOME"
 	if runtime.GOOS == "windows" {
