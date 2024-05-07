@@ -4392,7 +4392,7 @@ func InitTables() {
 
 	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind)
 
-	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ, rtyp types.Kind, emit atomicOpEmitter) intrinsicBuilder {
+	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if buildcfg.GOARM64.LSE {
@@ -4424,10 +4424,10 @@ func InitTables() {
 				// Merge results.
 				s.startBlock(bEnd)
 			}
-			if rtyp == types.TNIL {
+			if typ == types.TNIL {
 				return nil
 			} else {
-				return s.variable(n, types.Types[rtyp])
+				return s.variable(n, types.Types[typ])
 			}
 		}
 	}
@@ -4438,10 +4438,10 @@ func InitTables() {
 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
 	}
 	addF("internal/runtime/atomic", "Xchg",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Xchg64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Xadd",
@@ -4460,10 +4460,10 @@ func InitTables() {
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
 	addF("internal/runtime/atomic", "Xadd",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Xadd64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, atomicXchgXaddEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Cas",
@@ -4495,10 +4495,10 @@ func InitTables() {
 	}
 
 	addF("internal/runtime/atomic", "Cas",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TUINT32, types.TBOOL, atomicCasEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Cas64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TUINT64, types.TBOOL, atomicCasEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "And8",
@@ -4531,16 +4531,16 @@ func InitTables() {
 	}
 
 	addF("internal/runtime/atomic", "And8",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "And",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Or8",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Or",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, atomicAndOrEmitterARM64),
 		sys.ARM64)
 
 	// Aliases for atomic load operations
