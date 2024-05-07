@@ -14,7 +14,9 @@ import "fmt"
 // which points directly to the actual (aliased) type.
 type Alias struct {
 	obj     *TypeName      // corresponding declared alias object
+	orig    *Alias         // original, uninstantiated alias
 	tparams *TypeParamList // type parameters, or nil
+	targs   *TypeList      // type arguments, or nil
 	fromRHS Type           // RHS of type alias declaration; may be an alias
 	actual  Type           // actual (aliased) type; never an alias
 }
@@ -37,6 +39,25 @@ func (a *Alias) String() string { return TypeString(a, nil) }
 //
 // [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+
+// Origin returns the generic Alias type of which a is an instance.
+// If a is not an instance of a generic alias, Origin returns a.
+func (a *Alias) Origin() *Alias { return a.orig }
+
+// TypeParams returns the type parameters of the alias type a, or nil.
+// A generic Alias and its instances have the same type parameters.
+func (a *Alias) TypeParams() *TypeParamList { return a.tparams }
+
+// SetTypeParams sets the type parameters of the alias type a.
+// The alias a must not have type arguments.
+func (a *Alias) SetTypeParams(tparams []*TypeParam) {
+	assert(a.targs == nil)
+	a.tparams = bindTParams(tparams)
+}
+
+// TypeArgs returns the type arguments used to instantiate the Alias type.
+// If a is not an instance of a generic alias, the result is nil.
+func (a *Alias) TypeArgs() *TypeList { return a.targs }
 
 // Rhs returns the type R on the right-hand side of an alias
 // declaration "type A = R", which may be another alias.
@@ -88,7 +109,10 @@ func asNamed(t Type) *Named {
 // rhs must not be nil.
 func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
 	assert(rhs != nil)
-	a := &Alias{obj, nil, rhs, nil}
+	a := new(Alias)
+	a.obj = obj
+	a.orig = a
+	a.fromRHS = rhs
 	if obj.typ == nil {
 		obj.typ = a
 	}
