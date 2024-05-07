@@ -4,7 +4,10 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+	"internal/stringslite"
+)
 
 // These are predefined layouts for use in [Time.Format] and [time.Parse].
 // The reference time used in these layouts is the specific time stamp:
@@ -827,15 +830,9 @@ type ParseError struct {
 // newParseError creates a new ParseError.
 // The provided value and valueElem are cloned to avoid escaping their values.
 func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
-	valueCopy := cloneString(value)
-	valueElemCopy := cloneString(valueElem)
+	valueCopy := stringslite.Clone(value)
+	valueElemCopy := stringslite.Clone(valueElem)
 	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
-}
-
-// cloneString returns a string copy of s.
-// Do not use strings.Clone to avoid dependency on strings package.
-func cloneString(s string) string {
-	return string([]byte(s))
 }
 
 // These are borrowed from unicode/utf8 and strconv and replicate behavior in
@@ -1368,7 +1365,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 
 		// Otherwise create fake zone to record offset.
-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
 		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
 		return t, nil
 	}
@@ -1389,7 +1386,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
 		t.setLoc(FixedZone(zoneNameCopy, offset))
 		return t, nil
 	}

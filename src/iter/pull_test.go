@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.rangefunc
-
-package iter
+package iter_test
 
 import (
 	"fmt"
+	. "iter"
 	"runtime"
 	"testing"
 )
@@ -33,7 +32,6 @@ func squares(n int) Seq2[int, int64] {
 }
 
 func TestPull(t *testing.T) {
-
 	for end := 0; end <= 3; end++ {
 		t.Run(fmt.Sprint(end), func(t *testing.T) {
 			ng := runtime.NumGoroutine()

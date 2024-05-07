@@ -953,10 +953,17 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	}
 
 	var handler uintptr
+	var flags int32
 	if sig >= _NSIG {
 		handler = _SIG_DFL
 	} else {
 		handler = atomic.Loaduintptr(&fwdSig[sig])
+		flags = sigtable[sig].flags
+	}
+
+	// If the signal is ignored, raising the signal is no-op.
+	if handler == _SIG_IGN || (handler == _SIG_DFL && flags&_SigIgn != 0) {
+		return
 	}
 
 	// Reset the signal handler and raise the signal.

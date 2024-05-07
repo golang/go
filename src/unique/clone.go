@@ -6,6 +6,7 @@ package unique
 
 import (
 	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -20,7 +21,7 @@ import (
 func clone[T comparable](value T, seq *cloneSeq) T {
 	for _, offset := range seq.stringOffsets {
 		ps := (*string)(unsafe.Pointer(uintptr(unsafe.Pointer(&value)) + offset))
-		*ps = cloneString(*ps)
+		*ps = stringslite.Clone(*ps)
 	}
 	return value
 }
@@ -85,16 +86,4 @@ func buildArrayCloneSeq(typ *abi.Type, seq *cloneSeq, baseOffset uintptr) {
 		align := uintptr(etyp.FieldAlign())
 		offset = (offset + align - 1) &^ (align - 1)
 	}
-}
-
-// cloneString is a copy of strings.Clone, because we can't depend on the strings
-// package here. Several packages that might make use of unique, like net, explicitly
-// forbid depending on unicode, which strings depends on.
-func cloneString(s string) string {
-	if len(s) == 0 {
-		return ""
-	}
-	b := make([]byte, len(s))
-	copy(b, s)
-	return unsafe.String(&b[0], len(b))
 }
