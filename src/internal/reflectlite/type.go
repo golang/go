@@ -641,8 +641,3 @@ func toType(t *abi.Type) Type {
 	}
 	return toRType(t)
 }
-
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return abi.Kind(t.Kind_)&abi.KindDirectIface == 0
-}
