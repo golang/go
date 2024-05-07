@@ -150,7 +150,6 @@ func TestSliceEverything(t *testing.T) {
 			t.Log(k, *v)
 		}
 	}
-
 	// Now test they're visited in sort order.
 	var flagNames []string
 	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
