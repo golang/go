@@ -1,7 +1,5 @@
 name: Go Telemetry Proposals
-description: |
-  Modify the telemetry upload configuration, by adding new counters to upload,
-  or refining or removing existing upload configuration.
+description: Changes to the telemetry upload configuration
 title: "x/telemetry/config: proposal title"
 labels: ["Telemetry-Proposal"]
 projects: ["golang/29"]
@@ -9,11 +7,10 @@ body:
 - type: textarea
   attributes:
     label: Summary
-    description: |
+    description: >
       What change are you proposing to the upload configuration, and why?
       For new upload configuration, which new counters will be collected, what
       do they measure, and why is it important to collect them?
-      All counters must already be instrumented in the target program.
       Note that uploaded data must not carry sensitive user information.
       See [go.dev/doc/telemetry#proposals](https://go.dev/doc/telemetry#proposals)
       for more details on telemetry proposals.
@@ -22,7 +19,7 @@ body:
 - type: input
   attributes:
     label: Proposed Config Change
-    description: |
+    description: >
       A CL containing proposed changes to the
       [config.txt](https://go.googlesource.com/telemetry/+/master/internal/chartconfig/config.txt)
       chart configuration.
