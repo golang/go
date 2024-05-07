@@ -40,17 +40,15 @@ func osCpuInfoName() string {
 
 	scanner := bufio.NewScanner(bytes.NewReader(buf))
 	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, ":") {
+		key, value, found := strings.Cut(scanner.Text(), ": ")
+		if !found {
 			continue
 		}
-
-		field := strings.SplitN(line, ": ", 2)
-		switch strings.TrimSpace(field[0]) {
+		switch strings.TrimSpace(key) {
 		case "Model Name", "model name":
-			modelName = field[1]
+			modelName = value
 		case "CPU MHz", "cpu MHz":
-			cpuMHz = field[1]
+			cpuMHz = value
 		}
 	}
 
