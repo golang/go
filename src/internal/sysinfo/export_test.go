@@ -4,4 +4,4 @@
 
 package sysinfo
 
-var XosCpuInfoName = osCpuInfoName
+var XosCPUInfoName = osCPUInfoName

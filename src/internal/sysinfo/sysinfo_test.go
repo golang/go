@@ -11,5 +11,5 @@ import (
 
 func TestCPUName(t *testing.T) {
 	t.Logf("CPUName: %s", CPUName())
-	t.Logf("osCpuInfoName: %s", XosCpuInfoName())
+	t.Logf("osCPUInfoName: %s", XosCPUInfoName())
 }

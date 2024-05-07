@@ -27,7 +27,7 @@ func readLinuxProcCPUInfo(buf []byte) error {
 	return nil
 }
 
-func osCpuInfoName() string {
+func osCPUInfoName() string {
 	modelName := ""
 	cpuMHz := ""
 
