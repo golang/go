@@ -20,7 +20,7 @@ import (
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]",
+	UsageLine: "go mod tidy [-e] [-v] [-x] [-diff] [-go=version] [-compat=version]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -34,6 +34,10 @@ to standard error.
 
 The -e flag causes tidy to attempt to proceed despite errors
 encountered while loading packages.
+
+The -diff flag causes tidy not to modify the files but instead print the
+necessary changes as a unified diff. It exits with a non-zero code
+if updates are needed.
 
 The -go flag causes tidy to update the 'go' directive in the go.mod
 file to the given version, which may change which module dependencies
@@ -58,6 +62,7 @@ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 
 var (
 	tidyE      bool          // if true, report errors but proceed anyway.
+	tidyDiff   bool          // if true, do not update go.mod or go.sum and show changes. Return corresponding exit code.
 	tidyGo     goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
 	tidyCompat goVersionFlag // go version for which the tidied go.mod and go.sum files should be “compatible”
 )
@@ -66,6 +71,7 @@ func init() {
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "")
 	cmdTidy.Flag.Var(&tidyGo, "go", "")
 	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
 	base.AddChdirFlag(&cmdTidy.Flag)
@@ -128,6 +134,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		TidyGoVersion:            tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
+		TidyDiff:                 tidyDiff,
 		TidyCompatibleVersion:    tidyCompat.String(),
 		VendorModulesInGOROOTSrc: true,
 		ResolveMissingImports:    true,

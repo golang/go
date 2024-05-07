@@ -1,0 +1,86 @@
+# Test go mod tidy -diff
+# If set, -diff should not update go.mod or go.sum and instead return a non-zero exit code if updates are needed.
+
+# Missing go.mod and go.sum should fail and not display diff.
+! exists go.mod
+! exists go.sum
+! go mod tidy -diff
+! exists go.mod
+! exists go.sum
+! stdout 'diff current go.mod tidy go.mod'
+! stdout 'diff current go.sum tidy go.sum'
+stderr 'go.mod file not found'
+
+# Missing go.mod and existing go.sum should fail and not display diff.
+cp go.sum.orig go.sum
+! exists go.mod
+exists go.sum
+! go mod tidy -diff
+! exists go.mod
+! stdout 'diff current go.mod tidy go.mod'
+! stdout 'diff current go.sum tidy go.sum'
+stderr 'go.mod file not found'
+
+# Existing go.mod and missing go.sum should display diff.
+go mod init example.com
+go mod tidy
+rm go.sum
+exists go.mod
+! exists go.sum
+! go mod tidy -diff
+! exists go.sum
+! stdout 'diff current go.mod tidy go.mod'
+stdout 'diff current go.sum tidy go.sum'
+
+# Everything is tidy, should return zero exit code.
+go mod tidy
+go mod tidy -diff
+! stdout 'diff current go.mod tidy go.mod'
+! stdout 'diff current go.sum tidy go.sum'
+
+# go.mod requires updates, should return non-zero exit code.
+cp go.mod.orig go.mod
+! go mod tidy -diff
+cmp go.mod.orig go.mod
+stdout 'diff current go.mod tidy go.mod'
+! stdout 'diff current go.sum tidy go.sum'
+
+# go.sum requires updates, should return non-zero exit code.
+go mod tidy
+cp go.sum.orig go.sum
+! go mod tidy -diff
+cmp go.sum.orig go.sum
+! stdout 'diff current go.mod tidy go.mod'
+stdout 'diff current go.sum tidy go.sum'
+
+# go.mod and go.sum require updates, should return non-zero exit code.
+cp go.mod.orig go.mod
+cp go.sum.orig go.sum
+! go mod tidy -diff
+stdout '^\+\s*require rsc.io/quote v1.5.2'
+stdout '^\+\s*golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect'
+stdout '^\+\s*rsc.io/sampler v1.3.0 // indirect'
+stdout '^\+\s*rsc.io/testonly v1.0.0 // indirect'
+stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw='
+stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW\+pc6Ldnwhi/IjpwHt7yyuwOQ='
+! stdout '^\+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0='
+stdout '^\+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII='
+stdout '^\+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA='
+cmp go.mod.orig go.mod
+cmp go.sum.orig go.sum
+
+-- main.go --
+package main
+
+import "rsc.io/quote"
+
+func main() {
+	println(quote.Hello())
+}
+
+-- go.mod.orig --
+module example.com
+
+go 1.22
+-- go.sum.orig --
+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=

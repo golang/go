@@ -1751,32 +1751,25 @@ func WriteGoMod(ctx context.Context, opts WriteOpts) error {
 	return commitRequirements(ctx, opts)
 }
 
-// commitRequirements ensures go.mod and go.sum are up to date with the current
-// requirements.
-//
-// In "mod" mode, commitRequirements writes changes to go.mod and go.sum.
-//
-// In "readonly" and "vendor" modes, commitRequirements returns an error if
-// go.mod or go.sum are out of date in a semantically significant way.
-//
-// In workspace mode, commitRequirements only writes changes to go.work.sum.
-func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
-	if inWorkspaceMode() {
-		// go.mod files aren't updated in workspace mode, but we still want to
-		// update the go.work.sum file.
-		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
-	}
+var errNoChange = errors.New("no update needed")
+
+// UpdateGoModFromReqs returns a modified go.mod file using the current
+// requirements. It does not commit these changes to disk.
+func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []byte, modFile *modfile.File, err error) {
 	if MainModules.Len() != 1 || MainModules.ModRoot(MainModules.Versions()[0]) == "" {
 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
-		return nil
+		return nil, nil, nil, errNoChange
 	}
 	mainModule := MainModules.mustGetSingleMainModule()
-	modFile := MainModules.ModFile(mainModule)
+	modFile = MainModules.ModFile(mainModule)
 	if modFile == nil {
 		// command-line-arguments has no .mod file to write.
-		return nil
+		return nil, nil, nil, errNoChange
 	}
-	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+	before, err = modFile.Format()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	var list []*modfile.Require
 	toolchain := ""
@@ -1804,7 +1797,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 	}
 	if gover.Compare(goVersion, gover.Local()) > 0 {
 		// We cannot assume that we know how to update a go.mod to a newer version.
-		return &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
+		return nil, nil, nil, &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
 	}
 	wroteGo := opts.TidyWroteGo
 	if !wroteGo && modFile.Go == nil || modFile.Go.Version != goVersion {
@@ -1853,6 +1846,35 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		modFile.SetRequireSeparateIndirect(list)
 	}
 	modFile.Cleanup()
+	after, err = modFile.Format()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return before, after, modFile, nil
+}
+
+// commitRequirements ensures go.mod and go.sum are up to date with the current
+// requirements.
+//
+// In "mod" mode, commitRequirements writes changes to go.mod and go.sum.
+//
+// In "readonly" and "vendor" modes, commitRequirements returns an error if
+// go.mod or go.sum are out of date in a semantically significant way.
+//
+// In workspace mode, commitRequirements only writes changes to go.work.sum.
+func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+	if inWorkspaceMode() {
+		// go.mod files aren't updated in workspace mode, but we still want to
+		// update the go.work.sum file.
+		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+	}
+	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(ctx, opts)
+	if err != nil {
+		if errors.Is(err, errNoChange) {
+			return nil
+		}
+		return err
+	}
 
 	index := MainModules.GetSingleIndexOrNil()
 	dirty := index.modFileIsDirty(modFile)
@@ -1874,20 +1896,18 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		}
 		return nil
 	}
+
+	mainModule := MainModules.mustGetSingleMainModule()
+	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
 	if _, ok := fsys.OverlayPath(modFilePath); ok {
 		if dirty {
 			return errors.New("updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}
 		return nil
 	}
-
-	new, err := modFile.Format()
-	if err != nil {
-		return err
-	}
 	defer func() {
 		// At this point we have determined to make the go.mod file on disk equal to new.
-		MainModules.SetIndex(mainModule, indexModFile(new, modFile, mainModule, false))
+		MainModules.SetIndex(mainModule, indexModFile(updatedGoMod, modFile, mainModule, false))
 
 		// Update go.sum after releasing the side lock and refreshing the index.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
@@ -1904,10 +1924,8 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		defer unlock()
 	}
 
-	errNoChange := errors.New("no update needed")
-
 	err = lockedfile.Transform(modFilePath, func(old []byte) ([]byte, error) {
-		if bytes.Equal(old, new) {
+		if bytes.Equal(old, updatedGoMod) {
 			// The go.mod file is already equal to new, possibly as the result of some
 			// other process.
 			return nil, errNoChange
@@ -1923,7 +1941,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 			return nil, fmt.Errorf("existing contents have changed since last read")
 		}
 
-		return new, nil
+		return updatedGoMod, nil
 	})
 
 	if err != nil && err != errNoChange {

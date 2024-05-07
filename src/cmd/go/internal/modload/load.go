@@ -98,6 +98,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/diff"
 	"io/fs"
 	"maps"
 	"os"
@@ -153,6 +154,11 @@ type PackageOpts struct {
 	// the minimal dependencies needed to reproducibly reload the requested
 	// packages.
 	Tidy bool
+
+	// TidyDiff, if true, analyzes the necessary changes to go.mod and go.sum
+	// to make them tidy. It does not modify these files, but exits with
+	// a non-zero code if updates are needed.
+	TidyDiff bool
 
 	// TidyCompatibleVersion is the oldest Go version that must be able to
 	// reproducibly reload the requested packages.
@@ -431,6 +437,36 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			}
 		}
 
+		if opts.TidyDiff {
+			cfg.BuildMod = "readonly"
+			loaded = ld
+			requirements = loaded.requirements
+			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(ctx, WriteOpts{})
+			if err != nil {
+				base.Fatal(err)
+			}
+			goModDiff := diff.Diff("current go.mod", currentGoMod, "tidy go.mod", updatedGoMod)
+
+			modfetch.TrimGoSum(keep)
+			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
+			// Update the keep map with only the loaded.requirements.
+			if gover.Compare(compatVersion, "1.16") > 0 {
+				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
+			}
+			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
+			goSumDiff := diff.Diff("current go.sum", currentGoSum, "tidy go.sum", tidyGoSum)
+
+			if len(goModDiff) > 0 {
+				fmt.Println(string(goModDiff))
+				base.SetExitStatus(1)
+			}
+			if len(goSumDiff) > 0 {
+				fmt.Println(string(goSumDiff))
+				base.SetExitStatus(1)
+			}
+			base.Exit()
+		}
+
 		if !ExplicitWriteGoMod {
 			modfetch.TrimGoSum(keep)
 
@@ -443,6 +479,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				base.Fatal(err)
 			}
 		}
+	}
+
+	if opts.TidyDiff && !opts.Tidy {
+		panic("TidyDiff is set but Tidy is not.")
 	}
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
