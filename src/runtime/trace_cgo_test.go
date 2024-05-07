@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"internal/trace"
 	tracev2 "internal/trace/v2"
 	"io"
 	"os"
@@ -38,13 +37,9 @@ func TestTraceUnwindCGO(t *testing.T) {
 		"goCalledFromC",
 		"goCalledFromCThread",
 	}
-	logs := make(map[string]*trace.Event)
+	logs := make(map[string]*tracev2.Event)
 	for _, category := range wantLogs {
 		logs[category] = nil
-	}
-	logsV2 := make(map[string]*tracev2.Event)
-	for _, category := range wantLogs {
-		logsV2[category] = nil
 	}
 	for _, tracefpunwindoff := range []int{1, 0} {
 		env := fmt.Sprintf("GODEBUG=tracefpunwindoff=%d", tracefpunwindoff)
@@ -61,54 +56,13 @@ func TestTraceUnwindCGO(t *testing.T) {
 		}
 		for category := range logs {
 			event := mustFindLogV2(t, bytes.NewReader(traceData), category)
-			if wantEvent := logsV2[category]; wantEvent == nil {
-				logsV2[category] = &event
+			if wantEvent := logs[category]; wantEvent == nil {
+				logs[category] = &event
 			} else if got, want := dumpStackV2(&event), dumpStackV2(wantEvent); got != want {
 				t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
 			}
 		}
 	}
-}
-
-// mustFindLog returns the EvUserLog event with the given category in events. It
-// fails if no event or multiple events match the category.
-func mustFindLog(t *testing.T, events []*trace.Event, category string) *trace.Event {
-	t.Helper()
-	var candidates []*trace.Event
-	for _, e := range events {
-		if e.Type == trace.EvUserLog && len(e.SArgs) >= 1 && e.SArgs[0] == category {
-			candidates = append(candidates, e)
-		}
-	}
-	if len(candidates) == 0 {
-		t.Errorf("could not find log with category: %q", category)
-	} else if len(candidates) > 1 {
-		t.Errorf("found more than one log with category: %q", category)
-	}
-	return candidates[0]
-}
-
-// dumpStack returns e.Stk as a string.
-func dumpStack(e *trace.Event) string {
-	var buf bytes.Buffer
-	for _, f := range e.Stk {
-		file := strings.TrimPrefix(f.File, runtime.GOROOT())
-		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Fn, file, f.Line)
-	}
-	return buf.String()
-}
-
-// parseTrace parses the given trace or skips the test if the trace is broken
-// due to known issues. Partially copied from runtime/trace/trace_test.go.
-func parseTrace(t *testing.T, r io.Reader) []*trace.Event {
-	res, err := trace.Parse(r, "")
-	if err == trace.ErrTimeOrder {
-		t.Skipf("skipping trace: %v", err)
-	}
-	if err != nil {
-		t.Fatalf("failed to parse trace: %v", err)
-	}
-	return res.Events
 }
 
 func mustFindLogV2(t *testing.T, trace io.Reader, category string) tracev2.Event {

@@ -5,12 +5,10 @@
 package trace
 
 import (
-	"bytes"
 	tracev2 "internal/trace/v2"
 	"internal/trace/v2/testtrace"
 	"io"
 	"math"
-	"os"
 	"testing"
 	"time"
 )
@@ -118,17 +116,6 @@ func TestMMUTrace(t *testing.T) {
 			}
 		}
 	}
-	t.Run("V1", func(t *testing.T) {
-		data, err := os.ReadFile("testdata/stress_1_10_good")
-		if err != nil {
-			t.Fatalf("failed to read input file: %v", err)
-		}
-		events, err := Parse(bytes.NewReader(data), "")
-		if err != nil {
-			t.Fatalf("failed to parse trace: %s", err)
-		}
-		check(t, MutatorUtilization(events.Events, UtilSTW|UtilBackground|UtilAssist))
-	})
 	t.Run("V2", func(t *testing.T) {
 		testPath := "v2/testdata/tests/go122-gc-stress.test"
 		r, _, err := testtrace.ParseFile(testPath)
@@ -153,30 +140,6 @@ func TestMMUTrace(t *testing.T) {
 		// Pass the trace through MutatorUtilizationV2 and check it.
 		check(t, MutatorUtilizationV2(events, UtilSTW|UtilBackground|UtilAssist))
 	})
-}
-
-func BenchmarkMMU(b *testing.B) {
-	data, err := os.ReadFile("testdata/stress_1_10_good")
-	if err != nil {
-		b.Fatalf("failed to read input file: %v", err)
-	}
-	events, err := Parse(bytes.NewReader(data), "")
-	if err != nil {
-		b.Fatalf("failed to parse trace: %s", err)
-	}
-	mu := MutatorUtilization(events.Events, UtilSTW|UtilBackground|UtilAssist|UtilSweep)
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		mmuCurve := NewMMUCurve(mu)
-		xMin, xMax := time.Microsecond, time.Second
-		logMin, logMax := math.Log(float64(xMin)), math.Log(float64(xMax))
-		const samples = 100
-		for i := 0; i < samples; i++ {
-			window := time.Duration(math.Exp(float64(i)/(samples-1)*(logMax-logMin) + logMin))
-			mmuCurve.MMU(window)
-		}
-	}
 }
 
 func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {

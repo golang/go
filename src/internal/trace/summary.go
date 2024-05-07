@@ -7,6 +7,7 @@ package trace
 import (
 	tracev2 "internal/trace/v2"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -664,4 +665,11 @@ func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.
 		gmap = gmap1
 	}
 	return gmap
+}
+
+func IsSystemGoroutine(entryFn string) bool {
+	// This mimics runtime.isSystemGoroutine as closely as
+	// possible.
+	// Also, locked g in extra M (with empty entryFn) is system goroutine.
+	return entryFn == "" || entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
 }
