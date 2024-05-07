@@ -116,7 +116,7 @@ func packEface(v Value) any {
 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
 	// First, fill in the data portion of the interface.
 	switch {
-	case ifaceIndir(t):
+	case t.IfaceIndir():
 		if v.flag&flagIndir == 0 {
 			panic("bad indir")
 		}
@@ -153,7 +153,7 @@ func unpackEface(i any) Value {
 		return Value{}
 	}
 	f := flag(t.Kind())
-	if ifaceIndir(t) {
+	if t.IfaceIndir() {
 		f |= flagIndir
 	}
 	return Value{t, e.Data, f}
