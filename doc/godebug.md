@@ -193,6 +193,10 @@ Go 1.23 changed the behavior of
 serial numbers that are longer than 20 octets. This change can be reverted with
 the the [`x509seriallength` setting](/pkg/crypto/x509/#ParseCertificate).
 
+Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
+The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
+any effect.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
