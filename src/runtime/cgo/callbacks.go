@@ -59,6 +59,14 @@ var _cgo_init = &x_cgo_init
 var x_cgo_thread_start byte
 var _cgo_thread_start = &x_cgo_thread_start
 
+// Determines if the argc / argv passed to the library initialization functions
+// are valid.
+//go:cgo_import_static x_cgo_sys_lib_args_valid
+//go:linkname x_cgo_sys_lib_args_valid x_cgo_sys_lib_args_valid
+//go:linkname _cgo_sys_lib_args_valid _cgo_sys_lib_args_valid
+var x_cgo_sys_lib_args_valid byte
+var _cgo_sys_lib_args_valid = &x_cgo_sys_lib_args_valid
+
 // Creates a new system thread without updating any Go state.
 //
 // This method is invoked during shared library loading to create a new OS
