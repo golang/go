@@ -13,6 +13,7 @@ import (
 	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
+	"internal/platform"
 	"io"
 	"os"
 	"path/filepath"
@@ -132,7 +133,7 @@ func defaultContext() build.Context {
 	//	3. Otherwise, use built-in default for GOOS/GOARCH.
 	// Recreate that logic here with the new GOOS/GOARCH setting.
 	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
-		ctxt.CgoEnabled, CGOChanged = v[0] == '1', v[0] != '0'
+		ctxt.CgoEnabled = v[0] == '1'
 	} else if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
 		ctxt.CgoEnabled = false
 	} else {
@@ -166,6 +167,12 @@ func defaultContext() build.Context {
 			}
 		}
 	}
+	CGOChanged = ctxt.CgoEnabled != func() bool {
+		if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
+			return platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
+		}
+		return false
+	}()
 
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fsys.Open(path)
