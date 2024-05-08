@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -45,6 +46,19 @@ type Config struct {
 	// directory.
 	// This field is intended to be used for isolating testing environments.
 	TelemetryDir string
+
+	// UploadStartTime, if set, overrides the time used as the upload start time,
+	// which is the time used by the upload logic to determine whether counter
+	// file data should be uploaded. Only counter files that have expired before
+	// the start time are considered for upload.
+	//
+	// This field can be used to simulate a future upload that collects recently
+	// modified counters.
+	UploadStartTime time.Time
+
+	// UploadURL, if set, overrides the URL used to receive uploaded reports. If
+	// unset, this URL defaults to https://telemetry.go.dev/upload.
+	UploadURL string
 }
 
 // Start initializes telemetry using the specified configuration.
@@ -68,46 +82,86 @@ type Config struct {
 // inspecting the command line. The application should avoid expensive
 // steps or external side effects in init functions, as they will
 // be executed twice (parent and child).
-func Start(config Config) {
+//
+// Start returns a StartResult, which may be awaited via [StartResult.Wait] to
+// wait for all work done by Start to complete.
+func Start(config Config) *StartResult {
 	if config.TelemetryDir != "" {
-		telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(config.TelemetryDir, "mode"))
-		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
-		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
+		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
 	}
-	mode, _ := telemetry.Mode()
+	result := new(StartResult)
+
+	mode, _ := telemetry.Default.Mode()
 	if mode == "off" {
 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
 		// at least set to "local", and the uploader isn't started in uploaderChild if
 		// mode is "off"
-		return
+		return result
 	}
 
 	counter.Open()
 
-	if _, err := os.Stat(telemetry.LocalDir); err != nil {
+	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
 		// There was a problem statting LocalDir, which is needed for both
 		// crash monitoring and counter uploading. Most likely, there was an
 		// error creating telemetry.LocalDir in the counter.Open call above.
 		// Don't start the child.
-		return
+		return result
 	}
 
 	// Crash monitoring and uploading both require a sidecar process.
 	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
-		if os.Getenv(telemetryChildVar) != "" {
+		switch v := os.Getenv(telemetryChildVar); v {
+		case "":
+			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
+			parent(config, result)
+		case "1":
+			// golang/go#67211: be sure to set telemetryChildVar before running the
+			// child, because the child itself invokes the go command to download the
+			// upload config. If the telemetryChildVar variable is still set to "1",
+			// that delegated go command may think that it is itself a telemetry
+			// child.
+			//
+			// On the other hand, if telemetryChildVar were simply unset, then the
+			// delegated go commands would fork themselves recursively. Short-circuit
+			// this recursion.
+			os.Setenv(telemetryChildVar, "2")
 			child(config)
 			os.Exit(0)
+		case "2":
+			// Do nothing: see note above.
+		default:
+			log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
 		}
-
-		parent(config)
 	}
+	return result
+}
+
+// A StartResult is a handle to the result of a call to [Start]. Call
+// [StartResult.Wait] to wait for the completion of all work done on behalf of
+// Start.
+type StartResult struct {
+	wg sync.WaitGroup
+}
+
+// Wait waits for the completion of all work initiated by [Start].
+func (res *StartResult) Wait() {
+	if res == nil {
+		return
+	}
+	res.wg.Wait()
 }
 
 var daemonize = func(cmd *exec.Cmd) {}
 
+// If telemetryChildVar is set to "1" in the environment, this is the telemetry
+// child.
+//
+// If telemetryChildVar is set to "2", this is a child of the child, and no
+// further forking should occur.
 const telemetryChildVar = "X_TELEMETRY_CHILD"
 
-func parent(config Config) {
+func parent(config Config, result *StartResult) {
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -121,7 +175,7 @@ func parent(config Config) {
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
 	daemonize(cmd)
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
-	cmd.Dir = telemetry.LocalDir
+	cmd.Dir = telemetry.Default.LocalDir()
 
 	// The child process must write to a log file, not
 	// the stderr file it inherited from the parent, as
@@ -132,7 +186,7 @@ func parent(config Config) {
 	// By default, we discard the child process's stderr,
 	// but in line with the uploader, log to a file in local/debug
 	// only if that directory was created by the user.
-	localDebug := filepath.Join(telemetry.LocalDir, "debug")
+	localDebug := filepath.Join(telemetry.Default.LocalDir(), "debug")
 	fd, err := os.Stat(localDebug)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -162,7 +216,11 @@ func parent(config Config) {
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("can't start telemetry child process: %v", err)
 	}
-	go cmd.Wait() // Release resources if cmd happens not to outlive this process.
+	result.wg.Add(1)
+	go func() {
+		cmd.Wait() // Release resources if cmd happens not to outlive this process.
+		result.wg.Done()
+	}()
 }
 
 func child(config Config) {
@@ -176,7 +234,7 @@ func child(config Config) {
 
 	if config.Upload {
 		g.Go(func() error {
-			uploaderChild()
+			uploaderChild(config.UploadStartTime, config.UploadURL)
 			return nil
 		})
 	}
@@ -189,18 +247,18 @@ func child(config Config) {
 	g.Wait()
 }
 
-func uploaderChild() {
-	if mode, _ := telemetry.Mode(); mode == "off" {
+func uploaderChild(asof time.Time, uploadURL string) {
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		// There's no work to be done if telemetry is turned off.
 		return
 	}
-	if telemetry.LocalDir == "" {
+	if telemetry.Default.LocalDir() == "" {
 		// The telemetry dir wasn't initialized properly, probably because
 		// os.UserConfigDir did not complete successfully. In that case
 		// there are no counters to upload, so we should just do nothing.
 		return
 	}
-	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
+	tokenfilepath := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
 	ok, err := acquireUploadToken(tokenfilepath)
 	if err != nil {
 		log.Printf("error acquiring upload token: %v", err)
@@ -210,7 +268,13 @@ func uploaderChild() {
 		// a concurrently running uploader.
 		return
 	}
-	upload.Run(&upload.Control{Logger: os.Stderr})
+	if err := upload.Run(upload.RunConfig{
+		UploadURL: uploadURL,
+		LogWriter: os.Stderr,
+		StartTime: asof,
+	}); err != nil {
+		log.Printf("upload failed: %v", err)
+	}
 }
 
 // acquireUploadToken acquires a token permitting the caller to upload.

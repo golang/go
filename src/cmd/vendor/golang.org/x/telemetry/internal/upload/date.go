@@ -18,10 +18,10 @@ import (
 var distantPast = 21 * 24 * time.Hour
 
 // reports that are too old (21 days) are not uploaded
-func tooOld(date string, uploadStartTime time.Time) bool {
+func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
-		logger.Printf("tooOld: %v", err)
+		u.logger.Printf("tooOld: %v", err)
 		return false
 	}
 	age := uploadStartTime.Sub(t)
@@ -40,17 +40,17 @@ var farFuture = time.UnixMilli(1 << 62)
 func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
 	parsed, err := u.parse(fname)
 	if err != nil {
-		logger.Printf("expiry Parse: %v for %s", err, fname)
+		u.logger.Printf("expiry Parse: %v for %s", err, fname)
 		return time.Time{}, farFuture
 	}
 	begin, err = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
 	if err != nil {
-		logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
+		u.logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
 		return time.Time{}, farFuture
 	}
 	end, err = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
 	if err != nil {
-		logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
+		u.logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
 		return time.Time{}, farFuture
 	}
 	return begin, end
@@ -59,7 +59,7 @@ func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
 // stillOpen returns true if the counter file might still be active
 func (u *Uploader) stillOpen(fname string) bool {
 	_, expiry := u.counterDateSpan(fname)
-	return expiry.After(u.StartTime)
+	return expiry.After(u.startTime)
 }
 
 // avoid parsing count files multiple times

@@ -15,50 +15,151 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/telemetry/internal/configstore"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
-var logger *log.Logger
-
-func init() {
-	logger = log.New(io.Discard, "", 0)
+// RunConfig configures non-default behavior of a call to Run.
+//
+// All fields are optional, for testing or observability.
+type RunConfig struct {
+	TelemetryDir string    // if set, overrides the telemetry data directory
+	UploadURL    string    // if set, overrides the telemetry upload endpoint
+	LogWriter    io.Writer // if set, used for detailed logging of the upload process
+	Env          []string  // if set, appended to the config download environment
+	StartTime    time.Time // if set, overrides the upload start time
 }
 
-// keep track of what SetLogOutput has seen
-var seenlogwriters []io.Writer
+// Uploader encapsulates a single upload operation, carrying parameters and
+// shared state.
+type Uploader struct {
+	// config is used to select counters to upload.
+	config        *telemetry.UploadConfig //
+	configVersion string                  // version of the config
+	dir           telemetry.Dir           // the telemetry dir to process
 
-// SetLogOutput sets the default logger's output destination.
-func SetLogOutput(logging io.Writer) {
-	if logging == nil {
-		return
-	}
-	logger.SetOutput(logging) // the common case
-	seenlogwriters = append(seenlogwriters, logging)
-	if len(seenlogwriters) > 1 {
-		// The client asked for logging, and there is also a debug dir
-		logger.SetOutput(io.MultiWriter(seenlogwriters...))
-	}
+	uploadServerURL string
+	startTime       time.Time
+
+	cache parsedCache
+
+	logFile *os.File
+	logger  *log.Logger
 }
 
-// LogIfDebug arranges to write a log file in the directory
-// dirname, if it exists. If dirname is the empty string,
-// the function tries the directory it.Localdir/debug.
-func LogIfDebug(dirname string) error {
-	dname := filepath.Join(telemetry.LocalDir, "debug")
-	if dirname != "" {
-		dname = dirname
+// NewUploader creates a new uploader to use for running the upload for the
+// given config.
+//
+// Uploaders should only be used for one call to [Run].
+func NewUploader(rcfg RunConfig) (*Uploader, error) {
+	// Determine the upload directory.
+	var dir telemetry.Dir
+	if rcfg.TelemetryDir != "" {
+		dir = telemetry.NewDir(rcfg.TelemetryDir)
+	} else {
+		dir = telemetry.Default
 	}
-	fd, err := os.Stat(dname)
+
+	// Determine the upload URL.
+	uploadURL := rcfg.UploadURL
+	if uploadURL == "" {
+		uploadURL = "https://telemetry.go.dev/upload"
+	}
+
+	// Determine the upload logger.
+	//
+	// This depends on the provided rcfg.LogWriter and the presence of
+	// dir.DebugDir, as follows:
+	//  1. If LogWriter is present, log to it.
+	//  2. If DebugDir is present, log to a file within it.
+	//  3. If both LogWriter and DebugDir are present, log to a multi writer.
+	//  4. If neither LogWriter nor DebugDir are present, log to a noop logger.
+	var logWriters []io.Writer
+	logFile, err := debugLogFile(dir.DebugDir())
 	if err != nil {
-		return err
+		logFile = nil
 	}
-	if fd == nil || !fd.IsDir() {
-		// debug doesn't exist or isn't a directory
+	if logFile != nil {
+		logWriters = append(logWriters, logFile)
+	}
+	if rcfg.LogWriter != nil {
+		logWriters = append(logWriters, rcfg.LogWriter)
+	}
+	var logWriter io.Writer
+	switch len(logWriters) {
+	case 0:
+		logWriter = io.Discard
+	case 1:
+		logWriter = logWriters[0]
+	default:
+		logWriter = io.MultiWriter(logWriters...)
+	}
+	logger := log.New(logWriter, "", 0)
+
+	// Fetch the upload config, if it is not provided.
+	config, configVersion, err := configstore.Download("latest", rcfg.Env)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the start time, if it is not provided.
+	startTime := time.Now().UTC()
+	if !rcfg.StartTime.IsZero() {
+		startTime = rcfg.StartTime
+	}
+
+	return &Uploader{
+		config:          config,
+		configVersion:   configVersion,
+		dir:             dir,
+		uploadServerURL: uploadURL,
+		startTime:       startTime,
+
+		logFile: logFile,
+		logger:  logger,
+	}, nil
+}
+
+// Close cleans up any resources associated with the uploader.
+func (u *Uploader) Close() error {
+	if u.logFile == nil {
 		return nil
+	}
+	return u.logFile.Close()
+}
+
+// Run generates and uploads reports
+func (u *Uploader) Run() error {
+	if telemetry.DisabledOnPlatform {
+		return nil
+	}
+	todo := u.findWork()
+	ready, err := u.reports(&todo)
+	if err != nil {
+		return fmt.Errorf("reports failed: %v", err)
+	}
+	for _, f := range ready {
+		u.uploadReport(f)
+	}
+	return nil
+}
+
+// debugLogFile arranges to write a log file in the given debug directory, if
+// it exists.
+func debugLogFile(debugDir string) (*os.File, error) {
+	fd, err := os.Stat(debugDir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !fd.IsDir() {
+		return nil, fmt.Errorf("debug path %q is not a directory", debugDir)
 	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return fmt.Errorf("no build info")
+		return nil, fmt.Errorf("no build info")
 	}
 	year, month, day := time.Now().UTC().Date()
 	goVers := info.GoVersion
@@ -71,65 +172,19 @@ func LogIfDebug(dirname string) error {
 	}
 	prog := path.Base(progPkgPath)
 	progVers := info.Main.Version
-	fname := filepath.Join(dname, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
+	fname := filepath.Join(debugDir, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
 		prog, progVers, goVers, year, month, day, os.Getpid()))
 	fname = strings.ReplaceAll(fname, " ", "")
 	if _, err := os.Stat(fname); err == nil {
 		// This process previously called upload.Run
-		return nil
+		return nil, nil
 	}
-	logfd, err := os.Create(fname)
+	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
-		return err
+		if os.IsExist(err) {
+			return nil, nil // this process previously called upload.Run
+		}
+		return nil, err
 	}
-	SetLogOutput(logfd)
-	return nil
-}
-
-// Uploader carries parameters needed for upload.
-type Uploader struct {
-	// Config is used to select counters to upload.
-	Config *telemetry.UploadConfig
-	// ConfigVersion is the version of the config.
-	ConfigVersion string
-
-	// LocalDir is where the local counter files are.
-	LocalDir string
-	// UploadDir is where uploader leaves the copy of uploaded data.
-	UploadDir string
-	// ModeFilePath is the file.
-	ModeFilePath telemetry.ModeFilePath
-
-	UploadServerURL string
-	StartTime       time.Time
-
-	cache parsedCache
-}
-
-// NewUploader creates a default uploader.
-func NewUploader(config *telemetry.UploadConfig) *Uploader {
-	return &Uploader{
-		Config:          config,
-		ConfigVersion:   "custom",
-		LocalDir:        telemetry.LocalDir,
-		UploadDir:       telemetry.UploadDir,
-		ModeFilePath:    telemetry.ModeFile,
-		UploadServerURL: "https://telemetry.go.dev/upload",
-		StartTime:       time.Now().UTC(),
-	}
-}
-
-// Run generates and uploads reports
-func (u *Uploader) Run() {
-	if telemetry.DisabledOnPlatform {
-		return
-	}
-	todo := u.findWork()
-	ready, err := u.reports(&todo)
-	if err != nil {
-		logger.Printf("reports: %v", err)
-	}
-	for _, f := range ready {
-		u.uploadReport(f)
-	}
+	return f, nil
 }
