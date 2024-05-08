@@ -41,6 +41,9 @@ type spilledBatch struct {
 // out of r. spill is the first batch of the new generation (already buffered and
 // parsed from reading the last generation). Returns the generation and the first
 // batch read of the next generation, if any.
+//
+// If gen is non-nil, it is valid and must be processed before handling the returned
+// error.
 func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
 	g := &generation{
 		evTable: &evTable{
@@ -58,12 +61,20 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	}
 	// Read batches one at a time until we either hit EOF or
 	// the next generation.
+	var spillErr error
 	for {
 		b, gen, err := readBatch(r)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			if g.gen != 0 {
+				// This is an error reading the first batch of the next generation.
+				// This is fine. Let's forge ahead assuming that what we've got so
+				// far is fine.
+				spillErr = err
+				break
+			}
 			return nil, nil, err
 		}
 		if gen == 0 {
@@ -121,7 +132,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	slices.SortFunc(g.cpuSamples, func(a, b cpuSample) int {
 		return cmp.Compare(a.time, b.time)
 	})
-	return g, spill, nil
+	return g, spill, spillErr
 }
 
 // processBatch adds the batch to the generation.
