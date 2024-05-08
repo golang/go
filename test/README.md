@@ -17,3 +17,4 @@ The main reasons to add a new test to this directory are:
 
 * it is most naturally expressed using the test runner; or
 * it is also applicable to `gccgo` and other Go tool chains.
+Hello World

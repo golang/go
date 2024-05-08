@@ -36,3 +36,4 @@ The `cmd` directory contains helpful tools for debugging traces.
   It performs more rigorous checks than the parser does on its own,
   which helps for debugging the parser as well.
   In fact, it performs the exact same checks that the tests do.
+Hello World

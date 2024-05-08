@@ -46,3 +46,4 @@ Then edit `next/1-intro.md` to refer to the next version.
 
 To prepare the release notes for a release, run `golang.org/x/build/cmd/relnote generate`.
 That will merge the `.md` files in `next` into a single file.
+Hello World
