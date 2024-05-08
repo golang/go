@@ -550,10 +550,10 @@ opSwitch:
 			name := n.Fun.(*ir.Name)
 			if name.Class == ir.PFUNC {
 				// Special case: on architectures that can do unaligned loads,
-				// explicitly mark internal/binarylite methods as cheap,
+				// explicitly mark internal/byteorder methods as cheap,
 				// because in practice they are, even though our inlining
 				// budgeting system does not see that. See issue 42958.
-				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/binarylite" {
+				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
 					switch name.Sym().Name {
 					case "LeUint64", "LeUint32", "LeUint16",
 						"BeUint64", "BeUint32", "BeUint16",

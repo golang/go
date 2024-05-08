@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binarylite provides functions for decoding and encoding
-// little and big endian integer types.
-package binarylite
+// Package byteorder provides functions for decoding and encoding
+// little and big endian integer types from/to byte slices.
+package byteorder
 
 func LeUint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
