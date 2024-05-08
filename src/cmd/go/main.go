@@ -34,6 +34,7 @@ import (
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
+	"cmd/go/internal/telemetrycmd"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
 	"cmd/go/internal/toolchain"
@@ -61,6 +62,7 @@ func init() {
 		modcmd.CmdMod,
 		workcmd.CmdWork,
 		run.CmdRun,
+		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,

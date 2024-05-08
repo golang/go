@@ -1,0 +1,51 @@
+# Tests for the telemetry subcommand,
+
+# The script test framework sets TEST_TELEMETRY_DIR (overriding the
+# default telemetry dir location) and then checks that at least one
+# counter has been written per script tests.
+# Run go before unsetting TEST_TELEMETRY_DIR to make the tests happy.
+# We want to unset it so the environment we're testing is as close
+# to a user's environment.
+go help telemetry
+env TEST_TELEMETRY_DIR=
+
+# Set userconfig dir, which is determined by os.UserConfigDir.
+# The telemetry dir is determined using that.
+mkdir $WORK/userconfig
+env AppData=$WORK\userconfig # windows
+[GOOS:windows] env userconfig=$AppData
+env HOME=$WORK/userconfig # darwin,unix,ios
+[GOOS:darwin] env userconfig=$HOME'/Library/Application Support'
+[GOOS:ios] env userconfig=$HOME'/Library/Application Support'
+[!GOOS:windows] [!GOOS:darwin] [!GOOS:ios] [!GOOS:plan9] env userconfig=$HOME/.config
+env home=$WORK/userconfig # plan9
+[GOOS:plan9] env userconfig=$home/lib
+
+go telemetry
+stdout 'local'
+
+go telemetry off
+go telemetry
+stdout 'off'
+go env GOTELEMETRY
+stdout 'off'
+
+go telemetry local
+go telemetry
+stdout 'local'
+go env GOTELEMETRY
+stdout 'local'
+
+go telemetry on
+go telemetry
+stdout 'on'
+go env GOTELEMETRY
+stdout 'on'
+
+go env
+stdout 'GOTELEMETRY=''?on''?'
+stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
+! go env -w GOTELEMETRY=off
+stderr '^go: unknown go command variable GOTELEMETRY$'
+! go env -w GOTELEMETRYDIR=foo
+stderr '^go: unknown go command variable GOTELEMETRYDIR$'

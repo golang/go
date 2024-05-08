@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 	"cmd/internal/quoted"
+	"cmd/internal/telemetry"
 )
 
 var CmdEnv = &base.Command{
@@ -110,6 +111,8 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
+		{Name: "GOTELEMETRY", Value: telemetry.Mode()},
+		{Name: "GOTELEMETRYDIR", Value: telemetry.Dir()},
 	}
 
 	for i := range env {
