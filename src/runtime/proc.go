@@ -924,7 +924,7 @@ func mcommoninit(mp *m, id int64) {
 	mProfStackInit(mp)
 }
 
-// mProfStackInit is used to eagilery initialize stack trace buffers for
+// mProfStackInit is used to eagerly initialize stack trace buffers for
 // profiling. Lazy allocation would have to deal with reentrancy issues in
 // malloc and runtime locks for mLockProfile.
 // TODO(mknyszek): Implement lazy allocation if this becomes a problem.
