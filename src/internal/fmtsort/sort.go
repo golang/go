@@ -10,24 +10,21 @@ package fmtsort
 
 import (
 	"reflect"
-	"sort"
+	"slices"
 )
 
 // Note: Throughout this package we avoid calling reflect.Value.Interface as
 // it is not always legal to do so and it's easier to avoid the issue than to face it.
 
-// SortedMap represents a map's keys and values. The keys and values are
-// aligned in index order: Value[i] is the value in the map corresponding to Key[i].
-type SortedMap struct {
-	Key   []reflect.Value
-	Value []reflect.Value
-}
+// SortedMap is a slice of KeyValue pairs that simplifies sorting
+// and iterating over map entries.
+//
+// Each KeyValue pair contains a map key and its corresponding value.
+type SortedMap []KeyValue
 
-func (o *SortedMap) Len() int           { return len(o.Key) }
-func (o *SortedMap) Less(i, j int) bool { return compare(o.Key[i], o.Key[j]) < 0 }
-func (o *SortedMap) Swap(i, j int) {
-	o.Key[i], o.Key[j] = o.Key[j], o.Key[i]
-	o.Value[i], o.Value[j] = o.Value[j], o.Value[i]
+// KeyValue holds a single key and value pair found in a map.
+type KeyValue struct {
+	Key, Value reflect.Value
 }
 
 // Sort accepts a map and returns a SortedMap that has the same keys and
@@ -48,7 +45,7 @@ func (o *SortedMap) Swap(i, j int) {
 //     Otherwise identical arrays compare by length.
 //   - interface values compare first by reflect.Type describing the concrete type
 //     and then by concrete value as described in the previous rules.
-func Sort(mapValue reflect.Value) *SortedMap {
+func Sort(mapValue reflect.Value) SortedMap {
 	if mapValue.Type().Kind() != reflect.Map {
 		return nil
 	}
@@ -56,18 +53,14 @@ func Sort(mapValue reflect.Value) *SortedMap {
 	// of a concurrent map update. The runtime is responsible for
 	// yelling loudly if that happens. See issue 33275.
 	n := mapValue.Len()
-	key := make([]reflect.Value, 0, n)
-	value := make([]reflect.Value, 0, n)
+	sorted := make(SortedMap, 0, n)
 	iter := mapValue.MapRange()
 	for iter.Next() {
-		key = append(key, iter.Key())
-		value = append(value, iter.Value())
+		sorted = append(sorted, KeyValue{iter.Key(), iter.Value()})
 	}
-	sorted := &SortedMap{
-		Key:   key,
-		Value: value,
-	}
-	sort.Stable(sorted)
+	slices.SortStableFunc(sorted, func(a, b KeyValue) int {
+		return compare(a.Key, b.Key)
+	})
 	return sorted
 }
 
