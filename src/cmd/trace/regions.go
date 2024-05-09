@@ -10,7 +10,6 @@ import (
 	"html/template"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"net/http"
 	"net/url"
 	"slices"
@@ -59,7 +58,7 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 // regionFingerprint is a way to categorize regions that goes just one step beyond the region's Type
 // by including the top stack frame.
 type regionFingerprint struct {
-	Frame tracev2.StackFrame
+	Frame trace.StackFrame
 	Type  string
 }
 
@@ -70,10 +69,10 @@ func fingerprintRegion(r *trace.UserRegionSummary) regionFingerprint {
 	}
 }
 
-func regionTopStackFrame(r *trace.UserRegionSummary) tracev2.StackFrame {
-	var frame tracev2.StackFrame
-	if r.Start != nil && r.Start.Stack() != tracev2.NoStack {
-		r.Start.Stack().Frames(func(f tracev2.StackFrame) bool {
+func regionTopStackFrame(r *trace.UserRegionSummary) trace.StackFrame {
+	var frame trace.StackFrame
+	if r.Start != nil && r.Start.Stack() != trace.NoStack {
+		r.Start.Stack().Frames(func(f trace.StackFrame) bool {
 			frame = f
 			return false
 		})
@@ -167,7 +166,7 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		// Collect all the regions with their goroutines.
 		type region struct {
 			*trace.UserRegionSummary
-			Goroutine           tracev2.GoID
+			Goroutine           trace.GoID
 			NonOverlappingStats map[string]time.Duration
 			HasRangeTime        bool
 		}

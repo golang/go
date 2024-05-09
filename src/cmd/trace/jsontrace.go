@@ -15,7 +15,6 @@ import (
 
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 )
 
 func JSONTraceHandler(parsed *parsedTrace) http.Handler {
@@ -34,7 +33,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 				log.Printf("failed to parse goid parameter %q: %v", goids, err)
 				return
 			}
-			goid := tracev2.GoID(id)
+			goid := trace.GoID(id)
 			g, ok := parsed.summary.Goroutines[goid]
 			if !ok {
 				log.Printf("failed to find goroutine %d", goid)
@@ -59,7 +58,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 				log.Printf("failed to parse focustask parameter %q: %v", taskids, err)
 				return
 			}
-			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
+			task, ok := parsed.summary.Tasks[trace.TaskID(taskid)]
 			if !ok || (task.Start == nil && task.End == nil) {
 				log.Printf("failed to find task with id %d", taskid)
 				return
@@ -71,7 +70,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 				log.Printf("failed to parse taskid parameter %q: %v", taskids, err)
 				return
 			}
-			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
+			task, ok := parsed.summary.Tasks[trace.TaskID(taskid)]
 			if !ok {
 				log.Printf("failed to find task with id %d", taskid)
 				return
@@ -83,7 +82,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 			// Pick the goroutine to orient ourselves around by just
 			// trying to pick the earliest event in the task that makes
 			// any sense. Though, we always want the start if that's there.
-			var firstEv *tracev2.Event
+			var firstEv *trace.Event
 			if task.Start != nil {
 				firstEv = task.Start
 			} else {
@@ -96,7 +95,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 					firstEv = task.End
 				}
 			}
-			if firstEv == nil || firstEv.Goroutine() == tracev2.NoGoroutine {
+			if firstEv == nil || firstEv.Goroutine() == trace.NoGoroutine {
 				log.Printf("failed to find task with id %d", taskid)
 				return
 			}
@@ -104,7 +103,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 			// Set the goroutine filtering options.
 			goid := firstEv.Goroutine()
 			opts.focusGoroutine = goid
-			goroutines := make(map[tracev2.GoID]struct{})
+			goroutines := make(map[trace.GoID]struct{})
 			for _, task := range opts.tasks {
 				// Find only directly involved goroutines.
 				for id := range task.Goroutines {
@@ -143,13 +142,13 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 // information that's useful to most parts of trace viewer JSON emission.
 type traceContext struct {
 	*traceviewer.Emitter
-	startTime tracev2.Time
-	endTime   tracev2.Time
+	startTime trace.Time
+	endTime   trace.Time
 }
 
 // elapsed returns the elapsed time between the trace time and the start time
 // of the trace.
-func (ctx *traceContext) elapsed(now tracev2.Time) time.Duration {
+func (ctx *traceContext) elapsed(now trace.Time) time.Duration {
 	return now.Sub(ctx.startTime)
 }
 
@@ -159,8 +158,8 @@ type genOpts struct {
 	endTime   time.Duration
 
 	// Used if mode != 0.
-	focusGoroutine tracev2.GoID
-	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
+	focusGoroutine trace.GoID
+	goroutines     map[trace.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
 	tasks          []*trace.UserTaskSummary
 }
 

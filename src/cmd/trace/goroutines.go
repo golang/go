@@ -12,7 +12,6 @@ import (
 	"html/template"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"log"
 	"net/http"
 	"slices"
@@ -22,7 +21,7 @@ import (
 )
 
 // GoroutinesHandlerFunc returns a HandlerFunc that serves list of goroutine groups.
-func GoroutinesHandlerFunc(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+func GoroutinesHandlerFunc(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// goroutineGroup describes a group of goroutines grouped by name.
 		type goroutineGroup struct {
@@ -95,7 +94,7 @@ Click a start location to view more details about that group.<br>
 
 // GoroutineHandler creates a handler that serves information about
 // goroutines in a particular group.
-func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		goroutineName := r.FormValue("name")
 

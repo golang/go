@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package trace
+package trace_test
 
 import (
-	tracev2 "internal/trace/v2"
-	"internal/trace/v2/testtrace"
+	"internal/trace"
+	"internal/trace/testtrace"
 	"io"
 	"math"
 	"testing"
@@ -32,7 +32,7 @@ func TestMMU(t *testing.T) {
 	// 0.5      *   *   *   *
 	// 0.0      *****   *****
 	//      0   1   2   3   4   5
-	util := [][]MutatorUtil{{
+	util := [][]trace.MutatorUtil{{
 		{0e9, 1},
 		{1e9, 0},
 		{2e9, 1},
@@ -40,7 +40,7 @@ func TestMMU(t *testing.T) {
 		{4e9, 1},
 		{5e9, 0},
 	}}
-	mmuCurve := NewMMUCurve(util)
+	mmuCurve := trace.NewMMUCurve(util)
 
 	for _, test := range []struct {
 		window time.Duration
@@ -84,8 +84,8 @@ func TestMMUTrace(t *testing.T) {
 		// test input too big for all.bash
 		t.Skip("skipping in -short mode")
 	}
-	check := func(t *testing.T, mu [][]MutatorUtil) {
-		mmuCurve := NewMMUCurve(mu)
+	check := func(t *testing.T, mu [][]trace.MutatorUtil) {
+		mmuCurve := trace.NewMMUCurve(mu)
 
 		// Test the optimized implementation against the "obviously
 		// correct" implementation.
@@ -101,9 +101,9 @@ func TestMMUTrace(t *testing.T) {
 		// optimization. We don't have a simple testing implementation
 		// of MUDs (the simplest implementation is still quite
 		// complex), but this is still a pretty good test.
-		defer func(old int) { bandsPerSeries = old }(bandsPerSeries)
-		bandsPerSeries = 1
-		mmuCurve2 := NewMMUCurve(mu)
+		defer func(old int) { trace.BandsPerSeries = old }(trace.BandsPerSeries)
+		trace.BandsPerSeries = 1
+		mmuCurve2 := trace.NewMMUCurve(mu)
 		quantiles := []float64{0, 1 - .999, 1 - .99}
 		for window := time.Microsecond; window < time.Second; window *= 10 {
 			mud1 := mmuCurve.MUD(window, quantiles)
@@ -117,13 +117,13 @@ func TestMMUTrace(t *testing.T) {
 		}
 	}
 	t.Run("V2", func(t *testing.T) {
-		testPath := "v2/testdata/tests/go122-gc-stress.test"
+		testPath := "testdata/tests/go122-gc-stress.test"
 		r, _, err := testtrace.ParseFile(testPath)
 		if err != nil {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
-		var events []tracev2.Event
-		tr, err := tracev2.NewReader(r)
+		var events []trace.Event
+		tr, err := trace.NewReader(r)
 		if err != nil {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
@@ -138,11 +138,11 @@ func TestMMUTrace(t *testing.T) {
 			events = append(events, ev)
 		}
 		// Pass the trace through MutatorUtilizationV2 and check it.
-		check(t, MutatorUtilizationV2(events, UtilSTW|UtilBackground|UtilAssist))
+		check(t, trace.MutatorUtilizationV2(events, trace.UtilSTW|trace.UtilBackground|trace.UtilAssist))
 	})
 }
 
-func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
+func mmuSlow(util []trace.MutatorUtil, window time.Duration) (mmu float64) {
 	if max := time.Duration(util[len(util)-1].Time - util[0].Time); window > max {
 		window = max
 	}
@@ -151,9 +151,9 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
 
 	// muInWindow returns the mean mutator utilization between
 	// util[0].Time and end.
-	muInWindow := func(util []MutatorUtil, end int64) float64 {
+	muInWindow := func(util []trace.MutatorUtil, end int64) float64 {
 		total := 0.0
-		var prevU MutatorUtil
+		var prevU trace.MutatorUtil
 		for _, u := range util {
 			if u.Time > end {
 				total += prevU.Util * float64(end-prevU.Time)
@@ -177,7 +177,7 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
 	update()
 	// Reverse the trace. Slightly subtle because each MutatorUtil
 	// is a *change*.
-	rutil := make([]MutatorUtil, len(util))
+	rutil := make([]trace.MutatorUtil, len(util))
 	if util[len(util)-1].Util != 0 {
 		panic("irreversible trace")
 	}
@@ -186,7 +186,7 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
 		if i != 0 {
 			util1 = util[i-1].Util
 		}
-		rutil[len(rutil)-i-1] = MutatorUtil{Time: -u.Time, Util: util1}
+		rutil[len(rutil)-i-1] = trace.MutatorUtil{Time: -u.Time, Util: util1}
 	}
 	util = rutil
 	// Consider all right-aligned windows.

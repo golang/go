@@ -6,9 +6,9 @@ package main
 
 import (
 	"fmt"
+	"internal/trace"
 	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
-	tracev2 "internal/trace/v2"
 )
 
 var _ generator = &procGenerator{}
@@ -17,23 +17,23 @@ type procGenerator struct {
 	globalRangeGenerator
 	globalMetricGenerator
 	procRangeGenerator
-	stackSampleGenerator[tracev2.ProcID]
-	logEventGenerator[tracev2.ProcID]
+	stackSampleGenerator[trace.ProcID]
+	logEventGenerator[trace.ProcID]
 
-	gStates   map[tracev2.GoID]*gState[tracev2.ProcID]
-	inSyscall map[tracev2.ProcID]*gState[tracev2.ProcID]
-	maxProc   tracev2.ProcID
+	gStates   map[trace.GoID]*gState[trace.ProcID]
+	inSyscall map[trace.ProcID]*gState[trace.ProcID]
+	maxProc   trace.ProcID
 }
 
 func newProcGenerator() *procGenerator {
 	pg := new(procGenerator)
-	rg := func(ev *tracev2.Event) tracev2.ProcID {
+	rg := func(ev *trace.Event) trace.ProcID {
 		return ev.Proc()
 	}
 	pg.stackSampleGenerator.getResource = rg
 	pg.logEventGenerator.getResource = rg
-	pg.gStates = make(map[tracev2.GoID]*gState[tracev2.ProcID])
-	pg.inSyscall = make(map[tracev2.ProcID]*gState[tracev2.ProcID])
+	pg.gStates = make(map[trace.GoID]*gState[trace.ProcID])
+	pg.inSyscall = make(map[trace.ProcID]*gState[trace.ProcID])
 	return pg
 }
 
@@ -42,25 +42,25 @@ func (g *procGenerator) Sync() {
 	g.procRangeGenerator.Sync()
 }
 
-func (g *procGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
+func (g *procGenerator) GoroutineLabel(ctx *traceContext, ev *trace.Event) {
 	l := ev.Label()
 	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
 }
 
-func (g *procGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
+func (g *procGenerator) GoroutineRange(ctx *traceContext, ev *trace.Event) {
 	r := ev.Range()
 	switch ev.Kind() {
-	case tracev2.EventRangeBegin:
+	case trace.EventRangeBegin:
 		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
-	case tracev2.EventRangeActive:
+	case trace.EventRangeActive:
 		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
-	case tracev2.EventRangeEnd:
+	case trace.EventRangeEnd:
 		gs := g.gStates[r.Scope.Goroutine()]
 		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
 	}
 }
 
-func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
+func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *trace.Event) {
 	st := ev.StateTransition()
 	goID := st.Resource.Goroutine()
 
@@ -68,7 +68,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
 	// gState for it.
 	gs, ok := g.gStates[goID]
 	if !ok {
-		gs = newGState[tracev2.ProcID](goID)
+		gs = newGState[trace.ProcID](goID)
 		g.gStates[goID] = gs
 	}
 	// If we haven't already named this goroutine, try to name it.
@@ -80,40 +80,40 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
 		// Filter out no-op events.
 		return
 	}
-	if from == tracev2.GoRunning && !to.Executing() {
-		if to == tracev2.GoWaiting {
+	if from == trace.GoRunning && !to.Executing() {
+		if to == trace.GoWaiting {
 			// Goroutine started blocking.
 			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
 		} else {
 			gs.stop(ev.Time(), ev.Stack(), ctx)
 		}
 	}
-	if !from.Executing() && to == tracev2.GoRunning {
+	if !from.Executing() && to == trace.GoRunning {
 		start := ev.Time()
-		if from == tracev2.GoUndetermined {
+		if from == trace.GoUndetermined {
 			// Back-date the event to the start of the trace.
 			start = ctx.startTime
 		}
 		gs.start(start, ev.Proc(), ctx)
 	}
 
-	if from == tracev2.GoWaiting {
+	if from == trace.GoWaiting {
 		// Goroutine was unblocked.
 		gs.unblock(ev.Time(), ev.Stack(), ev.Proc(), ctx)
 	}
-	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
+	if from == trace.GoNotExist && to == trace.GoRunnable {
 		// Goroutine was created.
 		gs.created(ev.Time(), ev.Proc(), ev.Stack())
 	}
-	if from == tracev2.GoSyscall && to != tracev2.GoRunning {
+	if from == trace.GoSyscall && to != trace.GoRunning {
 		// Goroutine exited a blocked syscall.
 		gs.blockedSyscallEnd(ev.Time(), ev.Stack(), ctx)
 	}
 
 	// Handle syscalls.
-	if to == tracev2.GoSyscall && ev.Proc() != tracev2.NoProc {
+	if to == trace.GoSyscall && ev.Proc() != trace.NoProc {
 		start := ev.Time()
-		if from == tracev2.GoUndetermined {
+		if from == trace.GoUndetermined {
 			// Back-date the event to the start of the trace.
 			start = ctx.startTime
 		}
@@ -125,7 +125,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
 	}
 	// Check if we're exiting a non-blocking syscall.
 	_, didNotBlock := g.inSyscall[ev.Proc()]
-	if from == tracev2.GoSyscall && didNotBlock {
+	if from == trace.GoSyscall && didNotBlock {
 		gs.syscallEnd(ev.Time(), false, ctx)
 		delete(g.inSyscall, ev.Proc())
 	}
@@ -135,7 +135,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
 	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
 }
 
-func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+func (g *procGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
 	st := ev.StateTransition()
 	proc := st.Resource.Proc()
 
@@ -152,7 +152,7 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
 	}
 	if to.Executing() {
 		start := ev.Time()
-		if from == tracev2.ProcUndetermined {
+		if from == trace.ProcUndetermined {
 			start = ctx.startTime
 		}
 		viewerEv.Name = "proc start"

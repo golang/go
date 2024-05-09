@@ -9,13 +9,12 @@ import (
 	"internal/trace"
 	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
-	tracev2 "internal/trace/v2"
 	"strings"
 )
 
 // resource is a generic constraint interface for resource IDs.
 type resource interface {
-	tracev2.GoID | tracev2.ProcID | tracev2.ThreadID
+	trace.GoID | trace.ProcID | trace.ThreadID
 }
 
 // noResource indicates the lack of a resource.
@@ -38,7 +37,7 @@ type gState[R resource] struct {
 	// call to the stop method. This tends to be a more reliable way
 	// of picking up stack traces, since the parser doesn't provide
 	// a stack for every state transition event.
-	lastStopStack tracev2.Stack
+	lastStopStack trace.Stack
 
 	// activeRanges is the set of all active ranges on the goroutine.
 	activeRanges map[string]activeRange
@@ -49,13 +48,13 @@ type gState[R resource] struct {
 
 	// startRunning is the most recent event that caused a goroutine to
 	// transition to GoRunning.
-	startRunningTime tracev2.Time
+	startRunningTime trace.Time
 
 	// startSyscall is the most recent event that caused a goroutine to
 	// transition to GoSyscall.
 	syscall struct {
-		time   tracev2.Time
-		stack  tracev2.Stack
+		time   trace.Time
+		stack  trace.Stack
 		active bool
 	}
 
@@ -71,16 +70,16 @@ type gState[R resource] struct {
 	// listed separately because the cause may have happened on a resource that
 	// isn't R (or perhaps on some abstract nebulous resource, like trace.NetpollP).
 	startCause struct {
-		time     tracev2.Time
+		time     trace.Time
 		name     string
 		resource uint64
-		stack    tracev2.Stack
+		stack    trace.Stack
 	}
 }
 
 // newGState constructs a new goroutine state for the goroutine
 // identified by the provided ID.
-func newGState[R resource](goID tracev2.GoID) *gState[R] {
+func newGState[R resource](goID trace.GoID) *gState[R] {
 	return &gState[R]{
 		baseName:     fmt.Sprintf("G%d", goID),
 		executing:    R(noResource),
@@ -91,11 +90,11 @@ func newGState[R resource](goID tracev2.GoID) *gState[R] {
 // augmentName attempts to use stk to augment the name of the goroutine
 // with stack information. This stack must be related to the goroutine
 // in some way, but it doesn't really matter which stack.
-func (gs *gState[R]) augmentName(stk tracev2.Stack) {
+func (gs *gState[R]) augmentName(stk trace.Stack) {
 	if gs.named {
 		return
 	}
-	if stk == tracev2.NoStack {
+	if stk == trace.NoStack {
 		return
 	}
 	name := lastFunc(stk)
@@ -120,7 +119,7 @@ func (gs *gState[R]) name() string {
 
 // setStartCause sets the reason a goroutine will be allowed to start soon.
 // For example, via unblocking or exiting a blocked syscall.
-func (gs *gState[R]) setStartCause(ts tracev2.Time, name string, resource uint64, stack tracev2.Stack) {
+func (gs *gState[R]) setStartCause(ts trace.Time, name string, resource uint64, stack trace.Stack) {
 	gs.startCause.time = ts
 	gs.startCause.name = name
 	gs.startCause.resource = resource
@@ -128,7 +127,7 @@ func (gs *gState[R]) setStartCause(ts tracev2.Time, name string, resource uint64
 }
 
 // created indicates that this goroutine was just created by the provided creator.
-func (gs *gState[R]) created(ts tracev2.Time, creator R, stack tracev2.Stack) {
+func (gs *gState[R]) created(ts trace.Time, creator R, stack trace.Stack) {
 	if creator == R(noResource) {
 		return
 	}
@@ -136,10 +135,10 @@ func (gs *gState[R]) created(ts tracev2.Time, creator R, stack tracev2.Stack) {
 }
 
 // start indicates that a goroutine has started running on a proc.
-func (gs *gState[R]) start(ts tracev2.Time, resource R, ctx *traceContext) {
+func (gs *gState[R]) start(ts trace.Time, resource R, ctx *traceContext) {
 	// Set the time for all the active ranges.
 	for name := range gs.activeRanges {
-		gs.activeRanges[name] = activeRange{ts, tracev2.NoStack}
+		gs.activeRanges[name] = activeRange{ts, trace.NoStack}
 	}
 
 	if gs.startCause.name != "" {
@@ -155,14 +154,14 @@ func (gs *gState[R]) start(ts tracev2.Time, resource R, ctx *traceContext) {
 		gs.startCause.time = 0
 		gs.startCause.name = ""
 		gs.startCause.resource = 0
-		gs.startCause.stack = tracev2.NoStack
+		gs.startCause.stack = trace.NoStack
 	}
 	gs.executing = resource
 	gs.startRunningTime = ts
 }
 
 // syscallBegin indicates that the goroutine entered a syscall on a proc.
-func (gs *gState[R]) syscallBegin(ts tracev2.Time, resource R, stack tracev2.Stack) {
+func (gs *gState[R]) syscallBegin(ts trace.Time, resource R, stack trace.Stack) {
 	gs.syscall.time = ts
 	gs.syscall.stack = stack
 	gs.syscall.active = true
@@ -178,7 +177,7 @@ func (gs *gState[R]) syscallBegin(ts tracev2.Time, resource R, stack tracev2.Sta
 // goroutine is no longer executing on the resource (e.g. a proc) whereas blockedSyscallEnd
 // is the point at which the goroutine actually exited the syscall regardless of which
 // resource that happened on.
-func (gs *gState[R]) syscallEnd(ts tracev2.Time, blocked bool, ctx *traceContext) {
+func (gs *gState[R]) syscallEnd(ts trace.Time, blocked bool, ctx *traceContext) {
 	if !gs.syscall.active {
 		return
 	}
@@ -195,13 +194,13 @@ func (gs *gState[R]) syscallEnd(ts tracev2.Time, blocked bool, ctx *traceContext
 	})
 	gs.syscall.active = false
 	gs.syscall.time = 0
-	gs.syscall.stack = tracev2.NoStack
+	gs.syscall.stack = trace.NoStack
 }
 
 // blockedSyscallEnd indicates the point at which the blocked syscall ended. This is distinct
 // and orthogonal to syscallEnd; both must be called if the syscall blocked. This sets up an instant
 // to emit a flow event from, indicating explicitly that this goroutine was unblocked by the system.
-func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx *traceContext) {
+func (gs *gState[R]) blockedSyscallEnd(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	name := "exit blocked syscall"
 	gs.setStartCause(ts, name, trace.SyscallP, stack)
 
@@ -215,7 +214,7 @@ func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx
 }
 
 // unblock indicates that the goroutine gs represents has been unblocked.
-func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, ctx *traceContext) {
+func (gs *gState[R]) unblock(ts trace.Time, stack trace.Stack, resource R, ctx *traceContext) {
 	name := "unblock"
 	viewerResource := uint64(resource)
 	if gs.startBlockReason != "" {
@@ -227,7 +226,7 @@ func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, c
 		// resource isn't going to be valid in this case.
 		//
 		// TODO(mknyszek): Handle this invalidness in a more general way.
-		if _, ok := any(resource).(tracev2.ThreadID); !ok {
+		if _, ok := any(resource).(trace.ThreadID); !ok {
 			// Emit an unblock instant event for the "Network" lane.
 			viewerResource = trace.NetpollP
 		}
@@ -246,16 +245,16 @@ func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, c
 
 // block indicates that the goroutine has stopped executing on a proc -- specifically,
 // it blocked for some reason.
-func (gs *gState[R]) block(ts tracev2.Time, stack tracev2.Stack, reason string, ctx *traceContext) {
+func (gs *gState[R]) block(ts trace.Time, stack trace.Stack, reason string, ctx *traceContext) {
 	gs.startBlockReason = reason
 	gs.stop(ts, stack, ctx)
 }
 
 // stop indicates that the goroutine has stopped executing on a proc.
-func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContext) {
+func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	// Emit the execution time slice.
 	var stk int
-	if gs.lastStopStack != tracev2.NoStack {
+	if gs.lastStopStack != trace.NoStack {
 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
 	}
 	// Check invariants.
@@ -304,7 +303,7 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
 
 	// Clear the range info.
 	for name := range gs.activeRanges {
-		gs.activeRanges[name] = activeRange{0, tracev2.NoStack}
+		gs.activeRanges[name] = activeRange{0, trace.NoStack}
 	}
 
 	gs.startRunningTime = 0
@@ -319,12 +318,12 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
 func (gs *gState[R]) finish(ctx *traceContext) {
 	if gs.executing != R(noResource) {
 		gs.syscallEnd(ctx.endTime, false, ctx)
-		gs.stop(ctx.endTime, tracev2.NoStack, ctx)
+		gs.stop(ctx.endTime, trace.NoStack, ctx)
 	}
 }
 
 // rangeBegin indicates the start of a special range of time.
-func (gs *gState[R]) rangeBegin(ts tracev2.Time, name string, stack tracev2.Stack) {
+func (gs *gState[R]) rangeBegin(ts trace.Time, name string, stack trace.Stack) {
 	if gs.executing != R(noResource) {
 		// If we're executing, start the slice from here.
 		gs.activeRanges[name] = activeRange{ts, stack}
@@ -340,16 +339,16 @@ func (gs *gState[R]) rangeActive(name string) {
 	if gs.executing != R(noResource) {
 		// If we're executing, and the range is active, then start
 		// from wherever the goroutine started running from.
-		gs.activeRanges[name] = activeRange{gs.startRunningTime, tracev2.NoStack}
+		gs.activeRanges[name] = activeRange{gs.startRunningTime, trace.NoStack}
 	} else {
 		// If the goroutine isn't executing, there's no place for
 		// us to create a slice from. Wait until it starts executing.
-		gs.activeRanges[name] = activeRange{0, tracev2.NoStack}
+		gs.activeRanges[name] = activeRange{0, trace.NoStack}
 	}
 }
 
 // rangeEnd indicates the end of a special range of time.
-func (gs *gState[R]) rangeEnd(ts tracev2.Time, name string, stack tracev2.Stack, ctx *traceContext) {
+func (gs *gState[R]) rangeEnd(ts trace.Time, name string, stack trace.Stack, ctx *traceContext) {
 	if gs.executing != R(noResource) {
 		r := gs.activeRanges[name]
 		gs.completedRanges = append(gs.completedRanges, completedRange{
@@ -363,9 +362,9 @@ func (gs *gState[R]) rangeEnd(ts tracev2.Time, name string, stack tracev2.Stack,
 	delete(gs.activeRanges, name)
 }
 
-func lastFunc(s tracev2.Stack) string {
-	var last tracev2.StackFrame
-	s.Frames(func(f tracev2.StackFrame) bool {
+func lastFunc(s trace.Stack) string {
+	var last trace.StackFrame
+	s.Frames(func(f trace.StackFrame) bool {
 		last = f
 		return true
 	})

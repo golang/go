@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"net/http"
 	"slices"
 	"strings"
@@ -45,8 +44,8 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
 
 // pprofMatchingGoroutines returns the ids of goroutines of the matching name and its interval.
 // If the id string is empty, returns nil without an error.
-func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
-	res := make(map[tracev2.GoID][]interval)
+func pprofMatchingGoroutines(name string, t *parsedTrace) (map[trace.GoID][]interval, error) {
+	res := make(map[trace.GoID][]interval)
 	for _, g := range t.summary.Goroutines {
 		if name != "" && g.Name != name {
 			continue
@@ -65,12 +64,12 @@ func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]in
 
 // pprofMatchingRegions returns the time intervals of matching regions
 // grouped by the goroutine id. If the filter is nil, returns nil without an error.
-func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
+func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[trace.GoID][]interval, error) {
 	if filter == nil {
 		return nil, nil
 	}
 
-	gToIntervals := make(map[tracev2.GoID][]interval)
+	gToIntervals := make(map[trace.GoID][]interval)
 	for _, g := range t.summary.Goroutines {
 		for _, r := range g.Regions {
 			if !filter.match(t, r) {
@@ -91,7 +90,7 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoI
 			}
 			return cmp.Compare(a.end, b.end)
 		})
-		var lastTimestamp tracev2.Time
+		var lastTimestamp trace.Time
 		var n int
 		// Select only the outermost regions.
 		for _, i := range intervals {
@@ -107,12 +106,12 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoI
 	return gToIntervals, nil
 }
 
-type computePprofFunc func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error)
+type computePprofFunc func(gToIntervals map[trace.GoID][]interval, events []trace.Event) ([]traceviewer.ProfileRecord, error)
 
 // computePprofIO returns a computePprofFunc that generates IO pprof-like profile (time spent in
 // IO wait, currently only network blocking event).
 func computePprofIO() computePprofFunc {
-	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
+	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
 		return reason == "network"
 	})
 }
@@ -120,7 +119,7 @@ func computePprofIO() computePprofFunc {
 // computePprofBlock returns a computePprofFunc that generates blocking pprof-like profile
 // (time spent blocked on synchronization primitives).
 func computePprofBlock() computePprofFunc {
-	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
+	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
 		return strings.Contains(reason, "chan") || strings.Contains(reason, "sync") || strings.Contains(reason, "select")
 	})
 }
@@ -128,7 +127,7 @@ func computePprofBlock() computePprofFunc {
 // computePprofSyscall returns a computePprofFunc that generates a syscall pprof-like
 // profile (time spent in syscalls).
 func computePprofSyscall() computePprofFunc {
-	return makeComputePprofFunc(tracev2.GoSyscall, func(_ string) bool {
+	return makeComputePprofFunc(trace.GoSyscall, func(_ string) bool {
 		return true
 	})
 }
@@ -136,32 +135,32 @@ func computePprofSyscall() computePprofFunc {
 // computePprofSched returns a computePprofFunc that generates a scheduler latency pprof-like profile
 // (time between a goroutine become runnable and actually scheduled for execution).
 func computePprofSched() computePprofFunc {
-	return makeComputePprofFunc(tracev2.GoRunnable, func(_ string) bool {
+	return makeComputePprofFunc(trace.GoRunnable, func(_ string) bool {
 		return true
 	})
 }
 
 // makeComputePprofFunc returns a computePprofFunc that generates a profile of time goroutines spend
 // in a particular state for the specified reasons.
-func makeComputePprofFunc(state tracev2.GoState, trackReason func(string) bool) computePprofFunc {
-	return func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error) {
+func makeComputePprofFunc(state trace.GoState, trackReason func(string) bool) computePprofFunc {
+	return func(gToIntervals map[trace.GoID][]interval, events []trace.Event) ([]traceviewer.ProfileRecord, error) {
 		stacks := newStackMap()
-		tracking := make(map[tracev2.GoID]*tracev2.Event)
+		tracking := make(map[trace.GoID]*trace.Event)
 		for i := range events {
 			ev := &events[i]
 
 			// Filter out any non-state-transitions and events without stacks.
-			if ev.Kind() != tracev2.EventStateTransition {
+			if ev.Kind() != trace.EventStateTransition {
 				continue
 			}
 			stack := ev.Stack()
-			if stack == tracev2.NoStack {
+			if stack == trace.NoStack {
 				continue
 			}
 
 			// The state transition has to apply to a goroutine.
 			st := ev.StateTransition()
-			if st.Resource.Kind != tracev2.ResourceGoroutine {
+			if st.Resource.Kind != trace.ResourceGoroutine {
 				continue
 			}
 			id := st.Resource.Goroutine()
@@ -202,7 +201,7 @@ func makeComputePprofFunc(state tracev2.GoState, trackReason func(string) bool) 
 // pprofOverlappingDuration returns the overlapping duration between
 // the time intervals in gToIntervals and the specified event.
 // If gToIntervals is nil, this simply returns the event's duration.
-func pprofOverlappingDuration(gToIntervals map[tracev2.GoID][]interval, id tracev2.GoID, sample interval) time.Duration {
+func pprofOverlappingDuration(gToIntervals map[trace.GoID][]interval, id trace.GoID, sample interval) time.Duration {
 	if gToIntervals == nil { // No filtering.
 		return sample.duration()
 	}
@@ -222,7 +221,7 @@ func pprofOverlappingDuration(gToIntervals map[tracev2.GoID][]interval, id trace
 
 // interval represents a time interval in the trace.
 type interval struct {
-	start, end tracev2.Time
+	start, end trace.Time
 }
 
 func (i interval) duration() time.Duration {
@@ -251,28 +250,28 @@ func (i1 interval) overlap(i2 interval) time.Duration {
 // stacks anyway.
 const pprofMaxStack = 128
 
-// stackMap is a map of tracev2.Stack to some value V.
+// stackMap is a map of trace.Stack to some value V.
 type stackMap struct {
 	// stacks contains the full list of stacks in the set, however
-	// it is insufficient for deduplication because tracev2.Stack
-	// equality is only optimistic. If two tracev2.Stacks are equal,
+	// it is insufficient for deduplication because trace.Stack
+	// equality is only optimistic. If two trace.Stacks are equal,
 	// then they are guaranteed to be equal in content. If they are
 	// not equal, then they might still be equal in content.
-	stacks map[tracev2.Stack]*traceviewer.ProfileRecord
+	stacks map[trace.Stack]*traceviewer.ProfileRecord
 
 	// pcs is the source-of-truth for deduplication. It is a map of
-	// the actual PCs in the stack to a tracev2.Stack.
-	pcs map[[pprofMaxStack]uint64]tracev2.Stack
+	// the actual PCs in the stack to a trace.Stack.
+	pcs map[[pprofMaxStack]uint64]trace.Stack
 }
 
 func newStackMap() *stackMap {
 	return &stackMap{
-		stacks: make(map[tracev2.Stack]*traceviewer.ProfileRecord),
-		pcs:    make(map[[pprofMaxStack]uint64]tracev2.Stack),
+		stacks: make(map[trace.Stack]*traceviewer.ProfileRecord),
+		pcs:    make(map[[pprofMaxStack]uint64]trace.Stack),
 	}
 }
 
-func (m *stackMap) getOrAdd(stack tracev2.Stack) *traceviewer.ProfileRecord {
+func (m *stackMap) getOrAdd(stack trace.Stack) *traceviewer.ProfileRecord {
 	// Fast path: check to see if this exact stack is already in the map.
 	if rec, ok := m.stacks[stack]; ok {
 		return rec
@@ -308,7 +307,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 	for stack, record := range m.stacks {
 		rec := *record
 		i := 0
-		stack.Frames(func(frame tracev2.StackFrame) bool {
+		stack.Frames(func(frame trace.StackFrame) bool {
 			rec.Stack = append(rec.Stack, &trace.Frame{
 				PC:   frame.PC,
 				Fn:   frame.Func,
@@ -326,9 +325,9 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 }
 
 // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
-func pcsForStack(stack tracev2.Stack, pcs *[pprofMaxStack]uint64) {
+func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
 	i := 0
-	stack.Frames(func(frame tracev2.StackFrame) bool {
+	stack.Frames(func(frame trace.StackFrame) bool {
 		pcs[i] = frame.PC
 		i++
 		return i < len(pcs)

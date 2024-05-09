@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"strings"
 )
 
@@ -18,21 +17,21 @@ import (
 type generator interface {
 	// Global parts.
 	Sync() // Notifies the generator of an EventSync event.
-	StackSample(ctx *traceContext, ev *tracev2.Event)
-	GlobalRange(ctx *traceContext, ev *tracev2.Event)
-	GlobalMetric(ctx *traceContext, ev *tracev2.Event)
+	StackSample(ctx *traceContext, ev *trace.Event)
+	GlobalRange(ctx *traceContext, ev *trace.Event)
+	GlobalMetric(ctx *traceContext, ev *trace.Event)
 
 	// Goroutine parts.
-	GoroutineLabel(ctx *traceContext, ev *tracev2.Event)
-	GoroutineRange(ctx *traceContext, ev *tracev2.Event)
-	GoroutineTransition(ctx *traceContext, ev *tracev2.Event)
+	GoroutineLabel(ctx *traceContext, ev *trace.Event)
+	GoroutineRange(ctx *traceContext, ev *trace.Event)
+	GoroutineTransition(ctx *traceContext, ev *trace.Event)
 
 	// Proc parts.
-	ProcRange(ctx *traceContext, ev *tracev2.Event)
-	ProcTransition(ctx *traceContext, ev *tracev2.Event)
+	ProcRange(ctx *traceContext, ev *trace.Event)
+	ProcTransition(ctx *traceContext, ev *trace.Event)
 
 	// User annotations.
-	Log(ctx *traceContext, ev *tracev2.Event)
+	Log(ctx *traceContext, ev *trace.Event)
 
 	// Finish indicates the end of the trace and finalizes generation.
 	Finish(ctx *traceContext)
@@ -44,35 +43,35 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 		ev := &parsed.events[i]
 
 		switch ev.Kind() {
-		case tracev2.EventSync:
+		case trace.EventSync:
 			g.Sync()
-		case tracev2.EventStackSample:
+		case trace.EventStackSample:
 			g.StackSample(ctx, ev)
-		case tracev2.EventRangeBegin, tracev2.EventRangeActive, tracev2.EventRangeEnd:
+		case trace.EventRangeBegin, trace.EventRangeActive, trace.EventRangeEnd:
 			r := ev.Range()
 			switch r.Scope.Kind {
-			case tracev2.ResourceGoroutine:
+			case trace.ResourceGoroutine:
 				g.GoroutineRange(ctx, ev)
-			case tracev2.ResourceProc:
+			case trace.ResourceProc:
 				g.ProcRange(ctx, ev)
-			case tracev2.ResourceNone:
+			case trace.ResourceNone:
 				g.GlobalRange(ctx, ev)
 			}
-		case tracev2.EventMetric:
+		case trace.EventMetric:
 			g.GlobalMetric(ctx, ev)
-		case tracev2.EventLabel:
+		case trace.EventLabel:
 			l := ev.Label()
-			if l.Resource.Kind == tracev2.ResourceGoroutine {
+			if l.Resource.Kind == trace.ResourceGoroutine {
 				g.GoroutineLabel(ctx, ev)
 			}
-		case tracev2.EventStateTransition:
+		case trace.EventStateTransition:
 			switch ev.StateTransition().Resource.Kind {
-			case tracev2.ResourceProc:
+			case trace.ResourceProc:
 				g.ProcTransition(ctx, ev)
-			case tracev2.ResourceGoroutine:
+			case trace.ResourceGoroutine:
 				g.GoroutineTransition(ctx, ev)
 			}
-		case tracev2.EventLog:
+		case trace.EventLog:
 			g.Log(ctx, ev)
 		}
 	}
@@ -93,8 +92,8 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 // lowest first.
 func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
 	// Collect information about the task.
-	var startStack, endStack tracev2.Stack
-	var startG, endG tracev2.GoID
+	var startStack, endStack trace.Stack
+	var startG, endG trace.GoID
 	startTime, endTime := ctx.startTime, ctx.endTime
 	if task.Start != nil {
 		startStack = task.Start.Stack()
@@ -128,7 +127,7 @@ func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
 		Arg:      arg,
 	})
 	// Emit an arrow from the parent to the child.
-	if task.Parent != nil && task.Start != nil && task.Start.Kind() == tracev2.EventTaskBegin {
+	if task.Parent != nil && task.Start != nil && task.Start.Kind() == trace.EventTaskBegin {
 		ctx.TaskArrow(traceviewer.ArrowEvent{
 			Name:         "newTask",
 			Start:        ctx.elapsed(task.Start.Time()),
@@ -151,8 +150,8 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
 		return
 	}
 	// Collect information about the region.
-	var startStack, endStack tracev2.Stack
-	goroutine := tracev2.NoGoroutine
+	var startStack, endStack trace.Stack
+	goroutine := trace.NoGoroutine
 	startTime, endTime := ctx.startTime, ctx.endTime
 	if region.Start != nil {
 		startStack = region.Start.Stack()
@@ -164,7 +163,7 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
 		endTime = region.End.Time()
 		goroutine = region.End.Goroutine()
 	}
-	if goroutine == tracev2.NoGoroutine {
+	if goroutine == trace.NoGoroutine {
 		return
 	}
 	arg := struct {
@@ -194,11 +193,11 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
 // The provided resource is the resource the stack sample should count against.
 type stackSampleGenerator[R resource] struct {
 	// getResource is a function to extract a resource ID from a stack sample event.
-	getResource func(*tracev2.Event) R
+	getResource func(*trace.Event) R
 }
 
 // StackSample implements a stack sample event handler. It expects ev to be one such event.
-func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *tracev2.Event) {
+func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *trace.Event) {
 	id := g.getResource(ev)
 	if id == R(noResource) {
 		// We have nowhere to put this in the UI.
@@ -213,7 +212,7 @@ func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *tracev2.Eve
 }
 
 // globalRangeGenerator implements a generic handler for EventRange* events that pertain
-// to tracev2.ResourceNone (the global scope).
+// to trace.ResourceNone (the global scope).
 type globalRangeGenerator struct {
 	ranges   map[string]activeRange
 	seenSync bool
@@ -226,21 +225,21 @@ func (g *globalRangeGenerator) Sync() {
 
 // GlobalRange implements a handler for EventRange* events whose Scope.Kind is ResourceNone.
 // It expects ev to be one such event.
-func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *tracev2.Event) {
+func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
 	if g.ranges == nil {
 		g.ranges = make(map[string]activeRange)
 	}
 	r := ev.Range()
 	switch ev.Kind() {
-	case tracev2.EventRangeBegin:
+	case trace.EventRangeBegin:
 		g.ranges[r.Name] = activeRange{ev.Time(), ev.Stack()}
-	case tracev2.EventRangeActive:
+	case trace.EventRangeActive:
 		// If we've seen a Sync event, then Active events are always redundant.
 		if !g.seenSync {
 			// Otherwise, they extend back to the start of the trace.
 			g.ranges[r.Name] = activeRange{ctx.startTime, ev.Stack()}
 		}
-	case tracev2.EventRangeEnd:
+	case trace.EventRangeEnd:
 		// Only emit GC events, because we have nowhere to
 		// put other events.
 		ar := g.ranges[r.Name]
@@ -279,7 +278,7 @@ type globalMetricGenerator struct {
 }
 
 // GlobalMetric implements an event handler for EventMetric events. ev must be one such event.
-func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *tracev2.Event) {
+func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *trace.Event) {
 	m := ev.Metric()
 	switch m.Name {
 	case "/memory/classes/heap/objects:bytes":
@@ -294,7 +293,7 @@ func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *tracev2.Even
 // procRangeGenerator implements a generic handler for EventRange* events whose Scope.Kind is
 // ResourceProc.
 type procRangeGenerator struct {
-	ranges   map[tracev2.Range]activeRange
+	ranges   map[trace.Range]activeRange
 	seenSync bool
 }
 
@@ -305,21 +304,21 @@ func (g *procRangeGenerator) Sync() {
 
 // ProcRange implements a handler for EventRange* events whose Scope.Kind is ResourceProc.
 // It expects ev to be one such event.
-func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
+func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
 	if g.ranges == nil {
-		g.ranges = make(map[tracev2.Range]activeRange)
+		g.ranges = make(map[trace.Range]activeRange)
 	}
 	r := ev.Range()
 	switch ev.Kind() {
-	case tracev2.EventRangeBegin:
+	case trace.EventRangeBegin:
 		g.ranges[r] = activeRange{ev.Time(), ev.Stack()}
-	case tracev2.EventRangeActive:
+	case trace.EventRangeActive:
 		// If we've seen a Sync event, then Active events are always redundant.
 		if !g.seenSync {
 			// Otherwise, they extend back to the start of the trace.
 			g.ranges[r] = activeRange{ctx.startTime, ev.Stack()}
 		}
-	case tracev2.EventRangeEnd:
+	case trace.EventRangeEnd:
 		// Emit proc-based ranges.
 		ar := g.ranges[r]
 		ctx.Slice(traceviewer.SliceEvent{
@@ -349,27 +348,27 @@ func (g *procRangeGenerator) Finish(ctx *traceContext) {
 
 // activeRange represents an active EventRange* range.
 type activeRange struct {
-	time  tracev2.Time
-	stack tracev2.Stack
+	time  trace.Time
+	stack trace.Stack
 }
 
 // completedRange represents a completed EventRange* range.
 type completedRange struct {
 	name       string
-	startTime  tracev2.Time
-	endTime    tracev2.Time
-	startStack tracev2.Stack
-	endStack   tracev2.Stack
+	startTime  trace.Time
+	endTime    trace.Time
+	startStack trace.Stack
+	endStack   trace.Stack
 	arg        any
 }
 
 type logEventGenerator[R resource] struct {
 	// getResource is a function to extract a resource ID from a Log event.
-	getResource func(*tracev2.Event) R
+	getResource func(*trace.Event) R
 }
 
 // Log implements a log event handler. It expects ev to be one such event.
-func (g *logEventGenerator[R]) Log(ctx *traceContext, ev *tracev2.Event) {
+func (g *logEventGenerator[R]) Log(ctx *traceContext, ev *trace.Event) {
 	id := g.getResource(ev)
 	if id == R(noResource) {
 		// We have nowhere to put this in the UI.

@@ -10,9 +10,8 @@ import (
 	"flag"
 	"fmt"
 	"internal/trace"
+	"internal/trace/raw"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
-	"internal/trace/v2/raw"
 	"io"
 	"log"
 	"net"
@@ -252,7 +251,7 @@ progressLoop:
 }
 
 type parsedTrace struct {
-	events      []tracev2.Event
+	events      []trace.Event
 	summary     *trace.Summary
 	size, valid int64
 	err         error
@@ -261,7 +260,7 @@ type parsedTrace struct {
 func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
 	// Set up the reader.
 	cr := countingReader{r: rr}
-	r, err := tracev2.NewReader(&cr)
+	r, err := trace.NewReader(&cr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace reader: %w", err)
 	}
@@ -285,7 +284,7 @@ func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
 		t.events = append(t.events, ev)
 		s.Event(&t.events[len(t.events)-1])
 
-		if ev.Kind() == tracev2.EventSync {
+		if ev.Kind() == trace.EventSync {
 			validBytes = cr.bytesRead.Load()
 			validEvents = len(t.events)
 		}
@@ -304,11 +303,11 @@ func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
 	return t, nil
 }
 
-func (t *parsedTrace) startTime() tracev2.Time {
+func (t *parsedTrace) startTime() trace.Time {
 	return t.events[0].Time()
 }
 
-func (t *parsedTrace) endTime() tracev2.Time {
+func (t *parsedTrace) endTime() trace.Time {
 	return t.events[len(t.events)-1].Time()
 }
 
@@ -324,8 +323,8 @@ func splitTrace(parsed *parsedTrace) ([]traceviewer.Range, error) {
 	return s.Ranges, nil
 }
 
-func debugProcessedEvents(trace io.Reader) error {
-	tr, err := tracev2.NewReader(trace)
+func debugProcessedEvents(trc io.Reader) error {
+	tr, err := trace.NewReader(trc)
 	if err != nil {
 		return err
 	}
@@ -340,8 +339,8 @@ func debugProcessedEvents(trace io.Reader) error {
 	}
 }
 
-func debugRawEvents(trace io.Reader) error {
-	rr, err := raw.NewReader(trace)
+func debugRawEvents(trc io.Reader) error {
+	rr, err := raw.NewReader(trc)
 	if err != nil {
 		return err
 	}

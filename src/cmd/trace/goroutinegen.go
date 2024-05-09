@@ -5,7 +5,7 @@
 package main
 
 import (
-	tracev2 "internal/trace/v2"
+	"internal/trace"
 )
 
 var _ generator = &goroutineGenerator{}
@@ -13,29 +13,29 @@ var _ generator = &goroutineGenerator{}
 type goroutineGenerator struct {
 	globalRangeGenerator
 	globalMetricGenerator
-	stackSampleGenerator[tracev2.GoID]
-	logEventGenerator[tracev2.GoID]
+	stackSampleGenerator[trace.GoID]
+	logEventGenerator[trace.GoID]
 
-	gStates map[tracev2.GoID]*gState[tracev2.GoID]
-	focus   tracev2.GoID
-	filter  map[tracev2.GoID]struct{}
+	gStates map[trace.GoID]*gState[trace.GoID]
+	focus   trace.GoID
+	filter  map[trace.GoID]struct{}
 }
 
-func newGoroutineGenerator(ctx *traceContext, focus tracev2.GoID, filter map[tracev2.GoID]struct{}) *goroutineGenerator {
+func newGoroutineGenerator(ctx *traceContext, focus trace.GoID, filter map[trace.GoID]struct{}) *goroutineGenerator {
 	gg := new(goroutineGenerator)
-	rg := func(ev *tracev2.Event) tracev2.GoID {
+	rg := func(ev *trace.Event) trace.GoID {
 		return ev.Goroutine()
 	}
 	gg.stackSampleGenerator.getResource = rg
 	gg.logEventGenerator.getResource = rg
-	gg.gStates = make(map[tracev2.GoID]*gState[tracev2.GoID])
+	gg.gStates = make(map[trace.GoID]*gState[trace.GoID])
 	gg.focus = focus
 	gg.filter = filter
 
 	// Enable a filter on the emitter.
 	if filter != nil {
 		ctx.SetResourceFilter(func(resource uint64) bool {
-			_, ok := filter[tracev2.GoID(resource)]
+			_, ok := filter[trace.GoID(resource)]
 			return ok
 		})
 	}
@@ -46,25 +46,25 @@ func (g *goroutineGenerator) Sync() {
 	g.globalRangeGenerator.Sync()
 }
 
-func (g *goroutineGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
+func (g *goroutineGenerator) GoroutineLabel(ctx *traceContext, ev *trace.Event) {
 	l := ev.Label()
 	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
 }
 
-func (g *goroutineGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
+func (g *goroutineGenerator) GoroutineRange(ctx *traceContext, ev *trace.Event) {
 	r := ev.Range()
 	switch ev.Kind() {
-	case tracev2.EventRangeBegin:
+	case trace.EventRangeBegin:
 		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
-	case tracev2.EventRangeActive:
+	case trace.EventRangeActive:
 		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
-	case tracev2.EventRangeEnd:
+	case trace.EventRangeEnd:
 		gs := g.gStates[r.Scope.Goroutine()]
 		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
 	}
 }
 
-func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
+func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *trace.Event) {
 	st := ev.StateTransition()
 	goID := st.Resource.Goroutine()
 
@@ -72,7 +72,7 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
 	// gState for it.
 	gs, ok := g.gStates[goID]
 	if !ok {
-		gs = newGState[tracev2.GoID](goID)
+		gs = newGState[trace.GoID](goID)
 		g.gStates[goID] = gs
 	}
 
@@ -86,7 +86,7 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
 		return
 	}
 	if from.Executing() && !to.Executing() {
-		if to == tracev2.GoWaiting {
+		if to == trace.GoWaiting {
 			// Goroutine started blocking.
 			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
 		} else {
@@ -95,34 +95,34 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
 	}
 	if !from.Executing() && to.Executing() {
 		start := ev.Time()
-		if from == tracev2.GoUndetermined {
+		if from == trace.GoUndetermined {
 			// Back-date the event to the start of the trace.
 			start = ctx.startTime
 		}
 		gs.start(start, goID, ctx)
 	}
 
-	if from == tracev2.GoWaiting {
+	if from == trace.GoWaiting {
 		// Goroutine unblocked.
 		gs.unblock(ev.Time(), ev.Stack(), ev.Goroutine(), ctx)
 	}
-	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
+	if from == trace.GoNotExist && to == trace.GoRunnable {
 		// Goroutine was created.
 		gs.created(ev.Time(), ev.Goroutine(), ev.Stack())
 	}
-	if from == tracev2.GoSyscall && to != tracev2.GoRunning {
+	if from == trace.GoSyscall && to != trace.GoRunning {
 		// Exiting blocked syscall.
 		gs.syscallEnd(ev.Time(), true, ctx)
 		gs.blockedSyscallEnd(ev.Time(), ev.Stack(), ctx)
-	} else if from == tracev2.GoSyscall {
+	} else if from == trace.GoSyscall {
 		// Check if we're exiting a syscall in a non-blocking way.
 		gs.syscallEnd(ev.Time(), false, ctx)
 	}
 
 	// Handle syscalls.
-	if to == tracev2.GoSyscall {
+	if to == trace.GoSyscall {
 		start := ev.Time()
-		if from == tracev2.GoUndetermined {
+		if from == trace.GoUndetermined {
 			// Back-date the event to the start of the trace.
 			start = ctx.startTime
 		}
@@ -137,12 +137,12 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
 	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
 }
 
-func (g *goroutineGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
+func (g *goroutineGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
 	// TODO(mknyszek): Extend procRangeGenerator to support rendering proc ranges
 	// that overlap with a goroutine's execution.
 }
 
-func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
 	// Not needed. All relevant information for goroutines can be derived from goroutine transitions.
 }
 
@@ -161,7 +161,7 @@ func (g *goroutineGenerator) Finish(ctx *traceContext) {
 	}
 
 	// Set the goroutine to focus on.
-	if g.focus != tracev2.NoGoroutine {
+	if g.focus != trace.NoGoroutine {
 		ctx.Focus(uint64(g.focus))
 	}
 }

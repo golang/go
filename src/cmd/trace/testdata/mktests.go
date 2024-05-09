@@ -9,8 +9,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"internal/trace/v2/raw"
-	"internal/trace/v2/version"
+	"internal/trace/raw"
+	"internal/trace/version"
 	"io"
 	"log"
 	"os"

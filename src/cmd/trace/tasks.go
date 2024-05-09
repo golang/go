@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"log"
 	"net/http"
 	"slices"
@@ -126,13 +125,13 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		type event struct {
 			WhenString string
 			Elapsed    time.Duration
-			Goroutine  tracev2.GoID
+			Goroutine  trace.GoID
 			What       string
 			// TODO: include stack trace of creation time
 		}
 		type task struct {
 			WhenString string
-			ID         tracev2.TaskID
+			ID         trace.TaskID
 			Duration   time.Duration
 			Complete   bool
 			Events     []event
@@ -146,7 +145,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			}
 
 			// Collect all the events for the task.
-			var rawEvents []*tracev2.Event
+			var rawEvents []*trace.Event
 			if summary.Start != nil {
 				rawEvents = append(rawEvents, summary.Start)
 			}
@@ -164,7 +163,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			}
 
 			// Sort them.
-			slices.SortStableFunc(rawEvents, func(a, b *tracev2.Event) int {
+			slices.SortStableFunc(rawEvents, func(a, b *trace.Event) int {
 				return cmp.Compare(a.Time(), b.Time())
 			})
 
@@ -412,25 +411,25 @@ func taskMatches(t *trace.UserTaskSummary, text string) bool {
 	return false
 }
 
-func describeEvent(ev *tracev2.Event) string {
+func describeEvent(ev *trace.Event) string {
 	switch ev.Kind() {
-	case tracev2.EventStateTransition:
+	case trace.EventStateTransition:
 		st := ev.StateTransition()
-		if st.Resource.Kind != tracev2.ResourceGoroutine {
+		if st.Resource.Kind != trace.ResourceGoroutine {
 			return ""
 		}
 		old, new := st.Goroutine()
 		return fmt.Sprintf("%s -> %s", old, new)
-	case tracev2.EventRegionBegin:
+	case trace.EventRegionBegin:
 		return fmt.Sprintf("region %q begin", ev.Region().Type)
-	case tracev2.EventRegionEnd:
+	case trace.EventRegionEnd:
 		return fmt.Sprintf("region %q end", ev.Region().Type)
-	case tracev2.EventTaskBegin:
+	case trace.EventTaskBegin:
 		t := ev.Task()
 		return fmt.Sprintf("task %q (D %d, parent %d) begin", t.Type, t.ID, t.Parent)
-	case tracev2.EventTaskEnd:
+	case trace.EventTaskEnd:
 		return "task end"
-	case tracev2.EventLog:
+	case trace.EventLog:
 		log := ev.Log()
 		if log.Category != "" {
 			return fmt.Sprintf("log %q", log.Message)
@@ -440,13 +439,13 @@ func describeEvent(ev *tracev2.Event) string {
 	return ""
 }
 
-func primaryGoroutine(ev *tracev2.Event) tracev2.GoID {
-	if ev.Kind() != tracev2.EventStateTransition {
+func primaryGoroutine(ev *trace.Event) trace.GoID {
+	if ev.Kind() != trace.EventStateTransition {
 		return ev.Goroutine()
 	}
 	st := ev.StateTransition()
-	if st.Resource.Kind != tracev2.ResourceGoroutine {
-		return tracev2.NoGoroutine
+	if st.Resource.Kind != trace.ResourceGoroutine {
+		return trace.NoGoroutine
 	}
 	return st.Resource.Goroutine()
 }

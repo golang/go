@@ -627,31 +627,28 @@ var depsRules = `
 
 	# v2 execution trace parser.
 	FMT
-	< internal/trace/v2/event;
+	< internal/trace/event;
 
-	internal/trace/v2/event
-	< internal/trace/v2/event/go122;
+	internal/trace/event
+	< internal/trace/event/go122;
 
-	FMT, io, internal/trace/v2/event/go122
-	< internal/trace/v2/version;
+	FMT, io, internal/trace/event/go122
+	< internal/trace/version;
 
-	FMT, encoding/binary, internal/trace/v2/version
-	< internal/trace/v2/raw;
+	FMT, encoding/binary, internal/trace/version
+	< internal/trace/raw;
 
-	FMT, internal/trace/v2/event, internal/trace/v2/version, io, sort, encoding/binary
-	< internal/trace/v2/internal/oldtrace;
+	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
+	< internal/trace/internal/oldtrace;
 
-	FMT, encoding/binary, internal/trace/v2/version, internal/trace/v2/internal/oldtrace
-	< internal/trace/v2;
-
-	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
-	< internal/trace/v2/testtrace;
-
-	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
-	< internal/trace/v2/internal/testgen/go122;
-
-	FMT, container/heap, math/rand, internal/trace/v2
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
 	< internal/trace;
+
+	regexp, internal/trace, internal/trace/raw, internal/txtar
+	< internal/trace/testtrace;
+
+	regexp, internal/txtar, internal/trace, internal/trace/raw
+	< internal/trace/internal/testgen/go122;
 
 	# cmd/trace dependencies.
 	FMT,

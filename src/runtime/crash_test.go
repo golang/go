@@ -11,7 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	tracev2 "internal/trace/v2"
+	traceparse "internal/trace"
 	"io"
 	"log"
 	"os"
@@ -900,7 +900,7 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("could not start subprocess: %v", err)
 	}
-	r, err := tracev2.NewReader(stdOut)
+	r, err := traceparse.NewReader(stdOut)
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
@@ -918,9 +918,9 @@ loop:
 			break loop
 		}
 		switch ev.Kind() {
-		case tracev2.EventSync:
+		case traceparse.EventSync:
 			seenSync = true
-		case tracev2.EventLog:
+		case traceparse.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
 				// Should we already stop reading here? More events may come, but

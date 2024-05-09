@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
-	tracev2 "internal/trace/v2"
 	"time"
 )
 
 // viewerFrames returns the frames of the stack of ev. The given frame slice is
 // used to store the frames to reduce allocations.
-func viewerFrames(stk tracev2.Stack) []*trace.Frame {
+func viewerFrames(stk trace.Stack) []*trace.Frame {
 	var frames []*trace.Frame
-	stk.Frames(func(f tracev2.StackFrame) bool {
+	stk.Frames(func(f trace.StackFrame) bool {
 		frames = append(frames, &trace.Frame{
 			PC:   f.PC,
 			Fn:   f.Func,
@@ -28,22 +27,22 @@ func viewerFrames(stk tracev2.Stack) []*trace.Frame {
 	return frames
 }
 
-func viewerGState(state tracev2.GoState, inMarkAssist bool) traceviewer.GState {
+func viewerGState(state trace.GoState, inMarkAssist bool) traceviewer.GState {
 	switch state {
-	case tracev2.GoUndetermined:
+	case trace.GoUndetermined:
 		return traceviewer.GDead
-	case tracev2.GoNotExist:
+	case trace.GoNotExist:
 		return traceviewer.GDead
-	case tracev2.GoRunnable:
+	case trace.GoRunnable:
 		return traceviewer.GRunnable
-	case tracev2.GoRunning:
+	case trace.GoRunning:
 		return traceviewer.GRunning
-	case tracev2.GoWaiting:
+	case trace.GoWaiting:
 		if inMarkAssist {
 			return traceviewer.GWaitingGC
 		}
 		return traceviewer.GWaiting
-	case tracev2.GoSyscall:
+	case trace.GoSyscall:
 		// N.B. A goroutine in a syscall is considered "executing" (state.Executing() == true).
 		return traceviewer.GRunning
 	default:
