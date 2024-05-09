@@ -2812,7 +2812,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 
-	// Update $CGO_LDFLAGS with p.CgoLDFLAGS.
+	// cgoLDFLAGS, which includes p.CgoLDFLAGS, can be very long.
+	// Pass it to cgo on the command line, so that we use a
+	// response file if necessary.
+	//
 	// These flags are recorded in the generated _cgo_gotypes.go file
 	// using //go:cgo_ldflag directives, the compiler records them in the
 	// object file for the package, and then the Go linker passes them
@@ -2820,12 +2823,16 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
 	cgoenv := b.cCompilerEnv()
+	var ldflagsOption []string
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))
 		for i, f := range cgoLDFLAGS {
 			flags[i] = strconv.Quote(f)
 		}
-		cgoenv = append(cgoenv, "CGO_LDFLAGS="+strings.Join(flags, " "))
+		ldflagsOption = []string{"-ldflags=" + strings.Join(flags, " ")}
+
+		// Remove CGO_LDFLAGS from the environment.
+		cgoenv = append(cgoenv, "CGO_LDFLAGS=")
 	}
 
 	if cfg.BuildToolchainName == "gccgo" {
@@ -2863,7 +2870,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
 	}
 
-	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, ldflagsOption, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)

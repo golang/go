@@ -242,6 +242,8 @@ var objDir = flag.String("objdir", "", "object directory")
 var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
 var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
 
+var ldflags = flag.String("ldflags", "", "flags to pass to C linker")
+
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
@@ -328,11 +330,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Record CGO_LDFLAGS from the environment for external linking.
-	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
-		args, err := splitQuoted(ldflags)
+	// Record linker flags for external linking.
+	if *ldflags != "" {
+		args, err := splitQuoted(*ldflags)
 		if err != nil {
-			fatalf("bad CGO_LDFLAGS: %q (%s)", ldflags, err)
+			fatalf("bad -ldflags option: %q (%s)", *ldflags, err)
 		}
 		p.addToFlag("LDFLAGS", args)
 	}
