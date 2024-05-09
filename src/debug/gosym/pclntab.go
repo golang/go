@@ -467,10 +467,10 @@ func (f funcData) pcln() uint32        { return f.field(6) }
 func (f funcData) cuOffset() uint32    { return f.field(8) }
 
 // field returns the nth field of the _func struct.
-// It panics if n == 0 or n > 9; for n == 0, call f.entryPC.
+// It panics if n == 0 or n > 10; for n == 0, call f.entryPC.
 // Most callers should use a named field accessor (just above).
 func (f funcData) field(n uint32) uint32 {
-	if n == 0 || n > 9 {
+	if n == 0 || n > 10 {
 		panic("bad funcdata field")
 	}
 	// In Go 1.18, the first field of _func changed
