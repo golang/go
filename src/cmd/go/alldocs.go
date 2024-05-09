@@ -1201,6 +1201,12 @@
 //
 // The -module flag changes the module's path (the go.mod file's module line).
 //
+// The -godebug=key=value flag adds a godebug key=value line,
+// replacing any existing godebug lines with the given key.
+//
+// The -dropgodebug=key flag drops any existing godebug lines
+// with the given key.
+//
 // The -require=path@version and -droprequire=path flags
 // add and drop a requirement on the given module path and version.
 // Note that -require overrides any existing requirements on path.
@@ -1208,6 +1214,14 @@
 // Users should prefer 'go get path@version' or 'go get path@none',
 // which make other go.mod adjustments as needed to satisfy
 // constraints imposed by other modules.
+//
+// The -go=version flag sets the expected Go language version.
+// This flag is mainly for tools that understand Go version dependencies.
+// Users should prefer 'go get go@version'.
+//
+// The -toolchain=version flag sets the Go toolchain to use.
+// This flag is mainly for tools that understand Go version dependencies.
+// Users should prefer 'go get toolchain@version'.
 //
 // The -exclude=path@version and -dropexclude=path@version flags
 // add and drop an exclusion for the given module path and version.
@@ -1230,13 +1244,9 @@
 // like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 // -retract=version is a no-op if that retraction already exists.
 //
-// The -require, -droprequire, -exclude, -dropexclude, -replace,
-// -dropreplace, -retract, and -dropretract editing flags may be repeated,
-// and the changes are applied in the order given.
-//
-// The -go=version flag sets the expected Go language version.
-//
-// The -toolchain=name flag sets the Go toolchain to use.
+// The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
+// -replace, -dropreplace, -retract, and -dropretract editing flags may be
+// repeated, and the changes are applied in the order given.
 //
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
@@ -1253,6 +1263,7 @@
 //		Module    ModPath
 //		Go        string
 //		Toolchain string
+//		Godebug   []Godebug
 //		Require   []Require
 //		Exclude   []Module
 //		Replace   []Replace
@@ -1264,9 +1275,14 @@
 //		Deprecated string
 //	}
 //
+//	type Godebug struct {
+//		Key   string
+//		Value string
+//	}
+//
 //	type Require struct {
-//		Path string
-//		Version string
+//		Path     string
+//		Version  string
 //		Indirect bool
 //	}
 //
@@ -1530,6 +1546,12 @@
 // rewrite the go.mod file. The only time this flag is needed is if no other
 // flags are specified, as in 'go work edit -fmt'.
 //
+// The -godebug=key=value flag adds a godebug key=value line,
+// replacing any existing godebug lines with the given key.
+//
+// The -dropgodebug=key flag drops any existing godebug lines
+// with the given key.
+//
 // The -use=path and -dropuse=path flags
 // add and drop a use directive from the go.work file's set of module directories.
 //
@@ -1561,8 +1583,14 @@
 //	type GoWork struct {
 //		Go        string
 //		Toolchain string
+//		Godebug   []Godebug
 //		Use       []Use
 //		Replace   []Replace
+//	}
+//
+//	type Godebug struct {
+//		Key   string
+//		Value string
 //	}
 //
 //	type Use struct {

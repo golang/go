@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/godebugs"
 	"internal/lazyregexp"
 	"io"
 	"os"
@@ -239,6 +240,27 @@ func (mms *MainModuleSet) GoVersion() string {
 		return gover.FromGoMod(f)
 	}
 	return gover.DefaultGoModVersion
+}
+
+// Godebugs returns the godebug lines set on the single module, in module mode,
+// or on the go.work file in workspace mode.
+// The caller must not modify the result.
+func (mms *MainModuleSet) Godebugs() []*modfile.Godebug {
+	if inWorkspaceMode() {
+		if mms.workFile != nil {
+			return mms.workFile.Godebug
+		}
+		return nil
+	}
+	if mms != nil && len(mms.versions) == 1 {
+		f := mms.ModFile(mms.mustGetSingleMainModule())
+		if f == nil {
+			// Special case: we are outside a module, like 'go run x.go'.
+			return nil
+		}
+		return f.Godebug
+	}
+	return nil
 }
 
 // Toolchain returns the toolchain set on the single module, in module mode,
@@ -675,6 +697,12 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
 		modRoots = append(modRoots, modRoot)
 	}
 
+	for _, g := range wf.Godebug {
+		if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return wf, modRoots, nil
 }
 
@@ -910,6 +938,19 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 			wv := gover.FromGoWork(workFile)
 			if gover.Compare(mv, wv) > 0 && gover.Compare(mv, gover.GoStrictVersion) >= 0 {
 				errs = append(errs, errWorkTooOld(gomod, workFile, mv))
+				continue
+			}
+		}
+
+		if !inWorkspaceMode() {
+			ok := true
+			for _, g := range f.Godebug {
+				if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
+					errs = append(errs, fmt.Errorf("%s: %v", base.ShortPath(filepath.Dir(gomod)), err))
+					ok = false
+				}
+			}
+			if !ok {
 				continue
 			}
 		}
@@ -1257,6 +1298,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 			}
 		}
 	}
+
 	return mainModules
 }
 
@@ -2053,4 +2095,34 @@ func suggestGopkgIn(path string) string {
 		return url + ".v1"
 	}
 	return url + ".v" + m
+}
+
+func CheckGodebug(verb, k, v string) error {
+	if strings.ContainsAny(k, " \t") {
+		return fmt.Errorf("key contains space")
+	}
+	if strings.ContainsAny(v, " \t") {
+		return fmt.Errorf("value contains space")
+	}
+	if strings.ContainsAny(k, ",") {
+		return fmt.Errorf("key contains comma")
+	}
+	if strings.ContainsAny(v, ",") {
+		return fmt.Errorf("value contains comma")
+	}
+	if k == "default" {
+		if !strings.HasPrefix(v, "go") || !gover.IsValid(v[len("go"):]) {
+			return fmt.Errorf("value for default= must be goVERSION")
+		}
+		if gover.Compare(v[len("go"):], gover.Local()) > 0 {
+			return fmt.Errorf("default=%s too new (toolchain is go%s)", v, gover.Local())
+		}
+		return nil
+	}
+	for _, info := range godebugs.All {
+		if k == info.Name {
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown %s %q", verb, k)
 }
