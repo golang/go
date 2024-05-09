@@ -456,7 +456,7 @@
 //
 // Usage:
 //
-//	go env [-json] [-u] [-w] [var ...]
+//	go env [-json] [-changed] [-u] [-w] [var ...]
 //
 // Env prints Go environment information.
 //
@@ -475,6 +475,10 @@
 // The -w flag requires one or more arguments of the
 // form NAME=VALUE and changes the default settings
 // of the named environment variables to the given values.
+//
+// The -changed flag prints only those settings whose effective
+// value differs from the default value that would be obtained in
+// an empty environment with no prior uses of the -w flag.
 //
 // For more about environment variables, see 'go help environment'.
 //

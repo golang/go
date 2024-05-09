@@ -2392,7 +2392,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
 	}
 	appendSetting("GOOS", cfg.BuildContext.GOOS)
-	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
 		appendSetting(key, val)
 	}
 
