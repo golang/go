@@ -40,11 +40,35 @@ func TestValueSeq(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
+		{"int8", ValueOf(int8(4)), func(t *testing.T, s iter.Seq[Value]) {
+			i := int8(0)
+			for v := range s {
+				if v.Interface().(int8) != i {
+					t.Fatalf("got %d, want %d", v.Int(), i)
+				}
+				i++
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
 		{"uint", ValueOf(uint64(4)), func(t *testing.T, s iter.Seq[Value]) {
 			i := uint64(0)
 			for v := range s {
 				if v.Uint() != i {
 					t.Fatalf("got %d, want %d", v.Uint(), i)
+				}
+				i++
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
+		{"uint8", ValueOf(uint8(4)), func(t *testing.T, s iter.Seq[Value]) {
+			i := uint8(0)
+			for v := range s {
+				if v.Interface().(uint8) != i {
+					t.Fatalf("got %d, want %d", v.Int(), i)
 				}
 				i++
 			}
