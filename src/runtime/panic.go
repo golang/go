@@ -1010,7 +1010,11 @@ func sync_fatal(s string) {
 // throw should be used for runtime-internal fatal errors where Go itself,
 // rather than user code, may be at fault for the failure.
 //
+// NOTE: temporarily marked "go:noinline" pending investigation/fix of
+// issue #67274, so as to fix longtest builders.
+//
 //go:nosplit
+//go:noinline
 func throw(s string) {
 	// Everything throw does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
