@@ -15,6 +15,11 @@ x_cgo_getstackbound(uintptr bounds[2])
 	p = pthread_self();
 	addr = pthread_get_stackaddr_np(p); // high address (!)
 	size = pthread_get_stacksize_np(p);
+
+	// bounds points into the Go stack. TSAN can't see the synchronization
+	// in Go around stack reuse.
+	_cgo_tsan_acquire();
 	bounds[0] = (uintptr)addr - size;
 	bounds[1] = (uintptr)addr;
+	_cgo_tsan_release();
 }

@@ -221,15 +221,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 	g0 := mp.g0
-	if sp > g0.stack.lo && sp <= g0.stack.hi {
-		// Stack already in bounds, nothing to do.
-		return
-	}
 
-	if mp.ncgo > 0 {
+	inBound := sp > g0.stack.lo && sp <= g0.stack.hi
+	if mp.ncgo > 0 && !inBound {
 		// ncgo > 0 indicates that this M was in Go further up the stack
-		// (it called C and is now receiving a callback). It is not
-		// safe for the C call to change the stack out from under us.
+		// (it called C and is now receiving a callback).
+		//
+		// !inBound indicates that we were called with SP outside the
+		// expected system stack bounds (C changed the stack out from
+		// under us between the cgocall and cgocallback?).
+		//
+		// It is not safe for the C call to change the stack out from
+		// under us, so throw.
 
 		// Note that this case isn't possible for signal == true, as
 		// that is always passing a new M from needm.
@@ -247,12 +250,26 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		exit(2)
 	}
 
+	if !mp.isextra {
+		// We allocated the stack for standard Ms. Don't replace the
+		// stack bounds with estimated ones when we already initialized
+		// with the exact ones.
+		return
+	}
+
 	// This M does not have Go further up the stack. However, it may have
 	// previously called into Go, initializing the stack bounds. Between
 	// that call returning and now the stack may have changed (perhaps the
 	// C thread is running a coroutine library). We need to update the
 	// stack bounds for this case.
 	//
+	// N.B. we need to update the stack bounds even if SP appears to
+	// already be in bounds. Our "bounds" may actually be estimated dummy
+	// bounds (below). The actual stack bounds could have shifted but still
+	// have partial overlap with our dummy bounds. If we failed to update
+	// in that case, we could find ourselves seemingly called near the
+	// bottom of the stack bounds, where we quickly run out of space.
+
 	// Set the stack bounds to match the current stack. If we don't
 	// actually know how big the stack is, like we don't know how big any
 	// scheduling stack is, but we assume there's at least 32 kB. If we
