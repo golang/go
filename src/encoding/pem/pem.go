@@ -193,30 +193,29 @@ type lineBreaker struct {
 var nl = []byte{'\n'}
 
 func (l *lineBreaker) Write(b []byte) (n int, err error) {
-	if l.used+len(b) < pemLineLength {
-		copy(l.line[l.used:], b)
-		l.used += len(b)
-		return len(b), nil
+	var n1 int
+	for len(b) > 0 {
+		if l.used+len(b) < pemLineLength {
+			copy(l.line[l.used:], b)
+			l.used += len(b)
+			n += len(b)
+			return
+		}
+		_, err = l.out.Write(l.line[0:l.used])
+		excess := pemLineLength - l.used
+		l.used = 0
+		n1, err = l.out.Write(b[0:excess])
+		n += n1
+		if err != nil {
+			return n, err
+		}
+		_, err = l.out.Write(nl)
+		if err != nil {
+			return
+		}
+		b = b[excess:]
 	}
-
-	n, err = l.out.Write(l.line[0:l.used])
-	if err != nil {
-		return
-	}
-	excess := pemLineLength - l.used
-	l.used = 0
-
-	n, err = l.out.Write(b[0:excess])
-	if err != nil {
-		return
-	}
-
-	n, err = l.out.Write(nl)
-	if err != nil {
-		return
-	}
-
-	return l.Write(b[excess:])
+	return
 }
 
 func (l *lineBreaker) Close() (err error) {
