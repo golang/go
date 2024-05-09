@@ -13,7 +13,6 @@ import (
 	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
-	"internal/platform"
 	"io"
 	"os"
 	"path/filepath"
@@ -128,14 +127,16 @@ func defaultContext() build.Context {
 	ctxt.ToolTags = save
 
 	// The go/build rule for whether cgo is enabled is:
-	//	1. If $CGO_ENABLED is set, respect it.
-	//	2. Otherwise, if this is a cross-compile, disable cgo.
-	//	3. Otherwise, use built-in default for GOOS/GOARCH.
+	//  1. If $CGO_ENABLED is set, respect it.
+	//  2. Otherwise, if this is a cross-compile, disable cgo.
+	//  3. Otherwise, use built-in default for GOOS/GOARCH.
+	//
 	// Recreate that logic here with the new GOOS/GOARCH setting.
-	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
-		ctxt.CgoEnabled = v[0] == '1'
-	} else if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
-		ctxt.CgoEnabled = false
+	// We need to run steps 2 and 3 to determine what the default value
+	// of CgoEnabled would be for computing CGOChanged.
+	defaultCgoEnabled := ctxt.CgoEnabled
+	if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
+		defaultCgoEnabled = false
 	} else {
 		// Use built-in default cgo setting for GOOS/GOARCH.
 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
@@ -162,17 +163,16 @@ func defaultContext() build.Context {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
 				if _, err := LookPath(cc); err != nil {
-					ctxt.CgoEnabled = false
+					defaultCgoEnabled = false
 				}
 			}
 		}
 	}
-	CGOChanged = ctxt.CgoEnabled != func() bool {
-		if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
-			return platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
-		}
-		return false
-	}()
+	ctxt.CgoEnabled = defaultCgoEnabled
+	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
+		ctxt.CgoEnabled = v[0] == '1'
+	}
+	CGOChanged = ctxt.CgoEnabled != defaultCgoEnabled
 
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fsys.Open(path)
