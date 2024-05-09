@@ -13,7 +13,7 @@
 
 #include <pthread.h>
 #include <errno.h>
-#include <limits.h>
+#include <features.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // strerror
