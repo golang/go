@@ -36,12 +36,14 @@ void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
 // The context function, used when tracing back C calls into Go.
 static void (*cgo_context_function)(struct context_arg*);
 
-// Detect if using glibc
+// Detect if using glibc in order to make c-shared and c-archive builds work with dynamic linkers which
+// do not pass argc / argv to the library init functions such as musl and uClibc.
 int
 x_cgo_sys_lib_args_valid()
 {
 	// The ELF gABI doesn't require an argc / argv to be passed to the functions
 	// in the DT_INIT_ARRAY. However, glibc always does.
+	// See http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#init_fini
 	// Ignore uClibc masquerading as glibc.
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
 	return 1;
