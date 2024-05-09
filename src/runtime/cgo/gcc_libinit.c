@@ -44,10 +44,14 @@ x_cgo_sys_lib_args_valid()
 	// in the DT_INIT_ARRAY. However, glibc always does.
 	// See http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#init_fini
 	// Ignore uClibc masquerading as glibc.
+#if __linux__
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
 	return 1;
 #else
 	return 0;
+#endif
+#else
+	return 1;
 #endif
 }
 
