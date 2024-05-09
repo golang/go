@@ -420,7 +420,16 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		return i
 	}
 
-	// Non-package (named) symbol. Check if it already exists.
+	// Non-package (named) symbol.
+	if osym.IsLinkname() && r.DataSize(li) == 0 {
+		// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
+		// Check if a linkname reference is allowed.
+		// Only check references (pull), not definitions (push, with non-zero size),
+		// so push is always allowed.
+		// Linkname is always a non-package reference.
+		checkLinkname(r.unit.Lib.Pkg, name)
+	}
+	// Check if it already exists.
 	oldi, existed := l.symsByName[ver][name]
 	if !existed {
 		l.symsByName[ver][name] = i
@@ -2243,6 +2252,13 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		osym := r.Sym(ndef + i)
 		name := osym.Name(r.Reader)
 		v := abiToVer(osym.ABI(), r.version)
+		if osym.IsLinkname() {
+			// Check if a linkname reference is allowed.
+			// Only check references (pull), not definitions (push),
+			// so push is always allowed.
+			// Linkname is always a non-package reference.
+			checkLinkname(r.unit.Lib.Pkg, name)
+		}
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
 		gi := r.syms[ndef+i]
 		if osym.Local() {
@@ -2287,6 +2303,49 @@ func abiToVer(abi uint16, localSymVersion int) int {
 		log.Fatalf("invalid symbol ABI: %d", abi)
 	}
 	return v
+}
+
+// A list of blocked linknames. Some linknames are allowed only
+// in specific packages. This maps symbol names to allowed packages.
+// If a name is not in this map, and not with a blocked prefix (see
+// blockedLinknamePrefixes), it is allowed everywhere.
+// If a name is in this map, it is allowed only in listed packages.
+var blockedLinknames = map[string][]string{
+	// coroutines
+	"runtime.coroexit":   nil,
+	"runtime.corostart":  nil,
+	"runtime.coroswitch": {"iter"},
+	"runtime.newcoro":    {"iter"},
+	// weak references
+	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
+	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
+	"runtime.getOrAddWeakHandle":                nil,
+}
+
+// A list of blocked linkname prefixes (packages).
+var blockedLinknamePrefixes = []string{
+	"internal/weak.",
+	"internal/concurrent.",
+}
+
+func checkLinkname(pkg, name string) {
+	error := func() {
+		log.Fatalf("linkname or assembly reference of %s is not allowed in package %s", name, pkg)
+	}
+	pkgs, ok := blockedLinknames[name]
+	if ok {
+		for _, p := range pkgs {
+			if pkg == p {
+				return // pkg is allowed
+			}
+		}
+		error()
+	}
+	for _, p := range blockedLinknamePrefixes {
+		if strings.HasPrefix(name, p) {
+			error()
+		}
+	}
 }
 
 // TopLevelSym tests a symbol (by name and kind) to determine whether

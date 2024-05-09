@@ -348,6 +348,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
+	if s.IsLinkname() || w.ctxt.IsAsm { // assembly reference is treated the same as linkname
+		flag2 |= goobj.SymFlagLinkname
+	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
