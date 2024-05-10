@@ -6,6 +6,17 @@ package reflect
 
 import "iter"
 
+func rangeNum[T int8 | int16 | int32 | int64 | int | uint8 | uint16 | uint32 | uint64 | uint | uintptr, N int64 | uint64](v N) iter.Seq[Value] {
+	return func(yield func(v Value) bool) {
+		// cannot use range T(v) because no core type.
+		for i := T(0); i < T(v); i++ {
+			if !yield(ValueOf(i)) {
+				return
+			}
+		}
+	}
+}
+
 // Seq returns an iter.Seq[Value] that loops over the elements of v.
 // If v's kind is Func, it must be a function that has no results and
 // that takes a single argument of type func(T) bool for some type T.
@@ -22,22 +33,28 @@ func (v Value) Seq() iter.Seq[Value] {
 		}
 	}
 	switch v.Kind() {
-	case Int, Int8, Int16, Int32, Int64:
-		return func(yield func(Value) bool) {
-			for i := range v.Int() {
-				if !yield(ValueOf(i)) {
-					return
-				}
-			}
-		}
-	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
-		return func(yield func(Value) bool) {
-			for i := range v.Uint() {
-				if !yield(ValueOf(i)) {
-					return
-				}
-			}
-		}
+	case Int:
+		return rangeNum[int](v.Int())
+	case Int8:
+		return rangeNum[int8](v.Int())
+	case Int16:
+		return rangeNum[int16](v.Int())
+	case Int32:
+		return rangeNum[int32](v.Int())
+	case Int64:
+		return rangeNum[int64](v.Int())
+	case Uint:
+		return rangeNum[uint](v.Uint())
+	case Uint8:
+		return rangeNum[uint8](v.Uint())
+	case Uint16:
+		return rangeNum[uint16](v.Uint())
+	case Uint32:
+		return rangeNum[uint32](v.Uint())
+	case Uint64:
+		return rangeNum[uint64](v.Uint())
+	case Uintptr:
+		return rangeNum[uintptr](v.Uint())
 	case Pointer:
 		if v.Elem().kind() != Array {
 			break
