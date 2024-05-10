@@ -408,8 +408,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		om := fmtsort.Sort(val)
-		for i, key := range om.Key {
-			oneIteration(key, om.Value[i])
+		for _, m := range om {
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
