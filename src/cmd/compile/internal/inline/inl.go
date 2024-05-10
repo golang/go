@@ -545,6 +545,28 @@ opSwitch:
 				}
 			}
 		}
+
+		if n.Fun.Op() == ir.ONAME {
+			name := n.Fun.(*ir.Name)
+			if name.Class == ir.PFUNC {
+				// Special case: on architectures that can do unaligned loads,
+				// explicitly mark internal/byteorder methods as cheap,
+				// because in practice they are, even though our inlining
+				// budgeting system does not see that. See issue 42958.
+				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
+					switch name.Sym().Name {
+					case "LeUint64", "LeUint32", "LeUint16",
+						"BeUint64", "BeUint32", "BeUint16",
+						"LePutUint64", "LePutUint32", "LePutUint16",
+						"BePutUint64", "BePutUint32", "BePutUint16",
+						"LeAppendUint64", "LeAppendUint32", "LeAppendUint16",
+						"BeAppendUint64", "BeAppendUint32", "BeAppendUint16":
+						cheap = true
+					}
+				}
+			}
+		}
+
 		if cheap {
 			break // treat like any other node, that is, cost of 1
 		}

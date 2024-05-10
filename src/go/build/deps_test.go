@@ -67,6 +67,7 @@ var depsRules = `
 	internal/goos
 	< internal/bytealg
 	< internal/stringslite
+	< internal/byteorder
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
