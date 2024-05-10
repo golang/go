@@ -28,38 +28,31 @@ func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
 	return age > distantPast
 }
 
-// a time in the far future for the expiry time with errors
-var farFuture = time.UnixMilli(1 << 62)
-
-// counterDateSpan parses the counter file named fname and returns the (begin, end) span
-// recorded in its metadata.
-// On any error, it returns (0, farFuture), so that invalid files don't look
-// like they can be used.
-//
-// TODO(rfindley): just return an error to make this explicit.
-func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
-	parsed, err := u.parse(fname)
+// counterDateSpan parses the counter file named fname and returns the (begin,
+// end) span recorded in its metadata, or an error if this data could not be
+// extracted.
+func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
+	parsed, err := u.parseCountFile(fname)
 	if err != nil {
-		u.logger.Printf("expiry Parse: %v for %s", err, fname)
-		return time.Time{}, farFuture
+		return time.Time{}, time.Time{}, err
 	}
-	begin, err = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
+	timeBegin, ok := parsed.Meta["TimeBegin"]
+	if !ok {
+		return time.Time{}, time.Time{}, fmt.Errorf("missing counter metadata for TimeBegin")
+	}
+	begin, err = time.Parse(time.RFC3339, timeBegin)
 	if err != nil {
-		u.logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
-		return time.Time{}, farFuture
+		return time.Time{}, time.Time{}, fmt.Errorf("failed to parse TimeBegin: %v", err)
 	}
-	end, err = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
+	timeEnd, ok := parsed.Meta["TimeEnd"]
+	if !ok {
+		return time.Time{}, time.Time{}, fmt.Errorf("missing counter metadata for TimeEnd")
+	}
+	end, err = time.Parse(time.RFC3339, timeEnd)
 	if err != nil {
-		u.logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
-		return time.Time{}, farFuture
+		return time.Time{}, time.Time{}, fmt.Errorf("failed to parse TimeEnd: %v", err)
 	}
-	return begin, end
-}
-
-// stillOpen returns true if the counter file might still be active
-func (u *Uploader) stillOpen(fname string) bool {
-	_, expiry := u.counterDateSpan(fname)
-	return expiry.After(u.startTime)
+	return begin, end, nil
 }
 
 // avoid parsing count files multiple times
@@ -68,7 +61,7 @@ type parsedCache struct {
 	m  map[string]*counter.File
 }
 
-func (u *Uploader) parse(fname string) (*counter.File, error) {
+func (u *Uploader) parseCountFile(fname string) (*counter.File, error) {
 	u.cache.mu.Lock()
 	defer u.cache.mu.Unlock()
 	if u.cache.m == nil {

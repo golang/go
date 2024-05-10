@@ -94,7 +94,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
 	default:
 		logWriter = io.MultiWriter(logWriters...)
 	}
-	logger := log.New(logWriter, "", 0)
+	logger := log.New(logWriter, "", log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
 	// Fetch the upload config, if it is not provided.
 	config, configVersion, err := configstore.Download("latest", rcfg.Env)
@@ -136,8 +136,10 @@ func (u *Uploader) Run() error {
 	todo := u.findWork()
 	ready, err := u.reports(&todo)
 	if err != nil {
+		u.logger.Printf("Error building reports: %v", err)
 		return fmt.Errorf("reports failed: %v", err)
 	}
+	u.logger.Printf("Uploading %d reports", len(ready))
 	for _, f := range ready {
 		u.uploadReport(f)
 	}

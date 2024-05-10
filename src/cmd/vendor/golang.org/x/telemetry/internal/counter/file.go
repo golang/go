@@ -256,9 +256,9 @@ func (f *file) rotate() {
 
 func nop() {}
 
-// counterTime returns the current UTC time.
+// CounterTime returns the current UTC time.
 // Mutable for testing.
-var counterTime = func() time.Time {
+var CounterTime = func() time.Time {
 	return time.Now().UTC()
 }
 
@@ -280,7 +280,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 		previous.close()
 	}
 
-	name, expire, err := f.filename(counterTime())
+	name, expire, err := f.filename(CounterTime())
 	if err != nil {
 		// This could be mode == "off" (when rotate is called for the first time)
 		ret := nop

@@ -40,11 +40,16 @@ func (u *Uploader) findWork() work {
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".v1.count") {
 			fname := filepath.Join(localdir, fi.Name())
-			if u.stillOpen(fname) {
-				u.logger.Printf("Skipping count file %s: still active", fname)
-				continue
+			_, expiry, err := u.counterDateSpan(fname)
+			switch {
+			case err != nil:
+				u.logger.Printf("Error reading expiry for count file %s: %v", fi.Name(), err)
+			case expiry.After(u.startTime):
+				u.logger.Printf("Skipping count file %s: still active", fi.Name())
+			default:
+				u.logger.Printf("Collecting count file %s", fi.Name())
+				ans.countfiles = append(ans.countfiles, fname)
 			}
-			ans.countfiles = append(ans.countfiles, fname)
 		} else if strings.HasPrefix(fi.Name(), "local.") {
 			// skip
 		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {
@@ -63,7 +68,7 @@ func (u *Uploader) findWork() work {
 					//
 					// TODO(rfindley): store the begin date in reports, so that we can
 					// verify this assumption.
-					u.logger.Printf("uploadable %s", fi.Name())
+					u.logger.Printf("Uploadable: %s", fi.Name())
 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 				}
 			} else {
@@ -73,7 +78,7 @@ func (u *Uploader) findWork() work {
 				// TODO(rfindley): invert this logic following more testing. We
 				// should only upload if we know both the asof date and the report
 				// date, and they are acceptable.
-				u.logger.Printf("uploadable anyway %s", fi.Name())
+				u.logger.Printf("Uploadable (missing date): %s", fi.Name())
 				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 			}
 		}
@@ -89,6 +94,7 @@ func (u *Uploader) findWork() work {
 	ans.uploaded = make(map[string]bool)
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".json") {
+			u.logger.Printf("Already uploaded: %s", fi.Name())
 			ans.uploaded[fi.Name()] = true
 		}
 	}

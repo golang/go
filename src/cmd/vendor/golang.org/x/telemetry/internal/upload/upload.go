@@ -44,9 +44,9 @@ func (u *Uploader) uploadReport(fname string) {
 	today := thisInstant.Format("2006-01-02")
 	match := dateRE.FindStringSubmatch(fname)
 	if match == nil || len(match) < 2 {
-		u.logger.Printf("report name seemed to have no date %q", filepath.Base(fname))
+		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
 	} else if match[1] > today {
-		u.logger.Printf("report %q is later than today %s", filepath.Base(fname), today)
+		u.logger.Printf("Report date for %q is later than today (%s)", filepath.Base(fname), today)
 		return // report is in the future, which shouldn't happen
 	}
 	buf, err := os.ReadFile(fname)
@@ -64,31 +64,31 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
 	b := bytes.NewReader(buf)
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
 	fdate = fdate[len(fdate)-len("2006-01-02"):]
-	server := u.uploadServerURL + "/" + fdate
+	endpoint := u.uploadServerURL + "/" + fdate
 
-	resp, err := http.Post(server, "application/json", b)
+	resp, err := http.Post(endpoint, "application/json", b)
 	if err != nil {
-		u.logger.Printf("error on Post: %v %q for %q", err, server, fname)
+		u.logger.Printf("Error upload %s to %s: %v", filepath.Base(fname), endpoint, err)
 		return false
 	}
 	// hope for a 200, remove file on a 4xx, otherwise it will be retried by another process
 	if resp.StatusCode != 200 {
-		u.logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
+		u.logger.Printf("Failed to upload %s to %s: %s", filepath.Base(fname), endpoint, resp.Status)
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 			err := os.Remove(fname)
 			if err == nil {
-				u.logger.Printf("removed")
+				u.logger.Printf("Removed local/%s", filepath.Base(fname))
 			} else {
-				u.logger.Printf("error removing: %v", err)
+				u.logger.Printf("Error removing local/%s: %v", filepath.Base(fname), err)
 			}
 		}
 		return false
 	}
-	// put a copy in the uploaded directory
+	// Store a copy of the uploaded report in the uploaded directory.
 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}
-	u.logger.Printf("uploaded %s to %q", fdate+".json", server)
+	u.logger.Printf("Uploaded %s to %q", fdate+".json", endpoint)
 	return true
 }
