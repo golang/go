@@ -1,5 +1,10 @@
 env TESTGO_VERSION=go1.14
 
+# Clear the path so this test doesn't fail if the system running it\
+# has a binary named go1.21 or go1.22 on its path.
+[GOOS:plan9] env path=
+[!GOOS:plan9] env PATH=
+
 # check for invalid toolchain in go.mod
 go mod init m
 go mod edit -go=1.14 -toolchain=go1.22
