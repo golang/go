@@ -11,9 +11,9 @@ package sha1
 import (
 	"crypto"
 	"crypto/internal/boring"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/byteorder"
 )
 
 func init() {
@@ -51,14 +51,14 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = binary.BigEndian.AppendUint32(b, d.h[0])
-	b = binary.BigEndian.AppendUint32(b, d.h[1])
-	b = binary.BigEndian.AppendUint32(b, d.h[2])
-	b = binary.BigEndian.AppendUint32(b, d.h[3])
-	b = binary.BigEndian.AppendUint32(b, d.h[4])
+	b = byteorder.BeAppendUint32(b, d.h[0])
+	b = byteorder.BeAppendUint32(b, d.h[1])
+	b = byteorder.BeAppendUint32(b, d.h[2])
+	b = byteorder.BeAppendUint32(b, d.h[3])
+	b = byteorder.BeAppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = binary.BigEndian.AppendUint64(b, d.len)
+	b = byteorder.BeAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -167,7 +167,7 @@ func (d *digest) checkSum() [Size]byte {
 	// Length in bits.
 	len <<= 3
 	padlen := tmp[:t+8]
-	binary.BigEndian.PutUint64(padlen[t:], len)
+	byteorder.BePutUint64(padlen[t:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -176,11 +176,11 @@ func (d *digest) checkSum() [Size]byte {
 
 	var digest [Size]byte
 
-	binary.BigEndian.PutUint32(digest[0:], d.h[0])
-	binary.BigEndian.PutUint32(digest[4:], d.h[1])
-	binary.BigEndian.PutUint32(digest[8:], d.h[2])
-	binary.BigEndian.PutUint32(digest[12:], d.h[3])
-	binary.BigEndian.PutUint32(digest[16:], d.h[4])
+	byteorder.BePutUint32(digest[0:], d.h[0])
+	byteorder.BePutUint32(digest[4:], d.h[1])
+	byteorder.BePutUint32(digest[8:], d.h[2])
+	byteorder.BePutUint32(digest[12:], d.h[3])
+	byteorder.BePutUint32(digest[16:], d.h[4])
 
 	return digest
 }

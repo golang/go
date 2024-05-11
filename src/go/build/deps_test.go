@@ -430,10 +430,8 @@ var depsRules = `
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
-	# Unfortunately, stuck with reflect via encoding/binary.
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
-	encoding/binary,
 	golang.org/x/sys/cpu,
 	hash, embed
 	< crypto
@@ -455,11 +453,13 @@ var depsRules = `
 
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512,
-	  golang.org/x/crypto/sha3;
+	  crypto/sha1, crypto/sha256, crypto/sha512;
 
 	crypto/boring, crypto/internal/edwards25519/field
 	< crypto/ecdh;
+
+	# Unfortunately, stuck with reflect via encoding/binary.
+	encoding/binary, crypto/boring < golang.org/x/crypto/sha3;
 
 	crypto/aes,
 	crypto/des,

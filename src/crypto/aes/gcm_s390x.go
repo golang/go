@@ -10,8 +10,8 @@ import (
 	"crypto/cipher"
 	"crypto/internal/alias"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"internal/cpu"
 )
 
@@ -25,14 +25,14 @@ type gcmCount [16]byte
 
 // inc increments the rightmost 32-bits of the count value by 1.
 func (x *gcmCount) inc() {
-	binary.BigEndian.PutUint32(x[len(x)-4:], binary.BigEndian.Uint32(x[len(x)-4:])+1)
+	byteorder.BePutUint32(x[len(x)-4:], byteorder.BeUint32(x[len(x)-4:])+1)
 }
 
 // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
 func gcmLengths(len0, len1 uint64) [16]byte {
 	v := [16]byte{}
-	binary.BigEndian.PutUint64(v[0:], len0)
-	binary.BigEndian.PutUint64(v[8:], len1)
+	byteorder.BePutUint64(v[0:], len0)
+	byteorder.BePutUint64(v[8:], len1)
 	return v
 }
 
