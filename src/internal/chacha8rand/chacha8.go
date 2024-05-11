@@ -4,7 +4,7 @@
 
 // Package chacha8rand implements a pseudorandom generator
 // based on ChaCha8. It is used by both runtime and math/rand/v2
-// and must have no dependencies other than internal/byteorder.
+// and must have minimal dependencies.
 package chacha8rand
 
 import "internal/byteorder"
