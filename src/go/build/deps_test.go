@@ -249,7 +249,7 @@ var depsRules = `
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
 	# math/big
-	FMT, encoding/binary, math/rand
+	FMT, math/rand
 	< math/big;
 
 	# compression
