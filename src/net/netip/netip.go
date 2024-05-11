@@ -14,6 +14,7 @@ package netip
 import (
 	"cmp"
 	"errors"
+	"internal/byteorder"
 	"math"
 	"strconv"
 	"unique"
@@ -102,8 +103,8 @@ func AddrFrom4(addr [4]byte) Addr {
 func AddrFrom16(addr [16]byte) Addr {
 	return Addr{
 		addr: uint128{
-			beUint64(addr[:8]),
-			beUint64(addr[8:]),
+			byteorder.BeUint64(addr[:8]),
+			byteorder.BeUint64(addr[8:]),
 		},
 		z: z6noz,
 	}
@@ -676,8 +677,8 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 // [Addr.Zone] method to get it).
 // The ip zero value returns all zeroes.
 func (ip Addr) As16() (a16 [16]byte) {
-	bePutUint64(a16[:8], ip.addr.hi)
-	bePutUint64(a16[8:], ip.addr.lo)
+	byteorder.BePutUint64(a16[:8], ip.addr.hi)
+	byteorder.BePutUint64(a16[8:], ip.addr.lo)
 	return a16
 }
 
@@ -686,7 +687,7 @@ func (ip Addr) As16() (a16 [16]byte) {
 // Note that 0.0.0.0 is not the zero Addr.
 func (ip Addr) As4() (a4 [4]byte) {
 	if ip.z == z4 || ip.Is4In6() {
-		bePutUint32(a4[:], uint32(ip.addr.lo))
+		byteorder.BePutUint32(a4[:], uint32(ip.addr.lo))
 		return a4
 	}
 	if ip.z == z0 {
@@ -702,12 +703,12 @@ func (ip Addr) AsSlice() []byte {
 		return nil
 	case z4:
 		var ret [4]byte
-		bePutUint32(ret[:], uint32(ip.addr.lo))
+		byteorder.BePutUint32(ret[:], uint32(ip.addr.lo))
 		return ret[:]
 	default:
 		var ret [16]byte
-		bePutUint64(ret[:8], ip.addr.hi)
-		bePutUint64(ret[8:], ip.addr.lo)
+		byteorder.BePutUint64(ret[:8], ip.addr.hi)
+		byteorder.BePutUint64(ret[8:], ip.addr.lo)
 		return ret[:]
 	}
 }
@@ -987,12 +988,12 @@ func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
 		b = make([]byte, trailingBytes)
 	case z4:
 		b = make([]byte, 4+trailingBytes)
-		bePutUint32(b, uint32(ip.addr.lo))
+		byteorder.BePutUint32(b, uint32(ip.addr.lo))
 	default:
 		z := ip.Zone()
 		b = make([]byte, 16+len(z)+trailingBytes)
-		bePutUint64(b[:8], ip.addr.hi)
-		bePutUint64(b[8:], ip.addr.lo)
+		byteorder.BePutUint64(b[:8], ip.addr.hi)
+		byteorder.BePutUint64(b[8:], ip.addr.lo)
 		copy(b[16:], z)
 	}
 	return b
@@ -1209,7 +1210,7 @@ func (p *AddrPort) UnmarshalText(text []byte) error {
 // containing the port in little-endian.
 func (p AddrPort) MarshalBinary() ([]byte, error) {
 	b := p.Addr().marshalBinaryWithTrailingBytes(2)
-	lePutUint16(b[len(b)-2:], p.Port())
+	byteorder.LePutUint16(b[len(b)-2:], p.Port())
 	return b, nil
 }
 
@@ -1224,7 +1225,7 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
 	if err != nil {
 		return err
 	}
-	*p = AddrPortFrom(addr, leUint16(b[len(b)-2:]))
+	*p = AddrPortFrom(addr, byteorder.LeUint16(b[len(b)-2:]))
 	return nil
 }
 
