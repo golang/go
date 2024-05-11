@@ -43,16 +43,17 @@ var depsRules = `
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
 	  internal/cpu, internal/goarch, internal/godebugs,
-	  internal/goexperiment, internal/goos,
+	  internal/goexperiment, internal/goos, internal/byteorder,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on internal/goarch and unsafe.
-	internal/goarch, unsafe
-	< internal/abi, internal/chacha8rand;
+	# internal/goarch depends only on internal/goarch and unsafe.
+	internal/goarch, unsafe < internal/abi;
+
+	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
 
 	unsafe < maps;
 
@@ -67,7 +68,6 @@ var depsRules = `
 	internal/goos
 	< internal/bytealg
 	< internal/stringslite
-	< internal/byteorder
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
