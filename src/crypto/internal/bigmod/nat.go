@@ -5,8 +5,8 @@
 package bigmod
 
 import (
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"math/big"
 	"math/bits"
 )
@@ -170,9 +170,9 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
 // big-endian encoded uint value.
 func bigEndianUint(buf []byte) uint {
 	if _W == 64 {
-		return uint(binary.BigEndian.Uint64(buf))
+		return uint(byteorder.BeUint64(buf))
 	}
-	return uint(binary.BigEndian.Uint32(buf))
+	return uint(byteorder.BeUint32(buf))
 }
 
 func (x *Nat) setBytes(b []byte, m *Modulus) error {

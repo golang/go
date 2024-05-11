@@ -7,8 +7,8 @@ package field
 
 import (
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"math/bits"
 )
 
@@ -201,20 +201,20 @@ func (v *Element) SetBytes(x []byte) (*Element, error) {
 	}
 
 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
-	v.l0 = binary.LittleEndian.Uint64(x[0:8])
+	v.l0 = byteorder.LeUint64(x[0:8])
 	v.l0 &= maskLow51Bits
 	// Bits 51:102 (bytes 6:14, bits 48:112, shift 3, mask 51).
-	v.l1 = binary.LittleEndian.Uint64(x[6:14]) >> 3
+	v.l1 = byteorder.LeUint64(x[6:14]) >> 3
 	v.l1 &= maskLow51Bits
 	// Bits 102:153 (bytes 12:20, bits 96:160, shift 6, mask 51).
-	v.l2 = binary.LittleEndian.Uint64(x[12:20]) >> 6
+	v.l2 = byteorder.LeUint64(x[12:20]) >> 6
 	v.l2 &= maskLow51Bits
 	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
-	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
+	v.l3 = byteorder.LeUint64(x[19:27]) >> 1
 	v.l3 &= maskLow51Bits
 	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
 	// Note: not bytes 25:33, shift 4, to avoid overread.
-	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
+	v.l4 = byteorder.LeUint64(x[24:32]) >> 12
 	v.l4 &= maskLow51Bits
 
 	return v, nil
@@ -235,7 +235,7 @@ func (v *Element) bytes(out *[32]byte) []byte {
 	var buf [8]byte
 	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
 		bitsOffset := i * 51
-		binary.LittleEndian.PutUint64(buf[:], l<<uint(bitsOffset%8))
+		byteorder.LePutUint64(buf[:], l<<uint(bitsOffset%8))
 		for i, bb := range buf {
 			off := bitsOffset/8 + i
 			if off >= len(out) {
