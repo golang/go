@@ -1,0 +1,1 @@
+pkg slices, func Partition[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) ([]$1, []$1) #67326
