@@ -50,7 +50,7 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# internal/goarch depends only on internal/goarch and unsafe.
+	# internal/abi depends only on internal/goarch and unsafe.
 	internal/goarch, unsafe < internal/abi;
 
 	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;

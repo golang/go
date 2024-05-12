@@ -50,8 +50,8 @@ var runtimePkgs = []string{
 
 	"internal/abi",
 	"internal/bytealg",
-	"internal/chacha8rand",
 	"internal/byteorder",
+	"internal/chacha8rand",
 	"internal/coverage/rtcov",
 	"internal/cpu",
 	"internal/goarch",
