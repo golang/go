@@ -50,6 +50,8 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
+	unsafe < internal/runtime/proc;
+
 	# These packages depend only on internal/goarch and unsafe.
 	internal/goarch, unsafe
 	< internal/abi, internal/chacha8rand;
@@ -64,7 +66,8 @@ var depsRules = `
 	internal/goarch,
 	internal/godebugs,
 	internal/goexperiment,
-	internal/goos
+	internal/goos,
+	internal/runtime/proc
 	< internal/bytealg
 	< internal/stringslite
 	< internal/byteorder

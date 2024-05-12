@@ -6,6 +6,7 @@ package sync
 
 import (
 	"internal/race"
+	"internal/runtime/proc"
 	"runtime"
 	"sync/atomic"
 	"unsafe"
@@ -112,7 +113,7 @@ func (p *Pool) Put(x any) {
 	} else {
 		l.shared.pushHead(x)
 	}
-	runtime_procUnpin()
+	proc.Unpin()
 	if race.Enabled {
 		race.Enable()
 	}
@@ -142,7 +143,7 @@ func (p *Pool) Get() any {
 			x = p.getSlow(pid)
 		}
 	}
-	runtime_procUnpin()
+	proc.Unpin()
 	if race.Enabled {
 		race.Enable()
 		if x != nil {
@@ -205,7 +206,7 @@ func (p *Pool) pin() (*poolLocal, int) {
 		panic("nil Pool")
 	}
 
-	pid := runtime_procPin()
+	pid := proc.Pin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
@@ -221,10 +222,10 @@ func (p *Pool) pin() (*poolLocal, int) {
 func (p *Pool) pinSlow() (*poolLocal, int) {
 	// Retry under the mutex.
 	// Can not lock the mutex while pinned.
-	runtime_procUnpin()
+	proc.Unpin()
 	allPoolsMu.Lock()
 	defer allPoolsMu.Unlock()
-	pid := runtime_procPin()
+	pid := proc.Pin()
 	// poolCleanup won't be called while we are pinned.
 	s := p.localSize
 	l := p.local
@@ -292,8 +293,6 @@ func indexLocal(l unsafe.Pointer, i int) *poolLocal {
 
 // Implemented in runtime.
 func runtime_registerPoolCleanup(cleanup func())
-func runtime_procPin() int
-func runtime_procUnpin()
 
 // The below are implemented in internal/runtime/atomic and the
 // compiler also knows to intrinsify the symbol we linkname into this
