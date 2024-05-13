@@ -303,58 +303,6 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
-// Implementation for platforms that do not have tsan v3 apis.
-#ifdef GOOS_openbsd
-
-TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $48-24
-	GO_ARGS
-
-	MOVQ 	addr+0(FP), R12
-	MOVQ 	mask+8(FP), R13
-
-loop:
-	MOVQ 	(R12), R15
-	ANDQ 	R15, R13
-
-	// args for tsan cas
-	MOVQ 	R12, 16(SP)	// addr
-	MOVQ 	R15, 24(SP)	// old
-	MOVQ 	R13, 32(SP)	// new
-
-	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	MOVQ	8(SP), RARG1	// caller pc
-	MOVQ	(SP), RARG2	// pc
-	LEAQ	16(SP), RARG3	// arguments
-	MOVQ	$__tsan_go_atomic64_compare_exchange(SB), AX
-	CALL	racecall<>(SB)
-	TESTB 	$0, 40(SP)
-	JEQ 	loop
-
-	MOVQ	R15, ret+16(FP)
-
-	RET
-
-TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
-	GO_ARGS
-
-	UNDEF
-	RET
-
-// Or
-TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
-	GO_ARGS
-
-	UNDEF
-	RET
-
-TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
-	GO_ARGS
-
-	UNDEF
-	RET
-
-#else
-
 // And
 TEXT	sync∕atomic·AndInt32(SB), NOSPLIT|NOFRAME, $0-20
 	GO_ARGS
@@ -367,19 +315,6 @@ TEXT	sync∕atomic·AndInt64(SB), NOSPLIT|NOFRAME, $0-24
 	MOVQ	$__tsan_go_atomic64_fetch_and(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
-// Or
-TEXT	sync∕atomic·OrInt32(SB), NOSPLIT|NOFRAME, $0-20
-	GO_ARGS
-	MOVQ	$__tsan_go_atomic32_fetch_or(SB), AX
-	CALL	racecallatomic<>(SB)
-	RET
-
-TEXT	sync∕atomic·OrInt64(SB), NOSPLIT|NOFRAME, $0-24
-	GO_ARGS
-	MOVQ	$__tsan_go_atomic64_fetch_or(SB), AX
-	CALL	racecallatomic<>(SB)
-	RET
-#endif
 
 TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
@@ -393,6 +328,19 @@ TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AndInt64(SB)
 
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT|NOFRAME, $0-20
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic32_fetch_or(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT|NOFRAME, $0-24
+	GO_ARGS
+	MOVQ	$__tsan_go_atomic64_fetch_or(SB), AX
+	CALL	racecallatomic<>(SB)
+	RET
+
 TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	JMP	sync∕atomic·OrInt32(SB)
@@ -404,6 +352,7 @@ TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
 TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·OrInt64(SB)
+
 
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT|NOFRAME, $0-17
