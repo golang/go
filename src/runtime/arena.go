@@ -828,10 +828,6 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	}
 
 	if debug.malloc {
-		if debug.allocfreetrace != 0 {
-			tracealloc(unsafe.Pointer(span.base()), userArenaChunkBytes, nil)
-		}
-
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(userArenaChunkBytes)

@@ -440,7 +440,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		Sleep(sched)
 		tim.Reset(10000 * Second)
 		if isTicker {
-			assertTick()
+			drain()
 		}
 		noTick()
 
@@ -466,8 +466,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	Sleep(sched)
 	tim.Reset(10000 * Second)
 	if !synctimerchan && isTicker {
-		assertLen()
-		assertTick()
+		drain()
 	}
 	noTick()
 

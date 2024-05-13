@@ -118,11 +118,14 @@ stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod 
 # present. If there are no module dependencies, -mod=vendor should be used by
 # default and should not fail the consistency check even though no module
 # information is present.
+# Note: This behavior only applies pre-1.23. Go 1.23 and later require vendored
+# packages to be present in modules.txt to be imported.
 
 rm go.mod
 rm vendor/modules.txt
 
 go mod init example.com/auto
+go mod edit -go=1.22
 go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'

@@ -12,9 +12,10 @@ type dummyCounter struct{}
 
 func (dc dummyCounter) Inc() {}
 
-func Start()                                              {}
-func StartWithUpload()                                    {}
-func Inc(name string)                                     {}
-func NewCounter(name string) dummyCounter                 { return dummyCounter{} }
-func NewStackCounter(name string, depth int) dummyCounter { return dummyCounter{} }
-func CountFlags(name string, flagSet flag.FlagSet)        {}
+func Start()                                                              {}
+func StartWithUpload()                                                    {}
+func Inc(name string)                                                     {}
+func NewCounter(name string) dummyCounter                                 { return dummyCounter{} }
+func NewStackCounter(name string, depth int) dummyCounter                 { return dummyCounter{} }
+func CountFlags(name string, flagSet flag.FlagSet)                        {}
+func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {}

@@ -28,6 +28,15 @@ type Spec struct {
 	// in the ArgTypes variable.
 	Args []string
 
+	// StringIDs indicates which of the arguments are string IDs.
+	StringIDs []int
+
+	// StackIDs indicates which of the arguments are stack IDs.
+	//
+	// The list is not sorted. The first index always refers to
+	// the main stack for the current execution context of the event.
+	StackIDs []int
+
 	// StartEv indicates the event type of the corresponding "start"
 	// event, if this event is an "end," for a pair of events that
 	// represent a time range.
@@ -44,16 +53,9 @@ type Spec struct {
 
 	// HasData is true if the event has trailer consisting of a
 	// varint length followed by unencoded bytes of some data.
-	HasData bool
-
-	// StringIDs indicates which of the arguments are string IDs.
-	StringIDs []int
-
-	// StackIDs indicates which of the arguments are stack IDs.
 	//
-	// The list is not sorted. The first index always refers to
-	// the main stack for the current execution context of the event.
-	StackIDs []int
+	// An event may not be both a timed event and have data.
+	HasData bool
 
 	// IsStack indicates that the event represents a complete
 	// stack trace. Specifically, it means that after the arguments
@@ -61,6 +63,11 @@ type Spec struct {
 	// group of 4 represents the PC, file ID, func ID, and line number
 	// in that order.
 	IsStack bool
+
+	// Experiment indicates the ID of an experiment this event is associated
+	// with. If Experiment is not NoExperiment, then the event is experimental
+	// and will be exposed as an EventExperiment.
+	Experiment Experiment
 }
 
 // ArgTypes is a list of valid argument types for use in Args.
@@ -87,3 +94,9 @@ func Names(specs []Spec) map[string]Type {
 	}
 	return nameToType
 }
+
+// Experiment is an experiment ID that events may be associated with.
+type Experiment uint
+
+// NoExperiment is the reserved ID 0 indicating no experiment.
+const NoExperiment Experiment = 0

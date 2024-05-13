@@ -1,0 +1,4 @@
+pkg iter, func Pull2[$0 interface{}, $1 interface{}](Seq2[$0, $1]) (func() ($0, $1, bool), func()) #61897
+pkg iter, func Pull[$0 interface{}](Seq[$0]) (func() ($0, bool), func()) #61897
+pkg iter, type Seq2[$0 interface{}, $1 interface{}] func(func($0, $1) bool) #61897
+pkg iter, type Seq[$0 interface{}] func(func($0) bool) #61897

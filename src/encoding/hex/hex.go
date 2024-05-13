@@ -136,11 +136,9 @@ func EncodeToString(src []byte) string {
 // If the input is malformed, DecodeString returns
 // the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
-	src := []byte(s)
-	// We can use the source slice itself as the destination
-	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
-	n, err := Decode(src, src)
-	return src[:n], err
+	dst := make([]byte, DecodedLen(len(s)))
+	n, err := Decode(dst, []byte(s))
+	return dst[:n], err
 }
 
 // Dump returns a string that contains a hex dump of the given data. The format

@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.rangefunc
-
-package iter
+package iter_test
 
 import (
 	"fmt"
+	. "iter"
 	"runtime"
 	"testing"
 )
@@ -33,7 +32,6 @@ func squares(n int) Seq2[int, int64] {
 }
 
 func TestPull(t *testing.T) {
-
 	for end := 0; end <= 3; end++ {
 		t.Run(fmt.Sprint(end), func(t *testing.T) {
 			ng := runtime.NumGoroutine()
@@ -116,3 +114,97 @@ func TestPull2(t *testing.T) {
 		})
 	}
 }
+
+func TestPullDoubleNext(t *testing.T) {
+	next, _ := Pull(doDoubleNext())
+	nextSlot = next
+	next()
+	if nextSlot != nil {
+		t.Fatal("double next did not fail")
+	}
+}
+
+var nextSlot func() (int, bool)
+
+func doDoubleNext() Seq[int] {
+	return func(_ func(int) bool) {
+		defer func() {
+			if recover() != nil {
+				nextSlot = nil
+			}
+		}()
+		nextSlot()
+	}
+}
+
+func TestPullDoubleNext2(t *testing.T) {
+	next, _ := Pull2(doDoubleNext2())
+	nextSlot2 = next
+	next()
+	if nextSlot2 != nil {
+		t.Fatal("double next did not fail")
+	}
+}
+
+var nextSlot2 func() (int, int, bool)
+
+func doDoubleNext2() Seq2[int, int] {
+	return func(_ func(int, int) bool) {
+		defer func() {
+			if recover() != nil {
+				nextSlot2 = nil
+			}
+		}()
+		nextSlot2()
+	}
+}
+
+func TestPullDoubleYield(t *testing.T) {
+	_, stop := Pull(storeYield())
+	defer func() {
+		if recover() != nil {
+			yieldSlot = nil
+		}
+		stop()
+	}()
+	yieldSlot(5)
+	if yieldSlot != nil {
+		t.Fatal("double yield did not fail")
+	}
+}
+
+func storeYield() Seq[int] {
+	return func(yield func(int) bool) {
+		yieldSlot = yield
+		if !yield(5) {
+			return
+		}
+	}
+}
+
+var yieldSlot func(int) bool
+
+func TestPullDoubleYield2(t *testing.T) {
+	_, stop := Pull2(storeYield2())
+	defer func() {
+		if recover() != nil {
+			yieldSlot2 = nil
+		}
+		stop()
+	}()
+	yieldSlot2(23, 77)
+	if yieldSlot2 != nil {
+		t.Fatal("double yield did not fail")
+	}
+}
+
+func storeYield2() Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		yieldSlot2 = yield
+		if !yield(23, 77) {
+			return
+		}
+	}
+}
+
+var yieldSlot2 func(int, int) bool

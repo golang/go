@@ -6,6 +6,7 @@ package poll
 
 import (
 	"errors"
+	"internal/stringslite"
 	"io"
 	"sync"
 	"syscall"
@@ -203,11 +204,11 @@ func (fd *FD) ReadUnlock() {
 }
 
 func isHangup(err error) bool {
-	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
+	return err != nil && stringslite.HasSuffix(err.Error(), "Hangup")
 }
 
 func isInterrupted(err error) bool {
-	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
+	return err != nil && stringslite.HasSuffix(err.Error(), "interrupted")
 }
 
 // IsPollDescriptor reports whether fd is the descriptor being used by the poller.

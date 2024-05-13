@@ -6,13 +6,6 @@
 #include "textflag.h"
 
 TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
-#ifndef GOEXPERIMENT_regabiargs
-	MOVV	a_base+0(FP), R4
-	MOVV	a_len+8(FP), R5
-	MOVV	b_base+24(FP), R6
-	MOVV	b_len+32(FP), R7
-	MOVV	$ret+48(FP), R13
-#else
 	// R4 = a_base
 	// R5 = a_len
 	// R6 = a_cap (unused)
@@ -21,17 +14,9 @@ TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
 	// R9 = b_cap (unused)
 	MOVV	R7, R6
 	MOVV	R8, R7
-#endif
 	JMP	cmpbody<>(SB)
 
 TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT,$0-40
-#ifndef GOEXPERIMENT_regabiargs
-	MOVV	a_base+0(FP), R4
-	MOVV	b_base+16(FP), R6
-	MOVV	a_len+8(FP), R5
-	MOVV	b_len+24(FP), R7
-	MOVV	$ret+32(FP), R13
-#endif
 	// R4 = a_base
 	// R5 = a_len
 	// R6 = b_base
@@ -100,7 +85,4 @@ samebytes:
 	SUBV	R9, R8, R4
 
 ret:
-#ifndef GOEXPERIMENT_regabiargs
-	MOVV	R4, (R13)
-#endif
 	RET

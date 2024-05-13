@@ -76,8 +76,13 @@ const (
 	// EventLog represents a runtime/trace.Log call.
 	EventLog
 
-	// Transitions in state for some resource.
+	// EventStateTransition represents a state change for some resource.
 	EventStateTransition
+
+	// EventExperimental is an experimental event that is unvalidated and exposed in a raw form.
+	// Users are expected to understand the format and perform their own validation. These events
+	// may always be safely ignored.
+	EventExperimental
 )
 
 // String returns a string form of the EventKind.
@@ -103,6 +108,7 @@ var eventKindStrings = [...]string{
 	EventRegionEnd:       "RegionEnd",
 	EventLog:             "Log",
 	EventStateTransition: "StateTransition",
+	EventExperimental:    "Experimental",
 }
 
 const maxTime = Time(math.MaxInt64)
@@ -298,6 +304,42 @@ type StackFrame struct {
 
 	// Line is the line number within File which maps to PC.
 	Line uint64
+}
+
+// ExperimentalEvent presents a raw view of an experimental event's arguments and thier names.
+type ExperimentalEvent struct {
+	// Name is the name of the event.
+	Name string
+
+	// ArgNames is the names of the event's arguments in order.
+	// This may refer to a globally shared slice. Copy before mutating.
+	ArgNames []string
+
+	// Args contains the event's arguments.
+	Args []uint64
+
+	// Data is additional unparsed data that is associated with the experimental event.
+	// Data is likely to be shared across many ExperimentalEvents, so callers that parse
+	// Data are encouraged to cache the parse result and look it up by the value of Data.
+	Data *ExperimentalData
+}
+
+// ExperimentalData represents some raw and unparsed sidecar data present in the trace that is
+// associated with certain kinds of experimental events. For example, this data may contain
+// tables needed to interpret ExperimentalEvent arguments, or the ExperimentEvent could just be
+// a placeholder for a differently encoded event that's actually present in the experimental data.
+type ExperimentalData struct {
+	// Batches contain the actual experimental data, along with metadata about each batch.
+	Batches []ExperimentalBatch
+}
+
+// ExperimentalBatch represents a packet of unparsed data along with metadata about that packet.
+type ExperimentalBatch struct {
+	// Thread is the ID of the thread that produced a packet of data.
+	Thread ThreadID
+
+	// Data is a packet of unparsed data all produced by one thread.
+	Data []byte
 }
 
 // Event represents a single event in the trace.
@@ -613,6 +655,23 @@ func (e Event) StateTransition() StateTransition {
 	return s
 }
 
+// Experimental returns a view of the raw event for an experimental event.
+//
+// Panics if Kind != EventExperimental.
+func (e Event) Experimental() ExperimentalEvent {
+	if e.Kind() != EventExperimental {
+		panic("Experimental called on non-Experimental event")
+	}
+	spec := go122.Specs()[e.base.typ]
+	argNames := spec.Args[1:]
+	return ExperimentalEvent{
+		Name:     spec.Name,
+		ArgNames: argNames, // Skip timestamp; already handled.
+		Args:     e.base.args[1 : 1+len(argNames)],
+		Data:     e.table.expData[spec.Experiment],
+	}
+}
+
 const evSync = ^event.Type(0)
 
 var go122Type2Kind = [...]EventKind{
@@ -657,6 +716,15 @@ var go122Type2Kind = [...]EventKind{
 	go122.EvGoSwitchDestroy:     EventStateTransition,
 	go122.EvGoCreateBlocked:     EventStateTransition,
 	go122.EvGoStatusStack:       EventStateTransition,
+	go122.EvSpan:                EventExperimental,
+	go122.EvSpanAlloc:           EventExperimental,
+	go122.EvSpanFree:            EventExperimental,
+	go122.EvHeapObject:          EventExperimental,
+	go122.EvHeapObjectAlloc:     EventExperimental,
+	go122.EvHeapObjectFree:      EventExperimental,
+	go122.EvGoroutineStack:      EventExperimental,
+	go122.EvGoroutineStackAlloc: EventExperimental,
+	go122.EvGoroutineStackFree:  EventExperimental,
 	evSync:                      EventSync,
 }
 
@@ -733,6 +801,9 @@ func (e Event) String() string {
 				return true
 			})
 		}
+	case EventExperimental:
+		r := e.Experimental()
+		fmt.Fprintf(&sb, " Name=%s ArgNames=%v Args=%v", r.Name, r.ArgNames, r.Args)
 	}
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)

@@ -241,6 +241,12 @@ type Type interface {
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
 
+	// CanSeq reports whether a [Value] with this type can be iterated over using [Value.Seq].
+	CanSeq() bool
+
+	// CanSeq2 reports whether a [Value] with this type can be iterated over using [Value.Seq2].
+	CanSeq2() bool
+
 	common() *abi.Type
 	uncommon() *uncommonType
 }
@@ -864,6 +870,62 @@ func (t *rtype) OverflowUint(x uint64) bool {
 		return x != trunc
 	}
 	panic("reflect: OverflowUint of non-uint type " + t.String())
+}
+
+func (t *rtype) CanSeq() bool {
+	switch t.Kind() {
+	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Array, Slice, Chan, String, Map:
+		return true
+	case Func:
+		return canRangeFunc(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
+}
+
+func canRangeFunc(t *abi.Type) bool {
+	if t.Kind() != abi.Func {
+		return false
+	}
+	f := t.FuncType()
+	if f.InCount != 1 || f.OutCount != 0 {
+		return false
+	}
+	y := f.In(0)
+	if y.Kind() != abi.Func {
+		return false
+	}
+	yield := y.FuncType()
+	return yield.InCount == 1 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+}
+
+func (t *rtype) CanSeq2() bool {
+	switch t.Kind() {
+	case Array, Slice, String, Map:
+		return true
+	case Func:
+		return canRangeFunc2(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
+}
+
+func canRangeFunc2(t *abi.Type) bool {
+	if t.Kind() != abi.Func {
+		return false
+	}
+	f := t.FuncType()
+	if f.InCount != 1 || f.OutCount != 0 {
+		return false
+	}
+	y := f.In(0)
+	if y.Kind() != abi.Func {
+		return false
+	}
+	yield := y.FuncType()
+	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
 }
 
 // add returns p+x.
@@ -2606,7 +2668,7 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
+	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
 		// structs of 1 direct iface type can be direct
 		typ.Kind_ |= abi.KindDirectIface
 	default:
@@ -2801,7 +2863,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && !ifaceIndir(typ):
+	case length == 1 && !typ.IfaceIndir():
 		// array of 1 direct iface type can be direct
 		array.Kind_ |= abi.KindDirectIface
 	default:
@@ -2903,11 +2965,6 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
 	return lt.t, lt.framePool, lt.abid
 }
 
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&abi.KindDirectIface == 0
-}
-
 // Note: this type must agree with runtime.bitvector.
 type bitVector struct {
 	n    uint32 // number of bits
@@ -2973,4 +3030,11 @@ func TypeFor[T any]() Type {
 		return t // optimize for T being a non-interface kind
 	}
 	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+}
+
+// ifaceIndir reports whether t is stored indirectly in an interface value.
+// This function is no longer called by the reflect package,
+// and https://go.dev/issue/67279 tracks its deletion.
+func ifaceIndir(t *abi.Type) bool {
+	return t.Kind_&abi.KindDirectIface == 0
 }

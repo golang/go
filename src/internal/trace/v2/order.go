@@ -143,6 +143,23 @@ var orderingDispatch = [256]orderingHandleFunc{
 
 	// GoStatus event with a stack. Added in Go 1.23.
 	go122.EvGoStatusStack: (*ordering).advanceGoStatus,
+
+	// Experimental events.
+
+	// Experimental heap span events. Added in Go 1.23.
+	go122.EvSpan:      (*ordering).advanceAllocFree,
+	go122.EvSpanAlloc: (*ordering).advanceAllocFree,
+	go122.EvSpanFree:  (*ordering).advanceAllocFree,
+
+	// Experimental heap object events. Added in Go 1.23.
+	go122.EvHeapObject:      (*ordering).advanceAllocFree,
+	go122.EvHeapObjectAlloc: (*ordering).advanceAllocFree,
+	go122.EvHeapObjectFree:  (*ordering).advanceAllocFree,
+
+	// Experimental goroutine stack events. Added in Go 1.23.
+	go122.EvGoroutineStack:      (*ordering).advanceAllocFree,
+	go122.EvGoroutineStackAlloc: (*ordering).advanceAllocFree,
+	go122.EvGoroutineStackFree:  (*ordering).advanceAllocFree,
 }
 
 func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
@@ -1053,6 +1070,15 @@ func (o *ordering) advanceGoRangeEnd(ev *baseEvent, evt *evTable, m ThreadID, ge
 		// Smuggle the kind into the event.
 		// Don't use ev.extra here so we have symmetry with STWBegin.
 		ev.args[0] = uint64(desc)
+	}
+	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+	return curCtx, true, nil
+}
+
+func (o *ordering) advanceAllocFree(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
+	// Handle simple instantaneous events that may or may not have a P.
+	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MayHave}); err != nil {
+		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
 	return curCtx, true, nil

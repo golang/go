@@ -422,15 +422,13 @@ func mProf_PostSweep() {
 }
 
 // Called by malloc to record a profiled block.
-func mProf_Malloc(p unsafe.Pointer, size uintptr) {
-	var stk [maxStack]uintptr
-	nstk := callers(4, stk[:])
-
+func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
+	nstk := callers(4, mp.profStack)
 	index := (mProfCycle.read() + 2) % uint32(len(memRecord{}.future))
 
-	b := stkbucket(memProfile, size, stk[:nstk], true)
-	mp := b.mp()
-	mpc := &mp.future[index]
+	b := stkbucket(memProfile, size, mp.profStack[:nstk], true)
+	mr := b.mp()
+	mpc := &mr.future[index]
 
 	lock(&profMemFutureLock[index])
 	mpc.allocs++
@@ -505,16 +503,17 @@ func blocksampled(cycles, rate int64) bool {
 }
 
 func saveblockevent(cycles, rate int64, skip int, which bucketType) {
-	gp := getg()
 	var nstk int
-	var stk [maxStack]uintptr
+	gp := getg()
+	mp := acquirem() // we must not be preempted while accessing profstack
 	if gp.m.curg == nil || gp.m.curg == gp {
-		nstk = callers(skip, stk[:])
+		nstk = callers(skip, mp.profStack)
 	} else {
-		nstk = gcallers(gp.m.curg, skip, stk[:])
+		nstk = gcallers(gp.m.curg, skip, mp.profStack)
 	}
 
-	saveBlockEventStack(cycles, rate, stk[:nstk], which)
+	saveBlockEventStack(cycles, rate, mp.profStack[:nstk], which)
+	releasem(mp)
 }
 
 // lockTimer assists with profiling contention on runtime-internal locks.
@@ -613,12 +612,12 @@ func (lt *lockTimer) end() {
 }
 
 type mLockProfile struct {
-	waitTime   atomic.Int64      // total nanoseconds spent waiting in runtime.lockWithRank
-	stack      [maxStack]uintptr // stack that experienced contention in runtime.lockWithRank
-	pending    uintptr           // *mutex that experienced contention (to be traceback-ed)
-	cycles     int64             // cycles attributable to "pending" (if set), otherwise to "stack"
-	cyclesLost int64             // contention for which we weren't able to record a call stack
-	disabled   bool              // attribute all time to "lost"
+	waitTime   atomic.Int64 // total nanoseconds spent waiting in runtime.lockWithRank
+	stack      []uintptr    // stack that experienced contention in runtime.lockWithRank
+	pending    uintptr      // *mutex that experienced contention (to be traceback-ed)
+	cycles     int64        // cycles attributable to "pending" (if set), otherwise to "stack"
+	cyclesLost int64        // contention for which we weren't able to record a call stack
+	disabled   bool         // attribute all time to "lost"
 }
 
 func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
@@ -703,7 +702,7 @@ func (prof *mLockProfile) captureStack() {
 	systemstack(func() {
 		var u unwinder
 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
-		nstk = tracebackPCs(&u, skip, prof.stack[:])
+		nstk = tracebackPCs(&u, skip, prof.stack)
 	})
 	if nstk < len(prof.stack) {
 		prof.stack[nstk] = 0
@@ -1458,62 +1457,4 @@ func Stack(buf []byte, all bool) int {
 		startTheWorld(stw)
 	}
 	return n
-}
-
-// Tracing of alloc/free/gc.
-
-var tracelock mutex
-
-func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
-	lock(&tracelock)
-	gp := getg()
-	gp.m.traceback = 2
-	if typ == nil {
-		print("tracealloc(", p, ", ", hex(size), ")\n")
-	} else {
-		print("tracealloc(", p, ", ", hex(size), ", ", toRType(typ).string(), ")\n")
-	}
-	if gp.m.curg == nil || gp == gp.m.curg {
-		goroutineheader(gp)
-		pc := getcallerpc()
-		sp := getcallersp()
-		systemstack(func() {
-			traceback(pc, sp, 0, gp)
-		})
-	} else {
-		goroutineheader(gp.m.curg)
-		traceback(^uintptr(0), ^uintptr(0), 0, gp.m.curg)
-	}
-	print("\n")
-	gp.m.traceback = 0
-	unlock(&tracelock)
-}
-
-func tracefree(p unsafe.Pointer, size uintptr) {
-	lock(&tracelock)
-	gp := getg()
-	gp.m.traceback = 2
-	print("tracefree(", p, ", ", hex(size), ")\n")
-	goroutineheader(gp)
-	pc := getcallerpc()
-	sp := getcallersp()
-	systemstack(func() {
-		traceback(pc, sp, 0, gp)
-	})
-	print("\n")
-	gp.m.traceback = 0
-	unlock(&tracelock)
-}
-
-func tracegc() {
-	lock(&tracelock)
-	gp := getg()
-	gp.m.traceback = 2
-	print("tracegc()\n")
-	// running on m->g0 stack; show all non-g0 goroutines
-	tracebackothers(gp)
-	print("end tracegc\n")
-	print("\n")
-	gp.m.traceback = 0
-	unlock(&tracelock)
 }

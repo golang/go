@@ -1176,7 +1176,18 @@ func (r *reader) linkname(name *ir.Name) {
 		lsym.SymIdx = int32(idx)
 		lsym.Set(obj.AttrIndexed, true)
 	} else {
-		name.Sym().Linkname = r.String()
+		linkname := r.String()
+		sym := name.Sym()
+		sym.Linkname = linkname
+		if sym.Pkg == types.LocalPkg && linkname != "" {
+			// Mark linkname in the current package. We don't mark the
+			// ones that are imported and propagated (e.g. through
+			// inlining or instantiation, which are marked in their
+			// corresponding packages). So we can tell in which package
+			// the linkname is used (pulled), and the linker can
+			// make a decision for allowing or disallowing it.
+			sym.Linksym().Set(obj.AttrLinkname, true)
+		}
 	}
 }
 

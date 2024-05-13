@@ -61,6 +61,10 @@ type evTable struct {
 	extraStrings   []string
 	extraStringIDs map[string]extraStringID
 	nextExtra      extraStringID
+
+	// expData contains extra unparsed data that is accessible
+	// only to ExperimentEvent via an EventExperimental event.
+	expData map[event.Experiment]*ExperimentalData
 }
 
 // addExtraString adds an extra string to the evTable and returns

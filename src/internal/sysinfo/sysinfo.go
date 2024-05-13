@@ -16,7 +16,7 @@ var CPUName = sync.OnceValue(func() string {
 		return name
 	}
 
-	if name := osCpuInfoName(); name != "" {
+	if name := osCPUInfoName(); name != "" {
 		return name
 	}
 

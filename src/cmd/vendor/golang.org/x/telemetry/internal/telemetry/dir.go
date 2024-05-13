@@ -14,32 +14,65 @@ import (
 	"time"
 )
 
-// The followings are the process' default Settings.
-// The values are subdirectories and a file under
-// os.UserConfigDir()/go/telemetry.
-// For convenience, each field is made to global
-// and they are not supposed to be changed.
-var (
-	// Default directory containing count files, local reports (not yet uploaded), and logs
-	LocalDir string
-	// Default directory containing uploaded reports.
-	UploadDir string
-	// Default file path that holds the telemetry mode info.
-	ModeFile ModeFilePath
-)
+// Default is the default directory containing Go telemetry configuration and
+// data.
+//
+// If Default is uninitialized, Default.Mode will be "off". As a consequence,
+// no data should be written to the directory, and so the path values of
+// LocalDir, UploadDir, etc. must not matter.
+//
+// Default is a global for convenience and testing, but should not be mutated
+// outside of tests.
+//
+// TODO(rfindley): it would be nice to completely eliminate this global state,
+// or at least push it in the golang.org/x/telemetry package
+var Default Dir
 
-// ModeFilePath is the telemetry mode file path with methods to manipulate the file contents.
-type ModeFilePath string
+// A Dir holds paths to telemetry data inside a directory.
+type Dir struct {
+	dir, local, upload, debug, modefile string
+}
+
+// NewDir creates a new Dir encapsulating paths in the given dir.
+//
+// NewDir does not create any new directories or files--it merely encapsulates
+// the telemetry directory layout.
+func NewDir(dir string) Dir {
+	return Dir{
+		dir:      dir,
+		local:    filepath.Join(dir, "local"),
+		upload:   filepath.Join(dir, "upload"),
+		debug:    filepath.Join(dir, "debug"),
+		modefile: filepath.Join(dir, "mode"),
+	}
+}
 
 func init() {
 	cfgDir, err := os.UserConfigDir()
 	if err != nil {
 		return
 	}
-	gotelemetrydir := filepath.Join(cfgDir, "go", "telemetry")
-	LocalDir = filepath.Join(gotelemetrydir, "local")
-	UploadDir = filepath.Join(gotelemetrydir, "upload")
-	ModeFile = ModeFilePath(filepath.Join(gotelemetrydir, "mode"))
+	Default = NewDir(filepath.Join(cfgDir, "go", "telemetry"))
+}
+
+func (d Dir) Dir() string {
+	return d.dir
+}
+
+func (d Dir) LocalDir() string {
+	return d.local
+}
+
+func (d Dir) UploadDir() string {
+	return d.upload
+}
+
+func (d Dir) DebugDir() string {
+	return d.debug
+}
+
+func (d Dir) ModeFile() string {
+	return d.modefile
 }
 
 // SetMode updates the telemetry mode with the given mode.
@@ -48,28 +81,24 @@ func init() {
 // SetMode always writes the mode file, and explicitly records the date at
 // which the modefile was updated. This means that calling SetMode with "on"
 // effectively resets the timeout before the next telemetry report is uploaded.
-func SetMode(mode string) error {
-	return ModeFile.SetMode(mode)
-}
-
-func (m ModeFilePath) SetMode(mode string) error {
-	return m.SetModeAsOf(mode, time.Now())
+func (d Dir) SetMode(mode string) error {
+	return d.SetModeAsOf(mode, time.Now())
 }
 
 // SetModeAsOf is like SetMode, but accepts an explicit time to use to
 // back-date the mode state. This exists only for testing purposes.
-func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
+func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
 	mode = strings.TrimSpace(mode)
 	switch mode {
 	case "on", "off", "local":
 	default:
 		return fmt.Errorf("invalid telemetry mode: %q", mode)
 	}
-	fname := string(m)
-	if fname == "" {
+	if d.modefile == "" {
 		return fmt.Errorf("cannot determine telemetry mode file name")
 	}
-	if err := os.MkdirAll(filepath.Dir(fname), 0755); err != nil {
+	// TODO(rfindley): why is this not 777, consistent with the use of 666 below?
+	if err := os.MkdirAll(filepath.Dir(d.modefile), 0755); err != nil {
 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
 	}
 
@@ -80,23 +109,23 @@ func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
 	}
 
 	data := []byte(mode + " " + asof)
-	return os.WriteFile(fname, data, 0666)
+	return os.WriteFile(d.modefile, data, 0666)
 }
 
 // Mode returns the current telemetry mode, as well as the time that the mode
 // was effective.
 //
 // If there is no effective time, the second result is the zero time.
-func Mode() (string, time.Time) {
-	return ModeFile.Mode()
-}
-
-func (m ModeFilePath) Mode() (string, time.Time) {
-	fname := string(m)
-	if fname == "" {
+//
+// If Mode is "off", no data should be written to the telemetry directory, and
+// the other paths values referenced by Dir should be considered undefined.
+// This accounts for the case where initializing [Default] fails, and therefore
+// local telemetry paths are unknown.
+func (d Dir) Mode() (string, time.Time) {
+	if d.modefile == "" {
 		return "off", time.Time{} // it's likely LocalDir/UploadDir are empty too. Turn off telemetry.
 	}
-	data, err := os.ReadFile(fname)
+	data, err := os.ReadFile(d.modefile)
 	if err != nil {
 		return "local", time.Time{} // default
 	}

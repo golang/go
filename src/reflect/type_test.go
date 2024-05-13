@@ -117,3 +117,53 @@ func BenchmarkTypeForError(b *testing.B) {
 		sinkType = reflect.TypeFor[error]()
 	}
 }
+
+func Test_Type_CanSeq(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
+		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
+		{"int64", reflect.TypeOf(int64(1)), true},
+		{"uint64", reflect.TypeOf(uint64(1)), true},
+		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
+		{"chan int64", reflect.TypeOf(make(chan int64)), true},
+		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
+		{"string", reflect.TypeOf(""), true},
+		{"[]int", reflect.TypeOf([]int{}), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq(); got != tt.want {
+				t.Errorf("Type.CanSeq() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_Type_CanSeq2(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
+		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
+		{"int64", reflect.TypeOf(int64(1)), false},
+		{"uint64", reflect.TypeOf(uint64(1)), false},
+		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
+		{"chan int64", reflect.TypeOf(make(chan int64)), false},
+		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
+		{"string", reflect.TypeOf(""), true},
+		{"[]int", reflect.TypeOf([]int{}), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq2(); got != tt.want {
+				t.Errorf("Type.CanSeq2() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

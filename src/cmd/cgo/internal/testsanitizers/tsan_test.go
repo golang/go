@@ -54,6 +54,7 @@ func TestTSAN(t *testing.T) {
 		{src: "tsan12.go", needsRuntime: true},
 		{src: "tsan13.go", needsRuntime: true},
 		{src: "tsan14.go", needsRuntime: true},
+		{src: "tsan15.go", needsRuntime: true},
 	}
 	for _, tc := range cases {
 		tc := tc

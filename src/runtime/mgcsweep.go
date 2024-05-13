@@ -608,16 +608,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		spanHasNoSpecials(s)
 	}
 
-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
-		// Find all newly freed objects. This doesn't have to
-		// efficient; allocfreetrace has massive overhead.
+	if traceAllocFreeEnabled() || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+		// Find all newly freed objects.
 		mbits := s.markBitsForBase()
 		abits := s.allocBitsForIndex(0)
 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
 			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
 				x := s.base() + i*s.elemsize
-				if debug.allocfreetrace != 0 {
-					tracefree(unsafe.Pointer(x), size)
+				if traceAllocFreeEnabled() {
+					trace := traceAcquire()
+					if trace.ok() {
+						trace.HeapObjectFree(x)
+						traceRelease(trace)
+					}
 				}
 				if debug.clobberfree != 0 {
 					clobberfree(unsafe.Pointer(x), size)
@@ -782,6 +785,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		if nfreed != 0 {
 			// Free large object span to heap.
 
+			// Count the free in the consistent, external stats.
+			//
+			// Do this before freeSpan, which might update heapStats' inHeap
+			// value. If it does so, then metrics that subtract object footprint
+			// from inHeap might overflow. See #67019.
+			stats := memstats.heapStats.acquire()
+			atomic.Xadd64(&stats.largeFreeCount, 1)
+			atomic.Xadd64(&stats.largeFree, int64(size))
+			memstats.heapStats.release()
+
+			// Count the free in the inconsistent, internal stats.
+			gcController.totalFree.Add(int64(size))
+
 			// NOTE(rsc,dvyukov): The original implementation of efence
 			// in CL 22060046 used sysFree instead of sysFault, so that
 			// the operating system would eventually give the memory
@@ -814,16 +830,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
 				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
 			}
-
-			// Count the free in the consistent, external stats.
-			stats := memstats.heapStats.acquire()
-			atomic.Xadd64(&stats.largeFreeCount, 1)
-			atomic.Xadd64(&stats.largeFree, int64(size))
-			memstats.heapStats.release()
-
-			// Count the free in the inconsistent, internal stats.
-			gcController.totalFree.Add(int64(size))
-
 			return true
 		}
 

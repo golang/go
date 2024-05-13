@@ -334,10 +334,18 @@ var debug struct {
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
 	// if any of the below debug options is != 0.
-	malloc         bool
-	allocfreetrace int32
-	inittrace      int32
-	sbrk           int32
+	malloc    bool
+	inittrace int32
+	sbrk      int32
+	// traceallocfree controls whether execution traces contain
+	// detailed trace data about memory allocation. This value
+	// affects debug.malloc only if it is != 0 and the execution
+	// tracer is enabled, in which case debug.malloc will be
+	// set to "true" if it isn't already while tracing is enabled.
+	// It will be set while the world is stopped, so it's safe.
+	// The value of traceallocfree can be changed any time in response
+	// to os.Setenv("GODEBUG").
+	traceallocfree atomic.Int32
 
 	panicnil atomic.Int32
 
@@ -354,7 +362,6 @@ var debug struct {
 
 var dbgvars = []*dbgVar{
 	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
-	{name: "allocfreetrace", value: &debug.allocfreetrace},
 	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
@@ -378,6 +385,7 @@ var dbgvars = []*dbgVar{
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
@@ -425,7 +433,7 @@ func parsedebugvars() {
 	// apply environment settings
 	parsegodebug(godebug, nil)
 
-	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
+	debug.malloc = (debug.inittrace | debug.sbrk) != 0
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache

@@ -145,6 +145,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 	for i, pt := range predeclared {
 		p.typCache[uint64(i)] = pt
 	}
+	// Special handling for "any", whose representation may be changed by the
+	// gotypesalias GODEBUG variable.
+	p.typCache[uint64(len(predeclared))] = types.Universe.Lookup("any").Type()
 
 	pkgList := make([]*types.Package, r.uint64())
 	for i := range pkgList {

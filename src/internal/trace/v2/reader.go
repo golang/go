@@ -22,6 +22,7 @@ type Reader struct {
 	lastTs      Time
 	gen         *generation
 	spill       *spilledBatch
+	spillErr    error // error from reading spill
 	frontier    []*batchCursor
 	cpuSamples  []cpuSample
 	order       ordering
@@ -118,6 +119,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			r.emittedSync = true
 			return syncEvent(r.gen.evTable, r.lastTs), nil
 		}
+		if r.spillErr != nil {
+			return Event{}, r.spillErr
+		}
 		if r.gen != nil && r.spill == nil {
 			// If we have a generation from the last read,
 			// and there's nothing left in the frontier, and
@@ -127,10 +131,12 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			return Event{}, io.EOF
 		}
 		// Read the next generation.
+		var err error
 		r.gen, r.spill, err = readGeneration(r.r, r.spill)
-		if err != nil {
+		if r.gen == nil {
 			return Event{}, err
 		}
+		r.spillErr = err
 
 		// Reset CPU samples cursor.
 		r.cpuSamples = r.gen.cpuSamples

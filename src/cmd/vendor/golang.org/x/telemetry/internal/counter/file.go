@@ -124,11 +124,11 @@ func (f *file) init(begin, end time.Time) {
 		f.err = errNoBuildInfo
 		return
 	}
-	if mode, _ := telemetry.Mode(); mode == "off" {
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		f.err = ErrDisabled
 		return
 	}
-	dir := telemetry.LocalDir
+	dir := telemetry.Default.LocalDir()
 
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		f.err = err
@@ -203,11 +203,11 @@ func fileValidity(now time.Time) (int, error) {
 	// If there is no 'weekends' file create it and initialize it
 	// to a random day of the week. There is a short interval for
 	// a race.
-	weekends := filepath.Join(telemetry.LocalDir, "weekends")
+	weekends := filepath.Join(telemetry.Default.LocalDir(), "weekends")
 	day := fmt.Sprintf("%d\n", rand.Intn(7))
 	if _, err := os.ReadFile(weekends); err != nil {
-		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
-			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
+		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
+			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
 			return 7, err
 		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
@@ -256,9 +256,9 @@ func (f *file) rotate() {
 
 func nop() {}
 
-// counterTime returns the current UTC time.
+// CounterTime returns the current UTC time.
 // Mutable for testing.
-var counterTime = func() time.Time {
+var CounterTime = func() time.Time {
 	return time.Now().UTC()
 }
 
@@ -280,7 +280,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 		previous.close()
 	}
 
-	name, expire, err := f.filename(counterTime())
+	name, expire, err := f.filename(CounterTime())
 	if err != nil {
 		// This could be mode == "off" (when rotate is called for the first time)
 		ret := nop
@@ -357,7 +357,7 @@ func Open() func() {
 	if telemetry.DisabledOnPlatform {
 		return func() {}
 	}
-	if mode, _ := telemetry.Mode(); mode == "off" {
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		// Don't open the file when telemetry is off.
 		defaultFile.err = ErrDisabled
 		return func() {} // No need to clean up.

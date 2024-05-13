@@ -90,7 +90,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -420,8 +420,8 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 		result[i] = f
 		i++
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
+	slices.SortFunc(result, func(a, b *Flag) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 	return result
 }

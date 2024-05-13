@@ -713,13 +713,15 @@ func (t *tester) registerTests() {
 
 	// GOEXPERIMENT=rangefunc tests
 	if !t.compileOnly {
-		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
-			&goTest{
-				variant: "iter",
-				short:   t.short,
-				env:     []string{"GOEXPERIMENT=rangefunc"},
-				pkg:     "iter",
-			})
+		for _, pkg := range []string{"iter", "slices"} {
+			t.registerTest("GOEXPERIMENT=rangefunc",
+				&goTest{
+					variant: pkg,
+					short:   t.short,
+					env:     []string{"GOEXPERIMENT=rangefunc"},
+					pkg:     pkg,
+				})
+		}
 	}
 
 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test

@@ -415,6 +415,13 @@ func stackalloc(n uint32) stack {
 		v = unsafe.Pointer(s.base())
 	}
 
+	if traceAllocFreeEnabled() {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.GoroutineStackAlloc(uintptr(v), uintptr(n))
+			traceRelease(trace)
+		}
+	}
 	if raceenabled {
 		racemalloc(v, uintptr(n))
 	}
@@ -457,6 +464,13 @@ func stackfree(stk stack) {
 			sysFree(v, n, &memstats.stacks_sys)
 		}
 		return
+	}
+	if traceAllocFreeEnabled() {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.GoroutineStackFree(uintptr(v))
+			traceRelease(trace)
+		}
 	}
 	if msanenabled {
 		msanfree(v, n)

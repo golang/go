@@ -14,7 +14,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -101,7 +101,7 @@ func TestEverything(t *testing.T) {
 	// Now test they're visited in sort order.
 	var flagNames []string
 	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
-	if !sort.StringsAreSorted(flagNames) {
+	if !slices.IsSorted(flagNames) {
 		t.Errorf("flag names not sorted: %v", flagNames)
 	}
 }

@@ -1261,13 +1261,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	if debug.malloc {
-		if debug.allocfreetrace != 0 {
-			tracealloc(x, size, typ)
-		}
-
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(fullSize)
+		}
+
+		if traceAllocFreeEnabled() {
+			trace := traceAcquire()
+			if trace.ok() {
+				trace.HeapObjectAlloc(uintptr(x), typ)
+				traceRelease(trace)
+			}
 		}
 	}
 
@@ -1400,7 +1404,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 		throw("profilealloc called without a P or outside bootstrapping")
 	}
 	c.nextSample = nextSample()
-	mProf_Malloc(x, size)
+	mProf_Malloc(mp, x, size)
 }
 
 // nextSample returns the next sampling point for heap profiling. The goal is

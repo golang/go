@@ -1510,10 +1510,6 @@ func gcMarkWorkAvailable(p *p) bool {
 // All gcWork caches must be empty.
 // STW is in effect at this point.
 func gcMark(startTime int64) {
-	if debug.allocfreetrace > 0 {
-		tracegc()
-	}
-
 	if gcphase != _GCmarktermination {
 		throw("in gcMark expecting to see gcphase as _GCmarktermination")
 	}

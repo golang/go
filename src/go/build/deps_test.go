@@ -67,6 +67,7 @@ var depsRules = `
 	internal/goos
 	< internal/bytealg
 	< internal/stringslite
+	< internal/byteorder
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
@@ -85,14 +86,12 @@ var depsRules = `
 	< internal/reflectlite
 	< errors
 	< internal/oserror, math/bits
+	< iter
 	< RUNTIME;
-
-	internal/race
-	< iter;
 
 	# slices depends on unsafe for overlapping check, cmp for comparison
 	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
+	RUNTIME, unsafe, cmp, math/bits
 	< slices;
 
 	RUNTIME, slices
@@ -389,7 +388,6 @@ var depsRules = `
 	internal/nettrace,
 	internal/poll,
 	internal/singleflight,
-	internal/race,
 	net/netip,
 	os
 	< net;

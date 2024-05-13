@@ -2106,9 +2106,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 			}
 		}
-		state.assignToSection(sect, sym.SELFRELROSECT, sym.SRODATA)
-
 		sect.Length = uint64(state.datsize) - sect.Vaddr
+
+		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
 	}
 
 	/* typelink */

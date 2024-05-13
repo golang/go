@@ -23,6 +23,7 @@ var stdPkgs = []string{
 	"html",
 	"image",
 	"io",
+	"iter",
 	"log",
 	"maps",
 	"math",

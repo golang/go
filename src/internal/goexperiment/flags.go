@@ -91,12 +91,6 @@ type Flags struct {
 	// to the outside world.
 	Arenas bool
 
-	// PageTrace enables GODEBUG=pagetrace=/path/to/result. This feature
-	// is a GOEXPERIMENT due to a security risk with setuid binaries:
-	// this compels the Go runtime to write to some arbitrary file, which
-	// may be exploited.
-	PageTrace bool
-
 	// CgoCheck2 enables an expensive cgo rule checker.
 	// When this experiment is enabled, cgo rule checks occur regardless
 	// of the GODEBUG=cgocheck setting provided at runtime.

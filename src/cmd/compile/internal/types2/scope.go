@@ -68,7 +68,19 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
 // Lookup returns the object in scope s with the given name if such an
 // object exists; otherwise the result is nil.
 func (s *Scope) Lookup(name string) Object {
-	return resolve(name, s.elems[name])
+	obj := resolve(name, s.elems[name])
+	// Hijack Lookup for "any": with gotypesalias=1, we want the Universe to
+	// return an Alias for "any", and with gotypesalias=0 we want to return
+	// the legacy representation of aliases.
+	//
+	// This is rather tricky, but works out after auditing of the usage of
+	// s.elems. The only external API to access scope elements is Lookup.
+	//
+	// TODO: remove this once gotypesalias=0 is no longer supported.
+	if obj == universeAnyAlias && !aliasAny() {
+		return universeAnyNoAlias
+	}
+	return obj
 }
 
 // LookupParent follows the parent chain of scopes starting with s until

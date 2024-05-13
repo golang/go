@@ -7144,3 +7144,25 @@ func testErrorContentLength(t *testing.T, mode testMode) {
 		t.Fatalf("read body: %q, want %q", string(body), errorBody)
 	}
 }
+
+func TestError(t *testing.T) {
+	w := httptest.NewRecorder()
+	w.Header().Set("Content-Length", "1")
+	w.Header().Set("Content-Encoding", "ascii")
+	w.Header().Set("X-Content-Type-Options", "scratch and sniff")
+	w.Header().Set("Other", "foo")
+	Error(w, "oops", 432)
+
+	h := w.Header()
+	for _, hdr := range []string{"Content-Length", "Content-Encoding"} {
+		if v, ok := h[hdr]; ok {
+			t.Errorf("%s: %q, want not present", hdr, v)
+		}
+	}
+	if v := h.Get("Content-Type"); v != "text/plain; charset=utf-8" {
+		t.Errorf("Content-Type: %q, want %q", v, "text/plain; charset=utf-8")
+	}
+	if v := h.Get("X-Content-Type-Options"); v != "nosniff" {
+		t.Errorf("X-Content-Type-Options: %q, want %q", v, "nosniff")
+	}
+}

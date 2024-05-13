@@ -2175,10 +2175,23 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be plain text.
+//
+// Error deletes the Content-Length and Content-Encoding headers,
+// sets Content-Type to “text/plain; charset=utf-8”,
+// and sets X-Content-Type-Options to “nosniff”.
+// This configures the header properly for the error message,
+// in case the caller had set it up expecting a successful output.
 func Error(w ResponseWriter, error string, code int) {
-	w.Header().Del("Content-Length")
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	h := w.Header()
+	// We delete headers which might be valid for some other content,
+	// but not anymore for the error content.
+	h.Del("Content-Length")
+	h.Del("Content-Encoding")
+
+	// There might be content type already set, but we reset it to
+	// text/plain for the error message.
+	h.Set("Content-Type", "text/plain; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }

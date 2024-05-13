@@ -966,11 +966,11 @@ func TestPanicWhilePanicking(t *testing.T) {
 		Func string
 	}{
 		{
-			"panic while printing panic value: important error message",
+			"panic while printing panic value: important multi-line\n\terror message",
 			"ErrorPanic",
 		},
 		{
-			"panic while printing panic value: important stringer message",
+			"panic while printing panic value: important multi-line\n\tstringer message",
 			"StringerPanic",
 		},
 		{
@@ -986,7 +986,7 @@ func TestPanicWhilePanicking(t *testing.T) {
 			"CircularPanic",
 		},
 		{
-			"important string message",
+			"important multi-line\n\tstring message",
 			"StringPanic",
 		},
 		{

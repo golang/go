@@ -784,10 +784,9 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	godebug := getGodebugEarly()
-	initPageTrace(godebug) // must run after mallocinit but before anything allocates
-	cpuinit(godebug)       // must run before alginit
-	randinit()             // must run before alginit, mcommoninit
-	alginit()              // maps, hash, rand must not be used before this call
+	cpuinit(godebug) // must run before alginit
+	randinit()       // must run before alginit, mcommoninit
+	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
@@ -922,6 +921,16 @@ func mcommoninit(mp *m, id int64) {
 	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" {
 		mp.cgoCallers = new(cgoCallers)
 	}
+	mProfStackInit(mp)
+}
+
+// mProfStackInit is used to eagerly initialize stack trace buffers for
+// profiling. Lazy allocation would have to deal with reentrancy issues in
+// malloc and runtime locks for mLockProfile.
+// TODO(mknyszek): Implement lazy allocation if this becomes a problem.
+func mProfStackInit(mp *m) {
+	mp.profStack = make([]uintptr, maxStack)
+	mp.mLockProfile.stack = make([]uintptr, maxStack)
 }
 
 func (mp *m) becomeSpinning() {
@@ -2342,11 +2351,6 @@ func oneNewExtraM() {
 	gp.goid = sched.goidgen.Add(1)
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
-	}
-	trace := traceAcquire()
-	if trace.ok() {
-		trace.OneNewExtraM(gp)
-		traceRelease(trace)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
@@ -5489,7 +5493,6 @@ func (pp *p) destroy() {
 	freemcache(pp.mcache)
 	pp.mcache = nil
 	gfpurge(pp)
-	traceProcFree(pp)
 	if raceenabled {
 		if pp.timers.raceCtx != 0 {
 			// The race detector code uses a callback to fetch
@@ -6948,18 +6951,6 @@ func sync_atomic_runtime_procPin() int {
 //go:linkname sync_atomic_runtime_procUnpin sync/atomic.runtime_procUnpin
 //go:nosplit
 func sync_atomic_runtime_procUnpin() {
-	procUnpin()
-}
-
-//go:linkname internal_weak_runtime_procPin internal/weak.runtime_procPin
-//go:nosplit
-func internal_weak_runtime_procPin() int {
-	return procPin()
-}
-
-//go:linkname internal_weak_runtime_procUnpin internal/weak.runtime_procUnpin
-//go:nosplit
-func internal_weak_runtime_procUnpin() {
 	procUnpin()
 }
 

@@ -6,7 +6,6 @@ package trace
 
 import (
 	"bytes"
-	"internal/trace/v2"
 	tracev2 "internal/trace/v2"
 	"internal/trace/v2/testtrace"
 	"io"
@@ -137,7 +136,7 @@ func TestMMUTrace(t *testing.T) {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
 		var events []tracev2.Event
-		tr, err := trace.NewReader(r)
+		tr, err := tracev2.NewReader(r)
 		if err != nil {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}
