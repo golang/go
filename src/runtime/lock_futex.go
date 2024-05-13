@@ -37,6 +37,13 @@ const (
 // independently: a thread can enter lock2, observe that another thread is
 // already asleep, and immediately try to grab the lock anyway without waiting
 // for its "fair" turn.
+//
+// The rest of mutex.key holds a pointer to the head of a linked list of the Ms
+// that are waiting for the mutex. The pointer portion is set if and only if the
+// mutex_sleeping flag is set. Because the futex syscall operates on 32 bits but
+// a uintptr may be larger, the flag lets us be sure the futexsleep call will
+// only commit if the pointer portion is unset. Otherwise an M allocated at an
+// address like 0x123_0000_0000 might miss its wakeups.
 
 // We use the uintptr mutex.key and note.key as a uint32.
 //
@@ -67,18 +74,53 @@ func lock2(l *mutex) {
 
 	timer := &lockTimer{lock: l}
 	timer.begin()
+
+	// If a goroutine's stack needed to grow during a lock2 call, the M could
+	// end up with two active lock2 calls (one each on curg and g0). If both are
+	// contended, the call on g0 will corrupt mWaitList. Disable stack growth.
+	stackguard0, throwsplit := gp.stackguard0, gp.throwsplit
+	if gp == gp.m.curg {
+		gp.stackguard0, gp.throwsplit = stackPreempt, true
+	}
+
 	// On uniprocessors, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin := 0
 	if ncpu > 1 {
 		spin = active_spin
 	}
+	var enqueued bool
 Loop:
 	for i := 0; ; i++ {
 		v := atomic.Loaduintptr(&l.key)
 		if v&mutex_locked == 0 {
 			// Unlocked. Try to lock.
 			if atomic.Casuintptr(&l.key, v, v|mutex_locked) {
+				// We now own the mutex
+				v = v | mutex_locked
+				for {
+					old := v
+
+					head := muintptr(v &^ (mutex_sleeping | mutex_locked))
+					fixMutexWaitList(head)
+					if enqueued {
+						head = removeMutexWaitList(head, gp.m)
+					}
+
+					v = mutex_locked
+					if head != 0 {
+						v = v | uintptr(head) | mutex_sleeping
+					}
+
+					if v == old || atomic.Casuintptr(&l.key, old, v) {
+						gp.m.mWaitList.clearLinks()
+						break
+					}
+					v = atomic.Loaduintptr(&l.key)
+				}
+				if gp == gp.m.curg {
+					gp.stackguard0, gp.throwsplit = stackguard0, throwsplit
+				}
 				timer.end()
 				return
 			}
@@ -90,21 +132,28 @@ Loop:
 			osyield()
 		} else {
 			// Someone else has it.
+			// l->key points to a linked list of M's waiting
+			// for this lock, chained through m->mWaitList.next.
+			// Queue this M.
 			for {
 				head := v &^ (mutex_locked | mutex_sleeping)
-				if atomic.Casuintptr(&l.key, v, head|mutex_locked|mutex_sleeping) {
-					break
+				if !enqueued {
+					gp.m.mWaitList.next = muintptr(head)
+					head = uintptr(unsafe.Pointer(gp.m))
+					if atomic.Casuintptr(&l.key, v, head|mutex_locked|mutex_sleeping) {
+						enqueued = true
+						break
+					}
+					gp.m.mWaitList.next = 0
 				}
 				v = atomic.Loaduintptr(&l.key)
 				if v&mutex_locked == 0 {
 					continue Loop
 				}
 			}
-			if v&mutex_locked != 0 {
-				// Queued. Wait.
-				futexsleep(key32(&l.key), uint32(v), -1)
-				i = 0
-			}
+			// Queued. Wait.
+			futexsleep(key32(&l.key), uint32(v), -1)
+			i = 0
 		}
 	}
 }
