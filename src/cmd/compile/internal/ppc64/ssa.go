@@ -2004,8 +2004,8 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		p := s.Prog(ppc64.ACMP)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = ppc64.REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REG_R0
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = 0
 
 		p = s.Prog(ppc64.ABNE)
 		p.To.Type = obj.TYPE_BRANCH
