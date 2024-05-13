@@ -92,10 +92,11 @@ var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-en
 
 func main() {
 	log.SetFlags(0)
-	telemetry.StartWithUpload() // Open the telemetry counter file so counters can be written to it.
+	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
+	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
 	flag.Usage = base.Usage
 	flag.Parse()
 	telemetry.Inc("go/invocations")
