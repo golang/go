@@ -666,7 +666,7 @@ func LoadPackage(ctx context.Context, opts PackageOpts, path, srcDir string, stk
 
 // loadImport scans the directory named by path, which must be an import path,
 // but possibly a local import path (an absolute file system path or one beginning
-// with ./ or ../).    A local relative path is interpreted relative to srcDir.
+// with ./ or ../). A local relative path is interpreted relative to srcDir.
 // It returns a *Package describing the package found in that directory.
 // loadImport does not set tool flags and should only be used by
 // this package, as part of a bigger load operation, and by GOPATH-based "go get".
