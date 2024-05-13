@@ -7,6 +7,7 @@ package main
 import (
 	"cmd/internal/cov"
 	"cmd/internal/pkgpattern"
+	"cmd/internal/telemetry"
 	"flag"
 	"fmt"
 	"os"
@@ -108,6 +109,8 @@ const (
 )
 
 func main() {
+	telemetry.Start()
+
 	// First argument should be mode/subcommand.
 	if len(os.Args) < 2 {
 		usage("missing command selector")
@@ -143,6 +146,8 @@ func main() {
 		op.Usage("")
 	}
 	flag.Parse()
+	telemetry.Inc("covdata/invocations")
+	telemetry.CountFlags("covdata/flag:", *flag.CommandLine)
 
 	// Mode-independent flag setup
 	dbgtrace(1, "starting mode-independent setup")

@@ -26,6 +26,7 @@ import (
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry"
 )
 
 const usageMessage = "" +
@@ -86,9 +87,13 @@ const (
 )
 
 func main() {
+	telemetry.Start()
+
 	objabi.AddVersionFlag()
 	flag.Usage = usage
 	objabi.Flagparse(usage)
+	telemetry.Inc("cover/invocations")
+	telemetry.CountFlags("cover/flag:", *flag.CommandLine)
 
 	// Usage information when no arguments.
 	if flag.NFlag() == 0 && flag.NArg() == 0 {

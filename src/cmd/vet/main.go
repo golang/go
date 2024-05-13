@@ -6,6 +6,8 @@ package main
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry"
+	"flag"
 
 	"golang.org/x/tools/go/analysis/unitchecker"
 
@@ -45,8 +47,10 @@ import (
 )
 
 func main() {
+	telemetry.Start()
 	objabi.AddVersionFlag()
 
+	telemetry.Inc("vet/invocations")
 	unitchecker.Main(
 		appends.Analyzer,
 		asmdecl.Analyzer,
@@ -82,4 +86,8 @@ func main() {
 		unsafeptr.Analyzer,
 		unusedresult.Analyzer,
 	)
+
+	// It's possible that unitchecker will exit early. In
+	// those cases the flags won't be counted.
+	telemetry.CountFlags("vet/flag:", *flag.CommandLine)
 }

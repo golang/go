@@ -28,6 +28,7 @@ import (
 	"cmd/internal/edit"
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry"
 )
 
 // A Package collects information about the package we're going to write.
@@ -257,8 +258,11 @@ var goarch, goos, gomips, gomips64 string
 var gccBaseCmd []string
 
 func main() {
+	telemetry.Start()
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
+	telemetry.Inc("cgo/invocations")
+	telemetry.CountFlags("cgo/flag:", *flag.CommandLine)
 
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {
