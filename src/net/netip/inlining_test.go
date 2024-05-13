@@ -31,6 +31,7 @@ func TestInlining(t *testing.T) {
 	})
 	wantInlinable := []string{
 		"(*uint128).halves",
+		"Addr.AsSlice",
 		"Addr.BitLen",
 		"Addr.hasZone",
 		"Addr.Is4",
