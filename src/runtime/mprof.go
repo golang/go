@@ -667,6 +667,17 @@ func (lt *lockTimer) end() {
 	}
 }
 
+// mWaitList is part of the M struct, and holds the list of Ms that are waiting
+// for a particular runtime.mutex.
+//
+// When an M is unable to immediately obtain a lock, it adds itself to the list
+// of Ms waiting for the lock. It does that via this struct's next field,
+// forming a singly-linked list with the mutex's key field pointing to the head
+// of the list.
+type mWaitList struct {
+	next muintptr // next m waiting for lock (set by us, cleared by another during unlock)
+}
+
 type mLockProfile struct {
 	waitTime   atomic.Int64 // total nanoseconds spent waiting in runtime.lockWithRank
 	stack      []uintptr    // stack that experienced contention in runtime.lockWithRank

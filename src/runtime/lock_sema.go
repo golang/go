@@ -77,11 +77,11 @@ Loop:
 			osyield()
 		} else {
 			// Someone else has it.
-			// l->waitm points to a linked list of M's waiting
-			// for this lock, chained through m->nextwaitm.
+			// l.key points to a linked list of M's waiting
+			// for this lock, chained through m.mWaitList.next.
 			// Queue this M.
 			for {
-				gp.m.nextwaitm = muintptr(v &^ locked)
+				gp.m.mWaitList.next = muintptr(v &^ locked)
 				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
 					break
 				}
@@ -119,7 +119,7 @@ func unlock2(l *mutex) {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
 			mp = muintptr(v &^ locked).ptr()
-			if atomic.Casuintptr(&l.key, v, uintptr(mp.nextwaitm)) {
+			if atomic.Casuintptr(&l.key, v, uintptr(mp.mWaitList.next)) {
 				// Dequeued an M.  Wake it.
 				semawakeup(mp)
 				break
@@ -200,7 +200,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 	// This reduces the nosplit footprint of notetsleep_internal.
 	gp = getg()
 
-	// Register for wakeup on n->waitm.
+	// Register for wakeup on n.key.
 	if !atomic.Casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
 		// Must be locked (got wakeup).
 		if n.key != locked {

@@ -596,8 +596,8 @@ type m struct {
 	createstack   [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
 	lockedExt     uint32      // tracking for external LockOSThread
 	lockedInt     uint32      // tracking for internal lockOSThread
-	nextwaitm     muintptr    // next m waiting for lock
 
+	mWaitList    mWaitList    // list of runtime lock waiters
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
 	profStack    []uintptr    // used for memory/block/mutex stack traces
 
