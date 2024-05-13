@@ -14,13 +14,12 @@ package netip
 import (
 	"cmp"
 	"errors"
+	"internal/bytealg"
 	"internal/byteorder"
+	"internal/itoa"
 	"math"
 	"strconv"
 	"unique"
-
-	"internal/bytealg"
-	"internal/itoa"
 )
 
 // Sizes: (64-bit)
