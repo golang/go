@@ -984,6 +984,11 @@ func validHostname(host string, isPattern bool) bool {
 	if len(host) == 0 {
 		return false
 	}
+	if host == "*" {
+		// Bare wildcards are not allowed, they are not valid DNS names,
+		// nor are they allowed per RFC 6125.
+		return false
+	}
 
 	for i, part := range strings.Split(host, ".") {
 		if part == "" {
