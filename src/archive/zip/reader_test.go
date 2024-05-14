@@ -570,6 +570,14 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	// Issue 66869: Don't skip over an EOCDR with a truncated comment.
+	// The test file sneakily hides a second EOCDR before the first one;
+	// previously we would extract one file ("file") from this archive,
+	// while most other tools would reject the file or extract a different one ("FILE").
+	{
+		Name:  "comment-truncated.zip",
+		Error: ErrFormat,
+	},
 }
 
 func TestReader(t *testing.T) {
