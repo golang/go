@@ -176,6 +176,9 @@ This behavior is controlled by the `winreadlinkvolume` setting.
 For Go 1.23, it defaults to `winreadlinkvolume=1`.
 Previous versions default to `winreadlinkvolume=0`.
 
+Go 1.23 corrected the semantics of contention reports for runtime-internal locks,
+and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
