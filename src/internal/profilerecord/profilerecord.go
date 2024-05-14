@@ -10,6 +10,7 @@ package profilerecord
 
 type StackRecord struct {
 	Stack []uintptr
+	GoID  uint64
 }
 
 type MemProfileRecord struct {

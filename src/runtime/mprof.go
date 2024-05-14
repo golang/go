@@ -1009,6 +1009,7 @@ func mutexevent(cycles int64, skip int) {
 // A StackRecord describes a single execution stack.
 type StackRecord struct {
 	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
+	goid   uint64      // Goroutine ID for the first record (or 0 if undefined by the struct creator).
 }
 
 // Stack returns the stack trace associated with the record,
@@ -1020,6 +1021,11 @@ func (r *StackRecord) Stack() []uintptr {
 		}
 	}
 	return r.Stack0[0:]
+}
+
+// GoID returns an identifier for the Goroutine this stack was captured for, or zero if undefined.
+func (r *StackRecord) GoID() uint64 {
+	return r.goid
 }
 
 // MemProfileRate controls the fraction of memory allocations
@@ -1707,6 +1713,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 	}
 	for i, mr := range records[0:n] {
 		copy(p[i].Stack0[:], mr.Stack)
+		p[i].goid = mr.GoID
 	}
 	return
 }
@@ -1735,6 +1742,7 @@ func saveg(pc, sp uintptr, gp *g, r *profilerecord.StackRecord, pcbuf []uintptr)
 	n := tracebackPCs(&u, 0, pcbuf)
 	r.Stack = make([]uintptr, n)
 	copy(r.Stack, pcbuf)
+	r.GoID = gp.goid
 }
 
 // Stack formats a stack trace of the calling goroutine into buf
