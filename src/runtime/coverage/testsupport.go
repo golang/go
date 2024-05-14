@@ -22,6 +22,9 @@ import (
 	"unsafe"
 )
 
+// processCoverTestDir is injected in testmain.
+//go:linkname processCoverTestDir
+
 // processCoverTestDir is called (via a linknamed reference) from
 // testmain code when "go test -cover" is in effect. It is not
 // intended to be used other than internally by the Go command's
@@ -276,6 +279,9 @@ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]stru
 	}
 	return nil
 }
+
+// snapshot is injected in testmain.
+//go:linkname snapshot
 
 // snapshot returns a snapshot of coverage percentage at a moment of
 // time within a running test, so as to support the testing.Coverage()

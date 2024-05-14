@@ -292,6 +292,7 @@ type extSymPayload struct {
 const (
 	// Loader.flags
 	FlagStrictDups = 1 << iota
+	FlagCheckLinkname
 )
 
 func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
@@ -421,14 +422,6 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	}
 
 	// Non-package (named) symbol.
-	if osym.IsLinkname() && r.DataSize(li) == 0 {
-		// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
-		// Check if a linkname reference is allowed.
-		// Only check references (pull), not definitions (push, with non-zero size),
-		// so push is always allowed.
-		// Linkname is always a non-package reference.
-		checkLinkname(r.unit.Lib.Pkg, name)
-	}
 	// Check if it already exists.
 	oldi, existed := l.symsByName[ver][name]
 	if !existed {
@@ -2154,6 +2147,14 @@ type loadState struct {
 	l            *Loader
 	hashed64Syms map[uint64]symAndSize         // short hashed (content-addressable) symbols, keyed by content hash
 	hashedSyms   map[goobj.HashType]symAndSize // hashed (content-addressable) symbols, keyed by content hash
+
+	linknameVarRefs []linknameVarRef // linknamed var refererces
+}
+
+type linknameVarRef struct {
+	pkg  string // package of reference (not definition)
+	name string
+	sym  Sym
 }
 
 // Preload symbols of given kind from an object.
@@ -2188,6 +2189,19 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		gi := st.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
+		if kind == nonPkgDef && osym.IsLinkname() && r.DataSize(i) == 0 && strings.Contains(name, ".") {
+			// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
+			// We want to check if a linkname reference is allowed. Here we haven't loaded all
+			// symbol definitions, so we don't yet know all the push linknames. So we add to a
+			// list and check later after all symbol defs are loaded. Linknamed vars are rare,
+			// so this list won't be long.
+			// Only check references (pull), not definitions (push, with non-zero size),
+			// so push is always allowed.
+			// This use of linkname is usually for referencing C symbols, so allow symbols
+			// with no "." in its name (not a regular Go symbol).
+			// Linkname is always a non-package reference.
+			st.linknameVarRefs = append(st.linknameVarRefs, linknameVarRef{r.unit.Lib.Pkg, name, gi})
+		}
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
 		}
@@ -2237,6 +2251,9 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 		st.preloadSyms(r, hashedDef)
 		st.preloadSyms(r, nonPkgDef)
 	}
+	for _, vr := range st.linknameVarRefs {
+		l.checkLinkname(vr.pkg, vr.name, vr.sym)
+	}
 	l.nhashedsyms = len(st.hashed64Syms) + len(st.hashedSyms)
 	for _, r := range l.objs[goObjStart:] {
 		loadObjRefs(l, r, arch)
@@ -2252,15 +2269,15 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		osym := r.Sym(ndef + i)
 		name := osym.Name(r.Reader)
 		v := abiToVer(osym.ABI(), r.version)
+		gi := l.LookupOrCreateSym(name, v)
+		r.syms[ndef+i] = gi
 		if osym.IsLinkname() {
 			// Check if a linkname reference is allowed.
 			// Only check references (pull), not definitions (push),
 			// so push is always allowed.
 			// Linkname is always a non-package reference.
-			checkLinkname(r.unit.Lib.Pkg, name)
+			l.checkLinkname(r.unit.Lib.Pkg, name, gi)
 		}
-		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
-		gi := r.syms[ndef+i]
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
 		}
@@ -2307,30 +2324,27 @@ func abiToVer(abi uint16, localSymVersion int) int {
 
 // A list of blocked linknames. Some linknames are allowed only
 // in specific packages. This maps symbol names to allowed packages.
-// If a name is not in this map, and not with a blocked prefix (see
-// blockedLinknamePrefixes), it is allowed everywhere.
-// If a name is in this map, it is allowed only in listed packages.
+// If a name is not in this map, it is allowed iff the definition
+// has a linkname (push).
+// If a name is in this map, it is allowed only in listed packages,
+// even if it has a linknamed definition.
 var blockedLinknames = map[string][]string{
 	// coroutines
-	"runtime.coroexit":   nil,
-	"runtime.corostart":  nil,
 	"runtime.coroswitch": {"iter"},
 	"runtime.newcoro":    {"iter"},
 	// weak references
 	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
 	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
-	"runtime.getOrAddWeakHandle":                nil,
 }
 
-// A list of blocked linkname prefixes (packages).
-var blockedLinknamePrefixes = []string{
-	"internal/weak.",
-	"internal/concurrent.",
-}
+// check if a linkname reference to symbol s from pkg is allowed
+func (l *Loader) checkLinkname(pkg, name string, s Sym) {
+	if l.flags&FlagCheckLinkname == 0 {
+		return
+	}
 
-func checkLinkname(pkg, name string) {
 	error := func() {
-		log.Fatalf("linkname or assembly reference of %s is not allowed in package %s", name, pkg)
+		log.Fatalf("%s: invalid reference to %s", pkg, name)
 	}
 	pkgs, ok := blockedLinknames[name]
 	if ok {
@@ -2341,11 +2355,26 @@ func checkLinkname(pkg, name string) {
 		}
 		error()
 	}
-	for _, p := range blockedLinknamePrefixes {
-		if strings.HasPrefix(name, p) {
-			error()
-		}
+	r, li := l.toLocal(s)
+	if r == l.extReader { // referencing external symbol is okay
+		return
 	}
+	if !r.Std() { // For now, only check for symbols defined in std
+		return
+	}
+	if r.unit.Lib.Pkg == pkg { // assembly reference from same package
+		return
+	}
+	osym := r.Sym(li)
+	if osym.IsLinkname() || osym.ABIWrapper() {
+		// Allow if the def has a linkname (push).
+		// ABI wrapper usually wraps an assembly symbol, a linknamed symbol,
+		// or an external symbol, or provide access of a Go symbol to assembly.
+		// For now, allow ABI wrappers.
+		// TODO: check the wrapped symbol?
+		return
+	}
+	error()
 }
 
 // TopLevelSym tests a symbol (by name and kind) to determine whether

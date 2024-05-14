@@ -574,6 +574,9 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
 	return nil
 }
 
+// markProfileEmitted is injected to testmain via linkname.
+//go:linkname markProfileEmitted
+
 // markProfileEmitted signals the runtime/coverage machinery that
 // coverage data output files have already been written out, and there
 // is no need to take any additional action at exit time. This

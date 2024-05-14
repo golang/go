@@ -42,7 +42,7 @@ var depsRules = `
 	< cmp, container/list, container/ring,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
-	  internal/cpu, internal/goarch, internal/godebugs,
+	  internal/goarch, internal/godebugs,
 	  internal/goexperiment, internal/goos, internal/byteorder,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/trace/traceviewer/format,
@@ -55,7 +55,7 @@ var depsRules = `
 
 	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
 
-	unsafe < maps;
+	unsafe < internal/cpu, maps;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,

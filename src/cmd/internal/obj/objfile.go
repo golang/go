@@ -57,6 +57,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	if ctxt.IsAsm {
 		flags |= goobj.ObjFlagFromAssembly
 	}
+	if ctxt.Std {
+		flags |= goobj.ObjFlagStd
+	}
 	h := goobj.Header{
 		Magic:       goobj.Magic,
 		Fingerprint: ctxt.Fingerprint,
@@ -309,6 +312,7 @@ func (w *writer) StringTable() {
 const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
 
 func (w *writer) Sym(s *LSym) {
+	name := s.Name
 	abi := uint16(s.ABI())
 	if s.Static() {
 		abi = goobj.SymABIstatic
@@ -348,10 +352,15 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
-	if s.IsLinkname() || w.ctxt.IsAsm { // assembly reference is treated the same as linkname
+	if s.IsLinkname() || (w.ctxt.IsAsm && name != "") || name == "main.main" {
+		// Assembly reference is treated the same as linkname,
+		// but not for unnamed (aux) symbols.
+		// The runtime linknames main.main.
 		flag2 |= goobj.SymFlagLinkname
 	}
-	name := s.Name
+	if s.ABIWrapper() {
+		flag2 |= goobj.SymFlagABIWrapper
+	}
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}

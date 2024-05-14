@@ -518,6 +518,9 @@ func (ctxt *Link) findLibPath(libname string) string {
 
 func (ctxt *Link) loadlib() {
 	var flags uint32
+	if *flagCheckLinkname {
+		flags |= loader.FlagCheckLinkname
+	}
 	switch *FlagStrictDups {
 	case 0:
 		// nothing to do

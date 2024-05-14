@@ -1551,6 +1551,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 		nbitmap = 2
 	}
 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
+	lsym.Set(obj.AttrLinkname, true) // allow args_stackmap referenced from assembly
 	off := objw.Uint32(lsym, 0, uint32(nbitmap))
 	off = objw.Uint32(lsym, off, uint32(bv.N))
 	off = objw.BitVec(lsym, off, bv)

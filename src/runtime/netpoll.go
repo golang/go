@@ -207,6 +207,9 @@ var (
 	netpollWaiters atomic.Uint32
 )
 
+// netpollWaiters is accessed in tests
+//go:linkname netpollWaiters
+
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
 func poll_runtime_pollServerInit() {
 	netpollGenericInit()

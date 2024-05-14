@@ -14,10 +14,13 @@ import (
 	"internal/bytealg"
 	"runtime"
 	"syscall"
+	_ "unsafe" // for linkname
 )
 
 // registerLoadFromEmbeddedTZData is called by the time/tzdata package,
 // if it is imported.
+//
+//go:linkname registerLoadFromEmbeddedTZData
 func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
 	loadFromEmbeddedTZData = f
 }

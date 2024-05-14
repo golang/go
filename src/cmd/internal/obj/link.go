@@ -1048,6 +1048,7 @@ type Link struct {
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
 	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+	Std           bool // is standard library package
 
 	// state for writing objects
 	Text []*LSym

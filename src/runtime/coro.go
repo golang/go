@@ -46,8 +46,6 @@ func newcoro(f func(*coro)) *coro {
 	return c
 }
 
-//go:linkname corostart
-
 // corostart is the entry func for a new coroutine.
 // It runs the coroutine user function f passed to corostart
 // and then calls coroexit to remove the extra concurrency.

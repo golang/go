@@ -312,7 +312,7 @@ func gobytes(p *byte, n int) (b []byte) {
 	return
 }
 
-// This is exported via linkname to assembly in syscall (for Plan9).
+// This is exported via linkname to assembly in syscall (for Plan9) and cgo.
 //
 //go:linkname gostring
 func gostring(p *byte) string {

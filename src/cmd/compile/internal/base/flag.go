@@ -213,6 +213,8 @@ func ParseFlags() {
 		Flag.CompilingRuntime = true
 	}
 
+	Ctxt.Std = Flag.Std
+
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
 	// The loop variable rewriting is:
 	// IF non-empty hash, then hash determines behavior (function+line match) (*)
