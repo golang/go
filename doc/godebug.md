@@ -175,7 +175,7 @@ Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
 For Go 1.23, `gotypesalias=1` will become the default.
-This setting will be removed in a future release, Go 1.24 at the earliest.
+This setting will be removed in a future release, Go 1.27 at the earliest.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
 and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
