@@ -361,7 +361,11 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		drainTries = 5
 	)
 
-	drain := func() {
+	// drain1 removes one potential stale time value
+	// from the timer/ticker channel after Reset.
+	// When using Go 1.23 sync timers/tickers, draining is never needed
+	// (that's the whole point of the sync timer/ticker change).
+	drain1 := func() {
 		for range drainTries {
 			select {
 			case <-C:
@@ -369,6 +373,34 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 			default:
 			}
 			Sleep(sched)
+		}
+	}
+
+	// drainAsync removes potential stale time values after Stop/Reset.
+	// When using Go 1 async timers, draining one or two values
+	// may be needed after Reset or Stop (see comments in body for details).
+	drainAsync := func() {
+		if synctimerchan {
+			// sync timers must have the right semantics without draining:
+			// there are no stale values.
+			return
+		}
+
+		// async timers can send one stale value (then the timer is disabled).
+		drain1()
+		if isTicker {
+			// async tickers can send two stale values: there may be one
+			// sitting in the channel buffer, and there may also be one
+			// send racing with the Reset/Stop+drain that arrives after
+			// the first drain1 has pulled the value out.
+			// This is rare, but it does happen on overloaded builder machines.
+			// It can also be reproduced on an M3 MacBook Pro using:
+			//
+			//	go test -c strings
+			//	stress ./strings.test &   # chew up CPU
+			//	go test -c -race time
+			//	stress -p 48 ./time.test -test.count=10 -test.run=TestChan/asynctimerchan=1/Ticker
+			drain1()
 		}
 	}
 	noTick := func() {
@@ -439,9 +471,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		assertTick()
 		Sleep(sched)
 		tim.Reset(10000 * Second)
-		if isTicker {
-			drain()
-		}
+		drainAsync()
 		noTick()
 
 		// Test that len sees an immediate tick arrive
@@ -453,9 +483,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		// Test that len sees an immediate tick arrive
 		// for Reset of timer NOT in heap.
 		tim.Stop()
-		if !synctimerchan {
-			drain()
-		}
+		drainAsync()
 		tim.Reset(1)
 		assertLen()
 		assertTick()
@@ -465,9 +493,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	// Test that Reset does not lose the tick that should have happened.
 	Sleep(sched)
 	tim.Reset(10000 * Second)
-	if !synctimerchan && isTicker {
-		drain()
-	}
+	drainAsync()
 	noTick()
 
 	notDone := func(done chan bool) {
@@ -494,9 +520,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 
 	// Reset timer in heap (already reset above, but just in case).
 	tim.Reset(10000 * Second)
-	if !synctimerchan {
-		drain()
-	}
+	drainAsync()
 
 	// Test stop while timer in heap (because goroutine is blocked on <-C).
 	done := make(chan bool)
@@ -526,17 +550,12 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 	}
 
 	tim.Stop()
-	if isTicker || !synctimerchan {
-		t.Logf("drain")
-		drain()
-	}
+	drainAsync()
 	noTick()
 
 	// Again using select and with two goroutines waiting.
 	tim.Reset(10000 * Second)
-	if !synctimerchan {
-		drain()
-	}
+	drainAsync()
 	done = make(chan bool, 2)
 	done1 := make(chan bool)
 	done2 := make(chan bool)
