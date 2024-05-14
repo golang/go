@@ -62,7 +62,7 @@ loop:
 	MOVD  R22, 24(R10)    // z[i+2]
 	MOVDU R23, 32(R10)    // z[i+3]
 	ADD   $-4, R7         // R7 = z_len - 4
-	BC  16, 0, loop       // bdnz
+	BDNZ  loop
 
 	// We may have more elements to read
 	CMP   R0, R7
@@ -151,7 +151,7 @@ loop:
 	MOVD  R22, 24(R10)    // z[i+2]
 	MOVDU R23, 32(R10)    // z[i+3]
 	ADD   $-4, R7         // R7 = z_len - 4
-	BC  16, 0, loop       // bdnz
+	BDNZ  loop
 
 	// We may have more elements to read
 	CMP   R0, R7
@@ -230,7 +230,7 @@ loop:
 	MOVD  R26, 24(R10)	// z[i+2]
 	MOVDU R27, 32(R10)	// z[i+3]
 	ADD   $-4, R11		// R11 = z_len - 4
-	BC    16, 0, loop	// bdnz
+	BDNZ  loop
 
 	// We may have some elements to read
 	CMP R0, R11
@@ -307,7 +307,7 @@ loop:
 	MOVD  R22, 24(R10)
 	MOVDU R23, 32(R10)
 	ADD   $-4, R11
-	BC    16, 0, loop	// bdnz
+	BDNZ  loop
 
 	// We may have some elements to read
 	CMP   R0, R11
@@ -550,7 +550,7 @@ loop:
 	MOVD    R26, 24(R10)      // z[i+2]
 	MOVDU   R27, 32(R10)      // z[i+3]
 	ADD     $-4, R11          // R11 = z_len - 4
-	BC      16, 0, loop       // bdnz
+	BDNZ    loop
 
 	// We may have some elements to read
 	CMP   R0, R11
