@@ -768,7 +768,7 @@ func TestOrInt32(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j int32
-	for mask := int32(1); mask|mask > mask; mask += mask {
+	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := OrInt32(&x.i, mask)
 		j |= mask
@@ -790,7 +790,7 @@ func TestOrInt32Method(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j int32
-	for mask := int32(1); mask|mask > 0; mask += mask {
+	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.Or(mask)
 		j |= mask
@@ -812,7 +812,7 @@ func TestOrUint32(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j uint32
-	for mask := uint32(1); mask|mask > 0; mask += mask {
+	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := OrUint32(&x.i, mask)
 		j |= mask
@@ -834,7 +834,7 @@ func TestOrUint32Method(t *testing.T) {
 	x.before = magic32
 	x.after = magic32
 	var j uint32
-	for mask := uint32(1); mask|mask > 0; mask += mask {
+	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.Or(mask)
 		j |= mask
@@ -857,7 +857,7 @@ func TestOrInt64(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j int64
-	for mask := int64(1); mask|mask > 0; mask += mask {
+	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := OrInt64(&x.i, mask)
 		j |= mask
@@ -880,7 +880,7 @@ func TestOrInt64Method(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j int64
-	for mask := int64(1); mask|mask > 0; mask += mask {
+	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.Or(mask)
 		j |= mask
@@ -903,7 +903,7 @@ func TestOrUint64(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j uint64
-	for mask := uint64(1); mask|mask > 0; mask += mask {
+	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := OrUint64(&x.i, mask)
 		j |= mask
@@ -926,7 +926,7 @@ func TestOrUint64Method(t *testing.T) {
 	x.before = magic64
 	x.after = magic64
 	var j uint64
-	for mask := uint64(1); mask|mask > 0; mask += mask {
+	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.Or(mask)
 		j |= mask
@@ -950,7 +950,7 @@ func TestOrUintptr(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	var j uintptr
-	for mask := uintptr(1); mask|mask > 0; mask += mask {
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i
 		k := OrUintptr(&x.i, mask)
 		j |= mask
@@ -974,7 +974,7 @@ func TestOrUintptrMethod(t *testing.T) {
 	x.before = magicptr
 	x.after = magicptr
 	var j uintptr
-	for mask := uintptr(1); mask|mask > 0; mask += mask {
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
 		k := x.i.Or(mask)
 		j |= mask
