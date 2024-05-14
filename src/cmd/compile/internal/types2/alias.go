@@ -28,9 +28,15 @@ func NewAlias(obj *TypeName, rhs Type) *Alias {
 	return alias
 }
 
-func (a *Alias) Obj() *TypeName   { return a.obj }
+func (a *Alias) Obj() *TypeName { return a.obj }
+func (a *Alias) String() string { return TypeString(a, nil) }
+
+// Underlying returns the [underlying type] of the alias type a, which is the
+// underlying type of the aliased type. Underlying types are never Named,
+// TypeParam, or Alias types.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
-func (a *Alias) String() string   { return TypeString(a, nil) }
 
 // Rhs returns the type R on the right-hand side of an alias
 // declaration "type A = R", which may be another alias.
