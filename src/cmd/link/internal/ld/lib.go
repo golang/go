@@ -47,6 +47,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
@@ -1268,6 +1269,22 @@ func hostlinksetup(ctxt *Link) {
 	}
 }
 
+// cleanTimeStamps resets the timestamps for the specified list of
+// existing files to the Unix epoch (1970-01-01 00:00:00 +0000 UTC).
+// We take this step in order to help preserve reproducible builds;
+// this seems to be primarily needed for external linking on on Darwin
+// with later versions of xcode, which (unfortunately) seem to want to
+// incorporate object file times into the final output file's build
+// ID. See issue 64947 for the unpleasant details.
+func cleanTimeStamps(files []string) {
+	epocht := time.Unix(0, 0)
+	for _, f := range files {
+		if err := os.Chtimes(f, epocht, epocht); err != nil {
+			Exitf("cannot chtimes %s: %v", f, err)
+		}
+	}
+}
+
 // hostobjCopy creates a copy of the object files in hostobj in a
 // temporary directory.
 func (ctxt *Link) hostobjCopy() (paths []string) {
@@ -1360,9 +1377,14 @@ func (ctxt *Link) archive() {
 	if ctxt.HeadType == objabi.Haix {
 		argv = append(argv, "-X64")
 	}
+	godotopath := filepath.Join(*flagTmpdir, "go.o")
+	cleanTimeStamps([]string{godotopath})
+	hostObjCopyPaths := ctxt.hostobjCopy()
+	cleanTimeStamps(hostObjCopyPaths)
+
 	argv = append(argv, *flagOutfile)
-	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, ctxt.hostobjCopy()...)
+	argv = append(argv, godotopath)
+	argv = append(argv, hostObjCopyPaths...)
 
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("archive: %s\n", strings.Join(argv, " "))
@@ -1733,8 +1755,13 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, compressDWARF)
 	}
 
-	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, ctxt.hostobjCopy()...)
+	hostObjCopyPaths := ctxt.hostobjCopy()
+	cleanTimeStamps(hostObjCopyPaths)
+	godotopath := filepath.Join(*flagTmpdir, "go.o")
+	cleanTimeStamps([]string{godotopath})
+
+	argv = append(argv, godotopath)
+	argv = append(argv, hostObjCopyPaths...)
 	if ctxt.HeadType == objabi.Haix {
 		// We want to have C files after Go files to remove
 		// trampolines csects made by ld.
