@@ -763,7 +763,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FCPSGN F1, F2                   // fc420810
 	FCPSGNCC F1, F2                 // fc420811
 	FCMPO F1, F2                    // fc011040
+	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2 // fc011040
 	FCMPU F1, F2                    // fc011000
+	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2 // fc011000
 	LVX (R3)(R4), V1                // 7c2418ce
 	LVX (R3)(R0), V1                // 7c2018ce
 	LVX (R3), V1                    // 7c2018ce
@@ -1153,6 +1155,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
+	OR $0, R0, R0                   // 60000000
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100
