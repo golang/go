@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/stringslite"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1131,7 +1132,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 		return true
 	}
 
-	return bytealg.IndexByteString(name, '.') >= 0 && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
+	return bytealg.IndexByteString(name, '.') >= 0 && (!stringslite.HasPrefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -1342,7 +1343,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 		}
 		return fingStatus.Load()&fingRunningFinalizer == 0
 	}
-	return hasPrefix(funcname(f), "runtime.")
+	return stringslite.HasPrefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather

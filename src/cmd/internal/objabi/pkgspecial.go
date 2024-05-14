@@ -58,6 +58,7 @@ var runtimePkgs = []string{
 	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goos",
+	"internal/stringslite",
 }
 
 // extraNoInstrumentPkgs is the set of packages in addition to runtimePkgs that

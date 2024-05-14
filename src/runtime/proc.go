@@ -10,6 +10,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
+	"internal/stringslite"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -729,7 +730,7 @@ func getGodebugEarly() string {
 			p := argv_index(argv, argc+1+i)
 			s := unsafe.String(p, findnull(p))
 
-			if hasPrefix(s, prefix) {
+			if stringslite.HasPrefix(s, prefix) {
 				env = gostring(p)[len(prefix):]
 				break
 			}
@@ -5268,7 +5269,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
-			if hasPrefix(funcname(f), "internal/runtime/atomic") {
+			if stringslite.HasPrefix(funcname(f), "internal/runtime/atomic") {
 				cpuprof.lostAtomic++
 				return
 			}
