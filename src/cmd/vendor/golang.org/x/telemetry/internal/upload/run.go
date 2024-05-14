@@ -174,9 +174,13 @@ func debugLogFile(debugDir string) (*os.File, error) {
 	}
 	prog := path.Base(progPkgPath)
 	progVers := info.Main.Version
-	fname := filepath.Join(debugDir, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
-		prog, progVers, goVers, year, month, day, os.Getpid()))
-	fname = strings.ReplaceAll(fname, " ", "")
+	if progVers == "(devel)" { // avoid special characters in created file names
+		progVers = "devel"
+	}
+	logBase := strings.ReplaceAll(
+		fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log", prog, progVers, goVers, year, month, day, os.Getpid()),
+		" ", "")
+	fname := filepath.Join(debugDir, logBase)
 	if _, err := os.Stat(fname); err == nil {
 		// This process previously called upload.Run
 		return nil, nil

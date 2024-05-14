@@ -147,6 +147,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 	}
 	var succeeded bool
 	for _, f := range countFiles {
+		fok := false
 		x, err := u.parseCountFile(f)
 		if err != nil {
 			u.logger.Printf("Unparseable count file %s: %v", filepath.Base(f), err)
@@ -162,12 +163,14 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 				prog.Counters[k] += int64(v)
 			}
 			succeeded = true
+			fok = true
+		}
+		if !fok {
+			u.logger.Printf("no counters found in %s", f)
 		}
 	}
 	if !succeeded {
-		// TODO(rfindley): this isn't right: a count file is not unparseable just
-		// because it has no counters
-		return "", fmt.Errorf("all %d count files for %s were unparseable", len(countFiles), expiryDate)
+		return "", fmt.Errorf("none of the %d count files for %s contained counters", len(countFiles), expiryDate)
 	}
 	// 1. generate the local report
 	localContents, err := json.MarshalIndent(report, "", " ")
