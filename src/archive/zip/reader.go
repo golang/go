@@ -699,9 +699,13 @@ func findSignatureInBlock(b []byte) int {
 		if b[i] == 'P' && b[i+1] == 'K' && b[i+2] == 0x05 && b[i+3] == 0x06 {
 			// n is length of comment
 			n := int(b[i+directoryEndLen-2]) | int(b[i+directoryEndLen-1])<<8
-			if n+directoryEndLen+i <= len(b) {
-				return i
+			if n+directoryEndLen+i > len(b) {
+				// Truncated comment.
+				// Some parsers (such as Info-ZIP) ignore the truncated comment
+				// rather than treating it as a hard error.
+				return -1
 			}
+			return i
 		}
 	}
 	return -1
