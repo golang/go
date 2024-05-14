@@ -89,7 +89,7 @@ xor16:
 	ADD	$16, R8
 	ADD	$-16, R6
 small:
-	CMP	R6, R0
+	CMP	R6, $0
 	BC	12,2,LR		// BEQLR
 xor8:
 #ifdef GOPPC64_power10
@@ -131,7 +131,7 @@ xor2:
 	ADD	$2,R8
 	ADD	$-2,R6
 xor1:
-	CMP	R6, R0
+	CMP	R6, $0
 	BC	12,2,LR		// BEQLR
 	MOVBZ	(R4)(R8), R14	// R14 = a[i]
 	MOVBZ	(R5)(R8), R15	// R15 = b[i]

@@ -18,7 +18,7 @@ TEXT ·addVV(SB), NOSPLIT, $0
 	MOVD  z+0(FP), R10      // R10 = z[]
 
 	// If z_len = 0, we are done
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVD  R0, R4
 	BEQ   done
 
@@ -28,12 +28,12 @@ TEXT ·addVV(SB), NOSPLIT, $0
 	MOVD  0(R9), R12      // R12 = y[i]
 	ADD   $-1, R7         // R7 = z_len - 1
 	ADDC  R12, R11, R15   // R15 = x[i] + y[i], set CA
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVD  R15, 0(R10)     // z[i]
 	BEQ   final          // If z_len was 1, we are done
 
 	SRD   $2, R7, R5      // R5 = z_len/4
-	CMP   R0, R5
+	CMP   R5, $0
 	MOVD  R5, CTR         // Set up loop counter
 	BEQ   tail            // If R5 = 0, we can't use the loop
 
@@ -65,7 +65,7 @@ loop:
 	BDNZ  loop
 
 	// We may have more elements to read
-	CMP   R0, R7
+	CMP   R7, $0
 	BEQ   final
 
 	// Process the remaining elements, one at a time
@@ -74,7 +74,7 @@ tail:
 	MOVDU 8(R9), R16      // R16 = y[i]
 	ADD   $-1, R7         // R7 = z_len - 1
 	ADDE  R11, R16, R20   // R20 = x[i] + y[i] + CA
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVDU R20, 8(R10)     // z[i]
 	BEQ   final           // If R7 = 0, we are done
 
@@ -82,7 +82,7 @@ tail:
 	MOVDU 8(R9), R16
 	ADD   $-1, R7
 	ADDE  R11, R16, R20
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVDU R20, 8(R10)
 	BEQ   final
 
@@ -107,7 +107,7 @@ TEXT ·subVV(SB), NOSPLIT, $0
 	MOVD  z+0(FP), R10    // R10 = z[]
 
 	// If z_len = 0, we are done
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVD  R0, R4
 	BEQ   done
 
@@ -117,12 +117,12 @@ TEXT ·subVV(SB), NOSPLIT, $0
 	MOVD  0(R9), R12      // R12 = y[i]
 	ADD   $-1, R7         // R7 = z_len - 1
 	SUBC  R12, R11, R15   // R15 = x[i] - y[i], set CA
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVD  R15, 0(R10)     // z[i]
 	BEQ   final           // If z_len was 1, we are done
 
 	SRD   $2, R7, R5      // R5 = z_len/4
-	CMP   R0, R5
+	CMP   R5, $0
 	MOVD  R5, CTR         // Set up loop counter
 	BEQ   tail            // If R5 = 0, we can't use the loop
 
@@ -154,7 +154,7 @@ loop:
 	BDNZ  loop
 
 	// We may have more elements to read
-	CMP   R0, R7
+	CMP   R7, $0
 	BEQ   final
 
 	// Process the remaining elements, one at a time
@@ -163,7 +163,7 @@ tail:
 	MOVDU 8(R9), R16      // R16 = y[i]
 	ADD   $-1, R7         // R7 = z_len - 1
 	SUBE  R16, R11, R20   // R20 = x[i] - y[i] + CA
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVDU R20, 8(R10)     // z[i]
 	BEQ   final           // If R7 = 0, we are done
 
@@ -171,7 +171,7 @@ tail:
 	MOVDU 8(R9), R16
 	ADD   $-1, R7
 	SUBE  R16, R11, R20
-	CMP   R0, R7
+	CMP   R7, $0
 	MOVDU R20, 8(R10)
 	BEQ   final
 
@@ -195,7 +195,7 @@ TEXT ·addVW(SB), NOSPLIT, $0
 	MOVD y+48(FP), R4	// R4 = y = c
 	MOVD z_len+8(FP), R11	// R11 = z_len
 
-	CMP   R0, R11		// If z_len is zero, return
+	CMP   R11, $0		// If z_len is zero, return
 	BEQ   done
 
 	// We will process the first iteration out of the loop so we capture
@@ -204,14 +204,13 @@ TEXT ·addVW(SB), NOSPLIT, $0
 	MOVD  0(R8), R20	// R20 = x[i]
 	ADD   $-1, R11		// R11 = z_len - 1
 	ADDC  R20, R4, R6	// R6 = x[i] + c
-	CMP   R0, R11		// If z_len was 1, we are done
+	CMP   R11, $0		// If z_len was 1, we are done
 	MOVD  R6, 0(R10)	// z[i]
 	BEQ   final
 
 	// We will read 4 elements per iteration
-	SRD   $2, R11, R9	// R9 = z_len/4
+	SRDCC $2, R11, R9	// R9 = z_len/4
 	DCBT  (R8)
-	CMP   R0, R9
 	MOVD  R9, CTR		// Set up the loop counter
 	BEQ   tail		// If R9 = 0, we can't use the loop
 	PCALIGN $16
@@ -233,7 +232,7 @@ loop:
 	BDNZ  loop
 
 	// We may have some elements to read
-	CMP R0, R11
+	CMP R11, $0
 	BEQ final
 
 tail:
@@ -241,14 +240,14 @@ tail:
 	ADDZE R20, R24
 	ADD $-1, R11
 	MOVDU R24, 8(R10)
-	CMP R0, R11
+	CMP R11, $0
 	BEQ final
 
 	MOVDU 8(R8), R20
 	ADDZE R20, R24
 	ADD $-1, R11
 	MOVDU R24, 8(R10)
-	CMP R0, R11
+	CMP R11, $0
 	BEQ final
 
 	MOVD 8(R8), R20
@@ -268,7 +267,7 @@ TEXT ·subVW(SB), NOSPLIT, $0
 	MOVD  y+48(FP), R4	// R4 = y = c
 	MOVD  z_len+8(FP), R11	// R11 = z_len
 
-	CMP   R0, R11		// If z_len is zero, return
+	CMP   R11, $0		// If z_len is zero, return
 	BEQ   done
 
 	// We will process the first iteration out of the loop so we capture
@@ -277,14 +276,13 @@ TEXT ·subVW(SB), NOSPLIT, $0
 	MOVD  0(R8), R20	// R20 = x[i]
 	ADD   $-1, R11		// R11 = z_len - 1
 	SUBC  R4, R20, R6	// R6 = x[i] - c
-	CMP   R0, R11		// If z_len was 1, we are done
+	CMP   R11, $0		// If z_len was 1, we are done
 	MOVD  R6, 0(R10)	// z[i]
 	BEQ   final
 
 	// We will read 4 elements per iteration
-	SRD   $2, R11, R9	// R9 = z_len/4
+	SRDCC $2, R11, R9	// R9 = z_len/4
 	DCBT  (R8)
-	CMP   R0, R9
 	MOVD  R9, CTR		// Set up the loop counter
 	BEQ   tail		// If R9 = 0, we can't use the loop
 
@@ -310,7 +308,7 @@ loop:
 	BDNZ  loop
 
 	// We may have some elements to read
-	CMP   R0, R11
+	CMP   R11, $0
 	BEQ   final
 
 tail:
@@ -318,14 +316,14 @@ tail:
 	SUBE  R0, R20
 	ADD   $-1, R11
 	MOVDU R20, 8(R10)
-	CMP   R0, R11
+	CMP   R11, $0
 	BEQ   final
 
 	MOVDU 8(R8), R20
 	SUBE  R0, R20
 	ADD   $-1, R11
 	MOVDU R20, 8(R10)
-	CMP   R0, R11
+	CMP   R11, $0
 	BEQ   final
 
 	MOVD  8(R8), R20
@@ -348,9 +346,9 @@ TEXT ·shlVU(SB), NOSPLIT, $0
 	MOVD    s+48(FP), R9
 	MOVD    z_len+8(FP), R4
 	MOVD    x_len+32(FP), R7
-	CMP     R9, R0          // s==0 copy(z,x)
+	CMP     R9, $0          // s==0 copy(z,x)
 	BEQ     zeroshift
-	CMP     R4, R0          // len(z)==0 return
+	CMP     R4, $0          // len(z)==0 return
 	BEQ     done
 
 	ADD     $-1, R4, R5     // len(z)-1
@@ -360,7 +358,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
 	ADD     R3, R7, R16     // save starting address &z[len(z)-1]
 	MOVD    (R6)(R7), R14
 	SRD     R4, R14, R7     // compute x[len(z)-1]>>ŝ into R7
-	CMP     R5, R0          // iterate from i=len(z)-1 to 0
+	CMP     R5, $0          // iterate from i=len(z)-1 to 0
 	BEQ     loopexit        // Already at end?
 	MOVD	0(R15),R10	// x[i]
 	PCALIGN $16
@@ -382,7 +380,7 @@ loopexit:
 	RET
 
 zeroshift:
-	CMP     R6, R0          // x is null, nothing to copy
+	CMP     R6, $0          // x is null, nothing to copy
 	BEQ     done
 	CMP     R6, R3          // if x is same as z, nothing to copy
 	BEQ     done
@@ -423,9 +421,9 @@ TEXT ·shrVU(SB), NOSPLIT, $0
 	MOVD    z_len+8(FP), R4
 	MOVD    x_len+32(FP), R7
 
-	CMP     R9, R0          // s==0, copy(z,x)
+	CMP     R9, $0          // s==0, copy(z,x)
 	BEQ     zeroshift
-	CMP     R4, R0          // len(z)==0 return
+	CMP     R4, $0          // len(z)==0 return
 	BEQ     done
 	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
 
@@ -480,7 +478,7 @@ loopexit:
 	RET
 
 zeroshift:
-	CMP     R6, R0          // x is null, nothing to copy
+	CMP     R6, $0          // x is null, nothing to copy
 	BEQ     done
 	CMP     R6, R3          // if x is same as z, nothing to copy
 	BEQ     done
@@ -506,7 +504,7 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MOVD    r+56(FP), R4      // R4 = r = c
 	MOVD    z_len+8(FP), R11  // R11 = z_len
 
-	CMP     R0, R11
+	CMP     R11, $0
 	BEQ     done
 
 	MOVD    0(R8), R20
@@ -515,14 +513,13 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MULHDU  R9, R20, R7       // R7 = z1 = High-order(x[i]*y)
 	ADDC    R4, R6            // R6 = z0 + r
 	ADDZE   R7, R4            // R4 = z1 + CA
-	CMP     R0, R11
+	CMP     R11, $0
 	MOVD    R6, 0(R10)        // z[i]
 	BEQ     done
 
 	// We will read 4 elements per iteration
-	SRD     $2, R11, R14      // R14 = z_len/4
+	SRDCC   $2, R11, R14      // R14 = z_len/4
 	DCBT    (R8)
-	CMP     R0, R14
 	MOVD    R14, CTR          // Set up the loop counter
 	BEQ     tail              // If R9 = 0, we can't use the loop
 	PCALIGN $16
@@ -553,7 +550,7 @@ loop:
 	BDNZ    loop
 
 	// We may have some elements to read
-	CMP   R0, R11
+	CMP   R11, $0
 	BEQ   done
 
 	// Process the remaining elements, one at a time
@@ -565,7 +562,7 @@ tail:
 	ADDC    R4, R24
 	ADDZE   R25, R4
 	MOVDU   R24, 8(R10)       // z[i]
-	CMP     R0, R11
+	CMP     R11, $0
 	BEQ     done              // If R11 = 0, we are done
 
 	MOVDU   8(R8), R20
@@ -575,7 +572,7 @@ tail:
 	ADDC    R4, R24
 	ADDZE   R25, R4
 	MOVDU   R24, 8(R10)
-	CMP     R0, R11
+	CMP     R11, $0
 	BEQ     done
 
 	MOVD    8(R8), R20
@@ -647,7 +644,7 @@ loop:
 
 	ANDCC	$3, R6
 tail:
-	CMP	R0, R6
+	CMP	R6, $0
 	BEQ	done
 	MOVD	R6, CTR
 	PCALIGN $16

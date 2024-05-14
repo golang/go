@@ -969,15 +969,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if c.cursym.Func().Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
-				//	MOVD g_panic(g), R3
-				//	CMP R0, R3
+				//	MOVD g_panic(g), R22
+				//	CMP R22, $0
 				//	BEQ end
-				//	MOVD panic_argp(R3), R4
-				//	ADD $(autosize+8), R1, R5
-				//	CMP R4, R5
+				//	MOVD panic_argp(R22), R23
+				//	ADD $(autosize+8), R1, R24
+				//	CMP R23, R24
 				//	BNE end
-				//	ADD $8, R1, R6
-				//	MOVD R6, panic_argp(R3)
+				//	ADD $8, R1, R25
+				//	MOVD R25, panic_argp(R22)
 				// end:
 				//	NOP
 				//
@@ -996,9 +996,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R0
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R22
+				q.From.Reg = REG_R22
+				q.To.Type = obj.TYPE_CONST
+				q.To.Offset = 0
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = ABEQ

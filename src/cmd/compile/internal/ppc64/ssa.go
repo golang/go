@@ -1916,17 +1916,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredNilCheck:
 		if buildcfg.GOOS == "aix" {
-			// CMP Rarg0, R0
+			// CMP Rarg0, $0
 			// BNE 2(PC)
 			// STW R0, 0(R0)
 			// NOP (so the BNE has somewhere to land)
 
-			// CMP Rarg0, R0
+			// CMP Rarg0, $0
 			p := s.Prog(ppc64.ACMP)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = v.Args[0].Reg()
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = ppc64.REG_R0
+			p.To.Type = obj.TYPE_CONST
+			p.To.Offset = 0
 
 			// BNE 2(PC)
 			p2 := s.Prog(ppc64.ABNE)

@@ -211,7 +211,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVD	$0, R3		// CLOCK_REALTIME
 
 	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
-	CMP	R12, R0
+	CMP	R12, $0
 	BEQ	fallback
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
@@ -305,7 +305,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVD	g_m(g), R21	// R21 = m
 
 	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
-	CMP	R12, R0
+	CMP	R12, $0
 	BEQ	fallback
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.

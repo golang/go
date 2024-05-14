@@ -78,7 +78,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	// passes argc/argv similar to the linux kernel, R13 (TLS) is
 	// initialized, and R3/R4 are undefined.
 	MOVD	(R1), R12
-	CMP	R0, R12
+	CMP	R12, $0
 	BEQ	tls_and_argcv_in_reg
 
 	// Arguments are passed via the stack (musl loader or a static binary)
@@ -86,7 +86,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	ADD	$8, R1, R4 // argv
 
 	// Did the TLS pointer get set? If so, don't change it (e.g musl).
-	CMP	R0, R13
+	CMP	R13, $0
 	BNE	tls_and_argcv_in_reg
 
 	MOVD	$runtime·m0+m_tls(SB), R13 // TLS
