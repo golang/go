@@ -1,8 +1,8 @@
-// Copyright 2023 The Go Authors. All rights reserved.
+// Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Platforms stuck in tsan v2 use a CAS implementation for certain atomic operations.
+// Platforms stuck in tsan v2 use a CAS implementation for unsupported operations.
 
 //go:build race && openbsd && amd64
 
