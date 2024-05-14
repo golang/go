@@ -111,6 +111,53 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			})
 		})
 	}
+	if len(m.supportedPoints) > 0 {
+		// RFC 4492, Section 5.1.2
+		exts.AddUint16(extensionSupportedPoints)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
+				exts.AddBytes(m.supportedPoints)
+			})
+		})
+	}
+	if m.ticketSupported {
+		// RFC 5077, Section 3.2
+		exts.AddUint16(extensionSessionTicket)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddBytes(m.sessionTicket)
+		})
+	}
+	if m.secureRenegotiationSupported {
+		// RFC 5746, Section 3.2
+		exts.AddUint16(extensionRenegotiationInfo)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
+				exts.AddBytes(m.secureRenegotiation)
+			})
+		})
+	}
+	if m.extendedMasterSecret {
+		// RFC 7627
+		exts.AddUint16(extensionExtendedMasterSecret)
+		exts.AddUint16(0) // empty extension_data
+	}
+	if m.scts {
+		// RFC 6962, Section 3.3.1
+		exts.AddUint16(extensionSCT)
+		exts.AddUint16(0) // empty extension_data
+	}
+	if m.earlyData {
+		// RFC 8446, Section 4.2.10
+		exts.AddUint16(extensionEarlyData)
+		exts.AddUint16(0) // empty extension_data
+	}
+	if m.quicTransportParameters != nil { // marshal zero-length parameters when present
+		// RFC 9001, Section 8.2
+		exts.AddUint16(extensionQUICTransportParameters)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddBytes(m.quicTransportParameters)
+		})
+	}
 	if m.ocspStapling {
 		// RFC 4366, Section 3.6
 		exts.AddUint16(extensionStatusRequest)
@@ -129,22 +176,6 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 					exts.AddUint16(uint16(curve))
 				}
 			})
-		})
-	}
-	if len(m.supportedPoints) > 0 {
-		// RFC 4492, Section 5.1.2
-		exts.AddUint16(extensionSupportedPoints)
-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
-			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
-				exts.AddBytes(m.supportedPoints)
-			})
-		})
-	}
-	if m.ticketSupported {
-		// RFC 5077, Section 3.2
-		exts.AddUint16(extensionSessionTicket)
-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
-			exts.AddBytes(m.sessionTicket)
 		})
 	}
 	if len(m.supportedSignatureAlgorithms) > 0 {
@@ -169,20 +200,6 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			})
 		})
 	}
-	if m.secureRenegotiationSupported {
-		// RFC 5746, Section 3.2
-		exts.AddUint16(extensionRenegotiationInfo)
-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
-			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
-				exts.AddBytes(m.secureRenegotiation)
-			})
-		})
-	}
-	if m.extendedMasterSecret {
-		// RFC 7627
-		exts.AddUint16(extensionExtendedMasterSecret)
-		exts.AddUint16(0) // empty extension_data
-	}
 	if len(m.alpnProtocols) > 0 {
 		// RFC 7301, Section 3.1
 		exts.AddUint16(extensionALPN)
@@ -195,11 +212,6 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 				}
 			})
 		})
-	}
-	if m.scts {
-		// RFC 6962, Section 3.3.1
-		exts.AddUint16(extensionSCT)
-		exts.AddUint16(0) // empty extension_data
 	}
 	if len(m.supportedVersions) > 0 {
 		// RFC 8446, Section 4.2.1
@@ -235,11 +247,6 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			})
 		})
 	}
-	if m.earlyData {
-		// RFC 8446, Section 4.2.10
-		exts.AddUint16(extensionEarlyData)
-		exts.AddUint16(0) // empty extension_data
-	}
 	if len(m.pskModes) > 0 {
 		// RFC 8446, Section 4.2.9
 		exts.AddUint16(extensionPSKModes)
@@ -247,13 +254,6 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
 			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
 				exts.AddBytes(m.pskModes)
 			})
-		})
-	}
-	if m.quicTransportParameters != nil { // marshal zero-length parameters when present
-		// RFC 9001, Section 8.2
-		exts.AddUint16(extensionQUICTransportParameters)
-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
-			exts.AddBytes(m.quicTransportParameters)
 		})
 	}
 	if len(m.pskIdentities) > 0 { // pre_shared_key must be the last extension
