@@ -539,11 +539,12 @@ func TestAndInt32(t *testing.T) {
 	}
 	x.before = magic32
 	x.after = magic32
-	var j int32
+	x.i = 0x7fffffff
+	j := x.i
 	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i
-		k := AndInt32(&x.i, mask)
-		j &= mask
+		k := AndInt32(&x.i, ^mask)
+		j &= ^mask
 		if x.i != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
 		}
@@ -561,11 +562,12 @@ func TestAndInt32Method(t *testing.T) {
 	}
 	x.before = magic32
 	x.after = magic32
-	var j int32
+	x.i.Store(0x7fffffff)
+	j := x.i.Load()
 	for mask := int32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
-		k := x.i.And(mask)
-		j &= mask
+		k := x.i.And(^mask)
+		j &= ^mask
 		if x.i.Load() != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
@@ -583,11 +585,12 @@ func TestAndUint32(t *testing.T) {
 	}
 	x.before = magic32
 	x.after = magic32
-	var j uint32
+	x.i = 0xffffffff
+	j := x.i
 	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i
-		k := AndUint32(&x.i, mask)
-		j &= mask
+		k := AndUint32(&x.i, ^mask)
+		j &= ^mask
 		if x.i != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
 		}
@@ -605,11 +608,12 @@ func TestAndUint32Method(t *testing.T) {
 	}
 	x.before = magic32
 	x.after = magic32
-	var j uint32
+	x.i.Store(0xffffffff)
+	j := x.i.Load()
 	for mask := uint32(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
-		k := x.i.And(mask)
-		j &= mask
+		k := x.i.And(^mask)
+		j &= ^mask
 		if x.i.Load() != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
@@ -628,11 +632,12 @@ func TestAndInt64(t *testing.T) {
 	magic64 := int64(magic64)
 	x.before = magic64
 	x.after = magic64
-	var j int64
+	x.i = 0xfffffffffffffff
+	j := x.i
 	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i
-		k := AndInt64(&x.i, mask)
-		j &= mask
+		k := AndInt64(&x.i, ^mask)
+		j &= ^mask
 		if x.i != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
 		}
@@ -651,11 +656,12 @@ func TestAndInt64Method(t *testing.T) {
 	magic64 := int64(magic64)
 	x.before = magic64
 	x.after = magic64
-	var j int64
+	x.i.Store(0xfffffffffffffff)
+	j := x.i.Load()
 	for mask := int64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
-		k := x.i.And(mask)
-		j &= mask
+		k := x.i.And(^mask)
+		j &= ^mask
 		if x.i.Load() != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
@@ -674,11 +680,12 @@ func TestAndUint64(t *testing.T) {
 	magic64 := uint64(magic64)
 	x.before = magic64
 	x.after = magic64
-	var j uint64
+	x.i = 0xfffffffffffffff
+	j := x.i
 	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i
-		k := AndUint64(&x.i, mask)
-		j &= mask
+		k := AndUint64(&x.i, ^mask)
+		j &= ^mask
 		if x.i != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
 		}
@@ -697,11 +704,12 @@ func TestAndUint64Method(t *testing.T) {
 	magic64 := uint64(magic64)
 	x.before = magic64
 	x.after = magic64
-	var j uint64
+	x.i.Store(0xfffffffffffffff)
+	j := x.i.Load()
 	for mask := uint64(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
-		k := x.i.And(mask)
-		j &= mask
+		k := x.i.And(^mask)
+		j &= ^mask
 		if x.i.Load() != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
@@ -721,11 +729,12 @@ func TestAndUintptr(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	var j uintptr
+	x.i = 0xfffffffffffffff
+	j := x.i
 	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i
-		k := AndUintptr(&x.i, mask)
-		j &= mask
+		k := AndUintptr(&x.i, ^mask)
+		j &= ^mask
 		if x.i != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
 		}
@@ -745,11 +754,12 @@ func TestAndUintptrMethod(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	var j uintptr
+	x.i.Store(0xfffffffffffffff)
+	j := x.i.Load()
 	for mask := uintptr(1); mask != 0; mask <<= 1 {
 		old := x.i.Load()
-		k := x.i.And(mask)
-		j &= mask
+		k := x.i.And(^mask)
+		j &= ^mask
 		if x.i.Load() != j || k != old {
 			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
