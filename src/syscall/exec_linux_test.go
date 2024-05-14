@@ -642,6 +642,10 @@ func TestAmbientCaps(t *testing.T) {
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
+	b, err := os.ReadFile("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+	if err == nil && strings.TrimSpace(string(b)) == "1" {
+		t.Skip("AppArmor restriction for unprivileged user namespaces is enabled")
+	}
 	testAmbientCaps(t, true)
 }
 
