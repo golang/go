@@ -29,24 +29,12 @@ import (
 // emitted at the end of code coverage testing runs, from instrumented
 // executables.
 
-// getCovMetaList returns a list of meta-data blobs registered
-// for the currently executing instrumented program. It is defined in the
-// runtime.
-//go:linkname getCovMetaList
-func getCovMetaList() []rtcov.CovMetaBlob
-
 // getCovCounterList returns a list of counter-data blobs registered
 // for the currently executing instrumented program. It is defined in the
 // runtime.
+//
 //go:linkname getCovCounterList
 func getCovCounterList() []rtcov.CovCounterBlob
-
-// getCovPkgMap returns a map storing the remapped package IDs for
-// hard-coded runtime packages (see internal/coverage/pkgid.go for
-// more on why hard-coded package IDs are needed). This function
-// is defined in the runtime.
-//go:linkname getCovPkgMap
-func getCovPkgMap() map[int]int
 
 // emitState holds useful state information during the emit process.
 //
@@ -180,7 +168,7 @@ func granClash(g coverage.CounterGranularity) bool {
 // all meta-data blobs and capturing os args.
 func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 	// Ask the runtime for the list of coverage meta-data symbols.
-	ml := getCovMetaList()
+	ml := rtcov.Meta.List
 
 	// In the normal case (go build -o prog.exe ... ; ./prog.exe)
 	// len(ml) will always be non-zero, but we check here since at
@@ -210,7 +198,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 			}
 			fmt.Fprintf(os.Stderr, "\n")
 		}
-		pm := getCovPkgMap()
+		pm := rtcov.Meta.PkgMap
 		fmt.Fprintf(os.Stderr, "=+= remap table:\n")
 		for from, to := range pm {
 			fmt.Fprintf(os.Stderr, "=+= from %d to %d\n",
@@ -310,7 +298,7 @@ func emitCounterDataToDirectory(outdir string) error {
 	}
 
 	// Ask the runtime for the list of coverage counter symbols.
-	pm := getCovPkgMap()
+	pm := rtcov.Meta.PkgMap
 	s := &emitState{
 		counterlist: cl,
 		pkgmap:      pm,
@@ -591,8 +579,8 @@ func MarkProfileEmitted(val bool) {
 }
 
 func reportErrorInHardcodedList(slot, pkgID int32, fnID, nCtrs uint32) {
-	metaList := getCovMetaList()
-	pkgMap := getCovPkgMap()
+	metaList := rtcov.Meta.List
+	pkgMap := rtcov.Meta.PkgMap
 
 	println("internal error in coverage meta-data tracking:")
 	println("encountered bad pkgID:", pkgID, " at slot:", slot,

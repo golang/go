@@ -7,6 +7,7 @@ package cfile
 import (
 	"fmt"
 	"internal/coverage"
+	"internal/coverage/rtcov"
 	"io"
 	"sync/atomic"
 	"unsafe"
@@ -17,7 +18,7 @@ func WriteMetaDir(dir string) error {
 	if !finalHashComputed {
 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
 	}
-	return emitMetaDataToDirectory(dir, getCovMetaList())
+	return emitMetaDataToDirectory(dir, rtcov.Meta.List)
 }
 
 // WriteMeta implements [runtime/coverage.WriteMeta].
@@ -28,7 +29,7 @@ func WriteMeta(w io.Writer) error {
 	if !finalHashComputed {
 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
 	}
-	ml := getCovMetaList()
+	ml := rtcov.Meta.List
 	return writeMetaData(w, ml, cmode, cgran, finalHash)
 }
 
@@ -57,7 +58,7 @@ func WriteCounters(w io.Writer) error {
 		return fmt.Errorf("meta-data not written yet, unable to write counter data")
 	}
 
-	pm := getCovPkgMap()
+	pm := rtcov.Meta.PkgMap
 	s := &emitState{
 		counterlist: cl,
 		pkgmap:      pm,

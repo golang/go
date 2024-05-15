@@ -14,6 +14,7 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"internal/coverage/rtcov"
 	"internal/runtime/atomic"
 	"io"
 	"os"
@@ -33,7 +34,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
 	}
 
 	// Emit meta-data and counter data.
-	ml := getCovMetaList()
+	ml := rtcov.Meta.List
 	if len(ml) == 0 {
 		// This corresponds to the case where we have a package that
 		// contains test code but no functions (which is fine). In this
