@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	. "runtime/debug"
 	"strings"
 	"testing"
@@ -29,7 +30,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := SetCrashOutput(f); err != nil {
+		if err := SetCrashOutput(f, debug.CrashOptions{}); err != nil {
 			log.Fatal(err) // e.g. EMFILE
 		}
 		println("hello")
