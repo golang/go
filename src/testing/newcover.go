@@ -46,16 +46,6 @@ func coverReport2() {
 	}
 }
 
-// testGoCoverDir is used in runtime/coverage tests.
-//go:linkname testGoCoverDir
-
-// testGoCoverDir returns the value passed to the -test.gocoverdir
-// flag by the Go command, if goexperiment.CoverageRedesign is
-// in effect.
-func testGoCoverDir() string {
-	return *gocoverdir
-}
-
 // coverage2 returns a rough "coverage percentage so far"
 // number to support the testing.Coverage() function.
 func coverage2() float64 {
