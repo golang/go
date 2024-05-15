@@ -839,6 +839,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	ver := ""
 	if ctxt.Debugasm > 1 {
 		ver = fmt.Sprintf("<%d>", s.ABI())
+		if ctxt.Debugasm > 2 {
+			ver += fmt.Sprintf("<idx %d %d>", s.PkgIdx, s.SymIdx)
+		}
 	}
 	fmt.Fprintf(ctxt.Bso, "%s%s ", name, ver)
 	if s.Type != 0 {
