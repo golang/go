@@ -201,6 +201,13 @@ Go 1.23 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing 3DES cipher suites. The default can be reverted
 using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
 
+Go 1.23 changed the behavior of [`tls.X509KeyPair`](/pkg/crypto/tls#X509KeyPair)
+and [`tls.LoadX509KeyPair`](/pkg/crypto/tls#LoadX509KeyPair) to populate the
+Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
+This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
+defaults to `x509keypairleaf=1`. Previous versions default to
+`x509keypairleaf=0`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size

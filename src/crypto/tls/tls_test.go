@@ -8,13 +8,19 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"math"
+	"math/big"
 	"net"
 	"os"
 	"reflect"
@@ -1944,4 +1950,55 @@ func TestHandshakeKyber(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestX509KeyPairPopulateCertificate(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	t.Run("x509keypairleaf=0", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=0")
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf != nil {
+			t.Fatal("Leaf should not be populated")
+		}
+	})
+	t.Run("x509keypairleaf=1", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=1")
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf == nil {
+			t.Fatal("Leaf should be populated")
+		}
+	})
+	t.Run("GODEBUG unset", func(t *testing.T) {
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf == nil {
+			t.Fatal("Leaf should be populated")
+		}
+	})
 }

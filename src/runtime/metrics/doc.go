@@ -326,6 +326,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the os package
 		due to a non-default GODEBUG=winsymlink=... setting.
 
+	/godebug/non-default-behavior/x509keypairleaf:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=x509keypairleaf=...
+		setting.
+
 	/godebug/non-default-behavior/x509negativeserial:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509negativeserial=...
