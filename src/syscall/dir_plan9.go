@@ -6,7 +6,10 @@
 
 package syscall
 
-import "errors"
+import (
+	"errors"
+	"internal/byteorder"
+)
 
 var (
 	ErrShortStat = errors.New("stat buffer too short")
@@ -143,30 +146,19 @@ func pbit8(b []byte, v uint8) []byte {
 
 // pbit16 copies the 16-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit16(b []byte, v uint16) []byte {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
+	byteorder.LePutUint16(b, v)
 	return b[2:]
 }
 
 // pbit32 copies the 32-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit32(b []byte, v uint32) []byte {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-	b[3] = byte(v >> 24)
+	byteorder.LePutUint32(b, v)
 	return b[4:]
 }
 
 // pbit64 copies the 64-bit number v to b in little-endian order and returns the remaining slice of b.
 func pbit64(b []byte, v uint64) []byte {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-	b[3] = byte(v >> 24)
-	b[4] = byte(v >> 32)
-	b[5] = byte(v >> 40)
-	b[6] = byte(v >> 48)
-	b[7] = byte(v >> 56)
+	byteorder.LePutUint64(b, v)
 	return b[8:]
 }
 
@@ -187,19 +179,17 @@ func gbit8(b []byte) (uint8, []byte) {
 //
 //go:nosplit
 func gbit16(b []byte) (uint16, []byte) {
-	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+	return byteorder.LeUint16(b), b[2:]
 }
 
 // gbit32 reads a 32-bit number in little-endian order from b and returns it with the remaining slice of b.
 func gbit32(b []byte) (uint32, []byte) {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
+	return byteorder.LeUint32(b), b[4:]
 }
 
 // gbit64 reads a 64-bit number in little-endian order from b and returns it with the remaining slice of b.
 func gbit64(b []byte) (uint64, []byte) {
-	lo := uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
-	hi := uint32(b[4]) | uint32(b[5])<<8 | uint32(b[6])<<16 | uint32(b[7])<<24
-	return uint64(lo) | uint64(hi)<<32, b[8:]
+	return byteorder.LeUint64(b), b[8:]
 }
 
 // gstring reads a string from b, prefixed with a 16-bit length in little-endian order.
