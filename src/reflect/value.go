@@ -9,6 +9,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/itoa"
+	"internal/runtime/rchan"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
@@ -3010,15 +3011,6 @@ func Copy(dst, src Value) int {
 	return typedslicecopy(de.Common(), ds, ss)
 }
 
-// A runtimeSelect is a single case passed to rselect.
-// This must match ../runtime/select.go:/runtimeSelect
-type runtimeSelect struct {
-	dir SelectDir      // SelectSend, SelectRecv or SelectDefault
-	typ *rtype         // channel type
-	ch  unsafe.Pointer // channel
-	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
-}
-
 // rselect runs a select. It returns the index of the chosen case.
 // If the case was a receive, val is filled in with the received value.
 // The conventional OK bool indicates whether the receive corresponds
@@ -3030,7 +3022,7 @@ type runtimeSelect struct {
 // that with a forced escape in function Select.
 //
 //go:noescape
-func rselect([]runtimeSelect) (chosen int, recvOK bool)
+func rselect([]rchan.Select) (chosen int, recvOK bool)
 
 // A SelectDir describes the communication direction of a select case.
 type SelectDir int
@@ -3081,19 +3073,19 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	// NOTE: Do not trust that caller is not modifying cases data underfoot.
 	// The range is safe because the caller cannot modify our copy of the len
 	// and each iteration makes its own copy of the value c.
-	var runcases []runtimeSelect
+	var runcases []rchan.Select
 	if len(cases) > 4 {
 		// Slice is heap allocated due to runtime dependent capacity.
-		runcases = make([]runtimeSelect, len(cases))
+		runcases = make([]rchan.Select, len(cases))
 	} else {
 		// Slice can be stack allocated due to constant capacity.
-		runcases = make([]runtimeSelect, len(cases), 4)
+		runcases = make([]rchan.Select, len(cases), 4)
 	}
 
 	haveDefault := false
 	for i, c := range cases {
 		rc := &runcases[i]
-		rc.dir = c.Dir
+		rc.Dir = rchan.SelectDir(c.Dir)
 		switch c.Dir {
 		default:
 			panic("reflect.Select: invalid Dir")
@@ -3121,8 +3113,8 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			if ChanDir(tt.Dir)&SendDir == 0 {
 				panic("reflect.Select: SendDir case using recv-only channel")
 			}
-			rc.ch = ch.pointer()
-			rc.typ = toRType(&tt.Type)
+			rc.Ch = ch.pointer()
+			rc.Typ = (unsafe.Pointer)(&tt.Type)
 			v := c.Send
 			if !v.IsValid() {
 				panic("reflect.Select: SendDir case missing Send value")
@@ -3130,13 +3122,13 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			v.mustBeExported()
 			v = v.assignTo("reflect.Select", tt.Elem, nil)
 			if v.flag&flagIndir != 0 {
-				rc.val = v.ptr
+				rc.Val = v.ptr
 			} else {
-				rc.val = unsafe.Pointer(&v.ptr)
+				rc.Val = unsafe.Pointer(&v.ptr)
 			}
 			// The value to send needs to escape. See the comment at rselect for
 			// why we need forced escape.
-			escapes(rc.val)
+			escapes(rc.Val)
 
 		case SelectRecv:
 			if c.Send.IsValid() {
@@ -3152,17 +3144,17 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			if ChanDir(tt.Dir)&RecvDir == 0 {
 				panic("reflect.Select: RecvDir case using send-only channel")
 			}
-			rc.ch = ch.pointer()
-			rc.typ = toRType(&tt.Type)
-			rc.val = unsafe_New(tt.Elem)
+			rc.Ch = ch.pointer()
+			rc.Typ = (unsafe.Pointer)(&tt.Type)
+			rc.Val = unsafe_New(tt.Elem)
 		}
 	}
 
 	chosen, recvOK = rselect(runcases)
-	if runcases[chosen].dir == SelectRecv {
-		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
+	if runcases[chosen].Dir == rchan.SelectDir(SelectRecv) {
+		tt := (*chanType)(unsafe.Pointer(runcases[chosen].Typ))
 		t := tt.Elem
-		p := runcases[chosen].val
+		p := runcases[chosen].Val
 		fl := flag(t.Kind())
 		if t.IfaceIndir() {
 			recv = Value{t, p, fl | flagIndir}
