@@ -96,7 +96,7 @@ var (
 	FlagS             = flag.Bool("s", false, "disable symbol table")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
-	flagCheckLinkname = flag.Bool("checklinkname", false, "check linkname symbol references")
+	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
