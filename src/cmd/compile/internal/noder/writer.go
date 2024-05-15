@@ -488,6 +488,18 @@ func (w *writer) typInfo(info typeInfo) {
 // typIdx also reports whether typ is a derived type; that is, whether
 // its identity depends on type parameters.
 func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+	// Strip non-global aliases, because they only appear in inline
+	// bodies anyway. Otherwise, they can cause types.Sym collisions
+	// (e.g., "main.C" for both of the local type aliases in
+	// test/fixedbugs/issue50190.go).
+	for {
+		if alias, ok := typ.(*types2.Alias); ok && !isGlobal(alias.Obj()) {
+			typ = alias.Rhs()
+		} else {
+			break
+		}
+	}
+
 	if idx, ok := pw.typsIdx[typ]; ok {
 		return typeInfo{idx: idx, derived: false}
 	}

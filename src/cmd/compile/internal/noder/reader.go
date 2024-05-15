@@ -427,7 +427,9 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
 	r.dict = dict
 
 	typ := r.doTyp()
-	assert(typ != nil)
+	if typ == nil {
+		base.Fatalf("doTyp returned nil for info=%v", info)
+	}
 
 	// For recursive type declarations involving interfaces and aliases,
 	// above r.doTyp() call may have already set pr.typs[idx], so just
@@ -741,7 +743,26 @@ func (pr *pkgReader) objIdxMayFail(idx pkgbits.Index, implicits, explicits []*ty
 
 	case pkgbits.ObjAlias:
 		name := do(ir.OTYPE, false)
-		setType(name, r.typ())
+
+		// Clumsy dance: the r.typ() call here might recursively find this
+		// type alias name, before we've set its type (#66873). So we
+		// temporarily clear sym.Def and then restore it later, if still
+		// unset.
+		hack := sym.Def == name
+		if hack {
+			sym.Def = nil
+		}
+		typ := r.typ()
+		if hack {
+			if sym.Def != nil {
+				name = sym.Def.(*ir.Name)
+				assert(name.Type() == typ)
+				return name, nil
+			}
+			sym.Def = name
+		}
+
+		setType(name, typ)
 		name.SetAlias(true)
 		return name, nil
 
