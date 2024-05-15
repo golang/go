@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -2001,4 +2002,59 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 			t.Fatal("Leaf should be populated")
 		}
 	})
+}
+
+func TestEarlyLargeCertMsg(t *testing.T) {
+	client, server := localPipe(t)
+
+	go func() {
+		if _, err := client.Write([]byte{byte(recordTypeHandshake), 3, 4, 0, 4, typeCertificate, 1, 255, 255}); err != nil {
+			t.Log(err)
+		}
+	}()
+
+	expectedErr := "tls: handshake message of length 131071 bytes exceeds maximum of 65536 bytes"
+	servConn := Server(server, testConfig)
+	err := servConn.Handshake()
+	if err == nil {
+		t.Fatal("unexpected success")
+	}
+	if err.Error() != expectedErr {
+		t.Fatalf("unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestLargeCertMsg(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id: asn1.ObjectIdentifier{1, 2, 3},
+				// Ballast to inflate the certificate beyond the
+				// regular handshake record size.
+				Value: make([]byte, 65536),
+			},
+		},
+	}
+	cert, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig.InsecureSkipVerify = true
+	serverConfig.Certificates = []Certificate{
+		{
+			Certificate: [][]byte{cert},
+			PrivateKey:  k,
+		},
+	}
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("unexpected failure :%s", err)
+	}
 }
