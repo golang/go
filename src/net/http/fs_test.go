@@ -1456,7 +1456,7 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
 
 type panicOnSeek struct{ io.ReadSeeker }
 
-func Test_scanETag(t *testing.T) {
+func TestScanETag(t *testing.T) {
 	tests := []struct {
 		in         string
 		wantETag   string
