@@ -7,8 +7,11 @@
 
 package crashmonitor
 
-import "runtime/debug"
+import (
+	"os"
+	"runtime/debug"
+)
 
 func init() {
-	setCrashOutput = debug.SetCrashOutput
+	setCrashOutput = func(f *os.File) error { return debug.SetCrashOutput(f) }
 }

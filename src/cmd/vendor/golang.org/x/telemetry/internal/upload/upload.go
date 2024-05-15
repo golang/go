@@ -22,7 +22,7 @@ var (
 
 // uploadReportDate returns the date component of the upload file name, or "" if the
 // date was unmatched.
-func (u *Uploader) uploadReportDate(fname string) time.Time {
+func (u *uploader) uploadReportDate(fname string) time.Time {
 	match := dateRE.FindStringSubmatch(fname)
 	if match == nil || len(match) < 2 {
 		u.logger.Printf("malformed report name: missing date: %q", filepath.Base(fname))
@@ -36,7 +36,7 @@ func (u *Uploader) uploadReportDate(fname string) time.Time {
 	return d
 }
 
-func (u *Uploader) uploadReport(fname string) {
+func (u *uploader) uploadReport(fname string) {
 	thisInstant := u.startTime
 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
 
@@ -60,7 +60,7 @@ func (u *Uploader) uploadReport(fname string) {
 }
 
 // try to upload the report, 'true' if successful
-func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
+func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 	b := bytes.NewReader(buf)
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
 	fdate = fdate[len(fdate)-len("2006-01-02"):]

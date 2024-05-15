@@ -17,7 +17,7 @@ import (
 	"golang.org/x/telemetry/counter"
 	"golang.org/x/telemetry/internal/crashmonitor"
 	"golang.org/x/telemetry/internal/telemetry"
-	"golang.org/x/telemetry/upload"
+	"golang.org/x/telemetry/internal/upload"
 )
 
 // Config controls the behavior of [Start].

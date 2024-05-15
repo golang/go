@@ -18,7 +18,7 @@ import (
 var distantPast = 21 * 24 * time.Hour
 
 // reports that are too old (21 days) are not uploaded
-func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
+func (u *uploader) tooOld(date string, uploadStartTime time.Time) bool {
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		u.logger.Printf("tooOld: %v", err)
@@ -31,7 +31,7 @@ func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
 // counterDateSpan parses the counter file named fname and returns the (begin,
 // end) span recorded in its metadata, or an error if this data could not be
 // extracted.
-func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
+func (u *uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
 	parsed, err := u.parseCountFile(fname)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
@@ -61,7 +61,7 @@ type parsedCache struct {
 	m  map[string]*counter.File
 }
 
-func (u *Uploader) parseCountFile(fname string) (*counter.File, error) {
+func (u *uploader) parseCountFile(fname string) (*counter.File, error) {
 	u.cache.mu.Lock()
 	defer u.cache.mu.Unlock()
 	if u.cache.m == nil {
