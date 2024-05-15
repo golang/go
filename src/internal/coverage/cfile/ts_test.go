@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package coverage
+package cfile
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ func testGoCoverDir(t *testing.T) string {
 }
 
 // TestTestSupport does a basic verification of the functionality in
-// runtime/coverage.processCoverTestDir (doing this here as opposed to
+// ProcessCoverTestDir (doing this here as opposed to
 // relying on other test paths will provide a better signal when
 // running "go test -cover" for this package).
 func TestTestSupport(t *testing.T) {
@@ -45,7 +45,7 @@ func TestTestSupport(t *testing.T) {
 
 	textfile := filepath.Join(t.TempDir(), "file.txt")
 	var sb strings.Builder
-	err := processCoverTestDirInternal(tgcd, textfile,
+	err := ProcessCoverTestDir(tgcd, textfile,
 		testing.CoverMode(), "", &sb)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
@@ -91,9 +91,9 @@ func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
 // coverage is not enabled, the hook is designed to just return
 // zero.
 func TestCoverageSnapshot(t *testing.T) {
-	C1 := snapshot()
+	C1 := Snapshot()
 	thisFunctionOnlyCalledFromSnapshotTest(15)
-	C2 := snapshot()
+	C2 := Snapshot()
 	cond := "C1 > C2"
 	val := C1 > C2
 	if testing.CoverMode() != "" {
@@ -185,7 +185,7 @@ func TestAuxMetaDataFiles(t *testing.T) {
 	// Kick off guts of test.
 	var sb strings.Builder
 	textfile := filepath.Join(td, "file2.txt")
-	err = processCoverTestDirInternal(tgcd, textfile,
+	err = ProcessCoverTestDir(tgcd, textfile,
 		testing.CoverMode(), "", &sb)
 	if err != nil {
 		t.Fatalf("bad: %v", err)

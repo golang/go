@@ -608,9 +608,6 @@ var depsRules = `
 	internal/godebug, math/rand, encoding/hex, crypto/sha256
 	< internal/fuzz;
 
-	internal/fuzz, internal/testlog, runtime/pprof, regexp
-	< testing/internal/testdeps;
-
 	OS, flag, testing, internal/cfg, internal/platform, internal/goroot
 	< internal/testenv;
 
@@ -691,7 +688,11 @@ var depsRules = `
 	internal/coverage/decodecounter, internal/coverage/decodemeta,
 	internal/coverage/encodecounter, internal/coverage/encodemeta,
 	internal/coverage/pods
+	< internal/coverage/cfile
 	< runtime/coverage;
+
+	internal/coverage/cfile, internal/fuzz, internal/testlog, runtime/pprof, regexp
+	< testing/internal/testdeps;
 
 	# Test-only packages can have anything they want
 	CGO, internal/syscall/unix < net/internal/cgotest;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package coverage
+package cfile
 
 import (
 	"fmt"
@@ -12,11 +12,7 @@ import (
 	"unsafe"
 )
 
-// WriteMetaDir writes a coverage meta-data file for the currently
-// running program to the directory specified in 'dir'. An error will
-// be returned if the operation can't be completed successfully (for
-// example, if the currently running program was not built with
-// "-cover", or if the directory does not exist).
+// WriteMetaDir implements [runtime/coverage.WriteMetaDir].
 func WriteMetaDir(dir string) error {
 	if !finalHashComputed {
 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
@@ -24,12 +20,7 @@ func WriteMetaDir(dir string) error {
 	return emitMetaDataToDirectory(dir, getCovMetaList())
 }
 
-// WriteMeta writes the meta-data content (the payload that would
-// normally be emitted to a meta-data file) for the currently running
-// program to the writer 'w'. An error will be returned if the
-// operation can't be completed successfully (for example, if the
-// currently running program was not built with "-cover", or if a
-// write fails).
+// WriteMeta implements [runtime/coverage.WriteMeta].
 func WriteMeta(w io.Writer) error {
 	if w == nil {
 		return fmt.Errorf("error: nil writer in WriteMeta")
@@ -41,13 +32,7 @@ func WriteMeta(w io.Writer) error {
 	return writeMetaData(w, ml, cmode, cgran, finalHash)
 }
 
-// WriteCountersDir writes a coverage counter-data file for the
-// currently running program to the directory specified in 'dir'. An
-// error will be returned if the operation can't be completed
-// successfully (for example, if the currently running program was not
-// built with "-cover", or if the directory does not exist). The
-// counter data written will be a snapshot taken at the point of the
-// call.
+// WriteCountersDir implements [runtime/coverage.WriteCountersDir].
 func WriteCountersDir(dir string) error {
 	if cmode != coverage.CtrModeAtomic {
 		return fmt.Errorf("WriteCountersDir invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
@@ -55,12 +40,7 @@ func WriteCountersDir(dir string) error {
 	return emitCounterDataToDirectory(dir)
 }
 
-// WriteCounters writes coverage counter-data content for the
-// currently running program to the writer 'w'. An error will be
-// returned if the operation can't be completed successfully (for
-// example, if the currently running program was not built with
-// "-cover", or if a write fails). The counter data written will be a
-// snapshot taken at the point of the invocation.
+// WriteCounters implements [runtime/coverage.WriteCounters].
 func WriteCounters(w io.Writer) error {
 	if w == nil {
 		return fmt.Errorf("error: nil writer in WriteCounters")
@@ -85,12 +65,7 @@ func WriteCounters(w io.Writer) error {
 	return s.emitCounterDataToWriter(w)
 }
 
-// ClearCounters clears/resets all coverage counter variables in the
-// currently running program. It returns an error if the program in
-// question was not built with the "-cover" flag. Clearing of coverage
-// counters is also not supported for programs not using atomic
-// counter mode (see more detailed comments below for the rationale
-// here).
+// ClearCounters implements [runtime/coverage.ClearCounters].
 func ClearCounters() error {
 	cl := getCovCounterList()
 	if len(cl) == 0 {

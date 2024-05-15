@@ -21,13 +21,13 @@ var cover2 struct {
 	snapshotcov func() float64
 }
 
-// registerCover2 is injected in testmain.
-//go:linkname registerCover2
-
-// registerCover2 is invoked during "go test -cover" runs by the test harness
-// code in _testmain.go; it is used to record a 'tear down' function
+// registerCover2 is invoked during "go test -cover" runs.
+// It is used to record a 'tear down' function
 // (to be called when the test is complete) and the coverage mode.
 func registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64) {
+	if mode == "" {
+		return
+	}
 	cover2.mode = mode
 	cover2.tearDown = tearDown
 	cover2.snapshotcov = snapcov

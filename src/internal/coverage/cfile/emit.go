@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package coverage
+// Package cfile implements management of coverage files.
+// It provides functionality exported in runtime/coverage as well as
+// additional functionality used directly by package testing
+// through testing/internal/testdeps.
+package cfile
 
 import (
 	"crypto/md5"
@@ -28,17 +32,20 @@ import (
 // getCovMetaList returns a list of meta-data blobs registered
 // for the currently executing instrumented program. It is defined in the
 // runtime.
+//go:linkname getCovMetaList
 func getCovMetaList() []rtcov.CovMetaBlob
 
 // getCovCounterList returns a list of counter-data blobs registered
 // for the currently executing instrumented program. It is defined in the
 // runtime.
+//go:linkname getCovCounterList
 func getCovCounterList() []rtcov.CovCounterBlob
 
 // getCovPkgMap returns a map storing the remapped package IDs for
 // hard-coded runtime packages (see internal/coverage/pkgid.go for
 // more on why hard-coded package IDs are needed). This function
 // is defined in the runtime.
+//go:linkname getCovPkgMap
 func getCovPkgMap() map[int]int
 
 // emitState holds useful state information during the emit process.
@@ -574,16 +581,12 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
 	return nil
 }
 
-// markProfileEmitted is injected to testmain via linkname.
-//go:linkname markProfileEmitted
-
-// markProfileEmitted signals the runtime/coverage machinery that
+// MarkProfileEmitted signals the coverage machinery that
 // coverage data output files have already been written out, and there
 // is no need to take any additional action at exit time. This
-// function is called (via linknamed reference) from the
-// coverage-related boilerplate code in _testmain.go emitted for go
-// unit tests.
-func markProfileEmitted(val bool) {
+// function is called from the coverage-related boilerplate code in _testmain.go
+// emitted for go unit tests.
+func MarkProfileEmitted(val bool) {
 	covProfileAlreadyEmitted = val
 }
 

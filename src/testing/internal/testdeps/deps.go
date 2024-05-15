@@ -13,6 +13,7 @@ package testdeps
 import (
 	"bufio"
 	"context"
+	"internal/coverage/cfile"
 	"internal/fuzz"
 	"internal/testlog"
 	"io"
@@ -25,6 +26,9 @@ import (
 	"sync"
 	"time"
 )
+
+// Cover indicates whether coverage is enabled.
+var Cover bool
 
 // TestDeps is an implementation of the testing.testDeps interface,
 // suitable for passing to [testing.MainStart].
@@ -196,4 +200,31 @@ func (TestDeps) ResetCoverage() {
 
 func (TestDeps) SnapshotCoverage() {
 	fuzz.SnapshotCoverage()
+}
+
+var CoverMode string
+var Covered string
+
+func (TestDeps) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+	if CoverMode == "" {
+		return
+	}
+	return CoverMode, coverTearDown, cfile.Snapshot
+}
+
+func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+	var err error
+	if gocoverdir == "" {
+		gocoverdir, err = os.MkdirTemp("", "gocoverdir")
+		if err != nil {
+			return "error setting GOCOVERDIR: bad os.MkdirTemp return", err
+		}
+		defer os.RemoveAll(gocoverdir)
+	}
+	cfile.MarkProfileEmitted(true)
+	cmode := CoverMode
+	if err := cfile.ProcessCoverTestDir(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
+		return "error generating coverage report", err
+	}
+	return "", nil
 }

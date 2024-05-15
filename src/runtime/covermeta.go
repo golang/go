@@ -61,12 +61,12 @@ func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pki
 	return uint32(slot + 1)
 }
 
-//go:linkname runtime_coverage_getCovMetaList runtime/coverage.getCovMetaList
-func runtime_coverage_getCovMetaList() []rtcov.CovMetaBlob {
+//go:linkname coverage_getCovMetaList internal/coverage/cfile.getCovMetaList
+func coverage_getCovMetaList() []rtcov.CovMetaBlob {
 	return covMeta.metaList
 }
 
-//go:linkname runtime_coverage_getCovPkgMap runtime/coverage.getCovPkgMap
-func runtime_coverage_getCovPkgMap() map[int]int {
+//go:linkname coverage_getCovPkgMap internal/coverage/cfile.getCovPkgMap
+func coverage_getCovPkgMap() map[int]int {
 	return covMeta.pkgMap
 }

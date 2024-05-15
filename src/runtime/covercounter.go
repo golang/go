@@ -9,8 +9,8 @@ import (
 	"unsafe"
 )
 
-//go:linkname runtime_coverage_getCovCounterList runtime/coverage.getCovCounterList
-func runtime_coverage_getCovCounterList() []rtcov.CovCounterBlob {
+//go:linkname coverage_getCovCounterList internal/coverage/cfile.getCovCounterList
+func coverage_getCovCounterList() []rtcov.CovCounterBlob {
 	res := []rtcov.CovCounterBlob{}
 	u32sz := unsafe.Sizeof(uint32(0))
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {

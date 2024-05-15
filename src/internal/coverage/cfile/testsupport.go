@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package coverage
+package cfile
 
 import (
 	"encoding/json"
@@ -22,20 +22,11 @@ import (
 	"unsafe"
 )
 
-// processCoverTestDir is injected in testmain.
-//go:linkname processCoverTestDir
-
-// processCoverTestDir is called (via a linknamed reference) from
+// ProcessCoverTestDir is called from
 // testmain code when "go test -cover" is in effect. It is not
 // intended to be used other than internally by the Go command's
 // generated code.
-func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error {
-	return processCoverTestDirInternal(dir, cfile, cm, cpkg, os.Stdout)
-}
-
-// processCoverTestDirInternal is an io.Writer version of processCoverTestDir,
-// exposed for unit testing.
-func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
+func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
 	cmode := coverage.ParseCounterMode(cm)
 	if cmode == coverage.CtrModeInvalid {
 		return fmt.Errorf("invalid counter mode %q", cm)
@@ -280,16 +271,13 @@ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]stru
 	return nil
 }
 
-// snapshot is injected in testmain.
-//go:linkname snapshot
-
-// snapshot returns a snapshot of coverage percentage at a moment of
+// Snapshot returns a snapshot of coverage percentage at a moment of
 // time within a running test, so as to support the testing.Coverage()
 // function. This version doesn't examine coverage meta-data, so the
 // result it returns will be less accurate (more "slop") due to the
 // fact that we don't look at the meta data to see how many statements
 // are associated with each counter.
-func snapshot() float64 {
+func Snapshot() float64 {
 	cl := getCovCounterList()
 	if len(cl) == 0 {
 		// no work to do here.

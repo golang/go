@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package coverage
+package cfile
 
 import (
 	"fmt"
@@ -484,7 +484,7 @@ func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
 	cmd.Dir = filepath.Join("testdata", "issue56006")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go test -cover -race failed: %v", err)
+		t.Fatalf("go test -cover -race failed: %v\n%s", err, b)
 	}
 
 	// Don't want to see any data races in output.
@@ -510,7 +510,7 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
 	cmd.Dir = filepath.Join("testdata", "issue59563")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go test -cover failed: %v", err)
+		t.Fatalf("go test -cover failed: %v\n%s", err, b)
 	}
 
 	cmd = exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func="+ppath)
@@ -530,7 +530,7 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
 		// We're only interested in the specific function "large" for
 		// the testcase being built. See the #59563 for details on why
 		// size matters.
-		if !(strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
+		if !(strings.HasPrefix(f[0], "internal/coverage/cfile/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
 			continue
 		}
 		nfound++
