@@ -12,6 +12,7 @@ import (
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -2608,6 +2609,10 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 		for _, l := range p.linknames {
 			if !file.importedUnsafe {
 				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+				continue
+			}
+			if strings.Contains(l.remote, "[") && strings.Contains(l.remote, "]") {
+				pw.errorf(l.pos, "//go:linkname reference of an instantiation is not allowed")
 				continue
 			}
 
