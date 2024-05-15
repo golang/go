@@ -151,6 +151,7 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 		s.Type = objabi.SSEHUNWINDINFO
 		s.Set(obj.AttrDuplicateOK, true)
 		s.Set(obj.AttrLocal, true)
+		s.Set(obj.AttrContentAddressable, true)
 		if exceptionHandler != nil {
 			r := obj.Addrel(s)
 			r.Off = int32(len(buf.data) - 4)
@@ -158,8 +159,6 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 			r.Sym = exceptionHandler
 			r.Type = objabi.R_PEIMAGEOFF
 		}
-		// Note: AttrContentAddressable cannot be set here,
-		// because the content-addressable-handling code
-		// does not know about aux symbols.
+		ctxt.SEHSyms = append(ctxt.SEHSyms, s)
 	})
 }

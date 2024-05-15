@@ -245,6 +245,13 @@ func (ctxt *Link) NumberSyms() {
 	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
 	ctxt.constSyms = nil
 
+	// So are SEH symbols.
+	sort.Slice(ctxt.SEHSyms, func(i, j int) bool {
+		return ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name
+	})
+	ctxt.Data = append(ctxt.Data, ctxt.SEHSyms...)
+	ctxt.SEHSyms = nil
+
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}
 	ctxt.hashed64defs = []*LSym{}

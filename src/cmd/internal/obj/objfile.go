@@ -788,14 +788,18 @@ func genFuncInfoSyms(ctxt *Link) {
 		fn.FuncInfoSym = isym
 		b.Reset()
 
-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym, fn.sehUnwindInfoSym}
+		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
 		for _, s := range auxsyms {
 			if s == nil || s.Size == 0 {
 				continue
 			}
+			if s.OnList() {
+				panic("a symbol is added to defs multiple times")
+			}
 			s.PkgIdx = goobj.PkgIdxSelf
 			s.SymIdx = symidx
 			s.Set(AttrIndexed, true)
+			s.Set(AttrOnList, true)
 			symidx++
 			infosyms = append(infosyms, s)
 		}

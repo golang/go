@@ -1058,6 +1058,10 @@ type Link struct {
 	// to Data.
 	constSyms []*LSym
 
+	// Windows SEH symbols are also data symbols that can be created
+	// concurrently.
+	SEHSyms []*LSym
+
 	// pkgIdx maps package path to index. The index is used for
 	// symbol reference in the object file.
 	pkgIdx map[string]int32
