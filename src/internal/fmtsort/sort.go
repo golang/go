@@ -9,6 +9,7 @@
 package fmtsort
 
 import (
+	"cmp"
 	"reflect"
 	"slices"
 )
@@ -75,43 +76,19 @@ func compare(aVal, bVal reflect.Value) int {
 	}
 	switch aVal.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		a, b := aVal.Int(), bVal.Int()
-		switch {
-		case a < b:
-			return -1
-		case a > b:
-			return 1
-		default:
-			return 0
-		}
+		return cmp.Compare(aVal.Int(), bVal.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		a, b := aVal.Uint(), bVal.Uint()
-		switch {
-		case a < b:
-			return -1
-		case a > b:
-			return 1
-		default:
-			return 0
-		}
+		return cmp.Compare(aVal.Uint(), bVal.Uint())
 	case reflect.String:
-		a, b := aVal.String(), bVal.String()
-		switch {
-		case a < b:
-			return -1
-		case a > b:
-			return 1
-		default:
-			return 0
-		}
+		return cmp.Compare(aVal.String(), bVal.String())
 	case reflect.Float32, reflect.Float64:
-		return floatCompare(aVal.Float(), bVal.Float())
+		return cmp.Compare(aVal.Float(), bVal.Float())
 	case reflect.Complex64, reflect.Complex128:
 		a, b := aVal.Complex(), bVal.Complex()
-		if c := floatCompare(real(a), real(b)); c != 0 {
+		if c := cmp.Compare(real(a), real(b)); c != 0 {
 			return c
 		}
-		return floatCompare(imag(a), imag(b))
+		return cmp.Compare(imag(a), imag(b))
 	case reflect.Bool:
 		a, b := aVal.Bool(), bVal.Bool()
 		switch {
@@ -123,28 +100,12 @@ func compare(aVal, bVal reflect.Value) int {
 			return -1
 		}
 	case reflect.Pointer, reflect.UnsafePointer:
-		a, b := aVal.Pointer(), bVal.Pointer()
-		switch {
-		case a < b:
-			return -1
-		case a > b:
-			return 1
-		default:
-			return 0
-		}
+		return cmp.Compare(aVal.Pointer(), bVal.Pointer())
 	case reflect.Chan:
 		if c, ok := nilCompare(aVal, bVal); ok {
 			return c
 		}
-		ap, bp := aVal.Pointer(), bVal.Pointer()
-		switch {
-		case ap < bp:
-			return -1
-		case ap > bp:
-			return 1
-		default:
-			return 0
-		}
+		return cmp.Compare(aVal.Pointer(), bVal.Pointer())
 	case reflect.Struct:
 		for i := 0; i < aVal.NumField(); i++ {
 			if c := compare(aVal.Field(i), bVal.Field(i)); c != 0 {
@@ -190,23 +151,4 @@ func nilCompare(aVal, bVal reflect.Value) (int, bool) {
 		return 1, true
 	}
 	return 0, false
-}
-
-// floatCompare compares two floating-point values. NaNs compare low.
-func floatCompare(a, b float64) int {
-	switch {
-	case isNaN(a):
-		return -1 // No good answer if b is a NaN so don't bother checking.
-	case isNaN(b):
-		return 1
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	}
-	return 0
-}
-
-func isNaN(a float64) bool {
-	return a != a
 }

@@ -67,10 +67,6 @@ func TestCompare(t *testing.T) {
 				switch {
 				case i == j:
 					expect = 0
-					// NaNs are tricky.
-					if typ := v0.Type(); (typ.Kind() == reflect.Float32 || typ.Kind() == reflect.Float64) && math.IsNaN(v0.Float()) {
-						expect = -1
-					}
 				case i < j:
 					expect = -1
 				case i > j:
