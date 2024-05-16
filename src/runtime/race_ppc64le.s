@@ -330,13 +330,11 @@ TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_fetch_and(SB), R8
 	BR	racecallatomic<>(SB)
-	RET
 
 TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_fetch_and(SB), R8
 	BR	racecallatomic<>(SB)
-	RET
 
 TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
@@ -355,13 +353,11 @@ TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
 	GO_ARGS
 	MOVD	$__tsan_go_atomic32_fetch_or(SB), R8
 	BR	racecallatomic<>(SB)
-	RET
 
 TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
 	GO_ARGS
 	MOVD	$__tsan_go_atomic64_fetch_or(SB), R8
 	BR	racecallatomic<>(SB)
-	RET
 
 TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
 	GO_ARGS
