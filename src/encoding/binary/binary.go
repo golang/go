@@ -579,6 +579,97 @@ func encodeFast(bs []byte, order ByteOrder, data any) {
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 // If v is neither of these, Size returns -1.
 func Size(v any) int {
+	switch data := v.(type) {
+	case bool, int8, uint8:
+		return 1
+	case *bool:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case *int8:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case *uint8:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case []bool:
+		return len(data)
+	case []int8:
+		return len(data)
+	case []uint8:
+		return len(data)
+	case int16, uint16:
+		return 2
+	case *int16:
+		if data == nil {
+			return -1
+		}
+		return 2
+	case *uint16:
+		if data == nil {
+			return -1
+		}
+		return 2
+	case []int16:
+		return 2 * len(data)
+	case []uint16:
+		return 2 * len(data)
+	case int32, uint32:
+		return 4
+	case *int32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case *uint32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case []int32:
+		return 4 * len(data)
+	case []uint32:
+		return 4 * len(data)
+	case int64, uint64:
+		return 8
+	case *int64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case *uint64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case []int64:
+		return 8 * len(data)
+	case []uint64:
+		return 8 * len(data)
+	case float32:
+		return 4
+	case *float32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case float64:
+		return 8
+	case *float64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case []float32:
+		return 4 * len(data)
+	case []float64:
+		return 8 * len(data)
+	}
 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
 }
 
@@ -590,7 +681,7 @@ var structSize sync.Map // map[reflect.Type]int
 // occupied by the header. If the type of v is not acceptable, dataSize returns -1.
 func dataSize(v reflect.Value) int {
 	switch v.Kind() {
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		t := v.Type().Elem()
 		if size, ok := structSize.Load(t); ok {
 			return size.(int) * v.Len()

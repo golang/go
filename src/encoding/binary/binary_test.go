@@ -429,10 +429,14 @@ func TestSizeStructCache(t *testing.T) {
 		want int
 	}{
 		{new(foo), 1},
+		{new([1]foo), 0},
+		{make([]foo, 1), 0},
 		{new(bar), 1},
 		{new(bar), 0},
 		{new(struct{ A Struct }), 1},
 		{new(struct{ A Struct }), 0},
+		{new([1]struct{ A Struct }), 0},
+		{make([]struct{ A Struct }, 1), 0},
 	}
 
 	for _, tc := range testcases {
@@ -458,6 +462,18 @@ func TestSizeInvalid(t *testing.T) {
 		[]int(nil),
 		new([]int),
 		(*[]int)(nil),
+		(*int8)(nil),
+		(*uint8)(nil),
+		(*int16)(nil),
+		(*uint16)(nil),
+		(*int32)(nil),
+		(*uint32)(nil),
+		(*int64)(nil),
+		(*uint64)(nil),
+		(*float32)(nil),
+		(*float64)(nil),
+		(*complex64)(nil),
+		(*complex128)(nil),
 	}
 	for _, tc := range testcases {
 		if got := Size(tc); got != -1 {
@@ -701,6 +717,43 @@ func TestAppendAllocs(t *testing.T) {
 	}
 	if allocs != 0 {
 		t.Fatalf("Append allocated %v times instead of not allocating at all", allocs)
+	}
+}
+
+var sizableTypes = []any{
+	bool(false),
+	int8(0),
+	int16(0),
+	int32(0),
+	int64(0),
+	uint8(0),
+	uint16(0),
+	uint32(0),
+	uint64(0),
+	float32(0),
+	float64(0),
+	complex64(0),
+	complex128(0),
+	Struct{},
+	&Struct{},
+	[]Struct{},
+	([]Struct)(nil),
+	[1]Struct{},
+}
+
+func TestSizeAllocs(t *testing.T) {
+	for _, data := range sizableTypes {
+		t.Run(fmt.Sprintf("%T", data), func(t *testing.T) {
+			// Size uses a sync.Map behind the scenes. The slow lookup path of
+			// that does allocate, so we need a couple of runs here to be
+			// allocation free.
+			allocs := testing.AllocsPerRun(10, func() {
+				_ = Size(data)
+			})
+			if allocs != 0 {
+				t.Fatalf("Expected no allocations, got %v", allocs)
+			}
+		})
 	}
 }
 
@@ -1072,6 +1125,16 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+}
+
+func BenchmarkSize(b *testing.B) {
+	for _, data := range sizableTypes {
+		b.Run(fmt.Sprintf("%T", data), func(b *testing.B) {
+			for range b.N {
+				_ = Size(data)
+			}
+		})
 	}
 }
 
