@@ -40,6 +40,7 @@ flagged as a TODO by the automated tooling. That is true even for proposals that
 Use the following forms in your markdown:
 
 	[http.Request]                     # symbol documentation; auto-linked as in Go doc strings
+	[Request]                          # short form, for symbols in the package being documented
 	[#12345](/issue/12345)             # GitHub issues
 	[CL 6789](/cl/6789)                # Gerrit changelists
 
