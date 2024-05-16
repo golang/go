@@ -381,8 +381,9 @@ func Preorder(root Node) iter.Seq[Node] {
 	return func(yield func(Node) bool) {
 		ok := true
 		Inspect(root, func(n Node) bool {
-			if n != nil && !yield(n) {
-				ok = false
+			if n != nil {
+				// yield must not be called once ok is false.
+				ok = ok && yield(n)
 			}
 			return ok
 		})
