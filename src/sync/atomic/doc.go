@@ -139,6 +139,56 @@ func AddUint64(addr *uint64, delta uint64) (new uint64)
 // Consider using the more ergonomic and less error-prone [Uintptr.Add] instead.
 func AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
 
+// AndInt32 atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Int32.And] instead.
+func AndInt32(addr *int32, mask int32) (old int32)
+
+// AndUint32 atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Uint32.And] instead.
+func AndUint32(addr *uint32, mask uint32) (old uint32)
+
+// AndInt64 atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Int64.And] instead.
+func AndInt64(addr *int64, mask int64) (old int64)
+
+// AndUint64 atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
+// and returns the old.
+// Consider using the more ergonomic and less error-prone [Uint64.And] instead.
+func AndUint64(addr *uint64, mask uint64) (old uint64)
+
+// AndUintptr atomically performs a bitwise AND operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Uintptr.And] instead.
+func AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
+// OrInt32 atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Int32.Or] instead.
+func OrInt32(addr *int32, mask int32) (old int32)
+
+// OrUint32 atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Uint32.Or] instead.
+func OrUint32(addr *uint32, mask uint32) (old uint32)
+
+// OrInt64 atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Int64.Or] instead.
+func OrInt64(addr *int64, mask int64) (old int64)
+
+// OrUint64 atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Uint64.Or] instead.
+func OrUint64(addr *uint64, mask uint64) (old uint64)
+
+// OrUintptr atomically performs a bitwise OR operation on *addr using the bitmask provided as mask
+// and returns the old value.
+// Consider using the more ergonomic and less error-prone [Uintptr.Or] instead.
+func OrUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
 // LoadInt32 atomically loads *addr.
 // Consider using the more ergonomic and less error-prone [Int32.Load] instead.
 func LoadInt32(addr *int32) (val int32)

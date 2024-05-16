@@ -323,6 +323,10 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_go_atomic64_exchange
 //go:cgo_import_static __tsan_go_atomic32_fetch_add
 //go:cgo_import_static __tsan_go_atomic64_fetch_add
+//go:cgo_import_static __tsan_go_atomic32_fetch_and
+//go:cgo_import_static __tsan_go_atomic64_fetch_and
+//go:cgo_import_static __tsan_go_atomic32_fetch_or
+//go:cgo_import_static __tsan_go_atomic64_fetch_or
 //go:cgo_import_static __tsan_go_atomic32_compare_exchange
 //go:cgo_import_static __tsan_go_atomic64_compare_exchange
 
@@ -641,6 +645,36 @@ func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
 
 //go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
 func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_AndInt32 sync/atomic.AndInt32
+func abigen_sync_atomic_AndInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_AndUint32 sync/atomic.AndUint32
+func abigen_sync_atomic_AndUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_AndInt64 sync/atomic.AndInt64
+func abigen_sync_atomic_AndInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_AndUint64 sync/atomic.AndUint64
+func abigen_sync_atomic_AndUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AndUintptr sync/atomic.AndUintptr
+func abigen_sync_atomic_AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
+//go:linkname abigen_sync_atomic_OrInt32 sync/atomic.OrInt32
+func abigen_sync_atomic_OrInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_OrUint32 sync/atomic.OrUint32
+func abigen_sync_atomic_OrUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_OrInt64 sync/atomic.OrInt64
+func abigen_sync_atomic_OrInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_OrUint64 sync/atomic.OrUint64
+func abigen_sync_atomic_OrUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_OrUintptr sync/atomic.OrUintptr
+func abigen_sync_atomic_OrUintptr(addr *uintptr, mask uintptr) (old uintptr)
 
 //go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
 func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
