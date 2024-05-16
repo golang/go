@@ -48,6 +48,31 @@ func TestValid(t *testing.T) {
 	}
 }
 
+func TestValidPos(t *testing.T) {
+	tests := []struct {
+		CaseName
+		data string
+		ok   bool
+		pos  int64
+	}{
+		{Name(""), `{"foo":"bar"}`, true, 0},
+		{Name(""), `{"foo":bar"}`, false, 8},
+		{Name(""), `{"bar":foo"}`, false, 9},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			valid, pos := ValidPos([]byte(tt.data))
+			if valid != tt.ok {
+				t.Errorf("%s: ValidPos(`%s`) = %v, want %v", tt.Where, tt.data, valid, tt.ok)
+			}
+			if !tt.ok && tt.pos != pos {
+				t.Errorf("%s: ValidPos(`%s`) returned position %d, want %d",
+					tt.Where, tt.data, pos, tt.pos)
+			}
+		})
+	}
+}
+
 func TestCompactAndIndent(t *testing.T) {
 	tests := []struct {
 		CaseName

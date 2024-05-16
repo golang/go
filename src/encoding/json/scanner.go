@@ -25,6 +25,12 @@ func Valid(data []byte) bool {
 	return checkValid(data, scan) == nil
 }
 
+func ValidPos(data []byte) (bool, int64) {
+	scan := newScanner()
+	defer freeScanner(scan)
+	return checkValid(data, scan) == nil, scan.bytes
+}
+
 // checkValid verifies that data is valid JSON-encoded data.
 // scan is passed in for use by checkValid to avoid an allocation.
 // checkValid returns nil or a SyntaxError.
