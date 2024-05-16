@@ -2333,7 +2333,7 @@ func (pc *persistConn) readLoop() {
 			}
 		case <-rc.treq.ctx.Done():
 			alive = false
-			pc.cancelRequest(errRequestCanceled)
+			pc.cancelRequest(context.Cause(rc.treq.ctx))
 		case <-pc.closech:
 			alive = false
 		}
