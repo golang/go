@@ -1527,7 +1527,7 @@ func TestPathValueNoMatch(t *testing.T) {
 	}
 }
 
-func TestPathValue(t *testing.T) {
+func TestPathValueAndPattern(t *testing.T) {
 	for _, test := range []struct {
 		pattern string
 		url     string
@@ -1567,6 +1567,9 @@ func TestPathValue(t *testing.T) {
 				if got != want {
 					t.Errorf("%q, %q: got %q, want %q", test.pattern, name, got, want)
 				}
+			}
+			if r.Pattern != test.pattern {
+				t.Errorf("pattern: got %s, want %s", r.Pattern, test.pattern)
 			}
 		})
 		server := httptest.NewServer(mux)
