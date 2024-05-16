@@ -187,7 +187,9 @@ type Pointer *ArbitraryType
 // of a hypothetical variable v as if v was declared via var v = x.
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
-// descriptor, not the size of the memory referenced by the slice.
+// descriptor, not the size of the memory referenced by the slice;
+// if x is an interface, Sizeof returns the size of the interface value itself,
+// not the size of the value stored in the interface.
 // For a struct, the size includes any padding introduced by field alignment.
 // The return value of Sizeof is a Go constant if the type of the argument x
 // does not have variable size.
