@@ -19,6 +19,10 @@ func nanotime() int64 {
 	return nanotime1()
 }
 
+// overrideWrite allows write to be redirected externally, by
+// linkname'ing this and set it to a write function.
+//
+//go:linkname overrideWrite
 var overrideWrite func(fd uintptr, p unsafe.Pointer, n int32) int32
 
 // write must be nosplit on Windows (see write1)

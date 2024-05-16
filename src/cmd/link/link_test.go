@@ -1440,6 +1440,7 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro2.go", false},
 		// legacy bad linkname is ok, for now
 		{"fastrand.go", true},
+		{"badlinkname.go", true},
 	}
 	for _, test := range tests {
 		test := test
