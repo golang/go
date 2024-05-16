@@ -109,7 +109,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
-		{Name: "GODEBUG"},
+		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
 	}
 
 	for i := range env {
