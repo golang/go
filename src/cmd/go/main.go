@@ -124,6 +124,20 @@ func main() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
 		os.Exit(2)
 	}
+	switch strings.ToLower(cfg.GOROOT) {
+	case "/usr/local/go": // Location recommended for installation on Linux and Darwin and used by Mac installer.
+		telemetry.Inc("go/goroot:usr-local-go")
+	case "/usr/lib/go": // A typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-go")
+	case "/usr/lib/golang": // Another typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-golang")
+	case `c:\program files\go`: // Location used by Windows installer.
+		telemetry.Inc("go/goroot:program-files-go")
+	case `c:\program files (x86)\go`: // Location used by 386 Windows installer on amd64 platform.
+		telemetry.Inc("go/goroot:program-files-x86-go")
+	default:
+		telemetry.Inc("go/goroot:other")
+	}
 
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
