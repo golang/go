@@ -7,9 +7,9 @@
 package big
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/byteorder"
 	"math"
 )
 
@@ -29,7 +29,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
 		// this should never happen
 		return nil, errors.New("Rat.GobEncode: numerator too large")
 	}
-	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
+	byteorder.BePutUint32(buf[j-4:j], uint32(n))
 	j -= 1 + 4
 	b := ratGobVersion << 1 // make space for sign bit
 	if x.a.neg {
@@ -54,7 +54,7 @@ func (z *Rat) GobDecode(buf []byte) error {
 		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
 	}
 	const j = 1 + 4
-	ln := binary.BigEndian.Uint32(buf[j-4 : j])
+	ln := byteorder.BeUint32(buf[j-4 : j])
 	if uint64(ln) > math.MaxInt-j {
 		return errors.New("Rat.GobDecode: invalid length")
 	}

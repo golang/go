@@ -14,6 +14,12 @@ import (
 	. "internal/types/errors"
 )
 
+// A genericType implements access to its type parameters.
+type genericType interface {
+	Type
+	TypeParams() *TypeParamList
+}
+
 // Instantiate instantiates the type orig with the given type arguments targs.
 // orig must be a *Named or a *Signature type. If there is no error, the
 // resulting Type is an instantiated type of the same kind (either a *Named or
@@ -41,17 +47,15 @@ import (
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
+	assert(len(targs) > 0)
 	if ctxt == nil {
 		ctxt = NewContext()
 	}
+	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+
 	if validate {
-		var tparams []*TypeParam
-		switch t := orig.(type) {
-		case *Named:
-			tparams = t.TypeParams().list()
-		case *Signature:
-			tparams = t.TypeParams().list()
-		}
+		tparams := orig_.TypeParams().list()
+		assert(len(tparams) > 0)
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
@@ -60,7 +64,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 		}
 	}
 
-	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
+	inst := (*Checker)(nil).instance(nopos, orig_, targs, nil, ctxt)
 	return inst, nil
 }
 
@@ -75,7 +79,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 // must be non-nil.
 //
 // For Named types the resulting instance may be unexpanded.
-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
 	//

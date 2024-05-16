@@ -12,6 +12,7 @@ package main
 import (
 	"crypto/tls"
 	"debug/dwarf"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,18 +25,23 @@ import (
 	"time"
 
 	"cmd/internal/objfile"
+	"cmd/internal/telemetry"
 
 	"github.com/google/pprof/driver"
 	"github.com/google/pprof/profile"
 )
 
 func main() {
+	telemetry.Start()
+	telemetry.Inc("pprof/invocations")
 	options := &driver.Options{
 		Fetch: new(fetcher),
 		Obj:   new(objTool),
 		UI:    newUI(),
 	}
-	if err := driver.PProf(options); err != nil {
+	err := driver.PProf(options)
+	telemetry.CountFlags("pprof/flag:", *flag.CommandLine) // pprof will use the flag package as its default
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(2)
 	}

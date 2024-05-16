@@ -36,6 +36,7 @@ import (
 	"go/constant"
 	"go/token"
 	. "internal/types/errors"
+	_ "unsafe" // for linkname
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -191,6 +192,9 @@ type Config struct {
 	// This flag will eventually be removed (with Go 1.24 at the earliest).
 	_EnableAlias bool
 }
+
+// Linkname for use from srcimporter.
+//go:linkname srcimporter_setUsesCgo
 
 func srcimporter_setUsesCgo(conf *Config) {
 	conf.go115UsesCgo = true

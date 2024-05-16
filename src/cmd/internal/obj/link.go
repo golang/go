@@ -416,6 +416,7 @@ const (
 	AJMP
 	ANOP
 	APCALIGN
+	APCALIGNMAX // currently x86, amd64 and arm64
 	APCDATA
 	ARET
 	AGETCALLERPC
@@ -1047,6 +1048,7 @@ type Link struct {
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
 	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+	Std           bool // is standard library package
 
 	// state for writing objects
 	Text []*LSym
@@ -1057,6 +1059,10 @@ type Link struct {
 	// add them to a separate list, sort at the end, and append it
 	// to Data.
 	constSyms []*LSym
+
+	// Windows SEH symbols are also data symbols that can be created
+	// concurrently.
+	SEHSyms []*LSym
 
 	// pkgIdx maps package path to index. The index is used for
 	// symbol reference in the object file.

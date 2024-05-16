@@ -2,11 +2,11 @@ package tls
 
 import (
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"internal/byteorder"
 	"internal/testenv"
 	"io"
 	"log"
@@ -186,7 +186,7 @@ func bogoShim() {
 
 		// Write the shim ID we were passed as a little endian uint64
 		shimIDBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint64(shimIDBytes, *shimID)
+		byteorder.LePutUint64(shimIDBytes, *shimID)
 		if _, err := conn.Write(shimIDBytes); err != nil {
 			log.Fatalf("failed to write shim id: %s", err)
 		}

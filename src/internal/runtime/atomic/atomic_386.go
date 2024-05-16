@@ -12,6 +12,7 @@ import "unsafe"
 //
 //go:linkname Load
 //go:linkname Loadp
+//go:linkname LoadAcquintptr
 
 //go:nosplit
 //go:noinline

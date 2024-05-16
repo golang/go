@@ -14,13 +14,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
-	"golang.org/x/mod/module"
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -135,10 +133,10 @@ func (f *file) init(begin, end time.Time) {
 		return
 	}
 
-	goVers, progPkgPath, prog, progVers := programInfo(info)
+	goVers, progPath, progVers := telemetry.ProgramInfo(info)
 	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
 		begin.Format(time.RFC3339), end.Format(time.RFC3339),
-		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	if len(f.meta) > maxMetaLen { // should be impossible for our use
 		f.err = fmt.Errorf("metadata too long")
 		return
@@ -146,26 +144,8 @@ func (f *file) init(begin, end time.Time) {
 	if progVers != "" {
 		progVers = "@" + progVers
 	}
-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", path.Base(progPath), progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	f.namePrefix = filepath.Join(dir, prefix)
-}
-
-func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
-	goVers = info.GoVersion
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
-		goVers = "devel"
-	}
-	progPkgPath = info.Path
-	if progPkgPath == "" {
-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	}
-	prog = path.Base(progPkgPath)
-	progVers = info.Main.Version
-	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
-		// we don't want to track pseudo versions, but may want to track prereleases.
-		progVers = "devel"
-	}
-	return goVers, progPkgPath, prog, progVers
 }
 
 // filename returns the name of the file to use for f,

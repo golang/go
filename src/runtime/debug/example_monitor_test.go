@@ -91,7 +91,7 @@ func monitor() {
 	if err != nil {
 		log.Fatalf("StdinPipe: %v", err)
 	}
-	debug.SetCrashOutput(pipe.(*os.File)) // (this conversion is safe)
+	debug.SetCrashOutput(pipe.(*os.File), debug.CrashOptions{}) // (this conversion is safe)
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("can't start monitor: %v", err)
 	}

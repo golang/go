@@ -1,0 +1,76 @@
+# Test that ModuleDirect.Public is correctly set on go list output.
+# This is a regression test for issue #66789.
+
+# In this test, the workspace contains modules example.com/a and
+# example.com/b. Module example.com/a has a direct requirement
+# on rsc.io/sampler, and an indirect requirement on golang.org/x/text
+# through rsc.io/isampler. Module example.com/b has a direct
+# requirement on example.com/c which is incorrectly marked as indirect
+# in module example.com/b's go.mod file.
+
+# Check that go list -m processes the indirect annotations in the
+# go.mod file.
+go list -f '{{.Path}} {{.Indirect}}' -m all
+stdout 'example.com/a false'
+stdout 'example.com/b false'
+stdout 'rsc.io/sampler false'
+stdout 'golang.org/x/text true'
+stdout 'example.com/c true' # Uses the information in go.mod without checking imports.
+
+# Check that 'go list all' correctly populates "indirect" module annotation.
+go list -f '{{.ImportPath}} {{with .Module}}{{.Indirect}}{{end}}' all
+stdout 'example.com/a false'
+stdout 'example.com/b false'
+stdout 'rsc.io/sampler false'
+stdout 'golang.org/x/text/language true'
+stdout 'example.com/c false'
+
+-- go.work --
+go 1.23
+
+use ./a
+use ./b
+-- a/go.mod --
+module example.com/a
+
+go 1.23
+
+require rsc.io/sampler v1.2.1
+
+require golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+-- a/a.go --
+package a
+
+import "rsc.io/sampler"
+
+func A() string {
+    return sampler.Hello()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.23
+
+// The indrect comment below is inaccurate. Its purpose
+// is to test that it is corrected when enough packages
+// are loaded to correct it.
+
+require example.com/c v1.0.0 // indirect
+
+replace example.com/c => ../c
+-- b/b.go --
+package b
+
+import "example.com/c"
+
+func B() {
+    c.C()
+}
+-- c/go.mod --
+module example.com/c
+
+go 1.23
+-- c/c.go --
+package c
+
+func C() {}

@@ -1375,10 +1375,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 						Module:       dep.mod,
 					}
 				}
-				continue
-			}
-
-			if pkg.err == nil && cfg.BuildMod != "mod" {
+			} else if pkg.err == nil && cfg.BuildMod != "mod" {
 				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
 					// dep.mod is not an explicit dependency, but needs to be.
 					// Because we are not in "mod" mode, we will not be able to update it.

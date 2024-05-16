@@ -6,6 +6,7 @@ package rand
 
 import (
 	"errors"
+	"internal/byteorder"
 	"math/bits"
 )
 
@@ -30,32 +31,12 @@ func (p *PCG) Seed(seed1, seed2 uint64) {
 	p.lo = seed2
 }
 
-// binary.bigEndian.Uint64, copied to avoid dependency
-func beUint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
-}
-
-// binary.bigEndian.PutUint64, copied to avoid dependency
-func bePutUint64(b []byte, v uint64) {
-	_ = b[7] // early bounds check to guarantee safety of writes below
-	b[0] = byte(v >> 56)
-	b[1] = byte(v >> 48)
-	b[2] = byte(v >> 40)
-	b[3] = byte(v >> 32)
-	b[4] = byte(v >> 24)
-	b[5] = byte(v >> 16)
-	b[6] = byte(v >> 8)
-	b[7] = byte(v)
-}
-
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (p *PCG) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 20)
 	copy(b, "pcg:")
-	bePutUint64(b[4:], p.hi)
-	bePutUint64(b[4+8:], p.lo)
+	byteorder.BePutUint64(b[4:], p.hi)
+	byteorder.BePutUint64(b[4+8:], p.lo)
 	return b, nil
 }
 
@@ -66,8 +47,8 @@ func (p *PCG) UnmarshalBinary(data []byte) error {
 	if len(data) != 20 || string(data[:4]) != "pcg:" {
 		return errUnmarshalPCG
 	}
-	p.hi = beUint64(data[4:])
-	p.lo = beUint64(data[4+8:])
+	p.hi = byteorder.BeUint64(data[4:])
+	p.lo = byteorder.BeUint64(data[4+8:])
 	return nil
 }
 

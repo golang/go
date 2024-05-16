@@ -645,6 +645,19 @@
 (MOVBreg (MOVBZreg x)) => (MOVBreg x)
 (MOVBZreg (MOVBreg x)) => (MOVBZreg x)
 
+// Catch any remaining rotate+shift cases
+(MOVBZreg (SRWconst x [s])) && mergePPC64AndSrwi(0xFF,s) != 0 => (RLWINM [mergePPC64AndSrwi(0xFF,s)] x)
+(MOVBZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFF,r)] y)
+(MOVHZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFF,r)] y)
+(MOVWZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
+(Select0 (ANDCCconst [m] (RLWINM [r] y))) && mergePPC64AndRlwinm(uint32(m),r) != 0 => (RLWINM [mergePPC64AndRlwinm(uint32(m),r)] y)
+(SLDconst [s] (RLWINM [r] y)) && mergePPC64SldiRlwinm(s,r) != 0 => (RLWINM [mergePPC64SldiRlwinm(s,r)] y)
+(RLWINM [r] (MOVHZreg u)) && mergePPC64RlwinmAnd(r,0xFFFF) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,0xFFFF)] u)
+(RLWINM [r] (Select0 (ANDCCconst [a] u))) && mergePPC64RlwinmAnd(r,uint32(a)) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,uint32(a))] u)
+// SLWconst is a special case of RLWNM which always zero-extends the result.
+(SLWconst [s] (MOVWZreg w)) => (SLWconst [s] w)
+(MOVWZreg w:(SLWconst u)) => w
+
 // H - there are more combinations than these
 
 (MOVHZreg y:(MOV(H|B)Zreg _)) => y // repeat

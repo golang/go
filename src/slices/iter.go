@@ -33,7 +33,7 @@ func Backward[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
 	}
 }
 
-// Values returns an iterator over the slice elements.
+// Values returns an iterator over the slice elements,
 // starting with s[0].
 func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
 	return func(yield func(E) bool) {

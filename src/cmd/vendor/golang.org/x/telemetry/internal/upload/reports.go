@@ -21,7 +21,7 @@ import (
 )
 
 // reports generates reports from inactive count files
-func (u *Uploader) reports(todo *work) ([]string, error) {
+func (u *uploader) reports(todo *work) ([]string, error) {
 	if mode, _ := u.dir.Mode(); mode == "off" {
 		return nil, nil // no reports
 	}
@@ -104,7 +104,7 @@ func notNeeded(date string, todo work) bool {
 	return false
 }
 
-func (u *Uploader) deleteFiles(files []string) {
+func (u *uploader) deleteFiles(files []string) {
 	for _, f := range files {
 		if err := os.Remove(f); err != nil {
 			// this could be a race condition.
@@ -117,7 +117,7 @@ func (u *Uploader) deleteFiles(files []string) {
 
 // createReport for all the count files for the same date.
 // returns the absolute path name of the file containing the report
-func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
+func (u *uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
 	uploadOK := true
 	mode, asof := u.dir.Mode()
 	if mode != "on" {
@@ -147,6 +147,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 	}
 	var succeeded bool
 	for _, f := range countFiles {
+		fok := false
 		x, err := u.parseCountFile(f)
 		if err != nil {
 			u.logger.Printf("Unparseable count file %s: %v", filepath.Base(f), err)
@@ -162,12 +163,14 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
 				prog.Counters[k] += int64(v)
 			}
 			succeeded = true
+			fok = true
+		}
+		if !fok {
+			u.logger.Printf("no counters found in %s", f)
 		}
 	}
 	if !succeeded {
-		// TODO(rfindley): this isn't right: a count file is not unparseable just
-		// because it has no counters
-		return "", fmt.Errorf("all %d count files for %s were unparseable", len(countFiles), expiryDate)
+		return "", fmt.Errorf("none of the %d count files for %s contained counters", len(countFiles), expiryDate)
 	}
 	// 1. generate the local report
 	localContents, err := json.MarshalIndent(report, "", " ")

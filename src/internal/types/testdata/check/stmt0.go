@@ -953,10 +953,10 @@ func issue10148() {
 	for y /* ERROR "declared and not used" */ := range "" {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for range 1.5 /* ERROR "cannot range over 1.5" */ {
+	for range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for y := range 1.5 /* ERROR "cannot range over 1.5" */ {
+	for y := range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
 }

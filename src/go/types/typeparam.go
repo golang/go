@@ -89,6 +89,10 @@ func (t *TypeParam) SetConstraint(bound Type) {
 	t.iface()
 }
 
+// Underlying returns the [underlying type] of the type parameter t, which is
+// the underlying type of its constraint. This type is always an interface.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (t *TypeParam) Underlying() Type {
 	return t.iface()
 }

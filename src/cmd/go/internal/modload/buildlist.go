@@ -795,13 +795,13 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 	case pruned:
 		return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
 	case workspace:
-		return updateWorkspaceRoots(ctx, rs, add)
+		return updateWorkspaceRoots(ctx, direct, rs, add)
 	default:
 		panic(fmt.Sprintf("unsupported pruning mode: %v", rs.pruning))
 	}
 }
 
-func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
+func updateWorkspaceRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
 	if len(add) != 0 {
 		// add should be empty in workspace mode because workspace mode implies
 		// -mod=readonly, which in turn implies no new requirements. The code path
@@ -812,7 +812,7 @@ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Ve
 		// return an error.
 		panic("add is not empty")
 	}
-	return rs, nil
+	return newRequirements(workspace, rs.rootModules, direct), nil
 }
 
 // tidyPrunedRoots returns a minimal set of root requirements that maintains the

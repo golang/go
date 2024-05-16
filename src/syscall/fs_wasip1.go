@@ -288,11 +288,17 @@ func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
 //go:noescape
 func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
 
+// fd_fdstat_get_flags is accessed from internal/syscall/unix
+//go:linkname fd_fdstat_get_flags
+
 func fd_fdstat_get_flags(fd int) (uint32, error) {
 	var stat fdstat
 	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
 	return uint32(stat.fdflags), errnoErr(errno)
 }
+
+// fd_fdstat_get_type is accessed from net
+//go:linkname fd_fdstat_get_type
 
 func fd_fdstat_get_type(fd int) (uint8, error) {
 	var stat fdstat

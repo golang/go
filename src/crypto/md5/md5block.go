@@ -7,7 +7,7 @@
 package md5
 
 import (
-	"encoding/binary"
+	"internal/byteorder"
 	"math/bits"
 )
 
@@ -24,22 +24,22 @@ func blockGeneric(dig *digest, p []byte) {
 		aa, bb, cc, dd := a, b, c, d
 
 		// load input block
-		x0 := binary.LittleEndian.Uint32(q[4*0x0:])
-		x1 := binary.LittleEndian.Uint32(q[4*0x1:])
-		x2 := binary.LittleEndian.Uint32(q[4*0x2:])
-		x3 := binary.LittleEndian.Uint32(q[4*0x3:])
-		x4 := binary.LittleEndian.Uint32(q[4*0x4:])
-		x5 := binary.LittleEndian.Uint32(q[4*0x5:])
-		x6 := binary.LittleEndian.Uint32(q[4*0x6:])
-		x7 := binary.LittleEndian.Uint32(q[4*0x7:])
-		x8 := binary.LittleEndian.Uint32(q[4*0x8:])
-		x9 := binary.LittleEndian.Uint32(q[4*0x9:])
-		xa := binary.LittleEndian.Uint32(q[4*0xa:])
-		xb := binary.LittleEndian.Uint32(q[4*0xb:])
-		xc := binary.LittleEndian.Uint32(q[4*0xc:])
-		xd := binary.LittleEndian.Uint32(q[4*0xd:])
-		xe := binary.LittleEndian.Uint32(q[4*0xe:])
-		xf := binary.LittleEndian.Uint32(q[4*0xf:])
+		x0 := byteorder.LeUint32(q[4*0x0:])
+		x1 := byteorder.LeUint32(q[4*0x1:])
+		x2 := byteorder.LeUint32(q[4*0x2:])
+		x3 := byteorder.LeUint32(q[4*0x3:])
+		x4 := byteorder.LeUint32(q[4*0x4:])
+		x5 := byteorder.LeUint32(q[4*0x5:])
+		x6 := byteorder.LeUint32(q[4*0x6:])
+		x7 := byteorder.LeUint32(q[4*0x7:])
+		x8 := byteorder.LeUint32(q[4*0x8:])
+		x9 := byteorder.LeUint32(q[4*0x9:])
+		xa := byteorder.LeUint32(q[4*0xa:])
+		xb := byteorder.LeUint32(q[4*0xb:])
+		xc := byteorder.LeUint32(q[4*0xc:])
+		xd := byteorder.LeUint32(q[4*0xd:])
+		xe := byteorder.LeUint32(q[4*0xe:])
+		xf := byteorder.LeUint32(q[4*0xf:])
 
 		// round 1
 		a = b + bits.RotateLeft32((((c^d)&b)^d)+a+x0+0xd76aa478, 7)

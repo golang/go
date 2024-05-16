@@ -28,7 +28,7 @@ func crash() {
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
 	writeSentinel(os.Stdout)
-	debug.SetCrashOutput(os.Stdout)
+	debug.SetCrashOutput(os.Stdout, debug.CrashOptions{})
 
 	go func() {
 		// This call is typically inlined.

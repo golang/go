@@ -22,7 +22,7 @@ type work struct {
 // find all the files that look like counter files or reports
 // that need to be uploaded. (There may be unexpected leftover files
 // and uploading is supposed to be idempotent.)
-func (u *Uploader) findWork() work {
+func (u *uploader) findWork() work {
 	localdir, uploaddir := u.dir.LocalDir(), u.dir.UploadDir()
 	var ans work
 	fis, err := os.ReadDir(localdir)

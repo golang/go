@@ -118,7 +118,7 @@ func BenchmarkTypeForError(b *testing.B) {
 	}
 }
 
-func Test_Type_CanSeq(t *testing.T) {
+func TestType_CanSeq(t *testing.T) {
 	tests := []struct {
 		name string
 		tr   reflect.Type
@@ -143,7 +143,7 @@ func Test_Type_CanSeq(t *testing.T) {
 	}
 }
 
-func Test_Type_CanSeq2(t *testing.T) {
+func TestType_CanSeq2(t *testing.T) {
 	tests := []struct {
 		name string
 		tr   reflect.Type

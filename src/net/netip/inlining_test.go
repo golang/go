@@ -80,6 +80,7 @@ func TestInlining(t *testing.T) {
 	case "amd64", "arm64":
 		// These don't inline on 32-bit.
 		wantInlinable = append(wantInlinable,
+			"Addr.AsSlice",
 			"Addr.Next",
 			"Addr.Prev",
 		)

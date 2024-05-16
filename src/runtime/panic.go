@@ -1014,13 +1014,12 @@ func sync_fatal(s string) {
 // issue #67274, so as to fix longtest builders.
 //
 //go:nosplit
-//go:noinline
 func throw(s string) {
 	// Everything throw does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
 	systemstack(func() {
 		print("fatal error: ")
-		printpanicval(s)
+		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
 		print("\n")
 	})
 
@@ -1041,7 +1040,7 @@ func fatal(s string) {
 	// can be called even when it's unsafe to grow the stack.
 	systemstack(func() {
 		print("fatal error: ")
-		printpanicval(s)
+		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
 		print("\n")
 	})
 

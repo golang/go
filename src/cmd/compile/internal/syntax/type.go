@@ -10,9 +10,12 @@ import "go/constant"
 // All types implement the Type interface.
 // (This type originally lived in types2. We moved it here
 // so we could depend on it from other packages without
-// introducing a circularity.)
+// introducing an import cycle.)
 type Type interface {
 	// Underlying returns the underlying type of a type.
+	// Underlying types are never Named, TypeParam, or Alias types.
+	//
+	// See https://go.dev/ref/spec#Underlying_types.
 	Underlying() Type
 
 	// String returns a string representation of a type.

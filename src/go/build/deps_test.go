@@ -42,19 +42,20 @@ var depsRules = `
 	< cmp, container/list, container/ring,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
-	  internal/cpu, internal/goarch, internal/godebugs,
-	  internal/goexperiment, internal/goos,
+	  internal/goarch, internal/godebugs,
+	  internal/goexperiment, internal/goos, internal/byteorder,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on internal/goarch and unsafe.
-	internal/goarch, unsafe
-	< internal/abi, internal/chacha8rand;
+	# internal/abi depends only on internal/goarch and unsafe.
+	internal/goarch, unsafe < internal/abi;
 
-	unsafe < maps;
+	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
+
+	unsafe < internal/cpu, maps;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -67,7 +68,6 @@ var depsRules = `
 	internal/goos
 	< internal/bytealg
 	< internal/stringslite
-	< internal/byteorder
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
@@ -249,7 +249,7 @@ var depsRules = `
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
 	# math/big
-	FMT, encoding/binary, math/rand
+	FMT, math/rand
 	< math/big;
 
 	# compression
@@ -430,10 +430,8 @@ var depsRules = `
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
-	# Unfortunately, stuck with reflect via encoding/binary.
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
-	encoding/binary,
 	golang.org/x/sys/cpu,
 	hash, embed
 	< crypto
@@ -455,11 +453,13 @@ var depsRules = `
 
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512,
-	  golang.org/x/crypto/sha3;
+	  crypto/sha1, crypto/sha256, crypto/sha512;
 
 	crypto/boring, crypto/internal/edwards25519/field
 	< crypto/ecdh;
+
+	# Unfortunately, stuck with reflect via encoding/binary.
+	encoding/binary, crypto/boring < golang.org/x/crypto/sha3;
 
 	crypto/aes,
 	crypto/des,

@@ -142,13 +142,13 @@ func sprint(data any) string {
 		return "nil"
 	}
 	b := new(strings.Builder)
-	for i, key := range om.Key {
+	for i, m := range om {
 		if i > 0 {
 			b.WriteRune(' ')
 		}
-		b.WriteString(sprintKey(key))
+		b.WriteString(sprintKey(m.Key))
 		b.WriteRune(':')
-		fmt.Fprint(b, om.Value[i])
+		fmt.Fprint(b, m.Value)
 	}
 	return b.String()
 }

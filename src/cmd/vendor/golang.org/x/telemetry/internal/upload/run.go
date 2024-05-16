@@ -30,9 +30,24 @@ type RunConfig struct {
 	StartTime    time.Time // if set, overrides the upload start time
 }
 
-// Uploader encapsulates a single upload operation, carrying parameters and
+// Run generates and uploads reports, as allowed by the mode file.
+func Run(config RunConfig) error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("upload recover: %v", err)
+		}
+	}()
+	uploader, err := newUploader(config)
+	if err != nil {
+		return err
+	}
+	defer uploader.Close()
+	return uploader.Run()
+}
+
+// uploader encapsulates a single upload operation, carrying parameters and
 // shared state.
-type Uploader struct {
+type uploader struct {
 	// config is used to select counters to upload.
 	config        *telemetry.UploadConfig //
 	configVersion string                  // version of the config
@@ -47,11 +62,11 @@ type Uploader struct {
 	logger  *log.Logger
 }
 
-// NewUploader creates a new uploader to use for running the upload for the
+// newUploader creates a new uploader to use for running the upload for the
 // given config.
 //
-// Uploaders should only be used for one call to [Run].
-func NewUploader(rcfg RunConfig) (*Uploader, error) {
+// Uploaders should only be used for one call to [uploader.Run].
+func newUploader(rcfg RunConfig) (*uploader, error) {
 	// Determine the upload directory.
 	var dir telemetry.Dir
 	if rcfg.TelemetryDir != "" {
@@ -108,7 +123,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
 		startTime = rcfg.StartTime
 	}
 
-	return &Uploader{
+	return &uploader{
 		config:          config,
 		configVersion:   configVersion,
 		dir:             dir,
@@ -121,7 +136,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
 }
 
 // Close cleans up any resources associated with the uploader.
-func (u *Uploader) Close() error {
+func (u *uploader) Close() error {
 	if u.logFile == nil {
 		return nil
 	}
@@ -129,7 +144,7 @@ func (u *Uploader) Close() error {
 }
 
 // Run generates and uploads reports
-func (u *Uploader) Run() error {
+func (u *uploader) Run() error {
 	if telemetry.DisabledOnPlatform {
 		return nil
 	}
@@ -174,9 +189,13 @@ func debugLogFile(debugDir string) (*os.File, error) {
 	}
 	prog := path.Base(progPkgPath)
 	progVers := info.Main.Version
-	fname := filepath.Join(debugDir, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
-		prog, progVers, goVers, year, month, day, os.Getpid()))
-	fname = strings.ReplaceAll(fname, " ", "")
+	if progVers == "(devel)" { // avoid special characters in created file names
+		progVers = "devel"
+	}
+	logBase := strings.ReplaceAll(
+		fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log", prog, progVers, goVers, year, month, day, os.Getpid()),
+		" ", "")
+	fname := filepath.Join(debugDir, logBase)
 	if _, err := os.Stat(fname); err == nil {
 		// This process previously called upload.Run
 		return nil, nil

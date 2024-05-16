@@ -30,8 +30,8 @@ package mlkem768
 import (
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -864,8 +864,8 @@ func sampleNTT(rho []byte, ii, jj byte) nttElement {
 			B.Read(buf[:])
 			off = 0
 		}
-		d1 := binary.LittleEndian.Uint16(buf[off:]) & 0b1111_1111_1111
-		d2 := binary.LittleEndian.Uint16(buf[off+1:]) >> 4
+		d1 := byteorder.LeUint16(buf[off:]) & 0b1111_1111_1111
+		d2 := byteorder.LeUint16(buf[off+1:]) >> 4
 		off += 3
 		if d1 < q {
 			a[j] = fieldElement(d1)
