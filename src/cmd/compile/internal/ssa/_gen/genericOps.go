@@ -587,7 +587,7 @@ var genericOps = []opData{
 	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
 
 	// Atomic operations used for semantically inlining sync/atomic and
-	// runtime/internal/atomic. Atomic loads return a new memory so that
+	// internal/runtime/atomic. Atomic loads return a new memory so that
 	// the loads are properly ordered with respect to other loads and
 	// stores.
 	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
@@ -650,7 +650,7 @@ var genericOps = []opData{
 //       If   [boolean Value]      [then, else]
 //    First                []   [always, never]
 //    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
-//JumpTable   [integer Value]  [succ1,succ2,..]
+// JumpTable   [integer Value]  [succ1,succ2,..]
 
 var genericBlocks = []blockData{
 	{name: "Plain"},                  // a single successor

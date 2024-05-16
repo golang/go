@@ -836,6 +836,15 @@ const (
 	FSPICK_EMPTY_PATH       = 0x8
 
 	FSMOUNT_CLOEXEC = 0x1
+
+	FSCONFIG_SET_FLAG        = 0x0
+	FSCONFIG_SET_STRING      = 0x1
+	FSCONFIG_SET_BINARY      = 0x2
+	FSCONFIG_SET_PATH        = 0x3
+	FSCONFIG_SET_PATH_EMPTY  = 0x4
+	FSCONFIG_SET_FD          = 0x5
+	FSCONFIG_CMD_CREATE      = 0x6
+	FSCONFIG_CMD_RECONFIGURE = 0x7
 )
 
 type OpenHow struct {
@@ -1169,7 +1178,8 @@ const (
 	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT    = 0x10
 	PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT     = 0x11
 	PERF_SAMPLE_BRANCH_PRIV_SAVE_SHIFT    = 0x12
-	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x13
+	PERF_SAMPLE_BRANCH_COUNTERS           = 0x80000
+	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x14
 	PERF_SAMPLE_BRANCH_USER               = 0x1
 	PERF_SAMPLE_BRANCH_KERNEL             = 0x2
 	PERF_SAMPLE_BRANCH_HV                 = 0x4
@@ -1189,7 +1199,7 @@ const (
 	PERF_SAMPLE_BRANCH_TYPE_SAVE          = 0x10000
 	PERF_SAMPLE_BRANCH_HW_INDEX           = 0x20000
 	PERF_SAMPLE_BRANCH_PRIV_SAVE          = 0x40000
-	PERF_SAMPLE_BRANCH_MAX                = 0x80000
+	PERF_SAMPLE_BRANCH_MAX                = 0x100000
 	PERF_BR_UNKNOWN                       = 0x0
 	PERF_BR_COND                          = 0x1
 	PERF_BR_UNCOND                        = 0x2
@@ -1550,6 +1560,7 @@ const (
 	IFLA_DEVLINK_PORT                          = 0x3e
 	IFLA_GSO_IPV4_MAX_SIZE                     = 0x3f
 	IFLA_GRO_IPV4_MAX_SIZE                     = 0x40
+	IFLA_DPLL_PIN                              = 0x41
 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
@@ -1565,6 +1576,7 @@ const (
 	IFLA_INET6_ICMP6STATS                      = 0x6
 	IFLA_INET6_TOKEN                           = 0x7
 	IFLA_INET6_ADDR_GEN_MODE                   = 0x8
+	IFLA_INET6_RA_MTU                          = 0x9
 	IFLA_BR_UNSPEC                             = 0x0
 	IFLA_BR_FORWARD_DELAY                      = 0x1
 	IFLA_BR_HELLO_TIME                         = 0x2
@@ -1612,6 +1624,9 @@ const (
 	IFLA_BR_MCAST_MLD_VERSION                  = 0x2c
 	IFLA_BR_VLAN_STATS_PER_PORT                = 0x2d
 	IFLA_BR_MULTI_BOOLOPT                      = 0x2e
+	IFLA_BR_MCAST_QUERIER_STATE                = 0x2f
+	IFLA_BR_FDB_N_LEARNED                      = 0x30
+	IFLA_BR_FDB_MAX_LEARNED                    = 0x31
 	IFLA_BRPORT_UNSPEC                         = 0x0
 	IFLA_BRPORT_STATE                          = 0x1
 	IFLA_BRPORT_PRIORITY                       = 0x2
@@ -1649,6 +1664,14 @@ const (
 	IFLA_BRPORT_BACKUP_PORT                    = 0x22
 	IFLA_BRPORT_MRP_RING_OPEN                  = 0x23
 	IFLA_BRPORT_MRP_IN_OPEN                    = 0x24
+	IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT          = 0x25
+	IFLA_BRPORT_MCAST_EHT_HOSTS_CNT            = 0x26
+	IFLA_BRPORT_LOCKED                         = 0x27
+	IFLA_BRPORT_MAB                            = 0x28
+	IFLA_BRPORT_MCAST_N_GROUPS                 = 0x29
+	IFLA_BRPORT_MCAST_MAX_GROUPS               = 0x2a
+	IFLA_BRPORT_NEIGH_VLAN_SUPPRESS            = 0x2b
+	IFLA_BRPORT_BACKUP_NHID                    = 0x2c
 	IFLA_INFO_UNSPEC                           = 0x0
 	IFLA_INFO_KIND                             = 0x1
 	IFLA_INFO_DATA                             = 0x2
@@ -1670,6 +1693,9 @@ const (
 	IFLA_MACVLAN_MACADDR                       = 0x4
 	IFLA_MACVLAN_MACADDR_DATA                  = 0x5
 	IFLA_MACVLAN_MACADDR_COUNT                 = 0x6
+	IFLA_MACVLAN_BC_QUEUE_LEN                  = 0x7
+	IFLA_MACVLAN_BC_QUEUE_LEN_USED             = 0x8
+	IFLA_MACVLAN_BC_CUTOFF                     = 0x9
 	IFLA_VRF_UNSPEC                            = 0x0
 	IFLA_VRF_TABLE                             = 0x1
 	IFLA_VRF_PORT_UNSPEC                       = 0x0
@@ -1693,9 +1719,22 @@ const (
 	IFLA_XFRM_UNSPEC                           = 0x0
 	IFLA_XFRM_LINK                             = 0x1
 	IFLA_XFRM_IF_ID                            = 0x2
+	IFLA_XFRM_COLLECT_METADATA                 = 0x3
 	IFLA_IPVLAN_UNSPEC                         = 0x0
 	IFLA_IPVLAN_MODE                           = 0x1
 	IFLA_IPVLAN_FLAGS                          = 0x2
+	NETKIT_NEXT                                = -0x1
+	NETKIT_PASS                                = 0x0
+	NETKIT_DROP                                = 0x2
+	NETKIT_REDIRECT                            = 0x7
+	NETKIT_L2                                  = 0x0
+	NETKIT_L3                                  = 0x1
+	IFLA_NETKIT_UNSPEC                         = 0x0
+	IFLA_NETKIT_PEER_INFO                      = 0x1
+	IFLA_NETKIT_PRIMARY                        = 0x2
+	IFLA_NETKIT_POLICY                         = 0x3
+	IFLA_NETKIT_PEER_POLICY                    = 0x4
+	IFLA_NETKIT_MODE                           = 0x5
 	IFLA_VXLAN_UNSPEC                          = 0x0
 	IFLA_VXLAN_ID                              = 0x1
 	IFLA_VXLAN_GROUP                           = 0x2
@@ -1726,6 +1765,8 @@ const (
 	IFLA_VXLAN_GPE                             = 0x1b
 	IFLA_VXLAN_TTL_INHERIT                     = 0x1c
 	IFLA_VXLAN_DF                              = 0x1d
+	IFLA_VXLAN_VNIFILTER                       = 0x1e
+	IFLA_VXLAN_LOCALBYPASS                     = 0x1f
 	IFLA_GENEVE_UNSPEC                         = 0x0
 	IFLA_GENEVE_ID                             = 0x1
 	IFLA_GENEVE_REMOTE                         = 0x2
@@ -1740,6 +1781,7 @@ const (
 	IFLA_GENEVE_LABEL                          = 0xb
 	IFLA_GENEVE_TTL_INHERIT                    = 0xc
 	IFLA_GENEVE_DF                             = 0xd
+	IFLA_GENEVE_INNER_PROTO_INHERIT            = 0xe
 	IFLA_BAREUDP_UNSPEC                        = 0x0
 	IFLA_BAREUDP_PORT                          = 0x1
 	IFLA_BAREUDP_ETHERTYPE                     = 0x2
@@ -1752,6 +1794,8 @@ const (
 	IFLA_GTP_FD1                               = 0x2
 	IFLA_GTP_PDP_HASHSIZE                      = 0x3
 	IFLA_GTP_ROLE                              = 0x4
+	IFLA_GTP_CREATE_SOCKETS                    = 0x5
+	IFLA_GTP_RESTART_COUNT                     = 0x6
 	IFLA_BOND_UNSPEC                           = 0x0
 	IFLA_BOND_MODE                             = 0x1
 	IFLA_BOND_ACTIVE_SLAVE                     = 0x2
@@ -1781,6 +1825,9 @@ const (
 	IFLA_BOND_AD_ACTOR_SYSTEM                  = 0x1a
 	IFLA_BOND_TLB_DYNAMIC_LB                   = 0x1b
 	IFLA_BOND_PEER_NOTIF_DELAY                 = 0x1c
+	IFLA_BOND_AD_LACP_ACTIVE                   = 0x1d
+	IFLA_BOND_MISSED_MAX                       = 0x1e
+	IFLA_BOND_NS_IP6_TARGET                    = 0x1f
 	IFLA_BOND_AD_INFO_UNSPEC                   = 0x0
 	IFLA_BOND_AD_INFO_AGGREGATOR               = 0x1
 	IFLA_BOND_AD_INFO_NUM_PORTS                = 0x2
@@ -1796,6 +1843,7 @@ const (
 	IFLA_BOND_SLAVE_AD_AGGREGATOR_ID           = 0x6
 	IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE   = 0x7
 	IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE = 0x8
+	IFLA_BOND_SLAVE_PRIO                       = 0x9
 	IFLA_VF_INFO_UNSPEC                        = 0x0
 	IFLA_VF_INFO                               = 0x1
 	IFLA_VF_UNSPEC                             = 0x0
@@ -1854,8 +1902,16 @@ const (
 	IFLA_STATS_LINK_XSTATS_SLAVE               = 0x3
 	IFLA_STATS_LINK_OFFLOAD_XSTATS             = 0x4
 	IFLA_STATS_AF_SPEC                         = 0x5
+	IFLA_STATS_GETSET_UNSPEC                   = 0x0
+	IFLA_STATS_GET_FILTERS                     = 0x1
+	IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS     = 0x2
 	IFLA_OFFLOAD_XSTATS_UNSPEC                 = 0x0
 	IFLA_OFFLOAD_XSTATS_CPU_HIT                = 0x1
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO              = 0x2
+	IFLA_OFFLOAD_XSTATS_L3_STATS               = 0x3
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC       = 0x0
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST      = 0x1
+	IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED         = 0x2
 	IFLA_XDP_UNSPEC                            = 0x0
 	IFLA_XDP_FD                                = 0x1
 	IFLA_XDP_ATTACHED                          = 0x2
@@ -1885,6 +1941,11 @@ const (
 	IFLA_RMNET_UNSPEC                          = 0x0
 	IFLA_RMNET_MUX_ID                          = 0x1
 	IFLA_RMNET_FLAGS                           = 0x2
+	IFLA_MCTP_UNSPEC                           = 0x0
+	IFLA_MCTP_NET                              = 0x1
+	IFLA_DSA_UNSPEC                            = 0x0
+	IFLA_DSA_CONDUIT                           = 0x1
+	IFLA_DSA_MASTER                            = 0x1
 )
 
 const (
@@ -2421,6 +2482,15 @@ type XDPMmapOffsets struct {
 	Cr XDPRingOffset
 }
 
+type XDPUmemReg struct {
+	Addr            uint64
+	Len             uint64
+	Chunk_size      uint32
+	Headroom        uint32
+	Flags           uint32
+	Tx_metadata_len uint32
+}
+
 type XDPStatistics struct {
 	Rx_dropped               uint64
 	Rx_invalid_descs         uint64
@@ -2875,7 +2945,7 @@ const (
 	BPF_TCP_LISTEN                             = 0xa
 	BPF_TCP_CLOSING                            = 0xb
 	BPF_TCP_NEW_SYN_RECV                       = 0xc
-	BPF_TCP_MAX_STATES                         = 0xd
+	BPF_TCP_MAX_STATES                         = 0xe
 	TCP_BPF_IW                                 = 0x3e9
 	TCP_BPF_SNDCWND_CLAMP                      = 0x3ea
 	TCP_BPF_DELACK_MAX                         = 0x3eb
@@ -3151,7 +3221,7 @@ const (
 	DEVLINK_CMD_LINECARD_NEW                           = 0x50
 	DEVLINK_CMD_LINECARD_DEL                           = 0x51
 	DEVLINK_CMD_SELFTESTS_GET                          = 0x52
-	DEVLINK_CMD_MAX                                    = 0x53
+	DEVLINK_CMD_MAX                                    = 0x54
 	DEVLINK_PORT_TYPE_NOTSET                           = 0x0
 	DEVLINK_PORT_TYPE_AUTO                             = 0x1
 	DEVLINK_PORT_TYPE_ETH                              = 0x2
@@ -4535,7 +4605,7 @@ const (
 	NL80211_ATTR_MAC_HINT                                   = 0xc8
 	NL80211_ATTR_MAC_MASK                                   = 0xd7
 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
-	NL80211_ATTR_MAX                                        = 0x146
+	NL80211_ATTR_MAX                                        = 0x149
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
@@ -4801,7 +4871,7 @@ const (
 	NL80211_BSS_FREQUENCY_OFFSET                            = 0x14
 	NL80211_BSS_INFORMATION_ELEMENTS                        = 0x6
 	NL80211_BSS_LAST_SEEN_BOOTTIME                          = 0xf
-	NL80211_BSS_MAX                                         = 0x16
+	NL80211_BSS_MAX                                         = 0x18
 	NL80211_BSS_MLD_ADDR                                    = 0x16
 	NL80211_BSS_MLO_LINK_ID                                 = 0x15
 	NL80211_BSS_PAD                                         = 0x10
@@ -4905,7 +4975,7 @@ const (
 	NL80211_CMD_LEAVE_IBSS                                  = 0x2c
 	NL80211_CMD_LEAVE_MESH                                  = 0x45
 	NL80211_CMD_LEAVE_OCB                                   = 0x6d
-	NL80211_CMD_MAX                                         = 0x9a
+	NL80211_CMD_MAX                                         = 0x9b
 	NL80211_CMD_MICHAEL_MIC_FAILURE                         = 0x29
 	NL80211_CMD_MODIFY_LINK_STA                             = 0x97
 	NL80211_CMD_NAN_MATCH                                   = 0x78
@@ -5139,7 +5209,7 @@ const (
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
-	NL80211_FREQUENCY_ATTR_MAX                              = 0x1c
+	NL80211_FREQUENCY_ATTR_MAX                              = 0x1f
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc

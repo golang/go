@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"internal/goexperiment"
 	"os"
+	_ "unsafe" // for linkname
 )
 
 // cover2 variable stores the current coverage mode and a
@@ -19,6 +20,9 @@ var cover2 struct {
 	tearDown    func(coverprofile string, gocoverdir string) (string, error)
 	snapshotcov func() float64
 }
+
+// registerCover2 is injected in testmain.
+//go:linkname registerCover2
 
 // registerCover2 is invoked during "go test -cover" runs by the test harness
 // code in _testmain.go; it is used to record a 'tear down' function
@@ -41,6 +45,9 @@ func coverReport2() {
 		os.Exit(2)
 	}
 }
+
+// testGoCoverDir is used in runtime/coverage tests.
+//go:linkname testGoCoverDir
 
 // testGoCoverDir returns the value passed to the -test.gocoverdir
 // flag by the Go command, if goexperiment.CoverageRedesign is

@@ -13,7 +13,7 @@ import (
 const Enabled = true
 
 //go:linkname Read runtime.asanread
-func Read(addr unsafe.Pointer, len int)
+func Read(addr unsafe.Pointer, len uintptr)
 
 //go:linkname Write runtime.asanwrite
-func Write(addr unsafe.Pointer, len int)
+func Write(addr unsafe.Pointer, len uintptr)

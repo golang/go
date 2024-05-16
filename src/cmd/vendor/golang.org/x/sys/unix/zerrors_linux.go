@@ -491,6 +491,7 @@ const (
 	BPF_F_REPLACE                               = 0x4
 	BPF_F_SLEEPABLE                             = 0x10
 	BPF_F_STRICT_ALIGNMENT                      = 0x1
+	BPF_F_TEST_REG_INVARIANTS                   = 0x80
 	BPF_F_TEST_RND_HI32                         = 0x4
 	BPF_F_TEST_RUN_ON_CPU                       = 0x1
 	BPF_F_TEST_STATE_FREQ                       = 0x8
@@ -1697,6 +1698,7 @@ const (
 	KEXEC_ARCH_S390                             = 0x160000
 	KEXEC_ARCH_SH                               = 0x2a0000
 	KEXEC_ARCH_X86_64                           = 0x3e0000
+	KEXEC_FILE_DEBUG                            = 0x8
 	KEXEC_FILE_NO_INITRAMFS                     = 0x4
 	KEXEC_FILE_ON_CRASH                         = 0x2
 	KEXEC_FILE_UNLOAD                           = 0x1
@@ -1898,6 +1900,7 @@ const (
 	MNT_DETACH                                  = 0x2
 	MNT_EXPIRE                                  = 0x4
 	MNT_FORCE                                   = 0x1
+	MNT_ID_REQ_SIZE_VER0                        = 0x18
 	MODULE_INIT_COMPRESSED_FILE                 = 0x4
 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
@@ -2302,6 +2305,7 @@ const (
 	PERF_AUX_FLAG_PARTIAL                       = 0x4
 	PERF_AUX_FLAG_PMU_FORMAT_TYPE_MASK          = 0xff00
 	PERF_AUX_FLAG_TRUNCATED                     = 0x1
+	PERF_BRANCH_ENTRY_INFO_BITS_MAX             = 0x21
 	PERF_BR_ARM64_DEBUG_DATA                    = 0x7
 	PERF_BR_ARM64_DEBUG_EXIT                    = 0x5
 	PERF_BR_ARM64_DEBUG_HALT                    = 0x4
@@ -3168,6 +3172,7 @@ const (
 	STATX_GID                                   = 0x10
 	STATX_INO                                   = 0x100
 	STATX_MNT_ID                                = 0x1000
+	STATX_MNT_ID_UNIQUE                         = 0x4000
 	STATX_MODE                                  = 0x2
 	STATX_MTIME                                 = 0x40
 	STATX_NLINK                                 = 0x4
@@ -3562,12 +3567,16 @@ const (
 	XDP_RX_RING                                 = 0x2
 	XDP_SHARED_UMEM                             = 0x1
 	XDP_STATISTICS                              = 0x7
+	XDP_TXMD_FLAGS_CHECKSUM                     = 0x2
+	XDP_TXMD_FLAGS_TIMESTAMP                    = 0x1
+	XDP_TX_METADATA                             = 0x2
 	XDP_TX_RING                                 = 0x3
 	XDP_UMEM_COMPLETION_RING                    = 0x6
 	XDP_UMEM_FILL_RING                          = 0x5
 	XDP_UMEM_PGOFF_COMPLETION_RING              = 0x180000000
 	XDP_UMEM_PGOFF_FILL_RING                    = 0x100000000
 	XDP_UMEM_REG                                = 0x4
+	XDP_UMEM_TX_SW_CSUM                         = 0x2
 	XDP_UMEM_UNALIGNED_CHUNK_FLAG               = 0x1
 	XDP_USE_NEED_WAKEUP                         = 0x8
 	XDP_USE_SG                                  = 0x10

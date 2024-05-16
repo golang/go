@@ -36,6 +36,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
+	"cmd/internal/telemetry"
 	"cmd/link/internal/benchmark"
 	"flag"
 	"internal/buildcfg"
@@ -63,6 +64,7 @@ func init() {
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
 var (
 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
+	flagBindNow = flag.Bool("bindnow", false, "mark a dynamically linked ELF object for immediate function binding")
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
@@ -94,6 +96,7 @@ var (
 	FlagS             = flag.Bool("s", false, "disable symbol table")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+	flagCheckLinkname = flag.Bool("checklinkname", false, "check linkname symbol references")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
@@ -154,6 +157,8 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean 
 func Main(arch *sys.Arch, theArch Arch) {
 	log.SetPrefix("link: ")
 	log.SetFlags(0)
+	telemetry.Start()
+	telemetry.Inc("link/invocations")
 
 	thearch = theArch
 	ctxt := linknew(arch)
@@ -168,12 +173,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if final := gorootFinal(); final == "$GOROOT" {
-		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
-		// but runtime.GOROOT() should return the empty string, not a bogus value.
-		// (See https://go.dev/issue/51461.)
+	if buildcfg.GOROOT == "" {
+		// cmd/go clears the GOROOT variable when -trimpath is set,
+		// so omit it from the binary even if cmd/link itself has an
+		// embedded GOROOT value reported by runtime.GOROOT.
 	} else {
-		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+		addstrdata1(ctxt, "runtime.defaultGOROOT="+buildcfg.GOROOT)
 	}
 
 	buildVersion := buildcfg.Version
@@ -199,6 +204,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
+	telemetry.CountFlags("link/flag:", *flag.CommandLine)
 
 	if ctxt.Debugvlog > 0 {
 		// dump symbol info on crash
@@ -498,7 +504,12 @@ func startProfile() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatalf("%v", err)
 		}
-		AtExit(pprof.StopCPUProfile)
+		AtExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				log.Fatalf("error closing cpu profile: %v", err)
+			}
+		})
 	}
 	if *memprofile != "" {
 		if *memprofilerate != 0 {
@@ -517,6 +528,10 @@ func startProfile() {
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
+			}
+			// Close the file after writing the profile.
+			if err := f.Close(); err != nil {
+				log.Fatalf("could not close %v: %v", *memprofile, err)
 			}
 		})
 	}

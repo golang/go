@@ -88,14 +88,38 @@ Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
 programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
 not the older version.
 
-To override these defaults, a main package's source files
+To override these defaults, starting in Go 1.23, the work module's `go.mod`
+or the workspace's `go.work` can list one or more `godebug` lines:
+
+	godebug (
+		default=go1.21
+		panicnil=1
+		asynctimerchan=0
+	)
+
+The special key `default` indicates a Go version to take unspecified
+settings from. This allows setting the GODEBUG defaults separately
+from the Go language version in the module.
+In this example, the program is asking for Go 1.21 semantics and
+then asking for the old pre-Go 1.21 `panic(nil)` behavior and the
+new Go 1.23 `asynctimerchan=0` behavior.
+
+Only the work module's `go.mod` is consulted for `godebug` directives.
+Any directives in required dependency modules are ignored.
+It is an error to list a `godebug` with an unrecognized setting.
+(Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
+understand `godebug` at all.)
+
+The defaults from the `go` and `godebug` lines apply to all main
+packages that are built. For more fine-grained control,
+starting in Go 1.21, a main package's source files
 can include one or more `//go:debug` directives at the top of the file
 (preceding the `package` statement).
-Continuing the `panicnil` example, if the module or workspace is updated
-to say `go` `1.21`, the program can opt back into the old `panic(nil)`
-behavior by including this directive:
+The `godebug` lines in the previous example would be written:
 
+	//go:debug default=go1.21
 	//go:debug panicnil=1
+	//go:debug asynctimerchan=0
 
 Starting in Go 1.21, the Go toolchain treats a `//go:debug` directive
 with an unrecognized GODEBUG setting as an invalid program.
@@ -126,6 +150,32 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.23
+
+Go 1.23 changed the channels created by package time to be unbuffered
+(synchronous), which makes correct use of the [`Timer.Stop`](/pkg/time/#Timer.Stop)
+and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
+The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
+There are no runtime metrics for this change,
+This setting may be removed in a future release, Go 1.27 at the earliest.
+
+Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+for reparse points, which can be controlled with the `winsymlink` setting.
+As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
+set, and reparse points that are not symlinks, Unix sockets, or dedup files now
+always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set. As a result of these changes,
+[`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
+mount points, which was a source of many inconsistencies and bugs.
+At previous versions (`winsymlink=0`), mount points are treated as symlinks,
+and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
+(such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
+
+Go 1.23 changed [`os.Readlink`](/pkg/os#Readlink) and [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks)
+to avoid trying to normalize volumes to drive letters, which was not always even possible.
+This behavior is controlled by the `winreadlinkvolume` setting.
+For Go 1.23, it defaults to `winreadlinkvolume=1`.
+Previous versions default to `winreadlinkvolume=0`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
@@ -148,8 +198,8 @@ for the explicit representation of [type aliases](/ref/spec#Type_declarations).
 Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
-For Go 1.23, `gotypealias=1` will become the default.
-This setting will be removed in a future release, Go 1.24 at the earliest.
+For Go 1.23, `gotypesalias=1` will become the default.
+This setting will be removed in a future release, Go 1.27 at the earliest.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
 and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
@@ -157,7 +207,7 @@ and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
 
 Go 1.22 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing the cipher suites which used RSA based key
-exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+exchange. The default can be reverted using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
 
 Go 1.22 disabled
 [`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)

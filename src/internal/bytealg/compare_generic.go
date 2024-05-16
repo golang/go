@@ -35,6 +35,10 @@ samebytes:
 	return 0
 }
 
+func CompareString(a, b string) int {
+	return runtime_cmpstring(a, b)
+}
+
 //go:linkname runtime_cmpstring runtime.cmpstring
 func runtime_cmpstring(a, b string) int {
 	l := len(a)

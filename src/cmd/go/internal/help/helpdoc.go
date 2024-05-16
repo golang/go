@@ -603,6 +603,13 @@ Architecture-specific environment variables:
 		Valid values are 5, 6, 7.
 		The value can be followed by an option specifying how to implement floating point instructions.
 		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+	GOARM64
+		For GOARCH=arm64, the ARM64 architecture for which to compile.
+		Valid values are v8.0 (default), v8.{1-9}, v9.{0-5}.
+		The value can be followed by an option specifying extensions implemented by target hardware.
+		Valid options are ,lse and ,crypto.
+		Note that some extensions are enabled by default starting from a certain GOARM64 version;
+		for example, lse is enabled by default starting from v8.1.
 	GO386
 		For GOARCH=386, how to implement floating point instructions.
 		Valid values are sse2 (default), softfloat.
@@ -645,11 +652,6 @@ Special-purpose environment variables:
 		See src/internal/goexperiment/flags.go for currently valid values.
 		Warning: This variable is provided for the development and testing
 		of the Go toolchain itself. Use beyond that purpose is unsupported.
-	GOROOT_FINAL
-		The root of the installed Go tree, when it is
-		installed in a location other than where it is built.
-		File names in stack traces are rewritten from GOROOT to
-		GOROOT_FINAL.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
@@ -898,6 +900,8 @@ The defined architecture feature build tags are:
 	  correspond to the amd64.v1, amd64.v2, and amd64.v3 feature build tags.
 	- For GOARCH=arm, GOARM=5, 6, and 7
 	  correspond to the arm.5, arm.6, and arm.7 feature build tags.
+	- For GOARCH=arm64, GOARM64=v8.{0-9} and v9.{0-5}
+	  correspond to the arm64.v8.{0-9} and arm64.v9.{0-5} feature build tags.
 	- For GOARCH=mips or mipsle,
 	  GOMIPS=hardfloat and softfloat
 	  correspond to the mips.hardfloat and mips.softfloat

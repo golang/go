@@ -7,11 +7,13 @@ package abi
 // Map constants common to several packages
 // runtime/runtime-gdb.py:MapTypePrinter contains its own copy
 const (
+	// Maximum number of key/elem pairs a bucket can hold.
 	MapBucketCountBits = 3 // log2 of number of elements in a bucket.
 	MapBucketCount     = 1 << MapBucketCountBits
-	MapMaxKeyBytes     = 128 // Must fit in a uint8.
-	MapMaxElemBytes    = 128 // Must fit in a uint8.
-)
 
-// ZeroValSize is the size in bytes of runtime.zeroVal.
-const ZeroValSize = 1024
+	// Maximum key or elem size to keep inline (instead of mallocing per element).
+	// Must fit in a uint8.
+	// Note: fast map functions cannot handle big elems (bigger than MapMaxElemBytes).
+	MapMaxKeyBytes  = 128
+	MapMaxElemBytes = 128 // Must fit in a uint8.
+)

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64 || ppc64le
+//go:build (ppc64 || ppc64le) && !purego
 
 package aes
 
@@ -59,9 +59,9 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
 	}
 	if len(src) > 0 {
 		if x.enc == cbcEncrypt {
-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.enc[0], &x.iv[0], x.enc, len(x.b.enc)/4-1)
+			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.enc[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
 		} else {
-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.dec[0], &x.iv[0], x.enc, len(x.b.dec)/4-1)
+			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.dec[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
 		}
 	}
 }

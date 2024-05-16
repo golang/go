@@ -5,7 +5,6 @@
 package trace
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -24,33 +23,47 @@ type batch struct {
 	m    ThreadID
 	time timestamp
 	data []byte
+	exp  event.Experiment
 }
 
 func (b *batch) isStringsBatch() bool {
-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
 }
 
 func (b *batch) isStacksBatch() bool {
-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
 }
 
 func (b *batch) isCPUSamplesBatch() bool {
-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
 }
 
 func (b *batch) isFreqBatch() bool {
-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
 }
 
 // readBatch reads the next full batch from r.
-func readBatch(r *bufio.Reader) (batch, uint64, error) {
+func readBatch(r interface {
+	io.Reader
+	io.ByteReader
+}) (batch, uint64, error) {
 	// Read batch header byte.
 	b, err := r.ReadByte()
 	if err != nil {
 		return batch{}, 0, err
 	}
-	if typ := event.Type(b); typ != go122.EvEventBatch {
-		return batch{}, 0, fmt.Errorf("expected batch event (%s), got %s", go122.EventString(go122.EvEventBatch), go122.EventString(typ))
+	if typ := event.Type(b); typ != go122.EvEventBatch && typ != go122.EvExperimentalBatch {
+		return batch{}, 0, fmt.Errorf("expected batch event, got %s", go122.EventString(typ))
+	}
+
+	// Read the experiment of we have one.
+	exp := event.NoExperiment
+	if event.Type(b) == go122.EvExperimentalBatch {
+		e, err := r.ReadByte()
+		if err != nil {
+			return batch{}, 0, err
+		}
+		exp = event.Experiment(e)
 	}
 
 	// Read the batch header: gen (generation), thread (M) ID, base timestamp
@@ -93,5 +106,6 @@ func readBatch(r *bufio.Reader) (batch, uint64, error) {
 		m:    ThreadID(m),
 		time: timestamp(ts),
 		data: data.Bytes(),
+		exp:  exp,
 	}, gen, nil
 }

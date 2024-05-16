@@ -45,6 +45,7 @@ type Func struct {
 	laidout     bool  // Blocks are ordered
 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
 	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
+	IsPgoHot    bool
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
@@ -838,5 +839,25 @@ func (f *Func) useFMA(v *Value) bool {
 
 // NewLocal returns a new anonymous local variable of the given type.
 func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
-	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
+	nn := typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
+	nn.SetNonMergeable(true)
+	return nn
+}
+
+// IsMergeCandidate returns true if variable n could participate in
+// stack slot merging. For now we're restricting the set to things to
+// items larger than what CanSSA would allow (approximateky, we disallow things
+// marked as open defer slots so as to avoid complicating liveness
+// analysis.
+func IsMergeCandidate(n *ir.Name) bool {
+	if base.Debug.MergeLocals == 0 ||
+		base.Flag.N != 0 ||
+		n.Class != ir.PAUTO ||
+		n.Type().Size() <= int64(3*types.PtrSize) ||
+		n.Addrtaken() ||
+		n.NonMergeable() ||
+		n.OpenDeferSlot() {
+		return false
+	}
+	return true
 }

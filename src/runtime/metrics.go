@@ -95,77 +95,77 @@ func initMetrics() {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.gcAssistTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.GCAssistTime))
 			},
 		},
 		"/cpu/classes/gc/mark/dedicated:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.gcDedicatedTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.GCDedicatedTime))
 			},
 		},
 		"/cpu/classes/gc/mark/idle:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.gcIdleTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.GCIdleTime))
 			},
 		},
 		"/cpu/classes/gc/pause:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.gcPauseTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.GCPauseTime))
 			},
 		},
 		"/cpu/classes/gc/total:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.gcTotalTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.GCTotalTime))
 			},
 		},
 		"/cpu/classes/idle:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.idleTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.IdleTime))
 			},
 		},
 		"/cpu/classes/scavenge/assist:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeAssistTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeAssistTime))
 			},
 		},
 		"/cpu/classes/scavenge/background:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeBgTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeBgTime))
 			},
 		},
 		"/cpu/classes/scavenge/total:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeTotalTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeTotalTime))
 			},
 		},
 		"/cpu/classes/total:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.totalTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.TotalTime))
 			},
 		},
 		"/cpu/classes/user:cpu-seconds": {
 			deps: makeStatDepSet(cpuStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
-				out.scalar = float64bits(nsToSec(in.cpuStats.userTime))
+				out.scalar = float64bits(nsToSec(in.cpuStats.UserTime))
 			},
 		},
 		"/gc/cycles/automatic:gc-cycles": {

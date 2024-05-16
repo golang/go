@@ -79,20 +79,28 @@ func isTypeLit(t Type) bool {
 }
 
 // isTyped reports whether t is typed; i.e., not an untyped
-// constant or boolean. isTyped may be called with types that
-// are not fully set up.
+// constant or boolean.
+// Safe to call from types that are not fully set up.
 func isTyped(t Type) bool {
-	// Alias or Named types cannot denote untyped types,
-	// thus we don't need to call Unalias or under
-	// (which would be unsafe to do for types that are
-	// not fully set up).
+	// Alias and named types cannot denote untyped types
+	// so there's no need to call Unalias or under, below.
 	b, _ := t.(*Basic)
 	return b == nil || b.info&IsUntyped == 0
 }
 
 // isUntyped(t) is the same as !isTyped(t).
+// Safe to call from types that are not fully set up.
 func isUntyped(t Type) bool {
 	return !isTyped(t)
+}
+
+// isUntypedNumeric reports whether t is an untyped numeric type.
+// Safe to call from types that are not fully set up.
+func isUntypedNumeric(t Type) bool {
+	// Alias and named types cannot denote untyped types
+	// so there's no need to call Unalias or under, below.
+	b, _ := t.(*Basic)
+	return b != nil && b.info&IsUntyped != 0 && b.info&IsNumeric != 0
 }
 
 // IsInterface reports whether t is an interface type.
@@ -477,7 +485,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return false
@@ -510,7 +518,9 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool 
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
 func Default(t Type) Type {
-	if t, ok := Unalias(t).(*Basic); ok {
+	// Alias and named types cannot denote untyped types
+	// so there's no need to call Unalias or under, below.
+	if t, _ := t.(*Basic); t != nil {
 		switch t.kind {
 		case UntypedBool:
 			return Typ[Bool]
@@ -539,7 +549,7 @@ func maxType(x, y Type) Type {
 	if x == y {
 		return x
 	}
-	if isUntyped(x) && isUntyped(y) && isNumeric(x) && isNumeric(y) {
+	if isUntypedNumeric(x) && isUntypedNumeric(y) {
 		// untyped types are basic types
 		if x.(*Basic).kind > y.(*Basic).kind {
 			return x

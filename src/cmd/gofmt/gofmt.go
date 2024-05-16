@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/telemetry"
+
 	"golang.org/x/sync/semaphore"
 )
 
@@ -372,8 +374,11 @@ func main() {
 }
 
 func gofmtMain(s *sequencer) {
+	telemetry.Start()
 	flag.Usage = usage
 	flag.Parse()
+	telemetry.Inc("gofmt/invocations")
+	telemetry.CountFlags("gofmt/flag:", *flag.CommandLine)
 
 	if *cpuprofile != "" {
 		fdSem <- true
@@ -555,7 +560,7 @@ func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) 
 		if err == nil {
 			break
 		}
-		if err != nil && !os.IsExist(err) {
+		if !os.IsExist(err) {
 			return "", err
 		}
 	}

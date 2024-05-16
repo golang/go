@@ -222,7 +222,7 @@ func selects() {
 	ch2 := make(chan int)
 	select {
 	case <-ch1:
-		var ch2 /* ERROR "ch2 declared and not used" */ chan bool
+		var ch2 /* ERROR "`ch2' declared and not used" */ chan bool
 	case i := <-ch2:
 		print(i + 1)
 	}
@@ -394,7 +394,7 @@ func returns2() (a, b int) {
 	{
 		type a int
 		return 1, 2
-		return /* ERROR "a not in scope at return" */
+		return /* ERROR "`a' not in scope at return" */
 	}
 }
 
@@ -953,10 +953,10 @@ func issue10148() {
 	for y /* ERROR "declared and not used" */ := range "" {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for range 1.5 /* ERROR "cannot range over 1.5" */ {
+	for range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for y := range 1.5 /* ERROR "cannot range over 1.5" */ {
+	for y := range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
 }

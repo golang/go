@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
+	"cmd/internal/telemetry"
 
 	"golang.org/x/mod/module"
 )
@@ -81,6 +82,8 @@ func FilterEnv(env []string) []string {
 	return out
 }
 
+var counterErrorsInvalidToolchainInFile = telemetry.NewCounter("go/errors:invalid-toolchain-in-file")
+
 // Select invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
 // or go.mod file.
@@ -105,6 +108,14 @@ func Select() {
 	// where -newflag is a flag known to Go 1.999 but not known to us.
 	if (len(os.Args) == 3 && os.Args[1] == "env" && os.Args[2] == "GOTOOLCHAIN") ||
 		(len(os.Args) == 4 && os.Args[1] == "env" && os.Args[2] == "-w" && strings.HasPrefix(os.Args[3], "GOTOOLCHAIN=")) {
+		return
+	}
+
+	// As a special case, let "go env GOMOD" and "go env GOWORK" be handled by
+	// the local toolchain. Users expect to be able to look up GOMOD and GOWORK
+	// since the go.mod and go.work file need to be determined to determine
+	// the minimum toolchain. See issue #61455.
+	if len(os.Args) == 3 && os.Args[1] == "env" && (os.Args[2] == "GOMOD" || os.Args[2] == "GOWORK") {
 		return
 	}
 
@@ -174,6 +185,7 @@ func Select() {
 				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
 				toolVers := gover.FromToolchain(toolchain)
 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
+					counterErrorsInvalidToolchainInFile.Inc()
 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
 				}
 				if gover.Compare(toolVers, minVers) > 0 {
@@ -184,6 +196,13 @@ func Select() {
 			}
 			if gover.Compare(goVers, minVers) > 0 {
 				gotoolchain = "go" + goVers
+				// Starting with Go 1.21, the first released version has a .0 patch version suffix.
+				// Don't try to download a language version (sans patch component), such as go1.22.
+				// Instead, use the first toolchain of that language version, such as 1.22.0.
+				// See golang.org/issue/62278.
+				if gover.IsLang(goVers) && gover.Compare(goVers, "1.21") >= 0 {
+					gotoolchain += ".0"
+				}
 				gover.Startup.AutoGoVersion = goVers
 				gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
 			}
@@ -230,8 +249,11 @@ func Select() {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
 	}
 
+	counterSelectExec.Inc()
 	Exec(gotoolchain)
 }
+
+var counterSelectExec = telemetry.NewCounter("go/toolchain/select-exec")
 
 // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
 // Valid settings are:
@@ -312,6 +334,10 @@ func Exec(gotoolchain string) {
 	dir, err := modfetch.Download(context.Background(), m)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
+			toolVers := gover.FromToolchain(gotoolchain)
+			if gover.IsLang(toolVers) && gover.Compare(toolVers, "1.21") >= 0 {
+				base.Fatalf("invalid toolchain: %s is a language version but not a toolchain version (%s.x)", gotoolchain, gotoolchain)
+			}
 			base.Fatalf("download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
 		}
 		base.Fatalf("download %s: %v", gotoolchain, err)

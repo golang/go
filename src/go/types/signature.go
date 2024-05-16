@@ -193,8 +193,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
 	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
 	scope.squash(func(obj, alt Object) {
-		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
-		check.reportAltDecl(alt)
+		err := check.newError(DuplicateDecl)
+		err.addf(obj, "%s redeclared in this block", obj.Name())
+		err.addAltDecl(alt)
+		err.report()
 	})
 
 	if recvPar != nil {
@@ -251,7 +253,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				case *TypeParam:
 					// The underlying type of a receiver base type cannot be a
 					// type parameter: "type T[P any] P" is not a valid declaration.
-					unreachable()
+					panic("unreachable")
 				}
 				if cause != "" {
 					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)

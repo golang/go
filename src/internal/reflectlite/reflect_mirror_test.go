@@ -24,7 +24,6 @@ var typeNames = []string{
 	"chanType",
 	"funcType",
 	"interfaceType",
-	"mapType",
 	"ptrType",
 	"sliceType",
 	"structType",

@@ -96,6 +96,7 @@ var (
 	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}}
 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -111,11 +112,11 @@ var (
 		&asmArchRISCV64,
 		&asmArchS390X,
 		&asmArchWasm,
+		&asmArchLoong64,
 	}
 )
 
 func init() {
-	arches = append(arches, additionalArches()...)
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
 		if arch.sizes == nil {
@@ -172,7 +173,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}

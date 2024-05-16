@@ -514,9 +514,8 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MULLD   R9, R20, R6       // R6 = z0 = Low-order(x[i]*y)
 	MULHDU  R9, R20, R7       // R7 = z1 = High-order(x[i]*y)
 	ADDC    R4, R6            // R6 = z0 + r
-	ADDZE   R7                // R7 = z1 + CA
+	ADDZE   R7, R4            // R4 = z1 + CA
 	CMP     R0, R11
-	MOVD    R7, R4            // R4 = c
 	MOVD    R6, 0(R10)        // z[i]
 	BEQ     done
 
@@ -536,20 +535,17 @@ loop:
 	MULLD   R9, R20, R24      // R24 = z0[i]
 	MULHDU  R9, R20, R20      // R20 = z1[i]
 	ADDC    R4, R24           // R24 = z0[i] + c
-	ADDZE   R20               // R7 = z1[i] + CA
 	MULLD   R9, R21, R25
 	MULHDU  R9, R21, R21
-	ADDC    R20, R25
-	ADDZE   R21
+	ADDE    R20, R25
 	MULLD   R9, R22, R26
 	MULHDU  R9, R22, R22
 	MULLD   R9, R23, R27
 	MULHDU  R9, R23, R23
-	ADDC    R21, R26
-	ADDZE   R22
+	ADDE    R21, R26
 	MOVD    R24, 8(R10)       // z[i]
 	MOVD    R25, 16(R10)      // z[i+1]
-	ADDC    R22, R27
+	ADDE    R22, R27
 	ADDZE   R23,R4		  // update carry
 	MOVD    R26, 24(R10)      // z[i+2]
 	MOVDU   R27, 32(R10)      // z[i+3]
@@ -567,10 +563,9 @@ tail:
 	MULHDU  R9, R20, R25      // R25 = z1[i]
 	ADD     $-1, R11          // R11 = z_len - 1
 	ADDC    R4, R24
-	ADDZE   R25
+	ADDZE   R25, R4
 	MOVDU   R24, 8(R10)       // z[i]
 	CMP     R0, R11
-	MOVD    R25, R4           // R4 = c
 	BEQ     done              // If R11 = 0, we are done
 
 	MOVDU   8(R8), R20
@@ -578,10 +573,9 @@ tail:
 	MULHDU  R9, R20, R25
 	ADD     $-1, R11
 	ADDC    R4, R24
-	ADDZE   R25
+	ADDZE   R25, R4
 	MOVDU   R24, 8(R10)
 	CMP     R0, R11
-	MOVD    R25, R4
 	BEQ     done
 
 	MOVD    8(R8), R20
@@ -589,9 +583,8 @@ tail:
 	MULHDU  R9, R20, R25
 	ADD     $-1, R11
 	ADDC    R4, R24
-	ADDZE   R25
+	ADDZE   R25,R4
 	MOVD    R24, 8(R10)
-	MOVD    R25, R4
 
 done:
 	MOVD    R4, c+64(FP)

@@ -87,6 +87,16 @@ go mod init foo
 go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
 cmpenv go.mod go.mod.edit
 
+# go mod edit -godebug
+cd $WORK/g
+cp go.mod.start go.mod
+go mod edit -godebug key=value
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key2
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key
+cmpenv go.mod go.mod.start
+
 -- x.go --
 package x
 
@@ -338,3 +348,13 @@ module m
 	"Replace": null,
 	"Retract": null
 }
+-- $WORK/g/go.mod.start --
+module g
+
+go 1.10
+-- $WORK/g/go.mod.edit --
+module g
+
+go 1.10
+
+godebug key=value

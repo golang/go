@@ -191,7 +191,7 @@ func (mm *metaMerge) endPod(pcombine bool) {
 		copyMetaDataFile(inpath, outpath)
 	}
 
-	// Emit acccumulated counter data for this pod.
+	// Emit accumulated counter data for this pod.
 	mm.emitCounters(*outdirflag, finalHash)
 
 	// Reset package state.

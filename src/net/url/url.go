@@ -814,6 +814,22 @@ func validOptionalPort(port string) bool {
 //   - if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
 	var buf strings.Builder
+
+	n := len(u.Scheme)
+	if u.Opaque != "" {
+		n += len(u.Opaque)
+	} else {
+		if !u.OmitHost && (u.Scheme != "" || u.Host != "" || u.User != nil) {
+			username := u.User.Username()
+			password, _ := u.User.Password()
+			n += len(username) + len(password) + len(u.Host)
+		}
+		n += len(u.Path)
+	}
+	n += len(u.RawQuery) + len(u.RawFragment)
+	n += len(":" + "//" + "//" + ":" + "@" + "/" + "./" + "?" + "#")
+	buf.Grow(n)
+
 	if u.Scheme != "" {
 		buf.WriteString(u.Scheme)
 		buf.WriteByte(':')

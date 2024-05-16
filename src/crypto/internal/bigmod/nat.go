@@ -5,8 +5,8 @@
 package bigmod
 
 import (
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"math/big"
 	"math/bits"
 )
@@ -38,14 +38,6 @@ func ctEq(x, y uint) choice {
 	_, c1 := bits.Sub(x, y, 0)
 	_, c2 := bits.Sub(y, x, 0)
 	return not(choice(c1 | c2))
-}
-
-// ctGeq returns 1 if x >= y, and 0 otherwise. The execution time of this
-// function does not depend on its inputs.
-func ctGeq(x, y uint) choice {
-	// If x < y, then x - y generates a carry.
-	_, carry := bits.Sub(x, y, 0)
-	return not(choice(carry))
 }
 
 // Nat represents an arbitrary natural number
@@ -84,9 +76,7 @@ func (x *Nat) expand(n int) *Nat {
 		return x
 	}
 	extraLimbs := x.limbs[len(x.limbs):n]
-	for i := range extraLimbs {
-		extraLimbs[i] = 0
-	}
+	clear(extraLimbs)
 	x.limbs = x.limbs[:n]
 	return x
 }
@@ -97,9 +87,7 @@ func (x *Nat) reset(n int) *Nat {
 		x.limbs = make([]uint, n)
 		return x
 	}
-	for i := range x.limbs {
-		x.limbs[i] = 0
-	}
+	clear(x.limbs)
 	x.limbs = x.limbs[:n]
 	return x
 }
@@ -182,9 +170,9 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
 // big-endian encoded uint value.
 func bigEndianUint(buf []byte) uint {
 	if _W == 64 {
-		return uint(binary.BigEndian.Uint64(buf))
+		return uint(byteorder.BeUint64(buf))
 	}
-	return uint(binary.BigEndian.Uint32(buf))
+	return uint(byteorder.BeUint32(buf))
 }
 
 func (x *Nat) setBytes(b []byte, m *Modulus) error {

@@ -14,6 +14,9 @@
 (Sub32F ...) => (FSUBS ...)
 (Sub64F ...) => (FSUB ...)
 
+(Min(32|64)F x y) && buildcfg.GOPPC64 >= 9 => (XSMINJDP x y)
+(Max(32|64)F x y) && buildcfg.GOPPC64 >= 9 => (XSMAXJDP x y)
+
 // Combine 64 bit integer multiply and adds
 (ADD l:(MULLD x y) z) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
 
@@ -107,6 +110,7 @@
 (ADDE x y (Select1 <typ.UInt64> (ADDCconst (MOVDconst [0]) [-1]))) => (ADDC x y)
 // Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
 (Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
+(ADDE (MOVDconst [0]) y c) => (ADDZE y c)
 
 // Borrowing subtraction.
 (Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
@@ -154,6 +158,7 @@
 
 // Merge shift right + shift left and clear left (e.g for a table lookup)
 (CLRLSLDI [c] (SRWconst [s] x)) && mergePPC64ClrlsldiSrw(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)
+(CLRLSLDI [c] (SRDconst [s] x)) && mergePPC64ClrlsldiSrd(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrd(int64(c),s)] x)
 (SLDconst [l] (SRWconst [r] x)) && mergePPC64SldiSrw(l,r) != 0 => (RLWINM [mergePPC64SldiSrw(l,r)] x)
 // The following reduction shows up frequently too. e.g b[(x>>14)&0xFF]
 (CLRLSLDI [c] i:(RLWINM [s] x)) && mergePPC64ClrlsldiRlwinm(c,s) != 0 => (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)
@@ -639,6 +644,19 @@
 (MOVBreg y:(MOVBreg _)) => y // repeat
 (MOVBreg (MOVBZreg x)) => (MOVBreg x)
 (MOVBZreg (MOVBreg x)) => (MOVBZreg x)
+
+// Catch any remaining rotate+shift cases
+(MOVBZreg (SRWconst x [s])) && mergePPC64AndSrwi(0xFF,s) != 0 => (RLWINM [mergePPC64AndSrwi(0xFF,s)] x)
+(MOVBZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFF,r)] y)
+(MOVHZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFF,r)] y)
+(MOVWZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
+(Select0 (ANDCCconst [m] (RLWINM [r] y))) && mergePPC64AndRlwinm(uint32(m),r) != 0 => (RLWINM [mergePPC64AndRlwinm(uint32(m),r)] y)
+(SLDconst [s] (RLWINM [r] y)) && mergePPC64SldiRlwinm(s,r) != 0 => (RLWINM [mergePPC64SldiRlwinm(s,r)] y)
+(RLWINM [r] (MOVHZreg u)) && mergePPC64RlwinmAnd(r,0xFFFF) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,0xFFFF)] u)
+(RLWINM [r] (Select0 (ANDCCconst [a] u))) && mergePPC64RlwinmAnd(r,uint32(a)) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,uint32(a))] u)
+// SLWconst is a special case of RLWNM which always zero-extends the result.
+(SLWconst [s] (MOVWZreg w)) => (SLWconst [s] w)
+(MOVWZreg w:(SLWconst u)) => w
 
 // H - there are more combinations than these
 

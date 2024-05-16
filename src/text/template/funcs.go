@@ -22,14 +22,14 @@ import (
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 //
-// Errors returned by Execute wrap the underlying error; call errors.As to
+// Errors returned by Execute wrap the underlying error; call [errors.As] to
 // unwrap them.
 //
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
 // apply to arguments of arbitrary type can use parameters of type interface{} or
-// of type reflect.Value. Similarly, functions meant to return a result of arbitrary
-// type can return interface{} or reflect.Value.
+// of type [reflect.Value]. Similarly, functions meant to return a result of arbitrary
+// type can return interface{} or [reflect.Value].
 type FuncMap map[string]any
 
 // builtins returns the FuncMap.

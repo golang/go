@@ -604,51 +604,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 // we return the same pointer each time.
 var packageCache = map[string]*Package{}
 
-// ClearPackageCache clears the in-memory package cache and the preload caches.
-// It is only for use by GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCache() {
-	clear(packageCache)
-	resolvedImportCache.Clear()
-	packageDataCache.Clear()
-}
-
-// ClearPackageCachePartial clears packages with the given import paths from the
-// in-memory package cache and the preload caches. It is only for use by
-// GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCachePartial(args []string) {
-	shouldDelete := make(map[string]bool)
-	for _, arg := range args {
-		shouldDelete[arg] = true
-		if p := packageCache[arg]; p != nil {
-			delete(packageCache, arg)
-		}
-	}
-	resolvedImportCache.DeleteIf(func(key importSpec) bool {
-		return shouldDelete[key.path]
-	})
-	packageDataCache.DeleteIf(func(key string) bool {
-		return shouldDelete[key]
-	})
-}
-
-// ReloadPackageNoFlags is like LoadImport but makes sure
-// not to use the package cache.
-// It is only for use by GOPATH-based "go get".
-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
-func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
-	p := packageCache[arg]
-	if p != nil {
-		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key importSpec) bool {
-			return key.path == p.ImportPath
-		})
-		packageDataCache.Delete(p.ImportPath)
-	}
-	return LoadPackage(context.TODO(), PackageOpts{}, arg, base.Cwd(), stk, nil, 0)
-}
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
 // to the directory. If the package lives in c:\home\gopher\my\pkg then
@@ -1937,6 +1892,8 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	}
 
 	// Check for case-insensitive collisions of import paths.
+	// If modifying, consider changing checkPathCollisions() in
+	// src/cmd/go/internal/modcmd/vendor.go
 	fold := str.ToFold(p.ImportPath)
 	if other := foldPath[fold]; other == "" {
 		foldPath[fold] = p.ImportPath
@@ -2435,7 +2392,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
 	}
 	appendSetting("GOOS", cfg.BuildContext.GOOS)
-	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
 		appendSetting(key, val)
 	}
 
@@ -3320,6 +3277,13 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}
 	rootMod := qrs[0].Mod
+	deprecation, err := modload.CheckDeprecation(ctx, rootMod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", args[0], err)
+	}
+	if deprecation != "" {
+		fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", rootMod.Path, modload.ShortMessage(deprecation, ""))
+	}
 	data, err := modfetch.GoMod(ctx, rootMod.Path, rootMod.Version)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", args[0], err)
@@ -3471,11 +3435,11 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 		}
 
 		// Silently ignore attempts to run coverage on sync/atomic
-		// and/or runtime/internal/atomic when using atomic coverage
+		// and/or internal/runtime/atomic when using atomic coverage
 		// mode. Atomic coverage mode uses sync/atomic, so we can't
 		// also do coverage on it.
 		if cfg.BuildCoverMode == "atomic" && p.Standard &&
-			(p.ImportPath == "sync/atomic" || p.ImportPath == "runtime/internal/atomic") {
+			(p.ImportPath == "sync/atomic" || p.ImportPath == "internal/runtime/atomic") {
 			continue
 		}
 

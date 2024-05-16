@@ -53,9 +53,10 @@ func (d *HashDebug) SetInlineSuffixOnly(b bool) *HashDebug {
 // The default compiler-debugging HashDebug, for "-d=gossahash=..."
 var hashDebug *HashDebug
 
-var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
-var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
-var PGOHash *HashDebug     // for debugging PGO optimization decisions
+var FmaHash *HashDebug         // for debugging fused-multiply-add floating point changes
+var LoopVarHash *HashDebug     // for debugging shared/private loop variable changes
+var PGOHash *HashDebug         // for debugging PGO optimization decisions
+var MergeLocalsHash *HashDebug // for debugging local stack slot merging changes
 
 // DebugHashMatchPkgFunc reports whether debug variable Gossahash
 //
@@ -197,7 +198,7 @@ func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
 			break
 		}
 		if i == 0 {
-			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s", ev)))
+			hd.matches = append(hd.matches, toHashAndMask(s, ev))
 		} else {
 			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s%d", ev, i-1)))
 		}

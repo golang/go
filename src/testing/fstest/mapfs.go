@@ -150,7 +150,7 @@ type mapFileInfo struct {
 	f    *MapFile
 }
 
-func (i *mapFileInfo) Name() string               { return i.name }
+func (i *mapFileInfo) Name() string               { return path.Base(i.name) }
 func (i *mapFileInfo) Size() int64                { return int64(len(i.f.Data)) }
 func (i *mapFileInfo) Mode() fs.FileMode          { return i.f.Mode }
 func (i *mapFileInfo) Type() fs.FileMode          { return i.f.Mode.Type() }

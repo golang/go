@@ -26,7 +26,7 @@ type Once struct {
 }
 
 // Do calls the function f if and only if Do is being called for the
-// first time for this instance of Once. In other words, given
+// first time for this instance of [Once]. In other words, given
 //
 //	var once Once
 //

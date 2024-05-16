@@ -4827,7 +4827,7 @@ func TestComparable(t *testing.T) {
 	}
 }
 
-func TestOverflow(t *testing.T) {
+func TestValueOverflow(t *testing.T) {
 	if ovf := V(float64(0)).OverflowFloat(1e300); ovf {
 		t.Errorf("%v wrongly overflows float64", 1e300)
 	}
@@ -4862,6 +4862,45 @@ func TestOverflow(t *testing.T) {
 	}
 	ovfUint32 := uint64(1 << 32)
 	if ovf := V(uint32(0)).OverflowUint(ovfUint32); !ovf {
+		t.Errorf("%v should overflow uint32", ovfUint32)
+	}
+}
+
+func TestTypeOverflow(t *testing.T) {
+	if ovf := TypeFor[float64]().OverflowFloat(1e300); ovf {
+		t.Errorf("%v wrongly overflows float64", 1e300)
+	}
+
+	maxFloat32 := float64((1<<24 - 1) << (127 - 23))
+	if ovf := TypeFor[float32]().OverflowFloat(maxFloat32); ovf {
+		t.Errorf("%v wrongly overflows float32", maxFloat32)
+	}
+	ovfFloat32 := float64((1<<24-1)<<(127-23) + 1<<(127-52))
+	if ovf := TypeFor[float32]().OverflowFloat(ovfFloat32); !ovf {
+		t.Errorf("%v should overflow float32", ovfFloat32)
+	}
+	if ovf := TypeFor[float32]().OverflowFloat(-ovfFloat32); !ovf {
+		t.Errorf("%v should overflow float32", -ovfFloat32)
+	}
+
+	maxInt32 := int64(0x7fffffff)
+	if ovf := TypeFor[int32]().OverflowInt(maxInt32); ovf {
+		t.Errorf("%v wrongly overflows int32", maxInt32)
+	}
+	if ovf := TypeFor[int32]().OverflowInt(-1 << 31); ovf {
+		t.Errorf("%v wrongly overflows int32", -int64(1)<<31)
+	}
+	ovfInt32 := int64(1 << 31)
+	if ovf := TypeFor[int32]().OverflowInt(ovfInt32); !ovf {
+		t.Errorf("%v should overflow int32", ovfInt32)
+	}
+
+	maxUint32 := uint64(0xffffffff)
+	if ovf := TypeFor[uint32]().OverflowUint(maxUint32); ovf {
+		t.Errorf("%v wrongly overflows uint32", maxUint32)
+	}
+	ovfUint32 := uint64(1 << 32)
+	if ovf := TypeFor[uint32]().OverflowUint(ovfUint32); !ovf {
 		t.Errorf("%v should overflow uint32", ovfUint32)
 	}
 }
@@ -6071,6 +6110,20 @@ func TestStructOfTooLarge(t *testing.T) {
 			_ = StructOf(tt.fields)
 		}()
 	}
+}
+
+func TestStructOfAnonymous(t *testing.T) {
+	var s any = struct{ D1 }{}
+	f := TypeOf(s).Field(0)
+	ds := StructOf([]StructField{f})
+	st := TypeOf(s)
+	dt := New(ds).Elem()
+	if st != dt.Type() {
+		t.Errorf("StructOf returned %s, want %s", dt.Type(), st)
+	}
+
+	// This should not panic.
+	_ = dt.Interface().(struct{ D1 })
 }
 
 func TestChanOf(t *testing.T) {
@@ -8027,6 +8080,7 @@ func TestValue_Comparable(t *testing.T) {
 	var a int
 	var s []int
 	var i interface{} = a
+	var iNil interface{}
 	var iSlice interface{} = s
 	var iArrayFalse interface{} = [2]interface{}{1, map[int]int{}}
 	var iArrayTrue interface{} = [2]interface{}{1, struct{ I interface{} }{1}}
@@ -8035,6 +8089,11 @@ func TestValue_Comparable(t *testing.T) {
 		comparable bool
 		deref      bool
 	}{
+		{
+			ValueOf(&iNil),
+			true,
+			true,
+		},
 		{
 			ValueOf(32),
 			true,
@@ -8462,8 +8521,85 @@ func TestClear(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
-				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
+				t.Errorf("unexpected result for value.Clear(): %v", tc.value)
 			}
 		})
 	}
+}
+
+func TestValuePointerAndUnsafePointer(t *testing.T) {
+	ptr := new(int)
+	ch := make(chan int)
+	m := make(map[int]int)
+	unsafePtr := unsafe.Pointer(ptr)
+	slice := make([]int, 1)
+	fn := func() {}
+	s := "foo"
+
+	tests := []struct {
+		name              string
+		val               Value
+		wantUnsafePointer unsafe.Pointer
+	}{
+		{"pointer", ValueOf(ptr), unsafe.Pointer(ptr)},
+		{"channel", ValueOf(ch), *(*unsafe.Pointer)(unsafe.Pointer(&ch))},
+		{"map", ValueOf(m), *(*unsafe.Pointer)(unsafe.Pointer(&m))},
+		{"unsafe.Pointer", ValueOf(unsafePtr), unsafePtr},
+		{"function", ValueOf(fn), **(**unsafe.Pointer)(unsafe.Pointer(&fn))},
+		{"slice", ValueOf(slice), unsafe.Pointer(unsafe.SliceData(slice))},
+		{"string", ValueOf(s), unsafe.Pointer(unsafe.StringData(s))},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
+				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
+			}
+			if got := tc.val.UnsafePointer(); got != tc.wantUnsafePointer {
+				t.Errorf("unexpected unsafe.Pointer result, got %#x, want %#x", got, tc.wantUnsafePointer)
+			}
+		})
+	}
+}
+
+// Test cases copied from ../../test/unsafebuiltins.go
+func TestSliceAt(t *testing.T) {
+	const maxUintptr = 1 << (8 * unsafe.Sizeof(uintptr(0)))
+	var p [10]byte
+
+	typ := TypeOf(p[0])
+
+	s := SliceAt(typ, unsafe.Pointer(&p[0]), len(p))
+	if s.Pointer() != uintptr(unsafe.Pointer(&p[0])) {
+		t.Fatalf("unexpected underlying array: %d, want: %d", s.Pointer(), uintptr(unsafe.Pointer(&p[0])))
+	}
+	if s.Len() != len(p) || s.Cap() != len(p) {
+		t.Fatalf("unexpected len or cap, len: %d, cap: %d, want: %d", s.Len(), s.Cap(), len(p))
+	}
+
+	typ = TypeOf(0)
+	if !SliceAt(typ, unsafe.Pointer((*int)(nil)), 0).IsNil() {
+		t.Fatal("nil pointer with zero length must return nil")
+	}
+
+	// nil pointer with positive length panics
+	shouldPanic("", func() { _ = SliceAt(typ, unsafe.Pointer((*int)(nil)), 1) })
+
+	// negative length
+	var neg int = -1
+	shouldPanic("", func() { _ = SliceAt(TypeOf(byte(0)), unsafe.Pointer(&p[0]), neg) })
+
+	// size overflows address space
+	n := uint64(0)
+	shouldPanic("", func() { _ = SliceAt(TypeOf(n), unsafe.Pointer(&n), maxUintptr/8) })
+	shouldPanic("", func() { _ = SliceAt(TypeOf(n), unsafe.Pointer(&n), maxUintptr/8+1) })
+
+	// sliced memory overflows address space
+	last := (*byte)(unsafe.Pointer(^uintptr(0)))
+	// This panics here, but won't panic in ../../test/unsafebuiltins.go,
+	// because unsafe.Slice(last, 1) does not escape.
+	//
+	// _ = SliceAt(typ, unsafe.Pointer(last), 1)
+	shouldPanic("", func() { _ = SliceAt(typ, unsafe.Pointer(last), 2) })
 }

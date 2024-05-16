@@ -385,3 +385,16 @@ func BenchmarkBuildString_ByteBuffer(b *testing.B) {
 		}
 	})
 }
+
+func TestBuilderGrowSizeclasses(t *testing.T) {
+	s := Repeat("a", 19)
+	allocs := testing.AllocsPerRun(100, func() {
+		var b Builder
+		b.Grow(18)
+		b.WriteString(s)
+		_ = b.String()
+	})
+	if allocs > 1 {
+		t.Fatalf("unexpected amount of allocations: %v, want: 1", allocs)
+	}
+}

@@ -1198,8 +1198,8 @@ func main() {}
 	}
 	exe := filepath.Join(tmpdir, "x.exe")
 
-	// Use a deterministc tmp directory so the temporary file paths are
-	// deterministc.
+	// Use a deterministic tmp directory so the temporary file paths are
+	// deterministic.
 	linktmp := filepath.Join(tmpdir, "linktmp")
 	if err := os.Mkdir(linktmp, 0777); err != nil {
 		t.Fatal(err)
@@ -1219,7 +1219,7 @@ func main() {}
 			t.Fatal(err)
 		}
 
-		// extract the "host link" invocaton
+		// extract the "host link" invocation
 		j := bytes.Index(out, []byte("\nhost link:"))
 		if j == -1 {
 			t.Fatalf("host link step not found, output:\n%s", out)
@@ -1413,5 +1413,48 @@ func TestRandLayout(t *testing.T) {
 	}
 	if syms[0] == syms[1] {
 		t.Errorf("randlayout with different seeds produced same layout:\n%s\n===\n\n%s", syms[0], syms[1])
+	}
+}
+
+func TestCheckLinkname(t *testing.T) {
+	// Test that code containing blocked linknames does not build.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	tests := []struct {
+		src string
+		ok  bool
+	}{
+		// use (instantiation) of public API is ok
+		{"ok.go", true},
+		// push linkname is ok
+		{"push.go", true},
+		// pull linkname of blocked symbol is not ok
+		{"coro.go", false},
+		{"coro_var.go", false},
+		// assembly reference is not ok
+		{"coro_asm", false},
+		// pull-only linkname is not ok
+		{"coro2.go", false},
+		// legacy bad linkname is ok, for now
+		{"fastrand.go", true},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.src, func(t *testing.T) {
+			t.Parallel()
+			src := filepath.Join("testdata", "linkname", test.src)
+			exe := filepath.Join(tmpdir, test.src+".exe")
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-checklinkname=1", "-o", exe, src)
+			out, err := cmd.CombinedOutput()
+			if test.ok && err != nil {
+				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)
+			}
+			if !test.ok && err == nil {
+				t.Errorf("build succeeded unexpectedly: %v:\n%s", err, out)
+			}
+		})
 	}
 }

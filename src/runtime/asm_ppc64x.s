@@ -98,9 +98,10 @@ nocgo:
 
 	// start this M
 	BL	runtime·mstart(SB)
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
 #ifdef GOARCH_ppc64le
+	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
 #endif
 	MOVD	R0, 0(R0)
@@ -615,9 +616,9 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
-TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVD	fn+0(FP), R3
-	MOVD	arg+8(FP), R4
+TEXT ·asmcgocall<ABIInternal>(SB),NOSPLIT,$0-20
+	// R3 = fn
+	// R4 = arg
 
 	MOVD	R1, R7		// save original stack pointer
 	CMP	$0, g
@@ -651,8 +652,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 #endif
 	// Save room for two of our pointers, plus the callee
 	// save area that lives on the caller stack.
-	SUB	$(asmcgocallSaveOffset+16), R1
-	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
+	// Do arithmetics in R10 to hide from the assembler
+	// counting it as SP delta, which is irrelevant as we are
+	// on the system stack.
+	SUB	$(asmcgocallSaveOffset+16), R1, R10
+	RLDCR	$0, R10, $~15, R1	// 16-byte alignment for gcc ABI
 	MOVD	R5, (asmcgocallSaveOffset+8)(R1)	// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R7, R5
@@ -689,7 +693,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	R5, R1
 	BL	runtime·save_g(SB)
 
-	MOVW	R3, ret+16(FP)
+	// ret = R3
 	RET
 
 nosave:
@@ -703,8 +707,8 @@ nosave:
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
 
-	SUB	$(asmcgocallSaveOffset+8), R1
-	RLDCR	$0, R1, $~15, R1		// 16-byte alignment for gcc ABI
+	SUB	$(asmcgocallSaveOffset+8), R1, R10
+	RLDCR	$0, R10, $~15, R1		// 16-byte alignment for gcc ABI
 	MOVD	R7, asmcgocallSaveOffset(R1)	// Save original stack pointer.
 
 	MOVD	R3, R12		// fn
@@ -724,7 +728,7 @@ nosave:
 #ifndef GOOS_aix
 	MOVD	24(R1), R2
 #endif
-	MOVW	R3, ret+16(FP)
+	// ret = R3
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)

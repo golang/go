@@ -402,7 +402,8 @@ controlled by the cgocheck setting of the GODEBUG environment
 variable. The default setting is GODEBUG=cgocheck=1, which implements
 reasonably cheap dynamic checks. These checks may be disabled
 entirely using GODEBUG=cgocheck=0. Complete checking of pointer
-handling, at some cost in run time, is available via GODEBUG=cgocheck=2.
+handling, at some cost in run time, is available by setting
+GOEXPERIMENT=cgocheck2 at build time.
 
 It is possible to defeat this enforcement by using the unsafe package,
 and of course there is nothing stopping the C code from doing anything
@@ -528,6 +529,9 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
+	-ldflags flags
+		Flags to pass to the C linker. The cmd/go tool uses
+		this to pass in the flags in the CGO_LDFLAGS variable.
 	-objdir directory
 		Put all generated files in directory.
 	-srcdir directory

@@ -19,6 +19,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -1417,6 +1418,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 		sigAlgo SignatureAlgorithm
 	}{
 		{"RSA", testPrivateKey, SHA256WithRSA},
+		{"RSA-PSS-SHA256", testPrivateKey, SHA256WithRSAPSS},
 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA256},
 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA256},
 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA256},
@@ -3997,5 +3999,90 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
 
 	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+	}
+}
+
+func TestGob(t *testing.T) {
+	// Test that gob does not reject Certificate.
+	// See go.dev/issue/65633.
+	cert := new(Certificate)
+	err := gob.NewEncoder(io.Discard).Encode(cert)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRejectCriticalAKI(t *testing.T) {
+	template := Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Cert"},
+		NotBefore:    time.Unix(1000, 0),
+		NotAfter:     time.Unix(100000, 0),
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{2, 5, 29, 35},
+				Critical: true,
+				Value:    []byte{1, 2, 3},
+			},
+		},
+	}
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+	expectedErr := "x509: authority key identifier incorrectly marked critical"
+	_, err = ParseCertificate(certDER)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
+	}
+}
+
+func TestRejectCriticalAIA(t *testing.T) {
+	template := Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Cert"},
+		NotBefore:    time.Unix(1000, 0),
+		NotAfter:     time.Unix(100000, 0),
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 1},
+				Critical: true,
+				Value:    []byte{1, 2, 3},
+			},
+		},
+	}
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+	expectedErr := "x509: authority info access incorrectly marked critical"
+	_, err = ParseCertificate(certDER)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
+	}
+}
+
+func TestRejectCriticalSKI(t *testing.T) {
+	template := Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Cert"},
+		NotBefore:    time.Unix(1000, 0),
+		NotAfter:     time.Unix(100000, 0),
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{2, 5, 29, 14},
+				Critical: true,
+				Value:    []byte{1, 2, 3},
+			},
+		},
+	}
+	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+	expectedErr := "x509: subject key identifier incorrectly marked critical"
+	_, err = ParseCertificate(certDER)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
 	}
 }

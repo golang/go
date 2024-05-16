@@ -67,7 +67,7 @@ arbitrary precision unsigned integers. There is no int8, int16 etc.
 discrimination in the gob format; there are only signed and unsigned integers. As
 described below, the transmitter sends the value in a variable-length encoding;
 the receiver accepts the value and stores it in the destination variable.
-Floating-point numbers are always sent using IEEE-754 64-bit precision (see
+Floating-point numbers are always sent using IEEE 754 64-bit precision (see
 below).
 
 Signed integers may be received into any signed integer variable: int, int16, etc.;

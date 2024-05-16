@@ -6,6 +6,7 @@ package base
 
 import (
 	"cmd/internal/cov/covcmd"
+	"cmd/internal/telemetry"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -177,6 +178,7 @@ func ParseFlags() {
 
 	Debug.ConcurrentOk = true
 	Debug.MaxShapeLen = 500
+	Debug.AlignHot = 1
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
@@ -184,6 +186,7 @@ func ParseFlags() {
 	Debug.SyncFrames = -1 // disable sync markers by default
 	Debug.ZeroCopy = 1
 	Debug.RangeFuncCheck = 1
+	Debug.MergeLocals = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
@@ -192,6 +195,7 @@ func ParseFlags() {
 	objabi.AddVersionFlag() // -V
 	registerFlags()
 	objabi.Flagparse(usage)
+	telemetry.CountFlags("compile/flag:", *flag.CommandLine)
 
 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
 		// This will only override the flags set in gcd;
@@ -208,6 +212,8 @@ func ParseFlags() {
 	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
 		Flag.CompilingRuntime = true
 	}
+
+	Ctxt.Std = Flag.Std
 
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
 	// The loop variable rewriting is:
@@ -259,6 +265,9 @@ func ParseFlags() {
 	}
 	if Debug.PGOHash != "" {
 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+	}
+	if Debug.MergeLocalsHash != "" {
+		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {

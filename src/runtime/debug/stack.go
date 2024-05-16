@@ -31,12 +31,22 @@ func Stack() []byte {
 	}
 }
 
+// CrashOptions provides options that control the formatting of the
+// fatal crash message.
+type CrashOptions struct {
+	/* for future expansion */
+}
+
 // SetCrashOutput configures a single additional file where unhandled
 // panics and other fatal errors are printed, in addition to standard error.
-// There is only one additional file: calling SetCrashOutput again
-// overrides any earlier call; it does not close the previous file.
-// SetCrashOutput(nil) disables the use of any additional file.
-func SetCrashOutput(f *os.File) error {
+// There is only one additional file: calling SetCrashOutput again overrides
+// any earlier call.
+// SetCrashOutput duplicates f's file descriptor, so the caller may safely
+// close f as soon as SetCrashOutput returns.
+// To disable this additional crash output, call SetCrashOutput(nil).
+// If called concurrently with a crash, some in-progress output may be written
+// to the old file even after an overriding SetCrashOutput returns.
+func SetCrashOutput(f *os.File, opts CrashOptions) error {
 	fd := ^uintptr(0)
 	if f != nil {
 		// The runtime will write to this file descriptor from

@@ -14,13 +14,16 @@ import (
 	"internal/coverage/decodecounter"
 	"internal/coverage/decodemeta"
 	"internal/coverage/pods"
+	"internal/runtime/atomic"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/internal/atomic"
 	"strings"
 	"unsafe"
 )
+
+// processCoverTestDir is injected in testmain.
+//go:linkname processCoverTestDir
 
 // processCoverTestDir is called (via a linknamed reference) from
 // testmain code when "go test -cover" is in effect. It is not
@@ -247,7 +250,7 @@ type pkfunc struct {
 }
 
 func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]struct{}) error {
-	// Unmarshall the information on available aux metafiles into
+	// Unmarshal the information on available aux metafiles into
 	// a MetaFileCollection struct.
 	var mfc coverage.MetaFileCollection
 	data, err := os.ReadFile(metafiles)
@@ -276,6 +279,9 @@ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]stru
 	}
 	return nil
 }
+
+// snapshot is injected in testmain.
+//go:linkname snapshot
 
 // snapshot returns a snapshot of coverage percentage at a moment of
 // time within a running test, so as to support the testing.Coverage()

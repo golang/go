@@ -195,8 +195,6 @@ func TestAllDependencies(t *testing.T) {
 				Env: append(append(os.Environ(), modcacheEnv...),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
-					// Explicitly clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
-					"GOROOT_FINAL=",
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
 						bundleDir+string(filepath.ListSeparator)+os.Getenv("PATH"),

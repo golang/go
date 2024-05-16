@@ -8,13 +8,19 @@ package httptest
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
 	"strings"
 )
 
-// NewRequest returns a new incoming server Request, suitable
+// NewRequest wraps NewRequestWithContext using context.Background.
+func NewRequest(method, target string, body io.Reader) *http.Request {
+	return NewRequestWithContext(context.Background(), method, target, body)
+}
+
+// NewRequestWithContext returns a new incoming server Request, suitable
 // for passing to an [http.Handler] for testing.
 //
 // The target is the RFC 7230 "request-target": it may be either a
@@ -37,7 +43,7 @@ import (
 //
 // To generate a client HTTP request instead of a server request, see
 // the NewRequest function in the net/http package.
-func NewRequest(method, target string, body io.Reader) *http.Request {
+func NewRequestWithContext(ctx context.Context, method, target string, body io.Reader) *http.Request {
 	if method == "" {
 		method = "GET"
 	}
@@ -45,6 +51,7 @@ func NewRequest(method, target string, body io.Reader) *http.Request {
 	if err != nil {
 		panic("invalid NewRequest arguments; " + err.Error())
 	}
+	req = req.WithContext(ctx)
 
 	// HTTP/1.0 was used above to avoid needing a Host field. Change it to 1.1 here.
 	req.Proto = "HTTP/1.1"

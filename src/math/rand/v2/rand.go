@@ -14,7 +14,7 @@
 //
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
-// crypto/rand package.
+// [crypto/rand] package.
 package rand
 
 import (
@@ -55,6 +55,9 @@ func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
 
 // Int returns a non-negative pseudo-random int.
 func (r *Rand) Int() int { return int(uint(r.src.Uint64()) << 1 >> 1) }
+
+// Uint returns a pseudo-random uint.
+func (r *Rand) Uint() uint { return uint(r.src.Uint64()) }
 
 // Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
@@ -290,6 +293,9 @@ func Int32() int32 { return globalRand.Int32() }
 
 // Int returns a non-negative pseudo-random int from the default Source.
 func Int() int { return globalRand.Int() }
+
+// Uint returns a pseudo-random uint from the default Source.
+func Uint() uint { return globalRand.Uint() }
 
 // Int64N returns, as an int64, a pseudo-random number in the half-open interval [0,n)
 // from the default Source.

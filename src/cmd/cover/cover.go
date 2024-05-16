@@ -26,6 +26,7 @@ import (
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry"
 )
 
 const usageMessage = "" +
@@ -86,9 +87,13 @@ const (
 )
 
 func main() {
+	telemetry.Start()
+
 	objabi.AddVersionFlag()
 	flag.Usage = usage
 	objabi.Flagparse(usage)
+	telemetry.Inc("cover/invocations")
+	telemetry.CountFlags("cover/flag:", *flag.CommandLine)
 
 	// Usage information when no arguments.
 	if flag.NFlag() == 0 && flag.NArg() == 0 {
@@ -405,7 +410,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		//
 		// Note that in the current implementation (Go 1.20) both
 		// routines are assembly stubs that forward calls to the
-		// runtime/internal/atomic equivalents, hence the infinite
+		// internal/runtime/atomic equivalents, hence the infinite
 		// loop scenario is purely theoretical (maybe if in some
 		// future implementation one of these functions might be
 		// written in Go). See #57445 for more details.

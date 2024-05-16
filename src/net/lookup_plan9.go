@@ -9,6 +9,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/stringslite"
 	"io"
 	"os"
 )
@@ -107,19 +108,13 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
 }
 
 func handlePlan9DNSError(err error, name string) error {
-	if stringsHasSuffix(err.Error(), "dns: name does not exist") ||
-		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
-		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") {
-		return &DNSError{
-			Err:        errNoSuchHost.Error(),
-			Name:       name,
-			IsNotFound: true,
-		}
+	if stringslite.HasSuffix(err.Error(), "dns: name does not exist") ||
+		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
+		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode") ||
+		stringslite.HasSuffix(err.Error(), "dns failure") {
+		err = errNoSuchHost
 	}
-	return &DNSError{
-		Err:  err.Error(),
-		Name: name,
-	}
+	return newDNSError(err, name, "")
 }
 
 // toLower returns a lower-case version of in. Restricting us to
@@ -169,9 +164,6 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "dns failure") {
-			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
-		}
 		return nil, handlePlan9DNSError(err, host)
 	}
 loop:
@@ -236,7 +228,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (por
 func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork, service string) (port int, err error) {
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "can't translate service") {
+		if stringslite.HasSuffix(err.Error(), "can't translate service") {
 			return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
 		}
 		return
@@ -265,7 +257,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
+		if stringslite.HasSuffix(err.Error(), "dns failure") || stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") {
 			return absDomainName(name), nil
 		}
 		return "", handlePlan9DNSError(err, cname)

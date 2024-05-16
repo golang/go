@@ -283,7 +283,7 @@ func getTestTrace(t *testing.T, testPath string) *parsedTrace {
 	}
 
 	// Parse the test trace.
-	parsed, err := parseTrace(&trace)
+	parsed, err := parseTrace(&trace, int64(trace.Len()))
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}

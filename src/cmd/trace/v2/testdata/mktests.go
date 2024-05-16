@@ -21,8 +21,6 @@ func main() {
 	// Create command.
 	var trace, stderr bytes.Buffer
 	cmd := exec.Command("go", "run", "./testprog/main.go")
-	// TODO(mknyszek): Remove if goexperiment.Exectracer2 becomes the default.
-	cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
 	cmd.Stdout = &trace
 	cmd.Stderr = &stderr
 

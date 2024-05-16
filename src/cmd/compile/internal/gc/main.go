@@ -17,7 +17,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
@@ -30,6 +30,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/telemetry"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -58,6 +59,8 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
+	telemetry.Start()
+	telemetry.Inc("compile/invocations")
 
 	defer handlePanic()
 
@@ -215,10 +218,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgo-load-profile")
-	var profile *pgo.Profile
+	var profile *pgoir.Profile
 	if base.Flag.PgoProfile != "" {
 		var err error
-		profile, err = pgo.New(base.Flag.PgoProfile)
+		profile, err = pgoir.New(base.Flag.PgoProfile)
 		if err != nil {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
@@ -300,7 +303,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// as late as possible to maximize how much work we can batch and
 		// process concurrently.
 		if len(compilequeue) != 0 {
-			compileFunctions()
+			compileFunctions(profile)
 			continue
 		}
 

@@ -31,12 +31,10 @@ const (
 //
 // Splice gets a pipe buffer from the pool or creates a new one if needed, to serve as a buffer for the data transfer.
 // src and dst must both be stream-oriented sockets.
-//
-// If err != nil, sc is the system call which caused the error.
-func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string, err error) {
-	p, sc, err := getPipe()
+func Splice(dst, src *FD, remain int64) (written int64, handled bool, err error) {
+	p, err := getPipe()
 	if err != nil {
-		return 0, false, sc, err
+		return 0, false, err
 	}
 	defer putPipe(p)
 	var inPipe, n int
@@ -71,9 +69,9 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 		}
 	}
 	if err != nil {
-		return written, handled, "splice", err
+		return written, handled, err
 	}
-	return written, true, "", nil
+	return written, true, nil
 }
 
 // spliceDrain moves data from a socket to a pipe.
@@ -204,15 +202,12 @@ func newPoolPipe() any {
 }
 
 // getPipe tries to acquire a pipe buffer from the pool or create a new one with newPipe() if it gets nil from the cache.
-//
-// Note that it may fail to create a new pipe buffer by newPipe(), in which case getPipe() will return a generic error
-// and system call name splice in a string as the indication.
-func getPipe() (*splicePipe, string, error) {
+func getPipe() (*splicePipe, error) {
 	v := splicePipePool.Get()
 	if v == nil {
-		return nil, "splice", syscall.EINVAL
+		return nil, syscall.EINVAL
 	}
-	return v.(*splicePipe), "", nil
+	return v.(*splicePipe), nil
 }
 
 func putPipe(p *splicePipe) {

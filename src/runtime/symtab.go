@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -17,6 +17,9 @@ import (
 type Frames struct {
 	// callers is a slice of PCs that have not yet been expanded to frames.
 	callers []uintptr
+
+	// nextPC is a next PC to expand ahead of processing callers.
+	nextPC uintptr
 
 	// frames is a slice of Frames that have yet to be returned.
 	frames     []Frame
@@ -96,8 +99,12 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		if len(ci.callers) == 0 {
 			break
 		}
-		pc := ci.callers[0]
-		ci.callers = ci.callers[1:]
+		var pc uintptr
+		if ci.nextPC != 0 {
+			pc, ci.nextPC = ci.nextPC, 0
+		} else {
+			pc, ci.callers = ci.callers[0], ci.callers[1:]
+		}
 		funcInfo := findfunc(pc)
 		if !funcInfo.valid() {
 			if cgoSymbolizer != nil {
@@ -125,6 +132,29 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 			// File/line from funcline1 below are already correct.
 			f = nil
+
+			// When CallersFrame is invoked using the PC list returned by Callers,
+			// the PC list includes virtual PCs corresponding to each outer frame
+			// around an innermost real inlined PC.
+			// We also want to support code passing in a PC list extracted from a
+			// stack trace, and there only the real PCs are printed, not the virtual ones.
+			// So check to see if the implied virtual PC for this PC (obtained from the
+			// unwinder itself) is the next PC in ci.callers. If not, insert it.
+			// The +1 here correspond to the pc-- above: the output of Callers
+			// and therefore the input to CallersFrames is return PCs from the stack;
+			// The pc-- backs up into the CALL instruction (not the first byte of the CALL
+			// instruction, but good enough to find it nonetheless).
+			// There are no cycles in implied virtual PCs (some number of frames were
+			// inlined, but that number is finite), so this unpacking cannot cause an infinite loop.
+			for unext := u.next(uf); unext.valid() && len(ci.callers) > 0 && ci.callers[0] != unext.pc+1; unext = u.next(unext) {
+				snext := u.srcFunc(unext)
+				if snext.funcID == abi.FuncIDWrapper && elideWrapperCalling(sf.funcID) {
+					// Skip, because tracebackPCs (inside runtime.Callers) would too.
+					continue
+				}
+				ci.nextPC = unext.pc + 1
+				break
+			}
 		}
 		ci.frames = append(ci.frames, Frame{
 			PC:        pc,
@@ -371,12 +401,11 @@ type moduledata struct {
 	modulehashes []modulehash
 
 	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+	bad     bool  // module failed to load and should be ignored
 
 	gcdatamask, gcbssmask bitvector
 
 	typemap map[typeOff]*_type // offset to *_rtype in previous module
-
-	bad bool // module failed to load and should be ignored
 
 	next *moduledata
 }

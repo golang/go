@@ -467,7 +467,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	}
 
 	// Read a chunk.
-	nn := len(p) / 5 * 8
+	nn := (len(p) + 4) / 5 * 8
 	if nn < 8 {
 		nn = 8
 	}

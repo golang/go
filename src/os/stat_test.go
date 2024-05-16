@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -335,5 +336,28 @@ func TestStatConsole(t *testing.T) {
 		}
 		testStatAndLstat(t, name, params)
 		testStatAndLstat(t, `\\.\`+name, params)
+	}
+}
+
+func TestClosedStat(t *testing.T) {
+	// Historically we do not seem to match ErrClosed on non-Unix systems.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+
+	t.Parallel()
+	f, err := os.Open("testdata/hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.Stat()
+	if err == nil {
+		t.Error("Stat succeeded on closed File")
+	} else if !errors.Is(err, os.ErrClosed) {
+		t.Errorf("error from Stat on closed file did not match ErrClosed: %q, type %T", err, err)
 	}
 }

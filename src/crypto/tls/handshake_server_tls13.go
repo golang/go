@@ -10,9 +10,9 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/byteorder"
 	"io"
 	"time"
 )
@@ -837,13 +837,11 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 
 	m := new(newSessionTicketMsgTLS13)
 
-	state, err := c.sessionState()
-	if err != nil {
-		return err
-	}
+	state := c.sessionState()
 	state.secret = psk
 	state.EarlyData = earlyData
 	if c.config.WrapSession != nil {
+		var err error
 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
 		if err != nil {
 			return err
@@ -865,11 +863,10 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
 	// The value is not stored anywhere; we never need to check the ticket age
 	// because 0-RTT is not supported.
 	ageAdd := make([]byte, 4)
-	_, err = c.config.rand().Read(ageAdd)
-	if err != nil {
+	if _, err := c.config.rand().Read(ageAdd); err != nil {
 		return err
 	}
-	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+	m.ageAdd = byteorder.LeUint32(ageAdd)
 
 	if earlyData {
 		// RFC 9001, Section 4.6.1

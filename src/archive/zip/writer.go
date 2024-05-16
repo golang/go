@@ -608,7 +608,7 @@ func (w *fileWriter) writeDataDescriptor() error {
 	}
 	// Write data descriptor. This is more complicated than one would
 	// think, see e.g. comments in zipfile.c:putextended() and
-	// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=7073588.
+	// https://bugs.openjdk.org/browse/JDK-7073588.
 	// The approach here is to write 8 byte sizes if needed without
 	// adding a zip64 extra in the local header (too late anyway).
 	var buf []byte

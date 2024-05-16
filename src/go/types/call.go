@@ -89,7 +89,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 		var params []*Var
 		var reverse bool
 		if T != nil && sig.tparams != nil {
-			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
 				if ix != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
 				} else {
@@ -111,12 +111,11 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		var err error_
-		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse, &err)
+		err := check.newError(CannotInferTypeArgs)
+		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse, err)
 		if targs == nil {
 			if !err.empty() {
-				err.code = CannotInferTypeArgs
-				check.report(&err)
+				err.report()
 			}
 			x.mode = invalid
 			return nil, nil
@@ -375,7 +374,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
-	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
+	if n > 0 && check.allowVersion(elist[0], go1_21) {
 		infer = false
 	}
 
@@ -529,10 +528,11 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		if sig.params != nil {
 			params = sig.params.vars
 		}
-		err := newErrorf(at, WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
-		err.errorf(noposn, "have %s", check.typesSummary(operandTypes(args), false))
-		err.errorf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
-		check.report(err)
+		err := check.newError(WrongArgCount)
+		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), false))
+		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.report()
 		return
 	}
 
@@ -542,7 +542,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	// collect type parameters of callee
 	n := sig.TypeParams().Len()
 	if n > 0 {
-		if !check.allowVersion(check.pkg, call, go1_18) {
+		if !check.allowVersion(call, go1_18) {
 			switch call.Fun.(type) {
 			case *ast.IndexExpr, *ast.IndexListExpr:
 				ix := typeparams.UnpackIndexExpr(call.Fun)
@@ -607,15 +607,15 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
-		var err error_
-		targs = check.infer(call, tparams, targs, sigParams, args, false, &err)
+		err := check.newError(CannotInferTypeArgs)
+		targs = check.infer(call, tparams, targs, sigParams, args, false, err)
 		if targs == nil {
 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
 			//           the call signature for better error messages/gopls behavior.
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
 			if !err.empty() {
-				check.errorf(err.posn(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg(check.fset, check.qualifier))
+				check.errorf(err.posn(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg())
 			}
 			return
 		}
@@ -722,7 +722,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", sel, pkg.name)
+					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
 					// ok to continue
 				}
 			}
@@ -758,7 +758,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 				x.id = exp.id
 			default:
 				check.dump("%v: unexpected object %v", e.Sel.Pos(), exp)
-				unreachable()
+				panic("unreachable")
 			}
 			x.expr = e
 			return
@@ -770,7 +770,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 	case typexpr:
 		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && def.typ == x.typ {
-			check.cycleError([]Object{def})
+			check.cycleError([]Object{def}, 0)
 			goto Error
 		}
 	case builtin:
@@ -957,7 +957,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 			check.addDeclDep(obj)
 
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 

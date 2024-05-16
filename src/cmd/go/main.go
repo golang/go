@@ -34,6 +34,7 @@ import (
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
+	"cmd/go/internal/telemetrycmd"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
 	"cmd/go/internal/toolchain"
@@ -42,8 +43,7 @@ import (
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 	"cmd/go/internal/workcmd"
-
-	"golang.org/x/telemetry/counter"
+	"cmd/internal/telemetry"
 )
 
 func init() {
@@ -62,6 +62,7 @@ func init() {
 		modcmd.CmdMod,
 		workcmd.CmdWork,
 		run.CmdRun,
+		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,
@@ -89,15 +90,19 @@ func init() {
 
 var _ = go11tag
 
+var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-entry-relative")
+
 func main() {
 	log.SetFlags(0)
-	counter.Open() // Open the telemetry counter file so counters can be written to it.
+	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
+	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
 	flag.Usage = base.Usage
 	flag.Parse()
-	counter.CountFlags("cmd/go:flag-", *flag.CommandLine)
+	telemetry.Inc("go/invocations")
+	telemetry.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -106,6 +111,7 @@ func main() {
 
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
+		telemetry.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
 		help.Help(os.Stdout, args[1:])
 		return
 	}
@@ -144,6 +150,7 @@ func main() {
 					// Instead of dying, uninfer it.
 					cfg.BuildContext.GOPATH = ""
 				} else {
+					counterErrorsGOPATHEntryRelative.Inc()
 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
 					os.Exit(2)
 				}
@@ -153,7 +160,6 @@ func main() {
 
 	cmd, used := lookupCmd(args)
 	cfg.CmdName = strings.Join(args[:used], " ")
-	counter.Inc("cmd/go:subcommand-" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	if len(cmd.Commands) > 0 {
 		if used >= len(args) {
 			help.PrintUsage(os.Stderr, cmd)
@@ -162,6 +168,7 @@ func main() {
 		}
 		if args[used] == "help" {
 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+			telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
 			base.Exit()
 		}
@@ -173,9 +180,17 @@ func main() {
 		if cmdName == "" {
 			cmdName = args[0]
 		}
+		telemetry.Inc("go/subcommand:unknown")
 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
+	}
+	// Increment a subcommand counter for the subcommand we're running.
+	// Don't increment the counter for the tool subcommand here: we'll
+	// increment in the tool subcommand's Run function because we need
+	// to do the flag processing in invoke first.
+	if cfg.CmdName != "tool" {
+		telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	}
 	invoke(cmd, args[used-1:])
 	base.Exit()
@@ -241,7 +256,9 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		counter.CountFlags("cmd/go/"+cmd.Name()+":flag-", cmd.Flag)
+		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
+		telemetry.CountFlags(flagCounterPrefix+":", cmd.Flag)
+		telemetry.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
 		args = cmd.Flag.Args()
 	}
 
@@ -255,6 +272,7 @@ func invoke(cmd *base.Command, args []string) {
 		}
 		defer func() {
 			rtrace.Stop()
+			f.Close()
 		}()
 	}
 
@@ -326,7 +344,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
-	counter.Inc("cmd/go:flag-C")
+	telemetry.Inc("go/flag:C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64le || ppc64
+//go:build (ppc64le || ppc64) && !purego
 
 package aes
 
 import (
 	"crypto/cipher"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"runtime"
 )
 
@@ -57,7 +57,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
 // called by [crypto/cipher.NewGCM] via the gcmAble interface.
 func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	var h1, h2 uint64
-	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+	g := &gcmAsm{cipher: c, ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
 
 	hle := make([]byte, gcmBlockSize)
 
@@ -66,14 +66,14 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	// Reverse the bytes in each 8 byte chunk
 	// Load little endian, store big endian
 	if runtime.GOARCH == "ppc64le" {
-		h1 = binary.LittleEndian.Uint64(hle[:8])
-		h2 = binary.LittleEndian.Uint64(hle[8:])
+		h1 = byteorder.LeUint64(hle[:8])
+		h2 = byteorder.LeUint64(hle[8:])
 	} else {
-		h1 = binary.BigEndian.Uint64(hle[:8])
-		h2 = binary.BigEndian.Uint64(hle[8:])
+		h1 = byteorder.BeUint64(hle[:8])
+		h2 = byteorder.BeUint64(hle[8:])
 	}
-	binary.BigEndian.PutUint64(hle[:8], h1)
-	binary.BigEndian.PutUint64(hle[8:], h2)
+	byteorder.BePutUint64(hle[:8], h1)
+	byteorder.BePutUint64(hle[8:], h2)
 	gcmInit(&g.productTable, hle)
 
 	return g, nil
@@ -119,14 +119,15 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 // counterCryptASM implements counterCrypt which then allows the loop to
 // be unrolled and optimized.
 func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
-	counterCryptASM(len(g.cipher.enc)/4-1, out, in, counter, &g.cipher.enc[0])
+	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
+
 }
 
 // increments the rightmost 32-bits of the count value by 1.
 func gcmInc32(counterBlock *[16]byte) {
 	c := counterBlock[len(counterBlock)-4:]
-	x := binary.BigEndian.Uint32(c) + 1
-	binary.BigEndian.PutUint32(c, x)
+	x := byteorder.BeUint32(c) + 1
+	byteorder.BePutUint32(c, x)
 }
 
 // paddedGHASH pads data with zeroes until its length is a multiple of
@@ -211,9 +212,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	ret, out := sliceForAppend(dst, len(ciphertext))
 
 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
-		for i := range out {
-			out[i] = 0
-		}
+		clear(out)
 		return nil, errOpen
 	}
 

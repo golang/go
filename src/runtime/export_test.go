@@ -9,9 +9,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -62,6 +61,8 @@ var MapKeys = keys
 var MapValues = values
 
 var LockPartialOrder = lockPartialOrder
+
+type TimeTimer = timeTimer
 
 type LockRank lockRank
 
@@ -237,138 +238,6 @@ var Write = write
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
 
-// For benchmarking.
-
-// blockWrapper is a wrapper type that ensures a T is placed within a
-// large object. This is necessary for safely benchmarking things
-// that manipulate the heap bitmap, like heapBitsSetType.
-//
-// More specifically, allocating threads assume they're the sole writers
-// to their span's heap bits, which allows those writes to be non-atomic.
-// The heap bitmap is written byte-wise, so if one tried to call heapBitsSetType
-// on an existing object in a small object span, we might corrupt that
-// span's bitmap with a concurrent byte write to the heap bitmap. Large
-// object spans contain exactly one object, so we can be sure no other P
-// is going to be allocating from it concurrently, hence this wrapper type
-// which ensures we have a T in a large object span.
-type blockWrapper[T any] struct {
-	value T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-func BenchSetType[T any](n int, resetTimer func()) {
-	x := new(blockWrapper[T])
-
-	// Escape x to ensure it is allocated on the heap, as we are
-	// working on the heap bits here.
-	Escape(x)
-
-	// Grab the type.
-	var i any = *new(T)
-	e := *efaceOf(&i)
-	t := e._type
-
-	// Benchmark setting the type bits for just the internal T of the block.
-	benchSetType(n, resetTimer, 1, unsafe.Pointer(&x.value), t)
-}
-
-const maxArrayBlockWrapperLen = 32
-
-// arrayBlockWrapper is like blockWrapper, but the interior value is intended
-// to be used as a backing store for a slice.
-type arrayBlockWrapper[T any] struct {
-	value [maxArrayBlockWrapperLen]T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-// arrayLargeBlockWrapper is like arrayBlockWrapper, but the interior array
-// accommodates many more elements.
-type arrayLargeBlockWrapper[T any] struct {
-	value [1024]T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
-	// We have two separate cases here because we want to avoid
-	// tests on big types but relatively small slices to avoid generating
-	// an allocation that's really big. This will likely force a GC which will
-	// skew the test results.
-	var y unsafe.Pointer
-	if len <= maxArrayBlockWrapperLen {
-		x := new(arrayBlockWrapper[T])
-		// Escape x to ensure it is allocated on the heap, as we are
-		// working on the heap bits here.
-		Escape(x)
-		y = unsafe.Pointer(&x.value[0])
-	} else {
-		x := new(arrayLargeBlockWrapper[T])
-		Escape(x)
-		y = unsafe.Pointer(&x.value[0])
-	}
-
-	// Grab the type.
-	var i any = *new(T)
-	e := *efaceOf(&i)
-	t := e._type
-
-	// Benchmark setting the type for a slice created from the array
-	// of T within the arrayBlock.
-	benchSetType(n, resetTimer, len, y, t)
-}
-
-// benchSetType is the implementation of the BenchSetType* functions.
-// x must be len consecutive Ts allocated within a large object span (to
-// avoid a race on the heap bitmap).
-//
-// Note: this function cannot be generic. It would get its type from one of
-// its callers (BenchSetType or BenchSetTypeSlice) whose type parameters are
-// set by a call in the runtime_test package. That means this function and its
-// callers will get instantiated in the package that provides the type argument,
-// i.e. runtime_test. However, we call a function on the system stack. In race
-// mode the runtime package is usually left uninstrumented because e.g. g0 has
-// no valid racectx, but if we're instantiated in the runtime_test package,
-// we might accidentally cause runtime code to be incorrectly instrumented.
-func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
-	// This benchmark doesn't work with the allocheaders experiment. It sets up
-	// an elaborate scenario to be able to benchmark the function safely, but doing
-	// this work for the allocheaders' version of the function would be complex.
-	// Just fail instead and rely on the test code making sure we never get here.
-	if goexperiment.AllocHeaders {
-		panic("called benchSetType with allocheaders experiment enabled")
-	}
-
-	// Compute the input sizes.
-	size := t.Size() * uintptr(len)
-
-	// Validate this function's invariant.
-	s := spanOfHeap(uintptr(x))
-	if s == nil {
-		panic("no heap span for input")
-	}
-	if s.spanclass.sizeclass() != 0 {
-		panic("span is not a large object span")
-	}
-
-	// Round up the size to the size class to make the benchmark a little more
-	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size, t.PtrBytes == 0)
-	if s.npages*pageSize < allocSize {
-		panic("backing span not large enough for benchmark")
-	}
-
-	// Benchmark heapBitsSetType by calling it in a loop. This is safe because
-	// x is in a large object span.
-	resetTimer()
-	systemstack(func() {
-		for i := 0; i < n; i++ {
-			heapBitsSetType(uintptr(x), allocSize, size, t)
-		}
-	})
-
-	// Make sure x doesn't get freed, since we're taking a uintptr.
-	KeepAlive(x)
-}
-
 const PtrSize = goarch.PtrSize
 
 var ForceGCPeriod = &forcegcperiod
@@ -425,6 +294,12 @@ func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) 
 
 func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
+}
+
+type CPUStats = cpuStats
+
+func ReadCPUStats() CPUStats {
+	return work.cpuStats
 }
 
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
@@ -751,7 +626,7 @@ func MapTombstoneCheck(m map[int]int) {
 		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if b.tophash[i] != emptyRest {
 					n++
 				}
@@ -759,7 +634,7 @@ func MapTombstoneCheck(m map[int]int) {
 		}
 		k := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if k < n && b.tophash[i] == emptyRest {
 					panic("early emptyRest")
 				}
@@ -1907,7 +1782,7 @@ func NewUserArena() *UserArena {
 func (a *UserArena) New(out *any) {
 	i := efaceOf(out)
 	typ := i._type
-	if typ.Kind_&kindMask != kindPtr {
+	if typ.Kind_&abi.KindMask != abi.Pointer {
 		panic("new result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
@@ -1998,4 +1873,16 @@ func UnsafePoint(pc uintptr) bool {
 		var buf [20]byte
 		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
 	}
+}
+
+type TraceMap struct {
+	traceMap
+}
+
+func (m *TraceMap) PutString(s string) (uint64, bool) {
+	return m.traceMap.put(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
+}
+
+func (m *TraceMap) Reset() {
+	m.traceMap.reset()
 }

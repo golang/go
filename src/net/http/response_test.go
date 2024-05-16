@@ -826,6 +826,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	if res.ContentLength != 123 {
 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
 	}

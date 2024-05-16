@@ -122,8 +122,6 @@ func (ctx *context) runTestProg(progPath string) error {
 	// Create command.
 	var trace, stderr bytes.Buffer
 	cmd := exec.Command("go", "run", progPath)
-	// TODO(mknyszek): Remove if goexperiment.Exectracer2 becomes the default.
-	cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
 	cmd.Stdout = &trace
 	cmd.Stderr = &stderr
 

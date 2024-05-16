@@ -127,7 +127,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 	// to the column converter.
 	nvc, ok := si.(driver.NamedValueChecker)
 	if !ok {
-		nvc, ok = ci.(driver.NamedValueChecker)
+		nvc, _ = ci.(driver.NamedValueChecker)
 	}
 	cci, ok := si.(driver.ColumnConverter)
 	if ok {
@@ -136,7 +136,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 
 	// Loop through all the arguments, checking each one.
 	// If no error is returned simply increment the index
-	// and continue. However if driver.ErrRemoveArgument
+	// and continue. However, if driver.ErrRemoveArgument
 	// is returned the argument is not included in the query
 	// argument list.
 	var err error
@@ -192,7 +192,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 			}
 			goto nextCheck
 		default:
-			return nil, fmt.Errorf("sql: converting argument %s type: %v", describeNamedValue(nv), err)
+			return nil, fmt.Errorf("sql: converting argument %s type: %w", describeNamedValue(nv), err)
 		}
 	}
 
@@ -237,7 +237,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = append((*d)[:0], s...)
+			*d = rows.setrawbuf(append(rows.rawbuf(), s...))
 			return nil
 		}
 	case []byte:
@@ -285,7 +285,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
+			*d = rows.setrawbuf(s.AppendFormat(rows.rawbuf(), time.RFC3339Nano))
 			return nil
 		}
 	case decimalDecompose:
@@ -366,8 +366,8 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	case *RawBytes:
 		sv = reflect.ValueOf(src)
-		if b, ok := asBytes([]byte(*d)[:0], sv); ok {
-			*d = RawBytes(b)
+		if b, ok := asBytes(rows.rawbuf(), sv); ok {
+			*d = rows.setrawbuf(b)
 			return nil
 		}
 	case *bool:

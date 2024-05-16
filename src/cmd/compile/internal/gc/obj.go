@@ -154,7 +154,7 @@ func dumpGlobal(n *ir.Name) {
 	}
 	types.CalcSize(n.Type())
 	ggloblnod(n)
-	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
+	if n.CoverageAuxVar() || n.Linksym().Static() {
 		return
 	}
 	base.Ctxt.DwarfGlobal(types.TypeSymName(n.Type()), n.Linksym())
@@ -253,6 +253,11 @@ func ggloblnod(nam *ir.Name) {
 	linkname := nam.Sym().Linkname
 	name := nam.Sym().Name
 
+	var saveType objabi.SymKind
+	if nam.CoverageAuxVar() {
+		saveType = s.Type
+	}
+
 	// We've skipped linkname'd globals's instrument, so we can skip them here as well.
 	if base.Flag.ASan && linkname == "" && pkginit.InstrumentGlobalsMap[name] != nil {
 		// Write the new size of instrumented global variables that have
@@ -266,8 +271,9 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Libfuzzer8BitCounter() {
 		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
 	}
-	if nam.CoverageCounter() {
-		s.Type = objabi.SCOVERAGE_COUNTER
+	if nam.CoverageAuxVar() && saveType == objabi.SCOVERAGE_COUNTER {
+		// restore specialized counter type (which Globl call above overwrote)
+		s.Type = saveType
 	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is

@@ -1054,61 +1054,6 @@
 (MOVWUloadidx4 ptr idx (MOVWstorezeroidx4 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
 (MOVDloadidx8  ptr idx (MOVDstorezeroidx8 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
 
-// don't extend after proper load
-(MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
-(MOVBUreg x:(MOVBUload _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBload  _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBUload _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVHload  _ _)) => (MOVDreg x)
-(MOVHUreg x:(MOVBUload _ _)) => (MOVDreg x)
-(MOVHUreg x:(MOVHUload _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBload  _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBUload _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHload  _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHUload _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVWload  _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
-(MOVBreg  x:(MOVBloadidx  _  _ _)) => (MOVDreg x)
-(MOVBUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
-(MOVHUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
-(MOVHUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVWloadidx   _ _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVWUloadidx  _ _ _)) => (MOVDreg x)
-(MOVHreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
-(MOVHUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
-(MOVWreg  x:(MOVWloadidx4  _ _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
-(MOVWUreg x:(MOVWUloadidx4 _ _ _)) => (MOVDreg x)
-
-// fold double extensions
-(MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
-(MOVBUreg x:(MOVBUreg _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
-(MOVHreg  x:(MOVBUreg _)) => (MOVDreg x)
-(MOVHreg  x:(MOVHreg  _)) => (MOVDreg x)
-(MOVHUreg x:(MOVBUreg _)) => (MOVDreg x)
-(MOVHUreg x:(MOVHUreg _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBreg  _)) => (MOVDreg x)
-(MOVWreg  x:(MOVBUreg _)) => (MOVDreg x)
-(MOVWreg  x:(MOVHreg  _)) => (MOVDreg x)
-(MOVWreg  x:(MOVWreg  _)) => (MOVDreg x)
-(MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
-(MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
-(MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
-
 // don't extend before store
 (MOVBstore [off] {sym} ptr (MOVBreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr (MOVBUreg x) mem) => (MOVBstore [off] {sym} ptr x mem)
@@ -1572,17 +1517,10 @@
 (LessThanNoov     (InvertFlags x)) => (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
 (GreaterEqualNoov (InvertFlags x)) => (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
 
-// Boolean-generating instructions (NOTE: NOT all boolean Values) always
-// zero upper bit of the register; no need to zero-extend
-(MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
-
 // Don't bother extending if we're not using the higher bits.
 (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
 (MOV(H|HU)reg x) && v.Type.Size() <= 2 => x
 (MOV(W|WU)reg x) && v.Type.Size() <= 4 => x
-
-// omit unsign extension
-(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
 
 // omit sign extension
 (MOVWreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffff80000000) == 0 => (ANDconst <t> x [c])

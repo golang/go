@@ -166,7 +166,7 @@ func TestPGOIntendedInlining(t *testing.T) {
 	testPGOIntendedInlining(t, dir, profFile)
 }
 
-// TestPGOIntendedInlining tests that specific functions are inlined when PGO
+// TestPGOPreprocessInlining tests that specific functions are inlined when PGO
 // is applied to the exact source that was profiled.
 func TestPGOPreprocessInlining(t *testing.T) {
 	wd, err := os.Getwd()
@@ -187,7 +187,7 @@ func TestPGOPreprocessInlining(t *testing.T) {
 	testPGOIntendedInlining(t, dir, preProfFile)
 }
 
-// TestPGOIntendedInlining tests that specific functions are inlined when PGO
+// TestPGOIntendedInliningShiftedLines tests that specific functions are inlined when PGO
 // is applied to the modified source.
 func TestPGOIntendedInliningShiftedLines(t *testing.T) {
 	wd, err := os.Getwd()

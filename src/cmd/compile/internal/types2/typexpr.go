@@ -41,11 +41,19 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
 		}
 		return
-	case universeAny, universeComparable:
+	case universeComparable:
 		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
 			return // avoid follow-on errors
 		}
 	}
+	// Because the representation of any depends on gotypesalias, we don't check
+	// pointer identity here.
+	if obj.Name() == "any" && obj.Parent() == Universe {
+		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
+			return // avoid follow-on errors
+		}
+	}
+
 	check.recordUse(e, obj)
 
 	// If we want a type but don't have one, stop right here and avoid potential problems
@@ -87,7 +95,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 
 	switch obj := obj.(type) {
 	case *PkgName:
-		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", obj.name)
+		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", quote(obj.name))
 		return
 
 	case *Const:
@@ -108,8 +116,8 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = constant_
 
 	case *TypeName:
-		if !check.enableAlias && check.isBrokenAlias(obj) {
-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+		if !check.conf.EnableAlias && check.isBrokenAlias(obj) {
+			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
 			return
 		}
 		x.mode = typexpr
@@ -139,7 +147,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		x.mode = nilvalue
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	x.typ = typ

@@ -1,0 +1,4 @@
+pkg reflect, method (Value) Seq() iter.Seq[Value] #66056
+pkg reflect, method (Value) Seq2() iter.Seq2[Value, Value] #66056
+pkg reflect, type Type interface, CanSeq() bool #66056
+pkg reflect, type Type interface, CanSeq2() bool #66056

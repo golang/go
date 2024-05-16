@@ -95,6 +95,18 @@ func (subst *subster) typ(typ Type) Type {
 	case *Basic:
 		// nothing to do
 
+	case *Alias:
+		rhs := subst.typ(t.fromRHS)
+		if rhs != t.fromRHS {
+			// This branch cannot be reached because the RHS of an alias
+			// may only contain type parameters of an enclosing function.
+			// Such function bodies are never "instantiated" and thus
+			// substitution is not called on locally declared alias types.
+			// TODO(gri) adjust once parameterized aliases are supported
+			panic("unreachable for unparameterized aliases")
+			// return subst.check.newAlias(t.obj, rhs)
+		}
+
 	case *Array:
 		elem := subst.typOrNil(t.elem)
 		if elem != t.elem {
@@ -271,7 +283,7 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.smap.lookup(t)
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return typ
@@ -409,7 +421,7 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
 	out = in
 	for i, method := range in {
-		sig := method.Type().(*Signature)
+		sig := method.Signature()
 		if sig.recv != nil && sig.recv.Type() == old {
 			if !copied {
 				// Allocate a new methods slice before mutating for the first time.

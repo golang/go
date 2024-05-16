@@ -53,49 +53,61 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 	for i, m := range tests {
 		ty := reflect.ValueOf(m).Type()
-
-		n := 100
-		if testing.Short() {
-			n = 5
-		}
-		for j := 0; j < n; j++ {
-			v, ok := quick.Value(ty, rand)
-			if !ok {
-				t.Errorf("#%d: failed to create value", i)
-				break
+		t.Run(ty.String(), func(t *testing.T) {
+			n := 100
+			if testing.Short() {
+				n = 5
 			}
+			for j := 0; j < n; j++ {
+				v, ok := quick.Value(ty, rand)
+				if !ok {
+					t.Errorf("#%d: failed to create value", i)
+					break
+				}
 
-			m1 := v.Interface().(handshakeMessage)
-			marshaled := mustMarshal(t, m1)
-			if !m.unmarshal(marshaled) {
-				t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
-				break
-			}
-			m.marshal() // to fill any marshal cache in the message
+				m1 := v.Interface().(handshakeMessage)
+				marshaled := mustMarshal(t, m1)
+				if !m.unmarshal(marshaled) {
+					t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
+					break
+				}
 
-			if m, ok := m.(*SessionState); ok {
-				m.activeCertHandles = nil
-			}
+				if m, ok := m.(*SessionState); ok {
+					m.activeCertHandles = nil
+				}
 
-			if !reflect.DeepEqual(m1, m) {
-				t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
-				break
-			}
+				// clientHelloMsg and serverHelloMsg, when unmarshalled, store
+				// their original representation, for later use in the handshake
+				// transcript. In order to prevent DeepEqual from failing since
+				// we didn't create the original message via unmarshalling, nil
+				// the field.
+				switch t := m.(type) {
+				case *clientHelloMsg:
+					t.original = nil
+				case *serverHelloMsg:
+					t.original = nil
+				}
 
-			if i >= 3 {
-				// The first three message types (ClientHello,
-				// ServerHello and Finished) are allowed to
-				// have parsable prefixes because the extension
-				// data is optional and the length of the
-				// Finished varies across versions.
-				for j := 0; j < len(marshaled); j++ {
-					if m.unmarshal(marshaled[0:j]) {
-						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
-						break
+				if !reflect.DeepEqual(m1, m) {
+					t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
+					break
+				}
+
+				if i >= 3 {
+					// The first three message types (ClientHello,
+					// ServerHello and Finished) are allowed to
+					// have parsable prefixes because the extension
+					// data is optional and the length of the
+					// Finished varies across versions.
+					for j := 0; j < len(marshaled); j++ {
+						if m.unmarshal(marshaled[0:j]) {
+							t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
+							break
+						}
 					}
 				}
 			}
-		}
+		})
 	}
 }
 

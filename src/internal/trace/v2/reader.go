@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"internal/trace/v2/event/go122"
+	"internal/trace/v2/internal/oldtrace"
 	"internal/trace/v2/version"
 )
 
@@ -21,10 +22,13 @@ type Reader struct {
 	lastTs      Time
 	gen         *generation
 	spill       *spilledBatch
+	spillErr    error // error from reading spill
 	frontier    []*batchCursor
 	cpuSamples  []cpuSample
 	order       ordering
 	emittedSync bool
+
+	go121Events *oldTraceConverter
 }
 
 // NewReader creates a new trace reader.
@@ -34,20 +38,30 @@ func NewReader(r io.Reader) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v != version.Go122 {
+	switch v {
+	case version.Go111, version.Go119, version.Go121:
+		tr, err := oldtrace.Parse(br, v)
+		if err != nil {
+			return nil, err
+		}
+		return &Reader{
+			go121Events: convertOldFormat(tr),
+		}, nil
+	case version.Go122, version.Go123:
+		return &Reader{
+			r: br,
+			order: ordering{
+				mStates:     make(map[ThreadID]*mState),
+				pStates:     make(map[ProcID]*pState),
+				gStates:     make(map[GoID]*gState),
+				activeTasks: make(map[TaskID]taskState),
+			},
+			// Don't emit a sync event when we first go to emit events.
+			emittedSync: true,
+		}, nil
+	default:
 		return nil, fmt.Errorf("unknown or unsupported version go 1.%d", v)
 	}
-	return &Reader{
-		r: br,
-		order: ordering{
-			mStates:     make(map[ThreadID]*mState),
-			pStates:     make(map[ProcID]*pState),
-			gStates:     make(map[GoID]*gState),
-			activeTasks: make(map[TaskID]taskState),
-		},
-		// Don't emit a sync event when we first go to emit events.
-		emittedSync: true,
-	}, nil
 }
 
 // ReadEvent reads a single event from the stream.
@@ -55,6 +69,15 @@ func NewReader(r io.Reader) (*Reader, error) {
 // If the stream has been exhausted, it returns an invalid
 // event and io.EOF.
 func (r *Reader) ReadEvent() (e Event, err error) {
+	if r.go121Events != nil {
+		ev, err := r.go121Events.next()
+		if err != nil {
+			// XXX do we have to emit an EventSync when the trace is done?
+			return Event{}, err
+		}
+		return ev, nil
+	}
+
 	// Go 1.22+ trace parsing algorithm.
 	//
 	// (1) Read in all the batches for the next generation from the stream.
@@ -85,8 +108,8 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		r.lastTs = e.base.time
 	}()
 
-	// Consume any extra events produced during parsing.
-	if ev := r.order.consumeExtraEvent(); ev.Kind() != EventBad {
+	// Consume any events in the ordering first.
+	if ev, ok := r.order.Next(); ok {
 		return ev, nil
 	}
 
@@ -95,6 +118,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		if !r.emittedSync {
 			r.emittedSync = true
 			return syncEvent(r.gen.evTable, r.lastTs), nil
+		}
+		if r.spillErr != nil {
+			return Event{}, r.spillErr
 		}
 		if r.gen != nil && r.spill == nil {
 			// If we have a generation from the last read,
@@ -105,10 +131,12 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			return Event{}, io.EOF
 		}
 		// Read the next generation.
+		var err error
 		r.gen, r.spill, err = readGeneration(r.r, r.spill)
-		if err != nil {
+		if r.gen == nil {
 			return Event{}, err
 		}
+		r.spillErr = err
 
 		// Reset CPU samples cursor.
 		r.cpuSamples = r.gen.cpuSamples
@@ -130,13 +158,17 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		// Reset emittedSync.
 		r.emittedSync = false
 	}
-	refresh := func(i int) error {
+	tryAdvance := func(i int) (bool, error) {
 		bc := r.frontier[i]
+
+		if ok, err := r.order.Advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); !ok || err != nil {
+			return ok, err
+		}
 
 		// Refresh the cursor's event.
 		ok, err := bc.nextEvent(r.gen.batches[bc.m], r.gen.freq)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if ok {
 			// If we successfully refreshed, update the heap.
@@ -145,7 +177,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			// There's nothing else to read. Delete this cursor from the frontier.
 			r.frontier = heapRemove(r.frontier, i)
 		}
-		return nil
+		return true, nil
 	}
 	// Inject a CPU sample if it comes next.
 	if len(r.cpuSamples) != 0 {
@@ -160,28 +192,35 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	if len(r.frontier) == 0 {
 		return Event{}, fmt.Errorf("broken trace: frontier is empty:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
 	}
-	bc := r.frontier[0]
-	if ctx, ok, err := r.order.advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); err != nil {
+	if ok, err := tryAdvance(0); err != nil {
 		return Event{}, err
-	} else if ok {
-		e := Event{table: r.gen.evTable, ctx: ctx, base: bc.ev}
-		return e, refresh(0)
-	}
-	// Sort the min-heap. A sorted min-heap is still a min-heap,
-	// but now we can iterate over the rest and try to advance in
-	// order. This path should be rare.
-	slices.SortFunc(r.frontier, (*batchCursor).compare)
-	// Try to advance the rest of the frontier, in timestamp order.
-	for i := 1; i < len(r.frontier); i++ {
-		bc := r.frontier[i]
-		if ctx, ok, err := r.order.advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); err != nil {
-			return Event{}, err
-		} else if ok {
-			e := Event{table: r.gen.evTable, ctx: ctx, base: bc.ev}
-			return e, refresh(i)
+	} else if !ok {
+		// Try to advance the rest of the frontier, in timestamp order.
+		//
+		// To do this, sort the min-heap. A sorted min-heap is still a
+		// min-heap, but now we can iterate over the rest and try to
+		// advance in order. This path should be rare.
+		slices.SortFunc(r.frontier, (*batchCursor).compare)
+		success := false
+		for i := 1; i < len(r.frontier); i++ {
+			if ok, err = tryAdvance(i); err != nil {
+				return Event{}, err
+			} else if ok {
+				success = true
+				break
+			}
+		}
+		if !success {
+			return Event{}, fmt.Errorf("broken trace: failed to advance: frontier:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
 		}
 	}
-	return Event{}, fmt.Errorf("broken trace: failed to advance: frontier:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
+
+	// Pick off the next event on the queue. At this point, one must exist.
+	ev, ok := r.order.Next()
+	if !ok {
+		panic("invariant violation: advance successful, but queue is empty")
+	}
+	return ev, nil
 }
 
 func dumpFrontier(frontier []*batchCursor) string {

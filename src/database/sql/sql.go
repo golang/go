@@ -21,9 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -68,7 +69,7 @@ func Drivers() []string {
 	for name := range drivers {
 		list = append(list, name)
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -497,9 +498,8 @@ type DB struct {
 
 	mu           sync.Mutex    // protects following fields
 	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
-	connRequests map[uint64]chan connRequest
-	nextRequest  uint64 // Next key to use in connRequests.
-	numOpen      int    // number of opened and pending open connections
+	connRequests connRequestSet
+	numOpen      int // number of opened and pending open connections
 	// Used to signal the need for new connections
 	// a goroutine running connectionOpener() reads on this chan and
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
@@ -551,9 +551,9 @@ type driverConn struct {
 
 	// guarded by db.mu
 	inUse      bool
+	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
 	returnedAt time.Time // Time the connection was created or returned.
 	onPut      []func()  // code (with db.mu held) run when conn is next returned
-	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -814,11 +814,10 @@ func (t dsnConnector) Driver() driver.Driver {
 func OpenDB(c driver.Connector) *DB {
 	ctx, cancel := context.WithCancel(context.Background())
 	db := &DB{
-		connector:    c,
-		openerCh:     make(chan struct{}, connectionRequestQueueSize),
-		lastPut:      make(map[*driverConn]string),
-		connRequests: make(map[uint64]chan connRequest),
-		stop:         cancel,
+		connector: c,
+		openerCh:  make(chan struct{}, connectionRequestQueueSize),
+		lastPut:   make(map[*driverConn]string),
+		stop:      cancel,
 	}
 
 	go db.connectionOpener(ctx)
@@ -922,9 +921,7 @@ func (db *DB) Close() error {
 	}
 	db.freeConn = nil
 	db.closed = true
-	for _, req := range db.connRequests {
-		close(req)
-	}
+	db.connRequests.CloseAndRemoveAll()
 	db.mu.Unlock()
 	for _, fn := range fns {
 		err1 := fn()
@@ -1223,7 +1220,7 @@ func (db *DB) Stats() DBStats {
 // If there are connRequests and the connection limit hasn't been reached,
 // then tell the connectionOpener to open new connections.
 func (db *DB) maybeOpenNewConnections() {
-	numRequests := len(db.connRequests)
+	numRequests := db.connRequests.Len()
 	if db.maxOpen > 0 {
 		numCanOpen := db.maxOpen - db.numOpen
 		if numRequests > numCanOpen {
@@ -1297,14 +1294,6 @@ type connRequest struct {
 
 var errDBClosed = errors.New("sql: database is closed")
 
-// nextRequestKeyLocked returns the next connection request key.
-// It is assumed that nextRequest will not overflow.
-func (db *DB) nextRequestKeyLocked() uint64 {
-	next := db.nextRequest
-	db.nextRequest++
-	return next
-}
-
 // conn returns a newly-opened or cached *driverConn.
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
 	db.mu.Lock()
@@ -1352,8 +1341,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		// Make the connRequest channel. It's buffered so that the
 		// connectionOpener doesn't block while waiting for the req to be read.
 		req := make(chan connRequest, 1)
-		reqKey := db.nextRequestKeyLocked()
-		db.connRequests[reqKey] = req
+		delHandle := db.connRequests.Add(req)
 		db.waitCount++
 		db.mu.Unlock()
 
@@ -1365,16 +1353,26 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			// Remove the connection request and ensure no value has been sent
 			// on it after removing.
 			db.mu.Lock()
-			delete(db.connRequests, reqKey)
+			deleted := db.connRequests.Delete(delHandle)
 			db.mu.Unlock()
 
 			db.waitDuration.Add(int64(time.Since(waitStart)))
 
-			select {
-			default:
-			case ret, ok := <-req:
-				if ok && ret.conn != nil {
-					db.putConn(ret.conn, ret.err, false)
+			// If we failed to delete it, that means something else
+			// grabbed it and is about to send on it.
+			if !deleted {
+				// TODO(bradfitz): rather than this best effort select, we
+				// should probably start a goroutine to read from req. This best
+				// effort select existed before the change to check 'deleted'.
+				// But if we know for sure it wasn't deleted and a sender is
+				// outstanding, we should probably block on req (in a new
+				// goroutine) to get the connection back.
+				select {
+				default:
+				case ret, ok := <-req:
+					if ok && ret.conn != nil {
+						db.putConn(ret.conn, ret.err, false)
+					}
 				}
 			}
 			return nil, ctx.Err()
@@ -1530,13 +1528,7 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	if db.maxOpen > 0 && db.numOpen > db.maxOpen {
 		return false
 	}
-	if c := len(db.connRequests); c > 0 {
-		var req chan connRequest
-		var reqKey uint64
-		for reqKey, req = range db.connRequests {
-			break
-		}
-		delete(db.connRequests, reqKey) // Remove from pending requests.
+	if req, ok := db.connRequests.TakeRandom(); ok {
 		if err == nil {
 			dc.inUse = true
 		}
@@ -2692,6 +2684,8 @@ func (s *Stmt) removeClosedStmtLocked() {
 	for i := 0; i < len(s.css); i++ {
 		if s.css[i].dc.dbmuClosed {
 			s.css[i] = s.css[len(s.css)-1]
+			// Zero out the last element (for GC) before shrinking the slice.
+			s.css[len(s.css)-1] = connStmt{}
 			s.css = s.css[:len(s.css)-1]
 			i--
 		}
@@ -2929,12 +2923,8 @@ type Rows struct {
 	//
 	// closemu guards lasterr and closed.
 	closemu sync.RWMutex
-	closed  bool
 	lasterr error // non-nil only if closed is true
-
-	// lastcols is only used in Scan, Next, and NextResultSet which are expected
-	// not to be called concurrently.
-	lastcols []driver.Value
+	closed  bool
 
 	// closemuScanHold is whether the previous call to Scan kept closemu RLock'ed
 	// without unlocking it. It does that when the user passes a *RawBytes scan
@@ -2950,6 +2940,17 @@ type Rows struct {
 	// returning. It's only used by Next and Err which are
 	// expected not to be called concurrently.
 	hitEOF bool
+
+	// lastcols is only used in Scan, Next, and NextResultSet which are expected
+	// not to be called concurrently.
+	lastcols []driver.Value
+
+	// raw is a buffer for RawBytes that persists between Scan calls.
+	// This is used when the driver returns a mismatched type that requires
+	// a cloning allocation. For example, if the driver returns a *string and
+	// the user is scanning into a *RawBytes, we need to copy the string.
+	// The raw buffer here lets us reuse the memory for that copy across Scan calls.
+	raw []byte
 }
 
 // lasterrOrErrLocked returns either lasterr or the provided err.
@@ -3128,6 +3129,32 @@ func (rs *Rows) Err() error {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	return rs.lasterrOrErrLocked(nil)
+}
+
+// rawbuf returns the buffer to append RawBytes values to.
+// This buffer is reused across calls to Rows.Scan.
+//
+// Usage:
+//
+//	rawBytes = rows.setrawbuf(append(rows.rawbuf(), value...))
+func (rs *Rows) rawbuf() []byte {
+	if rs == nil {
+		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		return nil
+	}
+	return rs.raw
+}
+
+// setrawbuf updates the RawBytes buffer with the result of appending a new value to it.
+// It returns the new value.
+func (rs *Rows) setrawbuf(b []byte) RawBytes {
+	if rs == nil {
+		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		return RawBytes(b)
+	}
+	off := len(rs.raw)
+	rs.raw = b
+	return RawBytes(rs.raw[off:])
 }
 
 var errRowsClosed = errors.New("sql: Rows are closed")
@@ -3337,6 +3364,7 @@ func (rs *Rows) Scan(dest ...any) error {
 
 	if scanArgsContainRawBytes(dest) {
 		rs.closemuScanHold = true
+		rs.raw = rs.raw[:0]
 	} else {
 		rs.closemu.RUnlock()
 	}
@@ -3458,10 +3486,8 @@ func (r *Row) Scan(dest ...any) error {
 	// they were obtained from the network anyway) But for now we
 	// don't care.
 	defer r.rows.Close()
-	for _, dp := range dest {
-		if _, ok := dp.(*RawBytes); ok {
-			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
-		}
+	if scanArgsContainRawBytes(dest) {
+		return errors.New("sql: RawBytes isn't allowed on Row.Scan")
 	}
 
 	if !r.rows.Next() {
@@ -3528,4 +3554,105 @@ func withLock(lk sync.Locker, fn func()) {
 	lk.Lock()
 	defer lk.Unlock() // in case fn panics
 	fn()
+}
+
+// connRequestSet is a set of chan connRequest that's
+// optimized for:
+//
+//   - adding an element
+//   - removing an element (only by the caller who added it)
+//   - taking (get + delete) a random element
+//
+// We previously used a map for this but the take of a random element
+// was expensive, making mapiters. This type avoids a map entirely
+// and just uses a slice.
+type connRequestSet struct {
+	// s are the elements in the set.
+	s []connRequestAndIndex
+}
+
+type connRequestAndIndex struct {
+	// req is the element in the set.
+	req chan connRequest
+
+	// curIdx points to the current location of this element in
+	// connRequestSet.s. It gets set to -1 upon removal.
+	curIdx *int
+}
+
+// CloseAndRemoveAll closes all channels in the set
+// and clears the set.
+func (s *connRequestSet) CloseAndRemoveAll() {
+	for _, v := range s.s {
+		close(v.req)
+	}
+	s.s = nil
+}
+
+// Len returns the length of the set.
+func (s *connRequestSet) Len() int { return len(s.s) }
+
+// connRequestDelHandle is an opaque handle to delete an
+// item from calling Add.
+type connRequestDelHandle struct {
+	idx *int // pointer to index; or -1 if not in slice
+}
+
+// Add adds v to the set of waiting requests.
+// The returned connRequestDelHandle can be used to remove the item from
+// the set.
+func (s *connRequestSet) Add(v chan connRequest) connRequestDelHandle {
+	idx := len(s.s)
+	// TODO(bradfitz): for simplicity, this always allocates a new int-sized
+	// allocation to store the index. But generally the set will be small and
+	// under a scannable-threshold. As an optimization, we could permit the *int
+	// to be nil when the set is small and should be scanned. This works even if
+	// the set grows over the threshold with delete handles outstanding because
+	// an element can only move to a lower index. So if it starts with a nil
+	// position, it'll always be in a low index and thus scannable. But that
+	// can be done in a follow-up change.
+	idxPtr := &idx
+	s.s = append(s.s, connRequestAndIndex{v, idxPtr})
+	return connRequestDelHandle{idxPtr}
+}
+
+// Delete removes an element from the set.
+//
+// It reports whether the element was deleted. (It can return false if a caller
+// of TakeRandom took it meanwhile, or upon the second call to Delete)
+func (s *connRequestSet) Delete(h connRequestDelHandle) bool {
+	idx := *h.idx
+	if idx < 0 {
+		return false
+	}
+	s.deleteIndex(idx)
+	return true
+}
+
+func (s *connRequestSet) deleteIndex(idx int) {
+	// Mark item as deleted.
+	*(s.s[idx].curIdx) = -1
+	// Copy last element, updating its position
+	// to its new home.
+	if idx < len(s.s)-1 {
+		last := s.s[len(s.s)-1]
+		*last.curIdx = idx
+		s.s[idx] = last
+	}
+	// Zero out last element (for GC) before shrinking the slice.
+	s.s[len(s.s)-1] = connRequestAndIndex{}
+	s.s = s.s[:len(s.s)-1]
+}
+
+// TakeRandom returns and removes a random element from s
+// and reports whether there was one to take. (It returns ok=false
+// if the set is empty.)
+func (s *connRequestSet) TakeRandom() (v chan connRequest, ok bool) {
+	if len(s.s) == 0 {
+		return nil, false
+	}
+	pick := rand.IntN(len(s.s))
+	e := s.s[pick]
+	s.deleteIndex(pick)
+	return e.req, true
 }

@@ -94,7 +94,7 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 			return s.WordSize
 		}
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	a := s.Sizeof(T) // may be 0 or negative
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
@@ -120,7 +120,7 @@ func IsSyncAtomicAlign64(T Type) bool {
 	return obj.Name() == "align64" &&
 		obj.Pkg() != nil &&
 		(obj.Pkg().Path() == "sync/atomic" ||
-			obj.Pkg().Path() == "runtime/internal/atomic")
+			obj.Pkg().Path() == "internal/runtime/atomic")
 }
 
 func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
@@ -221,7 +221,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return s.WordSize // catch-all
 }

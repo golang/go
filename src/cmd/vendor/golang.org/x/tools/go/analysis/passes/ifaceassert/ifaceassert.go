@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 //go:embed doc.go
@@ -28,7 +29,7 @@ var Analyzer = &analysis.Analyzer{
 
 // assertableTo checks whether interface v can be asserted into t. It returns
 // nil on success, or the first conflicting method on failure.
-func assertableTo(v, t types.Type) *types.Func {
+func assertableTo(free *typeparams.Free, v, t types.Type) *types.Func {
 	if t == nil || v == nil {
 		// not assertable to, but there is no missing method
 		return nil
@@ -42,7 +43,7 @@ func assertableTo(v, t types.Type) *types.Func {
 
 	// Mitigations for interface comparisons and generics.
 	// TODO(https://github.com/golang/go/issues/50658): Support more precise conclusion.
-	if isParameterized(V) || isParameterized(T) {
+	if free.Has(V) || free.Has(T) {
 		return nil
 	}
 	if f, wrongType := types.MissingMethod(V, T, false); wrongType {
@@ -57,6 +58,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.TypeAssertExpr)(nil),
 		(*ast.TypeSwitchStmt)(nil),
 	}
+	var free typeparams.Free
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		var (
 			assert  *ast.TypeAssertExpr // v.(T) expression
@@ -86,7 +88,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		V := pass.TypesInfo.TypeOf(assert.X)
 		for _, target := range targets {
 			T := pass.TypesInfo.TypeOf(target)
-			if f := assertableTo(V, T); f != nil {
+			if f := assertableTo(&free, V, T); f != nil {
 				pass.Reportf(
 					target.Pos(),
 					"impossible type assertion: no type can implement both %v and %v (conflicting types for %v method)",

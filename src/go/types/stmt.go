@@ -65,7 +65,7 @@ func (check *Checker) usage(scope *Scope) {
 		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
-		check.softErrorf(v, UnusedVar, "%s declared and not used", v.name)
+		check.softErrorf(v, UnusedVar, "%s declared and not used", quote(v.name))
 	}
 
 	for _, scope := range scope.children {
@@ -183,7 +183,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	case statement:
 		return
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
 }
@@ -257,8 +257,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if Identical(v.typ, vt.typ) {
-					check.errorf(&v, DuplicateCase, "duplicate case %s in expression switch", &v)
-					check.error(atPos(vt.pos), DuplicateCase, "\tprevious case") // secondary error, \t indented
+					err := check.newError(DuplicateCase)
+					err.addf(&v, "duplicate case %s in expression switch", &v)
+					err.addf(atPos(vt.pos), "previous case")
+					err.report()
 					continue L
 				}
 			}
@@ -301,8 +303,10 @@ L:
 				if T != nil {
 					Ts = TypeString(T, check.qualifier)
 				}
-				check.errorf(e, DuplicateCase, "duplicate case %s in type switch", Ts)
-				check.error(other, DuplicateCase, "\tprevious case") // secondary error, \t indented
+				err := check.newError(DuplicateCase)
+				err.addf(e, "duplicate case %s in type switch", Ts)
+				err.addf(other, "previous case")
+				err.report()
 				continue L
 			}
 		}
@@ -341,11 +345,10 @@ L:
 // 			if T != nil {
 // 				Ts = TypeString(T, check.qualifier)
 // 			}
-// 			var err error_
-//			err.code = DuplicateCase
-// 			err.errorf(e, "duplicate case %s in type switch", Ts)
-// 			err.errorf(other, "previous case")
-// 			check.report(&err)
+// 			err := check.newError(_DuplicateCase)
+// 			err.addf(e, "duplicate case %s in type switch", Ts)
+// 			err.addf(other, "previous case")
+// 			err.report()
 // 			continue L
 // 		}
 // 		seen[hash] = e
@@ -511,8 +514,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// with the same name as a result parameter is in scope at the place of the return."
 			for _, obj := range res.vars {
 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
-					check.errorf(s, OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
-					check.errorf(alt, OutOfScopeResult, "\tinner declaration of %s", obj)
+					err := check.newError(OutOfScopeResult)
+					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
+					err.addf(alt, "inner declaration of %s", obj)
+					err.report()
 					// ok to continue
 				}
 			}
@@ -837,7 +842,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	type identType = ast.Ident
 	identName := func(n *identType) string { return n.Name }
 	sKey, sValue := s.Key, s.Value
-	var sExtra ast.Expr = nil
+	var sExtra ast.Expr = nil // (used only in types2 fork)
 	isDef := s.Tok == token.DEFINE
 	rangeVar := s.X
 	noNewVarPos := inNode(s, s.TokPos)
@@ -853,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(check.pkg, x.expr, v)
+			return check.allowVersion(x.expr, v)
 		})
 		switch {
 		case !ok && cause != "":
@@ -893,7 +898,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	lhs := [2]Expr{sKey, sValue} // sKey, sValue may be nil
 	rhs := [2]Type{key, val}     // key, val may be nil
 
-	constIntRange := x.mode == constant_ && isInteger(x.typ)
+	rangeOverInt := isInteger(x.typ)
 
 	if isDef {
 		// short variable declaration
@@ -918,19 +923,27 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
+			assert(obj.typ == nil)
 
-			// initialize lhs variable
-			if constIntRange {
-				check.initVar(obj, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
-				x.mode = value
-				x.expr = lhs // we don't have a better rhs expression to use here
-				x.typ = typ
-				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
-			} else {
+			// initialize lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
 				obj.typ = Typ[Invalid]
 				obj.used = true // don't complain about unused variable
+				continue
 			}
+
+			if rangeOverInt {
+				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
+				check.initVar(obj, &x, "range clause")
+			} else {
+				var y operand
+				y.mode = value
+				y.expr = lhs // we don't have a better rhs expression to use here
+				y.typ = typ
+				check.initVar(obj, &y, "assignment") // error is on variable, use "assignment" not "range clause"
+			}
+			assert(obj.typ != nil)
 		}
 
 		// declare variables
@@ -949,21 +962,36 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 				continue
 			}
 
-			if constIntRange {
+			// assign to lhs iteration variable, if any
+			typ := rhs[i]
+			if typ == nil {
+				continue
+			}
+
+			if rangeOverInt {
+				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
 				check.assignVar(lhs, nil, &x, "range clause")
-			} else if typ := rhs[i]; typ != nil {
-				x.mode = value
-				x.expr = lhs // we don't have a better rhs expression to use here
-				x.typ = typ
-				check.assignVar(lhs, nil, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+				// If the assignment succeeded, if x was untyped before, it now
+				// has a type inferred via the assignment. It must be an integer.
+				// (go.dev/issues/67027)
+				if x.mode != invalid && !isInteger(x.typ) {
+					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ)
+				}
+			} else {
+				var y operand
+				y.mode = value
+				y.expr = lhs // we don't have a better rhs expression to use here
+				y.typ = typ
+				check.assignVar(lhs, nil, &y, "assignment") // error is on variable, use "assignment" not "range clause"
 			}
 		}
-	} else if constIntRange {
+	} else if rangeOverInt {
 		// If we don't have any iteration variables, we still need to
 		// check that a (possibly untyped) integer range expression x
 		// is valid.
 		// We do this by checking the assignment _ = x. This ensures
-		// that an untyped x can be converted to a value of type int.
+		// that an untyped x can be converted to a value of its default
+		// type (rune or int).
 		check.assignment(&x, nil, "range clause")
 	}
 
@@ -993,6 +1021,7 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 			return Typ[Int], universeRune, "", false, true // use 'rune' name
 		}
 		if isInteger(typ) {
+			// untyped numeric constants may be representable as integer values
 			if allowVersion != nil && !allowVersion(go1_22) {
 				return bad("requires go1.22 or later")
 			}

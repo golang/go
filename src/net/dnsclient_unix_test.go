@@ -25,8 +25,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-var goResolver = Resolver{PreferGo: true}
-
 // Test address from 192.0.2.0/24 block, reserved by RFC 5737 for documentation.
 var TestAddr = [4]byte{0xc0, 0x00, 0x02, 0x01}
 
@@ -803,13 +801,25 @@ func TestIgnoreLameReferrals(t *testing.T) {
 					},
 				}
 			}
+		} else if s == "192.0.2.1:53" {
+			if q.Questions[0].Type == dnsmessage.TypeA && strings.HasPrefix(q.Questions[0].Name.String(), "empty.com.") {
+				var edns0Hdr dnsmessage.ResourceHeader
+				edns0Hdr.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false)
+
+				r.Additionals = []dnsmessage.Resource{
+					{
+						Header: edns0Hdr,
+						Body:   &dnsmessage.OPTResource{},
+					},
+				}
+			}
 		}
 
 		return r, nil
 	}}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	addrs, err := r.LookupIPAddr(context.Background(), "www.golang.org")
+	addrs, err := r.LookupIP(context.Background(), "ip4", "www.golang.org")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -820,6 +830,15 @@ func TestIgnoreLameReferrals(t *testing.T) {
 
 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
 		t.Fatalf("got address %v, want %v", got, want)
+	}
+
+	_, err = r.LookupIP(context.Background(), "ip4", "empty.com")
+	de, ok := err.(*DNSError)
+	if !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	}
+	if de.Err != errNoSuchHost.Error() {
+		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
 	}
 }
 
@@ -1209,10 +1228,11 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeTimeout := func() error {
 		return &DNSError{
-			Err:       os.ErrDeadlineExceeded.Error(),
-			Name:      name,
-			Server:    server,
-			IsTimeout: true,
+			Err:         os.ErrDeadlineExceeded.Error(),
+			Name:        name,
+			Server:      server,
+			IsTimeout:   true,
+			IsTemporary: true,
 		}
 	}
 	makeNxDomain := func() error {
@@ -1465,10 +1485,11 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
 		var wantRRs int
 		if strict {
 			wantErr = &DNSError{
-				Err:       os.ErrDeadlineExceeded.Error(),
-				Name:      name,
-				Server:    server,
-				IsTimeout: true,
+				Err:         os.ErrDeadlineExceeded.Error(),
+				Name:        name,
+				Server:      server,
+				IsTimeout:   true,
+				IsTemporary: true,
 			}
 		} else {
 			wantRRs = 1

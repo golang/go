@@ -34,7 +34,7 @@ const (
 )
 
 // State represents the printer state passed to custom formatters.
-// It provides access to the io.Writer interface plus information about
+// It provides access to the [io.Writer] interface plus information about
 // the flags and options for the operand's format specifier.
 type State interface {
 	// Write is the function to call to emit formatted output to be printed.
@@ -49,8 +49,8 @@ type State interface {
 }
 
 // Formatter is implemented by any value that has a Format method.
-// The implementation controls how State and rune are interpreted,
-// and may call Sprint() or Fprint(f) etc. to generate its output.
+// The implementation controls how [State] and rune are interpreted,
+// and may call [Sprint] or [Fprint](f) etc. to generate its output.
 type Formatter interface {
 	Format(f State, verb rune)
 }
@@ -59,7 +59,7 @@ type Formatter interface {
 // which defines the “native” format for that value.
 // The String method is used to print values passed as an operand
 // to any format that accepts a string or to an unformatted printer
-// such as Print.
+// such as [Print].
 type Stringer interface {
 	String() string
 }
@@ -73,10 +73,10 @@ type GoStringer interface {
 }
 
 // FormatString returns a string representing the fully qualified formatting
-// directive captured by the State, followed by the argument verb. (State does not
+// directive captured by the [State], followed by the argument verb. ([State] does not
 // itself contain the verb.) The result has a leading percent sign followed by any
 // flags, the width, and the precision. Missing flags, width, and precision are
-// omitted. This function allows a Formatter to reconstruct the original
+// omitted. This function allows a [Formatter] to reconstruct the original
 // directive triggering the call to Format.
 func FormatString(state State, verb rune) string {
 	var tmp [16]byte // Use a local buffer.
@@ -201,14 +201,14 @@ func (p *pp) Flag(b int) bool {
 	return false
 }
 
-// Implement Write so we can call Fprintf on a pp (through State), for
+// Implement Write so we can call [Fprintf] on a pp (through [State]), for
 // recursive use in custom verbs.
 func (p *pp) Write(b []byte) (ret int, err error) {
 	p.buf.write(b)
 	return len(b), nil
 }
 
-// Implement WriteString so that we can call io.WriteString
+// Implement WriteString so that we can call [io.WriteString]
 // on a pp (through state), for efficiency.
 func (p *pp) WriteString(s string) (ret int, err error) {
 	p.buf.writeString(s)
@@ -814,7 +814,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			p.buf.writeString(mapString)
 		}
 		sorted := fmtsort.Sort(f)
-		for i, key := range sorted.Key {
+		for i, m := range sorted {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -822,9 +822,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			p.printValue(key, verb, depth+1)
+			p.printValue(m.Key, verb, depth+1)
 			p.buf.writeByte(':')
-			p.printValue(sorted.Value[i], verb, depth+1)
+			p.printValue(m.Value, verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.writeByte('}')
@@ -1048,12 +1048,11 @@ formatLoop:
 			case '#':
 				p.fmt.sharp = true
 			case '0':
-				p.fmt.zero = !p.fmt.minus // Only allow zero padding to the left.
+				p.fmt.zero = true
 			case '+':
 				p.fmt.plus = true
 			case '-':
 				p.fmt.minus = true
-				p.fmt.zero = false // Do not pad with zeros to the right.
 			case ' ':
 				p.fmt.space = true
 			default:

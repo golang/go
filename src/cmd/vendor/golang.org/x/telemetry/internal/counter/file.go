@@ -14,13 +14,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
-	"golang.org/x/mod/module"
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -124,21 +122,21 @@ func (f *file) init(begin, end time.Time) {
 		f.err = errNoBuildInfo
 		return
 	}
-	if mode, _ := telemetry.Mode(); mode == "off" {
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		f.err = ErrDisabled
 		return
 	}
-	dir := telemetry.LocalDir
+	dir := telemetry.Default.LocalDir()
 
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		f.err = err
 		return
 	}
 
-	goVers, progPkgPath, prog, progVers := programInfo(info)
+	goVers, progPath, progVers := telemetry.ProgramInfo(info)
 	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
 		begin.Format(time.RFC3339), end.Format(time.RFC3339),
-		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	if len(f.meta) > maxMetaLen { // should be impossible for our use
 		f.err = fmt.Errorf("metadata too long")
 		return
@@ -146,26 +144,8 @@ func (f *file) init(begin, end time.Time) {
 	if progVers != "" {
 		progVers = "@" + progVers
 	}
-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", path.Base(progPath), progVers, goVers, runtime.GOOS, runtime.GOARCH)
 	f.namePrefix = filepath.Join(dir, prefix)
-}
-
-func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
-	goVers = info.GoVersion
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
-		goVers = "devel"
-	}
-	progPkgPath = info.Path
-	if progPkgPath == "" {
-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	}
-	prog = path.Base(progPkgPath)
-	progVers = info.Main.Version
-	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
-		// we don't want to track pseudo versions, but may want to track prereleases.
-		progVers = "devel"
-	}
-	return goVers, progPkgPath, prog, progVers
 }
 
 // filename returns the name of the file to use for f,
@@ -203,11 +183,11 @@ func fileValidity(now time.Time) (int, error) {
 	// If there is no 'weekends' file create it and initialize it
 	// to a random day of the week. There is a short interval for
 	// a race.
-	weekends := filepath.Join(telemetry.LocalDir, "weekends")
+	weekends := filepath.Join(telemetry.Default.LocalDir(), "weekends")
 	day := fmt.Sprintf("%d\n", rand.Intn(7))
 	if _, err := os.ReadFile(weekends); err != nil {
-		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
-			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
+		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
+			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
 			return 7, err
 		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
@@ -256,9 +236,9 @@ func (f *file) rotate() {
 
 func nop() {}
 
-// counterTime returns the current UTC time.
+// CounterTime returns the current UTC time.
 // Mutable for testing.
-var counterTime = func() time.Time {
+var CounterTime = func() time.Time {
 	return time.Now().UTC()
 }
 
@@ -280,7 +260,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 		previous.close()
 	}
 
-	name, expire, err := f.filename(counterTime())
+	name, expire, err := f.filename(CounterTime())
 	if err != nil {
 		// This could be mode == "off" (when rotate is called for the first time)
 		ret := nop
@@ -354,7 +334,10 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
 func Open() func() {
-	if mode, _ := telemetry.Mode(); mode == "off" {
+	if telemetry.DisabledOnPlatform {
+		return func() {}
+	}
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
 		// Don't open the file when telemetry is off.
 		defaultFile.err = ErrDisabled
 		return func() {} // No need to clean up.

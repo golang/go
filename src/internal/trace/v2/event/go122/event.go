@@ -41,7 +41,7 @@ const (
 	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
-	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, status]
+	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
 
 	// STW.
 	EvSTWBegin // STW start [timestamp, kind]
@@ -66,7 +66,46 @@ const (
 	EvUserTaskEnd     // end of a task [timestamp, internal task ID, stack ID]
 	EvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
 	EvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
-	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, stack, value string ID]
+	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, value string ID, stack]
+
+	// Coroutines. Added in Go 1.23.
+	EvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
+	EvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
+	EvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+
+	// GoStatus with stack. Added in Go 1.23.
+	EvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
+
+	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
+	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
+)
+
+// Experiments.
+const (
+	// AllocFree is the alloc-free events experiment.
+	AllocFree event.Experiment = 1 + iota
+)
+
+// Experimental events.
+const (
+	_ event.Type = 127 + iota
+
+	// Experimental events for AllocFree.
+
+	// Experimental heap span events. Added in Go 1.23.
+	EvSpan      // heap span exists [timestamp, id, npages, type/class]
+	EvSpanAlloc // heap span alloc [timestamp, id, npages, type/class]
+	EvSpanFree  // heap span free [timestamp, id]
+
+	// Experimental heap object events. Added in Go 1.23.
+	EvHeapObject      // heap object exists [timestamp, id, type]
+	EvHeapObjectAlloc // heap object alloc [timestamp, id, type]
+	EvHeapObjectFree  // heap object free [timestamp, id]
+
+	// Experimental goroutine stack events. Added in Go 1.23.
+	EvGoroutineStack      // stack exists [timestamp, id, order]
+	EvGoroutineStackAlloc // stack alloc [timestamp, id, order]
+	EvGoroutineStackFree  // stack free [timestamp, id]
 )
 
 // EventString returns the name of a Go 1.22 event.
@@ -108,7 +147,7 @@ var specs = [...]event.Spec{
 	},
 	EvCPUSample: event.Spec{
 		Name: "CPUSample",
-		Args: []string{"time", "p", "g", "m", "stack"},
+		Args: []string{"time", "m", "p", "g", "stack"},
 		// N.B. There's clearly a timestamp here, but these Events
 		// are special in that they don't appear in the regular
 		// M streams.
@@ -116,6 +155,11 @@ var specs = [...]event.Spec{
 	EvFrequency: event.Spec{
 		Name: "Frequency",
 		Args: []string{"freq"},
+	},
+	EvExperimentalBatch: event.Spec{
+		Name:    "ExperimentalBatch",
+		Args:    []string{"exp", "gen", "m", "time"},
+		HasData: true, // Easier to represent for raw readers.
 	},
 
 	// "Timed" Events.
@@ -331,6 +375,85 @@ var specs = [...]event.Spec{
 		IsTimedEvent: true,
 		StackIDs:     []int{4},
 		StringIDs:    []int{2, 3},
+	},
+	EvGoSwitch: event.Spec{
+		Name:         "GoSwitch",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoSwitchDestroy: event.Spec{
+		Name:         "GoSwitchDestroy",
+		Args:         []string{"dt", "g", "g_seq"},
+		IsTimedEvent: true,
+	},
+	EvGoCreateBlocked: event.Spec{
+		Name:         "GoCreateBlocked",
+		Args:         []string{"dt", "new_g", "new_stack", "stack"},
+		IsTimedEvent: true,
+		StackIDs:     []int{3, 2},
+	},
+	EvGoStatusStack: event.Spec{
+		Name:         "GoStatusStack",
+		Args:         []string{"dt", "g", "m", "gstatus", "stack"},
+		IsTimedEvent: true,
+		StackIDs:     []int{4},
+	},
+
+	// Experimental events.
+
+	EvSpan: event.Spec{
+		Name:         "Span",
+		Args:         []string{"dt", "id", "npages_value", "kindclass"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvSpanAlloc: event.Spec{
+		Name:         "SpanAlloc",
+		Args:         []string{"dt", "id", "npages_value", "kindclass"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvSpanFree: event.Spec{
+		Name:         "SpanFree",
+		Args:         []string{"dt", "id"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvHeapObject: event.Spec{
+		Name:         "HeapObject",
+		Args:         []string{"dt", "id", "type"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvHeapObjectAlloc: event.Spec{
+		Name:         "HeapObjectAlloc",
+		Args:         []string{"dt", "id", "type"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvHeapObjectFree: event.Spec{
+		Name:         "HeapObjectFree",
+		Args:         []string{"dt", "id"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvGoroutineStack: event.Spec{
+		Name:         "GoroutineStack",
+		Args:         []string{"dt", "id", "order"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvGoroutineStackAlloc: event.Spec{
+		Name:         "GoroutineStackAlloc",
+		Args:         []string{"dt", "id", "order"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
+	},
+	EvGoroutineStackFree: event.Spec{
+		Name:         "GoroutineStackFree",
+		Args:         []string{"dt", "id"},
+		IsTimedEvent: true,
+		Experiment:   AllocFree,
 	},
 }
 

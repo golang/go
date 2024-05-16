@@ -371,8 +371,9 @@ bad_cpu: // show that the program requires a certain microarchitecture level.
 	CALL	runtime·abort(SB)
 	RET
 
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
+	MOVQ	$runtime·debugPinnerV1<ABIInternal>(SB), AX
 	MOVQ	$runtime·debugCallV2<ABIInternal>(SB), AX
 	RET
 
@@ -456,6 +457,10 @@ goodm:
 	PUSHQ	AX	// open up space for fn's arg spill slot
 	MOVQ	0(DX), R12
 	CALL	R12		// fn(g)
+	// The Windows native stack unwinder incorrectly classifies the next instruction
+	// as part of the function epilogue, producing a wrong call stack.
+	// Add a NOP to work around this issue. See go.dev/issue/67007.
+	BYTE	$0x90
 	POPQ	AX
 	JMP	runtime·badmcall2(SB)
 	RET

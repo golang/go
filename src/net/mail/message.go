@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"mime"
+	"net"
 	"net/textproto"
 	"strings"
 	"sync"
@@ -553,10 +554,19 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}
-	// TODO(dsymonds): Handle domain-literal
-	domain, err = p.consumeAtom(true, false)
-	if err != nil {
-		return "", err
+
+	if p.peek() == '[' {
+		// domain-literal
+		domain, err = p.consumeDomainLiteral()
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// dot-atom
+		domain, err = p.consumeAtom(true, false)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return localPart + "@" + domain, nil
@@ -705,6 +715,48 @@ Loop:
 		}
 	}
 	return atom, nil
+}
+
+// consumeDomainLiteral parses an RFC 5322 domain-literal at the start of p.
+func (p *addrParser) consumeDomainLiteral() (string, error) {
+	// Skip the leading [
+	if !p.consume('[') {
+		return "", errors.New(`mail: missing "[" in domain-literal`)
+	}
+
+	// Parse the dtext
+	var dtext string
+	for {
+		if p.empty() {
+			return "", errors.New("mail: unclosed domain-literal")
+		}
+		if p.peek() == ']' {
+			break
+		}
+
+		r, size := utf8.DecodeRuneInString(p.s)
+		if size == 1 && r == utf8.RuneError {
+			return "", fmt.Errorf("mail: invalid utf-8 in domain-literal: %q", p.s)
+		}
+		if !isDtext(r) {
+			return "", fmt.Errorf("mail: bad character in domain-literal: %q", r)
+		}
+
+		dtext += p.s[:size]
+		p.s = p.s[size:]
+	}
+
+	// Skip the trailing ]
+	if !p.consume(']') {
+		return "", errors.New("mail: unclosed domain-literal")
+	}
+
+	// Check if the domain literal is an IP address
+	if net.ParseIP(dtext) == nil {
+		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
+	}
+
+	return "[" + dtext + "]", nil
 }
 
 func (p *addrParser) consumeDisplayNameComment() (string, error) {
@@ -911,4 +963,13 @@ func isMultibyte(r rune) bool {
 // WSP is a space or horizontal tab (RFC 5234 Appendix B).
 func isWSP(r rune) bool {
 	return r == ' ' || r == '\t'
+}
+
+// isDtext reports whether r is an RFC 5322 dtext character.
+func isDtext(r rune) bool {
+	// Printable US-ASCII, excluding "[", "]", or "\".
+	if r == '[' || r == ']' || r == '\\' {
+		return false
+	}
+	return isVchar(r)
 }

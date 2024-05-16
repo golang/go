@@ -49,6 +49,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
 		Importer:           &importer,
 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
+		EnableAlias:        true,
 	}
 	if base.Flag.ErrorURL {
 		conf.ErrorURL = " [go.dev/e/%s]"

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -69,9 +70,23 @@ func scriptCC(cmdExec script.Cmd) script.Cmd {
 		})
 }
 
+var scriptGoInvoked sync.Map // testing.TB → go command was invoked
+
 // scriptGo runs the go command.
 func scriptGo(cancel func(*exec.Cmd) error, waitDelay time.Duration) script.Cmd {
-	return script.Program(testGo, cancel, waitDelay)
+	cmd := script.Program(testGo, cancel, waitDelay)
+	// Inject code to update scriptGoInvoked before invoking the Go command.
+	return script.Command(*cmd.Usage(), func(state *script.State, s ...string) (script.WaitFunc, error) {
+		t, ok := tbFromContext(state.Context())
+		if !ok {
+			return nil, errors.New("script Context unexpectedly missing testing.TB key")
+		}
+		_, dup := scriptGoInvoked.LoadOrStore(t, true)
+		if !dup {
+			t.Cleanup(func() { scriptGoInvoked.Delete(t) })
+		}
+		return cmd.Run(state, s...)
+	})
 }
 
 // scriptStale checks that the named build targets are stale.

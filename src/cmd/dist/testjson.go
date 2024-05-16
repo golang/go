@@ -99,7 +99,7 @@ func (f *testJSONFilter) process(line []byte) {
 				data, err := json.Marshal(val)
 				if err != nil {
 					// Should never happen.
-					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
+					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", line, err))
 				}
 				f.w.Write(data)
 				// Copy any trailing text. We expect at most a "\n" here, but

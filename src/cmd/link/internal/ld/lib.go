@@ -47,6 +47,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
@@ -517,6 +518,9 @@ func (ctxt *Link) findLibPath(libname string) string {
 
 func (ctxt *Link) loadlib() {
 	var flags uint32
+	if *flagCheckLinkname {
+		flags |= loader.FlagCheckLinkname
+	}
 	switch *FlagStrictDups {
 	case 0:
 		// nothing to do
@@ -1268,6 +1272,22 @@ func hostlinksetup(ctxt *Link) {
 	}
 }
 
+// cleanTimeStamps resets the timestamps for the specified list of
+// existing files to the Unix epoch (1970-01-01 00:00:00 +0000 UTC).
+// We take this step in order to help preserve reproducible builds;
+// this seems to be primarily needed for external linking on on Darwin
+// with later versions of xcode, which (unfortunately) seem to want to
+// incorporate object file times into the final output file's build
+// ID. See issue 64947 for the unpleasant details.
+func cleanTimeStamps(files []string) {
+	epocht := time.Unix(0, 0)
+	for _, f := range files {
+		if err := os.Chtimes(f, epocht, epocht); err != nil {
+			Exitf("cannot chtimes %s: %v", f, err)
+		}
+	}
+}
+
 // hostobjCopy creates a copy of the object files in hostobj in a
 // temporary directory.
 func (ctxt *Link) hostobjCopy() (paths []string) {
@@ -1360,9 +1380,14 @@ func (ctxt *Link) archive() {
 	if ctxt.HeadType == objabi.Haix {
 		argv = append(argv, "-X64")
 	}
+	godotopath := filepath.Join(*flagTmpdir, "go.o")
+	cleanTimeStamps([]string{godotopath})
+	hostObjCopyPaths := ctxt.hostobjCopy()
+	cleanTimeStamps(hostObjCopyPaths)
+
 	argv = append(argv, *flagOutfile)
-	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, ctxt.hostobjCopy()...)
+	argv = append(argv, godotopath)
+	argv = append(argv, hostObjCopyPaths...)
 
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("archive: %s\n", strings.Join(argv, " "))
@@ -1436,8 +1461,15 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	case objabi.Hopenbsd:
-		argv = append(argv, "-Wl,-nopie")
 		argv = append(argv, "-pthread")
+		if ctxt.BuildMode != BuildModePIE {
+			argv = append(argv, "-Wl,-nopie")
+		}
+		if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-z,nobtcfi") {
+			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
+			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
+			argv = append(argv, "-Wl,-z,nobtcfi")
+		}
 		if ctxt.Arch.InFamily(sys.ARM64) {
 			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
 			// currently stores constants in the text section rather than in rodata.
@@ -1599,12 +1631,16 @@ func (ctxt *Link) hostlink() {
 	}
 
 	var altLinker string
-	if ctxt.IsELF && ctxt.DynlinkingGo() {
-		// We force all symbol resolution to be done at program startup
+	if ctxt.IsELF && (ctxt.DynlinkingGo() || *flagBindNow) {
+		// For ELF targets, when producing dynamically linked Go code
+		// or when immediate binding is explicitly requested,
+		// we force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
 		argv = append(argv, "-Wl,-z,now")
+	}
 
+	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// Do not let the host linker generate COPY relocations. These
 		// can move symbols out of sections that rely on stable offsets
 		// from the beginning of the section (like sym.STYPE).
@@ -1722,8 +1758,13 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, compressDWARF)
 	}
 
-	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, ctxt.hostobjCopy()...)
+	hostObjCopyPaths := ctxt.hostobjCopy()
+	cleanTimeStamps(hostObjCopyPaths)
+	godotopath := filepath.Join(*flagTmpdir, "go.o")
+	cleanTimeStamps([]string{godotopath})
+
+	argv = append(argv, godotopath)
+	argv = append(argv, hostObjCopyPaths...)
 	if ctxt.HeadType == objabi.Haix {
 		// We want to have C files after Go files to remove
 		// trampolines csects made by ld.
@@ -2837,6 +2878,7 @@ func captureHostObj(h *Hostobj) {
 		if err != nil {
 			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
 		}
+		defer inf.Close()
 		res := make([]byte, h.length)
 		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
 			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)

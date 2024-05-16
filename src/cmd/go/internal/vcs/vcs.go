@@ -331,12 +331,12 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 	}
 	uncommitted := len(out) > 0
 
-	// "git status" works for empty repositories, but "git show" does not.
-	// Assume there are no commits in the repo when "git show" fails with
+	// "git status" works for empty repositories, but "git log" does not.
+	// Assume there are no commits in the repo when "git log" fails with
 	// uncommitted files and skip tagging revision / committime.
 	var rev string
 	var commitTime time.Time
-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false show -s --format=%H:%ct")
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false log -1 --format=%H:%ct")
 	if err != nil && !uncommitted {
 		return Status{}, err
 	} else if err == nil {

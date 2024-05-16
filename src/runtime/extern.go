@@ -35,9 +35,6 @@ time.
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
 
-	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
-	profiled and a stack trace printed on each object's allocation and free.
-
 	clobberfree: setting clobberfree=1 causes the garbage collector to
 	clobber the memory content of an object with bad content when it frees
 	the object.
@@ -198,9 +195,8 @@ It is a comma-separated list of name=val pairs setting these named variables:
 
 	tracebackancestors: setting tracebackancestors=N extends tracebacks with the stacks at
 	which goroutines were created, where N limits the number of ancestor goroutines to
-	report. This also extends the information returned by runtime.Stack. Ancestor's goroutine
-	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
-	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
+	report. This also extends the information returned by runtime.Stack.
+	Setting N to 0 will report no ancestry information.
 
 	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer to
 	use the runtime's default stack unwinder instead of frame pointer unwinding.
@@ -210,6 +206,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	traceadvanceperiod: the approximate period in nanoseconds between trace generations. Only
 	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
 	and debugging the execution tracer.
+
+	tracecheckstackownership: setting tracecheckstackownership=1 enables a debug check in the
+	execution tracer to double-check stack ownership before taking a stack trace.
 
 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
 	asynchronous goroutine preemption. This makes some loops
@@ -294,7 +293,7 @@ import (
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	rpc := make([]uintptr, 1)
-	n := callers(skip+1, rpc[:])
+	n := callers(skip+1, rpc)
 	if n < 1 {
 		return
 	}

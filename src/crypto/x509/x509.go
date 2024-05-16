@@ -780,6 +780,7 @@ type Certificate struct {
 	PolicyIdentifiers []asn1.ObjectIdentifier
 
 	// Policies contains all policy identifiers included in the certificate.
+	// In Go 1.22, encoding/gob cannot handle and ignores this field.
 	Policies []OID
 }
 
@@ -1101,7 +1102,7 @@ func isIA5String(s string) error {
 	return nil
 }
 
-var usePoliciesField = godebug.New("x509usepolicies")
+var x509usepolicies = godebug.New("x509usepolicies")
 
 func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
@@ -1188,7 +1189,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		n++
 	}
 
-	usePolicies := usePoliciesField.Value() == "1"
+	usePolicies := x509usepolicies.Value() == "1"
 	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
 		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
@@ -1381,8 +1382,8 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 
 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
-		if usePoliciesField.Value() == "1" {
-			usePoliciesField.IncNonDefault()
+		if x509usepolicies.Value() == "1" {
+			x509usepolicies.IncNonDefault()
 			for _, v := range policies {
 				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
 					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
@@ -1573,7 +1574,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 // The PolicyIdentifier and Policies fields are both used to marshal certificate
 // policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
 // GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
-// be marshalled instead of the PolicyIdentifier field. The Policies field can
+// be marshaled instead of the PolicyIdentifier field. The Policies field can
 // be used to marshal policy OIDs which have components that are larger than 31
 // bits.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
@@ -2110,8 +2111,16 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		signed = h.Sum(nil)
 	}
 
+	var signerOpts crypto.SignerOpts = hashFunc
+	if template.SignatureAlgorithm != 0 && template.SignatureAlgorithm.isRSAPSS() {
+		signerOpts = &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthEqualsHash,
+			Hash:       hashFunc,
+		}
+	}
+
 	var signature []byte
-	signature, err = key.Sign(rand, signed, hashFunc)
+	signature, err = key.Sign(rand, signed, signerOpts)
 	if err != nil {
 		return
 	}

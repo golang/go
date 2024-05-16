@@ -111,6 +111,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)
 	}
+	checkPathCollisions(modpkgs)
 
 	includeAllReplacements := false
 	includeGoVersions := false
@@ -324,7 +325,13 @@ func vendorPkg(vdir, pkg string) {
 	}
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
-		base.Fatal(err)
+		format := "go: resolving embeds in %s: %v\n"
+		if vendorE {
+			fmt.Fprintf(os.Stderr, format, pkg, err)
+		} else {
+			base.Errorf(format, pkg, err)
+		}
+		return
 	}
 	for _, embed := range embeds {
 		embedDst := filepath.Join(dst, embed)
@@ -333,23 +340,30 @@ func vendorPkg(vdir, pkg string) {
 		}
 
 		// Copy the file as is done by copyDir below.
-		r, err := os.Open(filepath.Join(src, embed))
+		err := func() error {
+			r, err := os.Open(filepath.Join(src, embed))
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
+				return err
+			}
+			w, err := os.Create(embedDst)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(w, r); err != nil {
+				return err
+			}
+			r.Close()
+			return w.Close()
+		}()
 		if err != nil {
-			base.Fatal(err)
-		}
-		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
-			base.Fatal(err)
-		}
-		w, err := os.Create(embedDst)
-		if err != nil {
-			base.Fatal(err)
-		}
-		if _, err := io.Copy(w, r); err != nil {
-			base.Fatal(err)
-		}
-		r.Close()
-		if err := w.Close(); err != nil {
-			base.Fatal(err)
+			if vendorE {
+				fmt.Fprintf(os.Stderr, "go: %v\n", err)
+			} else {
+				base.Error(err)
+			}
 		}
 	}
 }
@@ -476,6 +490,22 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 		r.Close()
 		if err := w.Close(); err != nil {
 			base.Fatal(err)
+		}
+	}
+}
+
+// checkPathCollisions will fail if case-insensitive collisions are present.
+// The reason why we do this check in go mod vendor is to keep consistency
+// with go build. If modifying, consider changing load() in
+// src/cmd/go/internal/load/pkg.go
+func checkPathCollisions(modpkgs map[module.Version][]string) {
+	var foldPath = make(map[string]string, len(modpkgs))
+	for m := range modpkgs {
+		fold := str.ToFold(m.Path)
+		if other := foldPath[fold]; other == "" {
+			foldPath[fold] = m.Path
+		} else if other != m.Path {
+			base.Fatalf("go.mod: case-insensitive import collision: %q and %q", m.Path, other)
 		}
 	}
 }

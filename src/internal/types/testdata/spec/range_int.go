@@ -129,3 +129,62 @@ func issue65133() {
 	for u8 = range 256 /* ERROR "cannot use 256 (untyped int constant) as uint8 value in range clause (overflows)" */ {
 	}
 }
+
+func issue64471() {
+	for i := range 'a' {
+		var _ *rune = &i // ensure i has type rune
+	}
+}
+
+func issue66561() {
+	for range 10.0 /* ERROR "cannot range over 10.0 (untyped float constant 10)" */ {
+	}
+	for range 1e3 /* ERROR "cannot range over 1e3 (untyped float constant 1000)" */ {
+	}
+	for range 1 /* ERROR "cannot range over 1 + 0i (untyped complex constant (1 + 0i))" */ + 0i {
+	}
+
+	for range 1.1 /* ERROR "cannot range over 1.1 (untyped float constant)" */ {
+	}
+	for range 1i /* ERROR "cannot range over 1i (untyped complex constant (0 + 1i))" */ {
+	}
+
+	for i := range 10.0 /* ERROR "cannot range over 10.0 (untyped float constant 10)" */ {
+		_ = i
+	}
+	for i := range 1e3 /* ERROR "cannot range over 1e3 (untyped float constant 1000)" */ {
+		_ = i
+	}
+	for i := range 1 /* ERROR "cannot range over 1 + 0i (untyped complex constant (1 + 0i))" */ + 0i {
+		_ = i
+	}
+
+	for i := range 1.1 /* ERROR "cannot range over 1.1 (untyped float constant)" */ {
+		_ = i
+	}
+	for i := range 1i /* ERROR "cannot range over 1i (untyped complex constant (0 + 1i))" */ {
+		_ = i
+	}
+
+	var j float64
+	_ = j
+	for j /* ERROR "cannot use iteration variable of type float64" */ = range 1 {
+	}
+	for j = range 1.1 /* ERROR "cannot range over 1.1 (untyped float constant)" */ {
+	}
+	for j = range 10.0 /* ERROR "cannot range over 10.0 (untyped float constant 10)" */ {
+	}
+
+	// There shouldn't be assignment errors if there are more iteration variables than permitted.
+	var i int
+	_ = i
+	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ = range 10 {
+	}
+}
+
+func issue67027() {
+	var i float64
+	_ = i
+	for i /* ERROR "cannot use iteration variable of type float64" */ = range 10 {
+	}
+}

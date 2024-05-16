@@ -480,8 +480,17 @@ var structSize sync.Map // map[reflect.Type]int
 func dataSize(v reflect.Value) int {
 	switch v.Kind() {
 	case reflect.Slice:
-		if s := sizeof(v.Type().Elem()); s >= 0 {
-			return s * v.Len()
+		t := v.Type().Elem()
+		if size, ok := structSize.Load(t); ok {
+			return size.(int) * v.Len()
+		}
+
+		size := sizeof(t)
+		if size >= 0 {
+			if t.Kind() == reflect.Struct {
+				structSize.Store(t, size)
+			}
+			return size * v.Len()
 		}
 
 	case reflect.Struct:
@@ -713,49 +722,37 @@ func (e *encoder) value(v reflect.Value) {
 	case reflect.Bool:
 		e.bool(v.Bool())
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		switch v.Type().Kind() {
-		case reflect.Int8:
-			e.int8(int8(v.Int()))
-		case reflect.Int16:
-			e.int16(int16(v.Int()))
-		case reflect.Int32:
-			e.int32(int32(v.Int()))
-		case reflect.Int64:
-			e.int64(v.Int())
-		}
+	case reflect.Int8:
+		e.int8(int8(v.Int()))
+	case reflect.Int16:
+		e.int16(int16(v.Int()))
+	case reflect.Int32:
+		e.int32(int32(v.Int()))
+	case reflect.Int64:
+		e.int64(v.Int())
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		switch v.Type().Kind() {
-		case reflect.Uint8:
-			e.uint8(uint8(v.Uint()))
-		case reflect.Uint16:
-			e.uint16(uint16(v.Uint()))
-		case reflect.Uint32:
-			e.uint32(uint32(v.Uint()))
-		case reflect.Uint64:
-			e.uint64(v.Uint())
-		}
+	case reflect.Uint8:
+		e.uint8(uint8(v.Uint()))
+	case reflect.Uint16:
+		e.uint16(uint16(v.Uint()))
+	case reflect.Uint32:
+		e.uint32(uint32(v.Uint()))
+	case reflect.Uint64:
+		e.uint64(v.Uint())
 
-	case reflect.Float32, reflect.Float64:
-		switch v.Type().Kind() {
-		case reflect.Float32:
-			e.uint32(math.Float32bits(float32(v.Float())))
-		case reflect.Float64:
-			e.uint64(math.Float64bits(v.Float()))
-		}
+	case reflect.Float32:
+		e.uint32(math.Float32bits(float32(v.Float())))
+	case reflect.Float64:
+		e.uint64(math.Float64bits(v.Float()))
 
-	case reflect.Complex64, reflect.Complex128:
-		switch v.Type().Kind() {
-		case reflect.Complex64:
-			x := v.Complex()
-			e.uint32(math.Float32bits(float32(real(x))))
-			e.uint32(math.Float32bits(float32(imag(x))))
-		case reflect.Complex128:
-			x := v.Complex()
-			e.uint64(math.Float64bits(real(x)))
-			e.uint64(math.Float64bits(imag(x)))
-		}
+	case reflect.Complex64:
+		x := v.Complex()
+		e.uint32(math.Float32bits(float32(real(x))))
+		e.uint32(math.Float32bits(float32(imag(x))))
+	case reflect.Complex128:
+		x := v.Complex()
+		e.uint64(math.Float64bits(real(x)))
+		e.uint64(math.Float64bits(imag(x)))
 	}
 }
 
@@ -765,10 +762,7 @@ func (d *decoder) skip(v reflect.Value) {
 
 func (e *encoder) skip(v reflect.Value) {
 	n := dataSize(v)
-	zero := e.buf[e.offset : e.offset+n]
-	for i := range zero {
-		zero[i] = 0
-	}
+	clear(e.buf[e.offset : e.offset+n])
 	e.offset += n
 }
 

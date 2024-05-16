@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+var goResolver = Resolver{PreferGo: true}
+
 func hasSuffixFold(s, suffix string) bool {
 	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
 }
@@ -1509,22 +1511,6 @@ func TestLookupPortIPNetworkString(t *testing.T) {
 	})
 }
 
-func allResolvers(t *testing.T, f func(t *testing.T)) {
-	t.Run("default resolver", f)
-	t.Run("forced go resolver", func(t *testing.T) {
-		if fixup := forceGoDNS(); fixup != nil {
-			defer fixup()
-			f(t)
-		}
-	})
-	t.Run("forced cgo resolver", func(t *testing.T) {
-		if fixup := forceCgoDNS(); fixup != nil {
-			defer fixup()
-			f(t)
-		}
-	})
-}
-
 func TestLookupNoSuchHost(t *testing.T) {
 	mustHaveExternalNetwork(t)
 
@@ -1644,5 +1630,35 @@ func TestLookupNoSuchHost(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+func TestDNSErrorUnwrap(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// The Plan 9 implementation of the resolver doesn't use the Dial function yet. See https://go.dev/cl/409234
+		t.Skip("skipping on plan9")
+	}
+	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.DeadlineExceeded
+	}}
+	rCancelled := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.Canceled
+	}}
+
+	_, err := rDeadlineExcceeded.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("errors.Is(err, context.DeadlineExceeded) = false; want = true")
+	}
+
+	_, err = rCancelled.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = goResolver.LookupHost(ctx, "text.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
 	}
 }

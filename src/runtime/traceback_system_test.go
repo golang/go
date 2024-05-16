@@ -28,23 +28,57 @@ func crash() {
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
 	writeSentinel(os.Stdout)
-	debug.SetCrashOutput(os.Stdout)
+	debug.SetCrashOutput(os.Stdout, debug.CrashOptions{})
 
 	go func() {
 		// This call is typically inlined.
-		child()
+		child1()
 	}()
 	select {}
 }
 
-func child() {
-	grandchild()
+func child1() {
+	child2()
 }
 
-func grandchild() {
+func child2() {
+	child3()
+}
+
+func child3() {
+	child4()
+}
+
+func child4() {
+	child5()
+}
+
+//go:noinline
+func child5() { // test trace through second of two call instructions
+	child6bad()
+	child6() // appears in stack trace
+}
+
+//go:noinline
+func child6bad() {
+}
+
+//go:noinline
+func child6() { // test trace through first of two call instructions
+	child7() // appears in stack trace
+	child7bad()
+}
+
+//go:noinline
+func child7bad() {
+}
+
+//go:noinline
+func child7() {
 	// Write runtime.Caller's view of the stack to stderr, for debugging.
 	var pcs [16]uintptr
 	n := runtime.Callers(1, pcs[:])
+	fmt.Fprintf(os.Stderr, "Callers: %#x\n", pcs[:n])
 	io.WriteString(os.Stderr, formatStack(pcs[:n]))
 
 	// Cause the crash report to be written to stdout.
@@ -73,10 +107,12 @@ func TestTracebackSystem(t *testing.T) {
 	}
 	cmd := testenv.Command(t, exe)
 	cmd.Env = append(cmd.Environ(), entrypointVar+"=crash")
-	cmd.Stdout = new(strings.Builder)
-	// cmd.Stderr = os.Stderr // uncomment to debug, e.g. to see runtime.Caller's view
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	cmd.Run() // expected to crash
-	crash := cmd.Stdout.(*strings.Builder).String()
+	t.Logf("stderr:\n%s\nstdout: %s\n", stderr.Bytes(), stdout.Bytes())
+	crash := stdout.String()
 
 	// If the only line is the sentinel, it wasn't a crash.
 	if strings.Count(crash, "\n") < 2 {
@@ -92,10 +128,16 @@ func TestTracebackSystem(t *testing.T) {
 	// Unwind the stack using this executable's symbol table.
 	got := formatStack(pcs)
 	want := `redacted.go:0: runtime.gopanic
-traceback_system_test.go:51: runtime_test.grandchild: 	panic("oops")
-traceback_system_test.go:41: runtime_test.child: 	grandchild()
-traceback_system_test.go:35: runtime_test.crash.func1: 		child()
-redacted.go:0: runtime.goexit`
+traceback_system_test.go:85: runtime_test.child7: 	panic("oops")
+traceback_system_test.go:68: runtime_test.child6: 	child7() // appears in stack trace
+traceback_system_test.go:59: runtime_test.child5: 	child6() // appears in stack trace
+traceback_system_test.go:53: runtime_test.child4: 	child5()
+traceback_system_test.go:49: runtime_test.child3: 	child4()
+traceback_system_test.go:45: runtime_test.child2: 	child3()
+traceback_system_test.go:41: runtime_test.child1: 	child2()
+traceback_system_test.go:35: runtime_test.crash.func1: 		child1()
+redacted.go:0: runtime.goexit
+`
 	if strings.TrimSpace(got) != strings.TrimSpace(want) {
 		t.Errorf("got:\n%swant:\n%s", got, want)
 	}

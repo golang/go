@@ -543,43 +543,43 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 	var die, typedefdie *dwarf.DWDie
 	switch kind {
-	case objabi.KindBool:
+	case abi.Bool:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_boolean, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindInt,
-		objabi.KindInt8,
-		objabi.KindInt16,
-		objabi.KindInt32,
-		objabi.KindInt64:
+	case abi.Int,
+		abi.Int8,
+		abi.Int16,
+		abi.Int32,
+		abi.Int64:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_signed, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindUint,
-		objabi.KindUint8,
-		objabi.KindUint16,
-		objabi.KindUint32,
-		objabi.KindUint64,
-		objabi.KindUintptr:
+	case abi.Uint,
+		abi.Uint8,
+		abi.Uint16,
+		abi.Uint32,
+		abi.Uint64,
+		abi.Uintptr:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindFloat32,
-		objabi.KindFloat64:
+	case abi.Float32,
+		abi.Float64:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_float, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindComplex64,
-		objabi.KindComplex128:
+	case abi.Complex64,
+		abi.Complex128:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_complex_float, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindArray:
+	case abi.Array:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
@@ -592,7 +592,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 		d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 
-	case objabi.KindChan:
+	case abi.Chan:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_CHANTYPE, name)
 		s := decodetypeChanElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, d.defgotype(s))
@@ -600,7 +600,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		// but that would change the order of DIEs we output.
 		d.newrefattr(die, dwarf.DW_AT_type, s)
 
-	case objabi.KindFunc:
+	case abi.Func:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_FUNCTYPE, name)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
@@ -626,7 +626,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
 		}
 
-	case objabi.KindInterface:
+	case abi.Interface:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_IFACETYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		data := d.ldr.Data(gotype)
@@ -639,7 +639,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		}
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 
-	case objabi.KindMap:
+	case abi.Map:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_MAPTYPE, name)
 		s := decodetypeMapKey(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_key, d.defgotype(s))
@@ -649,13 +649,13 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		// but that would change the order of the DIEs.
 		d.newrefattr(die, dwarf.DW_AT_type, gotype)
 
-	case objabi.KindPtr:
+	case abi.Pointer:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_PTRTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		s := decodetypePtrElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 
-	case objabi.KindSlice:
+	case abi.Slice:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
@@ -663,11 +663,11 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		elem := d.defgotype(s)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
 
-	case objabi.KindString:
+	case abi.String:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRINGTYPE, name)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindStruct:
+	case abi.Struct:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
@@ -688,7 +688,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 			}
 		}
 
-	case objabi.KindUnsafePointer:
+	case abi.UnsafePointer:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BARE_PTRTYPE, name)
 
 	default:
@@ -748,7 +748,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type:"+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
-		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(objabi.KindPtr), 0)
+		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Pointer), 0)
 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
@@ -1759,7 +1759,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	uintptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
 	newattr(uintptrDie, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
 	newattr(uintptrDie, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
-	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
+	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Uintptr), 0)
 	newattr(uintptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:uintptr")))
 
 	d.uintptrInfoSym = d.mustFind("uintptr")

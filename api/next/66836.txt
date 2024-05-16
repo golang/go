@@ -1,0 +1,6 @@
+pkg debug/elf, const STT_GNU_IFUNC = 10 #66836
+pkg debug/elf, const STT_GNU_IFUNC SymType #66836
+pkg debug/elf, const STT_RELC = 8 #66836
+pkg debug/elf, const STT_RELC SymType #66836
+pkg debug/elf, const STT_SRELC = 9 #66836
+pkg debug/elf, const STT_SRELC SymType #66836

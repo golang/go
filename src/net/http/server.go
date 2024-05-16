@@ -23,7 +23,7 @@ import (
 	urlpkg "net/url"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -224,7 +224,7 @@ type CloseNotifier interface {
 	// that the channel receives a value.
 	//
 	// If the protocol is HTTP/1.1 and CloseNotify is called while
-	// processing an idempotent request (such a GET) while
+	// processing an idempotent request (such as GET) while
 	// HTTP/1.1 pipelining is in use, the arrival of a subsequent
 	// pipelined request may cause a value to be sent on the
 	// returned channel. In practice HTTP/1.1 pipelining is not
@@ -425,7 +425,6 @@ type response struct {
 	reqBody          io.ReadCloser
 	cancelCtx        context.CancelFunc // when ServeHTTP exits
 	wroteHeader      bool               // a non-1xx header has been (logically) written
-	wroteContinue    bool               // 100 Continue response was written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
 
@@ -436,8 +435,8 @@ type response struct {
 	// These two fields together synchronize the body reader (the
 	// expectContinueReader, which wants to write 100 Continue)
 	// against the main writer.
-	canWriteContinue atomic.Bool
 	writeContinueMu  sync.Mutex
+	canWriteContinue atomic.Bool
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -563,6 +562,14 @@ func (w *response) requestTooLarge() {
 	if !w.wroteHeader {
 		w.Header().Set("Connection", "close")
 	}
+}
+
+// disableWriteContinue stops Request.Body.Read from sending an automatic 100-Continue.
+// If a 100-Continue is being written, it waits for it to complete before continuing.
+func (w *response) disableWriteContinue() {
+	w.writeContinueMu.Lock()
+	w.canWriteContinue.Store(false)
+	w.writeContinueMu.Unlock()
 }
 
 // writerOnly hides an io.Writer value's optional ReadFrom method
@@ -917,8 +924,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 		return 0, ErrBodyReadAfterClose
 	}
 	w := ecr.resp
-	if !w.wroteContinue && w.canWriteContinue.Load() && !w.conn.hijacked() {
-		w.wroteContinue = true
+	if w.canWriteContinue.Load() {
 		w.writeContinueMu.Lock()
 		if w.canWriteContinue.Load() {
 			w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
@@ -1102,9 +1108,9 @@ func (w *response) Header() Header {
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
 // consumed by a handler that the server will read from the client
-// in order to keep a connection alive. If there are more bytes than
-// this then the server to be paranoid instead sends a "Connection:
-// close" response.
+// in order to keep a connection alive. If there are more bytes
+// than this, the server, to be paranoid, instead sends a
+// "Connection close" response.
 //
 // This number is approximately what a typical machine's TCP buffer
 // size is anyway.  (if we have the bytes on the machine, we might as
@@ -1159,18 +1165,17 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
+	if code < 101 || code > 199 {
+		// Sending a 100 Continue or any non-1xx header disables the
+		// automatically-sent 100 Continue from Request.Body.Read.
+		w.disableWriteContinue()
+	}
+
 	// Handle informational headers.
 	//
 	// We shouldn't send any further headers after 101 Switching Protocols,
 	// so it takes the non-informational path.
 	if code >= 100 && code <= 199 && code != StatusSwitchingProtocols {
-		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
-		if code == 100 && w.canWriteContinue.Load() {
-			w.writeContinueMu.Lock()
-			w.canWriteContinue.Store(false)
-			w.writeContinueMu.Unlock()
-		}
-
 		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
@@ -1378,14 +1383,20 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	//
 	// If full duplex mode has been enabled with ResponseController.EnableFullDuplex,
 	// then leave the request body alone.
+	//
+	// We don't take this path when w.closeAfterReply is set.
+	// We may not need to consume the request to get ready for the next one
+	// (since we're closing the conn), but a client which sends a full request
+	// before reading a response may deadlock in this case.
+	// This behavior has been present since CL 5268043 (2011), however,
+	// so it doesn't seem to be causing problems.
 	if w.req.ContentLength != 0 && !w.closeAfterReply && !w.fullDuplex {
 		var discard, tooBig bool
 
 		switch bdy := w.req.Body.(type) {
 		case *expectContinueReader:
-			if bdy.resp.wroteContinue {
-				discard = true
-			}
+			// We only get here if we have already fully consumed the request body
+			// (see above).
 		case *body:
 			bdy.mu.Lock()
 			switch {
@@ -1626,13 +1637,8 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 	}
 
 	if w.canWriteContinue.Load() {
-		// Body reader wants to write 100 Continue but hasn't yet.
-		// Tell it not to. The store must be done while holding the lock
-		// because the lock makes sure that there is not an active write
-		// this very moment.
-		w.writeContinueMu.Lock()
-		w.canWriteContinue.Store(false)
-		w.writeContinueMu.Unlock()
+		// Body reader wants to write 100 Continue but hasn't yet. Tell it not to.
+		w.disableWriteContinue()
 	}
 
 	if !w.wroteHeader {
@@ -1900,6 +1906,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		if inFlightResponse != nil {
 			inFlightResponse.cancelCtx()
+			inFlightResponse.disableWriteContinue()
 		}
 		if !c.hijacked() {
 			if inFlightResponse != nil {
@@ -1922,12 +1929,15 @@ func (c *conn) serve(ctx context.Context) {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
+			var reason string
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
 				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
 				re.Conn.Close()
-				return
+				reason = "client sent an HTTP request to an HTTPS server"
+			} else {
+				reason = err.Error()
 			}
-			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
+			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), reason)
 			return
 		}
 		// Restore Conn-level deadlines.
@@ -2061,7 +2071,7 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
-		if d := c.server.idleTimeout(); d != 0 {
+		if d := c.server.idleTimeout(); d > 0 {
 			c.rwc.SetReadDeadline(time.Now().Add(d))
 		} else {
 			c.rwc.SetReadDeadline(time.Time{})
@@ -2103,6 +2113,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.handlerDone.Load() {
 		panic("net/http: Hijack called after ServeHTTP finished")
 	}
+	w.disableWriteContinue()
 	if w.wroteHeader {
 		w.cw.flush()
 	}
@@ -2172,9 +2183,23 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be plain text.
+//
+// Error deletes the Content-Length and Content-Encoding headers,
+// sets Content-Type to “text/plain; charset=utf-8”,
+// and sets X-Content-Type-Options to “nosniff”.
+// This configures the header properly for the error message,
+// in case the caller had set it up expecting a successful output.
 func Error(w ResponseWriter, error string, code int) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	h := w.Header()
+	// We delete headers which might be valid for some other content,
+	// but not anymore for the error content.
+	h.Del("Content-Length")
+	h.Del("Content-Encoding")
+
+	// There might be content type already set, but we reset it to
+	// text/plain for the error message.
+	h.Set("Content-Type", "text/plain; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	fmt.Fprintln(w, error)
 }
@@ -2273,7 +2298,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 
 	// Shouldn't send the body for POST or HEAD; that leaves GET.
 	if !hadCT && r.Method == "GET" {
-		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>."
+		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>.\n"
 		fmt.Fprintln(w, body)
 	}
 }
@@ -2335,7 +2360,7 @@ func RedirectHandler(url string, code int) Handler {
 //	[METHOD ][HOST]/[PATH]
 //
 // All three parts are optional; "/" is a valid pattern.
-// If METHOD is present, it must be followed by a single space.
+// If METHOD is present, it must be followed by at least one space or tab.
 //
 // Literal (that is, non-wildcard) parts of a pattern match
 // the corresponding parts of a request case-sensitively.
@@ -2378,7 +2403,7 @@ func RedirectHandler(url string, code int) Handler {
 // There is one exception to this rule, for backwards compatibility:
 // if two patterns would otherwise conflict and one has a host while the other does not,
 // then the pattern with the host takes precedence.
-// If a pattern passed [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
+// If a pattern passed to [ServeMux.Handle] or [ServeMux.HandleFunc] conflicts with
 // another pattern that is already registered, those functions panic.
 //
 // As an example of the general rule, "/images/thumbnails/" is more specific than "/images/",
@@ -2651,7 +2676,7 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
 	// matchOrRedirect will try appending a trailing slash if there is no match.
 	mux.tree.matchingMethods(host, path+"/", ms)
 	methods := mapKeys(ms)
-	sort.Strings(methods)
+	slices.Sort(methods)
 	return methods
 }
 
@@ -2678,7 +2703,7 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 	if use121 {
 		h, _ = mux.mux121.findHandler(r)
 	} else {
-		h, _, r.pat, r.matches = mux.findHandler(r)
+		h, r.Pattern, r.pat, r.matches = mux.findHandler(r)
 	}
 	h.ServeHTTP(w, r)
 }
@@ -2848,9 +2873,9 @@ type Server struct {
 	// ReadHeaderTimeout is the amount of time allowed to read
 	// request headers. The connection's read deadline is reset
 	// after reading the headers and the Handler can decide what
-	// is considered too slow for the body. If ReadHeaderTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
+	// is considered too slow for the body. If zero, the value of
+	// ReadTimeout is used. If negative, or if zero and ReadTimeout
+	// is zero or negative, there is no timeout.
 	ReadHeaderTimeout time.Duration
 
 	// WriteTimeout is the maximum duration before timing out
@@ -2861,9 +2886,9 @@ type Server struct {
 	WriteTimeout time.Duration
 
 	// IdleTimeout is the maximum amount of time to wait for the
-	// next request when keep-alives are enabled. If IdleTimeout
-	// is zero, the value of ReadTimeout is used. If both are
-	// zero, there is no timeout.
+	// next request when keep-alives are enabled. If zero, the value
+	// of ReadTimeout is used. If negative, or if zero and ReadTimeout
+	// is zero or negative, there is no timeout.
 	IdleTimeout time.Duration
 
 	// MaxHeaderBytes controls the maximum number of bytes the
@@ -3205,7 +3230,7 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
 	// passed this tls.Config to tls.NewListener. And if they did,
 	// it's too late anyway to fix it. It would only be potentially racy.
 	// See Issue 15908.
-	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+	return slices.Contains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
 }
 
 // ErrServerClosed is returned by the [Server.Serve], [ServeTLS], [ListenAndServe],
@@ -3307,7 +3332,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	}
 
 	config := cloneTLSConfig(srv.TLSConfig)
-	if !strSliceContains(config.NextProtos, "http/1.1") {
+	if !slices.Contains(config.NextProtos, "http/1.1") {
 		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
@@ -3812,15 +3837,6 @@ func numLeadingCRorLF(v []byte) (n int) {
 		break
 	}
 	return
-}
-
-func strSliceContains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 // tlsRecordHeaderLooksLikeHTTP reports whether a TLS record header

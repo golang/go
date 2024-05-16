@@ -6,6 +6,8 @@
 // used by the Go standard library.
 package cpu
 
+import _ "unsafe" // for linkname
+
 // DebugOptions is set to true by the runtime if the OS supports reading
 // GODEBUG early in runtime startup.
 // This should not be changed after it is initialized.
@@ -120,6 +122,14 @@ var S390X struct {
 	HasEDDSA  bool // Edwards curves
 	_         CacheLinePad
 }
+
+// CPU feature variables are accessed by assembly code in various packages.
+//go:linkname X86
+//go:linkname ARM
+//go:linkname ARM64
+//go:linkname MIPS64X
+//go:linkname PPC64
+//go:linkname S390X
 
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,

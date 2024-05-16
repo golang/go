@@ -8,8 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"reflect"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -795,13 +795,13 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 	case pruned:
 		return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
 	case workspace:
-		return updateWorkspaceRoots(ctx, rs, add)
+		return updateWorkspaceRoots(ctx, direct, rs, add)
 	default:
 		panic(fmt.Sprintf("unsupported pruning mode: %v", rs.pruning))
 	}
 }
 
-func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
+func updateWorkspaceRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
 	if len(add) != 0 {
 		// add should be empty in workspace mode because workspace mode implies
 		// -mod=readonly, which in turn implies no new requirements. The code path
@@ -812,7 +812,7 @@ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Ve
 		// return an error.
 		panic("add is not empty")
 	}
-	return rs, nil
+	return newRequirements(workspace, rs.rootModules, direct), nil
 }
 
 // tidyPrunedRoots returns a minimal set of root requirements that maintains the
@@ -1228,7 +1228,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
 		}
 	}
 
-	if rs.pruning == pruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+	if rs.pruning == pruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
 		// The root set is unchanged and rs was already pruned, so keep rs to
 		// preserve its cached ModuleGraph (if any).
 		return rs, nil
@@ -1469,7 +1469,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
 	if MainModules.Len() > 1 {
 		gover.ModSort(roots)
 	}
-	if rs.pruning == unpruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+	if rs.pruning == unpruned && slices.Equal(roots, rs.rootModules) && maps.Equal(direct, rs.direct) {
 		// The root set is unchanged and rs was already unpruned, so keep rs to
 		// preserve its cached ModuleGraph (if any).
 		return rs, nil

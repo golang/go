@@ -1,13 +1,13 @@
 GO PREPROFILE V1
-example.com/pgo/inline.benchmarkB
 example.com/pgo/inline.A
-18 1
+example.com/pgo/inline.(*BS).NS
+7 129
 example.com/pgo/inline.(*BS).NS
 example.com/pgo/inline.T
 8 3
 example.com/pgo/inline.(*BS).NS
 example.com/pgo/inline.T
 13 2
+example.com/pgo/inline.benchmarkB
 example.com/pgo/inline.A
-example.com/pgo/inline.(*BS).NS
-7 129
+18 1

@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/versions"
 )
 
@@ -54,9 +55,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		switch n := n.(type) {
 		case *ast.File:
 			// Only traverse the file if its goversion is strictly before go1.22.
-			goversion := versions.Lang(versions.FileVersions(pass.TypesInfo, n))
-			// goversion is empty for older go versions (or the version is invalid).
-			return goversion == "" || versions.Compare(goversion, "go1.22") < 0
+			goversion := versions.FileVersion(pass.TypesInfo, n)
+			return versions.Before(goversion, versions.Go1_22)
 		case *ast.RangeStmt:
 			body = n.Body
 			addVar(n.Key)
@@ -367,9 +367,6 @@ func isMethodCall(info *types.Info, expr ast.Expr, pkgPath, typeName, method str
 
 	// Check that the receiver is a <pkgPath>.<typeName> or
 	// *<pkgPath>.<typeName>.
-	rtype := recv.Type()
-	if ptr, ok := recv.Type().(*types.Pointer); ok {
-		rtype = ptr.Elem()
-	}
-	return analysisutil.IsNamedType(rtype, pkgPath, typeName)
+	_, named := typesinternal.ReceiverNamed(recv)
+	return analysisutil.IsNamedType(named, pkgPath, typeName)
 }

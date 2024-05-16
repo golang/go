@@ -113,6 +113,41 @@ type TCPConn struct {
 	conn
 }
 
+// KeepAliveConfig contains TCP keep-alive options.
+//
+// If the Idle, Interval, or Count fields are zero, a default value is chosen.
+// If a field is negative, the corresponding socket-level option will be left unchanged.
+//
+// Note that prior to Windows 10 version 1709, neither setting Idle and Interval
+// separately nor changing Count (which is usually 10) is supported.
+// Therefore, it's recommended to set both Idle and Interval to non-negative values
+// in conjunction with a -1 for Count on those old Windows if you intend to customize
+// the TCP keep-alive settings.
+// By contrast, if only one of Idle and Interval is set to a non-negative value,
+// the other will be set to the system default value, and ultimately,
+// set both Idle and Interval to negative values if you want to leave them unchanged.
+//
+// Note that Solaris and its derivatives do not support setting Interval to a non-negative value
+// and Count to a negative value, or vice-versa.
+type KeepAliveConfig struct {
+	// If Enable is true, keep-alive probes are enabled.
+	Enable bool
+
+	// Idle is the time that the connection must be idle before
+	// the first keep-alive probe is sent.
+	// If zero, a default value of 15 seconds is used.
+	Idle time.Duration
+
+	// Interval is the time between keep-alive probes.
+	// If zero, a default value of 15 seconds is used.
+	Interval time.Duration
+
+	// Count is the maximum number of keep-alive probes that
+	// can go unanswered before dropping a connection.
+	// If zero, a default value of 9 is used.
+	Count int
+}
+
 // SyscallConn returns a raw network connection.
 // This implements the [syscall.Conn] interface.
 func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
@@ -206,12 +241,16 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets period between keep-alives.
+// SetKeepAlivePeriod sets the duration the connection needs to
+// remain idle before TCP starts sending keepalive probes.
+//
+// Note that calling this method on Windows prior to Windows 10 version 1709
+// will reset the KeepAliveInterval to the default system value, which is normally 1 second.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := setKeepAlivePeriod(c.fd, d); err != nil {
+	if err := setKeepAliveIdle(c.fd, d); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return nil
@@ -247,19 +286,25 @@ func (c *TCPConn) MultipathTCP() (bool, error) {
 	return isUsingMultipathTCP(c.fd), nil
 }
 
-func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
+func newTCPConn(fd *netFD, keepAliveIdle time.Duration, keepAliveCfg KeepAliveConfig, preKeepAliveHook func(*netFD), keepAliveHook func(KeepAliveConfig)) *TCPConn {
 	setNoDelay(fd, true)
-	if keepAlive == 0 {
-		keepAlive = defaultTCPKeepAlive
-	}
-	if keepAlive > 0 {
-		setKeepAlive(fd, true)
-		setKeepAlivePeriod(fd, keepAlive)
-		if keepAliveHook != nil {
-			keepAliveHook(keepAlive)
+	if !keepAliveCfg.Enable && keepAliveIdle >= 0 {
+		keepAliveCfg = KeepAliveConfig{
+			Enable: true,
+			Idle:   keepAliveIdle,
 		}
 	}
-	return &TCPConn{conn{fd}}
+	c := &TCPConn{conn{fd}}
+	if keepAliveCfg.Enable {
+		if preKeepAliveHook != nil {
+			preKeepAliveHook(fd)
+		}
+		c.SetKeepAliveConfig(keepAliveCfg)
+		if keepAliveHook != nil {
+			keepAliveHook(keepAliveCfg)
+		}
+	}
+	return c
 }
 
 // DialTCP acts like [Dial] for TCP networks.

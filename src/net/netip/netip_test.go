@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"internal/intern"
 	"internal/testenv"
 	"net"
 	. "net/netip"
@@ -18,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unique"
 )
 
 var long = flag.Bool("long", false, "run long tests")
@@ -60,7 +60,12 @@ func TestParseAddr(t *testing.T) {
 		// 4-in-6 with octet with leading zero
 		{
 			in:      "::ffff:1.2.03.4",
-			wantErr: `ParseAddr("::ffff:1.2.03.4"): ParseAddr("1.2.03.4"): IPv4 field has octet with leading zero (at "1.2.03.4")`,
+			wantErr: `ParseAddr("::ffff:1.2.03.4"): IPv4 field has octet with leading zero`,
+		},
+		// 4-in-6 with octet with unexpected character
+		{
+			in:      "::ffff:1.2.3.z",
+			wantErr: `ParseAddr("::ffff:1.2.3.z"): unexpected character (at "z")`,
 		},
 		// Basic zero IPv6 address.
 		{
@@ -108,18 +113,18 @@ func TestParseAddr(t *testing.T) {
 		// IPv6 with a zone specifier.
 		{
 			in: "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b%eth0",
-			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), intern.Get("eth0")),
+			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth0"})),
 		},
 		// IPv6 with dotted decimal and zone specifier.
 		{
 			in:  "1:2::ffff:192.168.140.255%eth1",
-			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), intern.Get("eth1")),
+			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
 			str: "1:2::ffff:c0a8:8cff%eth1",
 		},
 		// 4-in-6 with zone
 		{
 			in:  "::ffff:192.168.140.255%eth1",
-			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), intern.Get("eth1")),
+			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
 			str: "::ffff:192.168.140.255%eth1",
 		},
 		// IPv6 with capital letters.
@@ -269,6 +274,10 @@ func TestParseAddr(t *testing.T) {
 		"fe80:1?:1",
 		// IPv6 with truncated bytes after single colon.
 		"fe80:",
+		// IPv6 with 5 zeros in last group
+		"0:0:0:0:0:ffff:0:00000",
+		// IPv6 with 5 zeros in one group and embedded IPv4
+		"0:0:0:0:00000:ffff:127.1.2.3",
 	}
 
 	for _, s := range invalidIPs {
@@ -1242,7 +1251,6 @@ func TestIs4In6(t *testing.T) {
 		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
-		{mustIP("0:0:0:0:000000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::1"), false, mustIP("::1")},
 		{mustIP("1.2.3.4"), false, mustIP("1.2.3.4")},
@@ -1669,7 +1677,7 @@ var parseBenchInputs = []struct {
 }
 
 func BenchmarkParseAddr(b *testing.B) {
-	sinkInternValue = intern.Get("eth1") // Pin to not benchmark the intern package
+	sinkInternValue = unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"}) // Pin to not benchmark the intern package
 	for _, test := range parseBenchInputs {
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()
@@ -1954,7 +1962,7 @@ var (
 	sinkAddrPort    AddrPort
 	sinkPrefix      Prefix
 	sinkPrefixSlice []Prefix
-	sinkInternValue *intern.Value
+	sinkInternValue unique.Handle[AddrDetail]
 	sinkIP16        [16]byte
 	sinkIP4         [4]byte
 	sinkBool        bool

@@ -139,6 +139,7 @@ func init() {
 		xergp       = regInfo{inputs: []regMask{xer}, outputs: []regMask{gp}, clobbers: xer}
 		gp11cxer    = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
 		gp11xer     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp, xer}}
+		gp1xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
 		gp21cxer    = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
@@ -188,6 +189,10 @@ func init() {
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                                               // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                                             // arg0-arg1
 
+		// Note, the FPU works with float64 in register.
+		{name: "XSMINJDP", argLength: 2, reg: fp21, asm: "XSMINJDP"}, // fmin(arg0,arg1)
+		{name: "XSMAXJDP", argLength: 2, reg: fp21, asm: "XSMAXJDP"}, // fmax(arg0,arg1)
+
 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
 		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int32", typ: "Int64"}, // arg0*auxInt (signed 64-bit)
@@ -227,6 +232,7 @@ func init() {
 		{name: "ADDCconst", argLength: 1, reg: gp11xer, asm: "ADDC", typ: "(UInt64, UInt64)", aux: "Int64"},    // arg0 + imm16 -> out, CA
 		{name: "SUBCconst", argLength: 1, reg: gp11xer, asm: "SUBC", typ: "(UInt64, UInt64)", aux: "Int64"},    // imm16 - arg0 -> out, CA
 		{name: "ADDE", argLength: 3, reg: gp2xer1xer, asm: "ADDE", typ: "(UInt64, UInt64)", commutative: true}, // arg0 + arg1 + CA (arg2) -> out, CA
+		{name: "ADDZE", argLength: 2, reg: gp1xer1xer, asm: "ADDZE", typ: "(UInt64, UInt64)"},                  // arg0 + CA (arg1) -> out, CA
 		{name: "SUBE", argLength: 3, reg: gp2xer1xer, asm: "SUBE", typ: "(UInt64, UInt64)"},                    // arg0 - arg1 - CA (arg2) -> out, CA
 		{name: "ADDZEzero", argLength: 1, reg: xergp, asm: "ADDZE", typ: "UInt64"},                             // CA (arg0) + $0 -> out
 		{name: "SUBZEzero", argLength: 1, reg: xergp, asm: "SUBZE", typ: "UInt64"},                             // $0 - CA (arg0) -> out

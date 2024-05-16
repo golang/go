@@ -231,7 +231,7 @@ type CancelFunc func()
 // or when the parent context's Done channel is closed, whichever happens first.
 //
 // Canceling this context releases resources associated with it, so code should
-// call cancel as soon as the operations running in this Context complete.
+// call cancel as soon as the operations running in this [Context] complete.
 func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	c := withCancel(parent)
 	return c, func() { c.cancel(true, Canceled, nil) }
@@ -295,7 +295,7 @@ func Cause(c Context) error {
 }
 
 // AfterFunc arranges to call f in its own goroutine after ctx is done
-// (cancelled or timed out).
+// (canceled or timed out).
 // If ctx is already done, AfterFunc calls f immediately in its own goroutine.
 //
 // Multiple calls to AfterFunc on a context operate independently;

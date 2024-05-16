@@ -10,14 +10,14 @@
 // https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
-//go:build amd64 || arm64 || ppc64le || s390x
+//go:build (amd64 || arm64 || ppc64le || s390x) && !purego
 
 package nistec
 
 import (
 	_ "embed"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"math/bits"
 	"runtime"
 	"unsafe"
@@ -327,7 +327,7 @@ func init() {
 	if runtime.GOARCH == "s390x" {
 		var newTable [43 * 32 * 2 * 4]uint64
 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256PrecomputedPtr) {
-			newTable[i] = binary.LittleEndian.Uint64(x[:])
+			newTable[i] = byteorder.LeUint64(x[:])
 		}
 		newTablePtr := unsafe.Pointer(&newTable)
 		p256PrecomputedPtr = &newTablePtr

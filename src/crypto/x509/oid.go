@@ -24,6 +24,12 @@ type OID struct {
 	der []byte
 }
 
+// ParseOID parses a Object Identifier string, represented by ASCII numbers separated by dots.
+func ParseOID(oid string) (OID, error) {
+	var o OID
+	return o, o.unmarshalOIDText(oid)
+}
+
 func newOIDFromDER(der []byte) (OID, bool) {
 	if len(der) == 0 || der[len(der)-1]&0x80 != 0 {
 		return OID{}, false
@@ -81,6 +87,112 @@ func appendBase128Int(dst []byte, n uint64) []byte {
 		dst = append(dst, o)
 	}
 	return dst
+}
+
+func base128BigIntLength(n *big.Int) int {
+	if n.Cmp(big.NewInt(0)) == 0 {
+		return 1
+	}
+	return (n.BitLen() + 6) / 7
+}
+
+func appendBase128BigInt(dst []byte, n *big.Int) []byte {
+	if n.Cmp(big.NewInt(0)) == 0 {
+		return append(dst, 0)
+	}
+
+	for i := base128BigIntLength(n) - 1; i >= 0; i-- {
+		o := byte(big.NewInt(0).Rsh(n, uint(i)*7).Bits()[0])
+		o &= 0x7f
+		if i != 0 {
+			o |= 0x80
+		}
+		dst = append(dst, o)
+	}
+	return dst
+}
+
+// MarshalText implements [encoding.TextMarshaler]
+func (o OID) MarshalText() ([]byte, error) {
+	return []byte(o.String()), nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler]
+func (o *OID) UnmarshalText(text []byte) error {
+	return o.unmarshalOIDText(string(text))
+}
+
+func (o *OID) unmarshalOIDText(oid string) error {
+	// (*big.Int).SetString allows +/- signs, but we don't want
+	// to allow them in the string representation of Object Identifier, so
+	// reject such encodings.
+	for _, c := range oid {
+		isDigit := c >= '0' && c <= '9'
+		if !isDigit && c != '.' {
+			return errInvalidOID
+		}
+	}
+
+	var (
+		firstNum  string
+		secondNum string
+	)
+
+	var nextComponentExists bool
+	firstNum, oid, nextComponentExists = strings.Cut(oid, ".")
+	if !nextComponentExists {
+		return errInvalidOID
+	}
+	secondNum, oid, nextComponentExists = strings.Cut(oid, ".")
+
+	var (
+		first  = big.NewInt(0)
+		second = big.NewInt(0)
+	)
+
+	if _, ok := first.SetString(firstNum, 10); !ok {
+		return errInvalidOID
+	}
+	if _, ok := second.SetString(secondNum, 10); !ok {
+		return errInvalidOID
+	}
+
+	if first.Cmp(big.NewInt(2)) > 0 || (first.Cmp(big.NewInt(2)) < 0 && second.Cmp(big.NewInt(40)) >= 0) {
+		return errInvalidOID
+	}
+
+	firstComponent := first.Mul(first, big.NewInt(40))
+	firstComponent.Add(firstComponent, second)
+
+	der := appendBase128BigInt(make([]byte, 0, 32), firstComponent)
+
+	for nextComponentExists {
+		var strNum string
+		strNum, oid, nextComponentExists = strings.Cut(oid, ".")
+		b, ok := big.NewInt(0).SetString(strNum, 10)
+		if !ok {
+			return errInvalidOID
+		}
+		der = appendBase128BigInt(der, b)
+	}
+
+	o.der = der
+	return nil
+}
+
+// MarshalBinary implements [encoding.BinaryMarshaler]
+func (o OID) MarshalBinary() ([]byte, error) {
+	return bytes.Clone(o.der), nil
+}
+
+// UnmarshalBinary implements [encoding.BinaryUnmarshaler]
+func (o *OID) UnmarshalBinary(b []byte) error {
+	oid, ok := newOIDFromDER(bytes.Clone(b))
+	if !ok {
+		return errInvalidOID
+	}
+	*o = oid
+	return nil
 }
 
 // Equal returns true when oid and other represents the same Object Identifier.

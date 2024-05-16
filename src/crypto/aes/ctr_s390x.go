@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 package aes
 
 import (
 	"crypto/cipher"
 	"crypto/internal/alias"
-	"encoding/binary"
+	"internal/byteorder"
 )
 
 // Assert that aesCipherAsm implements the ctrAble interface.
@@ -39,8 +41,8 @@ func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
 	}
 	var ac aesctr
 	ac.block = c
-	ac.ctr[0] = binary.BigEndian.Uint64(iv[0:]) // high bits
-	ac.ctr[1] = binary.BigEndian.Uint64(iv[8:]) // low bits
+	ac.ctr[0] = byteorder.BeUint64(iv[0:]) // high bits
+	ac.ctr[1] = byteorder.BeUint64(iv[8:]) // low bits
 	ac.buffer = ac.storage[:0]
 	return &ac
 }
@@ -50,8 +52,8 @@ func (c *aesctr) refill() {
 	c.buffer = c.storage[:streamBufferSize]
 	c0, c1 := c.ctr[0], c.ctr[1]
 	for i := 0; i < streamBufferSize; i += 16 {
-		binary.BigEndian.PutUint64(c.buffer[i+0:], c0)
-		binary.BigEndian.PutUint64(c.buffer[i+8:], c1)
+		byteorder.BePutUint64(c.buffer[i+0:], c0)
+		byteorder.BePutUint64(c.buffer[i+8:], c1)
 
 		// Increment in big endian: c0 is high, c1 is low.
 		c1++

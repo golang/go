@@ -526,7 +526,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
-	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
+	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
 		tlsrsakex.IncNonDefault()
 	}
 
@@ -915,10 +915,7 @@ func (hs *clientHandshakeState) saveSessionTicket() error {
 		return nil
 	}
 
-	session, err := c.sessionState()
-	if err != nil {
-		return err
-	}
+	session := c.sessionState()
 	session.secret = hs.masterSecret
 
 	cs := &ClientSessionState{ticket: hs.ticket, session: session}

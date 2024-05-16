@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	_ "unsafe" // for go:linkname
 )
 

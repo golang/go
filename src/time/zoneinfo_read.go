@@ -11,12 +11,16 @@ package time
 
 import (
 	"errors"
+	"internal/bytealg"
 	"runtime"
 	"syscall"
+	_ "unsafe" // for linkname
 )
 
 // registerLoadFromEmbeddedTZData is called by the time/tzdata package,
 // if it is imported.
+//
+//go:linkname registerLoadFromEmbeddedTZData
 func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
 	loadFromEmbeddedTZData = f
 }
@@ -99,10 +103,8 @@ func (d *dataIO) rest() []byte {
 
 // Make a string by stopping at the first NUL
 func byteString(p []byte) string {
-	for i := 0; i < len(p); i++ {
-		if p[i] == 0 {
-			return string(p[0:i])
-		}
+	if i := bytealg.IndexByte(p, 0); i != -1 {
+		p = p[:i]
 	}
 	return string(p)
 }

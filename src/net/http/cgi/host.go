@@ -277,7 +277,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		headerLines++
 		header, val, ok := strings.Cut(string(line), ":")
 		if !ok {
-			h.printf("cgi: bogus header line: %s", string(line))
+			h.printf("cgi: bogus header line: %s", line)
 			continue
 		}
 		if !httpguts.ValidHeaderFieldName(header) {

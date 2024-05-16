@@ -46,16 +46,19 @@ It can use a pure Go resolver that sends DNS requests directly to the servers
 listed in /etc/resolv.conf, or it can use a cgo-based resolver that calls C
 library routines such as getaddrinfo and getnameinfo.
 
-By default the pure Go resolver is used, because a blocked DNS request consumes
-only a goroutine, while a blocked C call consumes an operating system thread.
+On Unix the pure Go resolver is preferred over the cgo resolver, because a blocked DNS
+request consumes only a goroutine, while a blocked C call consumes an operating system thread.
 When cgo is available, the cgo-based resolver is used instead under a variety of
 conditions: on systems that do not let programs make direct DNS requests (OS X),
 when the LOCALDOMAIN environment variable is present (even if empty),
 when the RES_OPTIONS or HOSTALIASES environment variable is non-empty,
 when the ASR_CONFIG environment variable is non-empty (OpenBSD only),
 when /etc/resolv.conf or /etc/nsswitch.conf specify the use of features that the
-Go resolver does not implement, and when the name being looked up ends in .local
-or is an mDNS name.
+Go resolver does not implement.
+
+On all systems (except Plan 9), when the cgo resolver is being used
+this package applies a concurrent cgo lookup limit to prevent the system
+from running out of system threads. Currently, it is limited to 500 concurrent lookups.
 
 The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
@@ -614,11 +617,27 @@ func (e *DNSConfigError) Temporary() bool { return false }
 
 // Various errors contained in DNSError.
 var (
-	errNoSuchHost = errors.New("no such host")
+	errNoSuchHost  = &notFoundError{"no such host"}
+	errUnknownPort = &notFoundError{"unknown port"}
 )
+
+// notFoundError is a special error understood by the newDNSError function,
+// which causes a creation of a DNSError with IsNotFound field set to true.
+type notFoundError struct{ s string }
+
+func (e *notFoundError) Error() string { return e.s }
+
+// temporaryError is an error type that implements the [Error] interface.
+// It returns true from the Temporary method.
+type temporaryError struct{ s string }
+
+func (e *temporaryError) Error() string   { return e.s }
+func (e *temporaryError) Temporary() bool { return true }
+func (e *temporaryError) Timeout() bool   { return false }
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
+	UnwrapErr   error  // error returned by the [DNSError.Unwrap] method, might be nil
 	Err         string // description of the error
 	Name        string // name looked for
 	Server      string // server used
@@ -630,6 +649,41 @@ type DNSError struct {
 	// or the name itself was not found (NXDOMAIN).
 	IsNotFound bool
 }
+
+// newDNSError creates a new *DNSError.
+// Based on the err, it sets the UnwrapErr, IsTimeout, IsTemporary, IsNotFound fields.
+func newDNSError(err error, name, server string) *DNSError {
+	var (
+		isTimeout   bool
+		isTemporary bool
+		unwrapErr   error
+	)
+
+	if err, ok := err.(Error); ok {
+		isTimeout = err.Timeout()
+		isTemporary = err.Temporary()
+	}
+
+	// At this time, the only errors we wrap are context errors, to allow
+	// users to check for canceled/timed out requests.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		unwrapErr = err
+	}
+
+	_, isNotFound := err.(*notFoundError)
+	return &DNSError{
+		UnwrapErr:   unwrapErr,
+		Err:         err.Error(),
+		Name:        name,
+		Server:      server,
+		IsTimeout:   isTimeout,
+		IsTemporary: isTemporary,
+		IsNotFound:  isNotFound,
+	}
+}
+
+// Unwrap returns e.UnwrapErr.
+func (e *DNSError) Unwrap() error { return e.UnwrapErr }
 
 func (e *DNSError) Error() string {
 	if e == nil {
@@ -723,11 +777,16 @@ var threadLimit chan struct{}
 
 var threadOnce sync.Once
 
-func acquireThread() {
+func acquireThread(ctx context.Context) error {
 	threadOnce.Do(func() {
 		threadLimit = make(chan struct{}, concurrentThreadsLimit())
 	})
-	threadLimit <- struct{}{}
+	select {
+	case threadLimit <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func releaseThread() {

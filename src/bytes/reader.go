@@ -152,8 +152,8 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Reset resets the [Reader.Reader] to be reading from b.
+// Reset resets the [Reader] to be reading from b.
 func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
 
-// NewReader returns a new [Reader.Reader] reading from b.
+// NewReader returns a new [Reader] reading from b.
 func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }

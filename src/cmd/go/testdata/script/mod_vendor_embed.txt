@@ -6,11 +6,15 @@ cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.t
 
 cd broken_no_matching_files
 ! go mod vendor
-stderr 'go: pattern foo.txt: no matching files found'
+stderr '^go: resolving embeds in example.com/brokendep: pattern foo.txt: no matching files found$'
+go mod vendor -e
+stderr '^go: resolving embeds in example.com/brokendep: pattern foo.txt: no matching files found$'
 
 cd ../broken_bad_pattern
 ! go mod vendor
-stderr 'go: pattern ../foo.txt: invalid pattern syntax'
+stderr '^go: resolving embeds in example.com/brokendep: pattern ../foo.txt: invalid pattern syntax$'
+go mod vendor -e
+stderr '^go: resolving embeds in example.com/brokendep: pattern ../foo.txt: invalid pattern syntax$'
 
 cd ../embed_go122
 go mod vendor

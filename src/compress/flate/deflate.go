@@ -87,7 +87,6 @@ type compressor struct {
 	// compression algorithm
 	fill      func(*compressor, []byte) int // copy data to window
 	step      func(*compressor)             // process window
-	sync      bool                          // requesting flush
 	bestSpeed *deflateFast                  // Encoder for BestSpeed
 
 	// Input hash chains
@@ -106,6 +105,8 @@ type compressor struct {
 	windowEnd     int
 	blockStart    int  // window index where current tokens start
 	byteAvailable bool // if true, still need to process window[index-1].
+
+	sync bool // requesting flush
 
 	// queued output tokens
 	tokens []token

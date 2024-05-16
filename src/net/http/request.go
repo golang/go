@@ -320,6 +320,10 @@ type Request struct {
 	// redirects.
 	Response *Response
 
+	// Pattern is the [ServeMux] pattern that matched the request.
+	// It is empty if the request was not matched against a pattern.
+	Pattern string
+
 	// ctx is either the client or server context. It should only
 	// be modified via copying the whole Request using Clone or WithContext.
 	// It is unexported to prevent people from using Context wrong
@@ -431,6 +435,15 @@ func (r *Request) Cookies() []*Cookie {
 	return readCookies(r.Header, "")
 }
 
+// CookiesNamed parses and returns the named HTTP cookies sent with the request
+// or an empty slice if none matched.
+func (r *Request) CookiesNamed(name string) []*Cookie {
+	if name == "" {
+		return []*Cookie{}
+	}
+	return readCookies(r.Header, name)
+}
+
 // ErrNoCookie is returned by Request's Cookie method when a cookie is not found.
 var ErrNoCookie = errors.New("http: named cookie not present")
 
@@ -455,7 +468,7 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 // AddCookie only sanitizes c's name and value, and does not sanitize
 // a Cookie header already present in the request.
 func (r *Request) AddCookie(c *Cookie) {
-	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
+	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value, c.Quoted))
 	if c := r.Header.Get("Cookie"); c != "" {
 		r.Header.Set("Cookie", c+"; "+s)
 	} else {

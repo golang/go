@@ -54,12 +54,12 @@ var nullDir = Dir{
 }
 
 // Null assigns special "don't touch" values to members of d to
-// avoid modifying them during syscall.Wstat.
+// avoid modifying them during [Wstat].
 func (d *Dir) Null() { *d = nullDir }
 
 // Marshal encodes a 9P stat message corresponding to d into b
 //
-// If there isn't enough space in b for a stat message, ErrShortStat is returned.
+// If there isn't enough space in b for a stat message, [ErrShortStat] is returned.
 func (d *Dir) Marshal(b []byte) (n int, err error) {
 	n = STATFIXLEN + len(d.Name) + len(d.Uid) + len(d.Gid) + len(d.Muid)
 	if n > len(b) {
@@ -92,9 +92,9 @@ func (d *Dir) Marshal(b []byte) (n int, err error) {
 
 // UnmarshalDir decodes a single 9P stat message from b and returns the resulting Dir.
 //
-// If b is too small to hold a valid stat message, ErrShortStat is returned.
+// If b is too small to hold a valid stat message, [ErrShortStat] is returned.
 //
-// If the stat message itself is invalid, ErrBadStat is returned.
+// If the stat message itself is invalid, [ErrBadStat] is returned.
 func UnmarshalDir(b []byte) (*Dir, error) {
 	if len(b) < STATFIXLEN {
 		return nil, ErrShortStat

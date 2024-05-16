@@ -57,6 +57,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	if ctxt.IsAsm {
 		flags |= goobj.ObjFlagFromAssembly
 	}
+	if ctxt.Std {
+		flags |= goobj.ObjFlagStd
+	}
 	h := goobj.Header{
 		Magic:       goobj.Magic,
 		Fingerprint: ctxt.Fingerprint,
@@ -309,6 +312,7 @@ func (w *writer) StringTable() {
 const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
 
 func (w *writer) Sym(s *LSym) {
+	name := s.Name
 	abi := uint16(s.ABI())
 	if s.Static() {
 		abi = goobj.SymABIstatic
@@ -348,7 +352,15 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
-	name := s.Name
+	if s.IsLinkname() || (w.ctxt.IsAsm && name != "") || name == "main.main" {
+		// Assembly reference is treated the same as linkname,
+		// but not for unnamed (aux) symbols.
+		// The runtime linknames main.main.
+		flag2 |= goobj.SymFlagLinkname
+	}
+	if s.ABIWrapper() {
+		flag2 |= goobj.SymFlagABIWrapper
+	}
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
@@ -785,14 +797,18 @@ func genFuncInfoSyms(ctxt *Link) {
 		fn.FuncInfoSym = isym
 		b.Reset()
 
-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym, fn.sehUnwindInfoSym}
+		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
 		for _, s := range auxsyms {
 			if s == nil || s.Size == 0 {
 				continue
 			}
+			if s.OnList() {
+				panic("a symbol is added to defs multiple times")
+			}
 			s.PkgIdx = goobj.PkgIdxSelf
 			s.SymIdx = symidx
 			s.Set(AttrIndexed, true)
+			s.Set(AttrOnList, true)
 			symidx++
 			infosyms = append(infosyms, s)
 		}
@@ -836,6 +852,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	ver := ""
 	if ctxt.Debugasm > 1 {
 		ver = fmt.Sprintf("<%d>", s.ABI())
+		if ctxt.Debugasm > 2 {
+			ver += fmt.Sprintf("<idx %d %d>", s.PkgIdx, s.SymIdx)
+		}
 	}
 	fmt.Fprintf(ctxt.Bso, "%s%s ", name, ver)
 	if s.Type != 0 {

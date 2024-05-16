@@ -589,6 +589,7 @@ func isSent(field *reflect.StructField) bool {
 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
 		return false
 	}
+
 	return true
 }
 

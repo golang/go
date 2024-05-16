@@ -11,14 +11,14 @@ import (
 )
 
 // A WaitGroup waits for a collection of goroutines to finish.
-// The main goroutine calls Add to set the number of
+// The main goroutine calls [WaitGroup.Add] to set the number of
 // goroutines to wait for. Then each of the goroutines
-// runs and calls Done when finished. At the same time,
-// Wait can be used to block until all goroutines have finished.
+// runs and calls [WaitGroup.Done] when finished. At the same time,
+// [WaitGroup.Wait] can be used to block until all goroutines have finished.
 //
 // A WaitGroup must not be copied after first use.
 //
-// In the terminology of the Go memory model, a call to Done
+// In the terminology of the Go memory model, a call to [WaitGroup.Done]
 // “synchronizes before” the return of any Wait call that it unblocks.
 type WaitGroup struct {
 	noCopy noCopy
@@ -27,8 +27,8 @@ type WaitGroup struct {
 	sema  uint32
 }
 
-// Add adds delta, which may be negative, to the WaitGroup counter.
-// If the counter becomes zero, all goroutines blocked on Wait are released.
+// Add adds delta, which may be negative, to the [WaitGroup] counter.
+// If the counter becomes zero, all goroutines blocked on [WaitGroup.Wait] are released.
 // If the counter goes negative, Add panics.
 //
 // Note that calls with a positive delta that occur when the counter is zero
@@ -82,12 +82,12 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 }
 
-// Done decrements the WaitGroup counter by one.
+// Done decrements the [WaitGroup] counter by one.
 func (wg *WaitGroup) Done() {
 	wg.Add(-1)
 }
 
-// Wait blocks until the WaitGroup counter is zero.
+// Wait blocks until the [WaitGroup] counter is zero.
 func (wg *WaitGroup) Wait() {
 	if race.Enabled {
 		race.Disable()

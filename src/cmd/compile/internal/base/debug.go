@@ -16,6 +16,7 @@ var Debug DebugFlags
 // The -d option takes a comma-separated list of settings.
 // Each setting is name=value; for ints, name is short for name=1.
 type DebugFlags struct {
+	AlignHot              int    `help:"enable hot block alignment (currently requires -pgo)" concurrent:"ok"`
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
@@ -41,6 +42,11 @@ type DebugFlags struct {
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
+	MergeLocals           int    `help:"merge together non-interfering local stack slots" concurrent:"ok"`
+	MergeLocalsDumpFunc   string `help:"dump specified func in merge locals"`
+	MergeLocalsHash       string `help:"hash value for debugging stack slot merging of local variables" concurrent:"ok"`
+	MergeLocalsTrace      int    `help:"trace debug output for locals merging"`
+	MergeLocalsHTrace     int    `help:"hash-selected trace debug output for locals merging"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`

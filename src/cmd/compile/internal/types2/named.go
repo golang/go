@@ -485,9 +485,17 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 	return -1
 }
 
-// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
-func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
-func (t *Named) String() string   { return TypeString(t, nil) }
+// Underlying returns the [underlying type] of the named type t, resolving all
+// forwarding declarations. Underlying types are never Named, TypeParam, or
+// Alias types.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+func (t *Named) Underlying() Type {
+	// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+	return Unalias(t.resolve().underlying)
+}
+
+func (t *Named) String() string { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
@@ -552,7 +560,7 @@ loop:
 		n = n1
 		if i, ok := seen[n]; ok {
 			// cycle
-			check.cycleError(path[i:])
+			check.cycleError(path[i:], firstInSrc(path[i:]))
 			u = Typ[Invalid]
 			break
 		}

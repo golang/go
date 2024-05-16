@@ -624,33 +624,33 @@ func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
 	r.Type = objabi.R_METHODOFF
 }
 
-var kinds = []int{
-	types.TINT:        objabi.KindInt,
-	types.TUINT:       objabi.KindUint,
-	types.TINT8:       objabi.KindInt8,
-	types.TUINT8:      objabi.KindUint8,
-	types.TINT16:      objabi.KindInt16,
-	types.TUINT16:     objabi.KindUint16,
-	types.TINT32:      objabi.KindInt32,
-	types.TUINT32:     objabi.KindUint32,
-	types.TINT64:      objabi.KindInt64,
-	types.TUINT64:     objabi.KindUint64,
-	types.TUINTPTR:    objabi.KindUintptr,
-	types.TFLOAT32:    objabi.KindFloat32,
-	types.TFLOAT64:    objabi.KindFloat64,
-	types.TBOOL:       objabi.KindBool,
-	types.TSTRING:     objabi.KindString,
-	types.TPTR:        objabi.KindPtr,
-	types.TSTRUCT:     objabi.KindStruct,
-	types.TINTER:      objabi.KindInterface,
-	types.TCHAN:       objabi.KindChan,
-	types.TMAP:        objabi.KindMap,
-	types.TARRAY:      objabi.KindArray,
-	types.TSLICE:      objabi.KindSlice,
-	types.TFUNC:       objabi.KindFunc,
-	types.TCOMPLEX64:  objabi.KindComplex64,
-	types.TCOMPLEX128: objabi.KindComplex128,
-	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
+var kinds = []abi.Kind{
+	types.TINT:        abi.Int,
+	types.TUINT:       abi.Uint,
+	types.TINT8:       abi.Int8,
+	types.TUINT8:      abi.Uint8,
+	types.TINT16:      abi.Int16,
+	types.TUINT16:     abi.Uint16,
+	types.TINT32:      abi.Int32,
+	types.TUINT32:     abi.Uint32,
+	types.TINT64:      abi.Int64,
+	types.TUINT64:     abi.Uint64,
+	types.TUINTPTR:    abi.Uintptr,
+	types.TFLOAT32:    abi.Float32,
+	types.TFLOAT64:    abi.Float64,
+	types.TBOOL:       abi.Bool,
+	types.TSTRING:     abi.String,
+	types.TPTR:        abi.Pointer,
+	types.TSTRUCT:     abi.Struct,
+	types.TINTER:      abi.Interface,
+	types.TCHAN:       abi.Chan,
+	types.TMAP:        abi.Map,
+	types.TARRAY:      abi.Array,
+	types.TSLICE:      abi.Slice,
+	types.TFUNC:       abi.Func,
+	types.TCOMPLEX64:  abi.Complex64,
+	types.TCOMPLEX128: abi.Complex128,
+	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
 var (
@@ -743,14 +743,14 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	i = kinds[t.Kind()]
+	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
-		i |= objabi.KindDirectIface
+		kind |= abi.KindDirectIface
 	}
 	if useGCProg {
-		i |= objabi.KindGCProg
+		kind |= abi.KindGCProg
 	}
-	c.Field("Kind_").WriteUint8(uint8(i))
+	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
@@ -1498,39 +1498,6 @@ func (a typesByString) Less(i, j int) bool {
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
-// maxPtrmaskBytes is the maximum length of a GC ptrmask bitmap,
-// which holds 1-bit entries describing where pointers are in a given type.
-// Above this length, the GC information is recorded as a GC program,
-// which can express repetition compactly. In either form, the
-// information is used by the runtime to initialize the heap bitmap,
-// and for large types (like 128 or more words), they are roughly the
-// same speed. GC programs are never much larger and often more
-// compact. (If large arrays are involved, they can be arbitrarily
-// more compact.)
-//
-// The cutoff must be large enough that any allocation large enough to
-// use a GC program is large enough that it does not share heap bitmap
-// bytes with any other objects, allowing the GC program execution to
-// assume an aligned start and not use atomic operations. In the current
-// runtime, this means all malloc size classes larger than the cutoff must
-// be multiples of four words. On 32-bit systems that's 16 bytes, and
-// all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
-// On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
-// for size classes >= 256 bytes. On a 64-bit system, 256 bytes allocated
-// is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
-// must be >= 4.
-//
-// We used to use 16 because the GC programs do have some constant overhead
-// to get started, and processing 128 pointers seems to be enough to
-// amortize that overhead well.
-//
-// To make sure that the runtime's chansend can call typeBitsBulkBarrier,
-// we raised the limit to 2048, so that even 32-bit systems are guaranteed to
-// use bitmaps for objects up to 64 kB in size.
-//
-// Also known to reflect/type.go.
-const maxPtrmaskBytes = 2048
-
 // GCSym returns a data symbol containing GC information for type t, along
 // with a boolean reporting whether the UseGCProg bit should be set in the
 // type kind, and the ptrdata field to record in the reflect type information.
@@ -1553,7 +1520,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 // When write is true, it writes the symbol data.
 func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
+	if ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
 		lsym = dgcptrmask(t, write)
 		return
 	}

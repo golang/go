@@ -199,6 +199,9 @@ func TestMapDelete(t *testing.T) {
 	}
 
 	colors.Delete("red")
+	if v := colors.Get("red"); v != nil {
+		t.Errorf("removed red, Get should return nil; got %v", v)
+	}
 	n = 0
 	colors.Do(func(KeyValue) { n++ })
 	if n != 1 {
@@ -214,6 +217,9 @@ func TestMapDelete(t *testing.T) {
 
 	colors.Delete("blue")
 	colors.Delete("blue")
+	if v := colors.Get("blue"); v != nil {
+		t.Errorf("removed blue, Get should return nil; got %v", v)
+	}
 	n = 0
 	colors.Do(func(KeyValue) { n++ })
 	if n != 0 {

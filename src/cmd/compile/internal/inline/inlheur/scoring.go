@@ -7,7 +7,7 @@ package inlheur
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/types"
 	"fmt"
 	"os"
@@ -638,7 +638,7 @@ var allCallSites CallSiteTab
 // of the function called, "CallerPos" is the position of the
 // callsite, and "ScoreFlags" is a digest of the specific properties
 // we used to make adjustments to callsite score via heuristics.
-func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
+func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Func, profile *pgoir.Profile) (int32, bool)) {
 
 	var indirectlyDueToPromotion func(cs *CallSite) bool
 	indirectlyDueToPromotion = func(cs *CallSite) bool {

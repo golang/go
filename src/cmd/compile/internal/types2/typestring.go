@@ -16,18 +16,18 @@ import (
 )
 
 // A Qualifier controls how named package-level objects are printed in
-// calls to TypeString, ObjectString, and SelectionString.
+// calls to [TypeString], [ObjectString], and [SelectionString].
 //
 // These three formatting routines call the Qualifier for each
 // package-level object O, and if the Qualifier returns a non-empty
 // string p, the object is printed in the form p.O.
 // If it returns an empty string, only the object name O is printed.
 //
-// Using a nil Qualifier is equivalent to using (*Package).Path: the
+// Using a nil Qualifier is equivalent to using (*[Package]).Path: the
 // object is qualified by the import path, e.g., "encoding/json.Marshal".
 type Qualifier func(*Package) string
 
-// RelativeTo returns a Qualifier that fully qualifies members of
+// RelativeTo returns a [Qualifier] that fully qualifies members of
 // all packages other than pkg.
 func RelativeTo(pkg *Package) Qualifier {
 	if pkg == nil {
@@ -42,7 +42,7 @@ func RelativeTo(pkg *Package) Qualifier {
 }
 
 // TypeString returns the string representation of typ.
-// The Qualifier controls the printing of
+// The [Qualifier] controls the printing of
 // package-level objects, and may be nil.
 func TypeString(typ Type, qf Qualifier) string {
 	var buf bytes.Buffer
@@ -51,14 +51,14 @@ func TypeString(typ Type, qf Qualifier) string {
 }
 
 // WriteType writes the string representation of typ to buf.
-// The Qualifier controls the printing of
+// The [Qualifier] controls the printing of
 // package-level objects, and may be nil.
 func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
 	newTypeWriter(buf, qf).typ(typ)
 }
 
 // WriteSignature writes the representation of the signature sig to buf,
-// without a leading "func" keyword. The Qualifier controls the printing
+// without a leading "func" keyword. The [Qualifier] controls the printing
 // of package-level objects, and may be nil.
 func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 	newTypeWriter(buf, qf).signature(sig)
@@ -211,10 +211,11 @@ func (w *typeWriter) typ(typ Type) {
 
 	case *Interface:
 		if w.ctxt == nil {
-			if t == universeAny.Type() {
+			if t == universeAnyAlias.Type().Underlying() {
 				// When not hashing, we can try to improve type strings by writing "any"
-				// for a type that is pointer-identical to universeAny. This logic should
-				// be deprecated by more robust handling for aliases.
+				// for a type that is pointer-identical to universeAny.
+				// TODO(rfindley): this logic should not be necessary with
+				// gotypesalias=1. Remove once that is always the case.
 				w.string("any")
 				break
 			}
@@ -322,7 +323,13 @@ func (w *typeWriter) typ(typ Type) {
 			// error messages. This doesn't need to be super-elegant; we just
 			// need a clear indication that this is not a predeclared name.
 			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
-				w.string(fmt.Sprintf(" /* with %s declared at %s */", t.obj.name, t.obj.Pos()))
+				if isTypes2 {
+					w.string(fmt.Sprintf(" /* with %s declared at %v */", t.obj.name, t.obj.Pos()))
+				} else {
+					// Can't print position information because
+					// we don't have a token.FileSet accessible.
+					w.string("/* type parameter */")
+				}
 			}
 		}
 

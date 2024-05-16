@@ -1,0 +1,2 @@
+pkg math/rand/v2, func Uint() uint #61716
+pkg math/rand/v2, method (*Rand) Uint() uint #61716

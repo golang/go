@@ -90,10 +90,6 @@ func tooSlow(t *testing.T, reason string) {
 // (temp) directory.
 var testGOROOT string
 
-// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
-// have been built.
-var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
-
 var testGOCACHE string
 
 var testGo string
@@ -200,7 +196,7 @@ func TestMain(m *testing.M) {
 		defer removeAll(testTmpDir)
 	}
 
-	testGOCACHE = cache.DefaultDir()
+	testGOCACHE, _ = cache.DefaultDir()
 	if testenv.HasGoBuild() {
 		testBin = filepath.Join(testTmpDir, "testbin")
 		if err := os.Mkdir(testBin, 0777); err != nil {
@@ -223,10 +219,6 @@ func TestMain(m *testing.M) {
 		}
 		testGOROOT = goEnv("GOROOT")
 		os.Setenv("TESTGO_GOROOT", testGOROOT)
-		// Ensure that GOROOT is set explicitly.
-		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
-		// yet been moved to its final location, programs that invoke runtime.GOROOT
-		// may accidentally use the wrong path.
 		os.Setenv("GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
@@ -1066,7 +1058,7 @@ func TestGoListDeps(t *testing.T) {
 	if runtime.Compiler != "gccgo" {
 		// Check the list is in dependency order.
 		tg.run("list", "-deps", "math")
-		want := "internal/cpu\nunsafe\nmath/bits\nmath\n"
+		want := "unsafe\ninternal/cpu\nmath/bits\nmath\n"
 		out := tg.stdout.String()
 		if !strings.Contains(out, "internal/cpu") {
 			// Some systems don't use internal/cpu.
@@ -1283,6 +1275,10 @@ func TestDefaultGOPATH(t *testing.T) {
 	tg.parallel()
 	tg.tempDir("home/go")
 	tg.setenv(homeEnvName(), tg.path("home"))
+	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
+	// so that the counter uploading code doesn't write
+	// the counter token file to the temp dir after the test finishes.
+	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
 
 	tg.run("env", "GOPATH")
 	tg.grepStdout(regexp.QuoteMeta(tg.path("home/go")), "want GOPATH=$HOME/go")
@@ -1303,6 +1299,10 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 	tg.setenv("GOPATH", "")
 	tg.tempDir("home")
 	tg.setenv(homeEnvName(), tg.path("home"))
+	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
+	// so that the counter uploading code doesn't write
+	// the counter token file to the temp dir after the test finishes.
+	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
 
 	tg.runFail("install", "github.com/golang/example/hello")
 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")

@@ -4,8 +4,10 @@
 
 // Package chacha8rand implements a pseudorandom generator
 // based on ChaCha8. It is used by both runtime and math/rand/v2
-// and must have no dependencies.
+// and must have minimal dependencies.
 package chacha8rand
+
+import "internal/byteorder"
 
 const (
 	ctrInc = 4  // increment counter by 4 between block calls
@@ -37,6 +39,7 @@ type State struct {
 //
 // Next is //go:nosplit to allow its use in the runtime
 // with per-m data without holding the per-m lock.
+//
 //go:nosplit
 func (s *State) Next() (uint64, bool) {
 	i := s.i
@@ -50,10 +53,10 @@ func (s *State) Next() (uint64, bool) {
 // Init seeds the State with the given seed value.
 func (s *State) Init(seed [32]byte) {
 	s.Init64([4]uint64{
-		leUint64(seed[0*8:]),
-		leUint64(seed[1*8:]),
-		leUint64(seed[2*8:]),
-		leUint64(seed[3*8:]),
+		byteorder.LeUint64(seed[0*8:]),
+		byteorder.LeUint64(seed[1*8:]),
+		byteorder.LeUint64(seed[2*8:]),
+		byteorder.LeUint64(seed[3*8:]),
 	})
 }
 
@@ -121,9 +124,9 @@ func Marshal(s *State) []byte {
 	data := make([]byte, 6*8)
 	copy(data, "chacha8:")
 	used := (s.c/ctrInc)*chunk + s.i
-	bePutUint64(data[1*8:], uint64(used))
+	byteorder.BePutUint64(data[1*8:], uint64(used))
 	for i, seed := range s.seed {
-		lePutUint64(data[(2+i)*8:], seed)
+		byteorder.LePutUint64(data[(2+i)*8:], seed)
 	}
 	return data
 }
@@ -139,12 +142,12 @@ func Unmarshal(s *State, data []byte) error {
 	if len(data) != 6*8 || string(data[:8]) != "chacha8:" {
 		return new(errUnmarshalChaCha8)
 	}
-	used := beUint64(data[1*8:])
+	used := byteorder.BeUint64(data[1*8:])
 	if used > (ctrMax/ctrInc)*chunk-reseed {
 		return new(errUnmarshalChaCha8)
 	}
 	for i := range s.seed {
-		s.seed[i] = leUint64(data[(2+i)*8:])
+		s.seed[i] = byteorder.LeUint64(data[(2+i)*8:])
 	}
 	s.c = ctrInc * (uint32(used) / chunk)
 	block(&s.seed, &s.buf, s.c)
@@ -154,44 +157,4 @@ func Unmarshal(s *State, data []byte) error {
 		s.n = chunk - reseed
 	}
 	return nil
-}
-
-// binary.bigEndian.Uint64, copied to avoid dependency
-func beUint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
-}
-
-// binary.bigEndian.PutUint64, copied to avoid dependency
-func bePutUint64(b []byte, v uint64) {
-	_ = b[7] // early bounds check to guarantee safety of writes below
-	b[0] = byte(v >> 56)
-	b[1] = byte(v >> 48)
-	b[2] = byte(v >> 40)
-	b[3] = byte(v >> 32)
-	b[4] = byte(v >> 24)
-	b[5] = byte(v >> 16)
-	b[6] = byte(v >> 8)
-	b[7] = byte(v)
-}
-
-// binary.littleEndian.Uint64, copied to avoid dependency
-func leUint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
-}
-
-// binary.littleEndian.PutUint64, copied to avoid dependency
-func lePutUint64(b []byte, v uint64) {
-	_ = b[7] // early bounds check to guarantee safety of writes below
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-	b[3] = byte(v >> 24)
-	b[4] = byte(v >> 32)
-	b[5] = byte(v >> 40)
-	b[6] = byte(v >> 48)
-	b[7] = byte(v >> 56)
 }

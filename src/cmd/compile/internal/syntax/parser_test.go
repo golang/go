@@ -186,7 +186,7 @@ func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	}
 	bytes2 := buf2.Bytes()
 
-	if bytes.Compare(bytes1, bytes2) != 0 {
+	if !bytes.Equal(bytes1, bytes2) {
 		fmt.Printf("--- %s ---\n", filename)
 		fmt.Printf("%s\n", bytes1)
 		fmt.Println()

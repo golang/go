@@ -2,6 +2,11 @@
 [short] skip
 [!cgo] skip '-buildmode=plugin requires external linking'
 
+# This test has problems when run on darwin, when using a more
+# contemporary Xcode version that is unfriendly to reproducible builds
+# (see issue #64947 for the gory details).
+[GOOS:darwin] skip
+
 go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
 go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go
 cmp -q a.so b.so

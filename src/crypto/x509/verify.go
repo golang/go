@@ -366,6 +366,11 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 		} else {
 			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
+			if i == 0 { // domain == ""
+				// domain is prefixed with an empty label, append an empty
+				// string to reverseLabels to indicate this.
+				reverseLabels = append(reverseLabels, "")
+			}
 		}
 	}
 
@@ -899,7 +904,7 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 	)
 
 	considerCandidate := func(certType int, candidate potentialParent) {
-		if alreadyInChain(candidate.cert, currentChain) {
+		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
 			return
 		}
 

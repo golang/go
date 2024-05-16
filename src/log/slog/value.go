@@ -90,7 +90,7 @@ func (v Value) Kind() Kind {
 		return x
 	case stringptr:
 		return KindString
-	case timeLocation:
+	case timeLocation, timeTime:
 		return KindTime
 	case groupptr:
 		return KindGroup
@@ -139,9 +139,14 @@ func BoolValue(v bool) Value {
 	return Value{num: u, any: KindBool}
 }
 
-// Unexported version of *time.Location, just so we can store *time.Locations in
-// Values. (No user-provided value has this type.)
-type timeLocation *time.Location
+type (
+	// Unexported version of *time.Location, just so we can store *time.Locations in
+	// Values. (No user-provided value has this type.)
+	timeLocation *time.Location
+
+	// timeTime is for times where UnixNano is undefined.
+	timeTime time.Time
+)
 
 // TimeValue returns a [Value] for a [time.Time].
 // It discards the monotonic portion.
@@ -153,7 +158,15 @@ func TimeValue(v time.Time) Value {
 		// mistaken for any other Value, time.Time or otherwise.
 		return Value{any: timeLocation(nil)}
 	}
-	return Value{num: uint64(v.UnixNano()), any: timeLocation(v.Location())}
+	nsec := v.UnixNano()
+	t := time.Unix(0, nsec)
+	if v.Equal(t) {
+		// UnixNano correctly represents the time, so use a zero-alloc representation.
+		return Value{num: uint64(nsec), any: timeLocation(v.Location())}
+	}
+	// Fall back to the general form.
+	// Strip the monotonic portion to match the other representation.
+	return Value{any: timeTime(v.Round(0))}
 }
 
 // DurationValue returns a [Value] for a [time.Duration].
@@ -368,12 +381,19 @@ func (v Value) Time() time.Time {
 	return v.time()
 }
 
+// See TimeValue to understand how times are represented.
 func (v Value) time() time.Time {
-	loc := v.any.(timeLocation)
-	if loc == nil {
-		return time.Time{}
+	switch a := v.any.(type) {
+	case timeLocation:
+		if a == nil {
+			return time.Time{}
+		}
+		return time.Unix(0, int64(v.num)).In(a)
+	case timeTime:
+		return time.Time(a)
+	default:
+		panic(fmt.Sprintf("bad time type %T", v.any))
 	}
-	return time.Unix(0, int64(v.num)).In(loc)
 }
 
 // LogValuer returns v's value as a LogValuer. It panics

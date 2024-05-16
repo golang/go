@@ -45,9 +45,7 @@ func Example_ed25519ctx() {
 type zeroReader struct{}
 
 func (zeroReader) Read(buf []byte) (int, error) {
-	for i := range buf {
-		buf[i] = 0
-	}
+	clear(buf)
 	return len(buf), nil
 }
 

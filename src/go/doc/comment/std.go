@@ -23,6 +23,7 @@ var stdPkgs = []string{
 	"html",
 	"image",
 	"io",
+	"iter",
 	"log",
 	"maps",
 	"math",
@@ -43,5 +44,6 @@ var stdPkgs = []string{
 	"testing",
 	"time",
 	"unicode",
+	"unique",
 	"unsafe",
 }

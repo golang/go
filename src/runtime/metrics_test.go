@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"internal/goexperiment"
 	"internal/profile"
 	"internal/testenv"
@@ -357,11 +358,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 		if cpu.idle <= 0 {
 			t.Errorf("found no idle time: %f", cpu.idle)
 		}
-		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.01) {
-			t.Errorf("calculated total GC CPU not within 1%% of sampled total: %f vs. %f", total, cpu.gcTotal)
+		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.001) {
+			t.Errorf("calculated total GC CPU time not within %%0.1 of total: %f vs. %f", total, cpu.gcTotal)
 		}
-		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.01) {
-			t.Errorf("calculated total scavenge CPU not within 1%% of sampled total: %f vs. %f", total, cpu.scavengeTotal)
+		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.001) {
+			t.Errorf("calculated total scavenge CPU not within %%0.1 of total: %f vs. %f", total, cpu.scavengeTotal)
 		}
 		if cpu.total <= 0 {
 			t.Errorf("found no total CPU time passed")
@@ -369,8 +370,8 @@ func TestReadMetricsConsistency(t *testing.T) {
 		if cpu.user <= 0 {
 			t.Errorf("found no user time passed")
 		}
-		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.02) {
-			t.Errorf("calculated total CPU not within 2%% of sampled total: %f vs. %f", total, cpu.total)
+		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.001) {
+			t.Errorf("calculated total CPU not within %%0.1 of total: %f vs. %f", total, cpu.total)
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
@@ -948,8 +949,6 @@ func TestSchedPauseMetrics(t *testing.T) {
 }
 
 func TestRuntimeLockMetricsAndProfile(t *testing.T) {
-	testenv.SkipFlaky(t, 64253)
-
 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {
@@ -1181,12 +1180,17 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			}
 
 			const slop = 1.5 // account for nanotime vs cputicks
-			if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
-				t.Errorf("views differ by more than %fx", slop)
-			}
+			t.Run("compare timers", func(t *testing.T) {
+				testenv.SkipFlaky(t, 64253)
+				if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
+					t.Errorf("views differ by more than %fx", slop)
+				}
+			})
 		})
 
 		t.Run("sample-2", func(t *testing.T) {
+			testenv.SkipFlaky(t, 64253)
+
 			old := runtime.SetMutexProfileFraction(2)
 			defer runtime.SetMutexProfileFraction(old)
 
@@ -1218,6 +1222,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	})
 
 	t.Run("runtime.semrelease", func(t *testing.T) {
+		testenv.SkipFlaky(t, 64253)
+
 		old := runtime.SetMutexProfileFraction(1)
 		defer runtime.SetMutexProfileFraction(old)
 
@@ -1289,4 +1295,75 @@ func (w *contentionWorker) run() {
 
 	for w.fn() {
 	}
+}
+
+func TestCPUStats(t *testing.T) {
+	// Run a few GC cycles to get some of the stats to be non-zero.
+	runtime.GC()
+	runtime.GC()
+	runtime.GC()
+
+	// Set GOMAXPROCS high then sleep briefly to ensure we generate
+	// some idle time.
+	oldmaxprocs := runtime.GOMAXPROCS(10)
+	time.Sleep(time.Millisecond)
+	runtime.GOMAXPROCS(oldmaxprocs)
+
+	stats := runtime.ReadCPUStats()
+	gcTotal := stats.GCAssistTime + stats.GCDedicatedTime + stats.GCIdleTime + stats.GCPauseTime
+	if gcTotal != stats.GCTotalTime {
+		t.Errorf("manually computed total does not match GCTotalTime: %d cpu-ns vs. %d cpu-ns", gcTotal, stats.GCTotalTime)
+	}
+	scavTotal := stats.ScavengeAssistTime + stats.ScavengeBgTime
+	if scavTotal != stats.ScavengeTotalTime {
+		t.Errorf("manually computed total does not match ScavengeTotalTime: %d cpu-ns vs. %d cpu-ns", scavTotal, stats.ScavengeTotalTime)
+	}
+	total := gcTotal + scavTotal + stats.IdleTime + stats.UserTime
+	if total != stats.TotalTime {
+		t.Errorf("manually computed overall total does not match TotalTime: %d cpu-ns vs. %d cpu-ns", total, stats.TotalTime)
+	}
+	if total == 0 {
+		t.Error("total time is zero")
+	}
+	if gcTotal == 0 {
+		t.Error("GC total time is zero")
+	}
+	if stats.IdleTime == 0 {
+		t.Error("idle time is zero")
+	}
+}
+
+func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
+	// This test makes sure /memory/classes/heap/unused:bytes
+	// doesn't overflow when allocating and deallocating large
+	// objects. It is a regression test for #67019.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			for range 10 {
+				abi.Escape(make([]byte, 1<<20))
+			}
+			runtime.GC()
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+	s := []metrics.Sample{
+		{Name: "/memory/classes/heap/unused:bytes"},
+	}
+	for range 1000 {
+		metrics.Read(s)
+		if s[0].Value.Uint64() > 1<<40 {
+			t.Errorf("overflow")
+			break
+		}
+	}
+	done <- struct{}{}
+	wg.Wait()
 }

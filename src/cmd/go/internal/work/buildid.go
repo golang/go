@@ -527,6 +527,14 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 
 	// Check to see if the action output is cached.
 	if file, _, err := cache.GetFile(c, actionHash); err == nil {
+		if a.Mode == "preprocess PGO profile" {
+			// Preprocessed PGO profiles don't embed a build ID, so
+			// skip the build ID lookup.
+			// TODO(prattmic): better would be to add a build ID to the format.
+			a.built = file
+			a.Target = "DO NOT USE - using cache"
+			return true
+		}
 		if buildID, err := buildid.ReadFile(file); err == nil {
 			if printOutput {
 				showStdout(b, c, a, "stdout")

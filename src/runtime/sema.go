@@ -21,7 +21,7 @@ package runtime
 
 import (
 	"internal/cpu"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 

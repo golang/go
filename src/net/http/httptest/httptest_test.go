@@ -5,6 +5,7 @@
 package httptest
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -15,6 +16,26 @@ import (
 )
 
 func TestNewRequest(t *testing.T) {
+	got := NewRequest("GET", "/", nil)
+	want := &http.Request{
+		Method:     "GET",
+		Host:       "example.com",
+		URL:        &url.URL{Path: "/"},
+		Header:     http.Header{},
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		RemoteAddr: "192.0.2.1:1234",
+		RequestURI: "/",
+	}
+	got.Body = nil // before DeepEqual
+	want = want.WithContext(context.Background())
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Request mismatch:\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestNewRequestWithContext(t *testing.T) {
 	for _, tt := range [...]struct {
 		name string
 
@@ -153,7 +174,7 @@ func TestNewRequest(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewRequest(tt.method, tt.uri, tt.body)
+			got := NewRequestWithContext(context.Background(), tt.method, tt.uri, tt.body)
 			slurp, err := io.ReadAll(got.Body)
 			if err != nil {
 				t.Errorf("ReadAll: %v", err)
@@ -161,6 +182,7 @@ func TestNewRequest(t *testing.T) {
 			if string(slurp) != tt.wantBody {
 				t.Errorf("Body = %q; want %q", slurp, tt.wantBody)
 			}
+			tt.want = tt.want.WithContext(context.Background())
 			got.Body = nil // before DeepEqual
 			if !reflect.DeepEqual(got.URL, tt.want.URL) {
 				t.Errorf("Request.URL mismatch:\n got: %#v\nwant: %#v", got.URL, tt.want.URL)

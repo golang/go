@@ -10,41 +10,99 @@
 package unix
 
 const (
-	BRKINT                          = 0x0001
-	CLOCK_MONOTONIC                 = 0x1
-	CLOCK_PROCESS_CPUTIME_ID        = 0x2
-	CLOCK_REALTIME                  = 0x0
-	CLOCK_THREAD_CPUTIME_ID         = 0x3
-	CS8                             = 0x0030
-	CSIZE                           = 0x0030
-	ECHO                            = 0x00000008
-	ECHONL                          = 0x00000001
-	FD_CLOEXEC                      = 0x01
-	FD_CLOFORK                      = 0x02
-	FNDELAY                         = 0x04
-	F_CLOSFD                        = 9
-	F_CONTROL_CVT                   = 13
-	F_DUPFD                         = 0
-	F_DUPFD2                        = 8
-	F_GETFD                         = 1
-	F_GETFL                         = 259
-	F_GETLK                         = 5
-	F_GETOWN                        = 10
-	F_OK                            = 0x0
-	F_RDLCK                         = 1
-	F_SETFD                         = 2
-	F_SETFL                         = 4
-	F_SETLK                         = 6
-	F_SETLKW                        = 7
-	F_SETOWN                        = 11
-	F_SETTAG                        = 12
-	F_UNLCK                         = 3
-	F_WRLCK                         = 2
-	FSTYPE_ZFS                      = 0xe9 //"Z"
-	FSTYPE_HFS                      = 0xc8 //"H"
-	FSTYPE_NFS                      = 0xd5 //"N"
-	FSTYPE_TFS                      = 0xe3 //"T"
-	FSTYPE_AUTOMOUNT                = 0xc1 //"A"
+	BRKINT                   = 0x0001
+	CLOCAL                   = 0x1
+	CLOCK_MONOTONIC          = 0x1
+	CLOCK_PROCESS_CPUTIME_ID = 0x2
+	CLOCK_REALTIME           = 0x0
+	CLOCK_THREAD_CPUTIME_ID  = 0x3
+	CLONE_NEWIPC             = 0x08000000
+	CLONE_NEWNET             = 0x40000000
+	CLONE_NEWNS              = 0x00020000
+	CLONE_NEWPID             = 0x20000000
+	CLONE_NEWUTS             = 0x04000000
+	CLONE_PARENT             = 0x00008000
+	CS8                      = 0x0030
+	CSIZE                    = 0x0030
+	ECHO                     = 0x00000008
+	ECHONL                   = 0x00000001
+	EFD_SEMAPHORE            = 0x00002000
+	EFD_CLOEXEC              = 0x00001000
+	EFD_NONBLOCK             = 0x00000004
+	EPOLL_CLOEXEC            = 0x00001000
+	EPOLL_CTL_ADD            = 0
+	EPOLL_CTL_MOD            = 1
+	EPOLL_CTL_DEL            = 2
+	EPOLLRDNORM              = 0x0001
+	EPOLLRDBAND              = 0x0002
+	EPOLLIN                  = 0x0003
+	EPOLLOUT                 = 0x0004
+	EPOLLWRBAND              = 0x0008
+	EPOLLPRI                 = 0x0010
+	EPOLLERR                 = 0x0020
+	EPOLLHUP                 = 0x0040
+	EPOLLEXCLUSIVE           = 0x20000000
+	EPOLLONESHOT             = 0x40000000
+	FD_CLOEXEC               = 0x01
+	FD_CLOFORK               = 0x02
+	FD_SETSIZE               = 0x800
+	FNDELAY                  = 0x04
+	F_CLOSFD                 = 9
+	F_CONTROL_CVT            = 13
+	F_DUPFD                  = 0
+	F_DUPFD2                 = 8
+	F_GETFD                  = 1
+	F_GETFL                  = 259
+	F_GETLK                  = 5
+	F_GETOWN                 = 10
+	F_OK                     = 0x0
+	F_RDLCK                  = 1
+	F_SETFD                  = 2
+	F_SETFL                  = 4
+	F_SETLK                  = 6
+	F_SETLKW                 = 7
+	F_SETOWN                 = 11
+	F_SETTAG                 = 12
+	F_UNLCK                  = 3
+	F_WRLCK                  = 2
+	FSTYPE_ZFS               = 0xe9 //"Z"
+	FSTYPE_HFS               = 0xc8 //"H"
+	FSTYPE_NFS               = 0xd5 //"N"
+	FSTYPE_TFS               = 0xe3 //"T"
+	FSTYPE_AUTOMOUNT         = 0xc1 //"A"
+	GRND_NONBLOCK            = 1
+	GRND_RANDOM              = 2
+	HUPCL                    = 0x0100 // Hang up on last close
+	IN_CLOEXEC               = 0x00001000
+	IN_NONBLOCK              = 0x00000004
+	IN_ACCESS                = 0x00000001
+	IN_MODIFY                = 0x00000002
+	IN_ATTRIB                = 0x00000004
+	IN_CLOSE_WRITE           = 0x00000008
+	IN_CLOSE_NOWRITE         = 0x00000010
+	IN_OPEN                  = 0x00000020
+	IN_MOVED_FROM            = 0x00000040
+	IN_MOVED_TO              = 0x00000080
+	IN_CREATE                = 0x00000100
+	IN_DELETE                = 0x00000200
+	IN_DELETE_SELF           = 0x00000400
+	IN_MOVE_SELF             = 0x00000800
+	IN_UNMOUNT               = 0x00002000
+	IN_Q_OVERFLOW            = 0x00004000
+	IN_IGNORED               = 0x00008000
+	IN_CLOSE                 = (IN_CLOSE_WRITE | IN_CLOSE_NOWRITE)
+	IN_MOVE                  = (IN_MOVED_FROM | IN_MOVED_TO)
+	IN_ALL_EVENTS            = (IN_ACCESS | IN_MODIFY | IN_ATTRIB |
+		IN_CLOSE | IN_OPEN | IN_MOVE |
+		IN_CREATE | IN_DELETE | IN_DELETE_SELF |
+		IN_MOVE_SELF)
+	IN_ONLYDIR                      = 0x01000000
+	IN_DONT_FOLLOW                  = 0x02000000
+	IN_EXCL_UNLINK                  = 0x04000000
+	IN_MASK_CREATE                  = 0x10000000
+	IN_MASK_ADD                     = 0x20000000
+	IN_ISDIR                        = 0x40000000
+	IN_ONESHOT                      = 0x80000000
 	IP6F_MORE_FRAG                  = 0x0001
 	IP6F_OFF_MASK                   = 0xfff8
 	IP6F_RESERVED_MASK              = 0x0006
@@ -152,10 +210,18 @@ const (
 	IP_PKTINFO                      = 101
 	IP_RECVPKTINFO                  = 102
 	IP_TOS                          = 2
-	IP_TTL                          = 3
+	IP_TTL                          = 14
 	IP_UNBLOCK_SOURCE               = 11
+	ICMP6_FILTER                    = 1
+	MCAST_INCLUDE                   = 0
+	MCAST_EXCLUDE                   = 1
+	MCAST_JOIN_GROUP                = 40
+	MCAST_LEAVE_GROUP               = 41
+	MCAST_JOIN_SOURCE_GROUP         = 42
+	MCAST_LEAVE_SOURCE_GROUP        = 43
+	MCAST_BLOCK_SOURCE              = 44
+	MCAST_UNBLOCK_SOURCE            = 46
 	ICANON                          = 0x0010
-	ICMP6_FILTER                    = 0x26
 	ICRNL                           = 0x0002
 	IEXTEN                          = 0x0020
 	IGNBRK                          = 0x0004
@@ -165,10 +231,10 @@ const (
 	ISTRIP                          = 0x0080
 	IXON                            = 0x0200
 	IXOFF                           = 0x0100
-	LOCK_SH                         = 0x1 // Not exist on zOS
-	LOCK_EX                         = 0x2 // Not exist on zOS
-	LOCK_NB                         = 0x4 // Not exist on zOS
-	LOCK_UN                         = 0x8 // Not exist on zOS
+	LOCK_SH                         = 0x1
+	LOCK_EX                         = 0x2
+	LOCK_NB                         = 0x4
+	LOCK_UN                         = 0x8
 	POLLIN                          = 0x0003
 	POLLOUT                         = 0x0004
 	POLLPRI                         = 0x0010
@@ -182,15 +248,29 @@ const (
 	MAP_PRIVATE                     = 0x1 // changes are private
 	MAP_SHARED                      = 0x2 // changes are shared
 	MAP_FIXED                       = 0x4 // place exactly
-	MCAST_JOIN_GROUP                = 40
-	MCAST_LEAVE_GROUP               = 41
-	MCAST_JOIN_SOURCE_GROUP         = 42
-	MCAST_LEAVE_SOURCE_GROUP        = 43
-	MCAST_BLOCK_SOURCE              = 44
-	MCAST_UNBLOCK_SOURCE            = 45
+	__MAP_MEGA                      = 0x8
+	__MAP_64                        = 0x10
+	MAP_ANON                        = 0x20
+	MAP_ANONYMOUS                   = 0x20
 	MS_SYNC                         = 0x1 // msync - synchronous writes
 	MS_ASYNC                        = 0x2 // asynchronous writes
 	MS_INVALIDATE                   = 0x4 // invalidate mappings
+	MS_BIND                         = 0x00001000
+	MS_MOVE                         = 0x00002000
+	MS_NOSUID                       = 0x00000002
+	MS_PRIVATE                      = 0x00040000
+	MS_REC                          = 0x00004000
+	MS_REMOUNT                      = 0x00008000
+	MS_RDONLY                       = 0x00000001
+	MS_UNBINDABLE                   = 0x00020000
+	MNT_DETACH                      = 0x00000004
+	ZOSDSFS_SUPER_MAGIC             = 0x44534653 // zOS DSFS
+	NFS_SUPER_MAGIC                 = 0x6969     // NFS
+	NSFS_MAGIC                      = 0x6e736673 // PROCNS
+	PROC_SUPER_MAGIC                = 0x9fa0     // proc FS
+	ZOSTFS_SUPER_MAGIC              = 0x544653   // zOS TFS
+	ZOSUFS_SUPER_MAGIC              = 0x554653   // zOS UFS
+	ZOSZFS_SUPER_MAGIC              = 0x5A4653   // zOS ZFS
 	MTM_RDONLY                      = 0x80000000
 	MTM_RDWR                        = 0x40000000
 	MTM_UMOUNT                      = 0x10000000
@@ -205,13 +285,20 @@ const (
 	MTM_REMOUNT                     = 0x00000100
 	MTM_NOSECURITY                  = 0x00000080
 	NFDBITS                         = 0x20
+	ONLRET                          = 0x0020 // NL performs CR function
 	O_ACCMODE                       = 0x03
 	O_APPEND                        = 0x08
 	O_ASYNCSIG                      = 0x0200
 	O_CREAT                         = 0x80
+	O_DIRECT                        = 0x00002000
+	O_NOFOLLOW                      = 0x00004000
+	O_DIRECTORY                     = 0x00008000
+	O_PATH                          = 0x00080000
+	O_CLOEXEC                       = 0x00001000
 	O_EXCL                          = 0x40
 	O_GETFL                         = 0x0F
 	O_LARGEFILE                     = 0x0400
+	O_NDELAY                        = 0x4
 	O_NONBLOCK                      = 0x04
 	O_RDONLY                        = 0x02
 	O_RDWR                          = 0x03
@@ -248,6 +335,7 @@ const (
 	AF_IUCV                         = 17
 	AF_LAT                          = 14
 	AF_LINK                         = 18
+	AF_LOCAL                        = AF_UNIX // AF_LOCAL is an alias for AF_UNIX
 	AF_MAX                          = 30
 	AF_NBS                          = 7
 	AF_NDD                          = 23
@@ -285,15 +373,33 @@ const (
 	RLIMIT_AS                       = 5
 	RLIMIT_NOFILE                   = 6
 	RLIMIT_MEMLIMIT                 = 7
+	RLIMIT_MEMLOCK                  = 0x8
 	RLIM_INFINITY                   = 2147483647
+	SCHED_FIFO                      = 0x2
+	SCM_CREDENTIALS                 = 0x2
 	SCM_RIGHTS                      = 0x01
 	SF_CLOSE                        = 0x00000002
 	SF_REUSE                        = 0x00000001
+	SHM_RND                         = 0x2
+	SHM_RDONLY                      = 0x1
+	SHMLBA                          = 0x1000
+	IPC_STAT                        = 0x3
+	IPC_SET                         = 0x2
+	IPC_RMID                        = 0x1
+	IPC_PRIVATE                     = 0x0
+	IPC_CREAT                       = 0x1000000
+	__IPC_MEGA                      = 0x4000000
+	__IPC_SHAREAS                   = 0x20000000
+	__IPC_BELOWBAR                  = 0x10000000
+	IPC_EXCL                        = 0x2000000
+	__IPC_GIGA                      = 0x8000000
 	SHUT_RD                         = 0
 	SHUT_RDWR                       = 2
 	SHUT_WR                         = 1
+	SOCK_CLOEXEC                    = 0x00001000
 	SOCK_CONN_DGRAM                 = 6
 	SOCK_DGRAM                      = 2
+	SOCK_NONBLOCK                   = 0x800
 	SOCK_RAW                        = 3
 	SOCK_RDM                        = 4
 	SOCK_SEQPACKET                  = 5
@@ -378,8 +484,6 @@ const (
 	S_IFMST                         = 0x00FF0000
 	TCP_KEEPALIVE                   = 0x8
 	TCP_NODELAY                     = 0x1
-	TCP_INFO                        = 0xb
-	TCP_USER_TIMEOUT                = 0x1
 	TIOCGWINSZ                      = 0x4008a368
 	TIOCSWINSZ                      = 0x8008a367
 	TIOCSBRK                        = 0x2000a77b
@@ -427,7 +531,10 @@ const (
 	VSUSP                           = 9
 	VTIME                           = 10
 	WCONTINUED                      = 0x4
+	WEXITED                         = 0x8
 	WNOHANG                         = 0x1
+	WNOWAIT                         = 0x20
+	WSTOPPED                        = 0x10
 	WUNTRACED                       = 0x2
 	_BPX_SWAP                       = 1
 	_BPX_NONSWAP                    = 2
@@ -452,8 +559,28 @@ const (
 	MADV_FREE                       = 15 // for Linux compatibility -- no zos semantics
 	MADV_WIPEONFORK                 = 16 // for Linux compatibility -- no zos semantics
 	MADV_KEEPONFORK                 = 17 // for Linux compatibility -- no zos semantics
-	AT_SYMLINK_NOFOLLOW             = 1  // for Unix  compatibility -- no zos semantics
-	AT_FDCWD                        = 2  // for Unix  compatibility -- no zos semantics
+	AT_SYMLINK_FOLLOW               = 0x400
+	AT_SYMLINK_NOFOLLOW             = 0x100
+	XATTR_CREATE                    = 0x1
+	XATTR_REPLACE                   = 0x2
+	P_PID                           = 0
+	P_PGID                          = 1
+	P_ALL                           = 2
+	PR_SET_NAME                     = 15
+	PR_GET_NAME                     = 16
+	PR_SET_NO_NEW_PRIVS             = 38
+	PR_GET_NO_NEW_PRIVS             = 39
+	PR_SET_DUMPABLE                 = 4
+	PR_GET_DUMPABLE                 = 3
+	PR_SET_PDEATHSIG                = 1
+	PR_GET_PDEATHSIG                = 2
+	PR_SET_CHILD_SUBREAPER          = 36
+	PR_GET_CHILD_SUBREAPER          = 37
+	AT_FDCWD                        = -100
+	AT_EACCESS                      = 0x200
+	AT_EMPTY_PATH                   = 0x1000
+	AT_REMOVEDIR                    = 0x200
+	RENAME_NOREPLACE                = 1 << 0
 )
 
 const (
@@ -476,6 +603,7 @@ const (
 	EMLINK             = Errno(125)
 	ENAMETOOLONG       = Errno(126)
 	ENFILE             = Errno(127)
+	ENOATTR            = Errno(265)
 	ENODEV             = Errno(128)
 	ENOENT             = Errno(129)
 	ENOEXEC            = Errno(130)
@@ -700,7 +828,7 @@ var errorList = [...]struct {
 	{145, "EDC5145I", "The parameter list is too long, or the message to receive was too large for the buffer."},
 	{146, "EDC5146I", "Too many levels of symbolic links."},
 	{147, "EDC5147I", "Illegal byte sequence."},
-	{148, "", ""},
+	{148, "EDC5148I", "The named attribute or data not available."},
 	{149, "EDC5149I", "Value Overflow Error."},
 	{150, "EDC5150I", "UNIX System Services is not active."},
 	{151, "EDC5151I", "Dynamic allocation error."},
@@ -743,6 +871,7 @@ var errorList = [...]struct {
 	{259, "EDC5259I", "A CUN_RS_NO_CONVERSION error was issued by Unicode Services."},
 	{260, "EDC5260I", "A CUN_RS_TABLE_NOT_ALIGNED error was issued by Unicode Services."},
 	{262, "EDC5262I", "An iconv() function encountered an unexpected error while using Unicode Services."},
+	{265, "EDC5265I", "The named attribute not available."},
 	{1000, "EDC8000I", "A bad socket-call constant was found in the IUCV header."},
 	{1001, "EDC8001I", "An error was found in the IUCV header."},
 	{1002, "EDC8002I", "A socket descriptor is out of range."},

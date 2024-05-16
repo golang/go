@@ -338,7 +338,7 @@ func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab
 	fmt.Fprintf(w, "%s// %s\n", funcInlHeur.props.ToString("// "), comDelimiter)
 	data, err := json.Marshal(funcInlHeur.props)
 	if err != nil {
-		return fmt.Errorf("marshall error %v\n", err)
+		return fmt.Errorf("marshal error %v\n", err)
 	}
 	fmt.Fprintf(w, "// %s\n", string(data))
 	dumpCallSiteComments(w, funcInlHeur.cstab, ecst)

@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/types"
@@ -112,7 +113,7 @@ func prepareFunc(fn *ir.Func) {
 // compileFunctions compiles all functions in compilequeue.
 // It fans out nBackendWorkers to do the work
 // and waits for them to complete.
-func compileFunctions() {
+func compileFunctions(profile *pgoir.Profile) {
 	if race.Enabled {
 		// Randomize compilation order to try to shake out races.
 		tmp := make([]*ir.Func, len(compilequeue))
@@ -179,7 +180,7 @@ func compileFunctions() {
 		for _, fn := range fns {
 			fn := fn
 			queue(func(worker int) {
-				ssagen.Compile(fn, worker)
+				ssagen.Compile(fn, worker, profile)
 				compile(fn.Closures)
 				wg.Done()
 			})

@@ -492,8 +492,12 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		d.err = d.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
+		ns := name.Space
+		if name.Space == "" {
+			ns = `""`
+		}
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			" closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + ns)
 		return false
 	}
 

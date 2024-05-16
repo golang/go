@@ -5,13 +5,14 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"internal/syscall/windows"
 	"syscall"
 	"unsafe"
 )
 
-// Stat returns the FileInfo structure describing file.
-// If there is an error, it will be of type *PathError.
+// Stat returns the [FileInfo] structure describing file.
+// If there is an error, it will be of type [*PathError].
 func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
@@ -33,6 +34,15 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
 	var fa syscall.Win32FileAttributeData
 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
+		// The information we got from GetFileAttributesEx is good enough for now.
+		fs := newFileStatFromWin32FileAttributeData(&fa)
+		if err := fs.saveInfoFromPath(name); err != nil {
+			return nil, err
+		}
+		return fs, nil
+	}
 
 	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
 	// files like c:\pagefile.sys. Use FindFirstFile for such files.
@@ -51,23 +61,6 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 			}
 			return fs, nil
 		}
-	}
-
-	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
-		// The information we got from GetFileAttributesEx is good enough for now.
-		fs := &fileStat{
-			FileAttributes: fa.FileAttributes,
-			CreationTime:   fa.CreationTime,
-			LastAccessTime: fa.LastAccessTime,
-			LastWriteTime:  fa.LastWriteTime,
-			FileSizeHigh:   fa.FileSizeHigh,
-			FileSizeLow:    fa.FileSizeLow,
-		}
-		if err := fs.saveInfoFromPath(name); err != nil {
-			return nil, err
-		}
-		return fs, nil
 	}
 
 	// Use CreateFile to determine whether the file is a name surrogate and, if so,
@@ -115,7 +108,7 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
 	}
 	switch ft {
 	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
-		return &fileStat{name: basename(name), filetype: ft}, nil
+		return &fileStat{name: filepathlite.Base(name), filetype: ft}, nil
 	}
 	fs, err := newFileStatFromGetFileInformationByHandle(name, h)
 	if err != nil {

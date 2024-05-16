@@ -201,8 +201,8 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
 //
-// If data is a reflect.Value, the template applies to the concrete
-// value that the reflect.Value holds, as in fmt.Print.
+// If data is a [reflect.Value], the template applies to the concrete
+// value that the reflect.Value holds, as in [fmt.Print].
 func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.execute(wr, data)
 }
@@ -228,7 +228,7 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 // DefinedTemplates returns a string listing the defined templates,
 // prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. For generating an error message here
-// and in html/template.
+// and in [html/template].
 func (t *Template) DefinedTemplates() string {
 	if t.common == nil {
 		return ""
@@ -408,8 +408,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		om := fmtsort.Sort(val)
-		for i, key := range om.Key {
-			oneIteration(key, om.Value[i])
+		for _, m := range om {
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
@@ -479,7 +479,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
-			value = reflect.ValueOf(value.Interface()) // lovely!
+			value = value.Elem()
 		}
 	}
 	for _, variable := range pipe.Decl {

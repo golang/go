@@ -7,7 +7,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -905,20 +905,30 @@ type cpuStats struct {
 	// they don't accurately compute on-CPU time (so some of the time
 	// could be spent scheduled away by the OS).
 
-	gcAssistTime    int64 // GC assists
-	gcDedicatedTime int64 // GC dedicated mark workers + pauses
-	gcIdleTime      int64 // GC idle mark workers
-	gcPauseTime     int64 // GC pauses (all GOMAXPROCS, even if just 1 is running)
-	gcTotalTime     int64
+	GCAssistTime    int64 // GC assists
+	GCDedicatedTime int64 // GC dedicated mark workers + pauses
+	GCIdleTime      int64 // GC idle mark workers
+	GCPauseTime     int64 // GC pauses (all GOMAXPROCS, even if just 1 is running)
+	GCTotalTime     int64
 
-	scavengeAssistTime int64 // background scavenger
-	scavengeBgTime     int64 // scavenge assists
-	scavengeTotalTime  int64
+	ScavengeAssistTime int64 // background scavenger
+	ScavengeBgTime     int64 // scavenge assists
+	ScavengeTotalTime  int64
 
-	idleTime int64 // Time Ps spent in _Pidle.
-	userTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
+	IdleTime int64 // Time Ps spent in _Pidle.
+	UserTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
 
-	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
+	TotalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
+}
+
+// accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
+// the actual time spent paused, for orthogonality. maxProcs should be GOMAXPROCS,
+// not work.stwprocs, since this number must be comparable to a total time computed
+// from GOMAXPROCS.
+func (s *cpuStats) accumulateGCPauseTime(dt int64, maxProcs int32) {
+	cpu := dt * int64(maxProcs)
+	s.GCPauseTime += cpu
+	s.GCTotalTime += cpu
 }
 
 // accumulate takes a cpuStats and adds in the current state of all GC CPU
@@ -951,19 +961,19 @@ func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
 	scavBgCpu := scavenge.backgroundTime.Load()
 
 	// Update cumulative GC CPU stats.
-	s.gcAssistTime += markAssistCpu
-	s.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
-	s.gcIdleTime += markIdleCpu
-	s.gcTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
+	s.GCAssistTime += markAssistCpu
+	s.GCDedicatedTime += markDedicatedCpu + markFractionalCpu
+	s.GCIdleTime += markIdleCpu
+	s.GCTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
 
 	// Update cumulative scavenge CPU stats.
-	s.scavengeAssistTime += scavAssistCpu
-	s.scavengeBgTime += scavBgCpu
-	s.scavengeTotalTime += scavAssistCpu + scavBgCpu
+	s.ScavengeAssistTime += scavAssistCpu
+	s.ScavengeBgTime += scavBgCpu
+	s.ScavengeTotalTime += scavAssistCpu + scavBgCpu
 
 	// Update total CPU.
-	s.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
-	s.idleTime += sched.idleTime.Load()
+	s.TotalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+	s.IdleTime += sched.idleTime.Load()
 
 	// Compute userTime. We compute this indirectly as everything that's not the above.
 	//
@@ -973,5 +983,5 @@ func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
 	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
 	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
 	// but that's fine. The overwhelming majority of this time will be actual user time.
-	s.userTime = s.totalTime - (s.gcTotalTime + s.scavengeTotalTime + s.idleTime)
+	s.UserTime = s.TotalTime - (s.GCTotalTime + s.ScavengeTotalTime + s.IdleTime)
 }

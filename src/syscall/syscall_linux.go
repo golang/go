@@ -13,16 +13,10 @@ package syscall
 
 import (
 	"internal/itoa"
+	runtimesyscall "internal/runtime/syscall"
 	"runtime"
 	"unsafe"
 )
-
-// N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
-//
-// Errno is uintptr and thus compatible with the runtime/internal/syscall
-// definition.
-
-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Pull in entersyscall/exitsyscall for Syscall/Syscall6.
 //
@@ -40,8 +34,7 @@ func runtime_exitsyscall()
 // N.B. For the Syscall functions below:
 //
 // //go:uintptrkeepalive because the uintptr argument may be converted pointers
-// that need to be kept alive in the caller (this is implied for RawSyscall6
-// since it has no body).
+// that need to be kept alive in the caller.
 //
 // //go:nosplit because stack copying does not account for uintptrkeepalive, so
 // the stack must not grow. Stack copying cannot blindly assume that all
@@ -60,6 +53,17 @@ func runtime_exitsyscall()
 //go:linkname RawSyscall
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
+}
+
+//go:uintptrkeepalive
+//go:nosplit
+//go:norace
+//go:linkname RawSyscall6
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	var errno uintptr
+	r1, r2, errno = runtimesyscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	err = Errno(errno)
+	return
 }
 
 //go:uintptrkeepalive
@@ -1107,7 +1111,7 @@ func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, 
 //
 // AllThreadsSyscall is unaware of any threads that are launched
 // explicitly by cgo linked code, so the function always returns
-// ENOTSUP in binaries that use cgo.
+// [ENOTSUP] in binaries that use cgo.
 //
 //go:uintptrescapes
 func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
@@ -1118,7 +1122,7 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	return r1, r2, Errno(errno)
 }
 
-// AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+// AllThreadsSyscall6 is like [AllThreadsSyscall], but extended to six
 // arguments.
 //
 //go:uintptrescapes
@@ -1280,12 +1284,15 @@ func Munmap(b []byte) (err error) {
 //sys	Mlockall(flags int) (err error)
 //sys	Munlockall() (err error)
 
+// prlimit is accessed from x/sys/unix.
+//go:linkname prlimit
+
 // prlimit changes a resource limit. We use a single definition so that
 // we can tell StartProcess to not restore the original NOFILE limit.
 // This is unexported but can be called from x/sys/unix.
 func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
 	err = prlimit1(pid, resource, newlimit, old)
-	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE {
+	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE && (pid == 0 || pid == Getpid()) {
 		origRlimitNofile.Store(nil)
 	}
 	return err

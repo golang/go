@@ -295,10 +295,10 @@ func (s *Set) Encode() []byte {
 		// we aren't careful about which structs or methods
 		// we rexport: it should be only those referenced
 		// from the API of s.pkg.
-		// TOOD(adonovan): opt: be more precise. e.g.
+		// TODO(adonovan): opt: be more precise. e.g.
 		// intersect with the set of objects computed by
 		// importMap(s.pkg.Imports()).
-		// TOOD(adonovan): opt: implement "shallow" facts.
+		// TODO(adonovan): opt: implement "shallow" facts.
 		if k.pkg != s.pkg {
 			if k.obj == nil {
 				continue // imported package fact

@@ -42,19 +42,20 @@ var depsRules = `
 	< cmp, container/list, container/ring,
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
-	  internal/cpu, internal/goarch, internal/godebugs,
-	  internal/goexperiment, internal/goos,
+	  internal/goarch, internal/godebugs,
+	  internal/goexperiment, internal/goos, internal/byteorder,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on internal/goarch and unsafe.
-	internal/goarch, unsafe
-	< internal/abi, internal/chacha8rand;
+	# internal/abi depends only on internal/goarch and unsafe.
+	internal/goarch, unsafe < internal/abi;
 
-	unsafe < maps;
+	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
+
+	unsafe < internal/cpu, maps;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -66,30 +67,31 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos
 	< internal/bytealg
+	< internal/stringslite
 	< internal/itoa
 	< internal/unsafeheader
 	< runtime/internal/sys
-	< runtime/internal/syscall
-	< runtime/internal/atomic
+	< internal/runtime/syscall
+	< internal/runtime/atomic
 	< runtime/internal/math
 	< runtime
 	< sync/atomic
 	< internal/race
+	< internal/msan
 	< internal/asan
+	< internal/weak
 	< sync
 	< internal/bisect
 	< internal/godebug
 	< internal/reflectlite
 	< errors
 	< internal/oserror, math/bits
+	< iter
 	< RUNTIME;
-
-	internal/race
-	< iter;
 
 	# slices depends on unsafe for overlapping check, cmp for comparison
 	# semantics, and math/bits for # calculating bitlength of numbers.
-	unsafe, cmp, math/bits
+	RUNTIME, unsafe, cmp, math/bits
 	< slices;
 
 	RUNTIME, slices
@@ -146,6 +148,9 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
+	RUNTIME, math/rand/v2
+	< internal/concurrent;
+
 	MATH, unicode/utf8
 	< strconv;
 
@@ -159,13 +164,16 @@ var depsRules = `
 	bufio, path, strconv
 	< STR;
 
+	RUNTIME, internal/concurrent
+	< unique;
+
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.
 	# OS does not include reflection.
 	io/fs
 	< internal/testlog
 	< internal/poll
-	< internal/safefilepath
+	< internal/filepathlite
 	< os
 	< os/signal;
 
@@ -174,7 +182,7 @@ var depsRules = `
 
 	unicode, fmt !< net, os, os/signal;
 
-	os/signal, internal/safefilepath, STR
+	os/signal, internal/filepathlite, STR
 	< path/filepath
 	< io/ioutil;
 
@@ -241,7 +249,7 @@ var depsRules = `
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
 
 	# math/big
-	FMT, encoding/binary, math/rand
+	FMT, math/rand
 	< math/big;
 
 	# compression
@@ -320,8 +328,9 @@ var depsRules = `
 	# databases
 	FMT
 	< database/sql/internal
-	< database/sql/driver
-	< database/sql;
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
 
 	# images
 	FMT, compress/lzw, compress/zlib
@@ -364,11 +373,7 @@ var depsRules = `
 	  golang.org/x/net/lif,
 	  golang.org/x/net/route;
 
-	os, runtime, strconv, sync, unsafe,
-	internal/godebug
-	< internal/intern;
-
-	internal/bytealg, internal/intern, internal/itoa, math/bits, sort, strconv
+	internal/bytealg, internal/itoa, math/bits, sort, strconv, unique
 	< net/netip;
 
 	# net is unavoidable when doing any networking,
@@ -383,7 +388,6 @@ var depsRules = `
 	internal/nettrace,
 	internal/poll,
 	internal/singleflight,
-	internal/race,
 	net/netip,
 	os
 	< net;
@@ -426,10 +430,8 @@ var depsRules = `
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
-	# Unfortunately, stuck with reflect via encoding/binary.
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
-	encoding/binary,
 	golang.org/x/sys/cpu,
 	hash, embed
 	< crypto
@@ -456,6 +458,9 @@ var depsRules = `
 	crypto/boring, crypto/internal/edwards25519/field
 	< crypto/ecdh;
 
+	# Unfortunately, stuck with reflect via encoding/binary.
+	encoding/binary, crypto/boring < golang.org/x/crypto/sha3;
+
 	crypto/aes,
 	crypto/des,
 	crypto/ecdh,
@@ -465,7 +470,8 @@ var depsRules = `
 	crypto/rc4,
 	crypto/sha1,
 	crypto/sha256,
-	crypto/sha512
+	crypto/sha512,
+	golang.org/x/crypto/sha3
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;
@@ -474,6 +480,7 @@ var depsRules = `
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
 	< crypto/rand
+	< crypto/internal/mlkem768
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
@@ -631,7 +638,10 @@ var depsRules = `
 	FMT, encoding/binary, internal/trace/v2/version
 	< internal/trace/v2/raw;
 
-	FMT, encoding/binary, internal/trace/v2/version
+	FMT, internal/trace/v2/event, internal/trace/v2/version, io, sort, encoding/binary
+	< internal/trace/v2/internal/oldtrace;
+
+	FMT, encoding/binary, internal/trace/v2/version, internal/trace/v2/internal/oldtrace
 	< internal/trace/v2;
 
 	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
