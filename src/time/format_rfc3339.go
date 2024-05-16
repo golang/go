@@ -19,7 +19,7 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	_, offset, abs := t.locabs()
 
 	// Format date.
-	year, month, day, _ := absDate(abs, true)
+	year, month, day := abs.days().date()
 	b = appendInt(b, year, 4)
 	b = append(b, '-')
 	b = appendInt(b, int(month), 2)
@@ -29,7 +29,7 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	b = append(b, 'T')
 
 	// Format time.
-	hour, min, sec := absClock(abs)
+	hour, min, sec := abs.clock()
 	b = appendInt(b, hour, 2)
 	b = append(b, ':')
 	b = appendInt(b, min, 2)

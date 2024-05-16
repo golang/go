@@ -92,6 +92,7 @@ package time
 
 import (
 	"errors"
+	"math/bits"
 	_ "unsafe" // for go:linkname
 )
 
@@ -256,6 +257,12 @@ func (t *Time) mono() int64 {
 	return t.ext
 }
 
+// IsZero reports whether t represents the zero time instant,
+// January 1, year 1, 00:00:00 UTC.
+func (t Time) IsZero() bool {
+	return t.sec() == 0 && t.nsec() == 0
+}
+
 // After reports whether the time instant t is after u.
 func (t Time) After(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
@@ -360,7 +367,7 @@ func (d Weekday) String() string {
 	return "%!Weekday(" + string(buf[n:]) + ")"
 }
 
-// Computations on time.
+// Computations on Times
 //
 // The zero value for a Time is defined to be
 //	January 1, year 1, 00:00:00.000000000 UTC
@@ -406,22 +413,22 @@ func (d Weekday) String() string {
 //
 // The calendar runs on an exact 400 year cycle: a 400-year calendar
 // printed for 1970-2369 will apply as well to 2370-2769. Even the days
-// of the week match up. It simplifies the computations to choose the
+// of the week match up. It simplifies date computations to choose the
 // cycle boundaries so that the exceptional years are always delayed as
-// long as possible. That means choosing a year equal to 1 mod 400, so
-// that the first leap year is the 4th year, the first missed leap year
-// is the 100th year, and the missed missed leap year is the 400th year.
-// So we'd prefer instead to print a calendar for 2001-2400 and reuse it
-// for 2401-2800.
+// long as possible: March 1, year 0 is such a day:
+// the first leap day (Feb 29) is four years minus one day away,
+// the first multiple-of-4 year without a Feb 29 is 100 years minus one day away,
+// and the first multiple-of-100 year with a Feb 29 is 400 years minus one day away.
+// March 1 year Y for any Y = 0 mod 400 is also such a day.
 //
 // Finally, it's convenient if the delta between the Unix epoch and
 // long-ago epoch is representable by an int64 constant.
 //
 // These three considerations—choose an epoch as early as possible, that
-// uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
-// earlier than 1970—bring us to the year -292277022399. We refer to
-// this year as the absolute zero year, and to times measured as a uint64
-// seconds since this year as absolute times.
+// starts on March 1 of a year equal to 0 mod 400, and that is no more than
+// 2⁶³ seconds earlier than 1970—bring us to the year -292277022400.
+// We refer to this moment as the absolute zero instant, and to times
+// measured as a uint64 seconds since this year as absolute times.
 //
 // Times measured as an int64 seconds since the year 1—the representation
 // used for Time's sec field—are called internal times.
@@ -435,40 +442,326 @@ func (d Weekday) String() string {
 // west of UTC, since it is year 0. It doesn't seem tenable to say that
 // printing the zero time correctly isn't supported in half the time
 // zones. By comparison, it's reasonable to mishandle some times in
-// the year -292277022399.
+// the year -292277022400.
 //
 // All this is opaque to clients of the API and can be changed if a
 // better implementation presents itself.
+//
+// The date calculations are implemented using the following clever math from
+// Cassio Neri and Lorenz Schneider, “Euclidean affine functions and their
+// application to calendar algorithms,” SP&E 2023. https://doi.org/10.1002/spe.3172
+//
+// Define a “calendrical division” (f, f°, f*) to be a triple of functions converting
+// one time unit into a whole number of larger units and the remainder and back.
+// For example, in a calendar with no leap years, (d/365, d%365, y*365) is the
+// calendrical division for days into years:
+//
+//	(f)  year := days/365
+//	(f°) yday := days%365
+//	(f*) days := year*365 (+ yday)
+//
+// Note that f* is usually the “easy” function to write: it's the
+// calendrical multiplication that inverts the more complex division.
+//
+// Neri and Schneider prove that when f* takes the form
+//
+//	f*(n) = (a n + b) / c
+//
+// using integer division rounding down with a ≥ c > 0,
+// which they call a Euclidean affine function or EAF, then:
+//
+//	f(n) = (c n + c - b - 1) / a
+//	f°(n) = (c n + c - b - 1) % a / c
+//
+// This gives a fairly direct calculation for any calendrical division for which
+// we can write the calendrical multiplication in EAF form.
+// Because the epoch has been shifted to March 1, all the calendrical
+// multiplications turn out to be possible to write in EAF form.
+// When a date is broken into [century, cyear, amonth, mday],
+// with century, cyear, and mday 0-based,
+// and amonth 3-based (March = 3, ..., January = 13, February = 14),
+// the calendrical multiplications written in EAF form are:
+//
+//	yday = (153 (amonth-3) + 2) / 5 = (153 amonth - 457) / 5
+//	cday = 365 cyear + cyear/4 = 1461 cyear / 4
+//	centurydays = 36524 century + century/4 = 146097 century / 4
+//	days = centurydays + cday + yday + mday.
+//
+// We can only handle one periodic cycle per equation, so the year
+// calculation must be split into [century, cyear], handling both the
+// 100-year cycle and the 400-year cycle.
+//
+// The yday calculation is not obvious but derives from the fact
+// that the March through January calendar repeats the 5-month
+// 153-day cycle 31, 30, 31, 30, 31 (we don't care about February
+// because yday only ever count the days _before_ February 1,
+// since February is the last month).
+//
+// Using the rule for deriving f and f° from f*, these multiplications
+// convert to these divisions:
+//
+//	century := (4 days + 3) / 146097
+//	cdays := (4 days + 3) % 146097 / 4
+//	cyear := (4 cdays + 3) / 1461
+//	ayday := (4 cdays + 3) % 1461 / 4
+//	amonth := (5 ayday + 461) / 153
+//	mday := (5 ayday + 461) % 153 / 5
+//
+// The a in ayday and amonth stands for absolute (March 1-based)
+// to distinguish from the standard yday (January 1-based).
+//
+// After computing these, we can translate from the March 1 calendar
+// to the standard January 1 calendar with branch-free math assuming a
+// branch-free conversion from bool to int 0 or 1, denoted int(b) here:
+//
+//	isJanFeb := int(yday >= marchThruDecember)
+//	month := amonth - isJanFeb*12
+//	year := century*100 + cyear + isJanFeb
+//	isLeap := int(cyear%4 == 0) & (int(cyear != 0) | int(century%4 == 0))
+//	day := 1 + mday
+//	yday := 1 + ayday + 31 + 28 + isLeap&^isJanFeb - 365*isJanFeb
+//
+// isLeap is the standard leap-year rule, but the split year form
+// makes the divisions all reduce to binary masking.
+// Note that day and yday are 1-based, in contrast to mday and ayday.
 
+// To keep the various units separate, we define integer types
+// for each. These are never stored in interfaces nor allocated,
+// so their type information does not appear in Go binaries.
 const (
-	// The unsigned zero year for internal calculations.
-	// Must be 1 mod 400, and times before it will not compute correctly,
-	// but otherwise can be changed at will.
-	absoluteZeroYear = -292277022399
+	secondsPerMinute = 60
+	secondsPerHour   = 60 * secondsPerMinute
+	secondsPerDay    = 24 * secondsPerHour
+	secondsPerWeek   = 7 * secondsPerDay
+	daysPer400Years  = 365*400 + 97
+
+	// Days from March 1 through end of year
+	marchThruDecember = 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31
+
+	// absoluteYears is the number of years we subtract from internal time to get absolute time.
+	// This value must be 0 mod 400, and it defines the “absolute zero instant”
+	// mentioned in the “Computations on Times” comment above: March 1, -absoluteYears.
+	// Dates before the absolute epoch will not compute correctly,
+	// but otherwise the value can be changed as needed.
+	absoluteYears = 292277022400
 
 	// The year of the zero Time.
 	// Assumed by the unixToInternal computation below.
 	internalYear = 1
 
 	// Offsets to convert between internal and absolute or Unix times.
-	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+	absoluteToInternal int64 = -(absoluteYears*365.2425 + marchThruDecember) * secondsPerDay
 	internalToAbsolute       = -absoluteToInternal
 
 	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
 	internalToUnix int64 = -unixToInternal
 
+	absoluteToUnix = absoluteToInternal + internalToUnix
+	unixToAbsolute = unixToInternal + internalToAbsolute
+
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
 )
 
-// IsZero reports whether t represents the zero time instant,
-// January 1, year 1, 00:00:00 UTC.
-func (t Time) IsZero() bool {
-	return t.sec() == 0 && t.nsec() == 0
+// An absSeconds counts the number of seconds since the absolute zero instant.
+type absSeconds uint64
+
+// An absDays counts the number of days since the absolute zero instant.
+type absDays uint64
+
+// An absCentury counts the number of centuries since the absolute zero instant.
+type absCentury uint64
+
+// An absCyear counts the number of years since the start of a century.
+type absCyear int
+
+// An absYday counts the number of days since the start of a year.
+// Note that absolute years start on March 1.
+type absYday int
+
+// An absMonth counts the number of months since the start of a year.
+// absMonth=0 denotes March.
+type absMonth int
+
+// An absLeap is a single bit (0 or 1) denoting whether a given year is a leap year.
+type absLeap int
+
+// An absJanFeb is a single bit (0 or 1) denoting whether a given day falls in January or February.
+// That is a special case because the absolute years start in March (unlike normal calendar years).
+type absJanFeb int
+
+// dateToAbsDays takes a standard year/month/day and returns the
+// number of days from the absolute epoch to that day.
+func dateToAbsDays(year int64, month Month, day int) absDays {
+	// See “Computations on Times” comment above.
+	amonth := uint32(month)
+	janFeb := uint32(0)
+	if amonth < 3 {
+		janFeb = 1
+	}
+	amonth += 12 * janFeb
+	y := uint64(year) - uint64(janFeb) + absoluteYears
+
+	// For amonth is in the range [3,14], we want:
+	//
+	//	ayday := (153*amonth - 457) / 5
+	//
+	// (See the “Computations on Times” comment above
+	// as well as Neri and Schneider, section 7.)
+	//
+	// That is equivalent to:
+	//
+	//	ayday := (979*amonth - 2919) >> 5
+	//
+	// and the latter form uses a couple fewer instructions,
+	// so use it, saving a few cycles.
+	// See Neri and Schneider, section 8.3
+	// for more about this optimization.
+	//
+	// (Note that there is no saved division, because the compiler
+	// implements / 5 without division in all cases.)
+	ayday := (979*amonth - 2919) >> 5
+
+	century := y / 100
+	cyear := uint32(y % 100)
+	cday := 1461 * cyear / 4
+	centurydays := 146097 * century / 4
+
+	return absDays(centurydays + uint64(cday+ayday+uint32(day)-1))
 }
 
-// abs returns the time t as an absolute time, adjusted by the zone offset.
+// days converts absolute seconds to absolute days.
+func (abs absSeconds) days() absDays {
+	return absDays(abs / secondsPerDay)
+}
+
+// split splits days into century, cyear, ayday.
+func (days absDays) split() (century absCentury, cyear absCyear, ayday absYday) {
+	// See “Computations on Times” comment above.
+	d := 4*uint64(days) + 3
+	century = absCentury(d / 146097)
+
+	// This should be
+	//	cday := uint32(d % 146097) / 4
+	//	cd := 4*cday + 3
+	// which is to say
+	//	cday := uint32(d % 146097) >> 2
+	//	cd := cday<<2 + 3
+	// but of course (x>>2<<2)+3 == x|3,
+	// so do that instead.
+	cd := uint32(d%146097) | 3
+
+	// For cdays in the range [0,146097] (100 years), we want:
+	//
+	//	cyear := (4 cdays + 3) / 1461
+	//	yday := (4 cdays + 3) % 1461 / 4
+	//
+	// (See the “Computations on Times” comment above
+	// as well as Neri and Schneider, section 7.)
+	//
+	// That is equivalent to:
+	//
+	//	cyear := (2939745 cdays) >> 32
+	//	yday := (2939745 cdays) & 0xFFFFFFFF / 2939745 / 4
+	//
+	// so do that instead, saving a few cycles.
+	// See Neri and Schneider, section 8.3
+	// for more about this optimization.
+	hi, lo := bits.Mul32(2939745, uint32(cd))
+	cyear = absCyear(hi)
+	ayday = absYday(lo / 2939745 / 4)
+	return
+}
+
+// split splits ayday into absolute month and standard (1-based) day-in-month.
+func (ayday absYday) split() (m absMonth, mday int) {
+	// See “Computations on Times” comment above.
+	//
+	// For yday in the range [0,366],
+	//
+	//	amonth := (5 yday + 461) / 153
+	//	mday := (5 yday + 461) % 153 / 5
+	//
+	// is equivalent to:
+	//
+	//	amonth = (2141 yday + 197913) >> 16
+	//	mday = (2141 yday + 197913) & 0xFFFF / 2141
+	//
+	// so do that instead, saving a few cycles.
+	// See Neri and Schneider, section 8.3.
+	d := 2141*uint32(ayday) + 197913
+	return absMonth(d >> 16), 1 + int((d&0xFFFF)/2141)
+}
+
+// janFeb returns 1 if the March 1-based ayday is in January or February, 0 otherwise.
+func (ayday absYday) janFeb() absJanFeb {
+	// See “Computations on Times” comment above.
+	jf := absJanFeb(0)
+	if ayday >= marchThruDecember {
+		jf = 1
+	}
+	return jf
+}
+
+// month returns the standard Month for (m, janFeb)
+func (m absMonth) month(janFeb absJanFeb) Month {
+	// See “Computations on Times” comment above.
+	return Month(m) - Month(janFeb)*12
+}
+
+// leap returns 1 if (century, cyear) is a leap year, 0 otherwise.
+func (century absCentury) leap(cyear absCyear) absLeap {
+	// See “Computations on Times” comment above.
+	y4ok := 0
+	if cyear%4 == 0 {
+		y4ok = 1
+	}
+	y100ok := 0
+	if cyear != 0 {
+		y100ok = 1
+	}
+	y400ok := 0
+	if century%4 == 0 {
+		y400ok = 1
+	}
+	return absLeap(y4ok & (y100ok | y400ok))
+}
+
+// year returns the standard year for (century, cyear, janFeb).
+func (century absCentury) year(cyear absCyear, janFeb absJanFeb) int {
+	// See “Computations on Times” comment above.
+	return int(uint64(century)*100-absoluteYears) + int(cyear) + int(janFeb)
+}
+
+// yday returns the standard 1-based yday for (ayday, janFeb, leap).
+func (ayday absYday) yday(janFeb absJanFeb, leap absLeap) int {
+	// See “Computations on Times” comment above.
+	return int(ayday) + (1 + 31 + 28) + int(leap)&^int(janFeb) - 365*int(janFeb)
+}
+
+// date converts days into standard year, month, day.
+func (days absDays) date() (year int, month Month, day int) {
+	century, cyear, ayday := days.split()
+	amonth, day := ayday.split()
+	janFeb := ayday.janFeb()
+	year = century.year(cyear, janFeb)
+	month = amonth.month(janFeb)
+	return
+}
+
+// yearYday converts days into the standard year and 1-based yday.
+func (days absDays) yearYday() (year, yday int) {
+	century, cyear, ayday := days.split()
+	janFeb := ayday.janFeb()
+	year = century.year(cyear, janFeb)
+	yday = ayday.yday(janFeb, century.leap(cyear))
+	return
+}
+
+// absSec returns the time t as an absolute seconds, adjusted by the zone offset.
 // It is called when computing a presentation property like Month or Hour.
-func (t Time) abs() uint64 {
+// We'd rather call it abs, but there are linknames to abs that make that problematic.
+// See timeAbs below.
+func (t Time) absSec() absSeconds {
 	l := t.loc
 	// Avoid function calls when possible.
 	if l == nil || l == &localLoc {
@@ -483,12 +776,12 @@ func (t Time) abs() uint64 {
 			sec += int64(offset)
 		}
 	}
-	return uint64(sec + (unixToInternal + internalToAbsolute))
+	return absSeconds(sec + (unixToInternal + internalToAbsolute))
 }
 
 // locabs is a combination of the Zone and abs methods,
 // extracting both return values from a single zone lookup.
-func (t Time) locabs() (name string, offset int, abs uint64) {
+func (t Time) locabs() (name string, offset int, abs absSeconds) {
 	l := t.loc
 	if l == nil || l == &localLoc {
 		l = l.get()
@@ -506,44 +799,45 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
 	} else {
 		name = "UTC"
 	}
-	abs = uint64(sec + (unixToInternal + internalToAbsolute))
+	abs = absSeconds(sec + (unixToInternal + internalToAbsolute))
 	return
 }
 
 // Date returns the year, month, and day in which t occurs.
 func (t Time) Date() (year int, month Month, day int) {
-	year, month, day, _ = t.date(true)
-	return
+	return t.absSec().days().date()
 }
 
 // Year returns the year in which t occurs.
 func (t Time) Year() int {
-	year, _, _, _ := t.date(false)
-	return year
+	century, cyear, ayday := t.absSec().days().split()
+	janFeb := ayday.janFeb()
+	return century.year(cyear, janFeb)
 }
 
 // Month returns the month of the year specified by t.
 func (t Time) Month() Month {
-	_, month, _, _ := t.date(true)
-	return month
+	_, _, ayday := t.absSec().days().split()
+	amonth, _ := ayday.split()
+	return amonth.month(ayday.janFeb())
 }
 
 // Day returns the day of the month specified by t.
 func (t Time) Day() int {
-	_, _, day, _ := t.date(true)
+	_, _, ayday := t.absSec().days().split()
+	_, day := ayday.split()
 	return day
 }
 
 // Weekday returns the day of the week specified by t.
 func (t Time) Weekday() Weekday {
-	return absWeekday(t.abs())
+	return t.absSec().days().weekday()
 }
 
-// absWeekday is like Weekday but operates on an absolute time.
-func absWeekday(abs uint64) Weekday {
-	// January 1 of the absolute year, like January 1 of 2001, was a Monday.
-	sec := (abs + uint64(Monday)*secondsPerDay) % secondsPerWeek
-	return Weekday(int(sec) / secondsPerDay)
+// weekday returns the day of the week specified by days.
+func (days absDays) weekday() Weekday {
+	// March 1 of the absolute year, like March 1 of 2000, was a Wednesday.
+	return Weekday((uint64(days) + uint64(Wednesday)) % 7)
 }
 
 // ISOWeek returns the ISO 8601 year and week number in which t occurs.
@@ -561,35 +855,19 @@ func (t Time) ISOWeek() (year, week int) {
 	// 1      2       3         4        5      6        7
 	// +3     +2      +1        0        -1     -2       -3
 	// the offset to Thursday
-	abs := t.abs()
-	d := Thursday - absWeekday(abs)
-	// handle Sunday
-	if d == 4 {
-		d = -3
-	}
-	// find the Thursday of the calendar week
-	abs += uint64(d) * secondsPerDay
-	year, _, _, yday := absDate(abs, false)
-	return year, yday/7 + 1
+	days := t.absSec().days()
+	thu := days + absDays(Thursday-((days-1).weekday()+1))
+	year, yday := thu.yearYday()
+	return year, (yday-1)/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
 func (t Time) Clock() (hour, min, sec int) {
-	return absClock(t.abs())
+	return t.absSec().clock()
 }
 
-// absClock is like clock but operates on an absolute time.
-//
-// absClock should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/phuslu/log
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname absClock
-func absClock(abs uint64) (hour, min, sec int) {
+// clock returns the hour, minute, and second within the day specified by abs.
+func (abs absSeconds) clock() (hour, min, sec int) {
 	sec = int(abs % secondsPerDay)
 	hour = sec / secondsPerHour
 	sec -= hour * secondsPerHour
@@ -600,17 +878,17 @@ func absClock(abs uint64) (hour, min, sec int) {
 
 // Hour returns the hour within the day specified by t, in the range [0, 23].
 func (t Time) Hour() int {
-	return int(t.abs()%secondsPerDay) / secondsPerHour
+	return int(t.absSec()%secondsPerDay) / secondsPerHour
 }
 
 // Minute returns the minute offset within the hour specified by t, in the range [0, 59].
 func (t Time) Minute() int {
-	return int(t.abs()%secondsPerHour) / secondsPerMinute
+	return int(t.absSec()%secondsPerHour) / secondsPerMinute
 }
 
 // Second returns the second offset within the minute specified by t, in the range [0, 59].
 func (t Time) Second() int {
-	return int(t.abs() % secondsPerMinute)
+	return int(t.absSec() % secondsPerMinute)
 }
 
 // Nanosecond returns the nanosecond offset within the second specified by t,
@@ -622,8 +900,8 @@ func (t Time) Nanosecond() int {
 // YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
 // and [1,366] in leap years.
 func (t Time) YearDay() int {
-	_, _, _, yday := t.date(false)
-	return yday + 1
+	_, yday := t.absSec().days().yearYday()
+	return yday
 }
 
 // A Duration represents the elapsed time between two instants
@@ -870,7 +1148,8 @@ func (d Duration) Round(m Duration) Duration {
 }
 
 // Abs returns the absolute value of d.
-// As a special case, [math.MinInt64] is converted to [math.MaxInt64].
+// As a special case, Duration([math.MinInt64]) is converted to Duration([math.MaxInt64]),
+// reducing its magnitude by 1 nanosecond.
 func (d Duration) Abs() Duration {
 	switch {
 	case d >= 0:
@@ -981,159 +1260,39 @@ func (t Time) AddDate(years int, months int, days int) Time {
 	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec()), t.Location())
 }
 
-const (
-	secondsPerMinute = 60
-	secondsPerHour   = 60 * secondsPerMinute
-	secondsPerDay    = 24 * secondsPerHour
-	secondsPerWeek   = 7 * secondsPerDay
-	daysPer400Years  = 365*400 + 97
-	daysPer100Years  = 365*100 + 24
-	daysPer4Years    = 365*4 + 1
-)
-
-// date computes the year, day of year, and when full=true,
-// the month and day in which t occurs.
-func (t Time) date(full bool) (year int, month Month, day int, yday int) {
-	return absDate(t.abs(), full)
-}
-
-// absDate is like date but operates on an absolute time.
-//
-// absDate should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/phuslu/log
-//   - gitee.com/quant1x/gox
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname absDate
-func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
-	// Split into time and day.
-	d := abs / secondsPerDay
-
-	// Account for 400 year cycles.
-	n := d / daysPer400Years
-	y := 400 * n
-	d -= daysPer400Years * n
-
-	// Cut off 100-year cycles.
-	// The last cycle has one extra leap year, so on the last day
-	// of that year, day / daysPer100Years will be 4 instead of 3.
-	// Cut it back down to 3 by subtracting n>>2.
-	n = d / daysPer100Years
-	n -= n >> 2
-	y += 100 * n
-	d -= daysPer100Years * n
-
-	// Cut off 4-year cycles.
-	// The last cycle has a missing leap year, which does not
-	// affect the computation.
-	n = d / daysPer4Years
-	y += 4 * n
-	d -= daysPer4Years * n
-
-	// Cut off years within a 4-year cycle.
-	// The last year is a leap year, so on the last day of that year,
-	// day / 365 will be 4 instead of 3. Cut it back down to 3
-	// by subtracting n>>2.
-	n = d / 365
-	n -= n >> 2
-	y += n
-	d -= 365 * n
-
-	year = int(int64(y) + absoluteZeroYear)
-	yday = int(d)
-
-	if !full {
-		return
+// daysBefore returns the number of days in a non-leap year before month m.
+// daysBefore(December+1) returns 365.
+func daysBefore(m Month) int {
+	adj := 0
+	if m >= March {
+		adj = -2
 	}
 
-	day = yday
-	if isLeap(year) {
-		// Leap year
-		switch {
-		case day > 31+29-1:
-			// After leap day; pretend it wasn't there.
-			day--
-		case day == 31+29-1:
-			// Leap day.
-			month = February
-			day = 29
-			return
-		}
-	}
-
-	// Estimate month on assumption that every month has 31 days.
-	// The estimate may be too low by at most one month, so adjust.
-	month = Month(day / 31)
-	end := int(daysBefore[month+1])
-	var begin int
-	if day >= end {
-		month++
-		begin = end
-	} else {
-		begin = int(daysBefore[month])
-	}
-
-	month++ // because January is 1
-	day = day - begin + 1
-	return
-}
-
-// daysBefore[m] counts the number of days in a non-leap year
-// before month m begins. There is an entry for m=12, counting
-// the number of days before January of next year (365).
-var daysBefore = [...]int32{
-	0,
-	31,
-	31 + 28,
-	31 + 28 + 31,
-	31 + 28 + 31 + 30,
-	31 + 28 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
+	// With the -2 adjustment after February,
+	// we need to compute the running sum of:
+	//	0  31  30  31  30  31  30  31  31  30  31  30  31
+	// which is:
+	//	0  31  61  92 122 153 183 214 245 275 306 336 367
+	// This is almost exactly 367/12×(m-1) except for the
+	// occasonal off-by-one suggesting there may be an
+	// integer approximation of the form (a×m + b)/c.
+	// A brute force search over small a, b, c finds that
+	// (214×m - 211) / 7 computes the function perfectly.
+	return (214*int(m)-211)/7 + adj
 }
 
 func daysIn(m Month, year int) int {
-	if m == February && isLeap(year) {
-		return 29
+	if m == February {
+		if isLeap(year) {
+			return 29
+		}
+		return 28
 	}
-	return int(daysBefore[m] - daysBefore[m-1])
-}
-
-// daysSinceEpoch takes a year and returns the number of days from
-// the absolute epoch to the start of that year.
-// This is basically (year - zeroYear) * 365, but accounting for leap days.
-func daysSinceEpoch(year int) uint64 {
-	y := uint64(int64(year) - absoluteZeroYear)
-
-	// Add in days from 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := daysPer400Years * n
-
-	// Add in 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += daysPer100Years * n
-
-	// Add in 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += daysPer4Years * n
-
-	// Add in non-leap years.
-	n = y
-	d += 365 * n
-
-	return d
+	// With the special case of February eliminated, the pattern is
+	//	31 30 31 30 31 30 31 31 30 31 30 31
+	// Adding m&1 produces the basic alternation;
+	// adding (m>>3)&1 inverts the alternation starting in August.
+	return 30 + int((m+m>>3)&1)
 }
 
 // Provided by package runtime.
@@ -1385,7 +1544,7 @@ func (t *Time) GobDecode(data []byte) error {
 	return t.UnmarshalBinary(data)
 }
 
-// MarshalJSON implements the [json.Marshaler] interface.
+// MarshalJSON implements the [encoding/json.Marshaler] interface.
 // The time is a quoted string in the RFC 3339 format with sub-second precision.
 // If the timestamp cannot be represented as valid RFC 3339
 // (e.g., the year is out of range), then an error is reported.
@@ -1400,7 +1559,7 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalJSON implements the [json.Unmarshaler] interface.
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
 // The time must be a quoted string in the RFC 3339 format.
 func (t *Time) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
@@ -1474,7 +1633,15 @@ func (t Time) IsDST() bool {
 }
 
 func isLeap(year int) bool {
-	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+	// year%4 == 0 && (year%100 != 0 || year%400 == 0)
+	// Bottom 2 bits must be clear.
+	// For multiples of 25, bottom 4 bits must be clear.
+	// Thanks to Cassio Neri for this trick.
+	mask := 0xf
+	if year%25 != 0 {
+		mask = 3
+	}
+	return year&mask == 0
 }
 
 // norm returns nhi, nlo such that
@@ -1529,23 +1696,10 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	hour, min = norm(hour, min, 60)
 	day, hour = norm(day, hour, 24)
 
-	// Compute days since the absolute epoch.
-	d := daysSinceEpoch(year)
-
-	// Add in days before this month.
-	d += uint64(daysBefore[month-1])
-	if isLeap(year) && month >= March {
-		d++ // February 29
-	}
-
-	// Add in days before today.
-	d += uint64(day - 1)
-
-	// Add in time elapsed today.
-	abs := d * secondsPerDay
-	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
-
-	unix := int64(abs) + (absoluteToInternal + internalToUnix)
+	// Convert to absolute time and then Unix time.
+	unix := int64(dateToAbsDays(int64(year), month, day))*secondsPerDay +
+		int64(hour*secondsPerHour+min*secondsPerMinute+sec) +
+		absoluteToUnix
 
 	// Look for zone offset for expected time, so we can adjust to UTC.
 	// The lookup function expects UTC, so first we pass unix in the
@@ -1691,5 +1845,52 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
 		qmod2 ^= 1
 		r = d - r
 	}
+	return
+}
+
+// Regrettable Linkname Compatibility
+//
+// timeAbs, absDate, and absClock mimic old internal details, no longer used.
+// Widely used packages linknamed these to get “faster” time routines.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/phuslu/log
+//
+// phuslu hard-coded 'Unix time + 9223372028715321600' [sic]
+// as the input to absDate and absClock, using the old Jan 1-based
+// absolute times.
+// quant1x linknamed the time.Time.abs method and passed the
+// result of that method to absDate and absClock.
+//
+// Keeping both of these working forces us to provide these three
+// routines here, operating on the old Jan 1-based epoch instead
+// of the new March 1-based epoch. And the fact that time.Time.abs
+// was linknamed means that we have to call the current abs method
+// something different (time.Time.absSec, defined above) to make it
+// possible to provide this simulation of the old routines here.
+//
+// None of this code is linked into the binary if not referenced by
+// these linkname-happy packages. In particular, despite its name,
+// time.Time.abs does not appear in the time.Time method table.
+//
+// Do not remove these routines or their linknames, or change the
+// type signature or meaning of arguments.
+
+//go:linkname legacyTimeTimeAbs time.Time.abs
+func legacyTimeTimeAbs(t Time) uint64 {
+	return uint64(t.absSec() - marchThruDecember*secondsPerDay)
+}
+
+//go:linkname legacyAbsClock time.absClock
+func legacyAbsClock(abs uint64) (hour, min, sec int) {
+	return absSeconds(abs + marchThruDecember*secondsPerDay).clock()
+}
+
+//go:linkname legacyAbsDate time.absDate
+func legacyAbsDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
+	d := absSeconds(abs + marchThruDecember*secondsPerDay).days()
+	year, month, day = d.date()
+	_, yday = d.yearYday()
+	yday-- // yearYday is 1-based, old API was 0-based
 	return
 }

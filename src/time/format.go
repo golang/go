@@ -140,7 +140,7 @@ const (
 	stdDay                                         // "2"
 	stdUnderDay                                    // "_2"
 	stdZeroDay                                     // "02"
-	stdUnderYearDay                                // "__2"
+	stdUnderYearDay          = iota + stdNeedYday  // "__2"
 	stdZeroYearDay                                 // "002"
 	stdHour                  = iota + stdNeedClock // "15"
 	stdHour12                                      // "3"
@@ -168,7 +168,8 @@ const (
 	stdFracSecond9                                 // ".9", ".99", ..., trailing zeros omitted
 
 	stdNeedDate       = 1 << 8             // need month, day, year
-	stdNeedClock      = 2 << 8             // need hour, minute, second
+	stdNeedYday       = 1 << 9             // need yday
+	stdNeedClock      = 1 << 10            // need hour, minute, second
 	stdArgShift       = 16                 // extra argument in high bits, above low stdArgShift
 	stdSeparatorShift = 28                 // extra argument in high 4 bits for fractional second separators
 	stdMask           = 1<<stdArgShift - 1 // mask out argument
@@ -574,9 +575,9 @@ func (t Time) String() string {
 // GoString implements [fmt.GoStringer] and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	abs := t.abs()
-	year, month, day, _ := absDate(abs, true)
-	hour, minute, second := absClock(abs)
+	abs := t.absSec()
+	year, month, day := abs.days().date()
+	hour, minute, second := abs.clock()
 
 	buf := make([]byte, 0, len("time.Date(9999, time.September, 31, 23, 59, 59, 999999999, time.Local)"))
 	buf = append(buf, "time.Date("...)
@@ -664,13 +665,14 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 }
 
 func (t Time) appendFormat(b []byte, layout string) []byte {
-	var (
-		name, offset, abs = t.locabs()
+	name, offset, abs := t.locabs()
+	days := abs.days()
 
+	var (
 		year  int = -1
 		month Month
 		day   int
-		yday  int
+		yday  int = -1
 		hour  int = -1
 		min   int
 		sec   int
@@ -689,13 +691,15 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 
 		// Compute year, month, day if needed.
 		if year < 0 && std&stdNeedDate != 0 {
-			year, month, day, yday = absDate(abs, true)
-			yday++
+			year, month, day = days.date()
+		}
+		if yday < 0 && std&stdNeedYday != 0 {
+			_, yday = days.yearYday()
 		}
 
 		// Compute hour, minute, second if needed.
 		if hour < 0 && std&stdNeedClock != 0 {
-			hour, min, sec = absClock(abs)
+			hour, min, sec = abs.clock()
 		}
 
 		switch std & stdMask {
@@ -717,9 +721,9 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 		case stdZeroMonth:
 			b = appendInt(b, int(month), 2)
 		case stdWeekDay:
-			b = append(b, absWeekday(abs).String()[:3]...)
+			b = append(b, days.weekday().String()[:3]...)
 		case stdLongWeekDay:
-			s := absWeekday(abs).String()
+			s := days.weekday().String()
 			b = append(b, s...)
 		case stdDay:
 			b = appendInt(b, day, 0)
@@ -1350,10 +1354,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 		if m == 0 {
 			m = (yday-1)/31 + 1
-			if int(daysBefore[m]) < yday {
+			if daysBefore(Month(m+1)) < yday {
 				m++
 			}
-			d = yday - int(daysBefore[m-1])
+			d = yday - daysBefore(Month(m))
 		}
 		// If month, day already seen, yday's m, d must match.
 		// Otherwise, set them from m, d.
