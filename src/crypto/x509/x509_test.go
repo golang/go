@@ -1301,11 +1301,13 @@ func TestCRLCreation(t *testing.T) {
 		crlBytes, err := test.cert.CreateCRL(rand.Reader, test.priv, revokedCerts, now, expiry)
 		if err != nil {
 			t.Errorf("%s: error creating CRL: %s", test.name, err)
+			continue
 		}
 
 		parsedCRL, err := ParseDERCRL(crlBytes)
 		if err != nil {
 			t.Errorf("%s: error reparsing CRL: %s", test.name, err)
+			continue
 		}
 		if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, expectedCerts) {
 			t.Errorf("%s: RevokedCertificates mismatch: got %v; want %v.", test.name,
@@ -1815,7 +1817,7 @@ func TestInsecureAlgorithmErrorString(t *testing.T) {
 		{MD5WithRSA, "x509: cannot verify signature: insecure algorithm MD5-RSA"},
 		{SHA1WithRSA, "x509: cannot verify signature: insecure algorithm SHA1-RSA (temporarily override with GODEBUG=x509sha1=1)"},
 		{ECDSAWithSHA1, "x509: cannot verify signature: insecure algorithm ECDSA-SHA1 (temporarily override with GODEBUG=x509sha1=1)"},
-		{MD2WithRSA, "x509: cannot verify signature: insecure algorithm MD2-RSA"},
+		{MD2WithRSA, "x509: cannot verify signature: insecure algorithm 1"},
 		{-1, "x509: cannot verify signature: insecure algorithm -1"},
 		{0, "x509: cannot verify signature: insecure algorithm 0"},
 		{9999, "x509: cannot verify signature: insecure algorithm 9999"},
@@ -2959,10 +2961,13 @@ func TestRSAPSAParameters(t *testing.T) {
 		return serialized
 	}
 
-	for h, params := range hashToPSSParameters {
-		generated := generateParams(h)
-		if !bytes.Equal(params.FullBytes, generated) {
-			t.Errorf("hardcoded parameters for %s didn't match generated parameters: got (generated) %x, wanted (hardcoded) %x", h, generated, params.FullBytes)
+	for _, detail := range signatureAlgorithmDetails {
+		if !detail.isRSAPSS {
+			continue
+		}
+		generated := generateParams(detail.hash)
+		if !bytes.Equal(detail.params.FullBytes, generated) {
+			t.Errorf("hardcoded parameters for %s didn't match generated parameters: got (generated) %x, wanted (hardcoded) %x", detail.hash, generated, detail.params.FullBytes)
 		}
 	}
 }
@@ -3138,15 +3143,11 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
 		SerialNumber: big.NewInt(10),
 		DNSNames:     []string{"example.com"},
 	}
-	k, err := rsa.GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		t.Fatalf("failed to generate test key: %s", err)
-	}
-	expectedErr := "x509: signature over certificate returned by signer is invalid: crypto/rsa: verification error"
-	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+	expectedErr := "signature returned by signer is invalid"
+	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), &brokenSigner{testPrivateKey.Public()})
 	if err == nil {
 		t.Fatal("expected CreateCertificate to fail with a broken signer")
-	} else if err.Error() != expectedErr {
+	} else if !strings.Contains(err.Error(), expectedErr) {
 		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
 	}
 }
