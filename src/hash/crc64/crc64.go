@@ -153,8 +153,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 		}
 		// Update using slicing-by-8
 		for len(p) > 8 {
-			crc ^= uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 |
-				uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
+			crc ^= byteorder.LeUint64(p)
 			crc = helperTable[7][crc&0xff] ^
 				helperTable[6][(crc>>8)&0xff] ^
 				helperTable[5][(crc>>16)&0xff] ^

@@ -179,36 +179,32 @@ func (s *sum128a) BlockSize() int { return 1 }
 
 func (s *sum32) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint32(in, v)
 }
 
 func (s *sum32a) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint32(in, v)
 }
 
 func (s *sum64) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint64(in, v)
 }
 
 func (s *sum64a) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint64(in, v)
 }
 
 func (s *sum128) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	ret := byteorder.BeAppendUint64(in, s[0])
+	return byteorder.BeAppendUint64(ret, s[1])
 }
 
 func (s *sum128a) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	ret := byteorder.BeAppendUint64(in, s[0])
+	return byteorder.BeAppendUint64(ret, s[1])
 }
 
 const (
