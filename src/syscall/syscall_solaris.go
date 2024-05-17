@@ -12,7 +12,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/byteorder"
+	"unsafe"
+)
 
 const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
 
@@ -37,11 +40,11 @@ type SockaddrDatalink struct {
 }
 
 func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {

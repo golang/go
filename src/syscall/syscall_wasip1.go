@@ -8,6 +8,7 @@ package syscall
 
 import (
 	"errors"
+	"internal/byteorder"
 	"internal/itoa"
 	"internal/oserror"
 	"unsafe"
@@ -42,7 +43,7 @@ type Dirent struct {
 }
 
 func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
@@ -51,7 +52,7 @@ func direntReclen(buf []byte) (uint64, bool) {
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
 // An Errno is an unsigned number describing an error condition.

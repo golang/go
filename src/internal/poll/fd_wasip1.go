@@ -205,32 +205,9 @@ func direntReclen(buf []byte) (uint64, bool) {
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
+	return byteorder.ReadInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
 }
 
 func direntNext(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Next), unsafe.Sizeof(syscall.Dirent{}.Next))
-}
-
-// readInt returns the size-bytes unsigned integer in native byte order at offset off.
-func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
-	if len(b) < int(off+size) {
-		return 0, false
-	}
-	return readIntLE(b[off:], size), true
-}
-
-func readIntLE(b []byte, size uintptr) uint64 {
-	switch size {
-	case 1:
-		return uint64(b[0])
-	case 2:
-		return uint64(byteorder.LeUint16(b))
-	case 4:
-		return uint64(byteorder.LeUint32(b))
-	case 8:
-		return uint64(byteorder.LeUint64(b))
-	default:
-		panic("internal/poll: readInt with unsupported size")
-	}
+	return byteorder.ReadInt(buf, unsafe.Offsetof(syscall.Dirent{}.Next), unsafe.Sizeof(syscall.Dirent{}.Next))
 }
