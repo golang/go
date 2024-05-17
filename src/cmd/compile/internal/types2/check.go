@@ -373,7 +373,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 				check.errorf(file.PkgName, TooNew, "file requires newer Go version %v", fileVersion)
 			}
 		}
-		versions[base(file.Pos())] = v // base(file.Pos()) may be nil for tests
+		versions[file.Pos().FileBase()] = v // file.Pos().FileBase() may be nil for tests
 	}
 }
 

@@ -29,9 +29,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 
 	// setup and syntax error reporting
 	files := make([]*syntax.File, len(noders))
-	// posBaseMap maps all file pos bases back to *syntax.File
+	// fileBaseMap maps all file pos bases back to *syntax.File
 	// for checking Go version mismatched.
-	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
+	fileBaseMap := make(map[*syntax.PosBase]*syntax.File)
 	for i, p := range noders {
 		files[i] = p.file
 		// The file.Pos() is the position of the package clause.
@@ -40,7 +40,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		// Make sure to consistently map back to file base, here and
 		// when we look for a file in the conf.Error handler below,
 		// otherwise the file may not be found (was go.dev/issue/67141).
-		posBaseMap[fileBase(p.file.Pos())] = p.file
+		fileBaseMap[p.file.Pos().FileBase()] = p.file
 	}
 
 	// typechecking
@@ -75,9 +75,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		terr := err.(types2.Error)
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
-			posBase := fileBase(terr.Pos)
-			fileVersion := info.FileVersions[posBase]
-			file := posBaseMap[posBase]
+			fileBase := terr.Pos.FileBase()
+			fileVersion := info.FileVersions[fileBase]
+			file := fileBaseMap[fileBase]
 			if file == nil {
 				// This should never happen, but be careful and don't crash.
 			} else if file.GoVersion == fileVersion {
@@ -153,15 +153,6 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	rangefunc.Rewrite(pkg, info, files)
 
 	return pkg, info
-}
-
-// fileBase returns a file's position base given a position in the file.
-func fileBase(pos syntax.Pos) *syntax.PosBase {
-	base := pos.Base()
-	for !base.IsFileBase() { // line directive base
-		base = base.Pos().Base()
-	}
-	return base
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
