@@ -262,6 +262,11 @@ func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 	return i
 }
 
+//go:linkname pprof_fpunwindExpand
+func pprof_fpunwindExpand(dst, src []uintptr) int {
+	return fpunwindExpand(dst, src)
+}
+
 // fpunwindExpand expands a call stack from pcBuf into dst,
 // returning the number of PCs written to dst.
 // pcBuf and dst should not overlap.

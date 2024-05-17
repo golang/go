@@ -5,6 +5,7 @@
 package pprof
 
 import (
+	"internal/profilerecord"
 	"io"
 	"math"
 	"runtime"
@@ -12,7 +13,7 @@ import (
 )
 
 // writeHeapProto writes the current heap profile in protobuf format to w.
-func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defaultSampleType string) error {
+func writeHeapProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int64, defaultSampleType string) error {
 	b := newProfileBuilder(w)
 	b.pbValueType(tagProfile_PeriodType, "space", "bytes")
 	b.pb.int64Opt(tagProfile_Period, rate)
@@ -29,7 +30,7 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defau
 	for _, r := range p {
 		hideRuntime := true
 		for tries := 0; tries < 2; tries++ {
-			stk := r.Stack()
+			stk := r.Stack
 			// For heap profiles, all stack
 			// addresses are return PCs, which is
 			// what appendLocsForStack expects.

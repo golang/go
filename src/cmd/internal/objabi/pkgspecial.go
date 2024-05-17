@@ -58,6 +58,7 @@ var runtimePkgs = []string{
 	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goos",
+	"internal/profilerecord",
 	"internal/stringslite",
 }
 

@@ -209,8 +209,8 @@ func CPUProfile() []byte {
 	panic("CPUProfile no longer available")
 }
 
-//go:linkname runtime_pprof_runtime_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
-func runtime_pprof_runtime_cyclesPerSecond() int64 {
+//go:linkname pprof_cyclesPerSecond
+func pprof_cyclesPerSecond() int64 {
 	return ticksPerSecond()
 }
 

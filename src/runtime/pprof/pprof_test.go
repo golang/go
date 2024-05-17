@@ -2444,7 +2444,7 @@ func TestProfilerStackDepth(t *testing.T) {
 		runtime.SetMutexProfileFraction(oldMutexRate)
 	})
 
-	const depth = 32
+	const depth = 128
 	go produceProfileEvents(t, depth)
 	awaitBlockedGoroutine(t, "chan receive", "goroutineDeep", 1)
 
