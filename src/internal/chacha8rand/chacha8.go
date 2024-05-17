@@ -30,6 +30,15 @@ type State struct {
 	i    uint32
 	n    uint32
 	c    uint32
+
+	// readVal contains remainder of 63-bit integer used for bytes
+	// generation during most recent Read call.
+	// It is saved so next Read call can start where the previous
+	// one finished.
+	readVal uint64
+	// readPos indicates the number of low-order bytes of readVal
+	// that are still valid.
+	readPos int8
 }
 
 // Next returns the next random value, along with a boolean
@@ -66,6 +75,8 @@ func (s *State) Init64(seed [4]uint64) {
 	block(&s.seed, &s.buf, 0)
 	s.c = 0
 	s.i = 0
+	s.readPos = 0
+	s.readVal = 0
 	s.n = chunk
 }
 
@@ -161,16 +172,25 @@ func Unmarshal(s *State, data []byte) error {
 
 // Read reads random bytes from the state into p.
 func Read(s *State, p []byte) (n int) {
+	pos := s.readPos
+	val := s.readVal
+	var ok bool
 	for n = 0; n < len(p); n++ {
-		for {
-			x, ok := s.Next()
-			if ok {
-				p[n] = byte(x)
-				n++
-				break
+		if pos == 0 {
+			for {
+				val, ok = s.Next()
+				if ok {
+					break
+				}
+				s.Refill()
 			}
-			s.Refill()
+			pos = 7
 		}
+		p[n] = byte(val)
+		val >>= 8
+		pos--
 	}
+	s.readPos = pos
+	s.readVal = val
 	return
 }
