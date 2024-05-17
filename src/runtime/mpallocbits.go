@@ -324,7 +324,6 @@ func (b *pallocBits) findLargeN(npages uintptr, searchIdx uint) (uint, uint) {
 		}
 		s := uint(sys.TrailingZeros64(x))
 		if s+size >= uint(npages) {
-			size += s
 			return start, newSearchIdx
 		}
 		if s < 64 {
