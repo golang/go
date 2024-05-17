@@ -5,8 +5,11 @@
 package rand_test
 
 import (
+	"bytes"
+	"io"
 	. "math/rand/v2"
 	"testing"
+	"testing/iotest"
 )
 
 func TestChaCha8(t *testing.T) {
@@ -528,4 +531,80 @@ var chacha8marshal = []string{
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00yK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00zK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00{K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
+}
+
+func TestReadEmpty(t *testing.T) {
+	r := NewChaCha8(chacha8seed)
+	buf := make([]byte, 0)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Errorf("Read err into empty buffer; %v", err)
+	}
+	if n != 0 {
+		t.Errorf("Read into empty buffer returned unexpected n of %d", n)
+	}
+}
+
+func TestReadSeedReset(t *testing.T) {
+	r := NewChaCha8(chacha8seed)
+	b1 := make([]byte, 128)
+	_, err := r.Read(b1)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+
+	r.Seed(chacha8seed)
+	b2 := make([]byte, 128)
+	_, err = r.Read(b2)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Errorf("mismatch after re-seed:\n%x\n%x", b1, b2)
+	}
+}
+
+func TestReadByOneByte(t *testing.T) {
+	r := NewChaCha8(chacha8seed)
+	b1 := make([]byte, 100)
+	_, err := io.ReadFull(iotest.OneByteReader(r), b1)
+	if err != nil {
+		t.Errorf("read by one byte: %v", err)
+	}
+	r = NewChaCha8(chacha8seed)
+	b2 := make([]byte, 100)
+	_, err = r.Read(b2)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Errorf("read by one byte vs single read:\n%x\n%x", b1, b2)
+	}
+}
+
+func BenchmarkRead3(b *testing.B) {
+	r := NewChaCha8(chacha8seed)
+	buf := make([]byte, 3)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
+	}
+}
+
+func BenchmarkRead64(b *testing.B) {
+	r := NewChaCha8(chacha8seed)
+	buf := make([]byte, 64)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
+	}
+}
+
+func BenchmarkRead1000(b *testing.B) {
+	r := NewChaCha8(chacha8seed)
+	buf := make([]byte, 1000)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
+	}
 }
