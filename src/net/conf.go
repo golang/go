@@ -336,9 +336,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	}
 
 	// Canonicalize the hostname by removing any trailing dot.
-	if stringslite.HasSuffix(hostname, ".") {
-		hostname = hostname[:len(hostname)-1]
-	}
+	hostname = stringslite.TrimSuffix(hostname, ".")
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
