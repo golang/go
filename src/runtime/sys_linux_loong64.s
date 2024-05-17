@@ -431,12 +431,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	JAL	(R20)
 	RET
 
+// Called from c-abi, R4: sig, R5: info, R6: cxt
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
-	MOVW	R4, (1*8)(R3)
-	MOVV	R5, (2*8)(R3)
-	MOVV	R6, (3*8)(R3)
-
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
 	SAVE_R22_TO_R31((4*8))
@@ -444,12 +441,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R4
-	BEQ	R4, 2(PC)
+	MOVB	runtime·iscgo(SB), R7
+	BEQ	R7, 2(PC)
 	JAL	runtime·load_g(SB)
 
-	MOVV	$runtime·sigtrampgo(SB), R4
-	JAL	(R4)
+	// R5 and R6 already contain info and ctx, respectively.
+	MOVV	$runtime·sigtrampgo<ABIInternal>(SB), R7
+	JAL	(R7)
 
 	// Restore callee-save registers.
 	RESTORE_R22_TO_R31((4*8))
