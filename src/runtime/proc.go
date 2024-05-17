@@ -10,6 +10,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
+	"internal/runtime/exithook"
 	"internal/stringslite"
 	"runtime/internal/sys"
 	"unsafe"
@@ -306,6 +307,12 @@ func os_beforeExit(exitCode int) {
 	runExitHooks(exitCode)
 	if exitCode == 0 && raceenabled {
 		racefini()
+	}
+}
+
+func runExitHooks(code int) {
+	if err := exithook.Run(code); err != nil {
+		throw(err.Error())
 	}
 }
 

@@ -4,7 +4,7 @@
 
 package cfile
 
-import _ "unsafe"
+import "internal/runtime/exithook"
 
 // InitHook is invoked from the main package "init" routine in
 // programs built with "-cover". This function is intended to be
@@ -29,14 +29,10 @@ func InitHook(istest bool) {
 	// Note: hooks are run in reverse registration order, so
 	// register the counter data hook before the meta-data hook
 	// (in the case where two hooks are needed).
-	runOnNonZeroExit := true
-	runtime_addExitHook(emitCounterData, runOnNonZeroExit)
+	exithook.Add(exithook.Hook{F: emitCounterData, RunOnFailure: true})
 	if istest {
-		runtime_addExitHook(emitMetaData, runOnNonZeroExit)
+		exithook.Add(exithook.Hook{F: emitMetaData, RunOnFailure: true})
 	} else {
 		emitMetaData()
 	}
 }
-
-//go:linkname runtime_addExitHook runtime.addExitHook
-func runtime_addExitHook(f func(), runOnNonZeroExit bool)

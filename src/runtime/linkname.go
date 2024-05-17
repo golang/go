@@ -29,9 +29,6 @@ import _ "unsafe"
 //go:linkname overflowError
 //go:linkname divideError
 
-// used in runtime/coverage and in tests
-//go:linkname addExitHook
-
 // used in tests
 //go:linkname extraMInUse
 //go:linkname getm

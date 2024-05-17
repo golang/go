@@ -3720,10 +3720,13 @@ func (r *reader) needWrapper(typ *types.Type) {
 		return
 	}
 
+	// Special case: runtime must define error even if imported packages mention it (#29304).
+	forceNeed := typ == types.ErrorType && base.Ctxt.Pkgpath == "runtime"
+
 	// If a type was found in an imported package, then we can assume
 	// that package (or one of its transitive dependencies) already
 	// generated method wrappers for it.
-	if r.importedDef() {
+	if r.importedDef() && !forceNeed {
 		haveWrapperTypes = append(haveWrapperTypes, typ)
 	} else {
 		needWrapperTypes = append(needWrapperTypes, typ)
