@@ -1232,6 +1232,10 @@ var (
 	timerpMask pMask
 )
 
+// goarmsoftfp is used by runtime/cgo assembly.
+//
+//go:linkname goarmsoftfp
+
 var (
 	// Pool of GC parked background workers. Entries are type
 	// *gcBgMarkWorkerNode.
