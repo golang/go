@@ -34,7 +34,13 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
 	for i, p := range noders {
 		files[i] = p.file
-		posBaseMap[p.file.Pos().Base()] = p.file
+		// The file.Pos() is the position of the package clause.
+		// If there's a //line directive before that, file.Pos().Base()
+		// refers to that directive, not the file itself.
+		// Make sure to consistently map back to file base, here and
+		// when we look for a file in the conf.Error handler below,
+		// otherwise the file may not be found (was go.dev/issue/67141).
+		posBaseMap[fileBase(p.file.Pos())] = p.file
 	}
 
 	// typechecking
@@ -68,13 +74,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		terr := err.(types2.Error)
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
-			posBase := terr.Pos.Base()
-			for !posBase.IsFileBase() { // line directive base
-				posBase = posBase.Pos().Base()
-			}
+			posBase := fileBase(terr.Pos)
 			fileVersion := info.FileVersions[posBase]
 			file := posBaseMap[posBase]
-			if file.GoVersion == fileVersion {
+			if file == nil {
+				// This should never happen, but be careful and don't crash.
+			} else if file.GoVersion == fileVersion {
 				// If we have a version error caused by //go:build, report it.
 				msg = fmt.Sprintf("%s (file declares //go:build %s)", msg, fileVersion)
 			} else {
@@ -147,6 +152,15 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	rangefunc.Rewrite(pkg, info, files)
 
 	return pkg, info
+}
+
+// fileBase returns a file's position base given a position in the file.
+func fileBase(pos syntax.Pos) *syntax.PosBase {
+	base := pos.Base()
+	for !base.IsFileBase() { // line directive base
+		base = base.Pos().Base()
+	}
+	return base
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
