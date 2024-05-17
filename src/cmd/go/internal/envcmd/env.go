@@ -132,7 +132,6 @@ func MkEnv() []cfg.EnvVar {
 				env[i].Changed = true
 			}
 		case "GODEBUG":
-			env[i].Value = os.Getenv("GODEBUG")
 			env[i].Changed = env[i].Value != ""
 		}
 	}
