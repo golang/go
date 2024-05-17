@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/testenv"
 	"runtime"
 	"strings"
 	"testing"
@@ -30,6 +31,7 @@ func TestCoroLockOSThread(t *testing.T) {
 }
 
 func TestCoroCgoCallback(t *testing.T) {
+	testenv.MustHaveCGO(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("coro cgo callback tests not supported on Windows")
 	}
