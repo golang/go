@@ -586,6 +586,7 @@ func BenchmarkRead3(b *testing.B) {
 	r := NewChaCha8(chacha8seed)
 	buf := make([]byte, 3)
 	b.ResetTimer()
+	b.SetBytes(3)
 	for n := b.N; n > 0; n-- {
 		r.Read(buf)
 	}
@@ -595,6 +596,7 @@ func BenchmarkRead64(b *testing.B) {
 	r := NewChaCha8(chacha8seed)
 	buf := make([]byte, 64)
 	b.ResetTimer()
+	b.SetBytes(64)
 	for n := b.N; n > 0; n-- {
 		r.Read(buf)
 	}
@@ -604,6 +606,7 @@ func BenchmarkRead1000(b *testing.B) {
 	r := NewChaCha8(chacha8seed)
 	buf := make([]byte, 1000)
 	b.ResetTimer()
+	b.SetBytes(1000)
 	for n := b.N; n > 0; n-- {
 		r.Read(buf)
 	}
