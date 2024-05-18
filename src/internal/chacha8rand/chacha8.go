@@ -7,7 +7,11 @@
 // and must have minimal dependencies.
 package chacha8rand
 
-import "internal/byteorder"
+import (
+	"internal/byteorder"
+	"internal/goarch"
+	"unsafe"
+)
 
 const (
 	ctrInc = 4  // increment counter by 4 between block calls
@@ -157,4 +161,41 @@ func Unmarshal(s *State, data []byte) error {
 		s.n = chunk - reseed
 	}
 	return nil
+}
+
+func (s *State) FillRand(b []byte) {
+	if s.i == s.n {
+		s.Refill()
+	}
+
+	for {
+		curRand := s.buf[s.i:s.n]
+
+		// Make sure that on little and big endian systems the bytes are filled in the same order.
+		if goarch.BigEndian {
+			for _, v := range curRand {
+				var tmp [8]byte
+				byteorder.LePutUint64(tmp[:], v)
+				n := copy(b, tmp[:])
+				s.i++
+				b = b[n:]
+
+				if len(b) == 0 {
+					break
+				}
+			}
+			s.Refill()
+			continue
+		}
+
+		curRandBytes := unsafe.Slice((*byte)(unsafe.Pointer(&curRand[0])), len(curRand)*8)
+		n := copy(b, curRandBytes)
+		s.i += (uint32(n) + 7) / 8
+		b = b[n:]
+
+		if len(b) == 0 {
+			break
+		}
+		s.Refill()
+	}
 }

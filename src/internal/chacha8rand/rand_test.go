@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"internal/byteorder"
 	. "internal/chacha8rand"
 	"slices"
 	"testing"
@@ -27,6 +28,23 @@ func TestOutput(t *testing.T) {
 			}
 			s.Refill()
 		}
+	}
+}
+
+func TestOutputBytes(t *testing.T) {
+	var s State
+	s.Init(seed)
+
+	expect := make([]byte, 0, len(output)*8)
+	for _, v := range output {
+		expect = byteorder.LeAppendUint64(expect, v)
+	}
+
+	got := make([]byte, len(expect))
+	s.FillRand(got)
+
+	if !bytes.Equal(expect, got) {
+		t.Errorf("got = %#x; want = %#x", got, expect)
 	}
 }
 
