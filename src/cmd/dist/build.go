@@ -61,6 +61,14 @@ var (
 	isRelease  bool
 
 	vflag int // verbosity
+
+	defaultGO386     = "sse2"
+	defaultGOAMD64   = "v1"
+	defaultGOMIPS    = "hardfloat"
+	defaultGOMIPS64  = "hardfloat"
+	defaultGOPPC64   = "power8"
+	defaultGORISCV64 = "rva20u64"
+	defaultGOARM64   = "v8.0"
 )
 
 // The known architectures.
@@ -144,43 +152,43 @@ func xinit() {
 
 	b = os.Getenv("GOARM64")
 	if b == "" {
-		b = "v8.0"
+		b = defaultGOARM64
 	}
 	goarm64 = b
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		b = "sse2"
+		b = defaultGO386
 	}
 	go386 = b
 
 	b = os.Getenv("GOAMD64")
 	if b == "" {
-		b = "v1"
+		b = defaultGOAMD64
 	}
 	goamd64 = b
 
 	b = os.Getenv("GOMIPS")
 	if b == "" {
-		b = "hardfloat"
+		b = defaultGOMIPS
 	}
 	gomips = b
 
 	b = os.Getenv("GOMIPS64")
 	if b == "" {
-		b = "hardfloat"
+		b = defaultGOMIPS64
 	}
 	gomips64 = b
 
 	b = os.Getenv("GOPPC64")
 	if b == "" {
-		b = "power8"
+		b = defaultGOPPC64
 	}
 	goppc64 = b
 
 	b = os.Getenv("GORISCV64")
 	if b == "" {
-		b = "rva20u64"
+		b = defaultGORISCV64
 	}
 	goriscv64 = b
 
