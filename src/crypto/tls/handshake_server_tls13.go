@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
+	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"errors"
 	"hash"
@@ -178,11 +179,11 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	hs.hello.cipherSuite = hs.suite.id
 	hs.transcript = hs.suite.hash.New()
 
-	// Pick the ECDHE group in server preference order, but give priority to
-	// groups with a key share, to avoid a HelloRetryRequest round-trip.
+	// Pick the key exchange method in server preference order, but give
+	// priority to key shares, to avoid a HelloRetryRequest round-trip.
 	var selectedGroup CurveID
 	var clientKeyShare *keyShare
-	preferredGroups := c.config.curvePreferences()
+	preferredGroups := c.config.curvePreferences(c.vers)
 	for _, preferredGroup := range preferredGroups {
 		ki := slices.IndexFunc(hs.clientHello.keyShares, func(ks keyShare) bool {
 			return ks.group == preferredGroup
@@ -210,23 +211,35 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		return errors.New("tls: no ECDHE curve supported by both client and server")
 	}
 	if clientKeyShare == nil {
-		if err := hs.doHelloRetryRequest(selectedGroup); err != nil {
+		ks, err := hs.doHelloRetryRequest(selectedGroup)
+		if err != nil {
 			return err
 		}
-		clientKeyShare = &hs.clientHello.keyShares[0]
+		clientKeyShare = ks
 	}
+	c.curveID = selectedGroup
 
-	if _, ok := curveForCurveID(selectedGroup); !ok {
+	ecdhGroup := selectedGroup
+	ecdhData := clientKeyShare.data
+	if selectedGroup == x25519Kyber768Draft00 {
+		ecdhGroup = X25519
+		if len(ecdhData) != x25519PublicKeySize+mlkem768.EncapsulationKeySize {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid Kyber client key share")
+		}
+		ecdhData = ecdhData[:x25519PublicKeySize]
+	}
+	if _, ok := curveForCurveID(ecdhGroup); !ok {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: CurvePreferences includes unsupported curve")
 	}
-	key, err := generateECDHEKey(c.config.rand(), selectedGroup)
+	key, err := generateECDHEKey(c.config.rand(), ecdhGroup)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return err
 	}
 	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
-	peerKey, err := key.Curve().NewPublicKey(clientKeyShare.data)
+	peerKey, err := key.Curve().NewPublicKey(ecdhData)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")
@@ -235,6 +248,15 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid client key share")
+	}
+	if selectedGroup == x25519Kyber768Draft00 {
+		ciphertext, kyberShared, err := kyberEncapsulate(clientKeyShare.data[x25519PublicKeySize:])
+		if err != nil {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid Kyber client key share")
+		}
+		hs.sharedKey = append(hs.sharedKey, kyberShared...)
+		hs.hello.serverShare.data = append(hs.hello.serverShare.data, ciphertext...)
 	}
 
 	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
@@ -479,13 +501,13 @@ func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
 	return hs.c.writeChangeCipherRecord()
 }
 
-func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) error {
+func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) (*keyShare, error) {
 	c := hs.c
 
 	// The first ClientHello gets double-hashed into the transcript upon a
 	// HelloRetryRequest. See RFC 8446, Section 4.4.1.
 	if err := transcriptMsg(hs.clientHello, hs.transcript); err != nil {
-		return err
+		return nil, err
 	}
 	chHash := hs.transcript.Sum(nil)
 	hs.transcript.Reset()
@@ -503,43 +525,49 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 	}
 
 	if _, err := hs.c.writeHandshakeRecord(helloRetryRequest, hs.transcript); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := hs.sendDummyChangeCipherSpec(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// clientHelloMsg is not included in the transcript.
 	msg, err := c.readHandshake(nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	clientHello, ok := msg.(*clientHelloMsg)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)
-		return unexpectedMessageError(clientHello, msg)
+		return nil, unexpectedMessageError(clientHello, msg)
 	}
 
-	if len(clientHello.keyShares) != 1 || clientHello.keyShares[0].group != selectedGroup {
+	if len(clientHello.keyShares) != 1 {
 		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: client sent invalid key share in second ClientHello")
+		return nil, errors.New("tls: client didn't send one key share in second ClientHello")
+	}
+	ks := &clientHello.keyShares[0]
+
+	if ks.group != selectedGroup {
+		c.sendAlert(alertIllegalParameter)
+		return nil, errors.New("tls: client sent unexpected key share in second ClientHello")
 	}
 
 	if clientHello.earlyData {
 		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: client indicated early data in second ClientHello")
+		return nil, errors.New("tls: client indicated early data in second ClientHello")
 	}
 
 	if illegalClientHelloChange(clientHello, hs.clientHello) {
 		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: client illegally modified second ClientHello")
+		return nil, errors.New("tls: client illegally modified second ClientHello")
 	}
 
 	c.didHRR = true
 	hs.clientHello = clientHello
-	return nil
+	return ks, nil
 }
 
 // illegalClientHelloChange reports whether the two ClientHello messages are

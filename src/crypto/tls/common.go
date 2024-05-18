@@ -130,11 +130,13 @@ const (
 	scsvRenegotiation uint16 = 0x00ff
 )
 
-// CurveID is the type of a TLS identifier for an elliptic curve. See
+// CurveID is the type of a TLS identifier for a key exchange mechanism. See
 // https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8.
 //
-// In TLS 1.3, this type is called NamedGroup, but at this time this library
-// only supports Elliptic Curve based groups. See RFC 8446, Section 4.2.7.
+// In TLS 1.2, this registry used to support only elliptic curves. In TLS 1.3,
+// it was extended to other groups and renamed NamedGroup. See RFC 8446, Section
+// 4.2.7. It was then also extended to other mechanisms, such as hybrid
+// post-quantum KEMs.
 type CurveID uint16
 
 const (
@@ -142,6 +144,11 @@ const (
 	CurveP384 CurveID = 24
 	CurveP521 CurveID = 25
 	X25519    CurveID = 29
+
+	// Experimental codepoint for X25519Kyber768Draft00, specified in
+	// draft-tls-westerbaan-xyber768d00-03. Not exported, as support might be
+	// removed in the future.
+	x25519Kyber768Draft00 CurveID = 0x6399 // X25519Kyber768Draft00
 )
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
@@ -302,6 +309,10 @@ type ConnectionState struct {
 
 	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
 	testingOnlyDidHRR bool
+
+	// testingOnlyCurveID is the selected CurveID, or zero if an RSA exchanges
+	// is performed.
+	testingOnlyCurveID CurveID
 }
 
 // ExportKeyingMaterial returns length bytes of exported key material in a new
@@ -375,7 +386,7 @@ type ClientSessionCache interface {
 	Put(sessionKey string, cs *ClientSessionState)
 }
 
-//go:generate stringer -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go
+//go:generate stringer -linecomment -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go
 
 // SignatureScheme identifies a signature algorithm supported by TLS. See
 // RFC 8446, Section 4.2.3.
@@ -757,6 +768,10 @@ type Config struct {
 	// an ECDHE handshake, in preference order. If empty, the default will
 	// be used. The client will use the first preference as the type for
 	// its key share in TLS 1.3. This may change in the future.
+	//
+	// From Go 1.23, the default includes the X25519Kyber768Draft00 hybrid
+	// post-quantum key exchange. To disable it, set CurvePreferences explicitly
+	// or use the GODEBUG=tlskyber=0 environment variable.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
@@ -1084,20 +1099,27 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 	return versions
 }
 
-var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+var tlskyber = godebug.New("tlskyber")
 
-func (c *Config) curvePreferences() []CurveID {
+var defaultCurvePreferences = []CurveID{x25519Kyber768Draft00, X25519, CurveP256, CurveP384, CurveP521}
+
+var defaultCurvePreferencesWithoutKyber = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+
+func (c *Config) curvePreferences(version uint16) []CurveID {
 	if needFIPS() {
 		return fipsCurvePreferences(c)
 	}
 	if c == nil || len(c.CurvePreferences) == 0 {
+		if version < VersionTLS13 || tlskyber.Value() == "0" {
+			return defaultCurvePreferencesWithoutKyber
+		}
 		return defaultCurvePreferences
 	}
 	return c.CurvePreferences
 }
 
-func (c *Config) supportsCurve(curve CurveID) bool {
-	for _, cc := range c.curvePreferences() {
+func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
+	for _, cc := range c.curvePreferences(version) {
 		if cc == curve {
 			return true
 		}
@@ -1256,7 +1278,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	}
 
 	// The only signed key exchange we support is ECDHE.
-	if !supportsECDHE(config, chi.SupportedCurves, chi.SupportedPoints) {
+	if !supportsECDHE(config, vers, chi.SupportedCurves, chi.SupportedPoints) {
 		return supportsRSAFallback(errors.New("client doesn't support ECDHE, can only use legacy RSA key exchange"))
 	}
 
@@ -1277,7 +1299,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 			}
 			var curveOk bool
 			for _, c := range chi.SupportedCurves {
-				if c == curve && config.supportsCurve(c) {
+				if c == curve && config.supportsCurve(vers, c) {
 					curveOk = true
 					break
 				}

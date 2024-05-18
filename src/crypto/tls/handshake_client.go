@@ -8,15 +8,16 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"hash"
+	"internal/byteorder"
 	"internal/godebug"
 	"io"
 	"net"
@@ -39,7 +40,7 @@ type clientHandshakeState struct {
 
 var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
 
-func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error) {
 	config := c.config
 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
 		return nil, nil, errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
@@ -61,28 +62,28 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 	if len(supportedVersions) == 0 {
 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
 	}
-
-	clientHelloVersion := config.maxSupportedVersion(roleClient)
-	// The version at the beginning of the ClientHello was capped at TLS 1.2
-	// for compatibility reasons. The supported_versions extension is used
-	// to negotiate versions now. See RFC 8446, Section 4.2.1.
-	if clientHelloVersion > VersionTLS12 {
-		clientHelloVersion = VersionTLS12
-	}
+	maxVersion := config.maxSupportedVersion(roleClient)
 
 	hello := &clientHelloMsg{
-		vers:                         clientHelloVersion,
+		vers:                         maxVersion,
 		compressionMethods:           []uint8{compressionNone},
 		random:                       make([]byte, 32),
 		extendedMasterSecret:         true,
 		ocspStapling:                 true,
 		scts:                         true,
 		serverName:                   hostnameInSNI(config.ServerName),
-		supportedCurves:              config.curvePreferences(),
+		supportedCurves:              config.curvePreferences(maxVersion),
 		supportedPoints:              []uint8{pointFormatUncompressed},
 		secureRenegotiationSupported: true,
 		alpnProtocols:                config.NextProtos,
 		supportedVersions:            supportedVersions,
+	}
+
+	// The version at the beginning of the ClientHello was capped at TLS 1.2
+	// for compatibility reasons. The supported_versions extension is used
+	// to negotiate versions now. See RFC 8446, Section 4.2.1.
+	if hello.vers > VersionTLS12 {
+		hello.vers = VersionTLS12
 	}
 
 	if c.handshakes > 0 {
@@ -103,7 +104,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		}
 		// Don't advertise TLS 1.2-only cipher suites unless
 		// we're attempting TLS 1.2.
-		if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+		if maxVersion < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
 			continue
 		}
 		hello.cipherSuites = append(hello.cipherSuites, suiteId)
@@ -126,14 +127,14 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		}
 	}
 
-	if hello.vers >= VersionTLS12 {
+	if maxVersion >= VersionTLS12 {
 		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
 	}
 
-	var key *ecdh.PrivateKey
+	var keyShareKeys *keySharePrivateKeys
 	if hello.supportedVersions[0] == VersionTLS13 {
 		// Reset the list of ciphers when the client only supports TLS 1.3.
 		if len(hello.supportedVersions) == 1 {
@@ -145,15 +146,40 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13NoAES...)
 		}
 
-		curveID := config.curvePreferences()[0]
-		if _, ok := curveForCurveID(curveID); !ok {
-			return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+		curveID := config.curvePreferences(maxVersion)[0]
+		keyShareKeys = &keySharePrivateKeys{curveID: curveID}
+		if curveID == x25519Kyber768Draft00 {
+			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)
+			if err != nil {
+				return nil, nil, err
+			}
+			seed := make([]byte, mlkem768.SeedSize)
+			if _, err := io.ReadFull(config.rand(), seed); err != nil {
+				return nil, nil, err
+			}
+			keyShareKeys.kyber, err = mlkem768.NewKeyFromSeed(seed)
+			if err != nil {
+				return nil, nil, err
+			}
+			// For draft-tls-westerbaan-xyber768d00-03, we send both a hybrid
+			// and a standard X25519 key share, since most servers will only
+			// support the latter. We reuse the same X25519 ephemeral key for
+			// both, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
+			hello.keyShares = []keyShare{
+				{group: x25519Kyber768Draft00, data: append(keyShareKeys.ecdhe.PublicKey().Bytes(),
+					keyShareKeys.kyber.EncapsulationKey()...)},
+				{group: X25519, data: keyShareKeys.ecdhe.PublicKey().Bytes()},
+			}
+		} else {
+			if _, ok := curveForCurveID(curveID); !ok {
+				return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+			}
+			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), curveID)
+			if err != nil {
+				return nil, nil, err
+			}
+			hello.keyShares = []keyShare{{group: curveID, data: keyShareKeys.ecdhe.PublicKey().Bytes()}}
 		}
-		key, err = generateECDHEKey(config.rand(), curveID)
-		if err != nil {
-			return nil, nil, err
-		}
-		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
 	}
 
 	if c.quic != nil {
@@ -167,7 +193,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 		hello.quicTransportParameters = p
 	}
 
-	return hello, key, nil
+	return hello, keyShareKeys, nil
 }
 
 func (c *Conn) clientHandshake(ctx context.Context) (err error) {
@@ -179,7 +205,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	// need to be reset.
 	c.didResume = false
 
-	hello, ecdheKey, err := c.makeClientHello()
+	hello, keyShareKeys, err := c.makeClientHello()
 	if err != nil {
 		return err
 	}
@@ -249,17 +275,15 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 
 	if c.vers == VersionTLS13 {
 		hs := &clientHandshakeStateTLS13{
-			c:           c,
-			ctx:         ctx,
-			serverHello: serverHello,
-			hello:       hello,
-			ecdheKey:    ecdheKey,
-			session:     session,
-			earlySecret: earlySecret,
-			binderKey:   binderKey,
+			c:            c,
+			ctx:          ctx,
+			serverHello:  serverHello,
+			hello:        hello,
+			keyShareKeys: keyShareKeys,
+			session:      session,
+			earlySecret:  earlySecret,
+			binderKey:    binderKey,
 		}
-
-		// In TLS 1.3, session tickets are delivered after the handshake.
 		return hs.handshake()
 	}
 
@@ -270,12 +294,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		hello:       hello,
 		session:     session,
 	}
-
-	if err := hs.handshake(); err != nil {
-		return err
-	}
-
-	return nil
+	return hs.handshake()
 }
 
 func (c *Conn) loadSession(hello *clientHelloMsg) (
@@ -602,6 +621,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if err != nil {
 			c.sendAlert(alertUnexpectedMessage)
 			return err
+		}
+		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
 		}
 
 		msg, err = c.readHandshake(&hs.finishedHash)

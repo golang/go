@@ -8,20 +8,21 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdh"
 	"crypto/hmac"
+	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"errors"
 	"hash"
+	"slices"
 	"time"
 )
 
 type clientHandshakeStateTLS13 struct {
-	c           *Conn
-	ctx         context.Context
-	serverHello *serverHelloMsg
-	hello       *clientHelloMsg
-	ecdheKey    *ecdh.PrivateKey
+	c            *Conn
+	ctx          context.Context
+	serverHello  *serverHelloMsg
+	hello        *clientHelloMsg
+	keyShareKeys *keySharePrivateKeys
 
 	session     *SessionState
 	earlySecret []byte
@@ -36,7 +37,7 @@ type clientHandshakeStateTLS13 struct {
 	trafficSecret []byte // client_application_traffic_secret_0
 }
 
-// handshake requires hs.c, hs.hello, hs.serverHello, hs.ecdheKey, and,
+// handshake requires hs.c, hs.hello, hs.serverHello, hs.keyShareKeys, and,
 // optionally, hs.session, hs.earlySecret and hs.binderKey to be set.
 func (hs *clientHandshakeStateTLS13) handshake() error {
 	c := hs.c
@@ -53,7 +54,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 	}
 
 	// Consistency check on the presence of a keyShare and its parameters.
-	if hs.ecdheKey == nil || len(hs.hello.keyShares) != 1 {
+	if hs.keyShareKeys == nil || hs.keyShareKeys.ecdhe == nil || len(hs.hello.keyShares) == 0 {
 		return c.sendAlert(alertInternalError)
 	}
 
@@ -221,21 +222,22 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 	// a group we advertised but did not send a key share for, and send a key
 	// share for it this time.
 	if curveID := hs.serverHello.selectedGroup; curveID != 0 {
-		curveOK := false
-		for _, id := range hs.hello.supportedCurves {
-			if id == curveID {
-				curveOK = true
-				break
-			}
-		}
-		if !curveOK {
+		if !slices.Contains(hs.hello.supportedCurves, curveID) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: server selected unsupported group")
 		}
-		if sentID, _ := curveIDForCurve(hs.ecdheKey.Curve()); sentID == curveID {
+		if slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
+			return ks.group == curveID
+		}) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: server sent an unnecessary HelloRetryRequest key_share")
 		}
+		// Note: we don't support selecting X25519Kyber768Draft00 in a HRR,
+		// because we currently only support it at all when CurvePreferences is
+		// empty, which will cause us to also send a key share for it.
+		//
+		// This will have to change once we support selecting hybrid KEMs
+		// without sending key shares for them.
 		if _, ok := curveForCurveID(curveID); !ok {
 			c.sendAlert(alertInternalError)
 			return errors.New("tls: CurvePreferences includes unsupported curve")
@@ -245,7 +247,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 			c.sendAlert(alertInternalError)
 			return err
 		}
-		hs.ecdheKey = key
+		hs.keyShareKeys = &keySharePrivateKeys{curveID: curveID, ecdhe: key}
 		hs.hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
 	}
 
@@ -333,7 +335,9 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server did not send a key share")
 	}
-	if sentID, _ := curveIDForCurve(hs.ecdheKey.Curve()); hs.serverHello.serverShare.group != sentID {
+	if !slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
+		return ks.group == hs.serverHello.serverShare.group
+	}) {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server selected unsupported group")
 	}
@@ -372,16 +376,37 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 	c := hs.c
 
-	peerKey, err := hs.ecdheKey.Curve().NewPublicKey(hs.serverHello.serverShare.data)
+	ecdhePeerData := hs.serverHello.serverShare.data
+	if hs.serverHello.serverShare.group == x25519Kyber768Draft00 {
+		if len(ecdhePeerData) != x25519PublicKeySize+mlkem768.CiphertextSize {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid server key share")
+		}
+		ecdhePeerData = hs.serverHello.serverShare.data[:x25519PublicKeySize]
+	}
+	peerKey, err := hs.keyShareKeys.ecdhe.Curve().NewPublicKey(ecdhePeerData)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")
 	}
-	sharedKey, err := hs.ecdheKey.ECDH(peerKey)
+	sharedKey, err := hs.keyShareKeys.ecdhe.ECDH(peerKey)
 	if err != nil {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid server key share")
 	}
+	if hs.serverHello.serverShare.group == x25519Kyber768Draft00 {
+		if hs.keyShareKeys.kyber == nil {
+			return c.sendAlert(alertInternalError)
+		}
+		ciphertext := hs.serverHello.serverShare.data[x25519PublicKeySize:]
+		kyberShared, err := kyberDecapsulate(hs.keyShareKeys.kyber, ciphertext)
+		if err != nil {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid Kyber server key share")
+		}
+		sharedKey = append(sharedKey, kyberShared...)
+	}
+	c.curveID = hs.serverHello.serverShare.group
 
 	earlySecret := hs.earlySecret
 	if !hs.usingPSK {

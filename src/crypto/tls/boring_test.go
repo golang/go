@@ -165,6 +165,10 @@ func TestBoringServerCurves(t *testing.T) {
 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
 			clientConfig := testConfig.Clone()
 			clientConfig.CurvePreferences = []CurveID{curveid}
+			if curveid == x25519Kyber768Draft00 {
+				// x25519Kyber768Draft00 is not supported standalone.
+				clientConfig.CurvePreferences = append(clientConfig.CurvePreferences, X25519)
+			}
 			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
 				t.Fatalf("got error: %v, expected success", err)
 			}

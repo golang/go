@@ -378,6 +378,7 @@ func runMain(m *testing.M) int {
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
 		CipherSuites:       allCipherSuites(),
+		CurvePreferences:   []CurveID{X25519, CurveP256, CurveP384, CurveP521},
 		MinVersion:         VersionTLS10,
 		MaxVersion:         VersionTLS13,
 	}

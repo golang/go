@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -1801,6 +1802,138 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 			}
 			if !clientVerifyConnection {
 				t.Error("VerifyConnection did not get called on the client on resumption")
+			}
+		})
+	}
+}
+
+func TestHandshakeKyber(t *testing.T) {
+	if x25519Kyber768Draft00.String() != "X25519Kyber768Draft00" {
+		t.Fatalf("unexpected CurveID string: %v", x25519Kyber768Draft00.String())
+	}
+
+	var tests = []struct {
+		name                string
+		clientConfig        func(*Config)
+		serverConfig        func(*Config)
+		preparation         func(*testing.T)
+		expectClientSupport bool
+		expectKyber         bool
+		expectHRR           bool
+	}{
+		{
+			name:                "Default",
+			expectClientSupport: true,
+			expectKyber:         true,
+			expectHRR:           false,
+		},
+		{
+			name: "ClientCurvePreferences",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519}
+			},
+			expectClientSupport: false,
+		},
+		{
+			name: "ServerCurvePreferencesX25519",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519}
+			},
+			expectClientSupport: true,
+			expectKyber:         false,
+			expectHRR:           false,
+		},
+		{
+			name: "ServerCurvePreferencesHRR",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256}
+			},
+			expectClientSupport: true,
+			expectKyber:         false,
+			expectHRR:           true,
+		},
+		{
+			name: "ClientTLSv12",
+			clientConfig: func(config *Config) {
+				config.MaxVersion = VersionTLS12
+			},
+			expectClientSupport: false,
+		},
+		{
+			name: "ServerTLSv12",
+			serverConfig: func(config *Config) {
+				config.MaxVersion = VersionTLS12
+			},
+			expectClientSupport: true,
+			expectKyber:         false,
+		},
+		{
+			name: "GODEBUG",
+			preparation: func(t *testing.T) {
+				t.Setenv("GODEBUG", "tlskyber=0")
+			},
+			expectClientSupport: false,
+		},
+	}
+
+	baseConfig := testConfig.Clone()
+	baseConfig.CurvePreferences = nil
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.preparation != nil {
+				test.preparation(t)
+			} else {
+				t.Parallel()
+			}
+			serverConfig := baseConfig.Clone()
+			if test.serverConfig != nil {
+				test.serverConfig(serverConfig)
+			}
+			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
+				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
+					return nil, errors.New("client supports Kyber768Draft00")
+				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
+					return nil, errors.New("client does not support Kyber768Draft00")
+				}
+				return nil, nil
+			}
+			clientConfig := baseConfig.Clone()
+			if test.clientConfig != nil {
+				test.clientConfig(clientConfig)
+			}
+			ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.expectKyber {
+				if ss.testingOnlyCurveID != x25519Kyber768Draft00 {
+					t.Errorf("got CurveID %v (server), expected %v", ss.testingOnlyCurveID, x25519Kyber768Draft00)
+				}
+				if cs.testingOnlyCurveID != x25519Kyber768Draft00 {
+					t.Errorf("got CurveID %v (client), expected %v", cs.testingOnlyCurveID, x25519Kyber768Draft00)
+				}
+			} else {
+				if ss.testingOnlyCurveID == x25519Kyber768Draft00 {
+					t.Errorf("got CurveID %v (server), expected not Kyber", ss.testingOnlyCurveID)
+				}
+				if cs.testingOnlyCurveID == x25519Kyber768Draft00 {
+					t.Errorf("got CurveID %v (client), expected not Kyber", cs.testingOnlyCurveID)
+				}
+			}
+			if test.expectHRR {
+				if !ss.testingOnlyDidHRR {
+					t.Error("server did not use HRR")
+				}
+				if !cs.testingOnlyDidHRR {
+					t.Error("client did not use HRR")
+				}
+			} else {
+				if ss.testingOnlyDidHRR {
+					t.Error("server used HRR")
+				}
+				if cs.testingOnlyDidHRR {
+					t.Error("client used HRR")
+				}
 			}
 		})
 	}

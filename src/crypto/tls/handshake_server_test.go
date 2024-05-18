@@ -81,6 +81,7 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		}
 	}
 	s.Close()
+	t.Helper()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {
 			t.Errorf("Got error: %s; expected to succeed", err)
