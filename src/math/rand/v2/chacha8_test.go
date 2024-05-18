@@ -531,8 +531,21 @@ var chacha8marshal = []string{
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00{K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
 }
 
+func TestChaCha8Read(t *testing.T) {
+	c := NewChaCha8(chacha8seed)
+	n, err := c.Read(make([]byte, 128))
+	if n != 128 || err != nil {
+		t.Errorf("(*ChaCha8).Read(buf) = (%v, %v); want = (128, nil)", n, err)
+	}
+
+	n, err = c.Read(make([]byte, 0))
+	if n != 0 || err != nil {
+		t.Errorf("(*ChaCha8).Read(buf) = (%v, %v); want = (0, nil)", n, err)
+	}
+}
+
 func BenchmarkRead(b *testing.B) {
-	for _, v := range []int{1, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024 * 2, 1024 * 16} {
+	for _, v := range []int{1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024 * 2, 1024 * 16} {
 		b.Run(strconv.FormatInt(int64(v), 10), func(b *testing.B) {
 			r := NewChaCha8(chacha8seed)
 			buf := make([]byte, v)
