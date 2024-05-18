@@ -45,6 +45,10 @@ go env -changed -json GOARCH
 [GOARCH:amd64] stdout '"GOARCH": "arm64"'
 [!GOARCH:amd64] stdout '"GOARCH": "amd64"'
 
+env GOAMD64=v3
+go env -changed
+stdout 'GOAMD64=''?v3''?'
+
 env GOPROXY=s
 go env -changed GOPROXY
 ! stdout 'GOPROXY'
