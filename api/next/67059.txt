@@ -1,1 +1,1 @@
-pkg math/rand/v2, method (*ChaCha8) Read(p []byte) (n int, err error) #67059
+pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
