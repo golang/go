@@ -48,7 +48,7 @@ func NewCounter(name string) *counter.Counter {
 	return counter.New(name)
 }
 
-// NewStack returns a new stack counter with the given name and depth.
+// NewStackCounter returns a new stack counter with the given name and depth.
 func NewStackCounter(name string, depth int) *counter.StackCounter {
 	return counter.NewStack(name, depth)
 }
