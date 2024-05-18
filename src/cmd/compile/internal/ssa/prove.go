@@ -173,7 +173,7 @@ type factsTable struct {
 	orderU *poset
 
 	// known lower and upper bounds on individual values.
-	limits     map[ID]limit
+	limits     []limit     // indexed by value ID
 	limitStack []limitFact // previous entries
 
 	// For each slice s, a map from s to a len(s)/cap(s) value (if any)
@@ -199,9 +199,12 @@ func newFactsTable(f *Func) *factsTable {
 	ft.orderU.SetUnsigned(true)
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
-	ft.limits = make(map[ID]limit)
+	ft.limits = f.Cache.allocLimitSlice(f.NumValues())
 	ft.limitStack = make([]limitFact, 4)
 	ft.zero = f.ConstInt64(f.Config.Types.Int64, 0)
+	for i := range ft.limits {
+		ft.limits[i] = noLimit
+	}
 	return ft
 }
 
@@ -296,9 +299,8 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		// In fact if there is overflow/underflow, the corresponding
 		// code is unreachable because the known range is outside the range
 		// of the value's type.
-		old, ok := ft.limits[v.ID]
-		if !ok {
-			old = noLimit
+		old := ft.limits[v.ID]
+		if old == noLimit {
 			if v.isGenericIntConst() {
 				switch d {
 				case signed:
@@ -444,14 +446,14 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			// x-1 >= w && x > min  ⇒  x > w
 			//
 			// Useful for i > 0; s[i-1].
-			lim, ok := ft.limits[x.ID]
-			if ok && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
+			lim := ft.limits[x.ID]
+			if lim != noLimit && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
 				ft.update(parent, x, w, d, gt)
 			}
 		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
 			// v >= x+1 && x < max  ⇒  v > x
-			lim, ok := ft.limits[x.ID]
-			if ok && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
+			lim := ft.limits[x.ID]
+			if lim != noLimit && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
 				ft.update(parent, v, x, d, gt)
 			}
 		}
@@ -465,7 +467,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
 			underflow := true
-			if l, has := ft.limits[x.ID]; has && delta < 0 {
+			if l := ft.limits[x.ID]; l != noLimit && delta < 0 {
 				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
 					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
 					underflow = false
@@ -543,7 +545,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
 					// so let's see if we can already prove that one of them is false, in which case
 					// the other must be true
-					if l, has := ft.limits[x.ID]; has {
+					if l := ft.limits[x.ID]; l != noLimit {
 						if l.max <= min {
 							if r&eq == 0 || l.max < min {
 								// x>min (x>=min) is impossible, so it must be x<=max
@@ -617,13 +619,13 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 
 	// Check if the recorded limits can prove that the value is positive
 
-	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
+	if l := ft.limits[v.ID]; l != noLimit && (l.min >= 0 || l.umax <= uint64(max)) {
 		return true
 	}
 
 	// Check if v = x+delta, and we can use x's limits to prove that it's positive
 	if x, delta := isConstDelta(v); x != nil {
-		if l, has := ft.limits[x.ID]; has {
+		if l := ft.limits[x.ID]; l != noLimit {
 			if delta > 0 && l.min >= -delta && l.max <= max-delta {
 				return true
 			}
@@ -681,11 +683,7 @@ func (ft *factsTable) restore() {
 		if old.vid == 0 { // checkpointBound
 			break
 		}
-		if old.limit == noLimit {
-			delete(ft.limits, old.vid)
-		} else {
-			ft.limits[old.vid] = old.limit
-		}
+		ft.limits[old.vid] = old.limit
 	}
 	ft.orderS.Undo()
 	ft.orderU.Undo()
@@ -765,6 +763,7 @@ func (ft *factsTable) cleanup(f *Func) {
 		}
 		f.retPoset(po)
 	}
+	f.Cache.freeLimitSlice(ft.limits)
 }
 
 // prove removes redundant BlockIf branches that can be inferred
@@ -1261,10 +1260,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 			c = v
 			val -= off
 		}
-		old, ok := ft.limits[c.ID]
-		if !ok {
-			old = noLimit
-		}
+		old := ft.limits[c.ID]
 		ft.limitStack = append(ft.limitStack, limitFact{c.ID, old})
 		if val < old.min || val > old.max || uint64(val) < old.umin || uint64(val) > old.umax {
 			ft.unsat = true
@@ -1473,8 +1469,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			}
 			// slicemask(x + y)
 			// if x is larger than -y (y is negative), then slicemask is -1.
-			lim, ok := ft.limits[x.ID]
-			if !ok {
+			lim := ft.limits[x.ID]
+			if lim == noLimit {
 				break
 			}
 			if lim.umin > uint64(-delta) {
@@ -1493,8 +1489,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// code for CtzNN if we know that the argument is non-zero.
 			// Capture that information here for use in arch-specific optimizations.
 			x := v.Args[0]
-			lim, ok := ft.limits[x.ID]
-			if !ok {
+			lim := ft.limits[x.ID]
+			if lim == noLimit {
 				break
 			}
 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
@@ -1542,8 +1538,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// Check whether, for a << b, we know that b
 			// is strictly less than the number of bits in a.
 			by := v.Args[1]
-			lim, ok := ft.limits[by.ID]
-			if !ok {
+			lim := ft.limits[by.ID]
+			if lim == noLimit {
 				break
 			}
 			bits := 8 * v.Args[0].Type.Size()
@@ -1563,11 +1559,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				break
 			}
 			divr := v.Args[1]
-			divrLim, divrLimok := ft.limits[divr.ID]
+			divrLim := ft.limits[divr.ID]
 			divd := v.Args[0]
-			divdLim, divdLimok := ft.limits[divd.ID]
-			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
-				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
+			divdLim := ft.limits[divd.ID]
+			if (divrLim != noLimit && (divrLim.max < -1 || divrLim.min > -1)) ||
+				(divdLim != noLimit && divdLim.min > mostNegativeDividend[v.Op]) {
 				// See DivisionNeedsFixUp in rewrite.go.
 				// v.AuxInt = 1 means we have proved both that the divisor is not -1
 				// and that the dividend is not the most negative integer,
@@ -1585,8 +1581,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			case OpConst64, OpConst32, OpConst16, OpConst8:
 				continue
 			}
-			lim, ok := ft.limits[arg.ID]
-			if !ok {
+			lim := ft.limits[arg.ID]
+			if lim == noLimit {
 				continue
 			}
 
