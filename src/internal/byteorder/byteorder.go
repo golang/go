@@ -150,18 +150,18 @@ func BeAppendUint64(b []byte, v uint64) []byte {
 	)
 }
 
-// ReadInt returns the size-bytes unsigned integer in native byte order at offset off.
-func ReadInt(b []byte, off, size uintptr) (u uint64, ok bool) {
+// ReadUint returns the size-bytes unsigned integer in native byte order at offset off.
+func ReadUint(b []byte, off, size uintptr) (u uint64, ok bool) {
 	if len(b) < int(off+size) {
 		return 0, false
 	}
 	if goarch.BigEndian {
-		return readIntBE(b[off:], size), true
+		return readUintBE(b[off:], size), true
 	}
-	return readIntLE(b[off:], size), true
+	return readUintLE(b[off:], size), true
 }
 
-func readIntBE(b []byte, size uintptr) uint64 {
+func readUintBE(b []byte, size uintptr) uint64 {
 	switch size {
 	case 1:
 		return uint64(b[0])
@@ -172,11 +172,11 @@ func readIntBE(b []byte, size uintptr) uint64 {
 	case 8:
 		return uint64(BeUint64(b))
 	default:
-		panic("readInt with unsupported size")
+		panic("readUint with unsupported size")
 	}
 }
 
-func readIntLE(b []byte, size uintptr) uint64 {
+func readUintLE(b []byte, size uintptr) uint64 {
 	switch size {
 	case 1:
 		return uint64(b[0])
@@ -187,6 +187,6 @@ func readIntLE(b []byte, size uintptr) uint64 {
 	case 8:
 		return uint64(LeUint64(b))
 	default:
-		panic("readInt with unsupported size")
+		panic("readUint with unsupported size")
 	}
 }

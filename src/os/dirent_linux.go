@@ -11,11 +11,11 @@ import (
 )
 
 func direntIno(buf []byte) (uint64, bool) {
-	return byteorder.ReadInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
-	return byteorder.ReadInt(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(syscall.Dirent{}.Reclen), unsafe.Sizeof(syscall.Dirent{}.Reclen))
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {

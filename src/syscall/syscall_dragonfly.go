@@ -86,7 +86,7 @@ func nametomib(name string) (mib []_C_int, err error) {
 }
 
 func direntIno(buf []byte) (uint64, bool) {
-	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
@@ -98,7 +98,7 @@ func direntReclen(buf []byte) (uint64, bool) {
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
-	return byteorder.ReadInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
 //sysnb pipe() (r int, w int, err error)
