@@ -307,6 +307,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		return err
 	}
 
+	c.didHRR = true
 	return nil
 }
 

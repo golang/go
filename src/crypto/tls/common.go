@@ -299,6 +299,9 @@ type ConnectionState struct {
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
+
+	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
+	testingOnlyDidHRR bool
 }
 
 // ExportKeyingMaterial returns length bytes of exported key material in a new

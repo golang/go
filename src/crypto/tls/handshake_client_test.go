@@ -659,6 +659,12 @@ func TestHandshakeClientHelloRetryRequest(t *testing.T) {
 		name:   "HelloRetryRequest",
 		args:   []string{"-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
 		config: config,
+		validate: func(cs ConnectionState) error {
+			if !cs.testingOnlyDidHRR {
+				return errors.New("expected HelloRetryRequest")
+			}
+			return nil
+		},
 	}
 
 	runClientTestTLS13(t, test)

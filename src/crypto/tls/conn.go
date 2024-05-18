@@ -48,6 +48,7 @@ type Conn struct {
 	handshakes       int
 	extMasterSecret  bool
 	didResume        bool // whether this connection was a session resumption
+	didHRR           bool // whether a HelloRetryRequest was sent/received
 	cipherSuite      uint16
 	ocspResponse     []byte   // stapled OCSP response
 	scts             [][]byte // signed certificate timestamps from server
@@ -1608,6 +1609,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	state.Version = c.vers
 	state.NegotiatedProtocol = c.clientProtocol
 	state.DidResume = c.didResume
+	state.testingOnlyDidHRR = c.didHRR
 	state.NegotiatedProtocolIsMutual = true
 	state.ServerName = c.serverName
 	state.CipherSuite = c.cipherSuite

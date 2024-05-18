@@ -14,6 +14,7 @@ import (
 	"hash"
 	"internal/byteorder"
 	"io"
+	"slices"
 	"time"
 )
 
@@ -181,21 +182,25 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	// groups with a key share, to avoid a HelloRetryRequest round-trip.
 	var selectedGroup CurveID
 	var clientKeyShare *keyShare
-GroupSelection:
-	for _, preferredGroup := range c.config.curvePreferences() {
-		for _, ks := range hs.clientHello.keyShares {
-			if ks.group == preferredGroup {
-				selectedGroup = ks.group
-				clientKeyShare = &ks
-				break GroupSelection
+	preferredGroups := c.config.curvePreferences()
+	for _, preferredGroup := range preferredGroups {
+		ki := slices.IndexFunc(hs.clientHello.keyShares, func(ks keyShare) bool {
+			return ks.group == preferredGroup
+		})
+		if ki != -1 {
+			clientKeyShare = &hs.clientHello.keyShares[ki]
+			selectedGroup = clientKeyShare.group
+			if !slices.Contains(hs.clientHello.supportedCurves, selectedGroup) {
+				c.sendAlert(alertIllegalParameter)
+				return errors.New("tls: client sent key share for group it does not support")
 			}
+			break
 		}
-		if selectedGroup != 0 {
-			continue
-		}
-		for _, group := range hs.clientHello.supportedCurves {
-			if group == preferredGroup {
-				selectedGroup = group
+	}
+	if selectedGroup == 0 {
+		for _, preferredGroup := range preferredGroups {
+			if slices.Contains(hs.clientHello.supportedCurves, preferredGroup) {
+				selectedGroup = preferredGroup
 				break
 			}
 		}
@@ -532,6 +537,7 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 		return errors.New("tls: client illegally modified second ClientHello")
 	}
 
+	c.didHRR = true
 	hs.clientHello = clientHello
 	return nil
 }
