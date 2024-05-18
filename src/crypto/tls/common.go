@@ -93,7 +93,6 @@ const (
 	typeFinished            uint8 = 20
 	typeCertificateStatus   uint8 = 22
 	typeKeyUpdate           uint8 = 24
-	typeNextProtocol        uint8 = 67  // Not IANA assigned
 	typeMessageHash         uint8 = 254 // synthetic message
 )
 
