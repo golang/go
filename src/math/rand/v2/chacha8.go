@@ -46,6 +46,7 @@ func (c *ChaCha8) MarshalBinary() ([]byte, error) {
 }
 
 // Read generates len(p) random bytes and writes them into p.
+// It never returns an error.
 func (c *ChaCha8) Read(p []byte) (n int, err error) {
 	c.state.FillRand(p)
 	return len(p), nil
