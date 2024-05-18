@@ -45,10 +45,7 @@ go env -changed -json GOARCH
 [GOARCH:amd64] stdout '"GOARCH": "arm64"'
 [!GOARCH:amd64] stdout '"GOARCH": "amd64"'
 
-# flipped GOOS, and now flip it backwards.
-[GOARCH:arm64] env GOARCH=amd64
-[!GOARCH:arm64] env GOARCH=arm64
-[!GOARCH:amd64] skip
+env GOARCH=amd64
 env GOAMD64=v3
 go env -changed
 stdout 'GOAMD64=''?v3''?'
