@@ -172,7 +172,7 @@ func readUintBE(b []byte, size uintptr) uint64 {
 	case 8:
 		return uint64(BeUint64(b))
 	default:
-		panic("readUint with unsupported size")
+		panic("ReadUint with unsupported size")
 	}
 }
 
@@ -187,6 +187,6 @@ func readUintLE(b []byte, size uintptr) uint64 {
 	case 8:
 		return uint64(LeUint64(b))
 	default:
-		panic("readUint with unsupported size")
+		panic("ReadUint with unsupported size")
 	}
 }
