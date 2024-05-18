@@ -1,10 +1,9 @@
 ### Iterators
 
-The new [`iter` package](/pkg/iter/) provides the basic definitions for
-working with user-defined iterators.
+The new [iter] package provides the basic definitions for working with
+user-defined iterators.
 
-The [`slices` package](/pkg/slices/) adds several functions that work
-with iterators:
+The [slices] package adds several functions that work with iterators:
 - [All](/pkg/slices#All) returns an iterator over slice indexes and values.
 - [Values](/pkg/slices#Values) returns an iterator over slice elements.
 - [Backward](/pkg/slices#Backward) returns an iterator that loops over
@@ -22,8 +21,7 @@ with iterators:
 - [Chunk](/pkg/slices#Chunk) returns an iterator over consecutive
   sub-slices of up to n elements of a slice.
 
-The [`maps` package](/pkg/maps/) adds several functions that work
-with iterators:
+The [maps] package adds several functions that work with iterators:
 - [All](/pkg/maps#All) returns an iterator over key-value pairs from m.
 - [Keys](/pkg/maps#Keys) returns an iterator over keys in m.
 - [Values](/pkg/maps#Values) returns an iterator over values in m.

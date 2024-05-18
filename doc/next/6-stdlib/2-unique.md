@@ -1,6 +1,6 @@
 ### New unique package
 
-The new [unique](/pkg/unique) package provides facilities for
+The new [unique] package provides facilities for
 canonicalizing values (like "interning" or "hash-consing").
 
 Any value of comparable type may be canonicalized with the new
