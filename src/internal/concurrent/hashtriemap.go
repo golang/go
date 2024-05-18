@@ -270,13 +270,15 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	return true
 }
 
-// Enumerate produces all key-value pairs in the map. The enumeration does
-// not represent any consistent snapshot of the map, but is guaranteed
-// to visit each unique key-value pair only once. It is safe to operate
-// on the tree during iteration. No particular enumeration order is
-// guaranteed.
-func (ht *HashTrieMap[K, V]) Enumerate(yield func(key K, value V) bool) {
-	ht.iter(ht.root, yield)
+// All returns an iter.Seq2 that produces all key-value pairs in the map.
+// The enumeration does not represent any consistent snapshot of the map,
+// but is guaranteed to visit each unique key-value pair only once. It is
+// safe to operate on the tree during iteration. No particular enumeration
+// order is guaranteed.
+func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
+	return func(yield func(key K, value V) bool) {
+		ht.iter(ht.root, yield)
+	}
 }
 
 func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) bool) bool {
