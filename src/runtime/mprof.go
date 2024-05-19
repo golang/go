@@ -43,10 +43,29 @@ const (
 	// Note that it's only used internally as a guard against
 	// wildly out-of-bounds slicing of the PCs that come after
 	// a bucket struct, and it could increase in the future.
-	// The "+ 1" is to account for the first stack entry being
+	// The term "1" accounts for the first stack entry being
 	// taken up by a "skip" sentinel value for profilers which
 	// defer inline frame expansion until the profile is reported.
-	maxStack = 32 + 1
+	// The term "maxSkip" is for frame pointer unwinding, where we
+	// want to end up with maxLogicalStack frames but will discard
+	// some "physical" frames to account for skipping.
+	maxStack = 1 + maxSkip + maxLogicalStack
+
+	// maxLogicalStack is the maximum stack size of a call stack
+	// to encode in a profile. This counts "logical" frames, which
+	// includes inlined frames. We may record more than this many
+	// "physical" frames when using frame pointer unwinding to account
+	// for deferred handling of skipping frames & inline expansion.
+	maxLogicalStack = 32
+	// maxSkip is to account for deferred inline expansion
+	// when using frame pointer unwinding. We record the stack
+	// with "physical" frame pointers but handle skipping "logical"
+	// frames at some point after collecting the stack. So
+	// we need extra space in order to avoid getting fewer than the
+	// desired maximum number of frames after expansion.
+	// This should be at least as large as the largest skip value
+	// used for profiling; otherwise stacks may be truncated inconsistently
+	maxSkip = 5
 )
 
 type bucketType int
@@ -513,6 +532,11 @@ func blocksampled(cycles, rate int64) bool {
 // skip should be positive if this event is recorded from the current stack
 // (e.g. when this is not called from a system stack)
 func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+	if skip > maxSkip {
+		print("requested skip=", skip)
+		throw("invalid skip value")
+	}
+
 	gp := getg()
 	mp := acquirem() // we must not be preempted while accessing profstack
 	nstk := 1
