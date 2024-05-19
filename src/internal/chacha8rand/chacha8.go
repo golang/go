@@ -181,7 +181,7 @@ func (s *State) FillRand(b []byte) {
 				b = b[n:]
 
 				if len(b) == 0 {
-					break
+					return
 				}
 			}
 			s.Refill()
@@ -194,7 +194,7 @@ func (s *State) FillRand(b []byte) {
 		b = b[n:]
 
 		if len(b) == 0 {
-			break
+			return
 		}
 		s.Refill()
 	}
