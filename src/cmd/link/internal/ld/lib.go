@@ -1356,6 +1356,8 @@ INSERT AFTER .debug_types;
 	return path
 }
 
+type machoUpdateFunc func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error
+
 // archive builds a .a archive from the hostobj object files.
 func (ctxt *Link) archive() {
 	if ctxt.BuildMode != BuildModeCArchive {
@@ -1969,6 +1971,30 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("%s", out)
 	}
 
+	// Helper for updating a Macho binary in some way (shared between
+	// dwarf combining and UUID update).
+	updateMachoOutFile := func(op string, updateFunc machoUpdateFunc) {
+		// For os.Rename to work reliably, must be in same directory as outfile.
+		rewrittenOutput := *flagOutfile + "~"
+		exef, err := os.Open(*flagOutfile)
+		if err != nil {
+			Exitf("%s: %s failed: %v", os.Args[0], op, err)
+		}
+		defer exef.Close()
+		exem, err := macho.NewFile(exef)
+		if err != nil {
+			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
+		}
+		if err := updateFunc(ctxt, exef, exem, rewrittenOutput); err != nil {
+			Exitf("%s: %s failed: %v", os.Args[0], op, err)
+		}
+		os.Remove(*flagOutfile)
+		if err := os.Rename(rewrittenOutput, *flagOutfile); err != nil {
+			Exitf("%s: %v", os.Args[0], err)
+		}
+	}
+
+	uuidUpdated := false
 	if combineDwarf {
 		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
 		var cc []string
@@ -2028,24 +2054,17 @@ func (ctxt *Link) hostlink() {
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {
 			return
 		}
-		// For os.Rename to work reliably, must be in same directory as outfile.
-		combinedOutput := *flagOutfile + "~"
-		exef, err := os.Open(*flagOutfile)
-		if err != nil {
-			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
-		}
-		defer exef.Close()
-		exem, err := macho.NewFile(exef)
-		if err != nil {
-			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
-		}
-		if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
-			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
-		}
-		os.Remove(*flagOutfile)
-		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-			Exitf("%s: %v", os.Args[0], err)
-		}
+		updateMachoOutFile("combining dwarf",
+			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+				return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
+			})
+		uuidUpdated = true
+	}
+	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
+		updateMachoOutFile("rewriting uuid",
+			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+				return machoRewriteUuid(ctxt, exef, exem, outexe)
+			})
 	}
 	if ctxt.NeedCodeSign() {
 		err := machoCodeSign(ctxt, *flagOutfile)

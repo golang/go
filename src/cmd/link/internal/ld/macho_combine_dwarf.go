@@ -44,6 +44,12 @@ type encryptionInfoCmd struct {
 	CryptId            uint32
 }
 
+type uuidCmd struct {
+	Cmd  macho.LoadCmd
+	Len  uint32
+	Uuid [16]byte
+}
+
 type loadCmdReader struct {
 	offset, next int64
 	f            *os.File
@@ -227,8 +233,15 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &linkEditDataCmd{}, "DataOff")
 		case LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64:
 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &encryptionInfoCmd{}, "CryptOff")
+		case LC_UUID:
+			var u uuidCmd
+			err = reader.ReadAt(0, &u)
+			if err == nil {
+				copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
+				err = reader.WriteAt(0, &u)
+			}
 		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread,
-			LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION,
+			LC_PREBOUND_DYLIB, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION,
 			LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH, LC_ID_DYLIB,
 			LC_SYMSEG, LC_LOADFVMLIB, LC_IDFVMLIB, LC_IDENT, LC_FVMFILE, LC_PREPAGE, LC_ID_DYLINKER,
 			LC_ROUTINES, LC_SUB_FRAMEWORK, LC_SUB_UMBRELLA, LC_SUB_CLIENT, LC_SUB_LIBRARY, LC_TWOLEVEL_HINTS,
