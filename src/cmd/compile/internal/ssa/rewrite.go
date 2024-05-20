@@ -1631,7 +1631,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	if v1&mask_3 != 0 {
 		return 0
 	}
-	return encodePPC64RotateMask(int64(r_3-32), int64(mask_3), 32)
+	return encodePPC64RotateMask(int64(r_3&31), int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
