@@ -21,3 +21,11 @@ with iterators:
   but uses a stable sort algorithm.
 - [Chunk](/pkg/slices#Chunk) returns an iterator over consecutive
   sub-slices of up to n elements of a slice.
+
+The [`maps` package](/pkg/maps/) adds several functions that work
+with iterators:
+- [All](/pkg/maps#All) returns an iterator over key-value pairs from m.
+- [Keys](/pkg/maps#Keys) returns an iterator over keys in m.
+- [Values](/pkg/maps#Values) returns an iterator over values in m.
+- [Insert](/pkg/maps#Insert) adds the key-value pairs from seq to m.
+- [Collect](/pkg/maps#Collect) collects key-value pairs from seq into a new map and returns it.
