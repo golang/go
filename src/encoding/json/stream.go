@@ -12,13 +12,14 @@ import (
 
 // A Decoder reads and decodes JSON values from an input stream.
 type Decoder struct {
-	r       io.Reader
-	buf     []byte
-	d       decodeState
-	scanp   int   // start of unread data in buf
-	scanned int64 // amount of data already scanned
-	scan    scanner
-	err     error
+	r           io.Reader
+	buf         []byte
+	d           decodeState
+	scanp       int   // start of unread data in buf
+	scanned     int64 // amount of data already scanned
+	scan        scanner
+	err         error
+	errFromMore bool
 
 	tokenState int
 	tokenStack []int
@@ -48,7 +49,12 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
 // the conversion of JSON into a Go value.
 func (dec *Decoder) Decode(v any) error {
 	if dec.err != nil {
-		return dec.err
+		err := dec.err
+		if dec.errFromMore {
+			dec.err = nil
+			dec.errFromMore = false
+		}
+		return err
 	}
 
 	if err := dec.tokenPrepareForDecode(); err != nil {
@@ -365,6 +371,13 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
+	if dec.err != nil && dec.errFromMore {
+		err := dec.err
+		dec.err = nil
+		dec.errFromMore = false
+		return nil, err
+	}
+
 	for {
 		c, err := dec.peek()
 		if err != nil {
@@ -481,7 +494,17 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 // current array or object being parsed.
 func (dec *Decoder) More() bool {
 	c, err := dec.peek()
-	return err == nil && c != ']' && c != '}'
+	if err != nil {
+		if err == io.EOF {
+			dec.err = nil
+			dec.errFromMore = false
+			return false
+		}
+		dec.err = err
+		dec.errFromMore = true
+		return true
+	}
+	return c != ']' && c != '}'
 }
 
 func (dec *Decoder) peek() (byte, error) {

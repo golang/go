@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -518,5 +519,66 @@ func TestHTTPDecoding(t *testing.T) {
 	err = d.Decode(&foo)
 	if err != io.EOF {
 		t.Errorf("Decode error:\n\tgot:  %v\n\twant: io.EOF", err)
+	}
+}
+
+type failingDecoderTestReader struct {
+	t   *testing.T
+	i   int
+	err error
+}
+
+func (c *failingDecoderTestReader) Read(b []byte) (n int, err error) {
+	i := c.i
+	c.i++
+
+	defer func() {
+		c.t.Logf("%v, %v, %v, %v\n", i, len(b), n, err)
+
+		// Decoder always passes a buffer with size that has at least 512 Bytes. This test
+		// depends on that behaviour, so that the reader does not get unnecessarily complicated.
+		if len(b) == n {
+			c.t.Fatal("small buffer passed to Read")
+		}
+	}()
+
+	switch i {
+	case 0:
+		return copy(b, `[{	"test": 1 }`), nil
+	case 1:
+		return 0, c.err
+	default:
+		return 0, io.EOF
+	}
+}
+
+func TestDecoderMore(t *testing.T) {
+	type Message struct{ Test int }
+
+	notIgnoredError := errors.New("not ignored error")
+	dec := NewDecoder(&failingDecoderTestReader{t: t, err: notIgnoredError})
+
+	if val, err := dec.Token(); err != nil || val != Delim('[') {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ([, <nil>)", val, err)
+	}
+
+	if err := dec.Decode(new(Message)); err != nil {
+		t.Fatalf("(*Decoder).Decode() = %v; want = <nil>", err)
+	}
+
+	if !dec.More() {
+		t.Fatalf("(*Decoder).More() = false; want = true")
+	}
+
+	if err := dec.Decode(new(Message)); err != notIgnoredError {
+		t.Fatalf("(*Decoder).Decode() = %v; want = %v", err, notIgnoredError)
+	}
+
+	if dec.More() {
+		t.Fatalf("(*Decoder).More() = true; want = false")
+	}
+
+	if err := dec.Decode(new(Message)); err != io.EOF {
+		t.Fatalf("(*Decoder).Decode() = %v; want = %v", err, io.EOF)
 	}
 }
