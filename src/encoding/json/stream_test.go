@@ -522,19 +522,17 @@ func TestHTTPDecoding(t *testing.T) {
 	}
 }
 
-type failingDecoderTestReader struct {
+type decoderMoreWithDecodeFailingReader struct {
 	t   *testing.T
 	i   int
 	err error
 }
 
-func (c *failingDecoderTestReader) Read(b []byte) (n int, err error) {
+func (c *decoderMoreWithDecodeFailingReader) Read(b []byte) (n int, err error) {
 	i := c.i
 	c.i++
 
 	defer func() {
-		c.t.Logf("%v, %v, %v, %v\n", i, len(b), n, err)
-
 		// Decoder always passes a buffer with size that has at least 512 Bytes. This test
 		// depends on that behaviour, so that the reader does not get unnecessarily complicated.
 		if len(b) == n {
@@ -552,11 +550,11 @@ func (c *failingDecoderTestReader) Read(b []byte) (n int, err error) {
 	}
 }
 
-func TestDecoderMore(t *testing.T) {
+func TestDecoderMoreWithDecode(t *testing.T) {
 	type Message struct{ Test int }
 
 	notIgnoredError := errors.New("not ignored error")
-	dec := NewDecoder(&failingDecoderTestReader{t: t, err: notIgnoredError})
+	dec := NewDecoder(&decoderMoreWithDecodeFailingReader{t: t, err: notIgnoredError})
 
 	if val, err := dec.Token(); err != nil || val != Delim('[') {
 		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ([, <nil>)", val, err)
@@ -580,5 +578,60 @@ func TestDecoderMore(t *testing.T) {
 
 	if err := dec.Decode(new(Message)); err != io.EOF {
 		t.Fatalf("(*Decoder).Decode() = %v; want = %v", err, io.EOF)
+	}
+}
+
+type decoderMoreWithTokenFailingReader struct {
+	t   *testing.T
+	i   int
+	err error
+}
+
+func (c *decoderMoreWithTokenFailingReader) Read(b []byte) (n int, err error) {
+	i := c.i
+	c.i++
+
+	defer func() {
+		// Decoder always passes a buffer with size that has at least 512 Bytes. This test
+		// depends on that behaviour, so that the reader does not get unnecessarily complicated.
+		if len(b) == n {
+			c.t.Fatal("small buffer passed to Read")
+		}
+	}()
+
+	switch i {
+	case 0:
+		return copy(b, `{`), nil
+	case 1:
+		return 0, c.err
+	default:
+		return 0, io.EOF
+	}
+}
+
+func TestDecoderMoreWithToken(t *testing.T) {
+	type Message struct{ Test int }
+
+	notIgnoredError := errors.New("not ignored error")
+	dec := NewDecoder(&decoderMoreWithTokenFailingReader{t: t, err: notIgnoredError})
+
+	if val, err := dec.Token(); err != nil || val != Delim('{') {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ([, <nil>)", val, err)
+	}
+
+	if !dec.More() {
+		t.Fatalf("(*Decoder).More() = false; want = true")
+	}
+
+	if val, err := dec.Token(); err != notIgnoredError {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = (<nil>, %v)", val, err, notIgnoredError)
+	}
+
+	if dec.More() {
+		t.Fatalf("(*Decoder).More() = true; want = false")
+	}
+
+	if val, err := dec.Token(); err != io.EOF {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = (<nil>, %v)", val, err, io.EOF)
 	}
 }
