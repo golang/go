@@ -713,7 +713,7 @@ func (t *tester) registerTests() {
 
 	// GOEXPERIMENT=rangefunc tests
 	if !t.compileOnly {
-		for _, pkg := range []string{"iter", "slices"} {
+		for _, pkg := range []string{"iter", "slices", "maps"} {
 			t.registerTest("GOEXPERIMENT=rangefunc",
 				&goTest{
 					variant: pkg,
