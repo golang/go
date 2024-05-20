@@ -38,13 +38,13 @@ func TestKeys(t *testing.T) {
 			want = append(want, i)
 		}
 
-		var got1 []int
+		var got []int
 		for k := range Keys(m) {
-			got1 = append(got1, k)
+			got = append(got, k)
 		}
-		slices.Sort(got1)
-		if !slices.Equal(got1, want) {
-			t.Errorf("Keys(%v) = %v, want %v", m, got1, want)
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("Keys(%v) = %v, want %v", m, got, want)
 		}
 	}
 }
@@ -58,31 +58,15 @@ func TestValues(t *testing.T) {
 			want = append(want, i)
 		}
 
-		var got1 []int
+		var got []int
 		for v := range Values(m) {
-			got1 = append(got1, v)
+			got = append(got, v)
 		}
-		slices.Sort(got1)
-		if !slices.Equal(got1, want) {
-			t.Errorf("Values(%v) = %v, want %v", m, got1, want)
-		}
-	}
-}
-
-func testSeq(yield func(int, int) bool) {
-	for i := 0; i < 10; i += 2 {
-		if !yield(i, i+1) {
-			return
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("Values(%v) = %v, want %v", m, got, want)
 		}
 	}
-}
-
-var testSeqResult = map[int]int{
-	0: 1,
-	2: 3,
-	4: 5,
-	6: 7,
-	8: 9,
 }
 
 func TestInsert(t *testing.T) {
@@ -90,18 +74,30 @@ func TestInsert(t *testing.T) {
 		1: 1,
 		2: 1,
 	}
-	Insert(got, testSeq)
+	Insert(got, func(yield func(int, int) bool) {
+		for i := 0; i < 10; i += 2 {
+			if !yield(i, i+1) {
+				return
+			}
+		}
+	})
 
 	want := map[int]int{
 		1: 1,
 		2: 1,
 	}
-	for i, v := range testSeqResult {
+	for i, v := range map[int]int{
+		0: 1,
+		2: 3,
+		4: 5,
+		6: 7,
+		8: 9,
+	} {
 		want[i] = v
 	}
 
 	if !Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("Insert got: %v, want: %v", got, want)
 	}
 }
 
@@ -115,6 +111,6 @@ func TestCollect(t *testing.T) {
 	}
 	got := Collect(All(m))
 	if !Equal(got, m) {
-		t.Errorf("got %v, want %v", got, m)
+		t.Errorf("Collect got: %v, want: %v", got, m)
 	}
 }
