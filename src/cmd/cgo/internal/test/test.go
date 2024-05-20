@@ -933,6 +933,13 @@ typedef struct issue45451Undefined issue45451;
 extern void GoFunc49633(void*);
 void cfunc49633(void *context) { GoFunc49633(context); }
 
+// Issue 67517.
+typedef struct {
+	int a;
+	int* b;
+} issue67517struct;
+static void issue67517(issue67517struct* p) {}
+
 */
 import "C"
 
@@ -2321,3 +2328,24 @@ func test45451(t *testing.T) {
 func func52542[T ~[]C.int]() {}
 
 type type52542[T ~*C.float] struct{}
+
+// issue67517 is just a compilation test, there is no runtime test.
+func issue67517() {
+	C.issue67517(&C.issue67517struct{
+		a: 0,
+
+		b: nil,
+	})
+	C.issue67517(&C.issue67517struct{
+		a: 0,
+		// comment
+		b: nil,
+	})
+	C.issue67517(&C.issue67517struct{
+		a: 0 +
+			// comment
+			1,
+		// comment
+		b: nil,
+	})
+}
