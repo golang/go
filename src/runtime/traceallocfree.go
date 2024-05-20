@@ -45,11 +45,10 @@ func traceSnapshotMemory() {
 		// Find all allocated objects.
 		abits := s.allocBitsForIndex(0)
 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
-			if !abits.isMarked() {
-				continue
+			if abits.index < uintptr(s.freeindex) || abits.isMarked() {
+				x := s.base() + i*s.elemsize
+				trace.HeapObjectExists(x, s.typePointersOfUnchecked(x).typ)
 			}
-			x := s.base() + i*s.elemsize
-			trace.HeapObjectExists(x, s.typePointersOfUnchecked(x).typ)
 			abits.advance()
 		}
 	}
