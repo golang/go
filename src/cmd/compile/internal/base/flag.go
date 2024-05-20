@@ -363,6 +363,11 @@ func ParseFlags() {
 
 	// set via a -d flag
 	Ctxt.Debugpcln = Debug.PCTab
+
+	// https://golang.org/issue/67502
+	if buildcfg.GOOS == "plan9" && buildcfg.GOARCH == "386" {
+		Debug.AlignHot = 0
+	}
 }
 
 // registerFlags adds flag registrations for all the fields in Flag.
