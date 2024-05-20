@@ -1242,6 +1242,20 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			if err == nil {
 				ss, _, err = getnum(seconds, true)
 			}
+
+			// The range test use > rather than >=,
+			// as some people do write offsets of 24 hours
+			// or 60 minutes or 60 seconds.
+			if hr > 24 {
+				rangeErrString = "time zone offset hour"
+			}
+			if mm > 60 {
+				rangeErrString = "time zone offset minute"
+			}
+			if ss > 60 {
+				rangeErrString = "time zone offset second"
+			}
+
 			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
 			switch sign[0] {
 			case '+':
