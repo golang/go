@@ -527,6 +527,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 	}
 
 	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
+		tlsrsakex.Value() // ensure godebug is initialized
 		tlsrsakex.IncNonDefault()
 	}
 

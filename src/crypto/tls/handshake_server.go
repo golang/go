@@ -169,6 +169,7 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	c.out.version = c.vers
 
 	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
+		tls10server.Value() // ensure godebug is initialized
 		tls10server.IncNonDefault()
 	}
 
@@ -371,6 +372,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 	c.cipherSuite = hs.suite.id
 
 	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
+		tlsrsakex.Value() // ensure godebug is initialized
 		tlsrsakex.IncNonDefault()
 	}
 
