@@ -19,7 +19,7 @@ type Decoder struct {
 	scanned     int64 // amount of data already scanned
 	scan        scanner
 	err         error
-	errFromMore bool
+	errFromMore error
 
 	tokenState int
 	tokenStack []int
@@ -48,13 +48,13 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
 // See the documentation for [Unmarshal] for details about
 // the conversion of JSON into a Go value.
 func (dec *Decoder) Decode(v any) error {
-	if dec.err != nil {
-		err := dec.err
-		if dec.errFromMore {
-			dec.err = nil
-			dec.errFromMore = false
-		}
+	if dec.errFromMore != nil {
+		err := dec.errFromMore
+		dec.errFromMore = nil
 		return err
+	}
+	if dec.err != nil {
+		return dec.err
 	}
 
 	if err := dec.tokenPrepareForDecode(); err != nil {
@@ -371,10 +371,9 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
-	if dec.err != nil && dec.errFromMore {
-		err := dec.err
-		dec.err = nil
-		dec.errFromMore = false
+	if dec.errFromMore != nil {
+		err := dec.errFromMore
+		dec.errFromMore = nil
 		return nil, err
 	}
 
@@ -496,10 +495,14 @@ func (dec *Decoder) More() bool {
 	c, err := dec.peek()
 	if err != nil {
 		if err == io.EOF {
+			// Preserve the io.EOF error, next read calls from the io.Reader
+			// do not have to return the io.EOF error, but we've made
+			// a decision based on that error, so it is better to return it from
+			// next Token or Decode call.
+			dec.errFromMore = io.EOF
 			return false
 		}
-		dec.err = err
-		dec.errFromMore = true
+		dec.errFromMore = err
 		return true
 	}
 	return c != ']' && c != '}'
