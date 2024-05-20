@@ -496,8 +496,6 @@ func (dec *Decoder) More() bool {
 	c, err := dec.peek()
 	if err != nil {
 		if err == io.EOF {
-			dec.err = nil
-			dec.errFromMore = false
 			return false
 		}
 		dec.err = err
