@@ -54,8 +54,13 @@ func dumpTypesRec(node *traceMapNode, w traceExpWriter) traceExpWriter {
 	// bound is pretty loose, but avoids counting
 	// lots of varint sizes.
 	//
-	// Add 1 because we might also write traceEvTypes.
-	w, _ = w.ensure(1 + maxBytes)
+	// Add 1 because we might also write a traceAllocFreeTypesBatch byte.
+	var flushed bool
+	w, flushed = w.ensure(1 + maxBytes)
+	if flushed {
+		// Annotate the batch as containing types.
+		w.byte(byte(traceAllocFreeTypesBatch))
+	}
 
 	// Emit type.
 	w.varint(uint64(node.id))

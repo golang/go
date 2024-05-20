@@ -290,7 +290,7 @@ func StartTrace() error {
 
 	// Dump a snapshot of memory, if enabled.
 	if trace.enabledWithAllocFree {
-		traceSnapshotMemory()
+		traceSnapshotMemory(firstGen)
 	}
 
 	// Record the heap goal so we have it at the very beginning of the trace.
