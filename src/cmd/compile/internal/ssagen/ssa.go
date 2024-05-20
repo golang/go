@@ -515,6 +515,21 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	// Populate closure variables.
 	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+		if fn.RangeParent != nil {
+			// For a range body closure, keep its closure pointer live on the
+			// stack with a special name, so the debugger can look for it and
+			// find the parent frame.
+			sym := &types.Sym{Name: ".closureptr", Pkg: types.LocalPkg}
+			cloSlot := s.curfn.NewLocal(src.NoXPos, sym, s.f.Config.Types.BytePtr)
+			cloSlot.SetUsed(true)
+			cloSlot.SetEsc(ir.EscNever)
+			cloSlot.SetAddrtaken(true)
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, cloSlot, s.mem(), false)
+			addr := s.addr(cloSlot)
+			s.store(s.f.Config.Types.BytePtr, addr, clo)
+			// Keep it from being dead-store eliminated.
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, cloSlot, s.mem(), false)
+		}
 		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
 		for {
 			n, typ, offset := csiter.Next()
