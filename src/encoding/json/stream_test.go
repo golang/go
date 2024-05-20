@@ -542,7 +542,7 @@ func (c *decoderMoreWithDecodeFailingReader) Read(b []byte) (n int, err error) {
 
 	switch i {
 	case 0:
-		return copy(b, `[{	"test": 1 }`), nil
+		return copy(b, `[{ "test": 1 }`), nil
 	case 1:
 		return 0, c.err
 	default:
@@ -610,8 +610,6 @@ func (c *decoderMoreWithTokenFailingReader) Read(b []byte) (n int, err error) {
 }
 
 func TestDecoderMoreWithToken(t *testing.T) {
-	type Message struct{ Test int }
-
 	notIgnoredError := errors.New("not ignored error")
 	dec := NewDecoder(&decoderMoreWithTokenFailingReader{t: t, err: notIgnoredError})
 
