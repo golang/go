@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"iter"
 	"math"
 	"math/rand"
 	"reflect"
+	"slices"
 	"strconv"
 	. "strings"
 	"testing"
@@ -385,6 +387,22 @@ func BenchmarkIndexByte(b *testing.B) {
 	}
 }
 
+var LinesTest = []string{
+	"abc\nabc\n",
+	"abc\r\nabc",
+	"abc\r\n",
+	"abc\n",
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range LinesTest {
+		result := Join(slices.Collect(Lines(s)), "")
+		if result != s {
+			t.Errorf(`Join(collect(Lines(%q)), "") = %q`, s, result)
+		}
+	}
+}
+
 type SplitTest struct {
 	s   string
 	sep string
@@ -421,6 +439,12 @@ func TestSplit(t *testing.T) {
 		if !eq(a, tt.a) {
 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitSeq(tt.s, tt.sep))
+			if !eq(a2, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		if tt.n == 0 {
 			continue
@@ -460,6 +484,12 @@ func TestSplitAfter(t *testing.T) {
 		if !eq(a, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitAfterSeq(tt.s, tt.sep))
+			if !eq(a2, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		s := Join(a, "")
 		if s != tt.s {
@@ -504,6 +534,10 @@ func TestFields(t *testing.T) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
+		a2 := collect(t, FieldsSeq(tt.s))
+		if !eq(a2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
+		}
 	}
 }
 
@@ -527,6 +561,10 @@ func TestFieldsFunc(t *testing.T) {
 		a := FieldsFunc(tt.s, pred)
 		if !eq(a, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+		a2 := collect(t, FieldsFuncSeq(tt.s, pred))
+		if !eq(a2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
@@ -2085,4 +2123,13 @@ func BenchmarkReplaceAll(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		stringSink = ReplaceAll("banana", "a", "<>")
 	}
+}
+
+func collect(t *testing.T, seq iter.Seq[string]) []string {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !reflect.DeepEqual(out, out1) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
+	}
+	return out
 }

@@ -8,6 +8,7 @@ package bytes
 
 import (
 	"internal/bytealg"
+	"iter"
 	"unicode"
 	"unicode/utf8"
 )
@@ -318,6 +319,28 @@ func LastIndexAny(s []byte, chars string) int {
 	return -1
 }
 
+// Lines returns an iterator over the newline-terminated lines in the byte slice s.
+// The lines yielded by the iterator include their terminating newlines.
+// If s is empty, the iterator yields no lines at all.
+// If s does not end in a newline, the final yielded line will not end in a newline.
+// It returns a single-use iterator.
+func Lines(s []byte) iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for len(s) > 0 {
+			var line []byte
+			if i := IndexByte(s, '\n'); i >= 0 {
+				line, s = s[:i+1], s[i+1:]
+			} else {
+				line, s = s, nil
+			}
+			if !yield(line) {
+				return
+			}
+		}
+		return
+	}
+}
+
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subslices.
 func genSplit(s, sep []byte, sepSave, n int) [][]byte {
@@ -390,6 +413,57 @@ func SplitAfter(s, sep []byte) [][]byte {
 	return genSplit(s, sep, len(sep), -1)
 }
 
+// explodeSeq returns an iterator over the runes in s.
+func explodeSeq(s []byte) iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for len(s) > 0 {
+			_, size := utf8.DecodeRune(s)
+			if !yield(s[:size]) {
+				return
+			}
+			s = s[size:]
+		}
+	}
+}
+
+// splitSeq is SplitSeq or SplitAfterSeq, configured by how many
+// bytes of sep to include in the results (none or all).
+func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
+	if len(sep) == 0 {
+		return explodeSeq(s)
+	}
+	return func(yield func([]byte) bool) {
+		for {
+			i := Index(s, sep)
+			if i < 0 {
+				break
+			}
+			frag := s[:i+sepSave]
+			if !yield(frag) {
+				return
+			}
+			s = s[i+len(sep):]
+		}
+		yield(s)
+	}
+}
+
+// SplitSeq returns an iterator over all substrings of s separated by sep.
+// The iterator yields the same strings that would be returned by Split(s, sep),
+// but without constructing the slice.
+// It returns a single-use iterator.
+func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
+	return splitSeq(s, sep, 0)
+}
+
+// SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
+// The iterator yields the same strings that would be returned by SplitAfter(s, sep),
+// but without constructing the slice.
+// It returns a single-use iterator.
+func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
+	return splitSeq(s, sep, len(sep))
+}
+
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields interprets s as a sequence of UTF-8-encoded code points.
@@ -446,6 +520,40 @@ func Fields(s []byte) [][]byte {
 	return a
 }
 
+// FieldsSeq returns an iterator over substrings of s split around runs of
+// whitespace characters, as defined by unicode.IsSpace.
+// The iterator yields the same strings that would be returned by Fields(s),
+// but without constructing the slice.
+func FieldsSeq(s []byte) iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		s := s
+		start := -1
+		for i := 0; i < len(s); {
+			size := 1
+			r := rune(s[i])
+			isSpace := asciiSpace[s[i]] != 0
+			if r >= utf8.RuneSelf {
+				r, size = utf8.DecodeRune(s[i:])
+				isSpace = unicode.IsSpace(r)
+			}
+			if isSpace {
+				if start >= 0 {
+					if !yield(s[start:i]) {
+						return
+					}
+					start = -1
+				}
+			} else if start < 0 {
+				start = i
+			}
+			i += size
+		}
+		if start >= 0 {
+			yield(s[start:])
+		}
+	}
+}
+
 // FieldsFunc interprets s as a sequence of UTF-8-encoded code points.
 // It splits the slice s at each run of code points c satisfying f(c) and
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
@@ -498,6 +606,38 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	}
 
 	return a
+}
+
+// FieldsFuncSeq returns an iterator over substrings of s split around runs of
+// Unicode code points satisfying f(c).
+// The iterator yields the same strings that would be returned by FieldsFunc(s),
+// but without constructing the slice.
+func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		s := s
+		start := -1
+		for i := 0; i < len(s); {
+			size := 1
+			r := rune(s[i])
+			if r >= utf8.RuneSelf {
+				r, size = utf8.DecodeRune(s[i:])
+			}
+			if f(r) {
+				if start >= 0 {
+					if !yield(s[start:i]) {
+						return
+					}
+					start = -1
+				}
+			} else if start < 0 {
+				start = i
+			}
+			i += size
+		}
+		if start >= 0 {
+			yield(s[start:])
+		}
+	}
 }
 
 // Join concatenates the elements of s to create a new byte slice. The separator

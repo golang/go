@@ -27,3 +27,29 @@ The [maps] package adds several functions that work with iterators:
 - [Values](/pkg/maps#Values) returns an iterator over values in m.
 - [Insert](/pkg/maps#Insert) adds the key-value pairs from seq to m.
 - [Collect](/pkg/maps#Collect) collects key-value pairs from seq into a new map and returns it.
+
+The [bytes] package adds several functions that work with iterators:
+- [Lines](/pkg/bytes#Lines) returns an iterator over the
+  newline-terminated lines in the byte slice s.
+- [SplitSeq](/pkg/bytes#SplitSeq) returns an iterator over
+  all substrings of s separated by sep.
+- [SplitAfterSeq](/pkg/bytes#SplitAfterSeq) returns an iterator
+  over substrings of s split after each instance of sep.
+- [FieldsSeq](/pkg/bytes#FieldsSeq) returns an iterator over
+  substrings of s split around runs of whitespace characters,
+  as defined by unicode.IsSpace.
+- [FieldsFuncSeq](/pkg/bytes#FieldsFuncSeq) returns an iterator
+  over substrings of s split around runs of Unicode code points satisfying f(c).
+
+The [strings] package adds several functions that work with iterators:
+- [Lines](/pkg/strings#Lines) returns an iterator over
+  the newline-terminated lines in the string s.
+- [SplitSeq](/pkg/strings#SplitSeq) returns an iterator over
+  all substrings of s separated by sep.
+- [SplitAfterSeq](/pkg/strings#SplitAfterSeq) returns an iterator
+  over substrings of s split after each instance of sep.
+- [FieldsSeq](/pkg/strings#FieldsSeq) returns an iterator over
+  substrings of s split around runs of whitespace characters,
+  as defined by unicode.IsSpace.
+- [FieldsFuncSeq](/pkg/strings#FieldsFuncSeq) returns an iterator
+  over substrings of s split around runs of Unicode code points satisfying f(c).
