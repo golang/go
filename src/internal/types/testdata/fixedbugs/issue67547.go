@@ -8,3 +8,15 @@ func _[P int]() {
 	type A = P
 	_ = A(0) // don't crash with this conversion
 }
+
+func _[P []int]() {
+	type A = P
+	_ = make(A, 10) // don't report an error for A
+}
+
+func _[P string]() {
+	var t []byte
+	type A = P
+	var s A
+	copy(t, s) // don't report an error for s
+}
