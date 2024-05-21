@@ -960,7 +960,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
-	if tp, _ := x.typ.(*TypeParam); tp != nil {
+	if tp, _ := Unalias(x.typ).(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
@@ -1026,7 +1026,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // arrayPtrDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
-	if p, ok := typ.(*Pointer); ok {
+	if p, ok := Unalias(typ).(*Pointer); ok {
 		if a, _ := under(p.base).(*Array); a != nil {
 			return a
 		}
