@@ -204,7 +204,6 @@ var builtins = [...]struct {
 	{"runtime.libfuzzerTraceConstCmp8", 1},
 	{"runtime.libfuzzerHookStrCmp", 1},
 	{"runtime.libfuzzerHookEqualFold", 1},
-	{"runtime.addCovMeta", 1},
 	{"runtime.x86HasPOPCNT", 0},
 	{"runtime.x86HasSSE41", 0},
 	{"runtime.x86HasFMA", 0},

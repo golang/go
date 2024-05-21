@@ -161,11 +161,11 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 	// Materialize expression for length.
 	lenx := ir.NewInt(base.Pos, int64(mdlen)) // untyped
 
-	// Generate a call to runtime.addCovMeta, e.g.
+	// Generate a call to runtime/coverage.addCovMeta, e.g.
 	//
-	//   pkgIdVar = runtime.addCovMeta(&sym, len, hash, pkgpath, pkid, cmode, cgran)
+	//   pkgIdVar = runtime/coverage.addCovMeta(&sym, len, hash, pkgpath, pkid, cmode, cgran)
 	//
-	fn := typecheck.LookupRuntime("addCovMeta")
+	fn := typecheck.LookupCoverage("addCovMeta")
 	pkid := coverage.HardCodedPkgID(base.Ctxt.Pkgpath)
 	pkIdNode := ir.NewInt(base.Pos, int64(pkid))
 	cmodeNode := ir.NewInt(base.Pos, int64(cnames.CounterMode))
@@ -189,7 +189,6 @@ func registerMeta(cnames names, hashv [16]byte, mdlen int) {
 // the process for coverage data writing (emit meta data, and register
 // an exit hook to emit counter data).
 func addInitHookCall(initfn *ir.Func, cmode coverage.CounterMode) {
-	typecheck.InitCoverage()
 	pos := initfn.Pos()
 	istest := cmode == coverage.CtrModeTestMain
 	initf := typecheck.LookupCoverage("initHook")
