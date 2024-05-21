@@ -49,11 +49,6 @@ func traceSnapshotMemory(gen uintptr) {
 		throw("traceSnapshotMemory: tracing is not enabled")
 	}
 
-	// Write out all the goroutine stacks.
-	forEachGRace(func(gp *g) {
-		trace.GoroutineStackExists(gp.stack.lo, gp.stack.hi-gp.stack.lo)
-	})
-
 	// Write out all the heap spans and heap objects.
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanDead {
@@ -77,6 +72,11 @@ func traceSnapshotMemory(gen uintptr) {
 			abits.advance()
 		}
 	}
+
+	// Write out all the goroutine stacks.
+	forEachGRace(func(gp *g) {
+		trace.GoroutineStackExists(gp.stack.lo, gp.stack.hi-gp.stack.lo)
+	})
 	traceRelease(trace)
 }
 
