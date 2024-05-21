@@ -422,8 +422,8 @@ var (
 	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
-	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
-	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
+	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", envCache.m["GOPROXY"])
+	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", envCache.m["GOSUMDB"])
 	GOPRIVATE                   = Getenv("GOPRIVATE")
 	GONOPROXY, GONOPROXYChanged = EnvOrAndChanged("GONOPROXY", GOPRIVATE)
 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
