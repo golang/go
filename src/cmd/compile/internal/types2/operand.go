@@ -260,7 +260,9 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return true, 0 // avoid spurious errors
 	}
 
-	V := x.typ
+	origT := T
+	V := Unalias(x.typ)
+	T = Unalias(T)
 
 	// x's type is identical to T
 	if Identical(V, T) {
@@ -386,7 +388,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 			x.typ = V.typ
 			ok, code = x.assignableTo(check, T, cause)
 			if !ok {
-				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, origT)
 				return false
 			}
 			return true
