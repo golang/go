@@ -18,9 +18,6 @@ func xgetbv() (eax, edx uint32)
 func getGOAMD64level() int32
 
 const (
-	// edx bits
-	cpuid_SSE2 = 1 << 26
-
 	// ecx bits
 	cpuid_SSE3      = 1 << 0
 	cpuid_PCLMULQDQ = 1 << 1
