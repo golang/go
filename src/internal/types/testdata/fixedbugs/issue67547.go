@@ -20,3 +20,9 @@ func _[P string]() {
 	var s A
 	copy(t, s) // don't report an error for s
 }
+
+func _[P map[int]int]() {
+	type A = P
+	var m A
+	clear(m) // don't report an error for m
+}
