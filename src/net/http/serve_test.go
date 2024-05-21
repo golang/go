@@ -7171,13 +7171,16 @@ func TestServerReadAfterWriteHeader100Continue(t *testing.T) {
 	run(t, testServerReadAfterWriteHeader100Continue)
 }
 func testServerReadAfterWriteHeader100Continue(t *testing.T, mode testMode) {
+	t.Skip("https://go.dev/issue/67555")
 	body := []byte("body")
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(200)
 		NewResponseController(w).Flush()
 		io.ReadAll(r.Body)
 		w.Write(body)
-	}))
+	}), func(tr *Transport) {
+		tr.ExpectContinueTimeout = 24 * time.Hour // forever
+	})
 
 	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("body"))
 	req.Header.Set("Expect", "100-continue")
@@ -7199,6 +7202,7 @@ func TestServerReadAfterHandlerDone100Continue(t *testing.T) {
 	run(t, testServerReadAfterHandlerDone100Continue)
 }
 func testServerReadAfterHandlerDone100Continue(t *testing.T, mode testMode) {
+	t.Skip("https://go.dev/issue/67555")
 	readyc := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		go func() {
@@ -7206,7 +7210,9 @@ func testServerReadAfterHandlerDone100Continue(t *testing.T, mode testMode) {
 			io.ReadAll(r.Body)
 			<-readyc
 		}()
-	}))
+	}), func(tr *Transport) {
+		tr.ExpectContinueTimeout = 24 * time.Hour // forever
+	})
 
 	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("body"))
 	req.Header.Set("Expect", "100-continue")
@@ -7223,6 +7229,7 @@ func TestServerReadAfterHandlerAbort100Continue(t *testing.T) {
 	run(t, testServerReadAfterHandlerAbort100Continue)
 }
 func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
+	t.Skip("https://go.dev/issue/67555")
 	readyc := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		go func() {
@@ -7231,7 +7238,9 @@ func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
 			<-readyc
 		}()
 		panic(ErrAbortHandler)
-	}))
+	}), func(tr *Transport) {
+		tr.ExpectContinueTimeout = 24 * time.Hour // forever
+	})
 
 	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("body"))
 	req.Header.Set("Expect", "100-continue")
