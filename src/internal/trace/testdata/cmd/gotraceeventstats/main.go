@@ -15,8 +15,8 @@ import (
 	"slices"
 	"text/tabwriter"
 
-	"internal/trace/v2/event"
-	"internal/trace/v2/raw"
+	"internal/trace/event"
+	"internal/trace/raw"
 )
 
 func init() {

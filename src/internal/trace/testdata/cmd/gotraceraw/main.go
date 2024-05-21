@@ -11,8 +11,8 @@ import (
 	"log"
 	"os"
 
-	"internal/trace/v2/raw"
-	"internal/trace/v2/version"
+	"internal/trace/raw"
+	"internal/trace/version"
 )
 
 func init() {

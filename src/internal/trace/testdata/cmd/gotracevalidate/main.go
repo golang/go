@@ -11,8 +11,8 @@ import (
 	"log"
 	"os"
 
-	"internal/trace/v2"
-	"internal/trace/v2/testtrace"
+	"internal/trace"
+	"internal/trace/testtrace"
 )
 
 func init() {
