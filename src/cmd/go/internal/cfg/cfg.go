@@ -400,6 +400,17 @@ func CanGetenv(key string) bool {
 	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
 }
 
+// Keep the semantics synchronized with cmd/dist.xinit.
+const (
+	defaultGO386     = "sse2"
+	defaultGOAMD64   = "v1"
+	defaultGOMIPS    = "hardfloat"
+	defaultGOMIPS64  = "hardfloat"
+	defaultGOPPC64   = "power8"
+	defaultGORISCV64 = "rva20u64"
+	defaultGOARM64   = "v8.0"
+)
+
 var (
 	GOROOT string
 
@@ -412,14 +423,14 @@ var (
 	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", fmt.Sprint(buildcfg.GOARM64))
+	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", defaultGOARM64)
 	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", fmt.Sprint(buildcfg.GOARM))
-	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.GO386)
-	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
-	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.GOMIPS)
-	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.GOMIPS64)
-	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
-	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+	GO386, go386Changed         = EnvOrAndChanged("GO386", defaultGO386)
+	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", defaultGOAMD64)
+	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", defaultGOMIPS)
+	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", defaultGOMIPS64)
+	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", defaultGOPPC64)
+	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", defaultGORISCV64)
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
