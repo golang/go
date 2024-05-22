@@ -2910,7 +2910,7 @@ func TestCreateRevocationList(t *testing.T) {
 					parsedCRL.Number.String(), tc.template.Number.String())
 			}
 			if !bytes.Equal(parsedCRL.AuthorityKeyId, tc.issuer.SubjectKeyId) {
-				t.Fatalf("Generated CRL has wrong Number: got %x, want %x",
+				t.Fatalf("Generated CRL has wrong AuthorityKeyId: got %x, want %x",
 					parsedCRL.AuthorityKeyId, tc.issuer.SubjectKeyId)
 			}
 		})
