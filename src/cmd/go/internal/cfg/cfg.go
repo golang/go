@@ -285,8 +285,9 @@ var OrigEnv []string
 var CmdEnv []EnvVar
 
 var envCache struct {
-	once sync.Once
-	m    map[string]string
+	once   sync.Once
+	m      map[string]string
+	goroot map[string]string
 }
 
 // EnvFile returns the name of the Go environment configuration file,
@@ -310,6 +311,7 @@ func EnvFile() (string, bool, error) {
 
 func initEnvCache() {
 	envCache.m = make(map[string]string)
+	envCache.goroot = make(map[string]string)
 	if file, _, _ := EnvFile(); file != "" {
 		readEnvFile(file, "user")
 	}
@@ -363,6 +365,9 @@ func readEnvFile(file string, source string) {
 			}
 		}
 		envCache.m[string(key)] = string(val)
+		if source == "GOROOT" {
+			envCache.goroot[string(key)] = string(val)
+		}
 	}
 }
 
@@ -422,8 +427,8 @@ var (
 	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
-	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", envCache.m["GOPROXY"])
-	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", envCache.m["GOSUMDB"])
+	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", envCache.goroot["GOPROXY"])
+	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", envCache.goroot["GOSUMDB"])
 	GOPRIVATE                   = Getenv("GOPRIVATE")
 	GONOPROXY, GONOPROXYChanged = EnvOrAndChanged("GONOPROXY", GOPRIVATE)
 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
