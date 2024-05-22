@@ -6,9 +6,6 @@ package runtime
 
 import _ "unsafe"
 
-// used in time and internal/poll
-//go:linkname nanotime
-
 // used in internal/godebug and syscall
 //go:linkname write
 

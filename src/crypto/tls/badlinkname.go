@@ -14,9 +14,6 @@ import _ "unsafe"
 
 //go:linkname aeadAESGCMTLS13
 //go:linkname cipherSuiteTLS13ByID
-//go:linkname cipherSuitesTLS13
-//go:linkname defaultCipherSuitesTLS13
-//go:linkname defaultCipherSuitesTLS13NoAES
 //go:linkname errShutdown
 
 // The compiler doesn't allow linknames on methods, for good reasons.

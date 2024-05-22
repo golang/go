@@ -14,6 +14,18 @@ import "unsafe"
 // Zero means not to use faketime.
 var faketime int64
 
+// Many external packages linkname nanotime to get a fast monotonic time.
+// Such code should be updated to use:
+//
+//	var start = time.Now() // at init time
+//
+// and then replace nanotime() with time.Since(start), which is equally fast.
+//
+// However, all the code linknaming nanotime is never going to go away.
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname nanotime
 //go:nosplit
 func nanotime() int64 {
 	return nanotime1()

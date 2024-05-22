@@ -917,6 +917,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
+//   - gonum.org/v1/gonum
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1493,6 +1494,7 @@ func reflect_mapiternext(it *hiter) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/goccy/go-json
+//   - gonum.org/v1/gonum
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1506,6 +1508,7 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/goccy/go-json
+//   - gonum.org/v1/gonum
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
