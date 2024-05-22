@@ -1411,6 +1411,7 @@ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
 // newarray should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //

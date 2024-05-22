@@ -196,6 +196,14 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 
 // runtime_FrameStartLine returns the start line of the function in a Frame.
 //
+// runtime_FrameStartLine should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
 func runtime_FrameStartLine(f *Frame) int {
 	return f.startLine
@@ -204,6 +212,14 @@ func runtime_FrameStartLine(f *Frame) int {
 // runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
 // For generic functions this differs from f.Function in that this doesn't replace
 // the shape name to "...".
+//
+// runtime_FrameSymbolName should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
 func runtime_FrameSymbolName(f *Frame) string {
@@ -217,6 +233,14 @@ func runtime_FrameSymbolName(f *Frame) string {
 
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
 // "callers" if pc is inline.
+//
+// runtime_expandFinalInlineFrame should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
@@ -814,9 +838,20 @@ func (f *_func) isInlined() bool {
 }
 
 // entry returns the entry PC for f.
+//
+// entry should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (f funcInfo) entry() uintptr {
 	return f.datap.textAddr(f.entryOff)
 }
+
+//go:linkname badFuncInfoEntry runtime.funcInfo.entry
+func badFuncInfoEntry(funcInfo) uintptr
 
 // findfunc looks up function metadata for a PC.
 //
@@ -827,6 +862,7 @@ func (f funcInfo) entry() uintptr {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/cloudwego/frugal
+//   - github.com/phuslu/log
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -878,12 +914,22 @@ func (f funcInfo) srcFunc() srcFunc {
 	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
 }
 
+// name should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (s srcFunc) name() string {
 	if s.datap == nil {
 		return ""
 	}
 	return s.datap.funcName(s.nameOff)
 }
+
+//go:linkname badSrcFuncName runtime.srcFunc.name
+func badSrcFuncName(srcFunc) string
 
 type pcvalueCache struct {
 	entries [2][8]pcvalueCacheEnt
@@ -1074,6 +1120,15 @@ func funcfile(f funcInfo, fileno int32) string {
 	return "?"
 }
 
+// funcline1 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname funcline1
 func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int32) {
 	datap := f.datap
 	if !f.valid() {
@@ -1159,16 +1214,6 @@ func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
 
 // funcdata returns a pointer to the ith funcdata for f.
 // funcdata should be kept in sync with cmd/link:writeFuncs.
-//
-// funcdata should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname funcdata
 func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil

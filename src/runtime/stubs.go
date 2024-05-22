@@ -11,6 +11,15 @@ import (
 
 // Should be a built-in for unsafe.Pointer?
 //
+// add should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - fortio.org/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname add
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
@@ -122,6 +131,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/cloudwego/dynamicgo
 //   - github.com/cloudwego/frugal
 //   - github.com/ebitengine/purego
 //   - github.com/tetratelabs/wazero
@@ -168,7 +178,9 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/gopkg
 //   - github.com/ebitengine/purego
+//   - github.com/hamba/avro/v2
 //   - github.com/puzpuzpuz/xsync/v3
+//   - github.com/songzhibin97/gkit
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -255,7 +267,9 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
 // procyield should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/sagernet/sing-tun
 //   - github.com/slackhq/nebula
+//   - github.com/tailscale/wireguard-go
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

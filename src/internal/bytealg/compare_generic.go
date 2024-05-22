@@ -45,6 +45,7 @@ func CompareString(a, b string) int {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

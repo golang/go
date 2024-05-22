@@ -31,7 +31,6 @@ import _ "unsafe"
 
 // used in tests
 //go:linkname extraMInUse
-//go:linkname getm
 //go:linkname blockevent
 //go:linkname haveHighResSleep
 //go:linkname blockUntilEmptyFinalizerQueue

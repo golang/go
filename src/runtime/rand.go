@@ -233,6 +233,15 @@ func cheaprand64() int64 {
 // the rule is that other packages using runtime-provided
 // randomness must always use randn.
 //
+// cheaprandn should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprandn
 //go:nosplit
 func cheaprandn(n uint32) uint32 {
 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/

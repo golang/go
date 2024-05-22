@@ -167,6 +167,7 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/chenzhuoyu/iasm
+//   - github.com/cloudwego/dynamicgo
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -319,6 +320,14 @@ func nextslicecap(newLen, oldCap int) int {
 	return newcap
 }
 
+// reflect_growslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/dynamicgo
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_growslice reflect.growslice
 func reflect_growslice(et *_type, old slice, num int) slice {
 	// Semantically equivalent to slices.Grow, except that the caller

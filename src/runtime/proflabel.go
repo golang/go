@@ -11,6 +11,7 @@ var labelSync uintptr
 // runtime_setProfLabel should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/cloudwego/localsession
 //   - github.com/DataDog/datadog-agent
 //
 // Do not remove or change the type signature.
@@ -45,6 +46,7 @@ func runtime_setProfLabel(labels unsafe.Pointer) {
 // runtime_getProfLabel should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/cloudwego/localsession
 //   - github.com/DataDog/datadog-agent
 //
 // Do not remove or change the type signature.

@@ -17,8 +17,6 @@ import _ "unsafe"
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 
-//go:linkname add
-//go:linkname callers
 //go:linkname fastexprand
 //go:linkname gopanic
 //go:linkname sched

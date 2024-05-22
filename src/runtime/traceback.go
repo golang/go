@@ -1079,6 +1079,16 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 	print("\n")
 }
 
+// callers should be an internal detail,
+// (and is almost identical to Callers),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname callers
 func callers(skip int, pcbuf []uintptr) int {
 	sp := getcallersp()
 	pc := getcallerpc()

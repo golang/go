@@ -1626,6 +1626,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 	return shouldBuild, sawBinaryOnly, nil
 }
 
+// parseFileHeader should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bazelbuild/bazel-gazelle
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname parseFileHeader
 func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
 	end := 0
 	p := content

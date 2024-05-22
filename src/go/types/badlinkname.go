@@ -6,15 +6,15 @@ package types
 
 import _ "unsafe"
 
-// As of Go 1.22, the symbols below are found to be pulled via
-// linkname in the wild. We provide a push linkname here, to
-// keep them accessible with pull linknames.
-// This may change in the future. Please do not depend on them
-// in new code.
+// This should properly be in infer.go, but that file is auto-generated.
 
-// The compiler doesn't allow linknames on methods, for good reasons.
-// We use this trick to push linknames of the methods.
-// Do not call them in this package.
-
+// infer should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goplus/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname badlinkname_Checker_infer go/types.(*Checker).infer
 func badlinkname_Checker_infer(*Checker, positioner, []*TypeParam, []Type, *Tuple, []*operand, bool, *error_) []Type

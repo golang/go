@@ -12,6 +12,7 @@ import (
 // Widely used packages access these symbols using linkname,
 // most notably:
 //	- github.com/goccy/go-json
+//     - github.com/goccy/go-reflect
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401

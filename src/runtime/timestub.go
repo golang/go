@@ -15,6 +15,7 @@ import _ "unsafe" // for go:linkname
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
+//   - github.com/phuslu/log
 //   - github.com/sethvargo/go-limiter
 //   - github.com/ulule/limiter/v3
 //

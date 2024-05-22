@@ -1664,6 +1664,7 @@ func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/aristanetworks/goarista
+//   - fortio.org/log
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -2920,7 +2921,9 @@ func appendVarint(x []byte, v uintptr) []byte {
 // toType should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - fortio.org/log
 //   - github.com/goccy/go-json
+//   - github.com/goccy/go-reflect
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

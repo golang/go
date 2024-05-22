@@ -604,6 +604,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/cloudwego/frugal
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //
@@ -864,6 +865,7 @@ search:
 //   - github.com/bytedance/sonic
 //   - github.com/cloudwego/frugal
 //   - github.com/goccy/go-json
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //
@@ -922,6 +924,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/cloudwego/frugal
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //   - gonum.org/v1/gonum
@@ -1389,6 +1392,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 //   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //   - github.com/goccy/go-json
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //
 // Do not remove or change the type signature.

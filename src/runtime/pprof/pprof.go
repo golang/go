@@ -948,7 +948,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 //go:linkname pprof_goroutineProfileWithLabels runtime.pprof_goroutineProfileWithLabels
 func pprof_goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
 
-//go:linkname pprof_cyclesPerSecond runtime.pprof_cyclesPerSecond
+//go:linkname pprof_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
 func pprof_cyclesPerSecond() int64
 
 //go:linkname pprof_memProfileInternal runtime.pprof_memProfileInternal

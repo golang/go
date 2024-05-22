@@ -151,6 +151,7 @@ import (
 // typedmemmove should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //
 // Do not remove or change the type signature.
@@ -337,6 +338,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
+//   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //
 // Do not remove or change the type signature.
