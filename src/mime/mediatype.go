@@ -7,7 +7,7 @@ package mime
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -37,7 +37,7 @@ func FormatMediaType(t string, param map[string]string) string {
 	for a := range param {
 		attrs = append(attrs, a)
 	}
-	sort.Strings(attrs)
+	slices.Sort(attrs)
 
 	for _, attribute := range attrs {
 		value := param[attribute]

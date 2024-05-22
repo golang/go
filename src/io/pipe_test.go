@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	. "io"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -418,6 +418,6 @@ func sortBytesInGroups(b []byte, n int) []byte {
 		groups = append(groups, b[:n])
 		b = b[n:]
 	}
-	sort.Slice(groups, func(i, j int) bool { return bytes.Compare(groups[i], groups[j]) < 0 })
+	slices.SortFunc(groups, bytes.Compare)
 	return bytes.Join(groups, nil)
 }

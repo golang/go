@@ -5,7 +5,8 @@
 package trace
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -593,16 +594,19 @@ func (s *Summarizer) Finalize() *Summary {
 		g.finalize(s.lastTs, nil)
 
 		// Sort based on region start time.
-		sort.Slice(g.Regions, func(i, j int) bool {
-			x := g.Regions[i].Start
-			y := g.Regions[j].Start
+		slices.SortFunc(g.Regions, func(a, b *UserRegionSummary) int {
+			x := a.Start
+			y := b.Start
 			if x == nil {
-				return true
+				if y == nil {
+					return 0
+				}
+				return -1
 			}
 			if y == nil {
-				return false
+				return +1
 			}
-			return x.Time() < y.Time()
+			return cmp.Compare(x.Time(), y.Time())
 		})
 		g.goroutineSummary = nil
 	}

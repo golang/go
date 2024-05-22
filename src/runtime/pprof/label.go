@@ -7,7 +7,7 @@ package pprof
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -49,7 +49,7 @@ func (l *labelMap) String() string {
 		keyVals = append(keyVals, fmt.Sprintf("%q:%q", k, v))
 	}
 
-	sort.Strings(keyVals)
+	slices.Sort(keyVals)
 
 	return "{" + strings.Join(keyVals, ", ") + "}"
 }

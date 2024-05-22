@@ -26,7 +26,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1548,61 +1547,71 @@ func TestCipherSuites(t *testing.T) {
 		}
 
 		// Check that the list is sorted according to the documented criteria.
-		isBetter := func(a, b int) bool {
-			aSuite, bSuite := cipherSuiteByID(prefOrder[a]), cipherSuiteByID(prefOrder[b])
-			aName, bName := CipherSuiteName(prefOrder[a]), CipherSuiteName(prefOrder[b])
+		isBetter := func(a, b uint16) int {
+			aSuite, bSuite := cipherSuiteByID(a), cipherSuiteByID(b)
+			aName, bName := CipherSuiteName(a), CipherSuiteName(b)
 			// * < RC4
 			if !strings.Contains(aName, "RC4") && strings.Contains(bName, "RC4") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "RC4") && !strings.Contains(bName, "RC4") {
-				return false
+				return +1
 			}
 			// * < CBC_SHA256
 			if !strings.Contains(aName, "CBC_SHA256") && strings.Contains(bName, "CBC_SHA256") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "CBC_SHA256") && !strings.Contains(bName, "CBC_SHA256") {
-				return false
+				return +1
 			}
 			// * < 3DES
 			if !strings.Contains(aName, "3DES") && strings.Contains(bName, "3DES") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "3DES") && !strings.Contains(bName, "3DES") {
-				return false
+				return +1
 			}
 			// ECDHE < *
 			if aSuite.flags&suiteECDHE != 0 && bSuite.flags&suiteECDHE == 0 {
-				return true
+				return -1
 			} else if aSuite.flags&suiteECDHE == 0 && bSuite.flags&suiteECDHE != 0 {
-				return false
+				return +1
 			}
 			// AEAD < CBC
 			if aSuite.aead != nil && bSuite.aead == nil {
-				return true
+				return -1
 			} else if aSuite.aead == nil && bSuite.aead != nil {
-				return false
+				return +1
 			}
 			// AES < ChaCha20
 			if strings.Contains(aName, "AES") && strings.Contains(bName, "CHACHA20") {
-				return i == 0 // true for cipherSuitesPreferenceOrder
+				// negative for cipherSuitesPreferenceOrder
+				if i == 0 {
+					return -1
+				} else {
+					return +1
+				}
 			} else if strings.Contains(aName, "CHACHA20") && strings.Contains(bName, "AES") {
-				return i != 0 // true for cipherSuitesPreferenceOrderNoAES
+				// negative for cipherSuitesPreferenceOrderNoAES
+				if i != 0 {
+					return -1
+				} else {
+					return +1
+				}
 			}
 			// AES-128 < AES-256
 			if strings.Contains(aName, "AES_128") && strings.Contains(bName, "AES_256") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "AES_256") && strings.Contains(bName, "AES_128") {
-				return false
+				return +1
 			}
 			// ECDSA < RSA
 			if aSuite.flags&suiteECSign != 0 && bSuite.flags&suiteECSign == 0 {
-				return true
+				return -1
 			} else if aSuite.flags&suiteECSign == 0 && bSuite.flags&suiteECSign != 0 {
-				return false
+				return +1
 			}
 			t.Fatalf("two ciphersuites are equal by all criteria: %v and %v", aName, bName)
 			panic("unreachable")
 		}
-		if !sort.SliceIsSorted(prefOrder, isBetter) {
+		if !slices.IsSortedFunc(prefOrder, isBetter) {
 			t.Error("preference order is not sorted according to the rules")
 		}
 	}

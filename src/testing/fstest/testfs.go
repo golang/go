@@ -12,7 +12,7 @@ import (
 	"io/fs"
 	"path"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing/iotest"
 )
@@ -78,7 +78,7 @@ func testFS(fsys fs.FS, expected ...string) error {
 				list = append(list, k)
 			}
 		}
-		sort.Strings(list)
+		slices.Sort(list)
 		if len(list) > 15 {
 			list = append(list[:10], "...")
 		}
@@ -362,9 +362,9 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		return
 	}
 
-	if !sort.StringsAreSorted(names) {
+	if !slices.IsSorted(names) {
 		t.errorf("%s: Glob(%#q): unsorted output:\n%s", dir, glob, strings.Join(names, "\n"))
-		sort.Strings(names)
+		slices.Sort(names)
 	}
 
 	var problems []string
@@ -488,11 +488,11 @@ func (t *fsTester) checkDirList(dir, desc string, list1, list2 []fs.DirEntry) {
 		return
 	}
 
-	sort.Slice(diffs, func(i, j int) bool {
-		fi := strings.Fields(diffs[i])
-		fj := strings.Fields(diffs[j])
+	slices.SortFunc(diffs, func(a, b string) int {
+		fa := strings.Fields(a)
+		fb := strings.Fields(b)
 		// sort by name (i < j) and then +/- (j < i, because + < -)
-		return fi[1]+" "+fj[0] < fj[1]+" "+fi[0]
+		return strings.Compare(fa[1]+" "+fb[0], fb[1]+" "+fa[0])
 	})
 
 	t.errorf("%s: diff %s:\n\t%s", dir, desc, strings.Join(diffs, "\n\t"))

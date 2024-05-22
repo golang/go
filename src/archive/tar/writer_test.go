@@ -13,7 +13,7 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -749,7 +749,7 @@ func TestPaxHeadersSorted(t *testing.T) {
 		bytes.Index(buf.Bytes(), []byte("foo=foo")),
 		bytes.Index(buf.Bytes(), []byte("qux=qux")),
 	}
-	if !sort.IntsAreSorted(indices) {
+	if !slices.IsSorted(indices) {
 		t.Fatal("PAX headers are not sorted")
 	}
 }

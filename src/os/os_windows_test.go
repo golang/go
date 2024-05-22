@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -664,7 +663,7 @@ func TestOpenVolumeName(t *testing.T) {
 	chdir(t, tmpdir)
 
 	want := []string{"file1", "file2", "file3", "gopher.txt"}
-	sort.Strings(want)
+	slices.Sort(want)
 	for _, name := range want {
 		err := os.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
 		if err != nil {
@@ -682,7 +681,7 @@ func TestOpenVolumeName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	if strings.Join(want, "/") != strings.Join(have, "/") {
 		t.Fatalf("unexpected file list %q, want %q", have, want)

@@ -74,11 +74,13 @@ package pprof
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"internal/abi"
 	"internal/profilerecord"
 	"io"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -273,7 +275,9 @@ func Profiles() []*Profile {
 		all = append(all, p)
 	}
 
-	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
+	slices.SortFunc(all, func(a, b *Profile) int {
+		return strings.Compare(a.name, b.name)
+	})
 	return all
 }
 
@@ -373,15 +377,7 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
 	p.mu.Unlock()
 
 	// Map order is non-deterministic; make output deterministic.
-	sort.Slice(all, func(i, j int) bool {
-		t, u := all[i], all[j]
-		for k := 0; k < len(t) && k < len(u); k++ {
-			if t[k] != u[k] {
-				return t[k] < u[k]
-			}
-		}
-		return len(t) < len(u)
-	})
+	slices.SortFunc(all, slices.Compare)
 
 	return printCountProfile(w, debug, p.name, stackProfile(all))
 }
@@ -609,7 +605,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 		return writeHeapProto(w, p, int64(runtime.MemProfileRate), defaultSampleType)
 	}
 
-	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
+	slices.SortFunc(p, func(a, b profilerecord.MemProfileRecord) int {
+		return cmp.Compare(a.InUseBytes(), b.InUseBytes())
+	})
 
 	b := bufio.NewWriter(w)
 	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
@@ -909,7 +907,9 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 		}
 	}
 
-	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
+	slices.SortFunc(p, func(a, b profilerecord.BlockProfileRecord) int {
+		return cmp.Compare(b.Cycles, a.Cycles)
+	})
 
 	if debug <= 0 {
 		return printCountCycleProfile(w, "contentions", "delay", p)

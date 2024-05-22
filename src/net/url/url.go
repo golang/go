@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -994,7 +994,7 @@ func (v Values) Encode() string {
 	for k := range v {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)

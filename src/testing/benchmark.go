@@ -12,7 +12,7 @@ import (
 	"math"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -443,7 +443,7 @@ func (r BenchmarkResult) String() string {
 		}
 		extraKeys = append(extraKeys, k)
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 	for _, k := range extraKeys {
 		buf.WriteByte('\t')
 		prettyPrint(buf, r.Extra[k], k)

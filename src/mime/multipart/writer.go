@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -111,7 +111,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	for k := range header {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)

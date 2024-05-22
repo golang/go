@@ -24,7 +24,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1051,7 +1051,7 @@ Found:
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
-	sort.Strings(p.AllTags)
+	slices.Sort(p.AllTags)
 
 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
@@ -1066,10 +1066,10 @@ Found:
 	// The standard assemblers expect .s files.
 	if len(p.CgoFiles) > 0 {
 		p.SFiles = append(p.SFiles, Sfiles...)
-		sort.Strings(p.SFiles)
+		slices.Sort(p.SFiles)
 	} else {
 		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
-		sort.Strings(p.IgnoredOtherFiles)
+		slices.Sort(p.IgnoredOtherFiles)
 	}
 
 	if badGoError != nil {
@@ -1111,7 +1111,7 @@ func uniq(list []string) []string {
 	}
 	out := make([]string, len(list))
 	copy(out, list)
-	sort.Strings(out)
+	slices.Sort(out)
 	uniq := out[:0]
 	for _, x := range out {
 		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
@@ -1525,7 +1525,7 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 	for path := range m {
 		all = append(all, path)
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all, m
 }
 

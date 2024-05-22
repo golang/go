@@ -5,12 +5,13 @@
 package fmtsort_test
 
 import (
+	"cmp"
 	"fmt"
 	"internal/fmtsort"
 	"math"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"unsafe"
@@ -196,8 +197,8 @@ func makeChans() []chan int {
 	for i := range cs {
 		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
 	}
-	sort.Slice(cs, func(i, j int) bool {
-		return uintptr(reflect.ValueOf(cs[i]).UnsafePointer()) < uintptr(reflect.ValueOf(cs[j]).UnsafePointer())
+	slices.SortFunc(cs, func(a, b chan int) int {
+		return cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer())
 	})
 	return cs
 }

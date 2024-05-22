@@ -7,7 +7,7 @@ package mime
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -150,7 +150,7 @@ func ExtensionsByType(typ string) ([]string, error) {
 		return nil, nil
 	}
 	ret := append([]string(nil), s.([]string)...)
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret, nil
 }
 

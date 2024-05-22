@@ -19,7 +19,7 @@ import (
 	"io"
 	"math"
 	"math/big"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -185,7 +185,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 	for name := range p.pkgIndex[localpkg] {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		p.doDecl(localpkg, name)
 	}
@@ -205,7 +205,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 
 	// record all referenced packages as imports
 	list := append(([]*types.Package)(nil), pkgList[1:]...)
-	sort.Sort(byPath(list))
+	slices.SortFunc(list, func(a, b *types.Package) int {
+		return strings.Compare(a.Path(), b.Path())
+	})
 	localpkg.SetImports(list)
 
 	// package was imported completely and without errors

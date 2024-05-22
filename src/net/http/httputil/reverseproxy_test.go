@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -202,9 +202,9 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 				}
 			}
 		}
-		sort.Strings(cf)
+		slices.Sort(cf)
 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
-		sort.Strings(expectedValues)
+		slices.Sort(expectedValues)
 		if !reflect.DeepEqual(cf, expectedValues) {
 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
 		}

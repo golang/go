@@ -5,10 +5,11 @@
 package os
 
 import (
+	"internal/bytealg"
 	"internal/filepathlite"
 	"io"
 	"io/fs"
-	"sort"
+	"slices"
 )
 
 type readdirMode int
@@ -122,7 +123,9 @@ func ReadDir(name string) ([]DirEntry, error) {
 	defer f.Close()
 
 	dirs, err := f.ReadDir(-1)
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+	slices.SortFunc(dirs, func(a, b DirEntry) int {
+		return bytealg.CompareString(a.Name(), b.Name())
+	})
 	return dirs, err
 }
 

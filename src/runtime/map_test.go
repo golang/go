@@ -13,7 +13,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -388,8 +388,8 @@ func TestBigItems(t *testing.T) {
 		values[i] = v[37]
 		i++
 	}
-	sort.Strings(keys[:])
-	sort.Strings(values[:])
+	slices.Sort(keys[:])
+	slices.Sort(values[:])
 	for i := 0; i < 100; i++ {
 		if keys[i] != fmt.Sprintf("string%02d", i) {
 			t.Errorf("#%d: missing key: %v", i, keys[i])

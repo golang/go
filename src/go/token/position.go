@@ -5,8 +5,9 @@
 package token
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -322,7 +323,15 @@ func (f *File) Line(p Pos) int {
 }
 
 func searchLineInfos(a []lineInfo, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].Offset > x }) - 1
+	i, found := slices.BinarySearchFunc(a, x, func(a lineInfo, x int) int {
+		return cmp.Compare(a.Offset, x)
+	})
+	if !found {
+		// We want the lineInfo containing x, but if we didn't
+		// find x then i is the next one.
+		i--
+	}
+	return i
 }
 
 // unpack returns the filename and line and column number for a file offset.
@@ -516,7 +525,15 @@ func (s *FileSet) Iterate(f func(*File) bool) {
 }
 
 func searchFiles(a []*File, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
+	i, found := slices.BinarySearchFunc(a, x, func(a *File, x int) int {
+		return cmp.Compare(a.base, x)
+	})
+	if !found {
+		// We want the File containing x, but if we didn't
+		// find x then i is the next one.
+		i--
+	}
+	return i
 }
 
 func (s *FileSet) file(p Pos) *File {

@@ -250,9 +250,3 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	return
 }
-
-type byPath []*types.Package
-
-func (a byPath) Len() int           { return len(a) }
-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }

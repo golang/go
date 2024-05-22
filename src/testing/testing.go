@@ -383,7 +383,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -2382,7 +2382,7 @@ func runningList() []string {
 		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
 		return true
 	})
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

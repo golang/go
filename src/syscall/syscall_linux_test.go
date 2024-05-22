@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -484,7 +484,7 @@ func compareStatus(filter, expect string) error {
 					// https://github.com/golang/go/issues/46145
 					// Containers don't reliably output this line in sorted order so manually sort and compare that.
 					a := strings.Split(line[8:], " ")
-					sort.Strings(a)
+					slices.Sort(a)
 					got := strings.Join(a, " ")
 					if got == expected[8:] {
 						foundAThread = true

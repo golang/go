@@ -13,6 +13,7 @@ package oldtrace
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"internal/trace/version"
 	"io"
 	"math"
+	"slices"
 	"sort"
 )
 
@@ -368,7 +370,9 @@ func (p *parser) parseEventBatches() (Events, error) {
 	// with original timestamps corresponding to when ReadTrace pulled the data
 	// off of the profBuf queue. Re-sort them by the timestamp we captured
 	// inside the signal handler.
-	sort.Sort((*eventList)(&p.cpuSamples))
+	slices.SortFunc(p.cpuSamples, func(a, b Event) int {
+		return cmp.Compare(a.Ts, b.Ts)
+	})
 
 	allProcs := make([]proc, 0, len(p.batchOffsets))
 	for pid := range p.batchOffsets {

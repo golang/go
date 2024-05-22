@@ -126,20 +126,6 @@ func (l *orderEventList) Less(i, j int) bool {
 	return (*l)[i].ev.Ts < (*l)[j].ev.Ts
 }
 
-type eventList []Event
-
-func (l *eventList) Len() int {
-	return len(*l)
-}
-
-func (l *eventList) Less(i, j int) bool {
-	return (*l)[i].Ts < (*l)[j].Ts
-}
-
-func (l *eventList) Swap(i, j int) {
-	(*l)[i], (*l)[j] = (*l)[j], (*l)[i]
-}
-
 func (h *orderEventList) Push(x orderEvent) {
 	*h = append(*h, x)
 	heapUp(h, len(*h)-1)

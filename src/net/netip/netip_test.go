@@ -14,7 +14,6 @@ import (
 	. "net/netip"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"unique"
@@ -885,7 +884,7 @@ func TestAddrLessCompare(t *testing.T) {
 		mustIP("8.8.8.8"),
 		mustIP("::1%foo"),
 	}
-	sort.Slice(values, func(i, j int) bool { return values[i].Less(values[j]) })
+	slices.SortFunc(values, Addr.Compare)
 	got := fmt.Sprintf("%s", values)
 	want := `[invalid IP 1.2.3.4 8.8.8.8 ::1 ::1%foo ::2]`
 	if got != want {
@@ -936,7 +935,7 @@ func TestAddrPortCompare(t *testing.T) {
 		mustIPPort("8.8.8.8:8080"),
 		mustIPPort("[::1%foo]:1024"),
 	}
-	slices.SortFunc(values, func(a, b AddrPort) int { return a.Compare(b) })
+	slices.SortFunc(values, AddrPort.Compare)
 	got := fmt.Sprintf("%s", values)
 	want := `[invalid AddrPort 1.2.3.4:443 8.8.8.8:8080 [::1]:80 [::1%foo]:1024 [::2]:80]`
 	if got != want {
@@ -988,7 +987,7 @@ func TestPrefixCompare(t *testing.T) {
 		mustPrefix("fe80::/48"),
 		mustPrefix("1.2.0.0/24"),
 	}
-	slices.SortFunc(values, func(a, b Prefix) int { return a.Compare(b) })
+	slices.SortFunc(values, Prefix.Compare)
 	got := fmt.Sprintf("%s", values)
 	want := `[invalid Prefix 1.2.0.0/16 1.2.0.0/24 1.2.3.0/24 fe80::/48 fe80::/64 fe90::/64]`
 	if got != want {

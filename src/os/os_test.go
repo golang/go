@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -808,7 +808,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		for i, fi := range fis {
 			s[i] = fi.Name()
 		}
-		sort.Strings(s)
+		slices.Sort(s)
 		return s
 	}
 

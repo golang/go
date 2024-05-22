@@ -22,7 +22,7 @@ import (
 	"reflect/internal/example1"
 	"reflect/internal/example2"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -6282,7 +6282,7 @@ func TestMapOfGCKeys(t *testing.T) {
 		for _, kv := range v.MapKeys() {
 			out = append(out, int(kv.Elem().Interface().(uintptr)))
 		}
-		sort.Ints(out)
+		slices.Sort(out)
 		for j, k := range out {
 			if k != i*n+j {
 				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
@@ -7861,7 +7861,7 @@ func iterateToString(it *MapIter) string {
 		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
 		got = append(got, line)
 	}
-	sort.Strings(got)
+	slices.Sort(got)
 	return "[" + strings.Join(got, ", ") + "]"
 }
 

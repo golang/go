@@ -19,7 +19,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -2064,7 +2064,7 @@ func chainsToStrings(chains [][]*Certificate) []string {
 		}
 		chainStrings = append(chainStrings, strings.Join(names, " -> "))
 	}
-	sort.Strings(chainStrings)
+	slices.Sort(chainStrings)
 	return chainStrings
 }
 

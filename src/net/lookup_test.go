@@ -12,7 +12,7 @@ import (
 	"net/netip"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -428,7 +428,7 @@ func TestLookupLongTXT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(txts)
+	slices.Sort(txts)
 	want := []string{
 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
 		"gophers rule",

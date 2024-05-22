@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime/metrics"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -115,7 +115,7 @@ func TestCmdBisect(t *testing.T) {
 			want = append(want, fmt.Sprintf("godebug_test.go:%d", i+1))
 		}
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 
 	var have []string
 	for _, line := range strings.Split(string(out), "\n") {
@@ -123,7 +123,7 @@ func TestCmdBisect(t *testing.T) {
 			have = append(have, line[strings.LastIndex(line, "godebug_test.go:"):])
 		}
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	if !reflect.DeepEqual(have, want) {
 		t.Errorf("bad bisect output:\nhave %v\nwant %v\ncomplete output:\n%s", have, want, string(out))

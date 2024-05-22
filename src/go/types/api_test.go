@@ -15,7 +15,7 @@ import (
 	"internal/testenv"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -693,8 +693,8 @@ func sortedInstances(m map[*ast.Ident]Instance) (instances []recordedInstance) {
 	for id, inst := range m {
 		instances = append(instances, recordedInstance{id, inst})
 	}
-	sort.Slice(instances, func(i, j int) bool {
-		return CmpPos(instances[i].Ident.Pos(), instances[j].Ident.Pos()) < 0
+	slices.SortFunc(instances, func(a, b recordedInstance) int {
+		return CmpPos(a.Ident.Pos(), b.Ident.Pos())
 	})
 	return instances
 }

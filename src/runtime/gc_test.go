@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -548,9 +548,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 	b.ReportMetric(0, "allocs/op")
 
 	// Sort latencies then report percentiles.
-	sort.Slice(latencies, func(i, j int) bool {
-		return latencies[i] < latencies[j]
-	})
+	slices.Sort(latencies)
 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
