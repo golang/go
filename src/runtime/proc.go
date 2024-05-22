@@ -4731,6 +4731,14 @@ func exitsyscall0(gp *g) {
 
 // Called from syscall package before fork.
 //
+// syscall_runtime_BeforeFork is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/containerd/containerd
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
 //go:nosplit
 func syscall_runtime_BeforeFork() {
@@ -4751,6 +4759,14 @@ func syscall_runtime_BeforeFork() {
 }
 
 // Called from syscall package after fork in parent.
+//
+// syscall_runtime_AfterFork is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/containerd/containerd
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
 //go:nosplit
@@ -4776,6 +4792,14 @@ var inForkedChild bool
 // Because this might be called during a vfork, and therefore may be
 // temporarily sharing address space with the parent process, this must
 // not change any global variables or calling into C code that may do so.
+//
+// syscall_runtime_AfterForkInChild is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/containerd/containerd
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
 //go:nosplit

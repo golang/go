@@ -1034,6 +1034,15 @@ func sync_fatal(s string) {
 // NOTE: temporarily marked "go:noinline" pending investigation/fix of
 // issue #67274, so as to fix longtest builders.
 //
+// throw should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname throw
 //go:nosplit
 func throw(s string) {
 	// Everything throw does should be recursively nosplit so it

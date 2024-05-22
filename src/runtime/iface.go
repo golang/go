@@ -32,6 +32,15 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 	return uintptr(inter.Type.Hash ^ typ.Hash)
 }
 
+// getitab should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname getitab
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	if len(inter.Methods) == 0 {
 		throw("internal error - misuse of itab")
@@ -379,6 +388,15 @@ func convT32(val uint32) (x unsafe.Pointer) {
 	return
 }
 
+// convT64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convT64
 func convT64(val uint64) (x unsafe.Pointer) {
 	if val < uint64(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
@@ -389,6 +407,15 @@ func convT64(val uint64) (x unsafe.Pointer) {
 	return
 }
 
+// convTstring should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convTstring
 func convTstring(val string) (x unsafe.Pointer) {
 	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
@@ -399,6 +426,15 @@ func convTstring(val string) (x unsafe.Pointer) {
 	return
 }
 
+// convTslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convTslice
 func convTslice(val []byte) (x unsafe.Pointer) {
 	// Note: this must work for any element type, not just byte.
 	if (*slice)(unsafe.Pointer(&val)).array == nil {

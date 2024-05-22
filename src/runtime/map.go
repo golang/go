@@ -283,6 +283,16 @@ func makemap64(t *maptype, hint int64, h *hmap) *hmap {
 // makemap_small implements Go map creation for make(map[k]v) and
 // make(map[k]v, hint) when hint is known to be at most bucketCnt
 // at compile time and the map needs to be allocated on the heap.
+//
+// makemap_small should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname makemap_small
 func makemap_small() *hmap {
 	h := new(hmap)
 	h.hash0 = uint32(rand())
@@ -591,6 +601,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 // mapassign should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -847,6 +858,7 @@ search:
 // mapiterinit should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/goccy/go-json
 //   - github.com/ugorji/go/codec
 //
@@ -903,6 +915,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 // mapiternext should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.

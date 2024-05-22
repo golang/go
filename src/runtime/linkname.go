@@ -25,7 +25,6 @@ import _ "unsafe"
 //go:linkname cgoNoCallback
 //go:linkname gobytes
 //go:linkname gostringn
-//go:linkname throw
 
 // used in plugin
 //go:linkname doInit

@@ -969,6 +969,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // mallocgc should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -1425,6 +1426,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 // reflect_unsafe_NewArray is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //

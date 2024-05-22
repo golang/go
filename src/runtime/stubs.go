@@ -83,6 +83,15 @@ func badsystemstack() {
 //
 // The (CPU-specific) implementations of this function are in memclr_*.s.
 //
+// memclrNoHeapPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrNoHeapPointers
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -108,6 +117,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 // memmove should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -127,6 +137,15 @@ const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
 // in internal/bytealg/equal_*.s
 //
+// memequal should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memequal
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -387,7 +406,18 @@ func abort()
 
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrier1()
+
+// gcWriteBarrier2 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gcWriteBarrier2
 func gcWriteBarrier2()
+
 func gcWriteBarrier3()
 func gcWriteBarrier4()
 func gcWriteBarrier5()

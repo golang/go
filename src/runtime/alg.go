@@ -48,6 +48,16 @@ var useAeshash bool
 func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 func memhash32(p unsafe.Pointer, h uintptr) uintptr
 func memhash64(p unsafe.Pointer, h uintptr) uintptr
+
+// strhash should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname strhash
 func strhash(p unsafe.Pointer, h uintptr) uintptr
 
 func strhashFallback(a unsafe.Pointer, h uintptr) uintptr {

@@ -391,6 +391,15 @@ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
 // pointers, usually by checking typ.PtrBytes. However, ptr
 // does not have to point to the start of the allocation.
 //
+// memclrHasPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrHasPointers
 //go:nosplit
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
 	// Pass nil for the type since we don't have one here anyway.
