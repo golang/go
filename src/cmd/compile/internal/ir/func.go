@@ -177,10 +177,11 @@ func NewFunc(fpos, npos src.XPos, sym *types.Sym, typ *types.Type) *Func {
 
 func (f *Func) isStmt() {}
 
-func (n *Func) copy() Node                                  { panic(n.no("copy")) }
-func (n *Func) doChildren(do func(Node) bool) bool          { return doNodes(n.Body, do) }
-func (n *Func) editChildren(edit func(Node) Node)           { editNodes(n.Body, edit) }
-func (n *Func) editChildrenWithHidden(edit func(Node) Node) { editNodes(n.Body, edit) }
+func (n *Func) copy() Node                                   { panic(n.no("copy")) }
+func (n *Func) doChildren(do func(Node) bool) bool           { return doNodes(n.Body, do) }
+func (n *Func) doChildrenWithHidden(do func(Node) bool) bool { return doNodes(n.Body, do) }
+func (n *Func) editChildren(edit func(Node) Node)            { editNodes(n.Body, edit) }
+func (n *Func) editChildrenWithHidden(edit func(Node) Node)  { editNodes(n.Body, edit) }
 
 func (f *Func) Type() *types.Type                { return f.Nname.Type() }
 func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }

@@ -255,6 +255,7 @@ func processType(t *ast.TypeSpec) {
 	// Process fields.
 	var copyBody strings.Builder
 	var doChildrenBody strings.Builder
+	var doChildrenWithHiddenBody strings.Builder
 	var editChildrenBody strings.Builder
 	var editChildrenWithHiddenBody strings.Builder
 	for _, f := range fields {
@@ -297,9 +298,13 @@ func processType(t *ast.TypeSpec) {
 				ptr = "*"
 			}
 			if isSlice {
+				fmt.Fprintf(&doChildrenWithHiddenBody,
+					"if do%ss(n.%s, do) {\nreturn true\n}\n", ft, name)
 				fmt.Fprintf(&editChildrenWithHiddenBody,
 					"edit%ss(n.%s, edit)\n", ft, name)
 			} else {
+				fmt.Fprintf(&doChildrenWithHiddenBody,
+					"if n.%s != nil && do(n.%s) {\nreturn true\n}\n", name, name)
 				fmt.Fprintf(&editChildrenWithHiddenBody,
 					"if n.%s != nil {\nn.%s = edit(n.%s).(%s%s)\n}\n", name, name, name, ptr, ft)
 			}
@@ -325,6 +330,9 @@ func processType(t *ast.TypeSpec) {
 	fmt.Fprintf(&buf, "return &c\n}\n")
 	fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) bool) bool {\n", name)
 	buf.WriteString(doChildrenBody.String())
+	fmt.Fprintf(&buf, "return false\n}\n")
+	fmt.Fprintf(&buf, "func (n *%s) doChildrenWithHidden(do func(Node) bool) bool {\n", name)
+	buf.WriteString(doChildrenWithHiddenBody.String())
 	fmt.Fprintf(&buf, "return false\n}\n")
 	fmt.Fprintf(&buf, "func (n *%s) editChildren(edit func(Node) Node) {\n", name)
 	buf.WriteString(editChildrenBody.String())
