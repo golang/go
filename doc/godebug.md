@@ -197,6 +197,10 @@ Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals b
 The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
 any effect.
 
+Go 1.23 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing 3DES cipher suites. The default can be reverted
+using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size

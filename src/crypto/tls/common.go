@@ -687,7 +687,9 @@ type Config struct {
 	// If CipherSuites is nil, a safe default list is used. The default cipher
 	// suites might change over time. In Go 1.22 RSA key exchange based cipher
 	// suites were removed from the default list, but can be re-added with the
-	// GODEBUG setting tlsrsakex=1.
+	// GODEBUG setting tlsrsakex=1. In Go 1.23 3DES cipher suites were removed
+	// from the default list, but can be re-added with the GODEBUG setting
+	// tls3des=1.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites is a legacy field and has no effect.
@@ -1025,8 +1027,6 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
-var tlsrsakex = godebug.New("tlsrsakex")
-
 func (c *Config) cipherSuites() []uint16 {
 	if needFIPS() {
 		return fipsCipherSuites(c)
@@ -1034,10 +1034,7 @@ func (c *Config) cipherSuites() []uint16 {
 	if c.CipherSuites != nil {
 		return c.CipherSuites
 	}
-	if tlsrsakex.Value() == "1" {
-		return defaultCipherSuitesWithRSAKex
-	}
-	return defaultCipherSuites
+	return defaultCipherSuites()
 }
 
 var supportedVersions = []uint16{

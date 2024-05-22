@@ -1458,6 +1458,16 @@ func TestCipherSuites(t *testing.T) {
 			t.Errorf("%#04x: suite TLS 1.0-1.2, but SupportedVersions is %v", c.id, cc.SupportedVersions)
 		}
 
+		if cc.Insecure {
+			if slices.Contains(defaultCipherSuites(), c.id) {
+				t.Errorf("%#04x: insecure suite in default list", c.id)
+			}
+		} else {
+			if !slices.Contains(defaultCipherSuites(), c.id) {
+				t.Errorf("%#04x: secure suite not in default list", c.id)
+			}
+		}
+
 		if got := CipherSuiteName(c.id); got != cc.Name {
 			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
 		}
@@ -1490,9 +1500,6 @@ func TestCipherSuites(t *testing.T) {
 	}
 	if len(cipherSuitesPreferenceOrderNoAES) != len(cipherSuitesPreferenceOrder) {
 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
-	}
-	if len(defaultCipherSuites) >= len(defaultCipherSuitesWithRSAKex) {
-		t.Errorf("defaultCipherSuitesWithRSAKex should be longer than defaultCipherSuites")
 	}
 
 	// Check that disabled suites are marked insecure.

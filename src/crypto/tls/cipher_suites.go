@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"hash"
 	"internal/cpu"
+	"internal/godebug"
 	"runtime"
+	"slices"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -334,6 +336,8 @@ var disabledCipherSuites = map[uint16]bool{
 	TLS_RSA_WITH_RC4_128_SHA:         true,
 }
 
+var tlsrsakex = godebug.New("tlsrsakex")
+
 // rsaKexCiphers contains the ciphers which use RSA based key exchange,
 // which we also disable by default unless a GODEBUG is set.
 var rsaKexCiphers = map[uint16]bool{
@@ -346,21 +350,22 @@ var rsaKexCiphers = map[uint16]bool{
 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
 }
 
-var defaultCipherSuites []uint16
-var defaultCipherSuitesWithRSAKex []uint16
+var tls3des = godebug.New("tls3des")
 
-func init() {
-	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
-	defaultCipherSuitesWithRSAKex = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
-	for _, c := range cipherSuitesPreferenceOrder {
-		if disabledCipherSuites[c] {
-			continue
-		}
-		if !rsaKexCiphers[c] {
-			defaultCipherSuites = append(defaultCipherSuites, c)
-		}
-		defaultCipherSuitesWithRSAKex = append(defaultCipherSuitesWithRSAKex, c)
-	}
+// tdesCiphers contains 3DES ciphers,
+// which we also disable by default unless a GODEBUG is set.
+var tdesCiphers = map[uint16]bool{
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       true,
+}
+
+func defaultCipherSuites() []uint16 {
+	suites := slices.Clone(cipherSuitesPreferenceOrder)
+	return slices.DeleteFunc(suites, func(c uint16) bool {
+		return disabledCipherSuites[c] ||
+			tlsrsakex.Value() != "1" && rsaKexCiphers[c] ||
+			tls3des.Value() != "1" && tdesCiphers[c]
+	})
 }
 
 // defaultCipherSuitesTLS13 is also the preference order, since there are no

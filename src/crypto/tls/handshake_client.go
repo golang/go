@@ -551,6 +551,10 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		tlsrsakex.Value() // ensure godebug is initialized
 		tlsrsakex.IncNonDefault()
 	}
+	if hs.c.config.CipherSuites == nil && !needFIPS() && tdesCiphers[hs.suite.id] {
+		tls3des.Value() // ensure godebug is initialized
+		tls3des.IncNonDefault()
+	}
 
 	hs.c.cipherSuite = hs.suite.id
 	return nil
