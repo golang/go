@@ -458,6 +458,11 @@ func (f *Field) IsMethod() bool {
 	return f.Type.kind == TFUNC && f.Type.Recv() != nil
 }
 
+// CompareFields compares two Field values by name.
+func CompareFields(a, b *Field) int {
+	return CompareSyms(a.Sym, b.Sym)
+}
+
 // fields is a pointer to a slice of *Field.
 // This saves space in Types that do not have fields or methods
 // compared to a simple slice of *Field.

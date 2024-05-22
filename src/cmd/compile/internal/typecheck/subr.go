@@ -144,7 +144,7 @@ func CalcMethods(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods()...)
-	slices.SortFunc(ms, types.MethodsByNameCmp)
+	slices.SortFunc(ms, types.CompareFields)
 	t.SetAllMethods(ms)
 }
 

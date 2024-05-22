@@ -145,7 +145,7 @@ func imethods(t *types.Type) []*typeSig {
 		}
 		if n := len(methods); n > 0 {
 			last := methods[n-1]
-			if !last.name.Less(f.Sym) {
+			if types.CompareSyms(last.name, f.Sym) >= 0 {
 				base.Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
 			}
 		}
