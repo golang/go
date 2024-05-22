@@ -264,7 +264,7 @@ func (e errorString) Error() string {
 
 const (
 	// RERR_ is for runtime error, and may be regexps/substrings, to simplify use of tests with tools
-	RERR_DONE      = "runtime error: range function continued iteration after loop body exit"
+	RERR_DONE      = "runtime error: range function continued iteration after function for loop body returned false"
 	RERR_PANIC     = "runtime error: range function continued iteration after loop body panic"
 	RERR_EXHAUSTED = "runtime error: range function continued iteration after whole loop exit"
 	RERR_MISSING   = "runtime error: range function recovered a loop body panic and did not resume panicking"

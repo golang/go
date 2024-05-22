@@ -297,7 +297,7 @@ func deferproc(fn func()) {
 	// been set and must not be clobbered.
 }
 
-var rangeDoneError = error(errorString("range function continued iteration after loop body exit"))
+var rangeDoneError = error(errorString("range function continued iteration after function for loop body returned false"))
 var rangePanicError = error(errorString("range function continued iteration after loop body panic"))
 var rangeExhaustedError = error(errorString("range function continued iteration after whole loop exit"))
 var rangeMissingPanicError = error(errorString("range function recovered a loop body panic and did not resume panicking"))
