@@ -6,6 +6,8 @@
 // little and big endian integer types from/to byte slices.
 package byteorder
 
+import "internal/goarch"
+
 func LeUint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
@@ -146,4 +148,45 @@ func BeAppendUint64(b []byte, v uint64) []byte {
 		byte(v>>8),
 		byte(v),
 	)
+}
+
+// ReadUint returns the size-bytes unsigned integer in native byte order at offset off.
+func ReadUint(b []byte, off, size uintptr) (u uint64, ok bool) {
+	if len(b) < int(off+size) {
+		return 0, false
+	}
+	if goarch.BigEndian {
+		return readUintBE(b[off:], size), true
+	}
+	return readUintLE(b[off:], size), true
+}
+
+func readUintBE(b []byte, size uintptr) uint64 {
+	switch size {
+	case 1:
+		return uint64(b[0])
+	case 2:
+		return uint64(BeUint16(b))
+	case 4:
+		return uint64(BeUint32(b))
+	case 8:
+		return uint64(BeUint64(b))
+	default:
+		panic("ReadUint with unsupported size")
+	}
+}
+
+func readUintLE(b []byte, size uintptr) uint64 {
+	switch size {
+	case 1:
+		return uint64(b[0])
+	case 2:
+		return uint64(LeUint16(b))
+	case 4:
+		return uint64(LeUint32(b))
+	case 8:
+		return uint64(LeUint64(b))
+	default:
+		panic("ReadUint with unsupported size")
+	}
 }

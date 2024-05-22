@@ -7,52 +7,9 @@
 package syscall
 
 import (
-	"internal/byteorder"
-	"internal/goarch"
 	"runtime"
 	"unsafe"
 )
-
-// readInt returns the size-bytes unsigned integer in native byte order at offset off.
-func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
-	if len(b) < int(off+size) {
-		return 0, false
-	}
-	if goarch.BigEndian {
-		return readIntBE(b[off:], size), true
-	}
-	return readIntLE(b[off:], size), true
-}
-
-func readIntBE(b []byte, size uintptr) uint64 {
-	switch size {
-	case 1:
-		return uint64(b[0])
-	case 2:
-		return uint64(byteorder.BeUint16(b))
-	case 4:
-		return uint64(byteorder.BeUint32(b))
-	case 8:
-		return uint64(byteorder.BeUint64(b))
-	default:
-		panic("syscall: readInt with unsupported size")
-	}
-}
-
-func readIntLE(b []byte, size uintptr) uint64 {
-	switch size {
-	case 1:
-		return uint64(b[0])
-	case 2:
-		return uint64(byteorder.LeUint16(b))
-	case 4:
-		return uint64(byteorder.LeUint32(b))
-	case 8:
-		return uint64(byteorder.LeUint64(b))
-	default:
-		panic("syscall: readInt with unsupported size")
-	}
-}
 
 // ParseDirent parses up to max directory entries in buf,
 // appending the names to names. It returns the number of

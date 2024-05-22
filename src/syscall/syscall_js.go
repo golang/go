@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/byteorder"
 	"internal/itoa"
 	"internal/oserror"
 	"sync"
@@ -26,7 +27,7 @@ func direntIno(buf []byte) (uint64, bool) {
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {

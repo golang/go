@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/byteorder"
 	"syscall"
 	"unsafe"
 )
@@ -15,7 +16,7 @@ import (
 const sizeOfDirent = 24
 
 func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
 }
 
 func direntReclen(buf []byte) (uint64, bool) {
@@ -24,7 +25,7 @@ func direntReclen(buf []byte) (uint64, bool) {
 }
 
 func direntNamlen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
+	return byteorder.ReadUint(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
 }
 
 func direntType(buf []byte) FileMode {

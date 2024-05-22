@@ -43,12 +43,14 @@ var depsRules = `
 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
 	  internal/coverage/uleb128, internal/coverage/calloc,
 	  internal/goarch, internal/godebugs,
-	  internal/goexperiment, internal/goos, internal/byteorder,
+	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  internal/profilerecord, internal/trace/traceviewer/format,
 	  log/internal,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
+
+	internal/goarch < internal/byteorder;
 
 	# internal/abi depends only on internal/goarch and unsafe.
 	internal/goarch, unsafe < internal/abi;
