@@ -1368,7 +1368,7 @@ HaveSpan:
 
 	// Trace the span alloc.
 	if traceAllocFreeEnabled() {
-		trace := traceAcquire()
+		trace := traceTryAcquire()
 		if trace.ok() {
 			trace.SpanAlloc(s)
 			traceRelease(trace)
@@ -1556,7 +1556,7 @@ func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
 		// Trace the span free.
 		if traceAllocFreeEnabled() {
-			trace := traceAcquire()
+			trace := traceTryAcquire()
 			if trace.ok() {
 				trace.SpanFree(s)
 				traceRelease(trace)
@@ -1595,7 +1595,7 @@ func (h *mheap) freeSpan(s *mspan) {
 func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
 	// Trace the span free.
 	if traceAllocFreeEnabled() {
-		trace := traceAcquire()
+		trace := traceTryAcquire()
 		if trace.ok() {
 			trace.SpanFree(s)
 			traceRelease(trace)

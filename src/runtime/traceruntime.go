@@ -184,6 +184,22 @@ func traceAcquire() traceLocker {
 	return traceAcquireEnabled()
 }
 
+// traceTryAcquire is like traceAcquire, but may return an invalid traceLocker even
+// if tracing is enabled. For example, it will return !ok if traceAcquire is being
+// called with an active traceAcquire on the M (reentrant locking). This exists for
+// optimistically emitting events in the few contexts where tracing is now allowed.
+//
+// nosplit for alignment with traceTryAcquire, so it can be used in the
+// same contexts.
+//
+//go:nosplit
+func traceTryAcquire() traceLocker {
+	if !traceEnabled() {
+		return traceLocker{}
+	}
+	return traceTryAcquireEnabled()
+}
+
 // traceAcquireEnabled is the traceEnabled path for traceAcquire. It's explicitly
 // broken out to make traceAcquire inlineable to keep the overhead of the tracer
 // when it's disabled low.
@@ -226,6 +242,26 @@ func traceAcquireEnabled() traceLocker {
 		return traceLocker{}
 	}
 	return traceLocker{mp, gen}
+}
+
+// traceTryAcquireEnabled is like traceAcquireEnabled but may return an invalid
+// traceLocker under some conditions. See traceTryAcquire for more details.
+//
+// nosplit for alignment with traceAcquireEnabled, so it can be used in the
+// same contexts.
+//
+//go:nosplit
+func traceTryAcquireEnabled() traceLocker {
+	// Any time we acquire a traceLocker, we may flush a trace buffer. But
+	// buffer flushes are rare. Record the lock edge even if it doesn't happen
+	// this time.
+	lockRankMayTraceFlush()
+
+	// Check if we're already locked. If so, return an invalid traceLocker.
+	if getg().m.trace.seqlock.Load()%2 == 1 {
+		return traceLocker{}
+	}
+	return traceAcquireEnabled()
 }
 
 // ok returns true if the traceLocker is valid (i.e. tracing is enabled).
