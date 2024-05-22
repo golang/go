@@ -8,9 +8,15 @@ Distributions that install the `go` command to a location other than
 `$GOROOT/bin/go` should install a symlink instead of relocating
 or copying the `go` binary.
 
-The new go env `-changed` flag causes the command to print only
+<!-- go.dev/issue/34208, CL 563137, CL 586095 -->
+The new `go` `env` `-changed` flag causes the command to print only
 those settings whose effective value differs from the default value
 that would be obtained in an empty environment with no prior uses of the `-w` flag.
+
+<!-- go.dev/issue/27005, CL 585401 -->
+The new `go` `mod` `tidy` `-diff` flag causes the command not to modify
+the files but instead print the necessary changes as a unified diff.
+It exits with a non-zero code if updates are needed.
 
 ### Vet {#vet}
 
