@@ -426,20 +426,20 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	}
 	pkg := types.LocalPkg
 	outer := "glob."
-	var prefix string = "."
+	var suffix string = "."
 	switch why {
 	default:
 		base.FatalfAt(pos, "closureName: bad Op: %v", why)
 	case OCLOSURE:
 		if outerfn == nil || outerfn.OClosure == nil {
-			prefix = ".func"
+			suffix = ".func"
 		}
 	case ORANGE:
-		prefix = "-range"
+		suffix = "-range"
 	case OGO:
-		prefix = ".gowrap"
+		suffix = ".gowrap"
 	case ODEFER:
-		prefix = ".deferwrap"
+		suffix = ".deferwrap"
 	}
 	gen := &globClosgen
 
@@ -472,7 +472,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	}
 
 	*gen++
-	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, prefix, *gen))
+	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, suffix, *gen))
 }
 
 // NewClosureFunc creates a new Func to represent a function literal

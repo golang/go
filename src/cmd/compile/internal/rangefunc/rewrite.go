@@ -160,7 +160,7 @@ The value of #stateK transitions
 	if #stateN != abi.RF_READY { runtime.panicrangestate(#stateN) }
 	#stateN = abi.RF_PANIC
 
-(4) when loop iteration continues, and
+(4) when loop iteration continues,
 
 	#stateN = abi.RF_READY
 	[return true]
@@ -447,6 +447,8 @@ becomes
 					#state3 = abi.RF_READY
 					return true
 				})
+				if #state3 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+				#state3 = abi.RF_EXHAUSTED
 				if #next < 0 {
 					#state2 = abi.RF_DONE
 					return false
