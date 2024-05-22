@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 )
 
 // A Pos encodes a source position consisting of a (line, column) number pair
@@ -458,12 +459,12 @@ func (x lico) withStmt(stmt uint) lico {
 }
 
 func (x lico) lineNumber() string {
-	return fmt.Sprintf("%d", x.Line())
+	return strconv.FormatUint(uint64(x.Line()), 10)
 }
 
 func (x lico) lineNumberHTML() string {
 	if x.IsStmt() == PosDefaultStmt {
-		return fmt.Sprintf("%d", x.Line())
+		return x.lineNumber()
 	}
 	style, pfx := "b", "+"
 	if x.IsStmt() == PosNotStmt {
