@@ -1036,6 +1036,13 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			if metricGrowth == 0 && strictTiming {
 				// If the critical section is very short, systems with low timer
 				// resolution may be unable to measure it via nanotime.
+				//
+				// This is sampled at 1 per gTrackingPeriod, but the explicit
+				// runtime.mutex tests create 200 contention events. Observing
+				// zero of those has a probability of (7/8)^200 = 2.5e-12 which
+				// is acceptably low (though the calculation has a tenuous
+				// dependency on cheaprandn being a good-enough source of
+				// entropy).
 				t.Errorf("no increase in /sync/mutex/wait/total:seconds metric")
 			}
 			// This comparison is possible because the time measurements in support of
@@ -1111,7 +1118,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	name := t.Name()
 
 	t.Run("runtime.lock", func(t *testing.T) {
-		mus := make([]runtime.Mutex, 100)
+		mus := make([]runtime.Mutex, 200)
 		var needContention atomic.Int64
 		baseDelay := 100 * time.Microsecond // large relative to system noise, for comparison between clocks
 		fastDelayMicros := baseDelay.Microseconds()
@@ -1207,13 +1214,19 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			needContention.Store(int64(len(mus) - 1))
 			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
 
-			if have, want := metricGrowth, baseDelay.Seconds()*float64(len(mus)); have < want {
-				// The test imposes a delay with usleep, verified with calls to
-				// nanotime. Compare against the runtime/metrics package's view
-				// (based on nanotime) rather than runtime/pprof's view (based
-				// on cputicks).
-				t.Errorf("runtime/metrics reported less than the known minimum contention duration (%fs < %fs)", have, want)
-			}
+			t.Run("metric", func(t *testing.T) {
+				// The runtime/metrics view is sampled at 1 per gTrackingPeriod,
+				// so we don't have a hard lower bound here.
+				testenv.SkipFlaky(t, 64253)
+
+				if have, want := metricGrowth, baseDelay.Seconds()*float64(len(mus)); have < want {
+					// The test imposes a delay with usleep, verified with calls to
+					// nanotime. Compare against the runtime/metrics package's view
+					// (based on nanotime) rather than runtime/pprof's view (based
+					// on cputicks).
+					t.Errorf("runtime/metrics reported less than the known minimum contention duration (%fs < %fs)", have, want)
+				}
+			})
 			if have, want := n, int64(len(mus)); have != want {
 				t.Errorf("mutex profile reported contention count different from the known true count (%d != %d)", have, want)
 			}
