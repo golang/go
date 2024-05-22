@@ -119,8 +119,9 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/ugorji/go/codec
 //   - github.com/ebitengine/purego
+//   - github.com/tetratelabs/wazero
+//   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

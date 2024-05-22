@@ -46,6 +46,13 @@ func syscallX()
 // (in addition to standard package syscall).
 // Do not remove or change the type signature.
 //
+// syscall.syscall6 is meant for package syscall (and x/sys),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {

@@ -20,7 +20,6 @@ import _ "unsafe"
 //go:linkname add
 //go:linkname atomicwb
 //go:linkname callers
-//go:linkname chanbuf
 //go:linkname entersyscallblock
 //go:linkname fastexprand
 //go:linkname gopanic
@@ -33,8 +32,6 @@ import _ "unsafe"
 //go:linkname startTheWorld
 //go:linkname stopTheWorld
 //go:linkname stringHash
-//go:linkname typedmemmove
-//go:linkname typedslicecopy
 //go:linkname typehash
 //go:linkname wakep
 

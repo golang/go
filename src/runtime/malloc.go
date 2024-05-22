@@ -1407,6 +1407,7 @@ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
 // newarray should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -1430,6 +1431,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 //   - github.com/bytedance/sonic
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
+//   - github.com/segmentio/encoding
 //   - github.com/segmentio/kafka-go
 //
 // Do not remove or change the type signature.

@@ -148,6 +148,15 @@ import (
 // TODO: Perfect for go:nosplitrec since we can't have a safe point
 // anywhere in the bulk barrier or memmove.
 //
+// typedmemmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedmemmove
 //go:nosplit
 func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
@@ -258,6 +267,15 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *ab
 	}
 }
 
+// typedslicecopy should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedslicecopy
 //go:nosplit
 func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
 	n := dstLen
@@ -317,6 +335,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/modern-go/reflect2
+//   - github.com/segmentio/encoding
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
