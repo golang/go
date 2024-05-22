@@ -3877,6 +3877,7 @@ func mapassign0(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer)
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/modern-go/reflect2
+//   - github.com/goccy/go-json
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

@@ -965,6 +965,16 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
+//
+// mallocgc should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mallocgc
 func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if gcphase == _GCmarktermination {
 		throw("mallocgc called with gcphase == _GCmarktermination")
@@ -1374,6 +1384,7 @@ func newobject(typ *_type) unsafe.Pointer {
 // reflect_unsafe_New is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //
 // Do not remove or change the type signature.
@@ -1390,6 +1401,16 @@ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
 }
 
 // newarray allocates an array of n elements of type typ.
+//
+// newarray should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname newarray
 func newarray(typ *_type, n int) unsafe.Pointer {
 	if n == 1 {
 		return mallocgc(typ.Size_, typ, true)
@@ -1404,6 +1425,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 // reflect_unsafe_NewArray is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //
 // Do not remove or change the type signature.

@@ -617,6 +617,7 @@ func releasem(mp *m) {
 // reflect_typelinks is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //
 // Do not remove or change the type signature.

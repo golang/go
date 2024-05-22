@@ -103,12 +103,19 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //
 // Implementations are in memmove_*.s.
 //
-//go:noescape
-func memmove(to, from unsafe.Pointer, n uintptr)
-
-// Outside assembly calls memmove. Make sure it has ABI wrappers.
+// Outside assembly calls memmove.
+//
+// memmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname memmove
+//go:noescape
+func memmove(to, from unsafe.Pointer, n uintptr)
 
 //go:linkname reflect_memmove reflect.memmove
 func reflect_memmove(to, from unsafe.Pointer, n uintptr) {

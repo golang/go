@@ -23,11 +23,6 @@ import _ "unsafe"
 //go:linkname gopark
 //go:linkname goready
 //go:linkname goyield
-//go:linkname mapassign
-//go:linkname mapassign_faststr
-//go:linkname mapiterinit
-//go:linkname mapiternext
-//go:linkname newarray
 //go:linkname nilinterhash
 //go:linkname noescape
 //go:linkname procPin
@@ -36,8 +31,6 @@ import _ "unsafe"
 //go:linkname startTheWorld
 //go:linkname stopTheWorld
 //go:linkname stringHash
-//go:linkname traceAdvance
-//go:linkname traceClockNow
 //go:linkname typedmemmove
 //go:linkname typedslicecopy
 //go:linkname typehash

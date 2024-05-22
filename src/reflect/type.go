@@ -1632,6 +1632,15 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 // pointers, channels, maps, slices, and arrays.
 func typelinks() (sections []unsafe.Pointer, offset [][]int32)
 
+// rtypeOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goccy/go-json
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname rtypeOff
 func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 	return (*abi.Type)(add(section, uintptr(off), "sizeof(rtype) > 0"))
 }
@@ -2887,6 +2896,16 @@ func appendVarint(x []byte, v uintptr) []byte {
 // a nil *rtype must be replaced by a nil Type, but in gccgo this
 // function takes care of ensuring that multiple *rtype for the same
 // type are coalesced into a single Type.
+//
+// toType should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goccy/go-json
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname toType
 func toType(t *abi.Type) Type {
 	if t == nil {
 		return nil
@@ -3030,11 +3049,4 @@ func TypeFor[T any]() Type {
 		return t // optimize for T being a non-interface kind
 	}
 	return TypeOf((*T)(nil)).Elem() // only for an interface kind
-}
-
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-// This function is no longer called by the reflect package,
-// and https://go.dev/issue/67279 tracks its deletion.
-func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&abi.KindDirectIface == 0
 }

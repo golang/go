@@ -323,6 +323,10 @@ func StopTrace() {
 // altogether instead of advancing to the next generation.
 //
 // traceAdvanceSema must not be held.
+//
+// traceAdvance is called by golang.org/x/exp/trace using linkname.
+//
+//go:linkname traceAdvance
 func traceAdvance(stopTrace bool) {
 	semacquire(&traceAdvanceSema)
 

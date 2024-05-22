@@ -202,7 +202,9 @@ func wbMove(typ *_type, dst, src unsafe.Pointer) {
 // reflect_typedmemmove is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
+//   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -348,6 +350,14 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	memclrNoHeapPointers(ptr, typ.Size_)
 }
 
+// reflect_typedslicecopy is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedmemclr reflect.typedmemclr
 func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	typedmemclr(typ, ptr)

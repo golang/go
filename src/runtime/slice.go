@@ -152,6 +152,16 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 // new length so that the old length is not live (does not need to be
 // spilled/restored) and the new length is returned (also does not need
 // to be spilled/restored).
+//
+// growslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname growslice
 func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
 	oldLen := newLen - num
 	if raceenabled {

@@ -105,6 +105,15 @@ dohash:
 	return unsafe.Pointer(&zeroVal[0])
 }
 
+// mapaccess2_faststr should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapaccess2_faststr
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
@@ -200,6 +209,15 @@ dohash:
 	return unsafe.Pointer(&zeroVal[0]), false
 }
 
+// mapassign_faststr should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign_faststr
 func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
 	if h == nil {
 		panic(plainError("assignment to entry in nil map"))

@@ -9,17 +9,26 @@ import (
 	_ "unsafe"
 )
 
-// As of Go 1.22, the symbols below are found to be pulled via
-// linkname in the wild. We provide a push linkname here, to
-// keep them accessible with pull linknames.
-// This may change in the future. Please do not depend on them
-// in new code.
+// Widely used packages access these symbols using linkname,
+// most notably:
+//	- github.com/goccy/go-json
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401
+// and go.dev/issue/67279.
 
 //go:linkname add
-//go:linkname ifaceIndir
-//go:linkname rtypeOff
-//go:linkname toType
 //go:linkname typesByString
+
+// ifaceIndir reports whether t is stored indirectly in an interface value.
+// It is no longer used by this package and is here entirely for the
+// linkname uses.
+//
+//go:linkname unusedIfaceIndir reflect.ifaceIndir
+func unusedIfaceIndir(t *abi.Type) bool {
+	return t.Kind_&abi.KindDirectIface == 0
+}
+
 //go:linkname valueInterface
 
 // The compiler doesn't allow linknames on methods, for good reasons.
