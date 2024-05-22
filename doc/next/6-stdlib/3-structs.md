@@ -1,7 +1,6 @@
 ### New structs package
 
-
-The new [structs](/pkg/structs) package provides
+The new [structs] package provides
 types for struct fields that modify properties of
 the containing struct type such as memory layout.
 
