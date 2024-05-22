@@ -624,6 +624,13 @@ func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_
 // causes a cache lookup to fail immediately.)
 var emptyInterfaceSwitchCache = abi.InterfaceSwitchCache{Mask: 0}
 
+// reflect_ifaceE2I is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+//
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 	*dst = iface{assertE2I(inter, e._type), e.data}

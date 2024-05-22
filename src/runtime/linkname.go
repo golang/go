@@ -37,9 +37,6 @@ import _ "unsafe"
 // used in runtime/coverage and in tests
 //go:linkname addExitHook
 
-// used in x/sys/cpu
-//go:linkname getAuxv
-
 // used in tests
 //go:linkname extraMInUse
 //go:linkname getm

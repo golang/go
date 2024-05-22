@@ -1371,6 +1371,14 @@ func newobject(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.Size_, typ, true)
 }
 
+// reflect_unsafe_New is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.Size_, typ, true)
@@ -1393,6 +1401,14 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 	return mallocgc(mem, typ, true)
 }
 
+// reflect_unsafe_NewArray is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
 func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 	return newarray(typ, n)

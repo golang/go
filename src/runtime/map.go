@@ -1293,6 +1293,14 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 
 // Reflect stubs. Called from ../reflect/asm_*.s
 
+// reflect_makemap is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
 	// Check invariants and reflects math.
@@ -1332,6 +1340,14 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 	return makemap(t, cap, nil)
 }
 
+// reflect_mapaccess is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_mapaccess reflect.mapaccess
 func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	elem, ok := mapaccess2(t, h, key)
@@ -1374,11 +1390,27 @@ func reflect_mapdelete_faststr(t *maptype, h *hmap, key string) {
 	mapdelete_faststr(t, h, key)
 }
 
+// reflect_mapiterinit is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_mapiterinit reflect.mapiterinit
 func reflect_mapiterinit(t *maptype, h *hmap, it *hiter) {
 	mapiterinit(t, h, it)
 }
 
+// reflect_mapiternext is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_mapiternext reflect.mapiternext
 func reflect_mapiternext(it *hiter) {
 	mapiternext(it)

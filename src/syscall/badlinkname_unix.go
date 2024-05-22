@@ -14,5 +14,9 @@ import _ "unsafe"
 // This may change in the future. Please do not depend on them
 // in new code.
 
+// golang.org/x/sys linknames getsockopt.
+// Do not remove or change the type signature.
+//
 //go:linkname getsockopt
+
 //go:linkname setsockopt

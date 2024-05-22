@@ -423,6 +423,10 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 	return
 }
 
+// golang.org/x/sys linknames syscall.loadlibrary
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_loadlibrary syscall.loadlibrary
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryW)), uintptr(unsafe.Pointer(filename)))
@@ -433,6 +437,10 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 	return
 }
 
+// golang.org/x/sys linknames syscall.getprocaddress
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_getprocaddress syscall.getprocaddress
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
 	outhandle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_GetProcAddress)), handle, uintptr(unsafe.Pointer(procname)))

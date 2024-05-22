@@ -614,6 +614,14 @@ func releasem(mp *m) {
 	}
 }
 
+// reflect_typelinks is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	modules := activeModules()
@@ -634,6 +642,14 @@ func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointe
 }
 
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//
+// reflect_resolveTypeOff is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {

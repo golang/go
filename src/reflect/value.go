@@ -3870,6 +3870,15 @@ func mapaccess_faststr(t *abi.Type, m unsafe.Pointer, key string) (val unsafe.Po
 //go:noescape
 func mapassign0(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer)
 
+// mapassign should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/modern-go/reflect2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign
 func mapassign(t *abi.Type, m unsafe.Pointer, key, val unsafe.Pointer) {
 	contentEscapes(key)
 	contentEscapes(val)

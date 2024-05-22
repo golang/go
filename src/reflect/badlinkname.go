@@ -17,7 +17,6 @@ import (
 
 //go:linkname add
 //go:linkname ifaceIndir
-//go:linkname mapassign
 //go:linkname rtypeOff
 //go:linkname toType
 //go:linkname typesByString

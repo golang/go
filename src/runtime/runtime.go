@@ -295,4 +295,9 @@ func setCrashFD(fd uintptr) uintptr {
 // It contains an even number of elements, (tag, value) pairs.
 var auxv []uintptr
 
-func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336
+// golang.org/x/sys/cpu uses getAuxv via linkname.
+// Do not remove or change the type signature.
+// (See go.dev/issue/57336.)
+//
+//go:linkname getAuxv
+func getAuxv() []uintptr { return auxv }

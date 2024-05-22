@@ -16,6 +16,10 @@ import (
 // and we need to know whether to check 32 or 64 bits of the result.
 // (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
 
+// golang.org/x/sys linknames syscall_syscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall syscall.syscall
 //go:nosplit
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -38,6 +42,10 @@ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallX()
 
+// golang.org/x/sys linknames syscall.syscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -49,6 +57,10 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) 
 }
 func syscall6()
 
+// golang.org/x/sys linknames syscall.syscall9
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall9 syscall.syscall9
 //go:nosplit
 //go:cgo_unsafe_args
@@ -71,6 +83,10 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 }
 func syscall6X()
 
+// golang.org/x/sys linknames syscall.syscallPtr
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscallPtr syscall.syscallPtr
 //go:nosplit
 func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -82,6 +98,10 @@ func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallPtr()
 
+// golang.org/x/sys linknames syscall_rawSyscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
 func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -90,6 +110,10 @@ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return args.r1, args.r2, args.err
 }
 
+// golang.org/x/sys linknames syscall_rawSyscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
 func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {

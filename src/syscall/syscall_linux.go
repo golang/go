@@ -1284,12 +1284,13 @@ func Munmap(b []byte) (err error) {
 //sys	Mlockall(flags int) (err error)
 //sys	Munlockall() (err error)
 
-// prlimit is accessed from x/sys/unix.
-//go:linkname prlimit
-
 // prlimit changes a resource limit. We use a single definition so that
 // we can tell StartProcess to not restore the original NOFILE limit.
-// This is unexported but can be called from x/sys/unix.
+//
+// golang.org/x/sys linknames prlimit.
+// Do not remove or change the type signature.
+//
+//go:linkname prlimit
 func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
 	err = prlimit1(pid, resource, newlimit, old)
 	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE && (pid == 0 || pid == Getpid()) {
