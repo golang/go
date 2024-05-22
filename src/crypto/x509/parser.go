@@ -416,7 +416,7 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 }
 
 func parseAuthorityKeyIdentifier(e pkix.Extension) ([]byte, error) {
-	// RFC 5280, 4.2.1.1
+	// RFC 5280, Section 4.2.1.1
 	if e.Critical {
 		// Conforming CAs MUST mark this extension as non-critical
 		return nil, errors.New("x509: authority key identifier incorrectly marked critical")
