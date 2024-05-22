@@ -89,17 +89,17 @@ func traceSpanTypeAndClass(s *mspan) traceArg {
 
 // SpanExists records an event indicating that the span exists.
 func (tl traceLocker) SpanExists(s *mspan) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpan, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvSpan, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
 }
 
 // SpanAlloc records an event indicating that the span has just been allocated.
 func (tl traceLocker) SpanAlloc(s *mspan) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpanAlloc, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvSpanAlloc, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
 }
 
 // SpanFree records an event indicating that the span is about to be freed.
 func (tl traceLocker) SpanFree(s *mspan) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpanFree, traceSpanID(s))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvSpanFree, traceSpanID(s))
 }
 
 // traceSpanID creates a trace ID for the span s for the trace.
@@ -111,19 +111,19 @@ func traceSpanID(s *mspan) traceArg {
 // The type is optional, and the size of the slot occupied the object is inferred from the
 // span containing it.
 func (tl traceLocker) HeapObjectExists(addr uintptr, typ *abi.Type) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObject, traceHeapObjectID(addr), tl.rtype(typ))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvHeapObject, traceHeapObjectID(addr), tl.rtype(typ))
 }
 
 // HeapObjectAlloc records that an object was newly allocated at addr with the provided type.
 // The type is optional, and the size of the slot occupied the object is inferred from the
 // span containing it.
 func (tl traceLocker) HeapObjectAlloc(addr uintptr, typ *abi.Type) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObjectAlloc, traceHeapObjectID(addr), tl.rtype(typ))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvHeapObjectAlloc, traceHeapObjectID(addr), tl.rtype(typ))
 }
 
 // HeapObjectFree records that an object at addr is about to be freed.
 func (tl traceLocker) HeapObjectFree(addr uintptr) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObjectFree, traceHeapObjectID(addr))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvHeapObjectFree, traceHeapObjectID(addr))
 }
 
 // traceHeapObjectID creates a trace ID for a heap object at address addr.
@@ -134,18 +134,18 @@ func traceHeapObjectID(addr uintptr) traceArg {
 // GoroutineStackExists records that a goroutine stack already exists at address base with the provided size.
 func (tl traceLocker) GoroutineStackExists(base, size uintptr) {
 	order := traceCompressStackSize(size)
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStack, traceGoroutineStackID(base), order)
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoroutineStack, traceGoroutineStackID(base), order)
 }
 
 // GoroutineStackAlloc records that a goroutine stack was newly allocated at address base with the provided size..
 func (tl traceLocker) GoroutineStackAlloc(base, size uintptr) {
 	order := traceCompressStackSize(size)
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStackAlloc, traceGoroutineStackID(base), order)
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoroutineStackAlloc, traceGoroutineStackID(base), order)
 }
 
 // GoroutineStackFree records that a goroutine stack at address base is about to be freed.
 func (tl traceLocker) GoroutineStackFree(base uintptr) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStackFree, traceGoroutineStackID(base))
+	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoroutineStackFree, traceGoroutineStackID(base))
 }
 
 // traceGoroutineStackID creates a trace ID for the goroutine stack from its base address.

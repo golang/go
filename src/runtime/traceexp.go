@@ -18,6 +18,8 @@ type traceExpWriter struct {
 // - Another traceLocker is held.
 // - trace.gen is prevented from advancing.
 //
+// This does not have the same stack growth restrictions as traceLocker.writer.
+//
 // buf may be nil.
 func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceExpWriter {
 	return traceExpWriter{traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf}, exp}
