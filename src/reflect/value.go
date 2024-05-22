@@ -1591,7 +1591,7 @@ func (v Value) IsZero() bool {
 			// v.ptr doesn't escape, as Equal functions are compiler generated
 			// and never escape. The escape analysis doesn't know, as it is a
 			// function pointer call.
-			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&abi.ZeroVal[0]))
+			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
 			// For some types where the zero value is a value where all bits of this type are 0
@@ -1617,7 +1617,7 @@ func (v Value) IsZero() bool {
 		// If the type is comparable, then compare directly with zero.
 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
 			// See noescape justification above.
-			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&abi.ZeroVal[0]))
+			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
 		}
 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
 			// For some types where the zero value is a value where all bits of this type are 0
@@ -2312,7 +2312,7 @@ func (v Value) Set(x Value) {
 	}
 	x = x.assignTo("reflect.Set", v.typ(), target)
 	if x.flag&flagIndir != 0 {
-		if x.ptr == unsafe.Pointer(&abi.ZeroVal[0]) {
+		if x.ptr == unsafe.Pointer(&zeroVal[0]) {
 			typedmemclr(v.typ(), v.ptr)
 		} else {
 			typedmemmove(v.typ(), v.ptr, x.ptr)
@@ -3280,7 +3280,7 @@ func Zero(typ Type) Value {
 	if t.IfaceIndir() {
 		var p unsafe.Pointer
 		if t.Size() <= abi.ZeroValSize {
-			p = unsafe.Pointer(&abi.ZeroVal[0])
+			p = unsafe.Pointer(&zeroVal[0])
 		} else {
 			p = unsafe_New(t)
 		}
@@ -3288,6 +3288,9 @@ func Zero(typ Type) Value {
 	}
 	return Value{t, nil, fl}
 }
+
+//go:linkname zeroVal runtime.zeroVal
+var zeroVal [abi.ZeroValSize]byte
 
 // New returns a Value representing a pointer to a new zero value
 // for the specified type. That is, the returned Value's Type is [PointerTo](typ).

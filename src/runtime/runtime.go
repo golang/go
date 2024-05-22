@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -301,3 +302,8 @@ var auxv []uintptr
 //
 //go:linkname getAuxv
 func getAuxv() []uintptr { return auxv }
+
+// zeroVal is used by reflect via linkname.
+//
+//go:linkname zeroVal
+var zeroVal [abi.ZeroValSize]byte

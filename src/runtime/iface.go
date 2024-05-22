@@ -391,7 +391,7 @@ func convT64(val uint64) (x unsafe.Pointer) {
 
 func convTstring(val string) (x unsafe.Pointer) {
 	if val == "" {
-		x = unsafe.Pointer(&abi.ZeroVal[0])
+		x = unsafe.Pointer(&zeroVal[0])
 	} else {
 		x = mallocgc(unsafe.Sizeof(val), stringType, true)
 		*(*string)(x) = val
@@ -402,7 +402,7 @@ func convTstring(val string) (x unsafe.Pointer) {
 func convTslice(val []byte) (x unsafe.Pointer) {
 	// Note: this must work for any element type, not just byte.
 	if (*slice)(unsafe.Pointer(&val)).array == nil {
-		x = unsafe.Pointer(&abi.ZeroVal[0])
+		x = unsafe.Pointer(&zeroVal[0])
 	} else {
 		x = mallocgc(unsafe.Sizeof(val), sliceType, true)
 		*(*[]byte)(x) = val

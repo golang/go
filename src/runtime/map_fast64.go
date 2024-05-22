@@ -16,7 +16,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast64))
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(&abi.ZeroVal[0])
+		return unsafe.Pointer(&zeroVal[0])
 	}
 	if h.flags&hashWriting != 0 {
 		fatal("concurrent map read and map write")
@@ -47,7 +47,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 			}
 		}
 	}
-	return unsafe.Pointer(&abi.ZeroVal[0])
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
@@ -56,7 +56,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast64))
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(&abi.ZeroVal[0]), false
+		return unsafe.Pointer(&zeroVal[0]), false
 	}
 	if h.flags&hashWriting != 0 {
 		fatal("concurrent map read and map write")
@@ -87,7 +87,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 			}
 		}
 	}
-	return unsafe.Pointer(&abi.ZeroVal[0]), false
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {

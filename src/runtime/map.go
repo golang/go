@@ -402,7 +402,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		if err := mapKeyError(t, key); err != nil {
 			panic(err) // see issue 23734
 		}
-		return unsafe.Pointer(&abi.ZeroVal[0])
+		return unsafe.Pointer(&zeroVal[0])
 	}
 	if h.flags&hashWriting != 0 {
 		fatal("concurrent map read and map write")
@@ -443,7 +443,7 @@ bucketloop:
 			}
 		}
 	}
-	return unsafe.Pointer(&abi.ZeroVal[0])
+	return unsafe.Pointer(&zeroVal[0])
 }
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
@@ -463,7 +463,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		if err := mapKeyError(t, key); err != nil {
 			panic(err) // see issue 23734
 		}
-		return unsafe.Pointer(&abi.ZeroVal[0]), false
+		return unsafe.Pointer(&zeroVal[0]), false
 	}
 	if h.flags&hashWriting != 0 {
 		fatal("concurrent map read and map write")
@@ -504,7 +504,7 @@ bucketloop:
 			}
 		}
 	}
-	return unsafe.Pointer(&abi.ZeroVal[0]), false
+	return unsafe.Pointer(&zeroVal[0]), false
 }
 
 // returns both key and elem. Used by map iterator.
@@ -553,7 +553,7 @@ bucketloop:
 
 func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
 	e := mapaccess1(t, h, key)
-	if e == unsafe.Pointer(&abi.ZeroVal[0]) {
+	if e == unsafe.Pointer(&zeroVal[0]) {
 		return zero
 	}
 	return e
@@ -561,7 +561,7 @@ func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointe
 
 func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
 	e := mapaccess1(t, h, key)
-	if e == unsafe.Pointer(&abi.ZeroVal[0]) {
+	if e == unsafe.Pointer(&zeroVal[0]) {
 		return zero, false
 	}
 	return e, true
