@@ -319,8 +319,8 @@ func (c *Cookie) Valid() error {
 		}
 	}
 	if c.Partitioned {
-		if !c.Secure || c.Path != "/" {
-			return errors.New("http: partitioned cookies must be set with Secure and Path=/")
+		if !c.Secure {
+			return errors.New("http: partitioned cookies must be set with Secure")
 		}
 	}
 	return nil

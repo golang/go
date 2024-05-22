@@ -574,7 +574,6 @@ func TestCookieValid(t *testing.T) {
 		{&Cookie{Name: ""}, false},
 		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
 		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
-		{&Cookie{Name: "invalid-path-for-partitioned", Value: "foo", Path: "/bar", Secure: true, Partitioned: true}, false},
 		{&Cookie{Name: "invalid-secure-for-partitioned", Value: "foo", Path: "/", Secure: false, Partitioned: true}, false},
 		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
 		{&Cookie{Name: "invalid-expiry", Value: "", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)}, false},
