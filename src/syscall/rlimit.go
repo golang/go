@@ -8,9 +8,20 @@ package syscall
 
 import (
 	"sync/atomic"
+	_ "unsafe"
 )
 
 // origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
+//
+// origRlimitNofile should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/opencontainers/runc
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname origRlimitNofile
 var origRlimitNofile atomic.Pointer[Rlimit]
 
 // Some systems set an artificially low soft limit on open file count, for compatibility

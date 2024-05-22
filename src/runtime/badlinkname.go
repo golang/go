@@ -12,11 +12,15 @@ import _ "unsafe"
 // This may change in the future. Please do not depend on them
 // in new code.
 
+// These should be an internal details
+// but widely used packages access them using linkname.
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+
 //go:linkname add
 //go:linkname atomicwb
 //go:linkname callers
 //go:linkname chanbuf
-//go:linkname cputicks
 //go:linkname entersyscallblock
 //go:linkname fastexprand
 //go:linkname gopanic
@@ -35,3 +39,7 @@ import _ "unsafe"
 //go:linkname typedslicecopy
 //go:linkname typehash
 //go:linkname wakep
+
+// Notable members of the hall of shame include:
+//   - github.com/dgraph-io/ristretto
+//go:linkname cputicks

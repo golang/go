@@ -87,6 +87,7 @@ func badsystemstack() {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/dgraph-io/ristretto
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

@@ -12,9 +12,6 @@ import _ "unsafe"
 // This may change in the future. Please do not depend on them
 // in new code.
 
-//go:linkname defaultReleaseTags
-//go:linkname defaultToolTags
-
 // The compiler doesn't allow linknames on methods, for good reasons.
 // We use this trick to push linknames of the methods.
 // Do not call them in this package.
