@@ -988,6 +988,16 @@ func (t Time) date(full bool) (year int, month Month, day int, yday int) {
 }
 
 // absDate is like date but operates on an absolute time.
+//
+// absDate should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname absDate
 func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
 	// Split into time and day.
 	d := abs / secondsPerDay

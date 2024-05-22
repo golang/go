@@ -211,6 +211,7 @@ func wbMove(typ *_type, dst, src unsafe.Pointer) {
 // reflect_typedmemmove is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //   - github.com/ugorji/go/codec
@@ -334,6 +335,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 // reflect_typedslicecopy is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //   - github.com/segmentio/encoding
 //

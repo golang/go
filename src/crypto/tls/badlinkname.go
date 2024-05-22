@@ -12,7 +12,6 @@ import _ "unsafe"
 // This may change in the future. Please do not depend on them
 // in new code.
 
-//go:linkname aeadAESGCMTLS13
 //go:linkname cipherSuiteTLS13ByID
 //go:linkname errShutdown
 

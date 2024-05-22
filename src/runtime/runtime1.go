@@ -617,6 +617,7 @@ func releasem(mp *m) {
 // reflect_typelinks is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //   - github.com/vmware/govmomi
@@ -638,6 +639,14 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 
 // reflect_resolveNameOff resolves a name offset from a base pointer.
 //
+// reflect_resolveNameOff is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/agiledragon/gomonkey/v2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_resolveNameOff reflect.resolveNameOff
 func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
 	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
@@ -648,6 +657,7 @@ func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointe
 // reflect_resolveTypeOff is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //
 // Do not remove or change the type signature.
@@ -659,6 +669,15 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 }
 
 // reflect_resolveTextOff resolves a function pointer offset from a base type.
+//
+// reflect_resolveTextOff is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//   - github.com/agiledragon/gomonkey/v2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {

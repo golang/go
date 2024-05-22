@@ -25,7 +25,6 @@ import _ "unsafe"
 //go:linkname startTheWorld
 //go:linkname stopTheWorld
 //go:linkname stringHash
-//go:linkname typehash
 
 // Notable members of the hall of shame include:
 //   - github.com/dgraph-io/ristretto

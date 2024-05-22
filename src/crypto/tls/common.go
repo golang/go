@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	_ "unsafe" // for linkname
 )
 
 const (
@@ -1129,6 +1130,15 @@ func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bo
 	return 0, false
 }
 
+// errNoCertificates should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/xtls/xray-core
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname errNoCertificates
 var errNoCertificates = errors.New("tls: no certificates configured")
 
 // getCertificate returns the best certificate for the given ClientHelloInfo,

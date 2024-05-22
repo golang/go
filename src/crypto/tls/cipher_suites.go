@@ -533,6 +533,15 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	return ret
 }
 
+// aeadAESGCMTLS13 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/xtls/xray-core
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname aeadAESGCMTLS13
 func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")

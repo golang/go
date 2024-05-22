@@ -12,12 +12,6 @@ import _ "unsafe"
 // This may change in the future. Please do not depend on them
 // in new code.
 
-//go:linkname cloneMultipartFileHeader
-//go:linkname cloneMultipartForm
-//go:linkname cloneOrMakeHeader
-//go:linkname cloneTLSConfig
-//go:linkname cloneURL
-//go:linkname cloneURLValues
 //go:linkname newBufioReader
 //go:linkname newBufioWriterSize
 //go:linkname putBufioReader

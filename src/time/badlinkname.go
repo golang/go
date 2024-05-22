@@ -13,5 +13,3 @@ import _ "unsafe"
 // in new code.
 
 //go:linkname absClock
-//go:linkname absDate
-//go:linkname nextStdChunk

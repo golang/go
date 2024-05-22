@@ -106,6 +106,15 @@ func reflectOffsUnlock() {
 	unlock(&reflectOffs.lock)
 }
 
+// resolveNameOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname resolveNameOff
 func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 	if off == 0 {
 		return name{}
@@ -140,6 +149,15 @@ func (t rtype) nameOff(off nameOff) name {
 	return resolveNameOff(unsafe.Pointer(t.Type), off)
 }
 
+// resolveTypeOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname resolveTypeOff
 func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 	if off == 0 || off == -1 {
 		// -1 is the sentinel value for unreachable code.

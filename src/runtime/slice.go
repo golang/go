@@ -166,6 +166,7 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/chenzhuoyu/iasm
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.

@@ -971,6 +971,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/gopkg
 //   - github.com/bytedance/sonic
+//   - github.com/cloudwego/frugal
 //   - github.com/cockroachdb/cockroach
 //   - github.com/cockroachdb/pebble
 //   - github.com/ugorji/go/codec
@@ -1388,6 +1389,7 @@ func newobject(typ *_type) unsafe.Pointer {
 // reflect_unsafe_New is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //
@@ -1430,6 +1432,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 // reflect_unsafe_NewArray is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/bytedance/sonic
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2

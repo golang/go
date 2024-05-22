@@ -7,6 +7,7 @@ package time
 import (
 	"errors"
 	"internal/stringslite"
+	_ "unsafe" // for linkname
 )
 
 // These are predefined layouts for use in [Time.Format] and [time.Parse].
@@ -184,6 +185,16 @@ func startsWithLowerCase(str string) bool {
 
 // nextStdChunk finds the first occurrence of a std string in
 // layout and returns the text before, the std string, and the text after.
+//
+// nextStdChunk should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/searKing/golang/go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname nextStdChunk
 func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 	for i := 0; i < len(layout); i++ {
 		switch c := int(layout[i]); c {

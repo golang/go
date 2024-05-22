@@ -308,6 +308,7 @@ func makemap_small() *hmap {
 // makemap should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -602,6 +603,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/cloudwego/frugal
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
 //
@@ -860,6 +862,7 @@ search:
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/cloudwego/frugal
 //   - github.com/goccy/go-json
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
@@ -918,8 +921,9 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/ugorji/go/codec
+//   - github.com/cloudwego/frugal
 //   - github.com/segmentio/encoding
+//   - github.com/ugorji/go/codec
 //   - gonum.org/v1/gonum
 //
 // Do not remove or change the type signature.
@@ -1053,6 +1057,17 @@ next:
 }
 
 // mapclear deletes all keys from a map.
+// It is called by the compiler.
+//
+// mapclear should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapclear
 func mapclear(t *maptype, h *hmap) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
@@ -1371,6 +1386,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 // reflect_makemap is for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //   - github.com/goccy/go-json
 //   - github.com/segmentio/encoding
@@ -1420,6 +1436,7 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 // reflect_mapaccess is for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //
 // Do not remove or change the type signature.
@@ -1445,6 +1462,13 @@ func reflect_mapaccess_faststr(t *maptype, h *hmap, key string) unsafe.Pointer {
 	return elem
 }
 
+// reflect_mapassign is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+//
 //go:linkname reflect_mapassign reflect.mapassign0
 func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, elem unsafe.Pointer) {
 	p := mapassign(t, h, key)
@@ -1471,6 +1495,7 @@ func reflect_mapdelete_faststr(t *maptype, h *hmap, key string) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/modern-go/reflect2
+//   - gitee.com/quant1x/gox
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1483,6 +1508,7 @@ func reflect_mapiterinit(t *maptype, h *hmap, it *hiter) {
 // reflect_mapiternext is for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //   - github.com/goccy/go-json
 //

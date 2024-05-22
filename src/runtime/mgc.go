@@ -220,6 +220,7 @@ var gcphase uint32
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
+//   - github.com/cloudwego/frugal
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
