@@ -415,6 +415,26 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 	return
 }
 
+func parseAuthorityKeyIdentifier(e pkix.Extension) ([]byte, error) {
+	// RFC 5280, 4.2.1.1
+	if e.Critical {
+		// Conforming CAs MUST mark this extension as non-critical
+		return nil, errors.New("x509: authority key identifier incorrectly marked critical")
+	}
+	val := cryptobyte.String(e.Value)
+	var akid cryptobyte.String
+	if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: invalid authority key identifier")
+	}
+	if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
+		if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
+			return nil, errors.New("x509: invalid authority key identifier")
+		}
+		return akid, nil
+	}
+	return nil, nil
+}
+
 func parseExtKeyUsageExtension(der cryptobyte.String) ([]ExtKeyUsage, []asn1.ObjectIdentifier, error) {
 	var extKeyUsages []ExtKeyUsage
 	var unknownUsages []asn1.ObjectIdentifier
@@ -722,21 +742,9 @@ func processExtensions(out *Certificate) error {
 				}
 
 			case 35:
-				// RFC 5280, 4.2.1.1
-				if e.Critical {
-					// Conforming CAs MUST mark this extension as non-critical
-					return errors.New("x509: authority key identifier incorrectly marked critical")
-				}
-				val := cryptobyte.String(e.Value)
-				var akid cryptobyte.String
-				if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
-					return errors.New("x509: invalid authority key identifier")
-				}
-				if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
-					if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
-						return errors.New("x509: invalid authority key identifier")
-					}
-					out.AuthorityKeyId = akid
+				out.AuthorityKeyId, err = parseAuthorityKeyIdentifier(e)
+				if err != nil {
+					return err
 				}
 			case 37:
 				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
@@ -1195,7 +1203,10 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 				return nil, err
 			}
 			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
-				rl.AuthorityKeyId = ext.Value
+				rl.AuthorityKeyId, err = parseAuthorityKeyIdentifier(ext)
+				if err != nil {
+					return nil, err
+				}
 			} else if ext.Id.Equal(oidExtensionCRLNumber) {
 				value := cryptobyte.String(ext.Value)
 				rl.Number = new(big.Int)
