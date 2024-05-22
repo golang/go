@@ -619,6 +619,7 @@ func releasem(mp *m) {
 // Notable members of the hall of shame include:
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
+//   - github.com/vmware/govmomi
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

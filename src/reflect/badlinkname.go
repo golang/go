@@ -17,9 +17,6 @@ import (
 // See go.dev/issue/67401
 // and go.dev/issue/67279.
 
-//go:linkname add
-//go:linkname typesByString
-
 // ifaceIndir reports whether t is stored indirectly in an interface value.
 // It is no longer used by this package and is here entirely for the
 // linkname uses.

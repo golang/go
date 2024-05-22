@@ -13,7 +13,6 @@ import _ "unsafe"
 //go:linkname goarm
 
 // used by cgo
-//go:linkname cgocall
 //go:linkname _cgo_panic_internal
 //go:linkname cgoAlwaysFalse
 //go:linkname cgoUse

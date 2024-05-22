@@ -120,6 +120,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
+//   - github.com/ebitengine/purego
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -156,6 +157,15 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // compiles down to zero instructions.
 // USE CAREFULLY!
 //
+// noescape should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname noescape
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)

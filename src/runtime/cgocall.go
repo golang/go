@@ -121,6 +121,15 @@ var ncgocall uint64 // number of cgo calls in total for dead m
 // platforms. Syscalls may have untyped arguments on the stack, so
 // it's not safe to grow or scan the stack.
 //
+// cgocall should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cgocall
 //go:nosplit
 func cgocall(fn, arg unsafe.Pointer) int32 {
 	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {

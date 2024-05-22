@@ -971,6 +971,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/ugorji/go/codec
+//   - github.com/cockroachdb/pebble
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1429,6 +1430,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 //   - github.com/bytedance/sonic
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
+//   - github.com/segmentio/kafka-go
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

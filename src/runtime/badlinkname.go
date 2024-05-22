@@ -27,8 +27,6 @@ import _ "unsafe"
 //go:linkname gopark
 //go:linkname goready
 //go:linkname goyield
-//go:linkname nilinterhash
-//go:linkname noescape
 //go:linkname procPin
 //go:linkname procUnpin
 //go:linkname sched

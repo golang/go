@@ -63,6 +63,7 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
 // strhash should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/aristanetworks/goarista
 //   - github.com/bytedance/sonic
 //
 // Do not remove or change the type signature.
@@ -136,6 +137,15 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	}
 }
 
+// nilinterhash should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/aristanetworks/goarista
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname nilinterhash
 func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	a := (*eface)(p)
 	t := a._type

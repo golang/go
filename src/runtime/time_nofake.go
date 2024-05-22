@@ -14,7 +14,9 @@ import "unsafe"
 // Zero means not to use faketime.
 var faketime int64
 
-// Many external packages linkname nanotime to get a fast monotonic time.
+// Exported via linkname for use by time and internal/poll.
+//
+// Many external packages also linkname nanotime for a fast monotonic time.
 // Such code should be updated to use:
 //
 //	var start = time.Now() // at init time
