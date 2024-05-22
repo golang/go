@@ -5,8 +5,13 @@
 package rand_test
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	. "math/rand/v2"
 	"testing"
+	"testing/iotest"
 )
 
 func TestChaCha8(t *testing.T) {
@@ -25,6 +30,74 @@ func TestChaCha8(t *testing.T) {
 	}
 }
 
+func TestChaCha8Read(t *testing.T) {
+	p := NewChaCha8(chacha8seed)
+	h := sha256.New()
+
+	buf := make([]byte, chacha8outlen)
+	if nn, err := p.Read(buf); err != nil {
+		t.Fatal(err)
+	} else if nn != len(buf) {
+		t.Errorf("Read short: got %d, expected %d", nn, len(buf))
+	}
+	h.Write(buf)
+	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
+		t.Errorf("transcript incorrect: got %x, want %x", got, chacha8hash)
+	}
+
+	p.Seed(chacha8seed)
+	h.Reset()
+
+	buf = make([]byte, chacha8outlen)
+	if _, err := io.ReadFull(iotest.OneByteReader(p), buf); err != nil {
+		t.Errorf("one byte reads: %v", err)
+	}
+	h.Write(buf)
+	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
+		t.Errorf("transcript incorrect (one byte reads): got %x, want %x", got, chacha8hash)
+	}
+
+	p.Seed(chacha8seed)
+	h.Reset()
+
+	if n, err := p.Read(make([]byte, 0)); err != nil {
+		t.Errorf("zero length read: %v", err)
+	} else if n != 0 {
+		t.Errorf("Read zero length: got %d, expected %d", n, 0)
+	}
+
+	var n int
+	for n < chacha8outlen {
+		if IntN(2) == 0 {
+			out, err := p.MarshalBinary()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if IntN(2) == 0 {
+				p = NewChaCha8([32]byte{})
+			}
+			if err := p.UnmarshalBinary(out); err != nil {
+				t.Fatal(err)
+			}
+		}
+		buf := make([]byte, IntN(100))
+		if n+len(buf) > chacha8outlen {
+			buf = buf[:chacha8outlen-n]
+		}
+		n += len(buf)
+		t.Logf("reading %d bytes", len(buf))
+		if nn, err := p.Read(buf); err != nil {
+			t.Fatal(err)
+		} else if nn != len(buf) {
+			t.Errorf("Read short: got %d, expected %d", nn, len(buf))
+		}
+		h.Write(buf)
+	}
+	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
+		t.Errorf("transcript incorrect: got %x, want %x", got, chacha8hash)
+	}
+}
+
 func TestChaCha8Marshal(t *testing.T) {
 	p := NewChaCha8(chacha8seed)
 	for i, x := range chacha8output {
@@ -33,7 +106,7 @@ func TestChaCha8Marshal(t *testing.T) {
 			t.Fatalf("#%d: MarshalBinary: %v", i, err)
 		}
 		if string(enc) != chacha8marshal[i] {
-			t.Fatalf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
+			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
 		}
 		*p = ChaCha8{}
 		if err := p.UnmarshalBinary(enc); err != nil {
@@ -42,6 +115,24 @@ func TestChaCha8Marshal(t *testing.T) {
 		if u := p.Uint64(); u != x {
 			t.Errorf("ChaCha8 #%d = %#x, want %#x", i, u, x)
 		}
+	}
+}
+
+func TestChaCha8MarshalRead(t *testing.T) {
+	p := NewChaCha8(chacha8seed)
+	for i := range 50 {
+		enc, err := p.MarshalBinary()
+		if err != nil {
+			t.Fatalf("#%d: MarshalBinary: %v", i, err)
+		}
+		if string(enc) != chacha8marshalread[i] {
+			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshalread[i])
+		}
+		*p = ChaCha8{}
+		if err := p.UnmarshalBinary(enc); err != nil {
+			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
+		}
+		p.Read(make([]byte, 1))
 	}
 }
 
@@ -54,10 +145,25 @@ func BenchmarkChaCha8(b *testing.B) {
 	Sink = t
 }
 
+func BenchmarkChaCha8Read(b *testing.B) {
+	p := NewChaCha8([32]byte{1, 2, 3, 4, 5})
+	buf := make([]byte, 32)
+	b.SetBytes(32)
+	var t uint8
+	for n := b.N; n > 0; n-- {
+		p.Read(buf)
+		t += buf[0]
+	}
+	Sink = uint64(t)
+}
+
 // Golden output test to make sure algorithm never changes,
 // so that its use in math/rand/v2 stays stable.
 
 var chacha8seed = [32]byte([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"))
+
+var chacha8outlen = 2976
+var chacha8hash, _ = hex.DecodeString("bfec3d418b829afe5df2d8887d1508348409c293b73758d7efd841dd995fe021")
 
 var chacha8output = []uint64{
 	0xb773b6063d4616a5, 0x1160af22a66abc3c, 0x8c2599d9418d287c, 0x7ee07e037edc5cd6,
@@ -528,4 +634,57 @@ var chacha8marshal = []string{
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00yK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00zK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
 	"chacha8:\x00\x00\x00\x00\x00\x00\x00{K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
+}
+
+var chacha8marshalread = []string{
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x00ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a\x16F=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06F=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a\xbcj\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06j\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a(\x8dAٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06\x8dAٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05Aٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04ٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03\x99%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a\\\xdc~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06\xdc~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a\x16\x1c-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06\x1c-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a\xea\xeb\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x06\xeb\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x05\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x04\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x03\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x02\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\x01\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+	"readbuf:\a[\x8b\x12q҂<chacha8:\x00\x00\x00\x00\x00\x00\x00\aABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
 }
