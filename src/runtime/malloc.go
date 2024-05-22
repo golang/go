@@ -969,9 +969,11 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 // mallocgc should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
 //   - github.com/bytedance/sonic
-//   - github.com/ugorji/go/codec
+//   - github.com/cockroachdb/cockroach
 //   - github.com/cockroachdb/pebble
+//   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

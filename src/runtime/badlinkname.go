@@ -18,23 +18,17 @@ import _ "unsafe"
 // See go.dev/issue/67401.
 
 //go:linkname add
-//go:linkname atomicwb
 //go:linkname callers
-//go:linkname entersyscallblock
 //go:linkname fastexprand
 //go:linkname gopanic
-//go:linkname gopark
-//go:linkname goready
-//go:linkname goyield
-//go:linkname procPin
-//go:linkname procUnpin
 //go:linkname sched
 //go:linkname startTheWorld
 //go:linkname stopTheWorld
 //go:linkname stringHash
 //go:linkname typehash
-//go:linkname wakep
 
 // Notable members of the hall of shame include:
 //   - github.com/dgraph-io/ristretto
+//   - github.com/outcaste-io/ristretto
+//   - github.com/clubpay/ronykit
 //go:linkname cputicks

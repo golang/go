@@ -382,6 +382,16 @@ func goschedIfBusy() {
 // Reason explains why the goroutine has been parked. It is displayed in stack
 // traces and heap dumps. Reasons should be unique and descriptive. Do not
 // re-use reasons, add new ones.
+//
+// gopark should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gopark
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceReason traceBlockReason, traceskip int) {
 	if reason != waitReasonSleep {
 		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
@@ -408,6 +418,15 @@ func goparkunlock(lock *mutex, reason waitReason, traceReason traceBlockReason, 
 	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceReason, traceskip)
 }
 
+// goready should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goready
 func goready(gp *g, traceskip int) {
 	systemstack(func() {
 		ready(gp, traceskip, true)
@@ -3034,6 +3053,16 @@ func handoffp(pp *p) {
 // Tries to add one more P to execute G's.
 // Called when a G is made runnable (newproc, ready).
 // Must be called with a P.
+//
+// wakep should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname wakep
 func wakep() {
 	// Be conservative about spinning threads, only start one if none exist
 	// already.
@@ -4163,6 +4192,16 @@ func preemptPark(gp *g) {
 // goyield is like Gosched, but it:
 // - emits a GoPreempt trace event instead of a GoSched trace event
 // - puts the current G on the runq of the current P instead of the globrunq
+//
+// goyield should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goyield
 func goyield() {
 	checkTimeouts()
 	mcall(goyield_m)
@@ -4397,6 +4436,14 @@ func reentersyscall(pc, sp, bp uintptr) {
 //
 // This is exported via linkname to assembly in the syscall package and x/sys.
 //
+// Other packages should not be accessing entersyscall directly,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:nosplit
 //go:linkname entersyscall
 func entersyscall() {
@@ -4449,7 +4496,16 @@ func entersyscall_gcwait() {
 }
 
 // The same as entersyscall(), but with a hint that the syscall is blocking.
+
+// entersyscallblock should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
 //
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname entersyscallblock
 //go:nosplit
 func entersyscallblock() {
 	gp := getg()
@@ -4510,6 +4566,14 @@ func entersyscallblock_handoff() {
 // Write barriers are not allowed because our P may have been stolen.
 //
 // This is exported via linkname to assembly in the syscall package.
+//
+// exitsyscall should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:nosplit
 //go:nowritebarrierrec
@@ -4735,6 +4799,7 @@ func exitsyscall0(gp *g) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/containerd/containerd
+//   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -4764,6 +4829,7 @@ func syscall_runtime_BeforeFork() {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/containerd/containerd
+//   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -4797,6 +4863,7 @@ var inForkedChild bool
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/containerd/containerd
+//   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -6968,6 +7035,15 @@ func setMaxThreads(in int) (out int) {
 	return
 }
 
+// procPin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procPin
 //go:nosplit
 func procPin() int {
 	gp := getg()
@@ -6977,6 +7053,15 @@ func procPin() int {
 	return int(mp.p.ptr().id)
 }
 
+// procUnpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procUnpin
 //go:nosplit
 func procUnpin() {
 	gp := getg()
@@ -7009,6 +7094,14 @@ func sync_atomic_runtime_procUnpin() {
 
 // Active spinning for sync.Mutex.
 //
+// sync_runtime_canSpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname sync_runtime_canSpin sync.runtime_canSpin
 //go:nosplit
 func sync_runtime_canSpin(i int) bool {
@@ -7026,6 +7119,14 @@ func sync_runtime_canSpin(i int) bool {
 	return true
 }
 
+// sync_runtime_doSpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname sync_runtime_doSpin sync.runtime_doSpin
 //go:nosplit
 func sync_runtime_doSpin() {

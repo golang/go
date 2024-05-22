@@ -76,6 +76,16 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
 // isDomainName checks if a string is a presentation-format domain name
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
+//
+// isDomainName should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname isDomainName
 func isDomainName(s string) bool {
 	// The root domain name is valid. See golang.org/issue/45715.
 	if s == "." {

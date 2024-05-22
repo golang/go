@@ -178,6 +178,15 @@ func randn(n uint32) uint32 {
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
 //
+// cheaprand should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprand
 //go:nosplit
 func cheaprand() uint32 {
 	mp := getg().m

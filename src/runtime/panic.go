@@ -1033,6 +1033,8 @@ func sync_fatal(s string) {
 //   - github.com/bytedance/sonic
 //   - github.com/cockroachdb/pebble
 //   - github.com/dgraph-io/ristretto
+//   - github.com/outcaste-io/ristretto
+//   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

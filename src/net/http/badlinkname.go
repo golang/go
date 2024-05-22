@@ -20,10 +20,8 @@ import _ "unsafe"
 //go:linkname cloneURLValues
 //go:linkname newBufioReader
 //go:linkname newBufioWriterSize
-//go:linkname parseBasicAuth
 //go:linkname putBufioReader
 //go:linkname putBufioWriter
-//go:linkname readRequest
 
 // The compiler doesn't allow linknames on methods, for good reasons.
 // We use this trick to push linknames of the methods.

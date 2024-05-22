@@ -13,4 +13,3 @@ import _ "unsafe"
 // in new code.
 
 //go:linkname convertAssign
-//go:linkname drivers

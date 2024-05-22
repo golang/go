@@ -88,6 +88,7 @@ func badsystemstack() {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/dgraph-io/ristretto
+//   - github.com/outcaste-io/ristretto
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -122,6 +123,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //   - github.com/ebitengine/purego
 //   - github.com/tetratelabs/wazero
 //   - github.com/ugorji/go/codec
+//   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -161,6 +163,7 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // noescape should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
 //   - github.com/ebitengine/purego
 //
 // Do not remove or change the type signature.
@@ -245,6 +248,15 @@ func breakpoint()
 //go:noescape
 func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
 
+// procyield should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/slackhq/nebula
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procyield
 func procyield(cycles uint32)
 
 type neverCallThisFunction struct{}

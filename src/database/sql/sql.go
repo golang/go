@@ -29,12 +29,22 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	_ "unsafe"
 )
 
-var (
-	driversMu sync.RWMutex
-	drivers   = make(map[string]driver.Driver)
-)
+var driversMu sync.RWMutex
+
+// drivers should be an internal detail,
+// but widely used packages access it using linkname.
+// (It is extra wrong that they linkname drivers but not driversMu.)
+// Notable members of the hall of shame include:
+//   - github.com/instana/go-sensor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname drivers
+var drivers = make(map[string]driver.Driver)
 
 // nowFunc returns the current time; it's overridden in tests.
 var nowFunc = time.Now
