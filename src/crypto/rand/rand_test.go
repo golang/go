@@ -87,3 +87,23 @@ func BenchmarkReadAllocs(b *testing.B) {
 		Read(buf)
 	}
 }
+
+func TestReadReaderChange(t *testing.T) {
+	random := make([]byte, 1024)
+	randReader.Read(random)
+
+	defer func(r io.Reader) {
+		Reader = r
+	}(Reader)
+	Reader = bytes.NewReader(random)
+
+	random2 := make([]byte, 1024)
+	_, err := Read(random2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(random, random2) {
+		t.Fatalf("Read function did not use the global Reader")
+	}
+}
