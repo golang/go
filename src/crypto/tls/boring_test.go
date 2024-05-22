@@ -136,7 +136,7 @@ func TestBoringServerCipherSuites(t *testing.T) {
 				random:             make([]byte, 32),
 				cipherSuites:       []uint16{id},
 				compressionMethods: []uint8{compressionNone},
-				supportedCurves:    defaultCurvePreferences,
+				supportedCurves:    defaultCurvePreferences(),
 				supportedPoints:    []uint8{pointFormatUncompressed},
 			}
 
@@ -161,7 +161,7 @@ func TestBoringServerCurves(t *testing.T) {
 	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 	serverConfig.BuildNameToCertificate()
 
-	for _, curveid := range defaultCurvePreferences {
+	for _, curveid := range defaultCurvePreferences() {
 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
 			clientConfig := testConfig.Clone()
 			clientConfig.CurvePreferences = []CurveID{curveid}
@@ -274,7 +274,7 @@ func TestBoringClientHello(t *testing.T) {
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
 	clientConfig.CipherSuites = allCipherSuites()
-	clientConfig.CurvePreferences = defaultCurvePreferences
+	clientConfig.CurvePreferences = defaultCurvePreferences()
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)

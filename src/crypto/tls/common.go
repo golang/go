@@ -21,6 +21,7 @@ import (
 	"internal/godebug"
 	"io"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -199,25 +200,6 @@ const (
 // should be performed, and that the input should be signed directly. It is the
 // hash function associated with the Ed25519 signature scheme.
 var directSigning crypto.Hash = 0
-
-// defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
-// the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
-// CertificateRequest. The two fields are merged to match with TLS 1.3.
-// Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
-var defaultSupportedSignatureAlgorithms = []SignatureScheme{
-	PSSWithSHA256,
-	ECDSAWithP256AndSHA256,
-	Ed25519,
-	PSSWithSHA384,
-	PSSWithSHA512,
-	PKCS1WithSHA256,
-	PKCS1WithSHA384,
-	PKCS1WithSHA512,
-	ECDSAWithP384AndSHA384,
-	ECDSAWithP521AndSHA512,
-	PKCS1WithSHA1,
-	ECDSAWithSHA1,
-}
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
 // to signal that the message is actually a HelloRetryRequest.
@@ -1028,13 +1010,19 @@ func (c *Config) time() time.Time {
 }
 
 func (c *Config) cipherSuites() []uint16 {
+	if c.CipherSuites == nil {
+		if needFIPS() {
+			return defaultCipherSuitesFIPS
+		}
+		return defaultCipherSuites()
+	}
 	if needFIPS() {
-		return fipsCipherSuites(c)
+		cipherSuites := slices.Clone(c.CipherSuites)
+		return slices.DeleteFunc(cipherSuites, func(id uint16) bool {
+			return !slices.Contains(defaultCipherSuitesFIPS, id)
+		})
 	}
-	if c.CipherSuites != nil {
-		return c.CipherSuites
-	}
-	return defaultCipherSuites()
+	return c.CipherSuites
 }
 
 var supportedVersions = []uint16{
@@ -1054,7 +1042,7 @@ var tls10server = godebug.New("tls10server")
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
-		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+		if needFIPS() && !slices.Contains(defaultSupportedVersionsFIPS, v) {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
@@ -1095,23 +1083,26 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 	return versions
 }
 
-var tlskyber = godebug.New("tlskyber")
-
-var defaultCurvePreferences = []CurveID{x25519Kyber768Draft00, X25519, CurveP256, CurveP384, CurveP521}
-
-var defaultCurvePreferencesWithoutKyber = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
-
 func (c *Config) curvePreferences(version uint16) []CurveID {
-	if needFIPS() {
-		return fipsCurvePreferences(c)
-	}
-	if c == nil || len(c.CurvePreferences) == 0 {
-		if version < VersionTLS13 || tlskyber.Value() == "0" {
-			return defaultCurvePreferencesWithoutKyber
+	var curvePreferences []CurveID
+	if c != nil && len(c.CurvePreferences) != 0 {
+		curvePreferences = slices.Clone(c.CurvePreferences)
+		if needFIPS() {
+			return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
+				return !slices.Contains(defaultCurvePreferencesFIPS, c)
+			})
 		}
-		return defaultCurvePreferences
+	} else if needFIPS() {
+		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
+	} else {
+		curvePreferences = defaultCurvePreferences()
 	}
-	return c.CurvePreferences
+	if version < VersionTLS13 {
+		return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
+			return c == x25519Kyber768Draft00
+		})
+	}
+	return curvePreferences
 }
 
 func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
@@ -1560,6 +1551,14 @@ func defaultConfig() *Config {
 
 func unexpectedMessageError(wanted, got any) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
+}
+
+// supportedSignatureAlgorithms returns the supported signature algorithms.
+func supportedSignatureAlgorithms() []SignatureScheme {
+	if !needFIPS() {
+		return defaultSupportedSignatureAlgorithms
+	}
+	return defaultSupportedSignatureAlgorithmsFIPS
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
