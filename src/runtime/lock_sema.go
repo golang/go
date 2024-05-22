@@ -60,7 +60,14 @@ func lock2(l *mutex) {
 		gp.stackguard0, gp.throwsplit = stackPreempt, true
 	}
 
-	gp.m.mWaitList.acquireTimes = timePair{nanotime: nanotime(), cputicks: cputicks()}
+	var startNanos int64
+	const sampleRate = gTrackingPeriod
+	sample := cheaprandn(sampleRate) == 0
+	if sample {
+		startNanos = nanotime()
+	}
+	gp.m.mWaitList.acquireTicks = cputicks()
+
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin := 0
@@ -88,13 +95,18 @@ Loop:
 
 					if v == old || atomic.Casuintptr(&l.key, old, v) {
 						gp.m.mWaitList.clearLinks()
-						gp.m.mWaitList.acquireTimes = timePair{}
+						gp.m.mWaitList.acquireTicks = 0
 						break
 					}
 					v = atomic.Loaduintptr(&l.key)
 				}
 				if gp == gp.m.curg {
 					gp.stackguard0, gp.throwsplit = stackguard0, throwsplit
+				}
+
+				if sample {
+					endNanos := nanotime()
+					gp.m.mLockProfile.waitTime.Add((endNanos - startNanos) * sampleRate)
 				}
 				return
 			}
@@ -145,7 +157,8 @@ func unlock(l *mutex) {
 //
 //go:nowritebarrier
 func unlock2(l *mutex) {
-	now, dt := timePair{nanotime: nanotime(), cputicks: cputicks()}, timePair{}
+	var claimed bool
+	var cycles int64
 	gp := getg()
 	var mp *m
 	for {
@@ -155,9 +168,11 @@ func unlock2(l *mutex) {
 				break
 			}
 		} else {
-			if now != (timePair{}) {
-				dt = claimMutexWaitTime(now, muintptr(v&^locked))
-				now = timePair{}
+			if !claimed {
+				claimed = true
+				nowTicks := cputicks()
+				head := muintptr(v &^ locked)
+				cycles = claimMutexWaitTime(nowTicks, head)
 			}
 
 			// Other M's are waiting for the lock.
@@ -171,7 +186,7 @@ func unlock2(l *mutex) {
 		}
 	}
 
-	gp.m.mLockProfile.recordUnlock(dt)
+	gp.m.mLockProfile.recordUnlock(cycles)
 	gp.m.locks--
 	if gp.m.locks < 0 {
 		throw("runtime·unlock: lock count")

@@ -590,7 +590,7 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 // mutex.
 //
 // Having found the head and tail nodes and a correct waiters count, the
-// unlocking M can read and update those two nodes' acquireTimes fields and thus
+// unlocking M can read and update those two nodes' acquireTicks field and thus
 // take responsibility for (an estimate of) the entire list's delay since the
 // last unlock call.
 //
@@ -603,21 +603,16 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 // runtime controls the order of thread wakeups (it's a LIFO stack), but with
 // lock_futex.go the OS can wake an arbitrary thread.
 type mWaitList struct {
-	acquireTimes timePair // start of current wait (set by us, updated by others during unlock)
+	acquireTicks int64    // start of current wait (set by us, updated by others during unlock)
 	next         muintptr // next m waiting for lock (set by us, cleared by another during unlock)
 	prev         muintptr // previous m waiting for lock (an amortized hint, set by another during unlock)
 	tail         muintptr // final m waiting for lock (an amortized hint, set by others during unlock)
 	waiters      int32    // length of waiting m list (an amortized hint, set by another during unlock)
 }
 
-type timePair struct {
-	nanotime int64
-	cputicks int64
-}
-
 // clearLinks resets the fields related to the M's position in the list of Ms
-// waiting for a mutex. It leaves acquireTimes intact, since this M may still be
-// waiting and may have had its acquireTimes updated by an unlock2 call.
+// waiting for a mutex. It leaves acquireTicks intact, since this M may still be
+// waiting and may have had its acquireTicks updated by an unlock2 call.
 //
 // In lock_sema.go, the previous owner of the mutex dequeues an M and then wakes
 // it; with semaphore-based sleep, it's important that each M receives only one
@@ -736,8 +731,8 @@ func removeMutexWaitList(head muintptr, mp *m) muintptr {
 	hp := head.ptr()
 	tail := hp.mWaitList.tail
 	waiters := hp.mWaitList.waiters
-	headTimes := hp.mWaitList.acquireTimes
-	tailTimes := hp.mWaitList.tail.ptr().mWaitList.acquireTimes
+	headTicks := hp.mWaitList.acquireTicks
+	tailTicks := hp.mWaitList.tail.ptr().mWaitList.acquireTicks
 
 	mp.mWaitList.tail = 0
 
@@ -773,42 +768,40 @@ func removeMutexWaitList(head muintptr, mp *m) muintptr {
 		hp.mWaitList.prev = 0
 		hp.mWaitList.tail = tail
 		hp.mWaitList.waiters = waiters - 1
-		hp.mWaitList.acquireTimes = headTimes
+		hp.mWaitList.acquireTicks = headTicks
 	}
 	if tp := tail.ptr(); tp != nil {
-		tp.mWaitList.acquireTimes = tailTimes
+		tp.mWaitList.acquireTicks = tailTicks
 	}
 	return head
 }
 
-// claimMutexWaitTime advances the acquireTimes of the list of waiting Ms at
+// claimMutexWaitTime advances the acquireTicks of the list of waiting Ms at
 // head to now, returning an estimate of the total wait time claimed by that
 // action.
-func claimMutexWaitTime(now timePair, head muintptr) timePair {
+func claimMutexWaitTime(nowTicks int64, head muintptr) int64 {
 	fixMutexWaitList(head)
 	hp := head.ptr()
 	if hp == nil {
-		return timePair{}
+		return 0
 	}
 	tp := hp.mWaitList.tail.ptr()
 	waiters := hp.mWaitList.waiters
-	headTimes := hp.mWaitList.acquireTimes
-	tailTimes := tp.mWaitList.acquireTimes
+	headTicks := hp.mWaitList.acquireTicks
+	tailTicks := tp.mWaitList.acquireTicks
 
-	var dt timePair
-	dt.nanotime = now.nanotime - headTimes.nanotime
-	dt.cputicks = now.cputicks - headTimes.cputicks
+	var cycles int64
+	cycles = nowTicks - headTicks
 	if waiters > 1 {
-		dt.nanotime = int64(waiters) * (dt.nanotime + now.nanotime - tailTimes.nanotime) / 2
-		dt.cputicks = int64(waiters) * (dt.cputicks + now.cputicks - tailTimes.cputicks) / 2
+		cycles = int64(waiters) * (cycles + nowTicks - tailTicks) / 2
 	}
 
 	// When removeMutexWaitList removes a head or tail node, it's responsible
 	// for applying these changes to the new head or tail.
-	hp.mWaitList.acquireTimes = now
-	tp.mWaitList.acquireTimes = now
+	hp.mWaitList.acquireTicks = nowTicks
+	tp.mWaitList.acquireTicks = nowTicks
 
-	return dt
+	return cycles
 }
 
 // mLockProfile is part of the M struct to hold information relating to mutex
@@ -839,26 +832,21 @@ type mLockProfile struct {
 // From unlock2, we might not be holding a p in this code.
 //
 //go:nowritebarrierrec
-func (prof *mLockProfile) recordUnlock(dt timePair) {
-	if dt != (timePair{}) {
+func (prof *mLockProfile) recordUnlock(cycles int64) {
+	if cycles != 0 {
 		// We could make a point of clearing out the local storage right before
 		// this, to have a slightly better chance of being able to see the call
 		// stack if the program has several (nested) contended locks. If apps
 		// are seeing a lot of _LostContendedRuntimeLock samples, maybe that'll
 		// be a worthwhile change.
-		prof.proposeUnlock(dt)
+		prof.proposeUnlock(cycles)
 	}
 	if getg().m.locks == 1 && prof.cycles != 0 {
 		prof.store()
 	}
 }
 
-func (prof *mLockProfile) proposeUnlock(dt timePair) {
-	if nanos := dt.nanotime; nanos > 0 {
-		prof.waitTime.Add(nanos)
-	}
-
-	cycles := dt.cputicks
+func (prof *mLockProfile) proposeUnlock(cycles int64) {
 	if cycles <= 0 {
 		return
 	}
