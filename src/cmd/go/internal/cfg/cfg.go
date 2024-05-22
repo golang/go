@@ -359,15 +359,13 @@ func readEnvFile(file string, source string) {
 		key, val := line[:i], line[i+1:]
 
 		if source == "GOROOT" {
+			envCache.goroot[string(key)] = string(val)
 			// In the GOROOT/go.env file, do not overwrite fields loaded from the user's go/env file.
 			if _, ok := envCache.m[string(key)]; ok {
 				continue
 			}
 		}
 		envCache.m[string(key)] = string(val)
-		if source == "GOROOT" {
-			envCache.goroot[string(key)] = string(val)
-		}
 	}
 }
 
