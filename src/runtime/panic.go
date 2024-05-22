@@ -304,21 +304,14 @@ var rangeMissingPanicError = error(errorString("range function recovered a loop 
 
 //go:noinline
 func panicrangestate(state int) {
-	const (
-		// These duplicate magic numbers in cmd/compile/internal/rangefunc
-		DONE          = 0 // body of loop has exited in a non-panic way
-		PANIC         = 2 // body of loop is either currently running, or has panicked
-		EXHAUSTED     = 3 // iterator function return, i.e., sequence is "exhausted"
-		MISSING_PANIC = 4 // body of loop panicked but iterator function defer-recovered it away
-	)
-	switch state {
-	case DONE:
+	switch abi.RF_State(state) {
+	case abi.RF_DONE:
 		panic(rangeDoneError)
-	case PANIC:
+	case abi.RF_PANIC:
 		panic(rangePanicError)
-	case EXHAUSTED:
+	case abi.RF_EXHAUSTED:
 		panic(rangeExhaustedError)
-	case MISSING_PANIC:
+	case abi.RF_MISSING_PANIC:
 		panic(rangeMissingPanicError)
 	}
 	throw("unexpected state passed to panicrangestate")

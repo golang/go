@@ -136,38 +136,38 @@ patterns to the yield function for a loop body.
 
 The state values are:
 
-const DONE = 0      // body of loop has exited in a non-panic way
-const READY = 1     // body of loop has not exited yet, is not running
-const PANIC = 2     // body of loop is either currently running, or has panicked
-const EXHAUSTED = 3 // iterator function call, e.g. f(func(x t){...}), returned so the sequence is "exhausted".
+abi.RF_DONE = 0      // body of loop has exited in a non-panic way
+abi.RF_READY = 1     // body of loop has not exited yet, is not running
+abi.RF_PANIC = 2     // body of loop is either currently running, or has panicked
+abi.RF_EXHAUSTED = 3 // iterator function call, e.g. f(func(x t){...}), returned so the sequence is "exhausted".
 
-const MISSING_PANIC = 4 // used to report errors.
+abi.RF_MISSING_PANIC = 4 // used to report errors.
 
 The value of #stateK transitions
 (1) before calling the iterator function,
 
-	var #stateN = READY
+	var #stateN = abi.RF_READY
 
 (2) after the iterator function call returns,
 
-	if #stateN == PANIC {
-		panic(runtime.panicrangestate(MISSING_PANIC))
+	if #stateN == abi.RF_PANIC {
+		panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	}
-	#stateN = EXHAUSTED
+	#stateN = abi.RF_EXHAUSTED
 
 (3) at the beginning of the iteration of the loop body,
 
-	if #stateN != READY { runtime.panicrangestate(#stateN) }
-	#stateN = PANIC
+	if #stateN != abi.RF_READY { runtime.panicrangestate(#stateN) }
+	#stateN = abi.RF_PANIC
 
 (4) when loop iteration continues, and
 
-	#stateN = READY
+	#stateN = abi.RF_READY
 	[return true]
 
 (5) when control flow exits the loop body.
 
-	#stateN = DONE
+	#stateN = abi.RF_DONE
 	[return false]
 
 For example:
@@ -181,21 +181,21 @@ For example:
 becomes
 
 		{
-			var #state1 = READY
+			var #state1 = abi.RF_READY
 			f(func(x T1) bool {
-				if #state1 != READY { runtime.panicrangestate(#state1) }
-				#state1 = PANIC
+				if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+				#state1 = abi.RF_PANIC
 				...
-				if ... { #state1 = DONE ; return false }
+				if ... { #state1 = abi.RF_DONE ; return false }
 				...
-				#state1 = READY
+				#state1 = abi.RF_READY
 				return true
 			})
-	        if #state1 == PANIC {
+	        if #state1 == abi.RF_PANIC {
 	        	// the code for the loop body did not return normally
-	        	panic(runtime.panicrangestate(MISSING_PANIC))
+	        	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	        }
-			#state1 = EXHAUSTED
+			#state1 = abi.RF_EXHAUSTED
 		}
 
 # Nested Loops
@@ -230,40 +230,40 @@ becomes
 		var (
 			#next int
 		)
-		var #state1 = READY
+		var #state1 = abi.RF_READY
 		f(func() bool {
-			if #state1 != READY { runtime.panicrangestate(#state1) }
-			#state1 = PANIC
-			var #state2 = READY
+			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
 			g(func() bool {
-				if #state2 != READY { runtime.panicrangestate(#state2) }
+				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
 				...
 				{
 					// return a, b
 					#rv1, #rv2 = a, b
 					#next = -1
-					#state2 = DONE
+					#state2 = abi.RF_DONE
 					return false
 				}
 				...
-				#state2 = READY
+				#state2 = abi.RF_READY
 				return true
 			})
-	        if #state2 == PANIC {
-	        	panic(runtime.panicrangestate(MISSING_PANIC))
+	        if #state2 == abi.RF_PANIC {
+	        	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	        }
-			#state2 = EXHAUSTED
+			#state2 = abi.RF_EXHAUSTED
 			if #next < 0 {
-				#state1 = DONE
+				#state1 = abi.RF_DONE
 				return false
 			}
-			#state1 = READY
+			#state1 = abi.RF_READY
 			return true
 		})
-	    if #state1 == PANIC {
-	       	panic(runtime.panicrangestate(MISSING_PANIC))
+	    if #state1 == abi.RF_PANIC {
+	       	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	    }
-		#state1 = EXHAUSTED
+		#state1 = abi.RF_EXHAUSTED
 		if #next == -1 {
 			return
 		}
@@ -293,7 +293,7 @@ add one or both of these to the #next checks:
 		  	if #next >= perLoopStep*N+1 { // error checking
 		  	   // TODO reason about what exactly can appear
 		  	   // here given full  or partial checking.
-	           runtime.panicrangestate(DONE)
+	           runtime.panicrangestate(abi.RF_DONE)
 		  	}
 		  	rv := #next & 1 == 1 // code generates into #next&1
 			#next = 0
@@ -322,68 +322,68 @@ becomes
 
 	{
 		var #next int
-		var #state1 = READY
+		var #state1 = abi.RF_READY
 		f(func() { // 1,2
-			if #state1 != READY { runtime.panicrangestate(#state1) }
-			#state1 = PANIC
-			var #state2 = READY
+			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
 			g(func() { // 3,4
-				if #state2 != READY { runtime.panicrangestate(#state2) }
-				#state2 = PANIC
-				var #state3 = READY
+				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
+				#state2 = abi.RF_PANIC
+				var #state3 = abi.RF_READY
 				h(func() { // 5,6
-					if #state3 != READY { runtime.panicrangestate(#state3) }
-					#state3 = PANIC
+					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
+					#state3 = abi.RF_PANIC
 					...
 					{
 						// break F
 						#next = 2
-						#state3 = DONE
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
 					{
 						// continue F
 						#next = 1
-						#state3 = DONE
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
-					#state3 = READY
+					#state3 = abi.RF_READY
 					return true
 				})
-				if #state3 == PANIC {
-					panic(runtime.panicrangestate(MISSING_PANIC))
+				if #state3 == abi.RF_PANIC {
+					panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 				}
-				#state3 = EXHAUSTED
+				#state3 = abi.RF_EXHAUSTED
 				if #next != 0 {
 					// no breaks or continues targeting this loop
-					#state2 = DONE
+					#state2 = abi.RF_DONE
 					return false
 				}
 				return true
 			})
-	    	if #state2 == PANIC {
-	       		panic(runtime.panicrangestate(MISSING_PANIC))
+	    	if #state2 == abi.RF_PANIC {
+	       		panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	   		}
-			#state2 = EXHAUSTED
+			#state2 = abi.RF_EXHAUSTED
 			if #next != 0 { // just exited g, test for break/continue applied to f/F
 				if #next >= 1 {
-					if #next >= 3 { runtime.panicrangestate(DONE) } // error
+					if #next >= 3 { runtime.panicrangestate(abi.RF_DONE) } // error
 					rv := #next&1 == 1
 					#next = 0
 					return rv
 				}
-				#state1 = DONE
+				#state1 = abi.RF_DONE
 				return false
 			}
 			...
 			return true
 		})
-	    if #state1 == PANIC {
-	       	panic(runtime.panicrangestate(MISSING_PANIC))
+	    if #state1 == abi.RF_PANIC {
+	       	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
 	    }
-		#state1 = EXHAUSTED
+		#state1 = abi.RF_EXHAUSTED
 	}
 
 Note that the post-h checks only consider a break,
@@ -423,48 +423,48 @@ becomes
 	Top: print("start\n")
 	{
 		var #next int
-		var #state1 = READY
+		var #state1 = abi.RF_READY
 		f(func() {
-			if #state1 != READY{ runtime.panicrangestate(#state1) }
-			#state1 = PANIC
-			var #state2 = READY
+			if #state1 != abi.RF_READY{ runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
 			g(func() {
-				if #state2 != READY { runtime.panicrangestate(#state2) }
-				#state2 = PANIC
+				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
+				#state2 = abi.RF_PANIC
 				...
-				var #state3 bool = READY
+				var #state3 bool = abi.RF_READY
 				h(func() {
-					if #state3 != READY { runtime.panicrangestate(#state3) }
-					#state3 = PANIC
+					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
+					#state3 = abi.RF_PANIC
 					...
 					{
 						// goto Top
 						#next = -3
-						#state3 = DONE
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
-					#state3 = READY
+					#state3 = abi.RF_READY
 					return true
 				})
 				if #next < 0 {
-					#state2 = DONE
+					#state2 = abi.RF_DONE
 					return false
 				}
-				#state2 = READY
+				#state2 = abi.RF_READY
 				return true
 			})
-			if #state2 == PANIC {runtime.panicrangestate(MISSING_PANIC)}
-			#state2 = EXHAUSTED
+			if #state2 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+			#state2 = abi.RF_EXHAUSTED
 			if #next < 0 {
-				#state1 = DONE
+				#state1 = abi.RF_DONE
 				return false
 			}
-			#state1 = READY
+			#state1 = abi.RF_READY
 			return true
 		})
-		if #state1 == PANIC {runtime.panicrangestate(MISSING_PANIC)}
-		#state1 = EXHAUSTED
+		if #state1 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+		#state1 = abi.RF_EXHAUSTED
 		if #next == -3 {
 			#next = 0
 			goto Top
@@ -531,6 +531,7 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"os"
 )
 
@@ -592,14 +593,6 @@ type forLoop struct {
 }
 
 type State int
-
-const (
-	DONE          = State(iota) // body of loop has exited in a non-panic way
-	READY                       // body of loop has not exited yet, is not running
-	PANIC                       // body of loop is either currently running, or has panicked
-	EXHAUSTED                   // iterator function return, i.e., sequence is "exhausted"
-	MISSING_PANIC               // an error code, not really a state.
-)
 
 // Rewrite rewrites all the range-over-funcs in the files.
 // It returns the set of function literals generated from rangefunc loop bodies.
@@ -788,7 +781,7 @@ func (r *rewriter) stateVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
 	setValueType(n, typ)
 	r.info.Defs[n] = obj
 
-	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}, Values: r.stateConst(READY)}
+	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}, Values: r.stateConst(abi.RF_READY)}
 }
 
 // editReturn returns the replacement for the return statement x.
@@ -827,7 +820,7 @@ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
 	if r.checkFuncMisuse() {
 		// mark this loop as exited, the others (which will be exited if iterators do not interfere) have not, yet.
-		bl.List = append(bl.List, r.setState(DONE, x.Pos()))
+		bl.List = append(bl.List, r.setState(abi.RF_DONE, x.Pos()))
 	}
 	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useObj(r.false)})
 	setPos(bl, x.Pos())
@@ -912,13 +905,13 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 			// Simple break or continue.
 			// Continue returns true, break returns false, optionally both adjust state,
 			// neither modifies #next.
-			var state State
+			var state abi.RF_State
 			if x.Tok == syntax.Continue {
 				ret = &syntax.ReturnStmt{Results: r.useObj(r.true)}
-				state = READY
+				state = abi.RF_READY
 			} else {
 				ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
-				state = DONE
+				state = abi.RF_DONE
 			}
 			var stmts []syntax.Stmt
 			if r.checkFuncMisuse() {
@@ -966,7 +959,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 	if r.checkFuncMisuse() {
 		// Set #stateK for this loop.
 		// The exterior loops have not exited yet, and the iterator might interfere.
-		bl.List = append(bl.List, r.setState(DONE, x.Pos()))
+		bl.List = append(bl.List, r.setState(abi.RF_DONE, x.Pos()))
 	}
 
 	bl.List = append(bl.List, ret)
@@ -1081,16 +1074,16 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	block.List = append(block.List, call)
 
 	if r.checkFuncMisuse() {
-		// iteratorFunc has exited, check for swallowed panic, and set body state to EXHAUSTED
+		// iteratorFunc has exited, check for swallowed panic, and set body state to abi.RF_EXHAUSTED
 		nif := &syntax.IfStmt{
-			Cond: r.cond(syntax.Eql, r.useObj(loop.stateVar), r.stateConst(PANIC)),
+			Cond: r.cond(syntax.Eql, r.useObj(loop.stateVar), r.stateConst(abi.RF_PANIC)),
 			Then: &syntax.BlockStmt{
-				List: []syntax.Stmt{r.callPanic(start, r.stateConst(MISSING_PANIC))},
+				List: []syntax.Stmt{r.callPanic(start, r.stateConst(abi.RF_MISSING_PANIC))},
 			},
 		}
 		setPos(nif, end)
 		block.List = append(block.List, nif)
-		block.List = append(block.List, r.setState(EXHAUSTED, end))
+		block.List = append(block.List, r.setState(abi.RF_EXHAUSTED, end))
 	}
 	block.List = append(block.List, checks...)
 
@@ -1112,13 +1105,13 @@ func (r *rewriter) cond(op syntax.Operator, x, y syntax.Expr) *syntax.Operation 
 	return cond
 }
 
-func (r *rewriter) setState(val State, pos syntax.Pos) *syntax.AssignStmt {
+func (r *rewriter) setState(val abi.RF_State, pos syntax.Pos) *syntax.AssignStmt {
 	ss := r.setStateAt(len(r.forStack)-1, val)
 	setPos(ss, pos)
 	return ss
 }
 
-func (r *rewriter) setStateAt(index int, stateVal State) *syntax.AssignStmt {
+func (r *rewriter) setStateAt(index int, stateVal abi.RF_State) *syntax.AssignStmt {
 	loop := r.forStack[index]
 	return &syntax.AssignStmt{
 		Lhs: r.useObj(loop.stateVar),
@@ -1183,15 +1176,15 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 
 	if r.checkFuncMisuse() {
 		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, loop))
-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(PANIC, start))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_PANIC, start))
 	}
 
 	// Original loop body (already rewritten by editStmt during inspect).
 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
 
-	// end of loop body, set state to READY and return true to continue iteration
+	// end of loop body, set state to abi.RF_READY and return true to continue iteration
 	if r.checkFuncMisuse() {
-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(READY, end))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_READY, end))
 	}
 	ret := &syntax.ReturnStmt{Results: r.useObj(r.true)}
 	ret.SetPos(end)
@@ -1230,7 +1223,7 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
 		//	if #next != 0 {
 		//		if #next >= perLoopStep*N-1 { // this loop
 		//			if #next >= perLoopStep*N+1 { // error checking
-		//      		runtime.panicrangestate(DONE)
+		//      		runtime.panicrangestate(abi.RF_DONE)
 		//   		}
 		//			rv := #next & 1 == 1 // code generates into #next&1
 		//			#next = 0
@@ -1243,7 +1236,7 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
 			// Note: next < 0 also handles gotos handled by outer loops.
 			// We set checkRet in that case to trigger this check.
 			if r.checkFuncMisuse() {
-				list = append(list, r.ifNext(syntax.Lss, 0, false, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
+				list = append(list, r.ifNext(syntax.Lss, 0, false, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
 			} else {
 				list = append(list, r.ifNext(syntax.Lss, 0, false, retStmt(r.useObj(r.false))))
 			}
@@ -1252,22 +1245,22 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
 		depthStep := perLoopStep * (curLoop)
 
 		if r.checkFuncMisuse() {
-			list = append(list, r.ifNext(syntax.Gtr, depthStep, false, r.callPanic(pos, r.stateConst(DONE))))
+			list = append(list, r.ifNext(syntax.Gtr, depthStep, false, r.callPanic(pos, r.stateConst(abi.RF_DONE))))
 		} else {
 			list = append(list, r.ifNext(syntax.Gtr, depthStep, true))
 		}
 
 		if r.checkFuncMisuse() {
 			if loop.checkContinue {
-				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, r.setStateAt(curLoopIndex, READY), retStmt(r.useObj(r.true))))
+				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, r.setStateAt(curLoopIndex, abi.RF_READY), retStmt(r.useObj(r.true))))
 			}
 
 			if loop.checkBreak {
-				list = append(list, r.ifNext(syntax.Eql, depthStep, true, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
+				list = append(list, r.ifNext(syntax.Eql, depthStep, true, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
 			}
 
 			if loop.checkContinue || loop.checkBreak {
-				list = append(list, r.ifNext(syntax.Gtr, 0, false, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
+				list = append(list, r.ifNext(syntax.Gtr, 0, false, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
 			}
 
 		} else {
@@ -1327,12 +1320,12 @@ func setValueType(x syntax.Expr, typ syntax.Type) {
 
 // assertReady returns the statement:
 //
-//	if #stateK != READY { runtime.panicrangestate(#stateK) }
+//	if #stateK != abi.RF_READY { runtime.panicrangestate(#stateK) }
 //
 // where #stateK is the state variable for loop.
 func (r *rewriter) assertReady(start syntax.Pos, loop *forLoop) syntax.Stmt {
 	nif := &syntax.IfStmt{
-		Cond: r.cond(syntax.Neq, r.useObj(loop.stateVar), r.stateConst(READY)),
+		Cond: r.cond(syntax.Neq, r.useObj(loop.stateVar), r.stateConst(abi.RF_READY)),
 		Then: &syntax.BlockStmt{
 			List: []syntax.Stmt{r.callPanic(start, r.useObj(loop.stateVar))},
 		},
@@ -1389,7 +1382,7 @@ func (r *rewriter) intConst(c int) *syntax.BasicLit {
 	return lit
 }
 
-func (r *rewriter) stateConst(s State) *syntax.BasicLit {
+func (r *rewriter) stateConst(s abi.RF_State) *syntax.BasicLit {
 	return r.intConst(int(s))
 }
 
