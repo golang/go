@@ -1349,13 +1349,20 @@ func TestMutexProfileRateAdjust(t *testing.T) {
 		}
 
 		for _, s := range p.Sample {
+			var match, runtimeInternal bool
 			for _, l := range s.Location {
 				for _, line := range l.Line {
 					if line.Function.Name == "runtime/pprof.blockMutex.func1" {
-						contentions += s.Value[0]
-						delay += s.Value[1]
+						match = true
+					}
+					if line.Function.Name == "runtime.unlock" {
+						runtimeInternal = true
 					}
 				}
+			}
+			if match && !runtimeInternal {
+				contentions += s.Value[0]
+				delay += s.Value[1]
 			}
 		}
 		return
