@@ -20,6 +20,7 @@ func main() {
 		if x := func() int { // ERROR "can inline main.func2" "func literal does not escape"
 			return 1
 		}; x() != 1 { // ERROR "inlining call to main.func2"
+			_ = x // prevent simple deadcode elimination after inlining
 			ppanic("x() != 1")
 		}
 	}
@@ -33,6 +34,7 @@ func main() {
 		if y := func(x int) int { // ERROR "can inline main.func4" "func literal does not escape"
 			return x + 2
 		}; y(40) != 42 { // ERROR "inlining call to main.func4"
+			_ = y // prevent simple deadcode elimination after inlining
 			ppanic("y(40) != 42")
 		}
 	}
@@ -181,6 +183,7 @@ func main() {
 		if y := func() int { // ERROR "can inline main.func21" "func literal does not escape"
 			return x
 		}; y() != 42 { // ERROR "inlining call to main.func21"
+			_ = y // prevent simple deadcode elimination after inlining
 			ppanic("y() != 42")
 		}
 	}
@@ -199,6 +202,7 @@ func main() {
 				return x + y
 			}() // ERROR "inlining call to main.func23.1"
 		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.main.func23.func31"
+			_ = z // prevent simple deadcode elimination after inlining
 			ppanic("z(1) != 43")
 		}
 	}
@@ -283,6 +287,25 @@ func main() {
 		}
 		if a != 2000 {
 			ppanic("a != 2000")
+		}
+	}
+}
+
+//go:noinline
+func notmain() {
+	{
+		// This duplicates the first block in main, but without the "_ = x" for closure x.
+		// This allows dead code elimination of x before escape analysis,
+		// thus "func literal does not escape" should not appear.
+		if x := func() int { // ERROR "can inline notmain.func1"
+			return 1
+		}(); x != 1 { // ERROR "inlining call to notmain.func1"
+			ppanic("x != 1")
+		}
+		if x := func() int { // ERROR "can inline notmain.func2"
+			return 1
+		}; x() != 1 { // ERROR "inlining call to notmain.func2"
+			ppanic("x() != 1")
 		}
 	}
 }
