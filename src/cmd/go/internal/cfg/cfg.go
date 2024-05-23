@@ -425,8 +425,8 @@ var (
 	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
-	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", envCache.goroot["GOPROXY"])
-	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", envCache.goroot["GOSUMDB"])
+	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
+	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
 	GOPRIVATE                   = Getenv("GOPRIVATE")
 	GONOPROXY, GONOPROXYChanged = EnvOrAndChanged("GONOPROXY", GOPRIVATE)
 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
@@ -436,10 +436,16 @@ var (
 
 // EnvOrAndChanged returns the environment variable value
 // and reports whether it differs from the default value.
-func EnvOrAndChanged(name, def string) (string, bool) {
+func EnvOrAndChanged(name, def string) (v string, changed bool) {
 	val := Getenv(name)
 	if val != "" {
-		return val, val != def
+		v = val
+		if g, ok := envCache.goroot[name]; ok {
+			changed = val != g
+		} else {
+			changed = val != def
+		}
+		return
 	}
 	return def, false
 }

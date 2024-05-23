@@ -106,7 +106,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
-		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
+		{Name: "GOTOOLCHAIN"},
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
@@ -128,9 +128,7 @@ func MkEnv() []cfg.EnvVar {
 		case "GOCACHE":
 			env[i].Value, env[i].Changed = cache.DefaultDir()
 		case "GOTOOLCHAIN":
-			if env[i].Value != "auto" {
-				env[i].Changed = true
-			}
+			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GOTOOLCHAIN", "auto")
 		case "GODEBUG":
 			env[i].Changed = env[i].Value != ""
 		}
