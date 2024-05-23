@@ -5,8 +5,8 @@
 package runtime_test
 
 import (
-	"reflect"
 	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -83,7 +83,7 @@ func TestConditionalDefers(t *testing.T) {
 			t.Fatal("expected panic")
 		}
 		want := []int{4, 2, 1}
-		if !reflect.DeepEqual(want, list) {
+		if !slices.Equal(want, list) {
 			t.Fatalf("wanted %v, got %v", want, list)
 		}
 

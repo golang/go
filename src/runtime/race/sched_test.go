@@ -8,8 +8,8 @@ package race_test
 
 import (
 	"fmt"
-	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -35,7 +35,7 @@ func TestRandomScheduling(t *testing.T) {
 	}
 
 	for i := 0; i < N; i++ {
-		if !reflect.DeepEqual(out[0], out[i]) {
+		if !slices.Equal(out[0], out[i]) {
 			return // found a different order
 		}
 	}

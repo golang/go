@@ -18,7 +18,7 @@ import (
 	"os"
 	"regexp"
 	"runtime/metrics"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	_ "unsafe"
@@ -43,7 +43,7 @@ func TestNames(t *testing.T) {
 	}
 
 	names := runtime_readMetricNames()
-	sort.Strings(names)
+	slices.Sort(names)
 	samples := make([]metrics.Sample, len(names))
 	for i, name := range names {
 		samples[i].Name = name

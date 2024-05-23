@@ -144,7 +144,7 @@ func TestMapAppendAssignment(t *testing.T) {
 	m[0] = append(m[0], a...)
 
 	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
-	if got := m[0]; !reflect.DeepEqual(got, want) {
+	if got := m[0]; !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
@@ -533,7 +533,7 @@ func TestMapIterOrder(t *testing.T) {
 			first := ord()
 			ok := false
 			for try := 0; try < 100; try++ {
-				if !reflect.DeepEqual(first, ord()) {
+				if !slices.Equal(first, ord()) {
 					ok = true
 					break
 				}
