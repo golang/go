@@ -9,9 +9,6 @@ import _ "unsafe"
 // used in internal/godebug and syscall
 //go:linkname write
 
-// used in internal/runtime/atomic
-//go:linkname goarm
-
 // used by cgo
 //go:linkname _cgo_panic_internal
 //go:linkname cgoAlwaysFalse

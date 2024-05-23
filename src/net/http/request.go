@@ -1076,6 +1076,8 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/sagernet/sing
+//   - github.com/v2fly/v2ray-core/v4
+//   - github.com/v2fly/v2ray-core/v5
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

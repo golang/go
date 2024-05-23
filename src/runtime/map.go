@@ -868,6 +868,7 @@ search:
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
+//   - github.com/wI2L/jettison
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1394,6 +1395,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 //   - github.com/goccy/go-json
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1442,6 +1444,7 @@ func reflect_makemap(t *maptype, cap int) *hmap {
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1470,6 +1473,7 @@ func reflect_mapaccess_faststr(t *maptype, h *hmap, key string) unsafe.Pointer {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 //
@@ -1500,6 +1504,8 @@ func reflect_mapdelete_faststr(t *maptype, h *hmap, key string) {
 // Notable members of the hall of shame include:
 //   - github.com/modern-go/reflect2
 //   - gitee.com/quant1x/gox
+//   - github.com/v2pro/plz
+//   - github.com/wI2L/jettison
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1515,6 +1521,8 @@ func reflect_mapiterinit(t *maptype, h *hmap, it *hiter) {
 //   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
 //   - github.com/goccy/go-json
+//   - github.com/v2pro/plz
+//   - github.com/wI2L/jettison
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1556,6 +1564,7 @@ func reflect_mapiterelem(it *hiter) unsafe.Pointer {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/goccy/go-json
+//   - github.com/wI2L/jettison
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

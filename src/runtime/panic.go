@@ -720,6 +720,18 @@ func (*PanicNilError) RuntimeError() {}
 var panicnil = &godebugInc{name: "panicnil"}
 
 // The implementation of the predeclared function panic.
+// The compiler emits calls to this function.
+//
+// gopanic should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - go.undefinedlabs.com/scopeagent
+//   - github.com/goplus/igop
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gopanic
 func gopanic(e any) {
 	if e == nil {
 		if debug.panicnil.Load() != 1 {
@@ -1036,6 +1048,7 @@ func sync_fatal(s string) {
 //   - github.com/outcaste-io/ristretto
 //   - github.com/pingcap/br
 //   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

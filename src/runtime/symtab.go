@@ -238,6 +238,7 @@ func runtime_FrameSymbolName(f *Frame) string {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/grafana/pyroscope-go/godeltaprof
+//   - github.com/pyroscope-io/godeltaprof
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

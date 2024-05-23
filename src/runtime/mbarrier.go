@@ -216,6 +216,7 @@ func wbMove(typ *_type, dst, src unsafe.Pointer) {
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
 //   - github.com/ugorji/go/codec
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -340,6 +341,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 //   - github.com/modern-go/reflect2
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

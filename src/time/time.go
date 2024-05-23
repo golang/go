@@ -1152,6 +1152,9 @@ func runtimeNano() int64
 // (Callers may want to use 0 as "time not set".)
 var startNano int64 = runtimeNano() - 1
 
+// x/tools uses a linkname of time.Now in its tests. No harm done.
+//go:linkname Now
+
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()

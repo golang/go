@@ -6,13 +6,16 @@ package reflect
 
 import (
 	"internal/abi"
+	"unsafe"
 	_ "unsafe"
 )
 
 // Widely used packages access these symbols using linkname,
 // most notably:
-//	- github.com/goccy/go-json
-//     - github.com/goccy/go-reflect
+//  - github.com/goccy/go-json
+//  - github.com/goccy/go-reflect
+//  - github.com/sohaha/zlsgo
+//  - github.com/undefinedlabs/go-mpatch
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401
@@ -122,3 +125,6 @@ func badlinkname_rtype_String(*rtype) string
 
 //go:linkname badlinkname_rtype_ptrTo reflect.(*rtype).ptrTo
 func badlinkname_rtype_ptrTo(*rtype) *abi.Type
+
+//go:linkname badlinkname_Value_pointer reflect.(*Value).pointer
+func badlinkname_Value_pointer(Value) unsafe.Pointer

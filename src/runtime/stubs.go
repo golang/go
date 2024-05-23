@@ -137,6 +137,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //   - github.com/tetratelabs/wazero
 //   - github.com/ugorji/go/codec
 //   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

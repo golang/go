@@ -523,6 +523,15 @@ func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 // It returns a new ID that can be used as a typeOff or textOff, and will
 // be resolved correctly. Implemented in the runtime package.
 //
+// addReflectOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goplus/reflectx
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname addReflectOff
 //go:noescape
 func addReflectOff(ptr unsafe.Pointer) int32
 
@@ -939,6 +948,7 @@ func canRangeFunc2(t *abi.Type) bool {
 // add should be an internal detail (and is trivially copyable),
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - github.com/pinpoint-apm/pinpoint-go-agent
 //   - github.com/vmware/govmomi
 //
 // Do not remove or change the type signature.
@@ -2924,6 +2934,7 @@ func appendVarint(x []byte, v uintptr) []byte {
 //   - fortio.org/log
 //   - github.com/goccy/go-json
 //   - github.com/goccy/go-reflect
+//   - github.com/sohaha/zlsgo
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

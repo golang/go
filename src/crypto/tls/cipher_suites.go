@@ -202,6 +202,7 @@ type cipherSuiteTLS13 struct {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/quic-go/quic-go
+//   - github.com/sagernet/quic-go
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -537,6 +538,7 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/xtls/xray-core
+//   - github.com/v2fly/v2ray-core
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

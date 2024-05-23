@@ -1250,8 +1250,21 @@ var (
 	// Set on startup in asm_{386,amd64}.s
 	processorVersionInfo uint32
 	isIntel              bool
+)
 
-	// set by cmd/link on arm systems
+// set by cmd/link on arm systems
+// accessed using linkname by internal/runtime/atomic.
+//
+// goarm should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/creativeprojects/go-selfupdate
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goarm
+var (
 	goarm       uint8
 	goarmsoftfp uint8
 )

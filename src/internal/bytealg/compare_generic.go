@@ -44,6 +44,7 @@ func CompareString(a, b string) int {
 // runtime.cmpstring should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
+//   - gitee.com/zhaochuninhefei/gmgo
 //   - github.com/bytedance/gopkg
 //   - github.com/songzhibin97/gkit
 //

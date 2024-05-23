@@ -1392,6 +1392,7 @@ func newobject(typ *_type) unsafe.Pointer {
 //   - gitee.com/quant1x/gox
 //   - github.com/goccy/json
 //   - github.com/modern-go/reflect2
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -1439,6 +1440,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 //   - github.com/modern-go/reflect2
 //   - github.com/segmentio/encoding
 //   - github.com/segmentio/kafka-go
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

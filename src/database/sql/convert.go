@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
@@ -207,6 +208,16 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 
 // convertAssign is the same as convertAssignRows, but without the optional
 // rows argument.
+//
+// convertAssign should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - ariga.io/entcache
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convertAssign
 func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }

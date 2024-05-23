@@ -21,13 +21,3 @@ import _ "unsafe"
 // used by cmd/link
 //go:linkname msync
 //go:linkname fcntl
-
-// mmap should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - modernc.org/memory
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname mmap

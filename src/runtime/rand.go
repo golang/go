@@ -182,6 +182,7 @@ func randn(n uint32) uint32 {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/gopkg
+//   - github.com/zhangyunhao116/fastrand
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -222,6 +223,15 @@ func cheaprand() uint32 {
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
 //
+// cheaprand64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/zhangyunhao116/fastrand
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprand64
 //go:nosplit
 func cheaprand64() int64 {
 	return int64(cheaprand())<<31 ^ int64(cheaprand())

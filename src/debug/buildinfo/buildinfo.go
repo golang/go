@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"runtime/debug"
+	_ "unsafe" // for linkname
 )
 
 // Type alias for build info. We cannot move the types here, since
@@ -32,22 +33,30 @@ import (
 // a much larger dependency.
 type BuildInfo = debug.BuildInfo
 
-var (
-	// errUnrecognizedFormat is returned when a given executable file doesn't
-	// appear to be in a known format, or it breaks the rules of that format,
-	// or when there are I/O errors reading the file.
-	errUnrecognizedFormat = errors.New("unrecognized file format")
+// errUnrecognizedFormat is returned when a given executable file doesn't
+// appear to be in a known format, or it breaks the rules of that format,
+// or when there are I/O errors reading the file.
+var errUnrecognizedFormat = errors.New("unrecognized file format")
 
-	// errNotGoExe is returned when a given executable file is valid but does
-	// not contain Go build information.
-	errNotGoExe = errors.New("not a Go executable")
+// errNotGoExe is returned when a given executable file is valid but does
+// not contain Go build information.
+//
+// errNotGoExe should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/quay/claircore
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname errNotGoExe
+var errNotGoExe = errors.New("not a Go executable")
 
-	// The build info blob left by the linker is identified by
-	// a 16-byte header, consisting of buildInfoMagic (14 bytes),
-	// the binary's pointer size (1 byte),
-	// and whether the binary is big endian (1 byte).
-	buildInfoMagic = []byte("\xff Go buildinf:")
-)
+// The build info blob left by the linker is identified by
+// a 16-byte header, consisting of buildInfoMagic (14 bytes),
+// the binary's pointer size (1 byte),
+// and whether the binary is big endian (1 byte).
+var buildInfoMagic = []byte("\xff Go buildinf:")
 
 // ReadFile returns build information embedded in a Go binary
 // file at the given path. Most information is only available for binaries built

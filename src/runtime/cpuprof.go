@@ -213,6 +213,7 @@ func CPUProfile() []byte {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/grafana/pyroscope-go/godeltaprof
+//   - github.com/pyroscope-io/godeltaprof
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
@@ -229,6 +230,14 @@ func pprof_cyclesPerSecond() int64 {
 // The caller must save the returned data and tags before calling readProfile again.
 // The returned data contains a whole number of records, and tags contains
 // exactly one entry per record.
+//
+// runtime_pprof_readProfile should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/pyroscope-io/pyroscope
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_pprof_readProfile runtime/pprof.readProfile
 func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {

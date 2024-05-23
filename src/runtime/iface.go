@@ -665,6 +665,7 @@ var emptyInterfaceSwitchCache = abi.InterfaceSwitchCache{Mask: 0}
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
 //   - github.com/modern-go/reflect2
+//   - github.com/v2pro/plz
 //
 // Do not remove or change the type signature.
 //
