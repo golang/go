@@ -187,6 +187,10 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				// Thus, for untyped arguments we only need to look at parameter types
 				// that are single type parameters.
 				// Also, untyped nils don't have a default type and can be ignored.
+				// Finally, it's not possible to have an alias type denoting a type
+				// parameter declared by the current function and use it in the same
+				// function signature; hence we don't need to Unalias before the
+				// .(*TypeParam) type assertion above.
 				untyped = append(untyped, i)
 			}
 		}
@@ -309,7 +313,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// maximum untyped type for each of those parameters, if possible.
 	var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
 	for _, index := range untyped {
-		tpar := params.At(index).typ.(*TypeParam) // is type parameter by construction of untyped
+		tpar := params.At(index).typ.(*TypeParam) // is type parameter (no alias) by construction of untyped
 		if u.at(tpar) == nil {
 			arg := args[index] // arg corresponding to tpar
 			if maxUntyped == nil {
