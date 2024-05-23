@@ -30,6 +30,7 @@ var cnames0 = []string{
 	"ZOREG",
 	"SOREG",
 	"LOREG",
+	"ROFF",
 	"ADDR",
 	"TLS_LE",
 	"TLS_IE",
