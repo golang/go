@@ -64,7 +64,7 @@ const (
 	maxCiphertextTLS13 = 16384 + 256  // maximum ciphertext length in TLS 1.3
 	recordHeaderLen    = 5            // record header length
 	maxHandshake       = 65536        // maximum handshake we support (protocol max is 16 MB)
-	maxUselessRecords  = 16           // maximum number of consecutive non-advancing records
+	maxUselessRecords  = 32           // maximum number of consecutive non-advancing records
 )
 
 // TLS record types.
