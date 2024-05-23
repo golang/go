@@ -364,7 +364,7 @@ func TestSplitList(t *testing.T) {
 		tests = append(tests, winsplitlisttests...)
 	}
 	for _, test := range tests {
-		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
+		if l := filepath.SplitList(test.list); !slices.Equal(l, test.result) {
 			t.Errorf("SplitList(%#q) = %#q, want %#q", test.list, l, test.result)
 		}
 	}
@@ -1004,7 +1004,7 @@ func TestWalkSymlinkRoot(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if !reflect.DeepEqual(walked, tt.want) {
+			if !slices.Equal(walked, tt.want) {
 				t.Logf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
 				if slices.Contains(tt.buggyGOOS, runtime.GOOS) {
 					t.Logf("(ignoring known bug on %v)", runtime.GOOS)
@@ -1950,7 +1950,7 @@ func TestIssue51617(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
-	if !reflect.DeepEqual(saw, want) {
+	if !slices.Equal(saw, want) {
 		t.Errorf("got directories %v, want %v", saw, want)
 	}
 }
