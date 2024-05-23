@@ -512,25 +512,25 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
 
 // Date returns the year, month, and day in which t occurs.
 func (t Time) Date() (year int, month Month, day int) {
-	year, month, day, _ = t.date(true)
+	year, month, day = absDate(t.abs())
 	return
 }
 
 // Year returns the year in which t occurs.
 func (t Time) Year() int {
-	year, _, _, _ := t.date(false)
+	year, _, _ := t.Date()
 	return year
 }
 
 // Month returns the month of the year specified by t.
 func (t Time) Month() Month {
-	_, month, _, _ := t.date(true)
+	_, month, _ := t.Date()
 	return month
 }
 
 // Day returns the day of the month specified by t.
 func (t Time) Day() int {
-	_, _, day, _ := t.date(true)
+	_, _, day := t.Date()
 	return day
 }
 
@@ -569,7 +569,7 @@ func (t Time) ISOWeek() (year, week int) {
 	}
 	// find the Thursday of the calendar week
 	abs += uint64(d) * secondsPerDay
-	year, _, _, yday := absDate(abs, false)
+	year, yday := absYearDay(abs)
 	return year, yday/7 + 1
 }
 
@@ -612,7 +612,7 @@ func (t Time) Nanosecond() int {
 // YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
 // and [1,366] in leap years.
 func (t Time) YearDay() int {
-	_, _, _, yday := t.date(false)
+	_, yday := absYearDay(t.abs())
 	return yday + 1
 }
 
@@ -979,85 +979,89 @@ const (
 	daysPer400Years  = 365*400 + 97
 	daysPer100Years  = 365*100 + 24
 	daysPer4Years    = 365*4 + 1
+
+	// Neri-Schneider shift and correction constants. (ns_s is chosen so that
+	// 1970 is roughly in the middle of the range of their algorithms validity.)
+	ns_s = uint32(3670)
+	ns_K = uint32(719468 + 146097*ns_s)
+	ns_L = int(400 * ns_s)
 )
 
-// date computes the year, day of year, and when full=true,
-// the month and day in which t occurs.
-func (t Time) date(full bool) (year int, month Month, day int, yday int) {
-	return absDate(t.abs(), full)
+// Computes the year, month and day given the absolute time.
+func absDate(abs uint64) (year int, month Month, day int) {
+
+	daysAbs := int64(abs / secondsPerDay)
+	daysUnix := int32(daysAbs - (unixToInternal+internalToAbsolute)/secondsPerDay)
+
+	// The algorithm is figure 12 of Neri, Schneider, "Euclidean affine functions
+	// and their application to calendar algorithms".
+	// https://onlinelibrary.wiley.com/doi/full/10.1002/spe.3172
+
+	N := uint32(daysUnix) + ns_K
+
+	// Century
+	N_1 := 4*N + 3
+	C := N_1 / 146097
+
+	// Year
+	R := N_1 % 146097
+	N_2 := R | 3
+	P_2 := 2939745 * uint64(N_2)
+	Z := uint32(P_2 / 4294967296)
+	N_Y := uint32(P_2%4294967296) / 11758980
+
+	J := 0
+	if N_Y >= 306 {
+		J = 1
+	}
+
+	Y := 100*C + Z
+	year = int(Y) - ns_L + J
+
+	// Month and day
+	N_3 := 2141*N_Y + 197913
+	M := uint16(N_3 / 65536)
+	D := uint16(N_3%65536) / 2141
+
+	month = Month(M)
+	if J == 1 {
+		month -= 12
+	}
+	day = int(D) + 1
+
+	return
 }
 
-// absDate is like date but operates on an absolute time.
-func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
-	// Split into time and day.
-	d := abs / secondsPerDay
+// Computes the year and the year day (in [0, 365]) given the absolute time.
+func absYearDay(abs uint64) (year int, yday int) {
 
-	// Account for 400 year cycles.
-	n := d / daysPer400Years
-	y := 400 * n
-	d -= daysPer400Years * n
+	daysAbs := int64(abs / secondsPerDay)
+	daysUnix := int32(daysAbs - (unixToInternal+internalToAbsolute)/secondsPerDay)
 
-	// Cut off 100-year cycles.
-	// The last cycle has one extra leap year, so on the last day
-	// of that year, day / daysPer100Years will be 4 instead of 3.
-	// Cut it back down to 3 by subtracting n>>2.
-	n = d / daysPer100Years
-	n -= n >> 2
-	y += 100 * n
-	d -= daysPer100Years * n
+	// The algorithm is adapted from figure 12 of Neri, Schneider, "Euclidean affine
+	// functions and their application to calendar algorithms".
+	// https://onlinelibrary.wiley.com/doi/full/10.1002/spe.3172
 
-	// Cut off 4-year cycles.
-	// The last cycle has a missing leap year, which does not
-	// affect the computation.
-	n = d / daysPer4Years
-	y += 4 * n
-	d -= daysPer4Years * n
+	// The natural epoch for this algorithm is 0001-Jan-01, i.e, 306 days after
+	// 0000-Mar-01
+	N := uint32(daysUnix) + ns_K - 306
 
-	// Cut off years within a 4-year cycle.
-	// The last year is a leap year, so on the last day of that year,
-	// day / 365 will be 4 instead of 3. Cut it back down to 3
-	// by subtracting n>>2.
-	n = d / 365
-	n -= n >> 2
-	y += n
-	d -= 365 * n
+	// Century
+	N_1 := 4*N + 3
+	C := N_1 / 146097
 
-	year = int(int64(y) + absoluteZeroYear)
-	yday = int(d)
+	// Year
+	R := N_1 % 146097
+	N_2 := R | 3
 
-	if !full {
-		return
-	}
+	P_2 := 2939745 * uint64(N_2)
+	Z := uint32(P_2 / 4294967296)
+	N_Y := uint32(P_2%4294967296) / 11758980
+	Y := 100*C + Z
 
-	day = yday
-	if isLeap(year) {
-		// Leap year
-		switch {
-		case day > 31+29-1:
-			// After leap day; pretend it wasn't there.
-			day--
-		case day == 31+29-1:
-			// Leap day.
-			month = February
-			day = 29
-			return
-		}
-	}
+	year = int(Y) - ns_L + 1
+	yday = int(N_Y)
 
-	// Estimate month on assumption that every month has 31 days.
-	// The estimate may be too low by at most one month, so adjust.
-	month = Month(day / 31)
-	end := int(daysBefore[month+1])
-	var begin int
-	if day >= end {
-		month++
-		begin = end
-	} else {
-		begin = int(daysBefore[month])
-	}
-
-	month++ // because January is 1
-	day = day - begin + 1
 	return
 }
 
@@ -1087,32 +1091,32 @@ func daysIn(m Month, year int) int {
 	return int(daysBefore[m] - daysBefore[m-1])
 }
 
-// daysSinceEpoch takes a year and returns the number of days from
-// the absolute epoch to the start of that year.
-// This is basically (year - zeroYear) * 365, but accounting for leap days.
-func daysSinceEpoch(year int) uint64 {
-	y := uint64(int64(year) - absoluteZeroYear)
+// daysSinceEpoch takes a year, month and day and returns the number of days from
+// Jan 1 1970 (Unix time) to the given date.
+func daysSinceEpoch(year int, month Month, day int) int32 {
 
-	// Add in days from 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := daysPer400Years * n
+	// The algorithm is figure 13 of Neri, Schneider, "Euclidean affine functions
+	// and their application to calendar algorithms".
+	// https://onlinelibrary.wiley.com/doi/full/10.1002/spe.3172
+	// It gives correct results if the date is in the range
+	// [-1,468,000/Mar/01, 1,471,745/Fev/28].
 
-	// Add in 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += daysPer100Years * n
+	y := uint32(year + ns_L)
+	m := uint32(month)
+	if month < 3 {
+		y--
+		m += 12
+	}
 
-	// Add in 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += daysPer4Years * n
+	d := uint32(day - 1)
 
-	// Add in non-leap years.
-	n = y
-	d += 365 * n
+	c := y / 100
 
-	return d
+	y_star := 1461*y/4 - c + c/4
+	m_star := (153*m - 457) / 5
+	n := y_star + m_star + d
+
+	return int32(n - ns_K)
 }
 
 // Provided by package runtime.
@@ -1450,7 +1454,11 @@ func (t Time) IsDST() bool {
 }
 
 func isLeap(year int) bool {
-	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+	d := 3
+	if year%25 == 0 {
+		d = 15
+	}
+	return (year & d) == 0
 }
 
 // norm returns nhi, nlo such that
@@ -1481,6 +1489,10 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // their usual ranges and will be normalized during the conversion.
 // For example, October 32 converts to November 1.
 //
+// The normalized year must be in [-32767, 32767].
+// For example, for month==13 and year==2020, the Date converts to
+// January 2021.
+//
 // A daylight savings time transition skips or repeats times.
 // For example, in the United States, March 13, 2011 2:15am never occurred,
 // while November 6, 2011 1:15am occurred twice. In such cases, the
@@ -1488,7 +1500,7 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // Date returns a time that is correct in one of the two zones involved
 // in the transition, but it does not guarantee which.
 //
-// Date panics if loc is nil.
+// Date panics if loc is nil or if normalized year is out of the range [-32767, 32767].
 func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
 	if loc == nil {
 		panic("time: missing Location in call to Date")
@@ -1497,6 +1509,9 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	// Normalize month, overflowing into year.
 	m := int(month) - 1
 	year, m = norm(year, m, 12)
+	if year > 32767 || year < -32767 {
+		panic("time: year is out of range [-32767, 32767]")
+	}
 	month = Month(m) + 1
 
 	// Normalize nsec, sec, min, hour, overflowing into day.
@@ -1505,23 +1520,25 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	hour, min = norm(hour, min, 60)
 	day, hour = norm(day, hour, 24)
 
+	d := daysSinceEpoch(year, month, day)
+	unix := int64(int(d)*secondsPerDay + hour*secondsPerHour + min*secondsPerMinute + sec)
+
 	// Compute days since the absolute epoch.
-	d := daysSinceEpoch(year)
+	// d := daysSinceEpochOriginal(year)
+	// // Add in days before this month.
+	// d += uint64(daysBefore[month-1])
+	// if isLeap(year) && month >= March {
+	// 	d++ // February 29
+	// }
 
-	// Add in days before this month.
-	d += uint64(daysBefore[month-1])
-	if isLeap(year) && month >= March {
-		d++ // February 29
-	}
+	// // Add in days before today.
+	// d += uint64(day - 1)
 
-	// Add in days before today.
-	d += uint64(day - 1)
+	// // Add in time elapsed today.
+	// abs := d * secondsPerDay
+	// abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
 
-	// Add in time elapsed today.
-	abs := d * secondsPerDay
-	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
-
-	unix := int64(abs) + (absoluteToInternal + internalToUnix)
+	// unix := int64(abs) + (absoluteToInternal + internalToUnix)
 
 	// Look for zone offset for expected time, so we can adjust to UTC.
 	// The lookup function expects UTC, so first we pass unix in the

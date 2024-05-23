@@ -223,7 +223,7 @@ func TestFormatSingleDigits(t *testing.T) {
 
 func TestFormatShortYear(t *testing.T) {
 	years := []int{
-		-100001, -100000, -99999,
+		-32767, -32766, -32766,
 		-10001, -10000, -9999,
 		-1001, -1000, -999,
 		-101, -100, -99,
@@ -233,7 +233,7 @@ func TestFormatShortYear(t *testing.T) {
 		99, 100, 101,
 		999, 1000, 1001,
 		9999, 10000, 10001,
-		99999, 100000, 100001,
+		32765, 32766, 32767,
 	}
 
 	for _, y := range years {

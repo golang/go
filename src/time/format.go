@@ -560,7 +560,7 @@ func (t Time) String() string {
 // code.
 func (t Time) GoString() string {
 	abs := t.abs()
-	year, month, day, _ := absDate(abs, true)
+	year, month, day := absDate(abs)
 	hour, minute, second := absClock(abs)
 
 	buf := make([]byte, 0, len("time.Date(9999, time.September, 31, 23, 59, 59, 999999999, time.Local)"))
@@ -674,7 +674,8 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 
 		// Compute year, month, day if needed.
 		if year < 0 && std&stdNeedDate != 0 {
-			year, month, day, yday = absDate(abs, true)
+			_, month, day = absDate(abs)
+			year, yday = absYearDay(abs)
 			yday++
 		}
 
