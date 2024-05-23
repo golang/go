@@ -1472,13 +1472,12 @@ func setDefaultBuildMod() {
 			vendorDir = filepath.Join(modRoots[0], "vendor")
 		}
 		if fi, err := fsys.Stat(vendorDir); err == nil && fi.IsDir() {
-			modGo := "unspecified"
 			if goVersion != "" {
 				if gover.Compare(goVersion, "1.14") < 0 {
 					// The go version is less than 1.14. Don't set -mod=vendor by default.
 					// Since a vendor directory exists, we should record why we didn't use it.
 					// This message won't normally be shown, but it may appear with import errors.
-					cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
+					cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", goVersion)
 				} else {
 					vendoredWorkspace, err := modulesTextIsForWorkspace(vendorDir)
 					if err != nil {
@@ -1499,9 +1498,9 @@ func setDefaultBuildMod() {
 						return
 					}
 				}
-				modGo = goVersion
+			} else {
+				cfg.BuildModReason = fmt.Sprintf("Go version in " + versionSource + " is unspecified, so vendor directory was not used.")
 			}
-
 		}
 	}
 
