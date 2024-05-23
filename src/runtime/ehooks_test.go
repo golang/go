@@ -48,12 +48,12 @@ func TestExitHooks(t *testing.T) {
 			{
 				mode:     "panics",
 				expected: "",
-				musthave: "fatal error: internal error: exit hook invoked panic",
+				musthave: "fatal error: exit hook invoked panic",
 			},
 			{
 				mode:     "callsexit",
 				expected: "",
-				musthave: "fatal error: internal error: exit hook invoked exit",
+				musthave: "fatal error: exit hook invoked exit",
 			},
 		}
 
