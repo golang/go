@@ -305,8 +305,8 @@ func TestBogoSuite(t *testing.T) {
 	if *bogoLocalDir != "" {
 		bogoDir = *bogoLocalDir
 	} else {
-		const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
-		output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
+		const boringsslModVer = "v0.0.0-20240523173554-273a920f84e8"
+		output, err := exec.Command("go", "mod", "download", "-json", "boringssl.googlesource.com/boringssl.git@"+boringsslModVer).CombinedOutput()
 		if err != nil {
 			t.Fatalf("failed to download boringssl: %s", err)
 		}
@@ -324,6 +324,8 @@ func TestBogoSuite(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	resultsFile := filepath.Join(t.TempDir(), "results.json")
+
 	args := []string{
 		"test",
 		".",
@@ -332,8 +334,7 @@ func TestBogoSuite(t *testing.T) {
 		"-shim-extra-flags=-bogo-mode",
 		"-allow-unimplemented",
 		"-loose-errors", // TODO(roland): this should be removed eventually
-		"-pipe",
-		"-v",
+		fmt.Sprintf("-json-output=%s", resultsFile),
 	}
 	if *bogoFilter != "" {
 		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
@@ -345,21 +346,72 @@ func TestBogoSuite(t *testing.T) {
 	}
 	cmd := exec.Command(goCmd, args...)
 	out := &strings.Builder{}
-	cmd.Stdout, cmd.Stderr = io.MultiWriter(os.Stdout, out), os.Stderr
+	cmd.Stderr = out
 	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
 	err = cmd.Run()
-	if err != nil {
-		t.Fatalf("bogo failed: %s", err)
+	// NOTE: we don't immediately check the error, because the failure could be either because
+	// the runner failed for some unexpected reason, or because a test case failed, and we
+	// cannot easily differentiate these cases. We check if the JSON results file was written,
+	// which should only happen if the failure was because of a test failure, and use that
+	// to determine the failure mode.
+
+	resultsJSON, jsonErr := os.ReadFile(resultsFile)
+	if jsonErr != nil {
+		if err != nil {
+			t.Fatalf("bogo failed: %s\n%s", err, out)
+		}
+		t.Fatalf("failed to read results JSON file: %s", err)
 	}
 
-	if *bogoFilter == "" {
-		assertPass := func(t *testing.T, name string) {
-			t.Helper()
-			if !strings.Contains(out.String(), "PASSED ("+name+")\n") {
-				t.Errorf("Expected test %s did not run", name)
-			}
-		}
-		assertPass(t, "CurveTest-Client-Kyber-TLS13")
-		assertPass(t, "CurveTest-Server-Kyber-TLS13")
+	var results bogoResults
+	if err := json.Unmarshal(resultsJSON, &results); err != nil {
+		t.Fatalf("failed to parse results JSON: %s", err)
 	}
+
+	// assertResults contains test results we want to make sure
+	// are present in the output. They are only checked if -bogo-filter
+	// was not passed.
+	assertResults := map[string]string{
+		"CurveTest-Client-Kyber-TLS13": "PASS",
+		"CurveTest-Server-Kyber-TLS13": "PASS",
+	}
+
+	for name, result := range results.Tests {
+		// This is not really the intended way to do this... but... it works?
+		t.Run(name, func(t *testing.T) {
+			if result.Actual == "FAIL" && result.IsUnexpected {
+				t.Fatal(result.Error)
+			}
+			if expectedResult, ok := assertResults[name]; ok && expectedResult != result.Actual {
+				t.Fatalf("unexpected result: got %s, want %s", result.Actual, assertResults[name])
+			}
+			delete(assertResults, name)
+			if result.Actual == "SKIP" {
+				t.Skip()
+			}
+		})
+	}
+	if *bogoFilter == "" {
+		// Anything still in assertResults did not show up in the results, so we should fail
+		for name, expectedResult := range assertResults {
+			t.Run(name, func(t *testing.T) {
+				t.Fatalf("expected test to run with result %s, but it was not present in the test results", expectedResult)
+			})
+		}
+	}
+}
+
+// bogoResults is a copy of boringssl.googlesource.com/boringssl/testresults.Results
+type bogoResults struct {
+	Version           int            `json:"version"`
+	Interrupted       bool           `json:"interrupted"`
+	PathDelimiter     string         `json:"path_delimiter"`
+	SecondsSinceEpoch float64        `json:"seconds_since_epoch"`
+	NumFailuresByType map[string]int `json:"num_failures_by_type"`
+	Tests             map[string]struct {
+		Actual       string `json:"actual"`
+		Expected     string `json:"expected"`
+		IsUnexpected bool   `json:"is_unexpected"`
+		Error        string `json:"error,omitempty"`
+	} `json:"tests"`
 }

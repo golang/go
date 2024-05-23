@@ -30,13 +30,6 @@
         "TLS-ECH-Client-NoSupportedConfigs": "We don't support fallback to cleartext when there are no valid ECH configs",
         "TLS-ECH-Client-SkipInvalidPublicName": "We don't support fallback to cleartext when there are no valid ECH configs",
 
-        "TLS-ECH-Client-Reject-RandomHRRExtension": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject-UnsupportedRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject-NoRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject-HelloRetryRequest": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject-NoClientCertificate-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
-        "TLS-ECH-Client-Reject-OverrideName-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
 
         "*ECH-Server*": "no ECH server support",
         "SendV2ClientHello*": "We don't support SSLv2",
