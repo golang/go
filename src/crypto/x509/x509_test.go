@@ -783,27 +783,27 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %v, want %v", test.name, cert.SignatureAlgorithm, test.sigAlgo)
 		}
 
-		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {
+		if !slices.Equal(cert.ExtKeyUsage, testExtKeyUsage) {
 			t.Errorf("%s: extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.ExtKeyUsage, testExtKeyUsage)
 		}
 
-		if !reflect.DeepEqual(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage) {
+		if !slices.EqualFunc(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage, asn1.ObjectIdentifier.Equal) {
 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
 		}
 
-		if !reflect.DeepEqual(cert.OCSPServer, template.OCSPServer) {
+		if !slices.Equal(cert.OCSPServer, template.OCSPServer) {
 			t.Errorf("%s: OCSP servers differ from template. Got %v, want %v", test.name, cert.OCSPServer, template.OCSPServer)
 		}
 
-		if !reflect.DeepEqual(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
+		if !slices.Equal(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
 			t.Errorf("%s: Issuing certificate URLs differ from template. Got %v, want %v", test.name, cert.IssuingCertificateURL, template.IssuingCertificateURL)
 		}
 
-		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
+		if !slices.Equal(cert.DNSNames, template.DNSNames) {
 			t.Errorf("%s: SAN DNS names differ from template. Got %v, want %v", test.name, cert.DNSNames, template.DNSNames)
 		}
 
-		if !reflect.DeepEqual(cert.EmailAddresses, template.EmailAddresses) {
+		if !slices.Equal(cert.EmailAddresses, template.EmailAddresses) {
 			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
 		}
 
@@ -811,11 +811,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			t.Errorf("%s: URIs differ from template. Got %v, want %v", test.name, cert.URIs, template.URIs)
 		}
 
-		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
+		if !slices.EqualFunc(cert.IPAddresses, template.IPAddresses, net.IP.Equal) {
 			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
 		}
 
-		if !reflect.DeepEqual(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
+		if !slices.Equal(cert.CRLDistributionPoints, template.CRLDistributionPoints) {
 			t.Errorf("%s: CRL distribution points differ from template. Got %v, want %v", test.name, cert.CRLDistributionPoints, template.CRLDistributionPoints)
 		}
 
@@ -2405,7 +2405,7 @@ func TestMultipleURLsInCRLDP(t *testing.T) {
 		"http://epscd.catcert.net/crl/ec-acc.crl",
 		"http://epscd2.catcert.net/crl/ec-acc.crl",
 	}
-	if got := cert.CRLDistributionPoints; !reflect.DeepEqual(got, want) {
+	if got := cert.CRLDistributionPoints; !slices.Equal(got, want) {
 		t.Errorf("CRL distribution points = %#v, want #%v", got, want)
 	}
 }
@@ -3231,10 +3231,10 @@ func TestCertificateRequestRoundtripFields(t *testing.T) {
 	}
 	out := marshalAndParseCSR(t, in)
 
-	if !reflect.DeepEqual(in.DNSNames, out.DNSNames) {
+	if !slices.Equal(in.DNSNames, out.DNSNames) {
 		t.Fatalf("Unexpected DNSNames: got %v, want %v", out.DNSNames, in.DNSNames)
 	}
-	if !reflect.DeepEqual(in.EmailAddresses, out.EmailAddresses) {
+	if !slices.Equal(in.EmailAddresses, out.EmailAddresses) {
 		t.Fatalf("Unexpected EmailAddresses: got %v, want %v", out.EmailAddresses, in.EmailAddresses)
 	}
 	if len(in.IPAddresses) != len(out.IPAddresses) ||
