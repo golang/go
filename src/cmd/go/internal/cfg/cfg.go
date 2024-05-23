@@ -445,7 +445,7 @@ func EnvOrAndChanged(name, def string) (v string, changed bool) {
 		} else {
 			changed = val != def
 		}
-		return
+		return v, changed
 	}
 	return def, false
 }

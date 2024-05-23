@@ -128,7 +128,7 @@ func MkEnv() []cfg.EnvVar {
 		case "GOCACHE":
 			env[i].Value, env[i].Changed = cache.DefaultDir()
 		case "GOTOOLCHAIN":
-			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GOTOOLCHAIN", "auto")
+			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GOTOOLCHAIN", "")
 		case "GODEBUG":
 			env[i].Changed = env[i].Value != ""
 		}
