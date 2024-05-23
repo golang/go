@@ -33,13 +33,15 @@ func incrementVersionCounters() {
 		return
 	}
 	major, minor, ok := majorMinor(convert(v.Release[:]))
+	if runtime.GOOS == "aix" {
+		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), ok
+	}
 	if !ok {
 		telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:unknown-bad-format", runtime.GOOS))
 		return
 	}
 	telemetry.Inc(fmt.Sprintf("go/platform/host/%s/major-version:%s", runtime.GOOS, major))
 	telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:%s-%s", runtime.GOOS, major, minor))
-
 }
 
 func majorMinor(v string) (string, string, bool) {
@@ -49,7 +51,10 @@ func majorMinor(v string) (string, string, bool) {
 	}
 	major := v[:firstDot]
 	v = v[firstDot+len("."):]
-	secondDot := strings.Index(v, ".")
-	minor := v[:secondDot]
+	endMinor := strings.IndexAny(v, ".-_")
+	if endMinor < 0 {
+		endMinor = len(v)
+	}
+	minor := v[:endMinor]
 	return major, minor, true
 }
