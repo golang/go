@@ -160,7 +160,7 @@ func TestPSSGolden(t *testing.T) {
 				t.Error(err)
 			}
 		default:
-			t.Fatalf("unknown marker: " + marker)
+			t.Fatalf("unknown marker: %s", marker)
 		}
 	}
 }

@@ -4743,11 +4743,11 @@ Host: foo
 func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	setParallel(t)
 	conn := newTestConn()
-	conn.readBuf.Write([]byte(fmt.Sprintf(
+	conn.readBuf.WriteString(
 		"POST / HTTP/1.1\r\n" +
 			"Host: test\r\n" +
 			"Content-Length: 9999999999\r\n" +
-			"\r\n" + strings.Repeat("a", 1<<20))))
+			"\r\n" + strings.Repeat("a", 1<<20))
 
 	ls := &oneConnListener{conn}
 	var inHandlerLen int

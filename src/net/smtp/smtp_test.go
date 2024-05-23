@@ -772,10 +772,10 @@ func TestSendMail(t *testing.T) {
 
 		tc := textproto.NewConn(conn)
 		for i := 0; i < len(data) && data[i] != ""; i++ {
-			tc.PrintfLine(data[i])
+			tc.PrintfLine("%s", data[i])
 			for len(data[i]) >= 4 && data[i][3] == '-' {
 				i++
-				tc.PrintfLine(data[i])
+				tc.PrintfLine("%s", data[i])
 			}
 			if data[i] == "221 Goodbye" {
 				return

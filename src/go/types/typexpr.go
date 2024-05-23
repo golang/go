@@ -488,7 +488,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 				if i < len(ix.Indices) {
 					pos = ix.Indices[i].Pos()
 				}
-				check.softErrorf(atPos(pos), InvalidTypeArg, err.Error())
+				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
 			} else {
 				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
 			}

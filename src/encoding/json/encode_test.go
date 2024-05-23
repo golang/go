@@ -1168,7 +1168,7 @@ func TestMarshalUncommonFieldNames(t *testing.T) {
 func TestMarshalerError(t *testing.T) {
 	s := "test variable"
 	st := reflect.TypeOf(s)
-	errText := "json: test error"
+	const errText = "json: test error"
 
 	tests := []struct {
 		CaseName

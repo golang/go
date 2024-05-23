@@ -536,7 +536,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Max, _Min:
 		// max(x, ...)
 		// min(x, ...)
-		check.verifyVersionf(call.Fun, go1_21, quote(bin.name))
+		check.verifyVersionf(call.Fun, go1_21, "%s", quote(bin.name))
 
 		op := token.LSS
 		if id == _Max {

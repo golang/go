@@ -197,7 +197,7 @@ func testForSpecificFunctions(t *testing.T, dir string, want []string, avoid []s
 		}
 	}
 	if rval != "" {
-		t.Logf("=-= begin output:\n" + output + "\n=-= end output\n")
+		t.Logf("=-= begin output:\n%s\n=-= end output\n", output)
 	}
 	return rval
 }

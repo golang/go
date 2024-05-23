@@ -1272,7 +1272,7 @@ func TestMutexProfile(t *testing.T) {
 		if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
 			t.Errorf("%q didn't match %q", lines[5], r3)
 		}
-		t.Logf(prof)
+		t.Log(prof)
 	})
 	t.Run("proto", func(t *testing.T) {
 		// proto format
