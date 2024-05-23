@@ -34,7 +34,7 @@ func squares(n int) Seq2[int, int64] {
 func TestPull(t *testing.T) {
 	for end := 0; end <= 3; end++ {
 		t.Run(fmt.Sprint(end), func(t *testing.T) {
-			ng := runtime.NumGoroutine()
+			ng := stableNumGoroutine()
 			wantNG := func(want int) {
 				if xg := runtime.NumGoroutine() - ng; xg != want {
 					t.Helper()
@@ -76,7 +76,7 @@ func TestPull(t *testing.T) {
 func TestPull2(t *testing.T) {
 	for end := 0; end <= 3; end++ {
 		t.Run(fmt.Sprint(end), func(t *testing.T) {
-			ng := runtime.NumGoroutine()
+			ng := stableNumGoroutine()
 			wantNG := func(want int) {
 				if xg := runtime.NumGoroutine() - ng; xg != want {
 					t.Helper()
@@ -113,6 +113,39 @@ func TestPull2(t *testing.T) {
 			wantNG(0)
 		})
 	}
+}
+
+// stableNumGoroutine is like NumGoroutine but tries to ensure stability of
+// the value by letting any exiting goroutines finish exiting.
+func stableNumGoroutine() int {
+	// The idea behind stablizing the value of NumGoroutine is to
+	// see the same value enough times in a row in between calls to
+	// runtime.Gosched. With GOMAXPROCS=1, we're trying to make sure
+	// that other goroutines run, so that they reach a stable point.
+	// It's not guaranteed, because it is still possible for a goroutine
+	// to Gosched back into itself, so we require NumGoroutine to be
+	// the same 100 times in a row. This should be more than enough to
+	// ensure all goroutines get a chance to run to completion (or to
+	// some block point) for a small group of test goroutines.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	c := 0
+	ng := runtime.NumGoroutine()
+	for i := 0; i < 1000; i++ {
+		nng := runtime.NumGoroutine()
+		if nng == ng {
+			c++
+		} else {
+			c = 0
+			ng = nng
+		}
+		if c >= 100 {
+			// The same value 100 times in a row is good enough.
+			return ng
+		}
+		runtime.Gosched()
+	}
+	panic("failed to stabilize NumGoroutine after 1000 iterations")
 }
 
 func TestPullDoubleNext(t *testing.T) {
