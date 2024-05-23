@@ -18,6 +18,9 @@ x_cgo_getstackbound(uintptr bounds[2])
 	void *addr;
 	size_t size;
 
+	// Needed before pthread_getattr_np, too, since before glibc 2.32
+	// it did not call pthread_attr_init in all cases (see #65625).
+	pthread_attr_init(&attr);
 #if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
 	// pthread_getattr_np is a GNU extension supported in glibc.
 	// Solaris is not glibc but does support pthread_getattr_np
@@ -25,11 +28,9 @@ x_cgo_getstackbound(uintptr bounds[2])
 	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
 	pthread_attr_getstack(&attr, &addr, &size); // low address
 #elif defined(__illumos__)
-	pthread_attr_init(&attr);
 	pthread_attr_get_np(pthread_self(), &attr);
 	pthread_attr_getstack(&attr, &addr, &size); // low address
 #else
-	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	addr = __builtin_frame_address(0) + 4096 - size;
 #endif
