@@ -898,7 +898,7 @@ func TidyGoSum(keep map[module.Version]bool) (before, after []byte) {
 	return before, after
 }
 
-// tidyGoSum will return a tidy version of the go.sum file.
+// tidyGoSum returns a tidy version of the go.sum file.
 // The goSum lock must be held.
 func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
 	if !goSum.overwrite {

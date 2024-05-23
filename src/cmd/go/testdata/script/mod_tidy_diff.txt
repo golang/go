@@ -7,8 +7,8 @@
 ! go mod tidy -diff
 ! exists go.mod
 ! exists go.sum
-! stdout 'diff current go.mod tidy go.mod'
-! stdout 'diff current go.sum tidy go.sum'
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
 stderr 'go.mod file not found'
 
 # Missing go.mod and existing go.sum should fail and not display diff.
@@ -17,8 +17,8 @@ cp go.sum.orig go.sum
 exists go.sum
 ! go mod tidy -diff
 ! exists go.mod
-! stdout 'diff current go.mod tidy go.mod'
-! stdout 'diff current go.sum tidy go.sum'
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
 stderr 'go.mod file not found'
 
 # Existing go.mod and missing go.sum should display diff.
@@ -29,45 +29,58 @@ exists go.mod
 ! exists go.sum
 ! go mod tidy -diff
 ! exists go.sum
-! stdout 'diff current go.mod tidy go.mod'
-stdout 'diff current go.sum tidy go.sum'
+! stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
 
 # Everything is tidy, should return zero exit code.
 go mod tidy
 go mod tidy -diff
-! stdout 'diff current go.mod tidy go.mod'
-! stdout 'diff current go.sum tidy go.sum'
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
 
 # go.mod requires updates, should return non-zero exit code.
 cp go.mod.orig go.mod
 ! go mod tidy -diff
+stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
 cmp go.mod.orig go.mod
-stdout 'diff current go.mod tidy go.mod'
-! stdout 'diff current go.sum tidy go.sum'
 
 # go.sum requires updates, should return non-zero exit code.
 go mod tidy
 cp go.sum.orig go.sum
 ! go mod tidy -diff
+! stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
 cmp go.sum.orig go.sum
-! stdout 'diff current go.mod tidy go.mod'
-stdout 'diff current go.sum tidy go.sum'
 
 # go.mod and go.sum require updates, should return non-zero exit code.
 cp go.mod.orig go.mod
 cp go.sum.orig go.sum
 ! go mod tidy -diff
-stdout '^\+\s*require rsc.io/quote v1.5.2'
-stdout '^\+\s*golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect'
-stdout '^\+\s*rsc.io/sampler v1.3.0 // indirect'
-stdout '^\+\s*rsc.io/testonly v1.0.0 // indirect'
-stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw='
-stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW\+pc6Ldnwhi/IjpwHt7yyuwOQ='
-! stdout '^\+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0='
-stdout '^\+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII='
-stdout '^\+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA='
+stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
 cmp go.mod.orig go.mod
 cmp go.sum.orig go.sum
+
+# Save the result from running tidy.
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] cp go.sum.orig go.sum
+[exec:patch] go mod tidy
+[exec:patch] cp go.mod go.mod.tidyResult
+[exec:patch] cp go.sum go.sum.tidyResult
+
+# Compare output of -diff to running tidy.
+# Apply the patch from -diff
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] cp go.sum.orig go.sum
+[exec:patch] ! go mod tidy -diff
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] cmp go.sum go.sum.tidyResult
+
 
 -- main.go --
 package main

@@ -1367,9 +1367,9 @@
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
 //
-// The -diff flag causes tidy not to modify the files but instead print the
-// necessary changes as a unified diff. It exits with a non-zero code
-// if updates are needed.
+// The -diff flag causes tidy not to modify go.mod or go.sum but
+// instead print the necessary changes as a unified diff. It exits
+// with a non-zero code if the diff is not empty.
 //
 // The -go flag causes tidy to update the 'go' directive in the go.mod
 // file to the given version, which may change which module dependencies
