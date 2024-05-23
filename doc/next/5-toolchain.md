@@ -20,4 +20,9 @@ Hot block alignment can be disabled with `-gcflags=[<packages>=]-d=alignhot=0`
 
 ## Linker {#linker}
 
+<!-- go.dev/issue/67401, CL 585556, CL 587220, and many more -->
+TODO: Say what needs to be said in Go 1.23 release notes regarding
+the locking down of future linkname uses.
 
+<!-- CL 473495 -->
+The new `-bindnow` flag enables full RELRO on ELF targets.

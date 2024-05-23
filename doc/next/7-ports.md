@@ -7,6 +7,12 @@ As [announced](go1.22#darwin) in the Go 1.22 release notes,
 Go 1.23 requires macOS 11 Big Sur or later;
 support for previous versions has been discontinued.
 
+### OpenBSD {#openbsd}
+
+<!-- go.dev/issue/55999, CL 518629, CL 518630 -->
+<!-- TODO: Should it say 'experimental' like in go.dev/doc/go1.22#openbsd or https://go.dev/doc/go1.20#freebsd-riscv, or not? -->
+Go 1.23 adds experimental support for OpenBSD on RISC-V (`GOOS=openbsd`, `GOARCH=riscv64`).
+
 ### Wasm {#wasm}
 
 <!-- go.dev/issue/63718 -->
