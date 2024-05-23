@@ -77,6 +77,13 @@ func _[P []int | struct{}]() {
 	_ = a
 }
 
+func _[P any]() {
+	type A = P
+	var x A
+	// keep "constrained by" for aliased type parameters in error messages
+	var _ int = x // ERRORx `cannot use x \(variable of type (A|P) constrained by any\) as int value in variable declaration`
+}
+
 // Test case for go.dev/issue/67540.
 func _() {
 	type (
