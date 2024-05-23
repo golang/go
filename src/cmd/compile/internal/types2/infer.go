@@ -693,6 +693,7 @@ type cycleFinder struct {
 }
 
 func (w *cycleFinder) typ(typ Type) {
+	typ = Unalias(typ)
 	if w.seen[typ] {
 		// We have seen typ before. If it is one of the type parameters
 		// in w.tparams, iterative substitution will lead to infinite expansion.
@@ -714,8 +715,8 @@ func (w *cycleFinder) typ(typ Type) {
 	case *Basic:
 		// nothing to do
 
-	case *Alias:
-		w.typ(Unalias(t))
+	// *Alias:
+	//      This case should not occur because of Unalias(typ) at the top.
 
 	case *Array:
 		w.typ(t.elem)
