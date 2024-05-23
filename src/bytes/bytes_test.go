@@ -11,24 +11,13 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
 	"unicode/utf8"
 	"unsafe"
 )
-
-func eq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
 
 func sliceOfString(s [][]byte) []string {
 	result := make([]string, len(s))
@@ -808,7 +797,7 @@ func TestSplit(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
@@ -866,7 +855,7 @@ func TestSplitAfter(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
@@ -919,7 +908,7 @@ func TestFields(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
@@ -939,7 +928,7 @@ func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
@@ -962,7 +951,7 @@ func TestFieldsFunc(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
 		}
 
@@ -1286,18 +1275,6 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 	})
 }
 
-func runesEqual(a, b []rune) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, r := range a {
-		if r != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 type RunesTest struct {
 	in    string
 	out   []rune
@@ -1318,7 +1295,7 @@ func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
 		tin := []byte(tt.in)
 		a := Runes(tin)
-		if !runesEqual(a, tt.out) {
+		if !slices.Equal(a, tt.out) {
 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
 			continue
 		}
