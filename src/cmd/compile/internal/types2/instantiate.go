@@ -288,12 +288,12 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
 		}
 		// If T is comparable, V must be comparable.
 		// If V is strictly comparable, we're done.
-		if comparable(V, false /* strict comparability */, nil, nil) {
+		if comparableType(V, false /* strict comparability */, nil, nil) {
 			return true
 		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
-		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
 			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
 				return true

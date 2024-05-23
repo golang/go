@@ -116,8 +116,7 @@ func (subst *subster) typ(typ Type) Type {
 		// For each (existing) type argument determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		targs, updated := subst.typeList(t.TypeArgs().list())
-		if updated {
+		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
 			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.expanding, subst.ctxt)
 		}
 
@@ -134,7 +133,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Struct:
-		if fields, copied := subst.varList(t.fields); copied {
+		if fields := substList(t.fields, subst.var_); fields != nil {
 			s := &Struct{fields: fields, tags: t.tags}
 			s.markComplete()
 			return s
@@ -181,8 +180,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Union:
-		terms, copied := subst.termlist(t.terms)
-		if copied {
+		if terms := substList(t.terms, subst.term); terms != nil {
 			// term list substitution may introduce duplicate terms (unlikely but possible).
 			// This is ok; lazy type set computation will determine the actual type set
 			// in normal form.
@@ -190,9 +188,15 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Interface:
-		methods, mcopied := subst.funcList(t.methods)
-		embeddeds, ecopied := subst.typeList(t.embeddeds)
-		if mcopied || ecopied {
+		methods := substList(t.methods, subst.func_)
+		embeddeds := substList(t.embeddeds, subst.typ)
+		if methods != nil || embeddeds != nil {
+			if methods == nil {
+				methods = t.methods
+			}
+			if embeddeds == nil {
+				embeddeds = t.embeddeds
+			}
 			iface := subst.check.newInterface()
 			iface.embeddeds = embeddeds
 			iface.embedPos = t.embedPos
@@ -254,8 +258,7 @@ func (subst *subster) typ(typ Type) Type {
 		// For each (existing) type argument determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		targs, updated := subst.typeList(t.TypeArgs().list())
-		if updated {
+		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
 			// Create a new instance and populate the context to avoid endless
 			// recursion. The position used here is irrelevant because validation only
 			// occurs on t (we don't call validType on named), but we use subst.pos to
@@ -286,13 +289,13 @@ func (subst *subster) typOrNil(typ Type) Type {
 func (subst *subster) var_(v *Var) *Var {
 	if v != nil {
 		if typ := subst.typ(v.typ); typ != v.typ {
-			return substVar(v, typ)
+			return cloneVar(v, typ)
 		}
 	}
 	return v
 }
 
-func substVar(v *Var, typ Type) *Var {
+func cloneVar(v *Var, typ Type) *Var {
 	copy := *v
 	copy.typ = typ
 	copy.origin = v.Origin()
@@ -301,26 +304,26 @@ func substVar(v *Var, typ Type) *Var {
 
 func (subst *subster) tuple(t *Tuple) *Tuple {
 	if t != nil {
-		if vars, copied := subst.varList(t.vars); copied {
+		if vars := substList(t.vars, subst.var_); vars != nil {
 			return &Tuple{vars: vars}
 		}
 	}
 	return t
 }
 
-func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
-	out = in
-	for i, v := range in {
-		if w := subst.var_(v); w != v {
-			if !copied {
-				// first variable that got substituted => allocate new out slice
-				// and copy all variables
-				new := make([]*Var, len(in))
-				copy(new, out)
-				out = new
-				copied = true
+// substList applies subst to each element of the incoming slice.
+// If at least one element changes, the result is a new slice with
+// all the (possibly updated) elements of the incoming slice;
+// otherwise the result it nil. The incoming slice is unchanged.
+func substList[T comparable](in []T, subst func(T) T) (out []T) {
+	for i, t := range in {
+		if u := subst(t); u != t {
+			if out == nil {
+				// lazily allocate a new slice on first substitution
+				out = make([]T, len(in))
+				copy(out, in)
 			}
-			out[i] = w
+			out[i] = u
 		}
 	}
 	return
@@ -329,71 +332,24 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
 func (subst *subster) func_(f *Func) *Func {
 	if f != nil {
 		if typ := subst.typ(f.typ); typ != f.typ {
-			return substFunc(f, typ)
+			return cloneFunc(f, typ)
 		}
 	}
 	return f
 }
 
-func substFunc(f *Func, typ Type) *Func {
+func cloneFunc(f *Func, typ Type) *Func {
 	copy := *f
 	copy.typ = typ
 	copy.origin = f.Origin()
 	return &copy
 }
 
-func (subst *subster) funcList(in []*Func) (out []*Func, copied bool) {
-	out = in
-	for i, f := range in {
-		if g := subst.func_(f); g != f {
-			if !copied {
-				// first function that got substituted => allocate new out slice
-				// and copy all functions
-				new := make([]*Func, len(in))
-				copy(new, out)
-				out = new
-				copied = true
-			}
-			out[i] = g
-		}
+func (subst *subster) term(t *Term) *Term {
+	if typ := subst.typ(t.typ); typ != t.typ {
+		return NewTerm(t.tilde, typ)
 	}
-	return
-}
-
-func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
-	out = in
-	for i, t := range in {
-		if u := subst.typ(t); u != t {
-			if !copied {
-				// first function that got substituted => allocate new out slice
-				// and copy all functions
-				new := make([]Type, len(in))
-				copy(new, out)
-				out = new
-				copied = true
-			}
-			out[i] = u
-		}
-	}
-	return
-}
-
-func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
-	out = in
-	for i, t := range in {
-		if u := subst.typ(t.typ); u != t.typ {
-			if !copied {
-				// first function that got substituted => allocate new out slice
-				// and copy all functions
-				new := make([]*Term, len(in))
-				copy(new, out)
-				out = new
-				copied = true
-			}
-			out[i] = NewTerm(t.tilde, u)
-		}
-	}
-	return
+	return t
 }
 
 // replaceRecvType updates any function receivers that have type old to have
@@ -416,8 +372,8 @@ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
 				copied = true
 			}
 			newsig := *sig
-			newsig.recv = substVar(sig.recv, new)
-			out[i] = substFunc(method, &newsig)
+			newsig.recv = cloneVar(sig.recv, new)
+			out[i] = cloneFunc(method, &newsig)
 		}
 	}
 	return

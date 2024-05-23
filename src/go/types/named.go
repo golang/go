@@ -433,8 +433,8 @@ func (t *Named) expandMethod(i int) *Func {
 		rtyp = t
 	}
 
-	sig.recv = substVar(origSig.recv, rtyp)
-	return substFunc(origm, sig)
+	sig.recv = cloneVar(origSig.recv, rtyp)
+	return cloneFunc(origm, sig)
 }
 
 // SetUnderlying sets the underlying type and marks t as complete.
