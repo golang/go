@@ -5,7 +5,7 @@
 package dag
 
 import (
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -52,7 +52,7 @@ func TestParse(t *testing.T) {
 	g := mustParse(t, diamond)
 
 	wantNodes := strings.Fields("a b c d")
-	if !reflect.DeepEqual(wantNodes, g.Nodes) {
+	if !slices.Equal(wantNodes, g.Nodes) {
 		t.Fatalf("want nodes %v, got %v", wantNodes, g.Nodes)
 	}
 

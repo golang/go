@@ -6,6 +6,7 @@ package xcoff
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -87,7 +88,7 @@ func TestOpen(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if !reflect.DeepEqual(tl, fl) {
+		if !slices.Equal(tl, fl) {
 			t.Errorf("open %s: loader import = %v, want %v", tt.file, tl, fl)
 		}
 	}
