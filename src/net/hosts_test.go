@@ -5,7 +5,7 @@
 package net
 
 import (
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -73,7 +73,7 @@ func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
 	ins := []string{ent.in, absDomainName(ent.in), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
 	for _, in := range ins {
 		addrs, _ := lookupStaticHost(in)
-		if !reflect.DeepEqual(addrs, ent.out) {
+		if !slices.Equal(addrs, ent.out) {
 			t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", hostsPath, in, addrs, ent.out)
 		}
 	}
@@ -143,7 +143,7 @@ func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
 	for i := range ent.out {
 		ent.out[i] = absDomainName(ent.out[i])
 	}
-	if !reflect.DeepEqual(hosts, ent.out) {
+	if !slices.Equal(hosts, ent.out) {
 		t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", hostsPath, ent.in, hosts, ent.out)
 	}
 }

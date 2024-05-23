@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -115,7 +116,7 @@ func headerEq(a, b Header) bool {
 		if !ok {
 			return false
 		}
-		if !reflect.DeepEqual(as, bs) {
+		if !slices.Equal(as, bs) {
 			return false
 		}
 	}

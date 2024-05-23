@@ -23,6 +23,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -69,22 +70,22 @@ func TestParseFormQuery(t *testing.T) {
 	if bz := req.PostFormValue("z"); bz != "post" {
 		t.Errorf(`req.PostFormValue("z") = %q, want "post"`, bz)
 	}
-	if qs := req.Form["q"]; !reflect.DeepEqual(qs, []string{"foo", "bar"}) {
+	if qs := req.Form["q"]; !slices.Equal(qs, []string{"foo", "bar"}) {
 		t.Errorf(`req.Form["q"] = %q, want ["foo", "bar"]`, qs)
 	}
-	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"y", "x"}) {
+	if both := req.Form["both"]; !slices.Equal(both, []string{"y", "x"}) {
 		t.Errorf(`req.Form["both"] = %q, want ["y", "x"]`, both)
 	}
 	if prio := req.FormValue("prio"); prio != "2" {
 		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
 	}
-	if orphan := req.Form["orphan"]; !reflect.DeepEqual(orphan, []string{"", "nope"}) {
+	if orphan := req.Form["orphan"]; !slices.Equal(orphan, []string{"", "nope"}) {
 		t.Errorf(`req.FormValue("orphan") = %q, want "" (from body)`, orphan)
 	}
-	if empty := req.Form["empty"]; !reflect.DeepEqual(empty, []string{"", "not"}) {
+	if empty := req.Form["empty"]; !slices.Equal(empty, []string{"", "not"}) {
 		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
 	}
-	if nokey := req.Form[""]; !reflect.DeepEqual(nokey, []string{"nokey"}) {
+	if nokey := req.Form[""]; !slices.Equal(nokey, []string{"nokey"}) {
 		t.Errorf(`req.FormValue("nokey") = %q, want "nokey" (from body)`, nokey)
 	}
 }
@@ -765,7 +766,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 		"User-Agent: " + DefaultUserAgent + "\r\n",
 		"\r\n",
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Writes = %q\n  Want = %q", got, want)
 	}
 }
@@ -785,7 +786,7 @@ func TestRequestBadHostHeader(t *testing.T) {
 		"User-Agent: " + DefaultUserAgent + "\r\n",
 		"\r\n",
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Writes = %q\n  Want = %q", got, want)
 	}
 }
@@ -804,7 +805,7 @@ func TestRequestBadUserAgent(t *testing.T) {
 		"User-Agent: evil  X-Evil: evil\r\n",
 		"\r\n",
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Writes = %q\n  Want = %q", got, want)
 	}
 }

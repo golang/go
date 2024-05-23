@@ -433,7 +433,7 @@ func TestLookupLongTXT(t *testing.T) {
 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
 		"gophers rule",
 	}
-	if !reflect.DeepEqual(txts, want) {
+	if !slices.Equal(txts, want) {
 		t.Fatalf("LookupTXT golang.rsc.io incorrect\nhave %q\nwant %q", txts, want)
 	}
 }

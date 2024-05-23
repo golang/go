@@ -36,6 +36,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -4429,7 +4430,7 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 		"5\r\nnum2\n\r\n",
 		"0\r\n\r\n",
 	}
-	if !reflect.DeepEqual(lw.writes, want) {
+	if !slices.Equal(lw.writes, want) {
 		t.Errorf("Writes differed.\n Got: %q\nWant: %q\n", lw.writes, want)
 	}
 }
@@ -5260,7 +5261,7 @@ func testTransportMaxIdleConns(t *testing.T, mode testMode) {
 		"|http|host-2.dns-is-faked.golang:" + port,
 		"|http|host-3.dns-is-faked.golang:" + port,
 	}
-	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
+	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
 		t.Fatalf("idle conn keys mismatch.\n got: %q\nwant: %q\n", got, want)
 	}
 
@@ -5272,7 +5273,7 @@ func testTransportMaxIdleConns(t *testing.T, mode testMode) {
 		"|http|host-3.dns-is-faked.golang:" + port,
 		"|http|host-4.dns-is-faked.golang:" + port,
 	}
-	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
+	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
 		t.Fatalf("idle conn keys mismatch after 5th host.\n got: %q\nwant: %q\n", got, want)
 	}
 }

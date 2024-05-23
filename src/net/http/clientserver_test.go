@@ -274,7 +274,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		wantTE = nil
 	}
-	if !reflect.DeepEqual(res.TransferEncoding, wantTE) {
+	if !slices.Equal(res.TransferEncoding, wantTE) {
 		t.Errorf("TransferEncoding = %v; want %v", res.TransferEncoding, wantTE)
 	}
 	if got, haveCL := res.Header["Content-Length"]; haveCL {
