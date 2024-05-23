@@ -13,7 +13,6 @@ package testdeps
 import (
 	"bufio"
 	"context"
-	"internal/coverage/cfile"
 	"internal/fuzz"
 	"internal/testlog"
 	"io"
@@ -205,11 +204,21 @@ func (TestDeps) SnapshotCoverage() {
 var CoverMode string
 var Covered string
 
+// These variables below are set at runtime (via code in testmain) to point
+// to the equivalent functions in package internal/coverage/cfile; doing
+// things this way allows us to have tests import internal/coverage/cfile
+// only when -cover is in effect (as opposed to importing for all tests).
+var (
+	CoverSnapshotFunc           func() float64
+	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer) error
+	CoverMarkProfileEmittedFunc func(val bool)
+)
+
 func (TestDeps) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
 	if CoverMode == "" {
 		return
 	}
-	return CoverMode, coverTearDown, cfile.Snapshot
+	return CoverMode, coverTearDown, CoverSnapshotFunc
 }
 
 func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
@@ -221,9 +230,9 @@ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
 		}
 		defer os.RemoveAll(gocoverdir)
 	}
-	cfile.MarkProfileEmitted(true)
+	CoverMarkProfileEmittedFunc(true)
 	cmode := CoverMode
-	if err := cfile.ProcessCoverTestDir(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
+	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
 		return "error generating coverage report", err
 	}
 	return "", nil

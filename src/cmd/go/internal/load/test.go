@@ -298,6 +298,9 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
 	stk.Push("testmain")
 	deps := TestMainDeps // cap==len, so safe for append
+	if cover != nil && cfg.Experiment.CoverageRedesign {
+		deps = append(deps, "internal/coverage/cfile")
+	}
 	ldDeps, err := LinkerDeps(p)
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
@@ -907,6 +910,9 @@ import (
 {{end}}
 	"testing"
 	"testing/internal/testdeps"
+{{if .Cover}}
+	"internal/coverage/cfile"
+{{end}}
 
 {{if .ImportTest}}
 	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
@@ -944,6 +950,10 @@ func init() {
 {{if .Cover}}
 	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
 	testdeps.Covered = {{printf "%q" .Covered}}
+	testdeps.CoverSnapshotFunc = cfile.Snapshot
+	testdeps.CoverProcessTestDirFunc = cfile.ProcessCoverTestDir
+	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
+
 {{end}}
 	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
 }
