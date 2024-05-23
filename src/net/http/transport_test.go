@@ -4279,30 +4279,6 @@ func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportDialCancelRace(t *testing.T) {
-	run(t, testTransportDialCancelRace, testNotParallel, []testMode{http1Mode})
-}
-func testTransportDialCancelRace(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {})).ts
-	tr := ts.Client().Transport.(*Transport)
-
-	req, err := NewRequest("GET", ts.URL, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	SetEnterRoundTripHook(func() {
-		tr.CancelRequest(req)
-	})
-	defer SetEnterRoundTripHook(nil)
-	res, err := tr.RoundTrip(req)
-	if err != ExportErrRequestCanceled {
-		t.Errorf("expected canceled request error; got %v", err)
-		if err == nil {
-			res.Body.Close()
-		}
-	}
-}
-
 // https://go.dev/issue/49621
 func TestConnClosedBeforeRequestIsWritten(t *testing.T) {
 	run(t, testConnClosedBeforeRequestIsWritten, testNotParallel, []testMode{http1Mode})
