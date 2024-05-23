@@ -5,7 +5,7 @@
 package exec
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -60,7 +60,7 @@ func TestDedupEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got, err := dedupEnvCase(tt.noCase, tt.nulOK, tt.in)
-		if !reflect.DeepEqual(got, tt.want) || (err != nil) != tt.wantErr {
+		if !slices.Equal(got, tt.want) || (err != nil) != tt.wantErr {
 			t.Errorf("Dedup(%v, %q) = %q, %v; want %q, error:%v", tt.noCase, tt.in, got, err, tt.want, tt.wantErr)
 		}
 	}

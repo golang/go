@@ -13,8 +13,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -83,7 +83,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		case err != nil:
 			t.Errorf("%d,%d: execution error %v\n%q", ti, i, err, out)
 			return
-		case !reflect.DeepEqual(out, exp):
+		case !slices.Equal(out, exp):
 			t.Errorf("%d,%d: expected %#q, got %#q", ti, i, exp, out)
 			return
 		default:
