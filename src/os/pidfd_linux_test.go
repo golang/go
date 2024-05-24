@@ -35,8 +35,8 @@ func TestFindProcessViaPidfd(t *testing.T) {
 	if proc == nil {
 		t.Fatal("FindProcess: got nil, want non-nil")
 	}
-	if proc.Pid != os.PidDone {
-		t.Fatalf("got pid: %v, want %d", proc.Pid, os.PidDone)
+	if proc.Status() != os.StatusDone {
+		t.Fatalf("got process status: %v, want %d", proc.Status(), os.StatusDone)
 	}
 
 	// Check that all Process' public methods work as expected with

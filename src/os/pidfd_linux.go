@@ -12,6 +12,7 @@
 package os
 
 import (
+	"errors"
 	"internal/syscall/unix"
 	"sync"
 	"syscall"
@@ -39,42 +40,46 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
 	return sysAttr
 }
 
-func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
+func getPidfd(sysAttr *syscall.SysProcAttr) (uintptr, bool) {
 	if !pidfdWorks() {
-		return unsetHandle
+		return 0, false
 	}
 
-	return uintptr(*sysAttr.PidFD)
+	return uintptr(*sysAttr.PidFD), true
 }
 
 func pidfdFind(pid int) (uintptr, error) {
 	if !pidfdWorks() {
-		return unsetHandle, syscall.ENOSYS
+		return 0, syscall.ENOSYS
 	}
 
 	h, err := unix.PidFDOpen(pid, 0)
-	if err == nil {
-		return h, nil
+	if err != nil {
+		return 0, convertESRCH(err)
 	}
-	return unsetHandle, convertESRCH(err)
-}
-
-func (p *Process) pidfdRelease() {
-	// Release pidfd unconditionally.
-	handle := p.handle.Swap(unsetHandle)
-	if handle != unsetHandle {
-		syscall.Close(int(handle))
-	}
+	return h, nil
 }
 
 // _P_PIDFD is used as idtype argument to waitid syscall.
 const _P_PIDFD = 3
 
 func (p *Process) pidfdWait() (*ProcessState, error) {
-	handle := p.handle.Load()
-	if handle == unsetHandle || !pidfdWorks() {
-		return nil, syscall.ENOSYS
+	// When pidfd is used, there is no wait/kill race (described in CL 23967)
+	// because the PID recycle issue doesn't exist (IOW, pidfd, unlike PID,
+	// is guaranteed to refer to one particular process). Thus, there is no
+	// need for the workaround (blockUntilWaitable + sigMu) from pidWait.
+	//
+	// We _do_ need to be careful about reuse of the pidfd FD number when
+	// closing the pidfd. See handle for more details.
+	handle, status := p.handleTransientAcquire()
+	switch status {
+	case statusDone:
+		return nil, ErrProcessDone
+	case statusReleased:
+		return nil, syscall.EINVAL
 	}
+	defer p.handleTransientRelease()
+
 	var (
 		info   unix.SiginfoChild
 		rusage syscall.Rusage
@@ -87,16 +92,11 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 		}
 	}
 	if e != 0 {
-		if e == syscall.EINVAL {
-			// This is either invalid option value (which should not happen
-			// as we only use WEXITED), or missing P_PIDFD support (Linux
-			// kernel < 5.4), meaning pidfd support is not implemented.
-			e = syscall.ENOSYS
-		}
-		return nil, e
+		return nil, NewSyscallError("waitid", e)
 	}
-	p.setDone()
-	p.pidfdRelease()
+	// Release the Process' handle reference, in addition to the reference
+	// we took above.
+	p.handlePersistentRelease(statusDone)
 	return &ProcessState{
 		pid:    int(info.Pid),
 		status: info.WaitStatus(),
@@ -105,10 +105,15 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 }
 
 func (p *Process) pidfdSendSignal(s syscall.Signal) error {
-	handle := p.handle.Load()
-	if handle == unsetHandle || !pidfdWorks() {
-		return syscall.ENOSYS
+	handle, status := p.handleTransientAcquire()
+	switch status {
+	case statusDone:
+		return ErrProcessDone
+	case statusReleased:
+		return errors.New("os: process already released")
 	}
+	defer p.handleTransientRelease()
+
 	return convertESRCH(unix.PidFDSendSignal(handle, s))
 }
 

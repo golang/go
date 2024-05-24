@@ -9,5 +9,10 @@ var (
 	PollSpliceFile      = &pollSplice
 	GetPollFDAndNetwork = getPollFDAndNetwork
 	CheckPidfdOnce      = checkPidfdOnce
-	PidDone             = pidDone
 )
+
+const StatusDone = statusDone
+
+func (p *Process) Status() processStatus {
+	return processStatus(p.state.Load() & processStatusMask)
+}
