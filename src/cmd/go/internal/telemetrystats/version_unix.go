@@ -34,7 +34,7 @@ func incrementVersionCounters() {
 	}
 	major, minor, ok := majorMinor(convert(v.Release[:]))
 	if runtime.GOOS == "aix" {
-		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), ok
+		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), true
 	}
 	if !ok {
 		telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:unknown-bad-format", runtime.GOOS))
