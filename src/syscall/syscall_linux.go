@@ -682,6 +682,10 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 	return nil, EAFNOSUPPORT
 }
 
+func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+	return Accept4(fd, 0)
+}
+
 func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
