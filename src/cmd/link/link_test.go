@@ -1397,17 +1397,17 @@ func TestRandLayout(t *testing.T) {
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-randlayout="+seed, "-o", exe, src)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("build failed: %v\n%s", err, out)
+			t.Fatalf("seed=%v: build failed: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, exe)
 		err = cmd.Run()
 		if err != nil {
-			t.Fatalf("executable failed to run: %v\n%s", err, out)
+			t.Fatalf("seed=%v: executable failed to run: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("fail to run \"go tool nm\": %v\n%s", err, out)
+			t.Fatalf("seed=%v: fail to run \"go tool nm\": %v\n%s", seed, err, out)
 		}
 		syms[i] = string(out)
 	}
