@@ -32,8 +32,8 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
-// UseNumber causes the Decoder to unmarshal a number into an interface{} as a
-// [Number] instead of as a float64.
+// UseNumber causes the Decoder to unmarshal a number into an
+// interface value as a [Number] instead of as a float64.
 func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 
 // DisallowUnknownFields causes the Decoder to return an error when the destination

@@ -819,7 +819,7 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		// Here we use a struct to memorize the pointer to the first element of the slice
 		// and its length.
 		ptr := struct {
-			ptr interface{} // always an unsafe.Pointer, but avoids a dependency on package unsafe
+			ptr any // always an unsafe.Pointer, but avoids a dependency on package unsafe
 			len int
 		}{v.UnsafePointer(), v.Len()}
 		if _, ok := e.ptrSeen[ptr]; ok {
