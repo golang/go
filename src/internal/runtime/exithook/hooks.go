@@ -13,6 +13,11 @@
 // restricted dialects used for the trickier parts of the runtime.
 package exithook
 
+import (
+	"internal/runtime/atomic"
+	_ "unsafe" // for linkname
+)
+
 // A Hook is a function to be run at program termination
 // (when someone invokes os.Exit, or when main.main returns).
 // Hooks are run in reverse order of registration:
@@ -23,40 +28,56 @@ type Hook struct {
 }
 
 var (
+	locked  atomic.Int32
+	runGoid atomic.Uint64
 	hooks   []Hook
 	running bool
+
+	// runtime sets these for us
+	Gosched func()
+	Goid    func() uint64
+	Throw   func(string)
 )
 
 // Add adds a new exit hook.
 func Add(h Hook) {
+	for !locked.CompareAndSwap(0, 1) {
+		Gosched()
+	}
 	hooks = append(hooks, h)
+	locked.Store(0)
 }
 
 // Run runs the exit hooks.
-// It returns an error if Run is already running or
-// if one of the hooks panics.
-func Run(code int) (err error) {
-	if running {
-		return exitError("exit hook invoked exit")
+//
+// If an exit hook panics, Run will throw with the panic on the stack.
+// If an exit hook invokes exit in the same goroutine, the goroutine will throw.
+// If an exit hook invokes exit in another goroutine, that exit will block.
+func Run(code int) {
+	for !locked.CompareAndSwap(0, 1) {
+		if Goid() == runGoid.Load() {
+			Throw("exit hook invoked exit")
+		}
+		Gosched()
 	}
-	running = true
+	defer locked.Store(0)
+	runGoid.Store(Goid())
+	defer runGoid.Store(0)
 
 	defer func() {
-		if x := recover(); x != nil {
-			err = exitError("exit hook invoked panic")
+		if e := recover(); e != nil {
+			Throw("exit hook invoked panic")
 		}
 	}()
 
-	local := hooks
-	hooks = nil
-	for i := len(local) - 1; i >= 0; i-- {
-		h := local[i]
-		if code == 0 || h.RunOnFailure {
-			h.F()
+	for len(hooks) > 0 {
+		h := hooks[len(hooks)-1]
+		hooks = hooks[:len(hooks)-1]
+		if code != 0 && !h.RunOnFailure {
+			continue
 		}
+		h.F()
 	}
-	running = false
-	return nil
 }
 
 type exitError string

@@ -6,8 +6,9 @@ package main
 
 import (
 	"flag"
-	"os"
 	"internal/runtime/exithook"
+	"os"
+	"time"
 	_ "unsafe"
 )
 
@@ -26,6 +27,8 @@ func main() {
 		testPanics()
 	case "callsexit":
 		testHookCallsExit()
+	case "exit2":
+		testExit2()
 	default:
 		panic("unknown mode")
 	}
@@ -80,4 +83,13 @@ func testHookCallsExit() {
 	exithook.Add(exithook.Hook{F: f2, RunOnFailure: true})
 	exithook.Add(exithook.Hook{F: f3, RunOnFailure: true})
 	os.Exit(1)
+}
+
+func testExit2() {
+	f1 := func() { time.Sleep(100 * time.Millisecond) }
+	exithook.Add(exithook.Hook{F: f1})
+	for range 10 {
+		go os.Exit(0)
+	}
+	os.Exit(0)
 }

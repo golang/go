@@ -58,7 +58,6 @@ var depsRules = `
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
-	  internal/runtime/exithook,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -79,7 +78,6 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
-	internal/runtime/exithook,
 	math/bits
 	< internal/bytealg
 	< internal/stringslite
@@ -88,6 +86,7 @@ var depsRules = `
 	< runtime/internal/sys
 	< internal/runtime/syscall
 	< internal/runtime/atomic
+	< internal/runtime/exithook
 	< runtime/internal/math
 	< runtime
 	< sync/atomic

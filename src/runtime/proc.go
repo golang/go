@@ -310,10 +310,14 @@ func os_beforeExit(exitCode int) {
 	}
 }
 
+func init() {
+	exithook.Gosched = Gosched
+	exithook.Goid = func() uint64 { return getg().goid }
+	exithook.Throw = throw
+}
+
 func runExitHooks(code int) {
-	if err := exithook.Run(code); err != nil {
-		throw(err.Error())
-	}
+	exithook.Run(code)
 }
 
 // start forcegc helper goroutine
