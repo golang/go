@@ -58,8 +58,13 @@ func enqueueFunc(fn *ir.Func) {
 		types.CalcSize(fn.Type())
 		a := ssagen.AbiForBodylessFuncStackMap(fn)
 		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
-		liveness.WriteFuncMap(fn, abiInfo)
 		if fn.ABI == obj.ABI0 {
+			// The current args_stackmap generation assumes the function
+			// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+			// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+			// So avoid introducing an args_stackmap if the func is not ABI0.
+			liveness.WriteFuncMap(fn, abiInfo)
+
 			x := ssagen.EmitArgInfo(fn, abiInfo)
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
 		}

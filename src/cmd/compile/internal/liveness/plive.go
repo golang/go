@@ -1536,7 +1536,7 @@ func isfat(t *types.Type) bool {
 // inputs and outputs as the value of symbol <fn>.args_stackmap.
 // If fn has outputs, two bitmaps are written, otherwise just one.
 func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
-	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
+	if ir.FuncName(fn) == "_" {
 		return
 	}
 	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
