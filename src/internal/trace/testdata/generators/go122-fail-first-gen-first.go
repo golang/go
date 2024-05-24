@@ -19,8 +19,8 @@
 package main
 
 import (
-	"internal/trace/v2/event/go122"
-	testgen "internal/trace/v2/internal/testgen/go122"
+	"internal/trace/event/go122"
+	testgen "internal/trace/internal/testgen/go122"
 )
 
 func main() {

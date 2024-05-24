@@ -167,7 +167,7 @@ func newParser(r io.Reader, ver version.Version) (*parser, error) {
 // be the version of the trace. This can be achieved by using
 // version.ReadHeader.
 func Parse(r io.Reader, vers version.Version) (Trace, error) {
-	// We accept the version as an argument because internal/trace/v2 will have
+	// We accept the version as an argument because internal/trace will have
 	// already read the version to determine which parser to use.
 	p, err := newParser(r, vers)
 	if err != nil {
