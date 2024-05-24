@@ -110,18 +110,16 @@ func addFuncs(out, in FuncMap) {
 
 // goodFunc reports whether the function or method has the right result signature.
 func goodFunc(name string, typ reflect.Type) error {
-	numOut := typ.NumOut()
-
 	// We allow functions with 1 result or 2 results where the second is an error.
-	switch {
+	switch numOut := typ.NumOut(); {
 	case numOut == 1:
 		return nil
 	case numOut == 2 && typ.Out(1) == errorType:
 		return nil
 	case numOut == 2:
-		return fmt.Errorf("invalid function signature for %s: second argument should be error; is %s", name, typ.Out(1))
+		return fmt.Errorf("invalid function signature for %s: second return value should be error; is %s", name, typ.Out(1))
 	default:
-		return fmt.Errorf("too many return values for %s", name)
+		return fmt.Errorf("function %s has %d return values; should be 1 or 2", name, typ.NumOut())
 	}
 }
 

@@ -81,7 +81,8 @@ type T struct {
 	NilOKFunc              func(*int) bool
 	ErrFunc                func() (string, error)
 	PanicFunc              func() string
-	InvalidReturnCountFunc func() (string, error, int)
+	TooFewReturnCountFunc  func()
+	TooManyReturnCountFunc func() (string, error, int)
 	InvalidReturnTypeFunc  func() (string, bool)
 	// Template to test evaluation of templates.
 	Tmpl *Template
@@ -170,7 +171,8 @@ var tVal = &T{
 	NilOKFunc:                 func(s *int) bool { return s == nil },
 	ErrFunc:                   func() (string, error) { return "bla", nil },
 	PanicFunc:                 func() string { panic("test panic") },
-	InvalidReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
+	TooFewReturnCountFunc:     func() {},
+	TooManyReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
 	InvalidReturnTypeFunc:     func() (string, bool) { return "", false },
 	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
 }
@@ -1746,16 +1748,22 @@ func TestFunctionCheckDuringCall(t *testing.T) {
 			wantErr: "error calling call: wrong number of args for .VariadicFuncInt: got 0 want at least 1",
 		},
 		{
-			name:    "call invalid return number func",
-			input:   `{{call .InvalidReturnCountFunc}}`,
+			name:    "call too few return number func",
+			input:   `{{call .TooFewReturnCountFunc}}`,
 			data:    tVal,
-			wantErr: "error calling call: too many return values for .InvalidReturnCountFunc",
+			wantErr: "error calling call: function .TooFewReturnCountFunc has 0 return values; should be 1 or 2",
+		},
+		{
+			name:    "call too many return number func",
+			input:   `{{call .TooManyReturnCountFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: function .TooManyReturnCountFunc has 3 return values; should be 1 or 2",
 		},
 		{
 			name:    "call invalid return type func",
 			input:   `{{call .InvalidReturnTypeFunc}}`,
 			data:    tVal,
-			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool",
+			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second return value should be error; is bool",
 		},
 		{
 			name:    "call pipeline",
