@@ -614,7 +614,7 @@ func TestDecoderMoreWithToken(t *testing.T) {
 	dec := NewDecoder(&decoderMoreWithTokenFailingReader{t: t, err: notIgnoredError})
 
 	if val, err := dec.Token(); err != nil || val != Delim('{') {
-		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ([, <nil>)", val, err)
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ({, <nil>)", val, err)
 	}
 
 	if !dec.More() {
@@ -631,5 +631,65 @@ func TestDecoderMoreWithToken(t *testing.T) {
 
 	if val, err := dec.Token(); err != io.EOF {
 		t.Fatalf("(*Decoder).Token() = (%v, %v); want = (<nil>, %v)", val, err, io.EOF)
+	}
+}
+
+type moreWithErrorsTestReader struct {
+	t   *testing.T
+	i   int
+	err error
+}
+
+func (c *moreWithErrorsTestReader) Read(b []byte) (n int, err error) {
+	i := c.i
+	c.i++
+
+	defer func() {
+		// Decoder always passes a buffer with size that has at least 512 Bytes. This test
+		// depends on that behaviour, so that the reader does not get unnecessarily complicated.
+		if len(b) == n {
+			c.t.Fatal("small buffer passed to Read")
+		}
+	}()
+
+	switch i {
+	case 0:
+		return copy(b, `[{ "test": 1 }`), nil
+	case 1:
+		return 0, c.err
+	case 2:
+		return copy(b, `, {"test": 2}]`), nil
+	default:
+		return 0, io.EOF
+	}
+}
+
+func TestMoreWithErrors(t *testing.T) {
+	notIgnoredError := errors.New("not ignored error")
+	dec := NewDecoder(&moreWithErrorsTestReader{t: t, err: notIgnoredError})
+
+	if val, err := dec.Token(); err != nil || val != Delim('[') {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = ([, <nil>)", val, err)
+	}
+
+	second := false
+	for dec.More() {
+		var msg struct{ Test int }
+		err := dec.Decode(&msg)
+		var expectErr error = nil
+		if second {
+			expectErr = notIgnoredError
+		}
+		if err != expectErr {
+			t.Fatalf("(*Decoder).Decode() = %v; want = %v", err, expectErr)
+		}
+		if err != nil {
+			return
+		}
+		second = true
+	}
+
+	if val, err := dec.Token(); err != nil || val != Delim(']') {
+		t.Fatalf("(*Decoder).Token() = (%v, %v); want = (], <nil>)", val, err)
 	}
 }
