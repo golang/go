@@ -515,6 +515,16 @@ type RowsColumnTypePrecisionScale interface {
 	ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool)
 }
 
+// RowsColumnScanner may be implemented by [Rows]. It allows the driver to control
+// how values or scanned.
+type RowsColumnScanner interface {
+	Rows
+
+	// ScanColumn copies the column in the current row into the value pointed at by
+	// dest. It returns [ErrSkip] to fall back to the normal [database/sql] scanning path.
+	ScanColumn(index int, dest any) error
+}
+
 // Tx is a transaction.
 type Tx interface {
 	Commit() error
