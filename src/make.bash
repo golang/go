@@ -166,8 +166,10 @@ bootstrapenv() {
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [[ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]]; then
+		goroot_bootstrap=$GOROOT_BOOTSTRAP
 		GOROOT_BOOTSTRAP=""
 		goroot=$(bootstrapenv "$go_exe" env GOROOT)
+		GOROOT_BOOTSTRAP=$goroot_bootstrap
 		if [[ "$goroot" != "$GOROOT" ]]; then
 			if [[ "$goroot_bootstrap_set" == "true" ]]; then
 				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
