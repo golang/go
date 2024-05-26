@@ -60,9 +60,11 @@ if(! ~ $#GOROOT_BOOTSTRAP 1){
 }
 for(p in $path){
 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
-		GOROOT_BOOTSTRAP = ()
 		if(go_exe = `{path=$p whatis go}){
+			goroot_bootstrap = $GOROOT_BOOTSTRAP
+			GOROOT_BOOTSTRAP = ()
 			goroot = `{bootstrapenv $go_exe env GOROOT}
+			GOROOT_BOOTSTRAP = $goroot_bootstrap
 			if(! ~ $goroot $GOROOT){
 				if(~ $goroot_bootstrap_set 'true'){
 					echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
