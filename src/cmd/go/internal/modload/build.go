@@ -166,8 +166,11 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 // If the two origins conflict including if either is nil,
 // mergeOrigin returns nil.
 func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
-	if m1 == nil || m2 == nil {
-		return nil
+	if m1 == nil {
+		return m2
+	}
+	if m2 == nil {
+		return m1
 	}
 
 	if m2.VCS != m1.VCS ||
