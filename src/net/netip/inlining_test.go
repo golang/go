@@ -36,8 +36,6 @@ func TestInlining(t *testing.T) {
 		"Addr.Is4",
 		"Addr.Is4In6",
 		"Addr.Is6",
-		"Addr.IsLoopback",
-		"Addr.IsMulticast",
 		"Addr.IsInterfaceLocalMulticast",
 		"Addr.IsValid",
 		"Addr.IsUnspecified",

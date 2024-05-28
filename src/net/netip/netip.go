@@ -508,6 +508,10 @@ func (ip Addr) hasZone() bool {
 
 // IsLinkLocalUnicast reports whether ip is a link-local unicast address.
 func (ip Addr) IsLinkLocalUnicast() bool {
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// Dynamic Configuration of IPv4 Link-Local Addresses
 	// https://datatracker.ietf.org/doc/html/rfc3927#section-2.1
 	if ip.Is4() {
@@ -523,6 +527,10 @@ func (ip Addr) IsLinkLocalUnicast() bool {
 
 // IsLoopback reports whether ip is a loopback address.
 func (ip Addr) IsLoopback() bool {
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// Requirements for Internet Hosts -- Communication Layers (3.2.1.3 Addressing)
 	// https://datatracker.ietf.org/doc/html/rfc1122#section-3.2.1.3
 	if ip.Is4() {
@@ -538,6 +546,10 @@ func (ip Addr) IsLoopback() bool {
 
 // IsMulticast reports whether ip is a multicast address.
 func (ip Addr) IsMulticast() bool {
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// Host Extensions for IP Multicasting (4. HOST GROUP ADDRESSES)
 	// https://datatracker.ietf.org/doc/html/rfc1112#section-4
 	if ip.Is4() {
@@ -556,7 +568,7 @@ func (ip Addr) IsMulticast() bool {
 func (ip Addr) IsInterfaceLocalMulticast() bool {
 	// IPv6 Addressing Architecture (2.7.1. Pre-Defined Multicast Addresses)
 	// https://datatracker.ietf.org/doc/html/rfc4291#section-2.7.1
-	if ip.Is6() {
+	if ip.Is6() && !ip.Is4In6() {
 		return ip.v6u16(0)&0xff0f == 0xff01
 	}
 	return false // zero value
@@ -564,6 +576,10 @@ func (ip Addr) IsInterfaceLocalMulticast() bool {
 
 // IsLinkLocalMulticast reports whether ip is a link-local multicast address.
 func (ip Addr) IsLinkLocalMulticast() bool {
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// IPv4 Multicast Guidelines (4. Local Network Control Block (224.0.0/24))
 	// https://datatracker.ietf.org/doc/html/rfc5771#section-4
 	if ip.Is4() {
@@ -592,6 +608,10 @@ func (ip Addr) IsGlobalUnicast() bool {
 		return false
 	}
 
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// Match package net's IsGlobalUnicast logic. Notably private IPv4 addresses
 	// and ULA IPv6 addresses are still considered "global unicast".
 	if ip.Is4() && (ip == IPv4Unspecified() || ip == AddrFrom4([4]byte{255, 255, 255, 255})) {
@@ -609,6 +629,10 @@ func (ip Addr) IsGlobalUnicast() bool {
 // ip is in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, or fc00::/7. This is the
 // same as [net.IP.IsPrivate].
 func (ip Addr) IsPrivate() bool {
+	if ip.Is4In6() {
+		ip = ip.Unmap()
+	}
+
 	// Match the stdlib's IsPrivate logic.
 	if ip.Is4() {
 		// RFC 1918 allocates 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16 as
