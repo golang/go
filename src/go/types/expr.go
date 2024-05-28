@@ -998,7 +998,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 	var what string
 	switch t := x.typ.(type) {
-	case *Named:
+	case *Alias, *Named:
 		if isGeneric(t) {
 			what = "type"
 		}
