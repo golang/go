@@ -19,6 +19,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/google/pprof/internal/measurement"
 	"github.com/google/pprof/internal/report"
 )
 
@@ -52,7 +53,8 @@ func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
 
 	_, legend := report.TextItems(rpt)
 	ui.render(w, req, "stacks", rpt, errList, legend, webArgs{
-		Stacks: template.JS(b),
-		Nodes:  nodes,
+		Stacks:   template.JS(b),
+		Nodes:    nodes,
+		UnitDefs: measurement.UnitTypes,
 	})
 }

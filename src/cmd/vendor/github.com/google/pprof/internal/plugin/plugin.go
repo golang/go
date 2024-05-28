@@ -175,7 +175,7 @@ type Sym struct {
 
 // A UI manages user interactions.
 type UI interface {
-	// Read returns a line of text (a command) read from the user.
+	// ReadLine returns a line of text (a command) read from the user.
 	// prompt is printed before reading the command.
 	ReadLine(prompt string) (string, error)
 

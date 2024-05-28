@@ -13,23 +13,6 @@ function stackViewer(stacks, nodes) {
   const FONT_SIZE = 12;
   const MIN_FONT_SIZE = 8;
 
-  // Mapping from unit to a list of display scales/labels.
-  // List should be ordered by increasing unit size.
-  const UNITS = new Map([
-    ['B', [
-      ['B', 1],
-      ['kB', Math.pow(2, 10)],
-      ['MB', Math.pow(2, 20)],
-      ['GB', Math.pow(2, 30)],
-      ['TB', Math.pow(2, 40)],
-      ['PB', Math.pow(2, 50)]]],
-    ['s', [
-      ['ns', 1e-9],
-      ['µs', 1e-6],
-      ['ms', 1e-3],
-      ['s', 1],
-      ['hrs', 60*60]]]]);
-
   // Fields
   let pivots = [];          // Indices of currently selected data.Sources entries.
   let matches = new Set();  // Indices of sources that match search
@@ -570,22 +553,7 @@ function stackViewer(stacks, nodes) {
 
   // unitText returns a formatted string to display for value.
   function unitText(value) {
-    const sign = (value < 0) ? "-" : "";
-    let v = Math.abs(value) * stacks.Scale;
-    // Rescale to appropriate display unit.
-    let unit = stacks.Unit;
-    const list = UNITS.get(unit);
-    if (list) {
-      // Find first entry in list that is not too small.
-      for (const [name, scale] of list) {
-        if (v <= 100*scale) {
-          v /= scale;
-          unit = name;
-          break;
-        }
-      }
-    }
-    return sign + Number(v.toFixed(2)) + unit;
+    return pprofUnitText(value*stacks.Scale, stacks.Unit);
   }
 
   function find(name) {
@@ -605,4 +573,30 @@ function stackViewer(stacks, nodes) {
     const hsl = `hsl(${hue}rad 50% 80%)`;
     return hsl;
   }
+}
+
+// pprofUnitText returns a formatted string to display for value in the specified unit.
+function pprofUnitText(value, unit) {
+  const sign = (value < 0) ? "-" : "";
+  let v = Math.abs(value);
+  // Rescale to appropriate display unit.
+  let list = null;
+  for (const def of pprofUnitDefs) {
+    if (def.DefaultUnit.CanonicalName == unit) {
+      list = def.Units;
+      v *= def.DefaultUnit.Factor;
+      break;
+    }
+  }
+  if (list) {
+    // Stop just before entry that is too large.
+    for (let i = 0; i < list.length; i++) {
+      if (i == list.length-1 || list[i+1].Factor > v) {
+        v /= list[i].Factor;
+        unit = list[i].CanonicalName;
+        break;
+      }
+    }
+  }
+  return sign + Number(v.toFixed(2)) + unit;
 }

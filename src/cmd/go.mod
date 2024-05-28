@@ -3,7 +3,7 @@ module cmd
 go 1.23
 
 require (
-	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
 	golang.org/x/arch v0.7.0
 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 // indirect
 )
