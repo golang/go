@@ -589,10 +589,13 @@ func TestIPProperties(t *testing.T) {
 		ilm6     = mustIP("ff01::1")
 		ilmZone6 = mustIP("ff01::1%eth0")
 
-		private4a = mustIP("10.0.0.1")
-		private4b = mustIP("172.16.0.1")
-		private4c = mustIP("192.168.1.1")
-		private6  = mustIP("fd00::1")
+		private4a        = mustIP("10.0.0.1")
+		private4b        = mustIP("172.16.0.1")
+		private4c        = mustIP("192.168.1.1")
+		private6         = mustIP("fd00::1")
+		private6mapped4a = mustIP("::ffff:10.0.0.1")
+		private6mapped4b = mustIP("::ffff:172.16.0.1")
+		private6mapped4c = mustIP("::ffff:192.168.1.1")
 	)
 
 	tests := []struct {
@@ -617,6 +620,11 @@ func TestIPProperties(t *testing.T) {
 			globalUnicast: true,
 		},
 		{
+			name:          "unicast v6 mapped v4Addr",
+			ip:            AddrFrom16(unicast4.As16()),
+			globalUnicast: true,
+		},
+		{
 			name:          "unicast v6Addr",
 			ip:            unicast6,
 			globalUnicast: true,
@@ -638,6 +646,12 @@ func TestIPProperties(t *testing.T) {
 			multicast:          true,
 		},
 		{
+			name:               "multicast v6 mapped v4Addr",
+			ip:                 AddrFrom16(multicast4.As16()),
+			linkLocalMulticast: true,
+			multicast:          true,
+		},
+		{
 			name:               "multicast v6Addr",
 			ip:                 multicast6,
 			linkLocalMulticast: true,
@@ -652,6 +666,11 @@ func TestIPProperties(t *testing.T) {
 		{
 			name:             "link-local unicast v4Addr",
 			ip:               llu4,
+			linkLocalUnicast: true,
+		},
+		{
+			name:             "link-local unicast v6 mapped v4Addr",
+			ip:               AddrFrom16(llu4.As16()),
 			linkLocalUnicast: true,
 		},
 		{
@@ -677,6 +696,11 @@ func TestIPProperties(t *testing.T) {
 		{
 			name:     "loopback v6Addr",
 			ip:       IPv6Loopback(),
+			loopback: true,
+		},
+		{
+			name:     "loopback v6 mapped v4Addr",
+			ip:       AddrFrom16(IPv6Loopback().As16()),
 			loopback: true,
 		},
 		{
@@ -712,6 +736,24 @@ func TestIPProperties(t *testing.T) {
 		{
 			name:          "private v6Addr",
 			ip:            private6,
+			globalUnicast: true,
+			private:       true,
+		},
+		{
+			name:          "private v6 mapped v4Addr 10/8",
+			ip:            private6mapped4a,
+			globalUnicast: true,
+			private:       true,
+		},
+		{
+			name:          "private v6 mapped v4Addr 172.16/12",
+			ip:            private6mapped4b,
+			globalUnicast: true,
+			private:       true,
+		},
+		{
+			name:          "private v6 mapped v4Addr 192.168/16",
+			ip:            private6mapped4c,
 			globalUnicast: true,
 			private:       true,
 		},
