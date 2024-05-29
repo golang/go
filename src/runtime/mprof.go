@@ -781,34 +781,99 @@ func removeMutexWaitList(head muintptr, mp *m) muintptr {
 	return head
 }
 
-// claimMutexWaitTime advances the acquireTimes of the list of waiting Ms at
-// head to now, returning an estimate of the total wait time claimed by that
-// action.
-func claimMutexWaitTime(now timePair, head muintptr) timePair {
-	fixMutexWaitList(head)
-	hp := head.ptr()
-	if hp == nil {
-		return timePair{}
+// lockTimer assists with profiling contention on runtime-internal locks.
+//
+// There are several steps between the time that an M experiences contention and
+// when that contention may be added to the profile. This comes from our
+// constraints: We need to keep the critical section of each lock small,
+// especially when those locks are contended. The reporting code cannot acquire
+// new locks until the M has released all other locks, which means no memory
+// allocations and encourages use of (temporary) M-local storage.
+//
+// The M will have space for storing one call stack that caused contention, and
+// for the magnitude of that contention. It will also have space to store the
+// magnitude of additional contention the M caused, since it only has space to
+// remember one call stack and might encounter several contention events before
+// it releases all of its locks and is thus able to transfer the local buffer
+// into the profile.
+//
+// The M will collect the call stack when it unlocks the contended lock. That
+// minimizes the impact on the critical section of the contended lock, and
+// matches the mutex profile's behavior for contention in sync.Mutex: measured
+// at the Unlock method.
+//
+// The profile for contention on sync.Mutex blames the caller of Unlock for the
+// amount of contention experienced by the callers of Lock which had to wait.
+// When there are several critical sections, this allows identifying which of
+// them is responsible.
+//
+// Matching that behavior for runtime-internal locks will require identifying
+// which Ms are blocked on the mutex. The semaphore-based implementation is
+// ready to allow that, but the futex-based implementation will require a bit
+// more work. Until then, we report contention on runtime-internal locks with a
+// call stack taken from the unlock call (like the rest of the user-space
+// "mutex" profile), but assign it a duration value based on how long the
+// previous lock call took (like the user-space "block" profile).
+//
+// Thus, reporting the call stacks of runtime-internal lock contention is
+// guarded by GODEBUG for now. Set GODEBUG=runtimecontentionstacks=1 to enable.
+//
+// TODO(rhysh): plumb through the delay duration, remove GODEBUG, update comment
+//
+// The M will track this by storing a pointer to the lock; lock/unlock pairs for
+// runtime-internal locks are always on the same M.
+//
+// Together, that demands several steps for recording contention. First, when
+// finally acquiring a contended lock, the M decides whether it should plan to
+// profile that event by storing a pointer to the lock in its "to be profiled
+// upon unlock" field. If that field is already set, it uses the relative
+// magnitudes to weight a random choice between itself and the other lock, with
+// the loser's time being added to the "additional contention" field. Otherwise
+// if the M's call stack buffer is occupied, it does the comparison against that
+// sample's magnitude.
+//
+// Second, having unlocked a mutex the M checks to see if it should capture the
+// call stack into its local buffer. Finally, when the M unlocks its last mutex,
+// it transfers the local buffer into the profile. As part of that step, it also
+// transfers any "additional contention" time to the profile. Any lock
+// contention that it experiences while adding samples to the profile will be
+// recorded later as "additional contention" and not include a call stack, to
+// avoid an echo.
+type lockTimer struct {
+	lock      *mutex
+	timeRate  int64
+	timeStart int64
+	tickStart int64
+}
+
+func (lt *lockTimer) begin() {
+	rate := int64(atomic.Load64(&mutexprofilerate))
+
+	lt.timeRate = gTrackingPeriod
+	if rate != 0 && rate < lt.timeRate {
+		lt.timeRate = rate
 	}
-	tp := hp.mWaitList.tail.ptr()
-	waiters := hp.mWaitList.waiters
-	headTimes := hp.mWaitList.acquireTimes
-	tailTimes := tp.mWaitList.acquireTimes
-
-	var dt timePair
-	dt.nanotime = now.nanotime - headTimes.nanotime
-	dt.cputicks = now.cputicks - headTimes.cputicks
-	if waiters > 1 {
-		dt.nanotime = int64(waiters) * (dt.nanotime + now.nanotime - tailTimes.nanotime) / 2
-		dt.cputicks = int64(waiters) * (dt.cputicks + now.cputicks - tailTimes.cputicks) / 2
+	if int64(cheaprand())%lt.timeRate == 0 {
+		lt.timeStart = nanotime()
 	}
 
-	// When removeMutexWaitList removes a head or tail node, it's responsible
-	// for applying these changes to the new head or tail.
-	hp.mWaitList.acquireTimes = now
-	tp.mWaitList.acquireTimes = now
+	if rate > 0 && int64(cheaprand())%rate == 0 {
+		lt.tickStart = cputicks()
+	}
+}
 
-	return dt
+func (lt *lockTimer) end() {
+	gp := getg()
+
+	if lt.timeStart != 0 {
+		nowTime := nanotime()
+		gp.m.mLockProfile.waitTime.Add((nowTime - lt.timeStart) * lt.timeRate)
+	}
+
+	if lt.tickStart != 0 {
+		nowTick := cputicks()
+		gp.m.mLockProfile.recordLock(nowTick-lt.tickStart, lt.lock)
+	}
 }
 
 // mLockProfile is part of the M struct to hold information relating to mutex
@@ -825,46 +890,15 @@ func claimMutexWaitTime(now timePair, head muintptr) timePair {
 // not include a call stack, to avoid an echo.
 type mLockProfile struct {
 	waitTime   atomic.Int64 // total nanoseconds spent waiting in runtime.lockWithRank
-	stack      []uintptr    // unlock stack that caused delay in other Ms' runtime.lockWithRank
-	cycles     int64        // cycles attributable to "stack"
+	stack      []uintptr    // stack that experienced contention in runtime.lockWithRank
+	pending    uintptr      // *mutex that experienced contention (to be traceback-ed)
+	cycles     int64        // cycles attributable to "pending" (if set), otherwise to "stack"
 	cyclesLost int64        // contention for which we weren't able to record a call stack
 	disabled   bool         // attribute all time to "lost"
 }
 
-// recordUnlock considers the current unlock call (which caused a total of dt
-// delay in other Ms) for later inclusion in the mutex contention profile. If
-// this M holds no other locks, it transfers the buffered contention record to
-// the mutex contention profile.
-//
-// From unlock2, we might not be holding a p in this code.
-//
-//go:nowritebarrierrec
-func (prof *mLockProfile) recordUnlock(dt timePair) {
-	if dt != (timePair{}) {
-		// We could make a point of clearing out the local storage right before
-		// this, to have a slightly better chance of being able to see the call
-		// stack if the program has several (nested) contended locks. If apps
-		// are seeing a lot of _LostContendedRuntimeLock samples, maybe that'll
-		// be a worthwhile change.
-		prof.proposeUnlock(dt)
-	}
-	if getg().m.locks == 1 && prof.cycles != 0 {
-		prof.store()
-	}
-}
-
-func (prof *mLockProfile) proposeUnlock(dt timePair) {
-	if nanos := dt.nanotime; nanos > 0 {
-		prof.waitTime.Add(nanos)
-	}
-
-	cycles := dt.cputicks
+func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
 	if cycles <= 0 {
-		return
-	}
-
-	rate := int64(atomic.Load64(&mutexprofilerate))
-	if rate <= 0 || int64(cheaprand())%rate != 0 {
 		return
 	}
 
@@ -873,6 +907,13 @@ func (prof *mLockProfile) proposeUnlock(dt timePair) {
 		// Make a note of its magnitude, but don't allow it to be the sole cause
 		// of another contention report.
 		prof.cyclesLost += cycles
+		return
+	}
+
+	if uintptr(unsafe.Pointer(l)) == prof.pending {
+		// Optimization: we'd already planned to profile this same lock (though
+		// possibly from a different unlock site).
+		prof.cycles += cycles
 		return
 	}
 
@@ -889,8 +930,24 @@ func (prof *mLockProfile) proposeUnlock(dt timePair) {
 			prof.cyclesLost += prev
 		}
 	}
+	// Saving the *mutex as a uintptr is safe because:
+	//  - lockrank_on.go does this too, which gives it regular exercise
+	//  - the lock would only move if it's stack allocated, which means it
+	//      cannot experience multi-M contention
+	prof.pending = uintptr(unsafe.Pointer(l))
 	prof.cycles = cycles
-	prof.captureStack()
+}
+
+// From unlock2, we might not be holding a p in this code.
+//
+//go:nowritebarrierrec
+func (prof *mLockProfile) recordUnlock(l *mutex) {
+	if uintptr(unsafe.Pointer(l)) == prof.pending {
+		prof.captureStack()
+	}
+	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.cycles != 0 {
+		prof.store()
+	}
 }
 
 func (prof *mLockProfile) captureStack() {
@@ -900,7 +957,7 @@ func (prof *mLockProfile) captureStack() {
 		return
 	}
 
-	skip := 4 // runtime.(*mLockProfile).proposeUnlock runtime.(*mLockProfile).recordUnlock runtime.unlock2 runtime.unlockWithRank
+	skip := 3 // runtime.(*mLockProfile).recordUnlock runtime.unlock2 runtime.unlockWithRank
 	if staticLockRanking {
 		// When static lock ranking is enabled, we'll always be on the system
 		// stack at this point. There will be a runtime.unlockWithRank.func1
@@ -913,6 +970,7 @@ func (prof *mLockProfile) captureStack() {
 		// "runtime.unlock".
 		skip += 1 // runtime.unlockWithRank.func1
 	}
+	prof.pending = 0
 
 	prof.stack[0] = logicalStackSentinel
 	if debug.runtimeContentionStacks.Load() == 0 {
