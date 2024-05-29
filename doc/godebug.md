@@ -176,9 +176,6 @@ This behavior is controlled by the `winreadlinkvolume` setting.
 For Go 1.23, it defaults to `winreadlinkvolume=1`.
 Previous versions default to `winreadlinkvolume=0`.
 
-Go 1.23 corrected the semantics of contention reports for runtime-internal locks,
-and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
-
 Go 1.23 enabled the experimental post-quantum key exchange mechanism
 X25519Kyber768Draft00 by default. The default can be reverted using the
 [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).

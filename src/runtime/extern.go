@@ -159,6 +159,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
 	interface value or an untyped nil.
 
+	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
+	related to contention on runtime-internal locks in the "mutex" profile, subject to the
+	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on
+	runtime-internal locks will report as "runtime._LostContendedRuntimeLock". When
+	runtimecontentionstacks=1, the call stacks will correspond to the unlock call that released
+	the lock. But instead of the value corresponding to the amount of contention that call
+	stack caused, it corresponds to the amount of time the caller of unlock had to wait in its
+	original call to lock. A future release is expected to align those and remove this setting.
+
 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.

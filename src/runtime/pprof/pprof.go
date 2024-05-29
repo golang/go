@@ -166,6 +166,12 @@ import (
 // holds a lock for 1s while 5 other goroutines are waiting for the entire
 // second to acquire the lock, its unlock call stack will report 5s of
 // contention.
+//
+// Runtime-internal locks are always reported at the location
+// "runtime._LostContendedRuntimeLock". More detailed stack traces for
+// runtime-internal locks can be obtained by setting
+// `GODEBUG=runtimecontentionstacks=1` (see package [runtime] docs for
+// caveats).
 type Profile struct {
 	name  string
 	mu    sync.Mutex

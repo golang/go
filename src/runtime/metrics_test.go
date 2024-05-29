@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"fmt"
 	"internal/abi"
 	"internal/goexperiment"
 	"internal/profile"
@@ -954,6 +955,17 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		t.Fatalf("need MutexProfileRate 0, got %d", old)
 	}
 
+	{
+		before := os.Getenv("GODEBUG")
+		for _, s := range strings.Split(before, ",") {
+			if strings.HasPrefix(s, "runtimecontentionstacks=") {
+				t.Logf("GODEBUG includes explicit setting %q", s)
+			}
+		}
+		defer func() { os.Setenv("GODEBUG", before) }()
+		os.Setenv("GODEBUG", fmt.Sprintf("%s,runtimecontentionstacks=1", before))
+	}
+
 	t.Logf("NumCPU %d", runtime.NumCPU())
 	t.Logf("GOMAXPROCS %d", runtime.GOMAXPROCS(0))
 	if minCPU := 2; runtime.NumCPU() < minCPU {
@@ -1152,7 +1164,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 
 		stks := [][]string{{
 			"runtime.unlock",
-			"runtime_test." + name + ".func4.1",
+			"runtime_test." + name + ".func5.1",
 			"runtime_test.(*contentionWorker).run",
 		}}
 
@@ -1258,14 +1270,14 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			{
 				"runtime.unlock",
 				"runtime.semrelease1",
-				"runtime_test.TestRuntimeLockMetricsAndProfile.func5.1",
+				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
 				"runtime_test.(*contentionWorker).run",
 			},
 			{
 				"runtime.unlock",
 				"runtime.semacquire1",
 				"runtime.semacquire",
-				"runtime_test.TestRuntimeLockMetricsAndProfile.func5.1",
+				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
 				"runtime_test.(*contentionWorker).run",
 			},
 		}
