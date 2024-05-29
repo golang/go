@@ -162,6 +162,9 @@ func processBatch(g *generation, b batch) error {
 		}
 		g.freq = freq
 	case b.exp != event.NoExperiment:
+		if g.expData == nil {
+			g.expData = make(map[event.Experiment]*ExperimentalData)
+		}
 		if err := addExperimentalData(g.expData, b); err != nil {
 			return err
 		}
@@ -437,6 +440,7 @@ func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch
 	ed, ok := expData[b.exp]
 	if !ok {
 		ed = new(ExperimentalData)
+		expData[b.exp] = ed
 	}
 	ed.Batches = append(ed.Batches, ExperimentalBatch{
 		Thread: b.m,
