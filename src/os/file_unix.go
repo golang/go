@@ -306,7 +306,7 @@ func openDirNolog(name string) (*File, error) {
 		e error
 	)
 	ignoringEINTR(func() error {
-		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
+		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
 		return e
 	})
 	if e != nil {
