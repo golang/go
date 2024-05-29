@@ -4,6 +4,9 @@
 [!exec:g++] skip
 [!cgo] skip
 
+# See go.dev/issue/67698.
+[GOARCH:386] skip
+
 # CompiledGoFiles should contain 4 files:
 #  a.go
 #  _cgo_import.go [gc only]
