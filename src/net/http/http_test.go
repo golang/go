@@ -187,6 +187,28 @@ func TestNoUnicodeStrings(t *testing.T) {
 	}
 }
 
+func TestProtocols(t *testing.T) {
+	var p Protocols
+	if p.HTTP1() {
+		t.Errorf("zero-value protocols: p.HTTP1() = true, want false")
+	}
+	p.SetHTTP1(true)
+	p.SetHTTP2(true)
+	if !p.HTTP1() {
+		t.Errorf("initialized protocols: p.HTTP1() = false, want true")
+	}
+	if !p.HTTP2() {
+		t.Errorf("initialized protocols: p.HTTP2() = false, want true")
+	}
+	p.SetHTTP1(false)
+	if p.HTTP1() {
+		t.Errorf("after unsetting HTTP1: p.HTTP1() = true, want false")
+	}
+	if !p.HTTP2() {
+		t.Errorf("after unsetting HTTP1: p.HTTP2() = false, want true")
+	}
+}
+
 const redirectURL = "/thisaredirect细雪withasciilettersのけぶabcdefghijk.html"
 
 func BenchmarkHexEscapeNonASCII(b *testing.B) {

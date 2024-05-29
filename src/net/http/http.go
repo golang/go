@@ -16,6 +16,54 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+// Protocols is a set of HTTP protocols.
+//
+// The supported protocols are:
+//
+//   - HTTP1 is the HTTP/1.0 and HTTP/1.1 protocols.
+//     HTTP1 is supported on both unsecured TCP and secured TLS connections.
+//
+//   - HTTP2 is the HTTP/2 protcol over a TLS connection.
+type Protocols struct {
+	bits uint8
+}
+
+const (
+	protoHTTP1 = 1 << iota
+	protoHTTP2
+)
+
+// HTTP1 reports whether p includes HTTP/1.
+func (p Protocols) HTTP1() bool { return p.bits&protoHTTP1 != 0 }
+
+// SetHTTP1 adds or removes HTTP/1 from p.
+func (p *Protocols) SetHTTP1(ok bool) { p.setBit(protoHTTP1, ok) }
+
+// HTTP2 reports whether p includes HTTP/2.
+func (p Protocols) HTTP2() bool { return p.bits&protoHTTP2 != 0 }
+
+// SetHTTP2 adds or removes HTTP/2 from p.
+func (p *Protocols) SetHTTP2(ok bool) { p.setBit(protoHTTP2, ok) }
+
+func (p *Protocols) setBit(bit uint8, ok bool) {
+	if ok {
+		p.bits |= bit
+	} else {
+		p.bits &^= bit
+	}
+}
+
+func (p Protocols) String() string {
+	var s []string
+	if p.HTTP1() {
+		s = append(s, "HTTP1")
+	}
+	if p.HTTP2() {
+		s = append(s, "HTTP2")
+	}
+	return "{" + strings.Join(s, ",") + "}"
+}
+
 // incomparable is a zero-width, non-comparable type. Adding it to a struct
 // makes that struct also non-comparable, and generally doesn't add
 // any size (as long as it's first).

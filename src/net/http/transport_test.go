@@ -6361,12 +6361,15 @@ func TestTransportClone(t *testing.T) {
 		MaxResponseHeaderBytes: 1,
 		ForceAttemptHTTP2:      true,
 		HTTP2:                  &HTTP2Config{MaxConcurrentStreams: 1},
+		Protocols:              &Protocols{},
 		TLSNextProto: map[string]func(authority string, c *tls.Conn) RoundTripper{
 			"foo": func(authority string, c *tls.Conn) RoundTripper { panic("") },
 		},
 		ReadBufferSize:  1,
 		WriteBufferSize: 1,
 	}
+	tr.Protocols.SetHTTP1(true)
+	tr.Protocols.SetHTTP2(true)
 	tr2 := tr.Clone()
 	rv := reflect.ValueOf(tr2).Elem()
 	rt := rv.Type()
@@ -7163,6 +7166,205 @@ func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
 			}
 			if res != nil {
 				t.Fatal("Unexpected non-nil response")
+			}
+		})
+	}
+}
+
+func TestTransportServerProtocols(t *testing.T) {
+	CondSkipHTTP2(t)
+	DefaultTransport.(*Transport).CloseIdleConnections()
+
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafCert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	certpool := x509.NewCertPool()
+	certpool.AddCert(leafCert)
+
+	for _, test := range []struct {
+		name      string
+		scheme    string
+		setup     func(t *testing.T)
+		transport func(*Transport)
+		server    func(*Server)
+		want      string
+	}{{
+		name:   "http default",
+		scheme: "http",
+		want:   "HTTP/1.1",
+	}, {
+		name:   "https default",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			// Transport default is HTTP/1.
+		},
+		want: "HTTP/1.1",
+	}, {
+		name:   "https transport protocols include HTTP2",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			// Server default is to support HTTP/2, so if the Transport enables
+			// HTTP/2 we get it.
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+			tr.Protocols.SetHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "https transport protocols only include HTTP1",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			// Explicitly enable only HTTP/1.
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+		},
+		want: "HTTP/1.1",
+	}, {
+		name:   "https transport ForceAttemptHTTP2",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			// Pre-Protocols-field way of enabling HTTP/2.
+			tr.ForceAttemptHTTP2 = true
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "https transport protocols override TLSNextProto",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			// Setting TLSNextProto to an empty map is the historical way
+			// of disabling HTTP/2. Explicitly enabling HTTP2 in the Protocols
+			// field takes precedence.
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+			tr.Protocols.SetHTTP2(true)
+			tr.TLSNextProto = map[string]func(string, *tls.Conn) RoundTripper{}
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "https server disables HTTP2 with TLSNextProto",
+		scheme: "https",
+		server: func(srv *Server) {
+			// Disable HTTP/2 on the server with TLSNextProto,
+			// use default Protocols value.
+			srv.TLSNextProto = map[string]func(*Server, *tls.Conn, Handler){}
+		},
+		want: "HTTP/1.1",
+	}, {
+		name:   "https server Protocols overrides empty TLSNextProto",
+		scheme: "https",
+		server: func(srv *Server) {
+			// Explicitly enabling HTTP2 in the Protocols field takes precedence
+			// over setting an empty TLSNextProto.
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+			srv.Protocols.SetHTTP2(true)
+			srv.TLSNextProto = map[string]func(*Server, *tls.Conn, Handler){}
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "https server protocols only include HTTP1",
+		scheme: "https",
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+		},
+		want: "HTTP/1.1",
+	}, {
+		name:   "https server protocols include HTTP2",
+		scheme: "https",
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+			srv.Protocols.SetHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "GODEBUG disables HTTP2 client",
+		scheme: "https",
+		setup: func(t *testing.T) {
+			t.Setenv("GODEBUG", "http2client=0")
+		},
+		transport: func(tr *Transport) {
+			// Server default is to support HTTP/2, so if the Transport enables
+			// HTTP/2 we get it.
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+			tr.Protocols.SetHTTP2(true)
+		},
+		want: "HTTP/1.1",
+	}, {
+		name:   "GODEBUG disables HTTP2 server",
+		scheme: "https",
+		setup: func(t *testing.T) {
+			t.Setenv("GODEBUG", "http2server=0")
+		},
+		transport: func(tr *Transport) {
+			// Server default is to support HTTP/2, so if the Transport enables
+			// HTTP/2 we get it.
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+			tr.Protocols.SetHTTP2(true)
+		},
+		want: "HTTP/1.1",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			// We don't use httptest here because it makes its own decisions
+			// about how to enable/disable HTTP/2.
+			srv := &Server{
+				TLSConfig: &tls.Config{
+					Certificates: []tls.Certificate{cert},
+				},
+				Handler: HandlerFunc(func(w ResponseWriter, req *Request) {
+					w.Header().Set("X-Proto", req.Proto)
+				}),
+			}
+			tr := &Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: certpool,
+				},
+			}
+
+			if test.setup != nil {
+				test.setup(t)
+			}
+			if test.server != nil {
+				test.server(srv)
+			}
+			if test.transport != nil {
+				test.transport(tr)
+			} else {
+				tr.Protocols = &Protocols{}
+				tr.Protocols.SetHTTP1(true)
+				tr.Protocols.SetHTTP2(true)
+			}
+
+			listener := newLocalListener(t)
+			srvc := make(chan error, 1)
+			go func() {
+				switch test.scheme {
+				case "http":
+					srvc <- srv.Serve(listener)
+				case "https":
+					srvc <- srv.ServeTLS(listener, "", "")
+				}
+			}()
+			t.Cleanup(func() {
+				srv.Close()
+				<-srvc
+			})
+
+			client := &Client{Transport: tr}
+			resp, err := client.Get(test.scheme + "://" + listener.Addr().String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := resp.Header.Get("X-Proto"); got != test.want {
+				t.Fatalf("request proto %q, want %q", got, test.want)
 			}
 		})
 	}
