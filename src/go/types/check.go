@@ -332,7 +332,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
+			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected package %s", name, pkg.name)
 			// ignore this file
 		}
 	}

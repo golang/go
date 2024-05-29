@@ -19,7 +19,7 @@ import "io"
 
 type _ interface {
 	Reader
-	Reader // ERROR "duplicate method `Read'"
+	Reader // ERROR "duplicate method Read"
 }
 
 type Reader interface {
@@ -28,10 +28,10 @@ type Reader interface {
 
 type _ interface {
 	io.Reader
-	Reader // ERROR "duplicate method `Read'"
+	Reader // ERROR "duplicate method Read"
 }
 
 type _ interface {
 	io.Reader
-	io /* ERROR "duplicate method `Read'" */ .Reader
+	io /* ERROR "duplicate method Read" */ .Reader
 }

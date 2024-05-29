@@ -222,7 +222,7 @@ func selects() {
 	ch2 := make(chan int)
 	select {
 	case <-ch1:
-		var ch2 /* ERROR "`ch2' declared and not used" */ chan bool
+		var ch2 /* ERROR "declared and not used: ch2" */ chan bool
 	case i := <-ch2:
 		print(i + 1)
 	}
@@ -394,7 +394,7 @@ func returns2() (a, b int) {
 	{
 		type a int
 		return 1, 2
-		return /* ERROR "`a' not in scope at return" */
+		return /* ERROR "result parameter a not in scope at return" */
 	}
 }
 

@@ -743,7 +743,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
 					// For historical consistency, we report the primary error on the
 					// method, and the alt decl on the field.
 					err := check.newError(DuplicateFieldAndMethod)
-					err.addf(alt, "field and method with the same name %s", quote(fld.name))
+					err.addf(alt, "field and method with the same name %s", fld.name)
 					err.addAltDecl(fld)
 					err.report()
 				}

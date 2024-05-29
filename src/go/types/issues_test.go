@@ -266,11 +266,11 @@ func TestIssue22525(t *testing.T) {
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	typecheck(src, &conf, nil) // do not crash
 	want := "\n" +
-		"p:1:27: `a' declared and not used\n" +
-		"p:1:30: `b' declared and not used\n" +
-		"p:1:33: `c' declared and not used\n" +
-		"p:1:36: `d' declared and not used\n" +
-		"p:1:39: `e' declared and not used\n"
+		"p:1:27: declared and not used: a\n" +
+		"p:1:30: declared and not used: b\n" +
+		"p:1:33: declared and not used: c\n" +
+		"p:1:36: declared and not used: d\n" +
+		"p:1:39: declared and not used: e\n"
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
 	}
