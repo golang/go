@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,13 +73,6 @@ func mustHaveCxx(t *testing.T) {
 		t.Skip("no C++ compiler")
 	}
 	testenv.MustHaveExecPath(t, string(args[0]))
-
-	// On the builders, the C++ toolchain doesn't quite work for these tests
-	// for 386 builders or on the clang builders. Thing is, these tests historically
-	// didn't even run on these builders *at all*, so just skip. See #67698.
-	if builder := testenv.Builder(); builder != "" && runtime.GOARCH == "386" {
-		t.Skip("test skipped on 386 on builders because of incompatibility with the C++ toolchain available on builders; see go.dev/issue/67698")
-	}
 }
 
 var (
