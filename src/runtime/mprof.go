@@ -572,215 +572,6 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
 	releasem(mp)
 }
 
-// mWaitList is part of the M struct, and holds the list of Ms that are waiting
-// for a particular runtime.mutex.
-//
-// When an M is unable to immediately obtain a mutex, it notes the current time
-// and it adds itself to the list of Ms waiting for the mutex. It does that via
-// this struct's next field, forming a singly-linked list with the mutex's key
-// field pointing to the head of the list.
-//
-// Immediately before releasing the mutex, the previous holder calculates how
-// much delay it caused for the Ms that had to wait. First, it sets the prev
-// links of each node in the list -- starting at the head and continuing until
-// it finds the portion of the list that is already doubly linked. That part of
-// the list also has correct values for the tail pointer and the waiters count,
-// which we'll apply to the head of the wait list. This is amortized-constant
-// work, though it takes place within the critical section of the contended
-// mutex.
-//
-// Having found the head and tail nodes and a correct waiters count, the
-// unlocking M can read and update those two nodes' acquireTimes fields and thus
-// take responsibility for (an estimate of) the entire list's delay since the
-// last unlock call.
-//
-// Finally, the M that is then able to acquire the mutex needs to remove itself
-// from the list of waiters. This is simpler than with many lock-free linked
-// lists, since deletion here is guarded by the mutex itself. If the M's prev
-// field isn't set and also isn't at the head of the list, it does the same
-// amortized-constant double-linking as in unlock, enabling quick deletion
-// regardless of where the M is in the list. Note that with lock_sema.go the
-// runtime controls the order of thread wakeups (it's a LIFO stack), but with
-// lock_futex.go the OS can wake an arbitrary thread.
-type mWaitList struct {
-	acquireTimes timePair // start of current wait (set by us, updated by others during unlock)
-	next         muintptr // next m waiting for lock (set by us, cleared by another during unlock)
-	prev         muintptr // previous m waiting for lock (an amortized hint, set by another during unlock)
-	tail         muintptr // final m waiting for lock (an amortized hint, set by others during unlock)
-	waiters      int32    // length of waiting m list (an amortized hint, set by another during unlock)
-}
-
-type timePair struct {
-	nanotime int64
-	cputicks int64
-}
-
-// clearLinks resets the fields related to the M's position in the list of Ms
-// waiting for a mutex. It leaves acquireTimes intact, since this M may still be
-// waiting and may have had its acquireTimes updated by an unlock2 call.
-//
-// In lock_sema.go, the previous owner of the mutex dequeues an M and then wakes
-// it; with semaphore-based sleep, it's important that each M receives only one
-// wakeup for each time they sleep. If the dequeued M fails to obtain the lock,
-// it will need to sleep again -- and may have a different position in the list.
-//
-// With lock_futex.go, each thread is responsible for removing itself from the
-// list, upon securing ownership of the mutex.
-//
-// Called while stack splitting is disabled in lock2.
-//
-//go:nosplit
-func (l *mWaitList) clearLinks() {
-	l.next = 0
-	l.prev = 0
-	l.tail = 0
-	l.waiters = 0
-}
-
-// verifyMutexWaitList instructs fixMutexWaitList to confirm that the mutex wait
-// list invariants are intact. Operations on the list are typically
-// amortized-constant; but when active, these extra checks require visiting
-// every other M that is waiting for the lock.
-const verifyMutexWaitList = false
-
-// fixMutexWaitList restores the invariants of the linked list of Ms waiting for
-// a particular mutex.
-//
-// It takes as an argument the pointer bits of the mutex's key. (The caller is
-// responsible for clearing flag values.)
-//
-// On return, the list will be doubly-linked, and the head of the list (if not
-// nil) will point to an M where mWaitList.tail points to the end of the linked
-// list and where mWaitList.waiters is the number of Ms in the list.
-//
-// The caller must hold the mutex that the Ms of the list are waiting to
-// acquire.
-//
-// Called while stack splitting is disabled in lock2.
-//
-//go:nosplit
-func fixMutexWaitList(head muintptr) {
-	if head == 0 {
-		return
-	}
-	hp := head.ptr()
-	node := hp
-
-	var waiters int32
-	var tail *m
-	for {
-		// For amortized-constant cost, stop searching once we reach part of the
-		// list that's been visited before. Identify it by the presence of a
-		// tail pointer.
-		if node.mWaitList.tail.ptr() != nil {
-			tail = node.mWaitList.tail.ptr()
-			waiters += node.mWaitList.waiters
-			break
-		}
-		waiters++
-
-		next := node.mWaitList.next.ptr()
-		if next == nil {
-			break
-		}
-		next.mWaitList.prev.set(node)
-
-		node = next
-	}
-	if tail == nil {
-		tail = node
-	}
-	hp.mWaitList.tail.set(tail)
-	hp.mWaitList.waiters = waiters
-
-	if verifyMutexWaitList {
-		var revisit int32
-		var reTail *m
-		for node := hp; node != nil; node = node.mWaitList.next.ptr() {
-			revisit++
-			reTail = node
-		}
-		if revisit != waiters {
-			throw("miscounted mutex waiters")
-		}
-		if reTail != tail {
-			throw("incorrect mutex wait list tail")
-		}
-	}
-}
-
-// removeMutexWaitList removes mp from the list of Ms waiting for a particular
-// mutex. It relies on (and keeps up to date) the invariants that
-// fixMutexWaitList establishes and repairs.
-//
-// It modifies the nodes that are to remain in the list. It returns the value to
-// assign as the head of the list, with the caller responsible for ensuring that
-// the (atomic, contended) head assignment worked and subsequently clearing the
-// list-related fields of mp.
-//
-// The only change it makes to mp is to clear the tail field -- so a subsequent
-// call to fixMutexWaitList will be able to re-establish the prev link from its
-// next node (just in time for another removeMutexWaitList call to clear it
-// again).
-//
-// The caller must hold the mutex that the Ms of the list are waiting to
-// acquire.
-//
-// Called while stack splitting is disabled in lock2.
-//
-//go:nosplit
-func removeMutexWaitList(head muintptr, mp *m) muintptr {
-	if head == 0 {
-		return 0
-	}
-	hp := head.ptr()
-	tail := hp.mWaitList.tail
-	waiters := hp.mWaitList.waiters
-	headTimes := hp.mWaitList.acquireTimes
-	tailTimes := hp.mWaitList.tail.ptr().mWaitList.acquireTimes
-
-	mp.mWaitList.tail = 0
-
-	if head.ptr() == mp {
-		// mp is the head
-		if mp.mWaitList.prev.ptr() != nil {
-			throw("removeMutexWaitList node at head of list, but has prev field set")
-		}
-		head = mp.mWaitList.next
-	} else {
-		// mp is not the head
-		if mp.mWaitList.prev.ptr() == nil {
-			throw("removeMutexWaitList node not in list (not at head, no prev pointer)")
-		}
-		mp.mWaitList.prev.ptr().mWaitList.next = mp.mWaitList.next
-		if tail.ptr() == mp {
-			// mp is the tail
-			if mp.mWaitList.next.ptr() != nil {
-				throw("removeMutexWaitList node at tail of list, but has next field set")
-			}
-			tail = mp.mWaitList.prev
-		} else {
-			if mp.mWaitList.next.ptr() == nil {
-				throw("removeMutexWaitList node in body of list, but without next field set")
-			}
-			mp.mWaitList.next.ptr().mWaitList.prev = mp.mWaitList.prev
-		}
-	}
-
-	// head and tail nodes are responsible for having current versions of
-	// certain metadata
-	if hp := head.ptr(); hp != nil {
-		hp.mWaitList.prev = 0
-		hp.mWaitList.tail = tail
-		hp.mWaitList.waiters = waiters - 1
-		hp.mWaitList.acquireTimes = headTimes
-	}
-	if tp := tail.ptr(); tp != nil {
-		tp.mWaitList.acquireTimes = tailTimes
-	}
-	return head
-}
-
 // lockTimer assists with profiling contention on runtime-internal locks.
 //
 // There are several steps between the time that an M experiences contention and
@@ -876,18 +667,17 @@ func (lt *lockTimer) end() {
 	}
 }
 
-// mLockProfile is part of the M struct to hold information relating to mutex
-// contention delay attributed to this M.
+// mWaitList is part of the M struct, and holds the list of Ms that are waiting
+// for a particular runtime.mutex.
 //
-// Adding records to the process-wide mutex contention profile involves
-// acquiring mutexes, so the M uses this to buffer a single contention event
-// until it can safely transfer it to the shared profile.
-//
-// When the M unlocks its last mutex, it transfers the local buffer into the
-// profile. As part of that step, it also transfers any "additional contention"
-// time to the profile. Any lock contention that it experiences while adding
-// samples to the profile will be recorded later as "additional contention" and
-// not include a call stack, to avoid an echo.
+// When an M is unable to immediately obtain a lock, it adds itself to the list
+// of Ms waiting for the lock. It does that via this struct's next field,
+// forming a singly-linked list with the mutex's key field pointing to the head
+// of the list.
+type mWaitList struct {
+	next muintptr // next m waiting for lock (set by us, cleared by another during unlock)
+}
+
 type mLockProfile struct {
 	waitTime   atomic.Int64 // total nanoseconds spent waiting in runtime.lockWithRank
 	stack      []uintptr    // stack that experienced contention in runtime.lockWithRank

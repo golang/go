@@ -54,49 +54,18 @@ func lock2(l *mutex) {
 
 	timer := &lockTimer{lock: l}
 	timer.begin()
-
-	// If a goroutine's stack needed to grow during a lock2 call, the M could
-	// end up with two active lock2 calls (one each on curg and g0). If both are
-	// contended, the call on g0 will corrupt mWaitList. Disable stack growth.
-	stackguard0, throwsplit := gp.stackguard0, gp.throwsplit
-	if gp == gp.m.curg {
-		gp.stackguard0, gp.throwsplit = stackPreempt, true
-	}
-
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin := 0
 	if ncpu > 1 {
 		spin = active_spin
 	}
-	var enqueued bool
 Loop:
 	for i := 0; ; i++ {
 		v := atomic.Loaduintptr(&l.key)
 		if v&locked == 0 {
 			// Unlocked. Try to lock.
 			if atomic.Casuintptr(&l.key, v, v|locked) {
-				// We now own the mutex
-				v = v | locked
-				for {
-					old := v
-
-					head := muintptr(v &^ locked)
-					fixMutexWaitList(head)
-					if enqueued {
-						head = removeMutexWaitList(head, gp.m)
-					}
-					v = locked | uintptr(head)
-
-					if v == old || atomic.Casuintptr(&l.key, old, v) {
-						gp.m.mWaitList.clearLinks()
-						break
-					}
-					v = atomic.Loaduintptr(&l.key)
-				}
-				if gp == gp.m.curg {
-					gp.stackguard0, gp.throwsplit = stackguard0, throwsplit
-				}
 				timer.end()
 				return
 			}
@@ -112,29 +81,20 @@ Loop:
 			// for this lock, chained through m.mWaitList.next.
 			// Queue this M.
 			for {
-				if !enqueued {
-					gp.m.mWaitList.next = muintptr(v &^ locked)
-					if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
-						enqueued = true
-						break
-					}
-					gp.m.mWaitList.next = 0
+				gp.m.mWaitList.next = muintptr(v &^ locked)
+				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
+					break
 				}
-
 				v = atomic.Loaduintptr(&l.key)
 				if v&locked == 0 {
 					continue Loop
 				}
 			}
-			// Queued. Wait.
-			semasleep(-1)
-			i = 0
-			enqueued = false
-			// unlock2 removed this M from the list (it was at the head). We
-			// need to erase the metadata about its former position in the
-			// list -- and since it's no longer a published member we can do
-			// so without races.
-			gp.m.mWaitList.clearLinks()
+			if v&locked != 0 {
+				// Queued. Wait.
+				semasleep(-1)
+				i = 0
+			}
 		}
 	}
 }
