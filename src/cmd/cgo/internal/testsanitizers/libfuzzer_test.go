@@ -12,6 +12,11 @@ import (
 )
 
 func TestLibFuzzer(t *testing.T) {
+	// Skip tests in short mode.
+	if testing.Short() {
+		t.Skip("libfuzzer tests can take upwards of minutes to run; skipping in short mode")
+	}
+
 	goos, err := goEnv("GOOS")
 	if err != nil {
 		t.Fatal(err)
