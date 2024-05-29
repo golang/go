@@ -663,11 +663,11 @@ func (e Event) Experimental() ExperimentalEvent {
 		panic("Experimental called on non-Experimental event")
 	}
 	spec := go122.Specs()[e.base.typ]
-	argNames := spec.Args[1:]
+	argNames := spec.Args[1:] // Skip timestamp; already handled.
 	return ExperimentalEvent{
 		Name:     spec.Name,
-		ArgNames: argNames, // Skip timestamp; already handled.
-		Args:     e.base.args[1 : 1+len(argNames)],
+		ArgNames: argNames,
+		Args:     e.base.args[:len(argNames)],
 		Data:     e.table.expData[spec.Experiment],
 	}
 }
