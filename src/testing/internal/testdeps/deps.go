@@ -131,9 +131,9 @@ func (TestDeps) StopTestLog() error {
 	return err
 }
 
-// SetPanicOnExit0 tells the os package whether to panic on os.Exit(0).
-func (TestDeps) SetPanicOnExit0(v bool) {
-	testlog.SetPanicOnExit0(v)
+// SetPanicOnExit tells the os package whether to panic on os.Exit.
+func (TestDeps) SetPanicOnExit(v bool) {
+	testlog.SetPanicOnExit(v)
 }
 
 func (TestDeps) CoordinateFuzzing(

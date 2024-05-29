@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/itoa"
 	"internal/testlog"
 	"runtime"
 	"syscall"
@@ -60,11 +61,11 @@ func Getgroups() ([]int, error) {
 //
 // For portability, the status code should be in the range [0, 125].
 func Exit(code int) {
-	if code == 0 && testlog.PanicOnExit0() {
-		// We were told to panic on calls to os.Exit(0).
+	if testlog.PanicOnExit() {
+		// We were told to panic on calls to os.Exit.
 		// This is used to fail tests that make an early
-		// unexpected call to os.Exit(0).
-		panic("unexpected call to os.Exit(0) during test")
+		// unexpected call to os.Exit.
+		panic("unexpected call to os.Exit(" + itoa.Itoa(code) + ") during test")
 	}
 
 	// Inform the runtime that os.Exit is being called. If -race is

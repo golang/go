@@ -435,7 +435,8 @@ func Init() {
 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
 	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
-	panicOnExit0 = flag.Bool("test.paniconexit0", false, "panic on call to os.Exit(0)")
+	panicOnExit0 = flag.Bool("test.paniconexit0", false, "deprecated, use `test.paniconexit` instead")
+	panicOnExit = flag.Bool("test.paniconexit", false, "panic on call to os.Exit")
 	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
 	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
 	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
@@ -468,6 +469,7 @@ var (
 	mutexProfile         *string
 	mutexProfileFraction *int
 	panicOnExit0         *bool
+	panicOnExit          *bool
 	traceFile            *string
 	timeout              *time.Duration
 	cpuListStr           *string
@@ -1843,7 +1845,7 @@ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return e
 func (f matchStringOnly) ImportPath() string                          { return "" }
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
-func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+func (f matchStringOnly) SetPanicOnExit(bool)                         {}
 func (f matchStringOnly) CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error {
 	return errMain
 }
@@ -1894,7 +1896,7 @@ type M struct {
 type testDeps interface {
 	ImportPath() string
 	MatchString(pat, str string) (bool, error)
-	SetPanicOnExit0(bool)
+	SetPanicOnExit(bool)
 	StartCPUProfile(io.Writer) error
 	StopCPUProfile()
 	StartTestLog(io.Writer)
@@ -2245,8 +2247,8 @@ func (m *M) before() {
 		m.deps.StartTestLog(f)
 		testlogFile = f
 	}
-	if *panicOnExit0 {
-		m.deps.SetPanicOnExit0(true)
+	if *panicOnExit || *panicOnExit0 {
+		m.deps.SetPanicOnExit(true)
 	}
 }
 
@@ -2256,11 +2258,11 @@ func (m *M) after() {
 		m.writeProfiles()
 	})
 
-	// Restore PanicOnExit0 after every run, because we set it to true before
+	// Restore PanicOnExit after every run, because we set it to true before
 	// every run. Otherwise, if m.Run is called multiple times the behavior of
 	// os.Exit(0) will not be restored after the second run.
-	if *panicOnExit0 {
-		m.deps.SetPanicOnExit0(false)
+	if *panicOnExit || *panicOnExit0 {
+		m.deps.SetPanicOnExit(false)
 	}
 }
 

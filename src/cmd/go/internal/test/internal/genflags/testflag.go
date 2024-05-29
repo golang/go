@@ -24,7 +24,7 @@ func ShortTestFlags() []string {
 		}
 
 		switch name {
-		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker", "gocoverdir":
+		case "testlogfile", "paniconexit0", "paniconexit", "fuzzcachedir", "fuzzworker", "gocoverdir":
 			// These flags are only for use by cmd/go.
 		default:
 			names = append(names, name)

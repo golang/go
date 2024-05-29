@@ -1492,7 +1492,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	if !r.c.disableCache && len(execCmd) == 0 {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
-	panicArg := "-test.paniconexit0"
+	panicArg := "-test.paniconexit"
 	fuzzArg := []string{}
 	if testFuzz != "" {
 		fuzzCacheDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath)
