@@ -301,6 +301,14 @@ func TestBogoSuite(t *testing.T) {
 		t.Skip("#66913: windows network connections are flakey on builders")
 	}
 
+	// In order to make Go test caching work as expected, we stat the
+	// bogo_config.json file, so that the Go testing hooks know that it is
+	// important for this test and will invalidate a cached test result if the
+	// file changes.
+	if _, err := os.Stat("bogo_config.json"); err != nil {
+		t.Fatal(err)
+	}
+
 	var bogoDir string
 	if *bogoLocalDir != "" {
 		bogoDir = *bogoLocalDir
