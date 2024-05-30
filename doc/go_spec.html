@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.22 (April 25, 2024)",
+	"Subtitle": "Language version go1.23 (June 4, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -6656,13 +6656,16 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                                   1st value                2nd value
+Range expression                                       1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
-string          s  string type                     index    i  int          see below  rune
-map             m  map[K]V                         key      k  K            m[k]       V
-channel         c  chan E, &lt;-chan E                element  e  E
-integer value   n  integer type, or untyped int    value    i  see below
+array or slice      a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string              s  string type                     index    i  int          see below  rune
+map                 m  map[K]V                         key      k  K            m[k]       V
+channel             c  chan E, &lt;-chan E                element  e  E
+integer value       n  integer type, or untyped int    value    i  see below
+function, 0 values  f  func(func() bool)
+function, 1 value   f  func(func(V) bool)              value    v  V
+function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
 </pre>
 
 <ol>
@@ -6715,6 +6718,23 @@ variable, which must be of integer type.
 Otherwise, if the iteration variable is declared by the "range" clause or is absent,
 the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
 If <code>n</code> &lt= 0, the loop does not run any iterations.
+</li>
+
+<li>
+For a function <code>f</code>, the iteration proceeds by calling <code>f</code>
+with a new, synthesized <code>yield</code> function as its argument.
+If <code>yield</code> is called before <code>f</code> returns,
+the arguments to <code>yield</code> become the iteration values
+for executing the loop body once.
+After each successive loop iteration, <code>yield</code> returns true
+and may be called again to continue the loop.
+As long as the loop body does not terminate, the "range" clause will continue
+to generate iteration values this way for each <code>yield</code> call until
+<code>f</code> returns.
+If the loop body terminates (such as by a <code>break</code> statement),
+<code>yield</code> returns false and must not be called again.
+The number of iteration variables must match the number and order of arguments
+to <code>yield</code>.
 </li>
 </ol>
 
@@ -6783,6 +6803,16 @@ for u = range 256 {
 
 // invalid: 1e3 is a floating-point constant
 for range 1e3 {
+}
+<!-- TODO(gri) need better examples for range-over-func -->
+// print hello world
+f := func(yield func(string) bool) {
+	if yield("hello") {
+		yield("world")
+	}
+}
+for word := range f {
+	println(word)
 }
 </pre>
 
