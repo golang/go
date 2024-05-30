@@ -159,11 +159,36 @@ type Type struct {
 	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
 }
 
+func (t *Type) fuzzyMatch(t2 *Type) bool {
+	if t == nil || t2 == nil {
+		return false
+	}
+	return t.Size == t2.Size && t.Align == t2.Align
+}
+
 // A FuncType collects information about a function type in both the C and Go worlds.
 type FuncType struct {
 	Params []*Type
 	Result *Type
 	Go     *ast.FuncType
+}
+
+func (t *FuncType) fuzzyMatch(t2 *FuncType) bool {
+	if t == nil || t2 == nil {
+		return false
+	}
+	if !t.Result.fuzzyMatch(t2.Result) {
+		return false
+	}
+	if len(t.Params) != len(t2.Params) {
+		return false
+	}
+	for i := range t.Params {
+		if !t.Params[i].fuzzyMatch(t2.Params[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func usage() {
@@ -515,19 +540,45 @@ func (p *Package) Record(f *File) {
 	if p.Name == nil {
 		p.Name = f.Name
 	} else {
+		// Merge the new file's names in with the existing names.
 		for k, v := range f.Name {
 			if p.Name[k] == nil {
+				// Never seen before, just save it.
 				p.Name[k] = v
-			} else if p.incompleteTypedef(p.Name[k].Type) {
+			} else if p.incompleteTypedef(p.Name[k].Type) && p.Name[k].FuncType == nil {
+				// Old one is incomplete, just use new one.
 				p.Name[k] = v
-			} else if p.incompleteTypedef(v.Type) {
+			} else if p.incompleteTypedef(v.Type) && v.FuncType == nil {
+				// New one is incomplete, just use old one.
 				// Nothing to do.
 			} else if _, ok := nameToC[k]; ok {
 				// Names we predefine may appear inconsistent
 				// if some files typedef them and some don't.
 				// Issue 26743.
 			} else if !reflect.DeepEqual(p.Name[k], v) {
-				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
+				// We don't require strict func type equality, because some functions
+				// can have things like typedef'd arguments that are equivalent to
+				// the standard arguments. e.g.
+				//     int usleep(unsigned);
+				//     int usleep(useconds_t);
+				// So we just check size/alignment of arguments. At least that
+				// avoids problems like those in #67670 and #67699.
+				ok := false
+				ft1 := p.Name[k].FuncType
+				ft2 := v.FuncType
+				if ft1.fuzzyMatch(ft2) {
+					// Retry DeepEqual with the FuncType field cleared.
+					x1 := *p.Name[k]
+					x2 := *v
+					x1.FuncType = nil
+					x2.FuncType = nil
+					if reflect.DeepEqual(&x1, &x2) {
+						ok = true
+					}
+				}
+				if !ok {
+					error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
+				}
 			}
 		}
 	}
