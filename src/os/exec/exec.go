@@ -643,7 +643,7 @@ func (c *Cmd) Start() error {
 		return c.Err
 	}
 	lp := c.Path
-	if c.cacheLookExtensions == "" {
+	if c.cacheLookExtensions != "" {
 		lp = c.cacheLookExtensions
 	}
 	if runtime.GOOS == "windows" && c.cacheLookExtensions == "" {
