@@ -13,8 +13,13 @@ import (
 )
 
 func TestLibFuzzer(t *testing.T) {
+	// Skip tests in short mode.
+	if testing.Short() {
+		t.Skip("libfuzzer tests can take upwards of minutes to run; skipping in short mode")
+	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
+
 	goos, err := goEnv("GOOS")
 	if err != nil {
 		t.Fatal(err)
@@ -33,9 +38,8 @@ func TestLibFuzzer(t *testing.T) {
 		goSrc         string
 		cSrc          string
 		expectedError string
-		short         bool
 	}{
-		{goSrc: "libfuzzer1.go", expectedError: "panic: found it", short: true},
+		{goSrc: "libfuzzer1.go", expectedError: "panic: found it"},
 		{goSrc: "libfuzzer2.go", cSrc: "libfuzzer2.c", expectedError: "panic: found it"},
 	}
 	for _, tc := range cases {
@@ -43,11 +47,6 @@ func TestLibFuzzer(t *testing.T) {
 		name := strings.TrimSuffix(tc.goSrc, ".go")
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			// Skip long-running tests in short mode.
-			if testing.Short() && !tc.short {
-				t.Skipf("%s can take upwards of minutes to run; skipping in short mode", name)
-			}
 
 			dir := newTempDir(t)
 			defer dir.RemoveAll(t)
