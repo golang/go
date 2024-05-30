@@ -334,7 +334,7 @@ type Cmd struct {
 	lookPathErr error
 
 	// cacheLookExtensions cache the result of calling lookExtensions,
-	// use it only on windows.
+	// set it only on windows.
 	cacheLookExtensions string
 }
 
