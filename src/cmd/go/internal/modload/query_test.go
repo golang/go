@@ -197,6 +197,12 @@ func TestQuery(t *testing.T) {
 			if info.Version != tt.vers {
 				t.Errorf("Query(_, %q, %q, %q, %v) = %v, want %v", tt.path, tt.query, tt.current, allow, info.Version, tt.vers)
 			}
+
+			if strings.HasPrefix(tt.query, "v") || tt.query == "latest" {
+				if info.Origin == nil {
+					t.Errorf("Query(_, %q, %q, %q, %v) = %v, info.Origin is nil", tt.path, tt.query, tt.current, allow, info.Version)
+				}
+			}
 		})
 	}
 }

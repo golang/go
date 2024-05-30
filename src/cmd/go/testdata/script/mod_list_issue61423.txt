@@ -57,7 +57,7 @@ env GOMODCACHE=$WORK/modcache2
 go list -m -json vcs-test.golang.org/git/issue61415.git@latest
 cp stdout proxy-latest.json
 stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
-! stdout '"Origin":'
+stdout '"Origin":'
 
 # However, if we list a specific, stable version, we should get
 # whatever origin metadata the proxy has for the version.
