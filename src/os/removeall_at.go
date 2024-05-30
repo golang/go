@@ -88,7 +88,7 @@ func removeAllFrom(parent *File, base string) error {
 			if IsNotExist(err) {
 				return nil
 			}
-			if err == syscall.ENOTDIR {
+			if err == syscall.ENOTDIR || err == unix.NoFollowErrno {
 				// Not a directory; return the error from the unix.Unlinkat.
 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
 			}
