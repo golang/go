@@ -320,3 +320,92 @@ func panicsWith(v any, f func()) (panicked bool) {
 	f()
 	return
 }
+
+func TestPullGoexit(t *testing.T) {
+	t.Run("next", func(t *testing.T) {
+		var next func() (int, bool)
+		var stop func()
+		if !goexits(t, func() {
+			next, stop = Pull(goexitSeq())
+			next()
+		}) {
+			t.Fatal("failed to Goexit from next")
+		}
+		if x, ok := next(); x != 0 || ok {
+			t.Fatal("iterator returned valid value after Goexit")
+		}
+		stop()
+	})
+	t.Run("stop", func(t *testing.T) {
+		var next func() (int, bool)
+		var stop func()
+		if !goexits(t, func() {
+			next, stop = Pull(goexitSeq())
+			stop()
+		}) {
+			t.Fatal("failed to Goexit from stop")
+		}
+		if x, ok := next(); x != 0 || ok {
+			t.Fatal("iterator returned valid value after Goexit")
+		}
+		stop()
+	})
+}
+
+func goexitSeq() Seq[int] {
+	return func(yield func(int) bool) {
+		runtime.Goexit()
+	}
+}
+
+func TestPull2Goexit(t *testing.T) {
+	t.Run("next", func(t *testing.T) {
+		var next func() (int, int, bool)
+		var stop func()
+		if !goexits(t, func() {
+			next, stop = Pull2(goexitSeq2())
+			next()
+		}) {
+			t.Fatal("failed to Goexit from next")
+		}
+		if x, y, ok := next(); x != 0 || y != 0 || ok {
+			t.Fatal("iterator returned valid value after Goexit")
+		}
+		stop()
+	})
+	t.Run("stop", func(t *testing.T) {
+		var next func() (int, int, bool)
+		var stop func()
+		if !goexits(t, func() {
+			next, stop = Pull2(goexitSeq2())
+			stop()
+		}) {
+			t.Fatal("failed to Goexit from stop")
+		}
+		if x, y, ok := next(); x != 0 || y != 0 || ok {
+			t.Fatal("iterator returned valid value after Goexit")
+		}
+		stop()
+	})
+}
+
+func goexitSeq2() Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		runtime.Goexit()
+	}
+}
+
+func goexits(t *testing.T, f func()) bool {
+	t.Helper()
+
+	exit := make(chan bool)
+	go func() {
+		cleanExit := false
+		defer func() {
+			exit <- recover() == nil && !cleanExit
+		}()
+		f()
+		cleanExit = true
+	}()
+	return <-exit
+}
