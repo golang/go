@@ -1601,8 +1601,8 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
 			break
 		}
 		if r.Context == ctxCall2 {
-			if r.Name.Go == "_CMalloc" {
-				error_(r.Pos(), "no two-result form for C.malloc")
+			if builtinDefs[r.Name.Go] != "" {
+				error_(r.Pos(), "no two-result form for C.%s", r.Name.Go)
 				break
 			}
 			// Invent new Name for the two-result function.
