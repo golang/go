@@ -56,7 +56,6 @@ var useAeshash bool
 //   - github.com/outcaste-io/ristretto
 //   - github.com/puzpuzpuz/xsync/v2
 //   - github.com/puzpuzpuz/xsync/v3
-//   - github.com/segmentio/parquet-go
 //   - github.com/parquet-go/parquet-go
 //   - github.com/authzed/spicedb
 //   - github.com/pingcap/badger
@@ -70,7 +69,6 @@ func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // memhash32 should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/segmentio/parquet-go
 //   - github.com/parquet-go/parquet-go
 //
 // Do not remove or change the type signature.
@@ -82,7 +80,6 @@ func memhash32(p unsafe.Pointer, h uintptr) uintptr
 // memhash64 should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/segmentio/parquet-go
 //   - github.com/parquet-go/parquet-go
 //
 // Do not remove or change the type signature.
