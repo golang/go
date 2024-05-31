@@ -182,7 +182,6 @@ func randn(n uint32) uint32 {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/gopkg
-//   - github.com/zhangyunhao116/fastrand
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
