@@ -1835,3 +1835,32 @@ func TestPathRace(t *testing.T) {
 	t.Logf("running in background: %v", cmd)
 	<-done
 }
+
+func TestAbsPathExec(t *testing.T) {
+	testenv.MustHaveExec(t)
+	testenv.MustHaveGoBuild(t) // must have GOROOT/bin/gofmt, but close enough
+
+	// A simple exec of a full path should work.
+	// Go 1.22 broke this on Windows, requiring ".exe"; see #66586.
+	exe := filepath.Join(testenv.GOROOT(t), "bin/gofmt")
+	cmd := exec.Command(exe)
+	if cmd.Path != exe {
+		t.Errorf("exec.Command(%#q) set Path=%#q", exe, cmd.Path)
+	}
+	err := cmd.Run()
+	if err != nil {
+		t.Errorf("using exec.Command(%#q): %v", exe, err)
+	}
+
+	cmd = &exec.Cmd{Path: exe}
+	err = cmd.Run()
+	if err != nil {
+		t.Errorf("using exec.Cmd{Path: %#q}: %v", cmd.Path, err)
+	}
+
+	cmd = &exec.Cmd{Path: "gofmt", Dir: "/"}
+	err = cmd.Run()
+	if err == nil {
+		t.Errorf("using exec.Cmd{Path: %#q}: unexpected success", cmd.Path)
+	}
+}
