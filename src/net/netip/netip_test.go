@@ -789,6 +789,11 @@ func TestAddrWellKnown(t *testing.T) {
 		std  net.IP
 	}{
 		{
+			name: "IPv4 unspecified",
+			ip:   IPv4Unspecified(),
+			std:  net.IPv4zero,
+		},
+		{
 			name: "IPv6 link-local all nodes",
 			ip:   IPv6LinkLocalAllNodes(),
 			std:  net.IPv6linklocalallnodes,
