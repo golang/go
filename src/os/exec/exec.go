@@ -333,9 +333,9 @@ type Cmd struct {
 	// and https://go.dev/issue/43724 for more context.
 	lookPathErr error
 
-	// cacheLookExtensions cache the result of calling lookExtensions,
-	// set it only on windows.
-	cacheLookExtensions string
+	// cachedLookExtensions caches the result of calling lookExtensions.
+	// This is only used on Windows.
+	cachedLookExtensions string
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -434,8 +434,7 @@ func Command(name string, arg ...string) *Cmd {
 		// We may need to add a filename extension from PATHEXT
 		// or verify an extension that is already present.
 		// Since the path is absolute, its extension should be unambiguous
-		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
-		// reflect it.
+		// and independent of cmd.Dir, and we can go ahead and cache the lookup now.
 		//
 		// Note that we cannot add an extension here for relative paths, because
 		// cmd.Dir may be set after we return from this function and that may cause
