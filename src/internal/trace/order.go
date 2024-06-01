@@ -1262,7 +1262,7 @@ func (s *rangeState) hasRange(typ rangeType) bool {
 	return false
 }
 
-// endsRange ends a special range in time on the goroutine.
+// endRange ends a special range in time on the goroutine.
 //
 // This must line up with the start event type  of the range the goroutine is currently in.
 func (s *rangeState) endRange(typ event.Type) (stringID, error) {

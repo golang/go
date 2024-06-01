@@ -668,7 +668,7 @@ func TestWriteErrors(t *testing.T) {
 	}
 }
 
-// TextX is a skeleton test that can be filled in for debugging one-off cases.
+// TestX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {
 	const src = `

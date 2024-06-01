@@ -1078,7 +1078,7 @@ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForNameNotFound is similar to
+// TestHandshakeServerSNIGetCertificateNotFound is similar to
 // TestHandshakeServerSNICertForName, but tests to make sure that when the
 // GetCertificate method doesn't return a cert, we fall back to what's in
 // the NameToCertificate map.
@@ -1096,7 +1096,7 @@ func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForNameError tests to make sure that errors in
+// TestHandshakeServerSNIGetCertificateError tests to make sure that errors in
 // GetCertificate result in a tls alert.
 func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 	const errMsg = "TestHandshakeServerSNIGetCertificateError error"

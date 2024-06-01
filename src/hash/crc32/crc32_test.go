@@ -199,7 +199,7 @@ func TestMarshalTableMismatch(t *testing.T) {
 	}
 }
 
-// TestSimple tests the slicing-by-8 algorithm.
+// TestSlicing tests the slicing-by-8 algorithm.
 func TestSlicing(t *testing.T) {
 	tab := slicingMakeTable(IEEE)
 	testGoldenIEEE(t, func(b []byte) uint32 {

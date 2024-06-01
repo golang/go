@@ -1407,7 +1407,7 @@ func TestVeryBad2(t *testing.T) {
 	}
 }
 
-// TestCheckVeryBad checks the behavior of an extremely poorly behaved iterator,
+// TestVeryBadCheck checks the behavior of an extremely poorly behaved iterator,
 // which also suppresses the exceptions from "Check"
 func TestVeryBadCheck(t *testing.T) {
 	result := veryBadCheck([]int{10, 20, 30, 40}) // even length
