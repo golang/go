@@ -440,7 +440,7 @@ func Command(name string, arg ...string) *Cmd {
 		// cmd.Dir may be set after we return from this function and that may cause
 		// the command to resolve to a different extension.
 		lp, err := lookExtensions(name, "")
-		cmd.cacheLookExtensions = lp
+		cmd.cachedLookExtensions = lp
 		if err != nil {
 			cmd.Err = err
 		}
@@ -642,10 +642,10 @@ func (c *Cmd) Start() error {
 		return c.Err
 	}
 	lp := c.Path
-	if c.cacheLookExtensions != "" {
-		lp = c.cacheLookExtensions
+	if c.cachedLookExtensions != "" {
+		lp = c.cachedLookExtensions
 	}
-	if runtime.GOOS == "windows" && c.cacheLookExtensions == "" {
+	if runtime.GOOS == "windows" && c.cachedLookExtensions == "" {
 		// If c.Path is relative, we had to wait until now
 		// to resolve it in case c.Dir was changed.
 		// (If it is absolute, we already resolved its extension in Command
