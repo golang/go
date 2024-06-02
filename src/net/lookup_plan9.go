@@ -257,7 +257,9 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
-		if stringslite.HasSuffix(err.Error(), "dns failure") || stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") {
+		if stringslite.HasSuffix(err.Error(), "dns failure") ||
+			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") ||
+			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode") {
 			return absDomainName(name), nil
 		}
 		return "", handlePlan9DNSError(err, cname)
