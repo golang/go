@@ -661,6 +661,16 @@ var parseErrorTests = []ParseErrorTest{
 	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2-10-25" as "06"`},
 	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
 	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
+
+	// issue 67470
+	{"-07", "-25", "time zone offset hour out of range"},
+	{"-07:00", "+25:00", "time zone offset hour out of range"},
+	{"-07:00", "-23:61", "time zone offset minute out of range"},
+	{"-07:00:00", "+23:59:61", "time zone offset second out of range"},
+	{"Z07", "-25", "time zone offset hour out of range"},
+	{"Z07:00", "+25:00", "time zone offset hour out of range"},
+	{"Z07:00", "-23:61", "time zone offset minute out of range"},
+	{"Z07:00:00", "+23:59:61", "time zone offset second out of range"},
 }
 
 func TestParseErrors(t *testing.T) {

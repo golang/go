@@ -1449,10 +1449,10 @@ const (
 	NotAGenericType
 
 	// WrongTypeArgCount occurs when a type or function is instantiated with an
-	// incorrent number of type arguments, including when a generic type or
+	// incorrect number of type arguments, including when a generic type or
 	// function is used without instantiation.
 	//
-	// Errors inolving failed type inference are assigned other error codes.
+	// Errors involving failed type inference are assigned other error codes.
 	//
 	// Example:
 	//  type T[p any] int

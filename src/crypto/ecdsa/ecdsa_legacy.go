@@ -115,6 +115,9 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid. Most applications should
 // use VerifyASN1 instead of dealing directly with r, s.
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Sign() <= 0 || s.Sign() <= 0 {
 		return false

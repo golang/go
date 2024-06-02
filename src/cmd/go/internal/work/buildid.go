@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -18,6 +19,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 	"cmd/internal/quoted"
+	"cmd/internal/telemetry"
 )
 
 // Build IDs
@@ -403,6 +405,14 @@ func (b *Builder) fileHash(file string) string {
 	return buildid.HashToString(sum)
 }
 
+var (
+	counterCacheHit  = telemetry.NewCounter("go/buildcache/hit")
+	counterCacheMiss = telemetry.NewCounter("go/buildcache/miss")
+
+	onceIncStdlibRecompiled sync.Once
+	stdlibRecompiled        = telemetry.NewCounter("go/buildcache/stdlib-recompiled")
+)
+
 // useCache tries to satisfy the action a, which has action ID actionHash,
 // by using a cached result from an earlier build. At the moment, the only
 // cached result is the installed package or binary at target.
@@ -416,7 +426,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) (ok bool) {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
@@ -447,6 +457,20 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		a.output = []byte{}
 		return false
 	}
+
+	defer func() {
+		// Increment counters for cache hits and misses based on the return value
+		// of this function. Don't increment counters if we return early because of
+		// cfg.BuildA above because we don't even look at the cache in that case.
+		if ok {
+			counterCacheHit.Inc()
+		} else {
+			if a.Package != nil && a.Package.Standard {
+				onceIncStdlibRecompiled.Do(stdlibRecompiled.Inc)
+			}
+			counterCacheMiss.Inc()
+		}
+	}()
 
 	c := cache.Default()
 

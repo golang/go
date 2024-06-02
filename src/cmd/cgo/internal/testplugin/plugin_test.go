@@ -74,6 +74,7 @@ func testMain(m *testing.M) int {
 	}
 	defer os.RemoveAll(GOPATH)
 	tmpDir = GOPATH
+	fmt.Printf("TMPDIR=%s\n", tmpDir)
 
 	modRoot := filepath.Join(GOPATH, "src", "testplugin")
 	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
@@ -394,4 +395,22 @@ func TestIssue62430(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue62430.so", "./issue62430/plugin.go")
 	goCmd(t, "build", "-o", "issue62430.exe", "./issue62430/main.go")
 	run(t, "./issue62430.exe")
+}
+
+func TestTextSectionSplit(t *testing.T) {
+	globalSkip(t)
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+		t.Skipf("text section splitting is not done in %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	// Use -ldflags=-debugtextsize=262144 to let the linker split text section
+	// at a smaller size threshold, so it actually splits for the test binary.
+	goCmd(nil, "build", "-ldflags=-debugtextsize=262144", "-o", "host-split.exe", "./host")
+	run(t, "./host-split.exe")
+
+	// Check that we did split text sections.
+	syms := goCmd(nil, "tool", "nm", "host-split.exe")
+	if !strings.Contains(syms, "runtime.text.1") {
+		t.Errorf("runtime.text.1 not found, text section not split?")
+	}
 }

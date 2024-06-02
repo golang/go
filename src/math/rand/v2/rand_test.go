@@ -31,13 +31,6 @@ type statsResults struct {
 	maxError    float64
 }
 
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func nearEqual(a, b, closeEnough, maxError float64) bool {
 	absDiff := math.Abs(a - b)
 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.
@@ -81,7 +74,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 }
 

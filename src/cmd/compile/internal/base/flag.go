@@ -6,6 +6,7 @@ package base
 
 import (
 	"cmd/internal/cov/covcmd"
+	"cmd/internal/telemetry"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -177,6 +178,7 @@ func ParseFlags() {
 
 	Debug.ConcurrentOk = true
 	Debug.MaxShapeLen = 500
+	Debug.AlignHot = 1
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
@@ -193,6 +195,7 @@ func ParseFlags() {
 	objabi.AddVersionFlag() // -V
 	registerFlags()
 	objabi.Flagparse(usage)
+	telemetry.CountFlags("compile/flag:", *flag.CommandLine)
 
 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
 		// This will only override the flags set in gcd;
@@ -209,6 +212,8 @@ func ParseFlags() {
 	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
 		Flag.CompilingRuntime = true
 	}
+
+	Ctxt.Std = Flag.Std
 
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
 	// The loop variable rewriting is:
@@ -358,6 +363,11 @@ func ParseFlags() {
 
 	// set via a -d flag
 	Ctxt.Debugpcln = Debug.PCTab
+
+	// https://golang.org/issue/67502
+	if buildcfg.GOOS == "plan9" && buildcfg.GOARCH == "386" {
+		Debug.AlignHot = 0
+	}
 }
 
 // registerFlags adds flag registrations for all the fields in Flag.

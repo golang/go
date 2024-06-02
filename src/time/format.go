@@ -4,7 +4,11 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+	"internal/stringslite"
+	_ "unsafe" // for linkname
+)
 
 // These are predefined layouts for use in [Time.Format] and [time.Parse].
 // The reference time used in these layouts is the specific time stamp:
@@ -181,6 +185,16 @@ func startsWithLowerCase(str string) bool {
 
 // nextStdChunk finds the first occurrence of a std string in
 // layout and returns the text before, the std string, and the text after.
+//
+// nextStdChunk should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/searKing/golang/go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname nextStdChunk
 func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 	for i := 0; i < len(layout); i++ {
 		switch c := int(layout[i]); c {
@@ -827,15 +841,9 @@ type ParseError struct {
 // newParseError creates a new ParseError.
 // The provided value and valueElem are cloned to avoid escaping their values.
 func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
-	valueCopy := cloneString(value)
-	valueElemCopy := cloneString(valueElem)
+	valueCopy := stringslite.Clone(value)
+	valueElemCopy := stringslite.Clone(valueElem)
 	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
-}
-
-// cloneString returns a string copy of s.
-// Do not use strings.Clone to avoid dependency on strings package.
-func cloneString(s string) string {
-	return string([]byte(s))
 }
 
 // These are borrowed from unicode/utf8 and strconv and replicate behavior in
@@ -1245,6 +1253,20 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			if err == nil {
 				ss, _, err = getnum(seconds, true)
 			}
+
+			// The range test use > rather than >=,
+			// as some people do write offsets of 24 hours
+			// or 60 minutes or 60 seconds.
+			if hr > 24 {
+				rangeErrString = "time zone offset hour"
+			}
+			if mm > 60 {
+				rangeErrString = "time zone offset minute"
+			}
+			if ss > 60 {
+				rangeErrString = "time zone offset second"
+			}
+
 			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
 			switch sign[0] {
 			case '+':
@@ -1368,7 +1390,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 
 		// Otherwise create fake zone to record offset.
-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
 		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
 		return t, nil
 	}
@@ -1389,7 +1411,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
+		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
 		t.setLoc(FixedZone(zoneNameCopy, offset))
 		return t, nil
 	}

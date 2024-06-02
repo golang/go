@@ -14,6 +14,7 @@ import (
 	"internal/godebug"
 	. "internal/types/errors"
 	"strings"
+	"sync/atomic"
 )
 
 // nopos, noposn indicate an unknown position
@@ -28,6 +29,36 @@ const debug = false // leave on during development
 // To disable their use, set GODEBUG to gotypesalias=0.
 // This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
 var gotypesalias = godebug.New("gotypesalias")
+
+// _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
+// [Universe] scope.
+//
+// This is necessary because while Alias creation is controlled by
+// [Config._EnableAlias], based on the gotypealias variable, the representation
+// of "any" is a global. In [Scope.Lookup], we select this global
+// representation based on the result of [aliasAny], but as a result need to
+// guard against this behavior changing during the type checking pass.
+// Therefore we implement the following rule: any number of goroutines can type
+// check concurrently with the same EnableAlias value, but if any goroutine
+// tries to type check concurrently with a different EnableAlias value, we
+// panic.
+//
+// To achieve this, _aliasAny is a state machine:
+//
+//	0:        no type checking is occurring
+//	negative: type checking is occurring without _EnableAlias set
+//	positive: type checking is occurring with _EnableAlias set
+var _aliasAny int32
+
+func aliasAny() bool {
+	v := gotypesalias.Value()
+	useAlias := v != "0"
+	inuse := atomic.LoadInt32(&_aliasAny)
+	if inuse != 0 && useAlias != (inuse > 0) {
+		panic(fmt.Sprintf("gotypealias mutated during type checking, gotypesalias=%s, inuse=%d", v, inuse))
+	}
+	return useAlias
+}
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -301,7 +332,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
+			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected package %s", name, pkg.name)
 			// ignore this file
 		}
 	}
@@ -405,6 +436,20 @@ func (check *Checker) Files(files []*ast.File) (err error) {
 // syntax is properly type annotated even in a package containing
 // errors.
 func (check *Checker) checkFiles(files []*ast.File) {
+	// Ensure that _EnableAlias is consistent among concurrent type checking
+	// operations. See the documentation of [_aliasAny] for details.
+	if check.conf._EnableAlias {
+		if atomic.AddInt32(&_aliasAny, 1) <= 0 {
+			panic("EnableAlias set while !EnableAlias type checking is ongoing")
+		}
+		defer atomic.AddInt32(&_aliasAny, -1)
+	} else {
+		if atomic.AddInt32(&_aliasAny, -1) >= 0 {
+			panic("!EnableAlias set while EnableAlias type checking is ongoing")
+		}
+		defer atomic.AddInt32(&_aliasAny, 1)
+	}
+
 	print := func(msg string) {
 		if check.conf._Trace {
 			fmt.Println()

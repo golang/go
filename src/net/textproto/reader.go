@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	_ "unsafe" // for linkname
 )
 
 // TODO: This should be a distinguishable error (ErrMessageTooLarge)
@@ -500,6 +501,9 @@ var colon = []byte(":")
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
 }
+
+// readMIMEHeader is accessed from mime/multipart.
+//go:linkname readMIMEHeader
 
 // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
 // It is called by the mime/multipart package.

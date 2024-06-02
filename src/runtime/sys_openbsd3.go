@@ -17,6 +17,10 @@ import (
 // and we need to know whether to check 32 or 64 bits of the result.
 // (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
 
+// golang.org/x/sys linknames syscall_syscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall syscall.syscall
 //go:nosplit
 //go:cgo_unsafe_args
@@ -39,6 +43,10 @@ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallX()
 
+// golang.org/x/sys linknames syscall.syscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 //go:cgo_unsafe_args
@@ -61,6 +69,10 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 }
 func syscall6X()
 
+// golang.org/x/sys linknames syscall.syscall10
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall10 syscall.syscall10
 //go:nosplit
 //go:cgo_unsafe_args
@@ -83,6 +95,10 @@ func syscall_syscall10X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 uintptr) (r1
 }
 func syscall10X()
 
+// golang.org/x/sys linknames syscall_rawSyscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
 //go:cgo_unsafe_args
@@ -91,6 +107,10 @@ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return
 }
 
+// golang.org/x/sys linknames syscall_rawSyscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
 //go:cgo_unsafe_args

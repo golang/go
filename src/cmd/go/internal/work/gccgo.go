@@ -484,6 +484,9 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	case "c-shared":
 		ldflags = append(ldflags, "-shared", "-nostdlib")
+		if cfg.Goos != "windows" {
+			ldflags = append(ldflags, "-Wl,-z,nodelete")
+		}
 		ldflags = append(ldflags, goLibBegin...)
 		ldflags = append(ldflags, "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
 

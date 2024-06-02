@@ -1,0 +1,6 @@
+pkg crypto/tls, type Config struct, EncryptedClientHelloConfigList []uint8 #63369
+pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(ConnectionState) error #63369
+pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
+pkg crypto/tls, type ECHRejectionError struct #63369
+pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
+pkg crypto/tls, method (*ECHRejectionError) Error() string #63369

@@ -19,6 +19,7 @@ const (
 //
 //go:linkname Xchg
 //go:linkname Xchguintptr
+//go:linkname Xadd
 
 type spinlock struct {
 	v uint32

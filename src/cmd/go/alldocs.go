@@ -27,6 +27,7 @@
 //	mod         module maintenance
 //	work        workspace maintenance
 //	run         compile and run Go program
+//	telemetry   manage telemetry data and settings
 //	test        test packages
 //	tool        run specified go tool
 //	version     print Go version
@@ -456,7 +457,7 @@
 //
 // Usage:
 //
-//	go env [-json] [-u] [-w] [var ...]
+//	go env [-json] [-changed] [-u] [-w] [var ...]
 //
 // Env prints Go environment information.
 //
@@ -475,6 +476,10 @@
 // The -w flag requires one or more arguments of the
 // form NAME=VALUE and changes the default settings
 // of the named environment variables to the given values.
+//
+// The -changed flag prints only those settings whose effective
+// value differs from the default value that would be obtained in
+// an empty environment with no prior uses of the -w flag.
 //
 // For more about environment variables, see 'go help environment'.
 //
@@ -1201,6 +1206,12 @@
 //
 // The -module flag changes the module's path (the go.mod file's module line).
 //
+// The -godebug=key=value flag adds a godebug key=value line,
+// replacing any existing godebug lines with the given key.
+//
+// The -dropgodebug=key flag drops any existing godebug lines
+// with the given key.
+//
 // The -require=path@version and -droprequire=path flags
 // add and drop a requirement on the given module path and version.
 // Note that -require overrides any existing requirements on path.
@@ -1208,6 +1219,14 @@
 // Users should prefer 'go get path@version' or 'go get path@none',
 // which make other go.mod adjustments as needed to satisfy
 // constraints imposed by other modules.
+//
+// The -go=version flag sets the expected Go language version.
+// This flag is mainly for tools that understand Go version dependencies.
+// Users should prefer 'go get go@version'.
+//
+// The -toolchain=version flag sets the Go toolchain to use.
+// This flag is mainly for tools that understand Go version dependencies.
+// Users should prefer 'go get toolchain@version'.
 //
 // The -exclude=path@version and -dropexclude=path@version flags
 // add and drop an exclusion for the given module path and version.
@@ -1230,13 +1249,9 @@
 // like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 // -retract=version is a no-op if that retraction already exists.
 //
-// The -require, -droprequire, -exclude, -dropexclude, -replace,
-// -dropreplace, -retract, and -dropretract editing flags may be repeated,
-// and the changes are applied in the order given.
-//
-// The -go=version flag sets the expected Go language version.
-//
-// The -toolchain=name flag sets the Go toolchain to use.
+// The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
+// -replace, -dropreplace, -retract, and -dropretract editing flags may be
+// repeated, and the changes are applied in the order given.
 //
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
@@ -1253,6 +1268,7 @@
 //		Module    ModPath
 //		Go        string
 //		Toolchain string
+//		Godebug   []Godebug
 //		Require   []Require
 //		Exclude   []Module
 //		Replace   []Replace
@@ -1264,9 +1280,14 @@
 //		Deprecated string
 //	}
 //
+//	type Godebug struct {
+//		Key   string
+//		Value string
+//	}
+//
 //	type Require struct {
-//		Path string
-//		Version string
+//		Path     string
+//		Version  string
 //		Indirect bool
 //	}
 //
@@ -1332,7 +1353,7 @@
 //
 // Usage:
 //
-//	go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]
+//	go mod tidy [-e] [-v] [-x] [-diff] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1345,6 +1366,10 @@
 //
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
+//
+// The -diff flag causes tidy not to modify go.mod or go.sum but
+// instead print the necessary changes as a unified diff. It exits
+// with a non-zero code if the diff is not empty.
 //
 // The -go flag causes tidy to update the 'go' directive in the go.mod
 // file to the given version, which may change which module dependencies
@@ -1530,6 +1555,12 @@
 // rewrite the go.mod file. The only time this flag is needed is if no other
 // flags are specified, as in 'go work edit -fmt'.
 //
+// The -godebug=key=value flag adds a godebug key=value line,
+// replacing any existing godebug lines with the given key.
+//
+// The -dropgodebug=key flag drops any existing godebug lines
+// with the given key.
+//
 // The -use=path and -dropuse=path flags
 // add and drop a use directive from the go.work file's set of module directories.
 //
@@ -1561,8 +1592,14 @@
 //	type GoWork struct {
 //		Go        string
 //		Toolchain string
+//		Godebug   []Godebug
 //		Use       []Use
 //		Replace   []Replace
+//	}
+//
+//	type Godebug struct {
+//		Key   string
+//		Value string
 //	}
 //
 //	type Use struct {
@@ -1721,6 +1758,38 @@
 // For more about specifying packages, see 'go help packages'.
 //
 // See also: go build.
+//
+// # Manage telemetry data and settings
+//
+// Usage:
+//
+//	go telemetry [off|local|on]
+//
+// Telemetry is used to manage Go telemetry data and settings.
+//
+// Telemetry can be in one of three modes: off, local, or on.
+//
+// When telemetry is in local mode, counter data is written to the local file
+// system, but will not be uploaded to remote servers.
+//
+// When telemetry is off, local counter data is neither collected nor uploaded.
+//
+// When telemetry is on, telemetry data is written to the local file system
+// and periodically sent to https://telemetry.go.dev/. Uploaded data is used to
+// help improve the Go toolchain and related tools, and it will be published as
+// part of a public dataset.
+//
+// For more details, see https://telemetry.go.dev/privacy.
+// This data is collected in accordance with the Google Privacy Policy
+// (https://policies.google.com/privacy).
+//
+// To view the current telemetry mode, run "go telemetry".
+// To disable telemetry uploading, but keep local data collection, run
+// "go telemetry local".
+// To enable both collection and uploading, run “go telemetry on”.
+// To disable both collection and uploading, run "go telemetry off".
+//
+// See https://go.dev/doc/telemetry for more information on telemetry.
 //
 // # Test packages
 //

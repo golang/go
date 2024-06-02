@@ -14,39 +14,6 @@ import (
 	"strings"
 )
 
-// quote encloses s in `' quotes, as in `foo', except for _,
-// which is left alone.
-//
-// Use to prevent confusion when user supplied names alter the
-// meaning of an error message.
-//
-// For instance, report
-//
-//	duplicate method `wanted'
-//
-// rather than
-//
-//	duplicate method wanted
-//
-// Exceptions:
-//
-//   - don't quote _:
-//     `_' is ugly and not necessary
-//   - don't quote after a ":" as there's no need for it:
-//     undefined name: foo
-//   - don't quote if the name is used correctly in a statement:
-//     goto L jumps over variable declaration
-//
-// quote encloses s in `' quotes, as in `foo',
-// except for _ which is left alone.
-func quote(s string) string {
-	if s == "_" {
-		// `_' is ugly and not necessary
-		return s
-	}
-	return "`" + s + "'"
-}
-
 func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...any) string {
 	for i, arg := range args {
 		switch a := arg.(type) {

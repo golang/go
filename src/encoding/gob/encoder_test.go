@@ -6,12 +6,13 @@ package gob
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -1186,12 +1187,12 @@ func TestMarshalFloatMap(t *testing.T) {
 		for k, v := range m {
 			entries = append(entries, mapEntry{math.Float64bits(k), v})
 		}
-		sort.Slice(entries, func(i, j int) bool {
-			ei, ej := entries[i], entries[j]
-			if ei.keyBits != ej.keyBits {
-				return ei.keyBits < ej.keyBits
+		slices.SortFunc(entries, func(a, b mapEntry) int {
+			r := cmp.Compare(a.keyBits, b.keyBits)
+			if r != 0 {
+				return r
 			}
-			return ei.value < ej.value
+			return cmp.Compare(a.value, b.value)
 		})
 		return entries
 	}

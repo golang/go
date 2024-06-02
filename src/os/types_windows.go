@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/filepathlite"
 	"internal/godebug"
 	"internal/syscall/windows"
 	"sync"
@@ -60,7 +61,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	}
 
 	return &fileStat{
-		name:           basename(path),
+		name:           filepathlite.Base(path),
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
 		LastAccessTime: d.LastAccessTime,
@@ -338,14 +339,14 @@ func (fs *fileStat) loadFileId() error {
 // and set name from path.
 func (fs *fileStat) saveInfoFromPath(path string) error {
 	fs.path = path
-	if !isAbs(fs.path) {
+	if !filepathlite.IsAbs(fs.path) {
 		var err error
 		fs.path, err = syscall.FullPath(fs.path)
 		if err != nil {
 			return &PathError{Op: "FullPath", Path: path, Err: err}
 		}
 	}
-	fs.name = basename(path)
+	fs.name = filepathlite.Base(path)
 	return nil
 }
 

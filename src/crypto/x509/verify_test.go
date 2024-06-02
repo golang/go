@@ -19,7 +19,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -2064,7 +2064,7 @@ func chainsToStrings(chains [][]*Certificate) []string {
 		}
 		chainStrings = append(chainStrings, strings.Join(names, " -> "))
 	}
-	sort.Strings(chainStrings)
+	slices.Sort(chainStrings)
 	return chainStrings
 }
 
@@ -2809,5 +2809,31 @@ func TestVerifyNilPubKey(t *testing.T) {
 	_, err := c.buildChains([]*Certificate{r}, nil, opts)
 	if _, ok := err.(UnknownAuthorityError); !ok {
 		t.Fatalf("buildChains returned unexpected error, got: %v, want %v", err, UnknownAuthorityError{})
+	}
+}
+
+func TestVerifyBareWildcard(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %s", err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		DNSNames:     []string{"*"},
+	}
+	cDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatalf("failed to create certificate: %s", err)
+	}
+	c, err := ParseCertificate(cDER)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+
+	if err := c.VerifyHostname("label"); err == nil {
+		t.Fatalf("VerifyHostname unexpected success with bare wildcard SAN")
 	}
 }

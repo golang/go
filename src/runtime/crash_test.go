@@ -11,7 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	tracev2 "internal/trace/v2"
+	traceparse "internal/trace"
 	"io"
 	"log"
 	"os"
@@ -168,7 +168,23 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
 		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
-		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+		cmd = testenv.CleanCmdEnv(cmd)
+
+		// Add the rangefunc GOEXPERIMENT unconditionally since some tests depend on it.
+		// TODO(61405): Remove this once it's enabled by default.
+		edited := false
+		for i := range cmd.Env {
+			e := cmd.Env[i]
+			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",rangefunc"
+				edited = true
+			}
+		}
+		if !edited {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc")
+		}
+
+		out, err := cmd.CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
@@ -900,7 +916,7 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("could not start subprocess: %v", err)
 	}
-	r, err := tracev2.NewReader(stdOut)
+	r, err := traceparse.NewReader(stdOut)
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
@@ -918,9 +934,9 @@ loop:
 			break loop
 		}
 		switch ev.Kind() {
-		case tracev2.EventSync:
+		case traceparse.EventSync:
 			seenSync = true
-		case tracev2.EventLog:
+		case traceparse.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
 				// Should we already stop reading here? More events may come, but
@@ -966,11 +982,11 @@ func TestPanicWhilePanicking(t *testing.T) {
 		Func string
 	}{
 		{
-			"panic while printing panic value: important error message",
+			"panic while printing panic value: important multi-line\n\terror message",
 			"ErrorPanic",
 		},
 		{
-			"panic while printing panic value: important stringer message",
+			"panic while printing panic value: important multi-line\n\tstringer message",
 			"StringerPanic",
 		},
 		{
@@ -986,7 +1002,7 @@ func TestPanicWhilePanicking(t *testing.T) {
 			"CircularPanic",
 		},
 		{
-			"important string message",
+			"important multi-line\n\tstring message",
 			"StringPanic",
 		},
 		{

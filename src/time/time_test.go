@@ -1539,10 +1539,31 @@ func BenchmarkSecond(b *testing.B) {
 	}
 }
 
+func BenchmarkDate(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = t.Date()
+	}
+}
+
 func BenchmarkYear(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		_ = t.Year()
+	}
+}
+
+func BenchmarkYearDay(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.YearDay()
+	}
+}
+
+func BenchmarkMonth(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.Month()
 	}
 }
 
@@ -1565,6 +1586,14 @@ func BenchmarkGoString(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = t.GoString()
 	}
+}
+
+func BenchmarkDateFunc(b *testing.B) {
+	var t Time
+	for range b.N {
+		t = Date(2020, 8, 22, 11, 27, 43, 123456789, UTC)
+	}
+	_ = t
 }
 
 func BenchmarkUnmarshalText(b *testing.B) {

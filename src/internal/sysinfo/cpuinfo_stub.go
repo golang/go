@@ -6,6 +6,6 @@
 
 package sysinfo
 
-func osCpuInfoName() string {
+func osCPUInfoName() string {
 	return ""
 }

@@ -5,10 +5,11 @@
 package os
 
 import (
-	"internal/safefilepath"
+	"internal/bytealg"
+	"internal/filepathlite"
 	"io"
 	"io/fs"
-	"sort"
+	"slices"
 )
 
 type readdirMode int
@@ -122,7 +123,9 @@ func ReadDir(name string) ([]DirEntry, error) {
 	defer f.Close()
 
 	dirs, err := f.ReadDir(-1)
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+	slices.SortFunc(dirs, func(a, b DirEntry) int {
+		return bytealg.CompareString(a.Name(), b.Name())
+	})
 	return dirs, err
 }
 
@@ -146,7 +149,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 			return err
 		}
 
-		fpath, err := safefilepath.Localize(path)
+		fpath, err := filepathlite.Localize(path)
 		if err != nil {
 			return err
 		}
@@ -157,7 +160,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 
 		// TODO(panjf2000): handle symlinks with the help of fs.ReadLinkFS
 		// 		once https://go.dev/issue/49580 is done.
-		//		we also need safefilepath.IsLocal from https://go.dev/cl/564295.
+		//		we also need filepathlite.IsLocal from https://go.dev/cl/564295.
 		if !d.Type().IsRegular() {
 			return &PathError{Op: "CopyFS", Path: path, Err: ErrInvalid}
 		}

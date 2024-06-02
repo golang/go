@@ -1850,7 +1850,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	}
 	ldr := ctxt.loader
 
-	// .got
+	// writable .got (note that for PIE binaries .got goes in relro)
 	if len(state.data[sym.SELFGOT]) > 0 {
 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
 	}
@@ -2106,8 +2106,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 			}
 		}
-
 		sect.Length = uint64(state.datsize) - sect.Vaddr
+
+		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
 	}
 
 	/* typelink */

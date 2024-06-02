@@ -22,17 +22,17 @@ type work struct {
 // find all the files that look like counter files or reports
 // that need to be uploaded. (There may be unexpected leftover files
 // and uploading is supposed to be idempotent.)
-func (u *Uploader) findWork() work {
-	localdir, uploaddir := u.LocalDir, u.UploadDir
+func (u *uploader) findWork() work {
+	localdir, uploaddir := u.dir.LocalDir(), u.dir.UploadDir()
 	var ans work
 	fis, err := os.ReadDir(localdir)
 	if err != nil {
-		logger.Printf("could not read %s, progress impossible (%v)", localdir, err)
+		u.logger.Printf("Could not find work: failed to read local dir %s: %v", localdir, err)
 		return ans
 	}
 
-	mode, asof := u.ModeFilePath.Mode()
-	logger.Printf("mode %s, asof %s", mode, asof)
+	mode, asof := u.dir.Mode()
+	u.logger.Printf("Finding work: mode %s, asof %s", mode, asof)
 
 	// count files end in .v1.count
 	// reports end in .json. If they are not to be uploaded they
@@ -40,16 +40,21 @@ func (u *Uploader) findWork() work {
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".v1.count") {
 			fname := filepath.Join(localdir, fi.Name())
-			if u.stillOpen(fname) {
-				logger.Printf("still active: %s", fname)
-				continue
+			_, expiry, err := u.counterDateSpan(fname)
+			switch {
+			case err != nil:
+				u.logger.Printf("Error reading expiry for count file %s: %v", fi.Name(), err)
+			case expiry.After(u.startTime):
+				u.logger.Printf("Skipping count file %s: still active", fi.Name())
+			default:
+				u.logger.Printf("Collecting count file %s", fi.Name())
+				ans.countfiles = append(ans.countfiles, fname)
 			}
-			ans.countfiles = append(ans.countfiles, fname)
 		} else if strings.HasPrefix(fi.Name(), "local.") {
 			// skip
 		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {
 			// Collect reports that are ready for upload.
-			reportDate := uploadReportDate(fi.Name())
+			reportDate := u.uploadReportDate(fi.Name())
 			if !asof.IsZero() && !reportDate.IsZero() {
 				// If both the mode asof date and the report date are present, do the
 				// right thing...
@@ -63,7 +68,7 @@ func (u *Uploader) findWork() work {
 					//
 					// TODO(rfindley): store the begin date in reports, so that we can
 					// verify this assumption.
-					logger.Printf("uploadable %s", fi.Name())
+					u.logger.Printf("Uploadable: %s", fi.Name())
 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 				}
 			} else {
@@ -73,7 +78,7 @@ func (u *Uploader) findWork() work {
 				// TODO(rfindley): invert this logic following more testing. We
 				// should only upload if we know both the asof date and the report
 				// date, and they are acceptable.
-				logger.Printf("uploadable anyway %s", fi.Name())
+				u.logger.Printf("Uploadable (missing date): %s", fi.Name())
 				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
 			}
 		}
@@ -89,6 +94,7 @@ func (u *Uploader) findWork() work {
 	ans.uploaded = make(map[string]bool)
 	for _, fi := range fis {
 		if strings.HasSuffix(fi.Name(), ".json") {
+			u.logger.Printf("Already uploaded: %s", fi.Name())
 			ans.uploaded[fi.Name()] = true
 		}
 	}

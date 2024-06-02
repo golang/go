@@ -36,6 +36,7 @@ import (
 	"go/constant"
 	"go/token"
 	. "internal/types/errors"
+	_ "unsafe" // for linkname
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -181,12 +182,19 @@ type Config struct {
 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
 	_ErrorURL string
 
-	// If _EnableAlias is set, alias declarations produce an Alias type.
-	// Otherwise the alias information is only in the type name, which
-	// points directly to the actual (aliased) type.
+	// If EnableAlias is set, alias declarations produce an Alias type. Otherwise
+	// the alias information is only in the type name, which points directly to
+	// the actual (aliased) type.
+	//
+	// This setting must not differ among concurrent type-checking operations,
+	// since it affects the behavior of Universe.Lookup("any").
+	//
 	// This flag will eventually be removed (with Go 1.24 at the earliest).
 	_EnableAlias bool
 }
+
+// Linkname for use from srcimporter.
+//go:linkname srcimporter_setUsesCgo
 
 func srcimporter_setUsesCgo(conf *Config) {
 	conf.go115UsesCgo = true

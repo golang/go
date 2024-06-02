@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/stringslite"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1078,6 +1079,16 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 	print("\n")
 }
 
+// callers should be an internal detail,
+// (and is almost identical to Callers),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname callers
 func callers(skip int, pcbuf []uintptr) int {
 	sp := getcallersp()
 	pc := getcallerpc()
@@ -1131,7 +1142,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 		return true
 	}
 
-	return bytealg.IndexByteString(name, '.') >= 0 && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
+	return bytealg.IndexByteString(name, '.') >= 0 && (!stringslite.HasPrefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -1342,7 +1353,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 		}
 		return fingStatus.Load()&fingRunningFinalizer == 0
 	}
-	return hasPrefix(funcname(f), "runtime.")
+	return stringslite.HasPrefix(funcname(f), "runtime.")
 }
 
 // SetCgoTraceback records three C functions to use to gather

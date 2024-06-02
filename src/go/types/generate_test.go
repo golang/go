@@ -100,7 +100,7 @@ func generate(t *testing.T, filename string, write bool) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
-	"alias.go": nil,
+	"alias.go": fixTokenPos,
 	"assignments.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers

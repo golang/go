@@ -36,7 +36,7 @@ func dddErrPos(call *syntax.CallExpr) *syntax.CallExpr {
 	return call
 }
 
-// argErrPos returns the node (poser) for reportign an invalid argument count.
+// argErrPos returns the node (poser) for reporting an invalid argument count.
 func argErrPos(call *syntax.CallExpr) *syntax.CallExpr { return call }
 
 // ExprString returns a string representation of x.

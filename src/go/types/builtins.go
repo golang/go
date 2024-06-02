@@ -28,7 +28,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	if hasDots(call) && id != _Append {
 		check.errorf(dddErrPos(call),
 			InvalidDotDotDot,
-			invalidOp+"invalid use of ... with built-in %s", quote(bin.name))
+			invalidOp+"invalid use of ... with built-in %s", bin.name)
 		check.use(argList...)
 		return
 	}
@@ -213,7 +213,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				if id == _Len {
 					code = InvalidLen
 				}
-				check.errorf(x, code, invalidArg+"%s for %s", x, quote(bin.name))
+				check.errorf(x, code, invalidArg+"%s for built-in %s", x, bin.name)
 			}
 			return
 		}
@@ -536,7 +536,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Max, _Min:
 		// max(x, ...)
 		// min(x, ...)
-		check.verifyVersionf(call.Fun, go1_21, quote(bin.name))
+		check.verifyVersionf(call.Fun, go1_21, "built-in %s", bin.name)
 
 		op := token.LSS
 		if id == _Max {
@@ -579,7 +579,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if x.mode != constant_ {
 			x.mode = value
 			// A value must not be untyped.
-			check.assignment(x, &emptyInterface, "argument to "+quote(bin.name))
+			check.assignment(x, &emptyInterface, "argument to built-in "+bin.name)
 			if x.mode == invalid {
 				return
 			}
@@ -644,7 +644,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		if nargs > 0 {
 			params = make([]Type, nargs)
 			for i, a := range args {
-				check.assignment(a, nil, "argument to "+quote(predeclaredFuncs[id].name))
+				check.assignment(a, nil, "argument to built-in"+predeclaredFuncs[id].name)
 				if a.mode == invalid {
 					return
 				}
@@ -963,7 +963,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
-	if tp, _ := x.typ.(*TypeParam); tp != nil {
+	if tp, _ := Unalias(x.typ).(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
@@ -995,7 +995,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		default:
 			panic("unreachable")
 		}
-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, quote(predeclaredFuncs[id].name))
+		check.softErrorf(x, code, "%s not supported as argument to built-in %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
 
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
@@ -1029,7 +1029,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // arrayPtrDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
-	if p, ok := typ.(*Pointer); ok {
+	if p, ok := Unalias(typ).(*Pointer); ok {
 		if a, _ := under(p.base).(*Array); a != nil {
 			return a
 		}

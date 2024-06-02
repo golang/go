@@ -75,6 +75,7 @@ func main() {
 
 const (
 	// Constants that we use and will transfer to the runtime.
+	minHeapAlign = 8
 	maxSmallSize = 32 << 10
 	smallSizeDiv = 8
 	smallSizeMax = 1024
@@ -99,7 +100,7 @@ func makeClasses() []class {
 
 	classes = append(classes, class{}) // class #0 is a dummy entry
 
-	align := 8
+	align := minHeapAlign
 	for size := align; size <= maxSmallSize; size += align {
 		if powerOfTwo(size) { // bump alignment once in a while
 			if size >= 2048 {
@@ -288,6 +289,7 @@ func maxObjsPerSpan(classes []class) int {
 
 func printClasses(w io.Writer, classes []class) {
 	fmt.Fprintln(w, "const (")
+	fmt.Fprintf(w, "minHeapAlign = %d\n", minHeapAlign)
 	fmt.Fprintf(w, "_MaxSmallSize = %d\n", maxSmallSize)
 	fmt.Fprintf(w, "smallSizeDiv = %d\n", smallSizeDiv)
 	fmt.Fprintf(w, "smallSizeMax = %d\n", smallSizeMax)

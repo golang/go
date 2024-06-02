@@ -195,11 +195,12 @@ const (
 )
 
 const (
-	PLATFORM_MACOS    MachoPlatform = 1
-	PLATFORM_IOS      MachoPlatform = 2
-	PLATFORM_TVOS     MachoPlatform = 3
-	PLATFORM_WATCHOS  MachoPlatform = 4
-	PLATFORM_BRIDGEOS MachoPlatform = 5
+	PLATFORM_MACOS       MachoPlatform = 1
+	PLATFORM_IOS         MachoPlatform = 2
+	PLATFORM_TVOS        MachoPlatform = 3
+	PLATFORM_WATCHOS     MachoPlatform = 4
+	PLATFORM_BRIDGEOS    MachoPlatform = 5
+	PLATFORM_MACCATALYST MachoPlatform = 6
 )
 
 // rebase table opcode
@@ -899,21 +900,25 @@ func collectmachosyms(ctxt *Link) {
 	// Add special runtime.text and runtime.etext symbols (which are local).
 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
 	// See data.go:/textaddress
+	// NOTE: runtime.text.N symbols (if we split text sections) are not added, though,
+	// so we handle them here.
 	if !*FlagS {
 		if !ctxt.DynlinkingGo() {
 			s := ldr.Lookup("runtime.text", 0)
 			if ldr.SymType(s) == sym.STEXT {
 				addsym(s)
 			}
-			for n := range Segtext.Sections[1:] {
-				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
-				if s != 0 {
-					addsym(s)
-				} else {
-					break
-				}
+		}
+		for n := range Segtext.Sections[1:] {
+			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+			if s != 0 {
+				addsym(s)
+			} else {
+				break
 			}
-			s = ldr.Lookup("runtime.etext", 0)
+		}
+		if !ctxt.DynlinkingGo() {
+			s := ldr.Lookup("runtime.etext", 0)
 			if ldr.SymType(s) == sym.STEXT {
 				addsym(s)
 			}
@@ -969,7 +974,7 @@ func collectmachosyms(ctxt *Link) {
 		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
 		if t == sym.SDYNIMPORT && ldr.SymDynimplib(s) == "/usr/lib/libSystem.B.dylib" {
 			// But only on macOS.
-			if machoPlatform == PLATFORM_MACOS {
+			if machoPlatform == PLATFORM_MACOS || machoPlatform == PLATFORM_MACCATALYST {
 				switch n := ldr.SymExtname(s); n {
 				case "fdopendir":
 					switch buildcfg.GOARCH {

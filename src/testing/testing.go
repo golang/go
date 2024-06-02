@@ -72,14 +72,15 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        rand.Int()
 //	    }
 //	}
 //
 // The benchmark function must run the target code b.N times.
-// During benchmark execution, b.N is adjusted until the benchmark function lasts
-// long enough to be timed reliably. The output
+// It is called multiple times with b.N adjusted until the
+// benchmark function lasts long enough to be timed reliably.
+// The output
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
@@ -91,7 +92,7 @@
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
 //	    b.ResetTimer()
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        big.Len()
 //	    }
 //	}
@@ -382,7 +383,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -615,10 +616,10 @@ type common struct {
 	isParallel     bool           // Whether the test is parallel.
 
 	parent   *common
-	level    int       // Nesting depth of test or benchmark.
-	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
-	name     string    // Name of test or benchmark.
-	start    time.Time // Time test or benchmark started
+	level    int               // Nesting depth of test or benchmark.
+	creator  []uintptr         // If level > 0, the stack trace at the point where the parent called t.Run.
+	name     string            // Name of test or benchmark.
+	start    highPrecisionTime // Time test or benchmark started
 	duration time.Duration
 	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
 	signal   chan bool // To signal a test is done.
@@ -1457,7 +1458,7 @@ func (t *T) Parallel() {
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
 	// timer afterwards.
-	t.duration += time.Since(t.start)
+	t.duration += highPrecisionTimeSince(t.start)
 
 	// Add to the list of tests to be released by the parent.
 	t.parent.sub = append(t.parent.sub, t)
@@ -1486,8 +1487,8 @@ func (t *T) Parallel() {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
 	}
-	running.Store(t.name, time.Now())
-	t.start = time.Now()
+	running.Store(t.name, highPrecisionTimeNow())
+	t.start = highPrecisionTimeNow()
 
 	// Reset the local race counter to ignore any races that happened while this
 	// goroutine was blocked, such as in the parent test or in other parallel
@@ -1619,7 +1620,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// Flush the output log up to the root before dying.
 			for root := &t.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += time.Since(root.start)
+				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -1634,7 +1635,7 @@ func tRunner(t *T, fn func(t *T)) {
 			doPanic(err)
 		}
 
-		t.duration += time.Since(t.start)
+		t.duration += highPrecisionTimeSince(t.start)
 
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
@@ -1652,10 +1653,10 @@ func tRunner(t *T, fn func(t *T)) {
 
 			// Run any cleanup callbacks, marking the test as running
 			// in case the cleanup hangs.
-			cleanupStart := time.Now()
+			cleanupStart := highPrecisionTimeNow()
 			running.Store(t.name, cleanupStart)
 			err := t.runCleanup(recoverAndReturnPanic)
-			t.duration += time.Since(cleanupStart)
+			t.duration += highPrecisionTimeSince(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -1684,7 +1685,7 @@ func tRunner(t *T, fn func(t *T)) {
 		}
 	}()
 
-	t.start = time.Now()
+	t.start = highPrecisionTimeNow()
 	t.resetRaces()
 	fn(t)
 
@@ -1732,7 +1733,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 	}
-	running.Store(t.name, time.Now())
+	running.Store(t.name, highPrecisionTimeNow())
 
 	// Instead of reducing the running count of this test before calling the
 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
@@ -1854,6 +1855,10 @@ func (f matchStringOnly) CheckCorpus([]any, []reflect.Type) error { return nil }
 func (f matchStringOnly) ResetCoverage()                          {}
 func (f matchStringOnly) SnapshotCoverage()                       {}
 
+func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+	return
+}
+
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
 // It is no longer used by "go test" but preserved, as much as possible, for other
@@ -1901,12 +1906,14 @@ type testDeps interface {
 	CheckCorpus([]any, []reflect.Type) error
 	ResetCoverage()
 	SnapshotCoverage()
+	InitRuntimeCoverage() (mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
 }
 
 // MainStart is meant for use by tests generated by 'go test'.
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
+	registerCover2(deps.InitRuntimeCoverage())
 	Init()
 	return &M{
 		deps:        deps,
@@ -2372,10 +2379,10 @@ func (m *M) startAlarm() time.Time {
 func runningList() []string {
 	var list []string
 	running.Range(func(k, v any) bool {
-		list = append(list, fmt.Sprintf("%s (%v)", k.(string), time.Since(v.(time.Time)).Round(time.Second)))
+		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
 		return true
 	})
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

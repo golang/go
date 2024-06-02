@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"runtime"
 	"syscall"
+	_ "unsafe" // for linkname
 )
 
 // probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
@@ -118,6 +119,18 @@ func (p *ipStackCapabilities) probe() {
 // Note that the latest DragonFly BSD and OpenBSD kernels allow
 // neither "net.inet6.ip6.v6only=1" change nor IPPROTO_IPV6 level
 // IPV6_V6ONLY socket option setting.
+//
+// favoriteAddrFamily should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/database64128/tfo-go/v2
+//   - github.com/metacubex/tfo-go
+//   - github.com/sagernet/tfo-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname favoriteAddrFamily
 func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
 	switch network[len(network)-1] {
 	case '4':
@@ -192,6 +205,17 @@ func ipToSockaddrInet6(ip IP, port int, zone string) (syscall.SockaddrInet6, err
 	return sa, nil
 }
 
+// ipToSockaddr should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/database64128/tfo-go/v2
+//   - github.com/metacubex/tfo-go
+//   - github.com/sagernet/tfo-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname ipToSockaddr
 func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
 	switch family {
 	case syscall.AF_INET:

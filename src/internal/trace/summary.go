@@ -5,26 +5,27 @@
 package trace
 
 import (
-	tracev2 "internal/trace/v2"
-	"sort"
+	"cmp"
+	"slices"
+	"strings"
 	"time"
 )
 
 // Summary is the analysis result produced by the summarizer.
 type Summary struct {
-	Goroutines map[tracev2.GoID]*GoroutineSummary
-	Tasks      map[tracev2.TaskID]*UserTaskSummary
+	Goroutines map[GoID]*GoroutineSummary
+	Tasks      map[TaskID]*UserTaskSummary
 }
 
 // GoroutineSummary contains statistics and execution details of a single goroutine.
 // (For v2 traces.)
 type GoroutineSummary struct {
-	ID           tracev2.GoID
-	Name         string       // A non-unique human-friendly identifier for the goroutine.
-	PC           uint64       // The first PC we saw for the entry function of the goroutine
-	CreationTime tracev2.Time // Timestamp of the first appearance in the trace.
-	StartTime    tracev2.Time // Timestamp of the first time it started running. 0 if the goroutine never ran.
-	EndTime      tracev2.Time // Timestamp of when the goroutine exited. 0 if the goroutine never exited.
+	ID           GoID
+	Name         string // A non-unique human-friendly identifier for the goroutine.
+	PC           uint64 // The first PC we saw for the entry function of the goroutine
+	CreationTime Time   // Timestamp of the first appearance in the trace.
+	StartTime    Time   // Timestamp of the first time it started running. 0 if the goroutine never ran.
+	EndTime      Time   // Timestamp of when the goroutine exited. 0 if the goroutine never exited.
 
 	// List of regions in the goroutine, sorted based on the start time.
 	Regions []*UserRegionSummary
@@ -42,25 +43,25 @@ type GoroutineSummary struct {
 
 // UserTaskSummary represents a task in the trace.
 type UserTaskSummary struct {
-	ID       tracev2.TaskID
+	ID       TaskID
 	Name     string
 	Parent   *UserTaskSummary // nil if the parent is unknown.
 	Children []*UserTaskSummary
 
 	// Task begin event. An EventTaskBegin event or nil.
-	Start *tracev2.Event
+	Start *Event
 
 	// End end event. Normally EventTaskEnd event or nil.
-	End *tracev2.Event
+	End *Event
 
-	// Logs is a list of tracev2.EventLog events associated with the task.
-	Logs []*tracev2.Event
+	// Logs is a list of EventLog events associated with the task.
+	Logs []*Event
 
 	// List of regions in the task, sorted based on the start time.
 	Regions []*UserRegionSummary
 
 	// Goroutines is the set of goroutines associated with this task.
-	Goroutines map[tracev2.GoID]*GoroutineSummary
+	Goroutines map[GoID]*GoroutineSummary
 }
 
 // Complete returns true if we have complete information about the task
@@ -82,19 +83,19 @@ func (s *UserTaskSummary) Descendents() []*UserTaskSummary {
 // UserRegionSummary represents a region and goroutine execution stats
 // while the region was active. (For v2 traces.)
 type UserRegionSummary struct {
-	TaskID tracev2.TaskID
+	TaskID TaskID
 	Name   string
 
 	// Region start event. Normally EventRegionBegin event or nil,
 	// but can be a state transition event from NotExist or Undetermined
 	// if the region is a synthetic region representing task inheritance
 	// from the parent goroutine.
-	Start *tracev2.Event
+	Start *Event
 
 	// Region end event. Normally EventRegionEnd event or nil,
 	// but can be a state transition event to NotExist if the goroutine
 	// terminated without explicitly ending the region.
-	End *tracev2.Event
+	End *Event
 
 	GoroutineExecStats
 }
@@ -182,7 +183,7 @@ func (s GoroutineExecStats) clone() (r GoroutineExecStats) {
 // snapshotStat returns the snapshot of the goroutine execution statistics.
 // This is called as we process the ordered trace event stream. lastTs is used
 // to process pending statistics if this is called before any goroutine end event.
-func (g *GoroutineSummary) snapshotStat(lastTs tracev2.Time) (ret GoroutineExecStats) {
+func (g *GoroutineSummary) snapshotStat(lastTs Time) (ret GoroutineExecStats) {
 	ret = g.GoroutineExecStats.clone()
 
 	if g.goroutineSummary == nil {
@@ -219,7 +220,7 @@ func (g *GoroutineSummary) snapshotStat(lastTs tracev2.Time) (ret GoroutineExecS
 // finalize is called when processing a goroutine end event or at
 // the end of trace processing. This finalizes the execution stat
 // and any active regions in the goroutine, in which case trigger is nil.
-func (g *GoroutineSummary) finalize(lastTs tracev2.Time, trigger *tracev2.Event) {
+func (g *GoroutineSummary) finalize(lastTs Time, trigger *Event) {
 	if trigger != nil {
 		g.EndTime = trigger.Time()
 	}
@@ -243,57 +244,57 @@ func (g *GoroutineSummary) finalize(lastTs tracev2.Time, trigger *tracev2.Event)
 
 // goroutineSummary is a private part of GoroutineSummary that is required only during analysis.
 type goroutineSummary struct {
-	lastStartTime        tracev2.Time
-	lastRunnableTime     tracev2.Time
-	lastBlockTime        tracev2.Time
+	lastStartTime        Time
+	lastRunnableTime     Time
+	lastBlockTime        Time
 	lastBlockReason      string
-	lastSyscallTime      tracev2.Time
-	lastSyscallBlockTime tracev2.Time
-	lastRangeTime        map[string]tracev2.Time
+	lastSyscallTime      Time
+	lastSyscallBlockTime Time
+	lastRangeTime        map[string]Time
 	activeRegions        []*UserRegionSummary // stack of active regions
 }
 
 // Summarizer constructs per-goroutine time statistics for v2 traces.
 type Summarizer struct {
 	// gs contains the map of goroutine summaries we're building up to return to the caller.
-	gs map[tracev2.GoID]*GoroutineSummary
+	gs map[GoID]*GoroutineSummary
 
 	// tasks contains the map of task summaries we're building up to return to the caller.
-	tasks map[tracev2.TaskID]*UserTaskSummary
+	tasks map[TaskID]*UserTaskSummary
 
 	// syscallingP and syscallingG represent a binding between a P and G in a syscall.
 	// Used to correctly identify and clean up after syscalls (blocking or otherwise).
-	syscallingP map[tracev2.ProcID]tracev2.GoID
-	syscallingG map[tracev2.GoID]tracev2.ProcID
+	syscallingP map[ProcID]GoID
+	syscallingG map[GoID]ProcID
 
 	// rangesP is used for optimistic tracking of P-based ranges for goroutines.
 	//
 	// It's a best-effort mapping of an active range on a P to the goroutine we think
 	// is associated with it.
-	rangesP map[rangeP]tracev2.GoID
+	rangesP map[rangeP]GoID
 
-	lastTs tracev2.Time // timestamp of the last event processed.
-	syncTs tracev2.Time // timestamp of the last sync event processed (or the first timestamp in the trace).
+	lastTs Time // timestamp of the last event processed.
+	syncTs Time // timestamp of the last sync event processed (or the first timestamp in the trace).
 }
 
 // NewSummarizer creates a new struct to build goroutine stats from a trace.
 func NewSummarizer() *Summarizer {
 	return &Summarizer{
-		gs:          make(map[tracev2.GoID]*GoroutineSummary),
-		tasks:       make(map[tracev2.TaskID]*UserTaskSummary),
-		syscallingP: make(map[tracev2.ProcID]tracev2.GoID),
-		syscallingG: make(map[tracev2.GoID]tracev2.ProcID),
-		rangesP:     make(map[rangeP]tracev2.GoID),
+		gs:          make(map[GoID]*GoroutineSummary),
+		tasks:       make(map[TaskID]*UserTaskSummary),
+		syscallingP: make(map[ProcID]GoID),
+		syscallingG: make(map[GoID]ProcID),
+		rangesP:     make(map[rangeP]GoID),
 	}
 }
 
 type rangeP struct {
-	id   tracev2.ProcID
+	id   ProcID
 	name string
 }
 
 // Event feeds a single event into the stats summarizer.
-func (s *Summarizer) Event(ev *tracev2.Event) {
+func (s *Summarizer) Event(ev *Event) {
 	if s.syncTs == 0 {
 		s.syncTs = ev.Time()
 	}
@@ -301,15 +302,15 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 
 	switch ev.Kind() {
 	// Record sync time for the RangeActive events.
-	case tracev2.EventSync:
+	case EventSync:
 		s.syncTs = ev.Time()
 
 	// Handle state transitions.
-	case tracev2.EventStateTransition:
+	case EventStateTransition:
 		st := ev.StateTransition()
 		switch st.Resource.Kind {
 		// Handle goroutine transitions, which are the meat of this computation.
-		case tracev2.ResourceGoroutine:
+		case ResourceGoroutine:
 			id := st.Resource.Goroutine()
 			old, new := st.Goroutine()
 			if old == new {
@@ -320,17 +321,17 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 			// Handle transition out.
 			g := s.gs[id]
 			switch old {
-			case tracev2.GoUndetermined, tracev2.GoNotExist:
+			case GoUndetermined, GoNotExist:
 				g = &GoroutineSummary{ID: id, goroutineSummary: &goroutineSummary{}}
 				// If we're coming out of GoUndetermined, then the creation time is the
 				// time of the last sync.
-				if old == tracev2.GoUndetermined {
+				if old == GoUndetermined {
 					g.CreationTime = s.syncTs
 				} else {
 					g.CreationTime = ev.Time()
 				}
 				// The goroutine is being created, or it's being named for the first time.
-				g.lastRangeTime = make(map[string]tracev2.Time)
+				g.lastRangeTime = make(map[string]Time)
 				g.BlockTimeByReason = make(map[string]time.Duration)
 				g.RangeTime = make(map[string]time.Duration)
 
@@ -350,23 +351,23 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 					g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
 				}
 				s.gs[g.ID] = g
-			case tracev2.GoRunning:
+			case GoRunning:
 				// Record execution time as we transition out of running
 				g.ExecTime += ev.Time().Sub(g.lastStartTime)
 				g.lastStartTime = 0
-			case tracev2.GoWaiting:
+			case GoWaiting:
 				// Record block time as we transition out of waiting.
 				if g.lastBlockTime != 0 {
 					g.BlockTimeByReason[g.lastBlockReason] += ev.Time().Sub(g.lastBlockTime)
 					g.lastBlockTime = 0
 				}
-			case tracev2.GoRunnable:
+			case GoRunnable:
 				// Record sched latency time as we transition out of runnable.
 				if g.lastRunnableTime != 0 {
 					g.SchedWaitTime += ev.Time().Sub(g.lastRunnableTime)
 					g.lastRunnableTime = 0
 				}
-			case tracev2.GoSyscall:
+			case GoSyscall:
 				// Record syscall execution time and syscall block time as we transition out of syscall.
 				if g.lastSyscallTime != 0 {
 					if g.lastSyscallBlockTime != 0 {
@@ -390,10 +391,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 			// goroutine, because it represents its immutable start point.
 			if g.Name == "" {
 				stk := st.Stack
-				if stk != tracev2.NoStack {
-					var frame tracev2.StackFrame
+				if stk != NoStack {
+					var frame StackFrame
 					var ok bool
-					stk.Frames(func(f tracev2.StackFrame) bool {
+					stk.Frames(func(f StackFrame) bool {
 						frame = f
 						ok = true
 						return true
@@ -412,15 +413,15 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 
 			// Handle transition in.
 			switch new {
-			case tracev2.GoRunning:
+			case GoRunning:
 				// We started running. Record it.
 				g.lastStartTime = ev.Time()
 				if g.StartTime == 0 {
 					g.StartTime = ev.Time()
 				}
-			case tracev2.GoRunnable:
+			case GoRunnable:
 				g.lastRunnableTime = ev.Time()
-			case tracev2.GoWaiting:
+			case GoWaiting:
 				if st.Reason != "forever" {
 					g.lastBlockTime = ev.Time()
 					g.lastBlockReason = st.Reason
@@ -428,9 +429,9 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 				}
 				// "Forever" is like goroutine death.
 				fallthrough
-			case tracev2.GoNotExist:
+			case GoNotExist:
 				g.finalize(ev.Time(), ev)
-			case tracev2.GoSyscall:
+			case GoSyscall:
 				s.syscallingP[ev.Proc()] = id
 				s.syscallingG[id] = ev.Proc()
 				g.lastSyscallTime = ev.Time()
@@ -438,10 +439,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 
 		// Handle procs to detect syscall blocking, which si identifiable as a
 		// proc going idle while the goroutine it was attached to is in a syscall.
-		case tracev2.ResourceProc:
+		case ResourceProc:
 			id := st.Resource.Proc()
 			old, new := st.Proc()
-			if old != new && new == tracev2.ProcIdle {
+			if old != new && new == ProcIdle {
 				if goid, ok := s.syscallingP[id]; ok {
 					g := s.gs[goid]
 					g.lastSyscallBlockTime = ev.Time()
@@ -451,18 +452,18 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		}
 
 	// Handle ranges of all kinds.
-	case tracev2.EventRangeBegin, tracev2.EventRangeActive:
+	case EventRangeBegin, EventRangeActive:
 		r := ev.Range()
 		var g *GoroutineSummary
 		switch r.Scope.Kind {
-		case tracev2.ResourceGoroutine:
+		case ResourceGoroutine:
 			// Simple goroutine range. We attribute the entire range regardless of
 			// goroutine stats. Lots of situations are still identifiable, e.g. a
 			// goroutine blocked often in mark assist will have both high mark assist
 			// and high block times. Those interested in a deeper view can look at the
 			// trace viewer.
 			g = s.gs[r.Scope.Goroutine()]
-		case tracev2.ResourceProc:
+		case ResourceProc:
 			// N.B. These ranges are not actually bound to the goroutine, they're
 			// bound to the P. But if we happen to be on the P the whole time, let's
 			// try to attribute it to the goroutine. (e.g. GC sweeps are here.)
@@ -474,7 +475,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		if g == nil {
 			break
 		}
-		if ev.Kind() == tracev2.EventRangeActive {
+		if ev.Kind() == EventRangeActive {
 			if ts := g.lastRangeTime[r.Name]; ts != 0 {
 				g.RangeTime[r.Name] += s.syncTs.Sub(ts)
 			}
@@ -482,13 +483,13 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		} else {
 			g.lastRangeTime[r.Name] = ev.Time()
 		}
-	case tracev2.EventRangeEnd:
+	case EventRangeEnd:
 		r := ev.Range()
 		var g *GoroutineSummary
 		switch r.Scope.Kind {
-		case tracev2.ResourceGoroutine:
+		case ResourceGoroutine:
 			g = s.gs[r.Scope.Goroutine()]
-		case tracev2.ResourceProc:
+		case ResourceProc:
 			rp := rangeP{id: r.Scope.Proc(), name: r.Name}
 			if goid, ok := s.rangesP[rp]; ok {
 				if goid == ev.Goroutine() {
@@ -510,7 +511,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		delete(g.lastRangeTime, r.Name)
 
 	// Handle user-defined regions.
-	case tracev2.EventRegionBegin:
+	case EventRegionBegin:
 		g := s.gs[ev.Goroutine()]
 		r := ev.Region()
 		region := &UserRegionSummary{
@@ -524,7 +525,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		task := s.getOrAddTask(r.Task)
 		task.Regions = append(task.Regions, region)
 		task.Goroutines[g.ID] = g
-	case tracev2.EventRegionEnd:
+	case EventRegionEnd:
 		g := s.gs[ev.Goroutine()]
 		r := ev.Region()
 		var sd *UserRegionSummary
@@ -548,13 +549,13 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		g.Regions = append(g.Regions, sd)
 
 	// Handle tasks and logs.
-	case tracev2.EventTaskBegin, tracev2.EventTaskEnd:
+	case EventTaskBegin, EventTaskEnd:
 		// Initialize the task.
 		t := ev.Task()
 		task := s.getOrAddTask(t.ID)
 		task.Name = t.Type
 		task.Goroutines[ev.Goroutine()] = s.gs[ev.Goroutine()]
-		if ev.Kind() == tracev2.EventTaskBegin {
+		if ev.Kind() == EventTaskBegin {
 			task.Start = ev
 		} else {
 			task.End = ev
@@ -562,12 +563,12 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 		// Initialize the parent, if one exists and it hasn't been done yet.
 		// We need to avoid doing it twice, otherwise we could appear twice
 		// in the parent's Children list.
-		if t.Parent != tracev2.NoTask && task.Parent == nil {
+		if t.Parent != NoTask && task.Parent == nil {
 			parent := s.getOrAddTask(t.Parent)
 			task.Parent = parent
 			parent.Children = append(parent.Children, task)
 		}
-	case tracev2.EventLog:
+	case EventLog:
 		log := ev.Log()
 		// Just add the log to the task. We'll create the task if it
 		// doesn't exist (it's just been mentioned now).
@@ -577,10 +578,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
 	}
 }
 
-func (s *Summarizer) getOrAddTask(id tracev2.TaskID) *UserTaskSummary {
+func (s *Summarizer) getOrAddTask(id TaskID) *UserTaskSummary {
 	task := s.tasks[id]
 	if task == nil {
-		task = &UserTaskSummary{ID: id, Goroutines: make(map[tracev2.GoID]*GoroutineSummary)}
+		task = &UserTaskSummary{ID: id, Goroutines: make(map[GoID]*GoroutineSummary)}
 		s.tasks[id] = task
 	}
 	return task
@@ -593,16 +594,19 @@ func (s *Summarizer) Finalize() *Summary {
 		g.finalize(s.lastTs, nil)
 
 		// Sort based on region start time.
-		sort.Slice(g.Regions, func(i, j int) bool {
-			x := g.Regions[i].Start
-			y := g.Regions[j].Start
+		slices.SortFunc(g.Regions, func(a, b *UserRegionSummary) int {
+			x := a.Start
+			y := b.Start
 			if x == nil {
-				return true
+				if y == nil {
+					return 0
+				}
+				return -1
 			}
 			if y == nil {
-				return false
+				return +1
 			}
-			return x.Time() < y.Time()
+			return cmp.Compare(x.Time(), y.Time())
 		})
 		g.goroutineSummary = nil
 	}
@@ -615,30 +619,30 @@ func (s *Summarizer) Finalize() *Summary {
 // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.
 // The association is based on whether they have synchronized with each other in the Go
 // scheduler (one has unblocked another).
-func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.GoID]struct{} {
+func RelatedGoroutinesV2(events []Event, goid GoID) map[GoID]struct{} {
 	// Process all the events, looking for transitions of goroutines
 	// out of GoWaiting. If there was an active goroutine when this
 	// happened, then we know that active goroutine unblocked another.
 	// Scribble all these down so we can process them.
 	type unblockEdge struct {
-		operator tracev2.GoID
-		operand  tracev2.GoID
+		operator GoID
+		operand  GoID
 	}
 	var unblockEdges []unblockEdge
 	for _, ev := range events {
-		if ev.Goroutine() == tracev2.NoGoroutine {
+		if ev.Goroutine() == NoGoroutine {
 			continue
 		}
-		if ev.Kind() != tracev2.EventStateTransition {
+		if ev.Kind() != EventStateTransition {
 			continue
 		}
 		st := ev.StateTransition()
-		if st.Resource.Kind != tracev2.ResourceGoroutine {
+		if st.Resource.Kind != ResourceGoroutine {
 			continue
 		}
 		id := st.Resource.Goroutine()
 		old, new := st.Goroutine()
-		if old == new || old != tracev2.GoWaiting {
+		if old == new || old != GoWaiting {
 			continue
 		}
 		unblockEdges = append(unblockEdges, unblockEdge{
@@ -648,11 +652,11 @@ func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.
 	}
 	// Compute the transitive closure of depth 2 of goroutines that have unblocked each other
 	// (starting from goid).
-	gmap := make(map[tracev2.GoID]struct{})
+	gmap := make(map[GoID]struct{})
 	gmap[goid] = struct{}{}
 	for i := 0; i < 2; i++ {
 		// Copy the map.
-		gmap1 := make(map[tracev2.GoID]struct{})
+		gmap1 := make(map[GoID]struct{})
 		for g := range gmap {
 			gmap1[g] = struct{}{}
 		}
@@ -664,4 +668,11 @@ func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.
 		gmap = gmap1
 	}
 	return gmap
+}
+
+func IsSystemGoroutine(entryFn string) bool {
+	// This mimics runtime.isSystemGoroutine as closely as
+	// possible.
+	// Also, locked g in extra M (with empty entryFn) is system goroutine.
+	return entryFn == "" || entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
 }

@@ -3,12 +3,10 @@
 // license that can be found in the LICENSE file.
 
 //go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
-//go:generate go test cmd/go -v -run=^TestCounterNamesUpToDate$ -update
 
 package main
 
 import (
-	"cmd/internal/telemetry"
 	"context"
 	"flag"
 	"fmt"
@@ -36,6 +34,8 @@ import (
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
+	"cmd/go/internal/telemetrycmd"
+	"cmd/go/internal/telemetrystats"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
 	"cmd/go/internal/toolchain"
@@ -44,6 +44,7 @@ import (
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 	"cmd/go/internal/workcmd"
+	"cmd/internal/telemetry"
 )
 
 func init() {
@@ -62,6 +63,7 @@ func init() {
 		modcmd.CmdMod,
 		workcmd.CmdWork,
 		run.CmdRun,
+		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,
@@ -89,16 +91,18 @@ func init() {
 
 var _ = go11tag
 
-var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-relative")
+var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-entry-relative")
 
 func main() {
 	log.SetFlags(0)
-	telemetry.StartWithUpload() // Open the telemetry counter file so counters can be written to it.
+	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
+	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
 	flag.Usage = base.Usage
 	flag.Parse()
+	telemetry.Inc("go/invocations")
 	telemetry.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
@@ -120,6 +124,20 @@ func main() {
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
 		os.Exit(2)
+	}
+	switch strings.ToLower(cfg.GOROOT) {
+	case "/usr/local/go": // Location recommended for installation on Linux and Darwin and used by Mac installer.
+		telemetry.Inc("go/goroot:usr-local-go")
+	case "/usr/lib/go": // A typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-go")
+	case "/usr/lib/golang": // Another typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-golang")
+	case `c:\program files\go`: // Location used by Windows installer.
+		telemetry.Inc("go/goroot:program-files-go")
+	case `c:\program files (x86)\go`: // Location used by 386 Windows installer on amd64 platform.
+		telemetry.Inc("go/goroot:program-files-x86-go")
+	default:
+		telemetry.Inc("go/goroot:other")
 	}
 
 	// Diagnose common mistake: GOPATH==GOROOT.
@@ -189,6 +207,7 @@ func main() {
 	if cfg.CmdName != "tool" {
 		telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
 	}
+	telemetrystats.Increment()
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -253,7 +272,9 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
-		telemetry.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
+		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
+		telemetry.CountFlags(flagCounterPrefix+":", cmd.Flag)
+		telemetry.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
 		args = cmd.Flag.Args()
 	}
 

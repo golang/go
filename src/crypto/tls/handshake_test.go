@@ -41,11 +41,12 @@ import (
 // reference connection will always change.
 
 var (
-	update     = flag.Bool("update", false, "update golden files on failure")
-	fast       = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
-	keyFile    = flag.String("keylog", "", "destination file for KeyLogWriter")
-	bogoMode   = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
-	bogoFilter = flag.String("bogo-filter", "", "BoGo test filter")
+	update       = flag.Bool("update", false, "update golden files on failure")
+	fast         = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
+	keyFile      = flag.String("keylog", "", "destination file for KeyLogWriter")
+	bogoMode     = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
+	bogoFilter   = flag.String("bogo-filter", "", "BoGo test filter")
+	bogoLocalDir = flag.String("bogo-local-dir", "", "Local BoGo to use, instead of fetching from source")
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
@@ -296,6 +297,8 @@ Dialing:
 
 			case c2 := <-localListener.ch:
 				if c2.RemoteAddr().String() == c1.LocalAddr().String() {
+					t.Cleanup(func() { c1.Close() })
+					t.Cleanup(func() { c2.Close() })
 					return c1, c2
 				}
 				t.Logf("localPipe: unexpected connection: %v != %v", c2.RemoteAddr(), c1.LocalAddr())
@@ -376,6 +379,7 @@ func runMain(m *testing.M) int {
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
 		CipherSuites:       allCipherSuites(),
+		CurvePreferences:   []CurveID{X25519, CurveP256, CurveP384, CurveP521},
 		MinVersion:         VersionTLS10,
 		MaxVersion:         VersionTLS13,
 	}
@@ -399,7 +403,7 @@ func runMain(m *testing.M) int {
 func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverState, clientState ConnectionState, err error) {
 	const sentinel = "SENTINEL\n"
 	c, s := localPipe(t)
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		cli := Client(c, clientConfig)
 		err := cli.Handshake()
@@ -408,7 +412,7 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 			c.Close()
 			return
 		}
-		defer cli.Close()
+		defer func() { errChan <- nil }()
 		clientState = cli.ConnectionState()
 		buf, err := io.ReadAll(cli)
 		if err != nil {
@@ -417,7 +421,9 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		if got := string(buf); got != sentinel {
 			t.Errorf("read %q from TLS connection, but expected %q", got, sentinel)
 		}
-		errChan <- nil
+		if err := cli.Close(); err != nil {
+			t.Errorf("failed to call cli.Close: %v", err)
+		}
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
@@ -429,11 +435,11 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		if err := server.Close(); err != nil {
 			t.Errorf("failed to call server.Close: %v", err)
 		}
-		err = <-errChan
 	} else {
+		err = fmt.Errorf("server: %v", err)
 		s.Close()
-		<-errChan
 	}
+	err = errors.Join(err, <-errChan)
 	return
 }
 

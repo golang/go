@@ -14,7 +14,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -172,7 +172,7 @@ L7 uses var z int`
 		fact := fmt.Sprintf("L%d uses %s", fset.Position(id.Pos()).Line, obj)
 		facts = append(facts, fact)
 	}
-	sort.Strings(facts)
+	slices.Sort(facts)
 
 	got := strings.Join(facts, "\n")
 	if got != want {
@@ -266,11 +266,11 @@ func TestIssue22525(t *testing.T) {
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	typecheck(src, &conf, nil) // do not crash
 	want := "\n" +
-		"p:1:27: `a' declared and not used\n" +
-		"p:1:30: `b' declared and not used\n" +
-		"p:1:33: `c' declared and not used\n" +
-		"p:1:36: `d' declared and not used\n" +
-		"p:1:39: `e' declared and not used\n"
+		"p:1:27: declared and not used: a\n" +
+		"p:1:30: declared and not used: b\n" +
+		"p:1:33: declared and not used: c\n" +
+		"p:1:36: declared and not used: d\n" +
+		"p:1:39: declared and not used: e\n"
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
 	}
@@ -607,7 +607,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
 }
 
 func TestIssue50646(t *testing.T) {
-	anyType := Universe.Lookup("any").Type()
+	anyType := Universe.Lookup("any").Type().Underlying()
 	comparableType := Universe.Lookup("comparable").Type()
 
 	if !Comparable(anyType) {

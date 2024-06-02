@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"sort"
+	"slices"
 	"time"
 	"unicode/utf8"
 )
@@ -105,15 +105,13 @@ func (s setEncoder) Encode(dst []byte) {
 		e.Encode(l[i])
 	}
 
-	sort.Slice(l, func(i, j int) bool {
-		// Since we are using bytes.Compare to compare TLV encodings we
-		// don't need to right pad s[i] and s[j] to the same length as
-		// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
-		// s[i], which is the first determining byte, will inherently be
-		// smaller than the length octet of s[j]. This lets us skip the
-		// padding step.
-		return bytes.Compare(l[i], l[j]) < 0
-	})
+	// Since we are using bytes.Compare to compare TLV encodings we
+	// don't need to right pad s[i] and s[j] to the same length as
+	// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
+	// s[i], which is the first determining byte, will inherently be
+	// smaller than the length octet of s[j]. This lets us skip the
+	// padding step.
+	slices.SortFunc(l, bytes.Compare)
 
 	var off int
 	for _, b := range l {

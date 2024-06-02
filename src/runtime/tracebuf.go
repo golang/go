@@ -59,7 +59,7 @@ func (w traceWriter) end() {
 func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
 	refill := w.traceBuf == nil || !w.available(maxSize)
 	if refill {
-		w = w.refill()
+		w = w.refill(traceNoExperiment)
 	}
 	return w, refill
 }
@@ -78,7 +78,9 @@ func (w traceWriter) flush() traceWriter {
 }
 
 // refill puts w.traceBuf on the queue of full buffers and refresh's w's buffer.
-func (w traceWriter) refill() traceWriter {
+//
+// exp indicates whether the refilled batch should be EvExperimentalBatch.
+func (w traceWriter) refill(exp traceExperiment) traceWriter {
 	systemstack(func() {
 		lock(&trace.lock)
 		if w.traceBuf != nil {
@@ -112,7 +114,12 @@ func (w traceWriter) refill() traceWriter {
 	}
 
 	// Write the buffer's header.
-	w.byte(byte(traceEvEventBatch))
+	if exp == traceNoExperiment {
+		w.byte(byte(traceEvEventBatch))
+	} else {
+		w.byte(byte(traceEvExperimentalBatch))
+		w.byte(byte(exp))
+	}
 	w.varint(uint64(w.gen))
 	w.varint(uint64(mID))
 	w.varint(uint64(ts))

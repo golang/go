@@ -131,6 +131,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 	for i, pt := range predeclared {
 		p.typCache[uint64(i)] = pt
 	}
+	// Special handling for "any", whose representation may be changed by the
+	// gotypesalias GODEBUG variable.
+	p.typCache[uint64(len(predeclared))] = types2.Universe.Lookup("any").Type()
 
 	pkgList := make([]*types2.Package, r.uint64())
 	for i := range pkgList {

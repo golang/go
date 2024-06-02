@@ -814,7 +814,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			p.buf.writeString(mapString)
 		}
 		sorted := fmtsort.Sort(f)
-		for i, key := range sorted.Key {
+		for i, m := range sorted {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -822,9 +822,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			p.printValue(key, verb, depth+1)
+			p.printValue(m.Key, verb, depth+1)
 			p.buf.writeByte(':')
-			p.printValue(sorted.Value[i], verb, depth+1)
+			p.printValue(m.Value, verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.writeByte('}')

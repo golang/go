@@ -16,27 +16,32 @@ import (
 	"time"
 
 	"golang.org/x/telemetry/internal/config"
-	"golang.org/x/telemetry/internal/configstore"
 	"golang.org/x/telemetry/internal/counter"
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // reports generates reports from inactive count files
-func (u *Uploader) reports(todo *work) ([]string, error) {
-	if mode, _ := u.ModeFilePath.Mode(); mode == "off" {
+func (u *uploader) reports(todo *work) ([]string, error) {
+	if mode, _ := u.dir.Mode(); mode == "off" {
 		return nil, nil // no reports
 	}
-	thisInstant := u.StartTime
+	thisInstant := u.startTime
 	today := thisInstant.Format("2006-01-02")
 	lastWeek := latestReport(todo.uploaded)
 	if lastWeek >= today { //should never happen
 		lastWeek = ""
 	}
-	logger.Printf("lastWeek %q, today %s", lastWeek, today)
+	u.logger.Printf("Last week: %s, today: %s", lastWeek, today)
 	countFiles := make(map[string][]string) // expiry date string->filenames
 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
 	for _, f := range todo.countfiles {
-		begin, end := u.counterDateSpan(f)
+		begin, end, err := u.counterDateSpan(f)
+		if err != nil {
+			// This shouldn't happen: we should have already skipped count files that
+			// don't contain valid start or end times.
+			u.logger.Printf("BUG: failed to parse expiry for collected count file: %v", err)
+			continue
+		}
 
 		if end.Before(thisInstant) {
 			expiry := end.Format(dateFormat)
@@ -48,17 +53,19 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
 	}
 	for expiry, files := range countFiles {
 		if notNeeded(expiry, *todo) {
-			logger.Printf("files for %s not needed, deleting %v", expiry, files)
+			u.logger.Printf("Files for %s not needed, deleting %v", expiry, files)
 			// The report already exists.
 			// There's another check in createReport.
-			deleteFiles(files)
+			u.deleteFiles(files)
 			continue
 		}
 		fname, err := u.createReport(earliest[expiry], expiry, files, lastWeek)
 		if err != nil {
-			return nil, err
+			u.logger.Printf("Failed to create report for %s: %v", expiry, err)
+			continue
 		}
 		if fname != "" {
+			u.logger.Printf("Ready to upload: %s", filepath.Base(fname))
 			todo.readyfiles = append(todo.readyfiles, fname)
 		}
 	}
@@ -97,60 +104,53 @@ func notNeeded(date string, todo work) bool {
 	return false
 }
 
-func deleteFiles(files []string) {
+func (u *uploader) deleteFiles(files []string) {
 	for _, f := range files {
 		if err := os.Remove(f); err != nil {
 			// this could be a race condition.
 			// conversely, on Windows, err may be nil and
 			// the file not deleted if anyone has it open.
-			logger.Printf("%v failed to remove %s", err, f)
+			u.logger.Printf("%v failed to remove %s", err, f)
 		}
 	}
 }
 
 // createReport for all the count files for the same date.
 // returns the absolute path name of the file containing the report
-func (u *Uploader) createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
-	if u.Config == nil {
-		a, v, err := configstore.Download("latest", nil)
-		if err != nil {
-			logger.Print(err) // or something (e.g., panic(err))
-		}
-		u.Config = &a
-		u.ConfigVersion = v
-	}
+func (u *uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
 	uploadOK := true
-	mode, asof := u.ModeFilePath.Mode()
-	if u.Config == nil || mode != "on" {
-		logger.Printf("no upload config or mode %q is not 'on'", mode)
+	mode, asof := u.dir.Mode()
+	if mode != "on" {
+		u.logger.Printf("No upload config or mode %q is not 'on'", mode)
 		uploadOK = false // no config, nothing to upload
 	}
-	if tooOld(expiryDate, u.StartTime) {
-		logger.Printf("expiryDate %s is too old", expiryDate)
+	if u.tooOld(expiryDate, u.startTime) {
+		u.logger.Printf("Expiry date %s is too old", expiryDate)
 		uploadOK = false
 	}
 	// If the mode is recorded with an asof date, don't upload if the report
 	// includes any data on or before the asof date.
 	if !asof.IsZero() && !asof.Before(start) {
-		logger.Printf("asof %s is not before start %s", asof, start)
+		u.logger.Printf("As-of date %s is not before start %s", asof, start)
 		uploadOK = false
 	}
-	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
+	// TODO(rfindley): check that all the x.Meta are consistent for GOOS, GOARCH, etc.
 	report := &telemetry.Report{
-		Config:   u.ConfigVersion,
+		Config:   u.configVersion,
 		X:        computeRandom(), // json encodes all the bits
 		Week:     expiryDate,
 		LastWeek: lastWeek,
 	}
-	if report.X > u.Config.SampleRate && u.Config.SampleRate > 0 {
-		logger.Printf("X:%f > SampleRate:%f, not uploadable", report.X, u.Config.SampleRate)
+	if report.X > u.config.SampleRate && u.config.SampleRate > 0 {
+		u.logger.Printf("X: %f > SampleRate:%f, not uploadable", report.X, u.config.SampleRate)
 		uploadOK = false
 	}
 	var succeeded bool
-	for _, f := range files {
-		x, err := u.parse(string(f))
+	for _, f := range countFiles {
+		fok := false
+		x, err := u.parseCountFile(f)
 		if err != nil {
-			logger.Printf("unparseable (%v) %s", err, f)
+			u.logger.Printf("Unparseable count file %s: %v", filepath.Base(f), err)
 			continue
 		}
 		prog := findProgReport(x.Meta, report)
@@ -163,27 +163,31 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 				prog.Counters[k] += int64(v)
 			}
 			succeeded = true
+			fok = true
+		}
+		if !fok {
+			u.logger.Printf("no counters found in %s", f)
 		}
 	}
 	if !succeeded {
-		return "", fmt.Errorf("all %d count files were unparseable", len(files))
+		return "", fmt.Errorf("none of the %d count files for %s contained counters", len(countFiles), expiryDate)
 	}
 	// 1. generate the local report
 	localContents, err := json.MarshalIndent(report, "", " ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal report (%v)", err)
+		return "", fmt.Errorf("failed to marshal report for %s: %v", expiryDate, err)
 	}
 	// check that the report can be read back
 	// TODO(pjw): remove for production?
-	var x telemetry.Report
-	if err := json.Unmarshal(localContents, &x); err != nil {
-		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
+	var report2 telemetry.Report
+	if err := json.Unmarshal(localContents, &report2); err != nil {
+		return "", fmt.Errorf("failed to unmarshal local report for %s: %v", expiryDate, err)
 	}
 
 	var uploadContents []byte
 	if uploadOK {
 		// 2. create the uploadable version
-		cfg := config.NewConfig(u.Config)
+		cfg := config.NewConfig(u.config)
 		upload := &telemetry.Report{
 			Week:     report.Week,
 			LastWeek: report.LastWeek,
@@ -224,21 +228,21 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 
 		uploadContents, err = json.MarshalIndent(upload, "", " ")
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal upload report (%v)", err)
+			return "", fmt.Errorf("failed to marshal upload report for %s: %v", expiryDate, err)
 		}
 	}
-	localFileName := filepath.Join(u.LocalDir, "local."+expiryDate+".json")
-	uploadFileName := filepath.Join(u.LocalDir, expiryDate+".json")
+	localFileName := filepath.Join(u.dir.LocalDir(), "local."+expiryDate+".json")
+	uploadFileName := filepath.Join(u.dir.LocalDir(), expiryDate+".json")
 
 	/* Prepare to write files */
 	// if either file exists, someone has been here ahead of us
 	// (there is still a race, but this check shortens the open window)
 	if _, err := os.Stat(localFileName); err == nil {
-		deleteFiles(files)
+		u.deleteFiles(countFiles)
 		return "", fmt.Errorf("local report %s already exists", localFileName)
 	}
 	if _, err := os.Stat(uploadFileName); err == nil {
-		deleteFiles(files)
+		u.deleteFiles(countFiles)
 		return "", fmt.Errorf("report %s already exists", uploadFileName)
 	}
 	// write the uploadable file
@@ -258,8 +262,8 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
 	if errUpload != nil {
 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
 	}
-	logger.Printf("created %q, deleting %v", uploadFileName, files)
-	deleteFiles(files)
+	u.logger.Printf("Created %s, deleting %d count files", filepath.Base(uploadFileName), len(countFiles))
+	u.deleteFiles(countFiles)
 	if uploadOK {
 		return uploadFileName, nil
 	}
@@ -288,13 +292,14 @@ func findProgReport(meta map[string]string, report *telemetry.Report) *telemetry
 	return &prog
 }
 
-// turn 8 random bytes into a float64 in [0,1]
+// computeRandom returns a cryptographic random float64 in the range [0, 1],
+// with 52 bits of precision.
 func computeRandom() float64 {
 	for {
 		b := make([]byte, 8)
 		_, err := rand.Read(b)
 		if err != nil {
-			logger.Fatalf("rand.Read: %v", err)
+			panic(fmt.Sprintf("rand.Read failed: %v", err))
 		}
 		// and turn it into a float64
 		x := math.Float64frombits(binary.LittleEndian.Uint64(b))

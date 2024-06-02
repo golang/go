@@ -52,6 +52,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// Hex constant 0xFFFFFFFE00000001
 	MOVD $-8589934591, R5           // 38a0ffff or 0602000038a00001
 
+	// For #66955. Verify this opcode turns into a load and assembles.
+	MOVD $-6795364578871345152, R5  // 3ca00000e8a50000 or 04100000e4a00000
+
 	MOVD 8(R3), R4                  // e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVD (R3)(R0), R5               // 7ca0182a
@@ -90,6 +93,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
 	MOVHBR (R3)(R0), R5             // 7ca01e2c
 	MOVHBR (R3), R5                 // 7ca01e2c
+	OR $0, R0, R0
 	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40 or 0600ef0038a1cc40
 	MOVD $foo(SB), R5               // 3ca0000038a50000 or 0610000038a00000
 
@@ -256,13 +260,32 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XORIS $15, R3, R4               // 6c64000f
 	XOR   $983040, R3, R4           // 6c64000f
 
-	// TODO: the order of CR operands don't match
+	// TODO: cleanup inconsistency of printing CMPx opcodes with explicit CR arguments.
 	CMP R3, R4                      // 7c232000
+	CMP R3, R0                      // 7c230000
+	CMP R3, R0, CR1                 // CMP R3,CR1,R0   // 7ca30000
 	CMPU R3, R4                     // 7c232040
+	CMPU R3, R0                     // 7c230040
+	CMPU R3, R0, CR2                // CMPU R3,CR2,R0  // 7d230040
 	CMPW R3, R4                     // 7c032000
+	CMPW R3, R0                     // 7c030000
+	CMPW R3, R0, CR3                // CMPW R3,CR3,R0  // 7d830000
 	CMPWU R3, R4                    // 7c032040
-	CMPB R3,R4,R4                   // 7c6423f8
+	CMPWU R3, R0                    // 7c030040
+	CMPWU R3, R0, CR4               // CMPWU R3,CR4,R0 // 7e030040
+	CMP R3, $0                      // 2c230000
+	CMPU R3, $0                     // 28230000
+	CMPW R3, $0                     // 2c030000
+	CMPWU R3, $0                    // 28030000
+	CMP R3, $0, CR0                 // CMP R3,CR0,$0        // 2c230000
+	CMPU R3, $0, CR1                // CMPU R3,CR1,$0       // 28a30000
+	CMPW R3, $0, CR2                // CMPW R3,CR2,$0       // 2d030000
+	CMPW R3, $-32768, CR2           // CMPW R3,CR2,$-32768  // 2d038000
+	CMPWU R3, $0, CR3               // CMPWU R3,CR3,$0      // 29830000
+	CMPWU R3, $0x8008, CR3          // CMPWU R3,CR3,$32776  // 29838008
+
 	CMPEQB R3,R4,CR6                // 7f0321c0
+	CMPB R3,R4,R4                   // 7c6423f8
 
 	ADD R3, R4                      // 7c841a14
 	ADD R3, R4, R5                  // 7ca41a14
@@ -740,7 +763,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FCPSGN F1, F2                   // fc420810
 	FCPSGNCC F1, F2                 // fc420811
 	FCMPO F1, F2                    // fc011040
+	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2 // fc011040
 	FCMPU F1, F2                    // fc011000
+	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2 // fc011000
 	LVX (R3)(R4), V1                // 7c2418ce
 	LVX (R3)(R0), V1                // 7c2018ce
 	LVX (R3), V1                    // 7c2018ce
@@ -1130,6 +1155,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
+	OR $0, R0, R0                   // 60000000
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100

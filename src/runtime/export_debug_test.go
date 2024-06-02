@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -145,7 +146,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		return false
 	}
 	f := findfunc(ctxt.sigpc())
-	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
+	if !(stringslite.HasPrefix(funcname(f), "runtime.debugCall") || stringslite.HasPrefix(funcname(f), "debugCall")) {
 		println("trap in unknown function", funcname(f))
 		return false
 	}

@@ -120,6 +120,9 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
 	if name.Alias() {
 		return nil, fmt.Errorf("type sym %v refers to alias", typ)
 	}
+	if name.Type().IsInterface() {
+		return nil, fmt.Errorf("type sym %v refers to interface type", typ)
+	}
 
 	for _, m := range name.Type().Methods() {
 		if m.Sym == meth {
@@ -301,9 +304,9 @@ func readBodies(target *ir.Package, duringInlining bool) {
 // writes an export data package stub representing them,
 // and returns the result.
 func writePkgStub(m posMap, noders []*noder) string {
-	pkg, info := checkFiles(m, noders)
+	pkg, info, otherInfo := checkFiles(m, noders)
 
-	pw := newPkgWriter(m, pkg, info)
+	pw := newPkgWriter(m, pkg, info, otherInfo)
 
 	pw.collectDecls(noders)
 

@@ -1753,7 +1753,7 @@ func TestIssue6651(t *testing.T) {
 
 	want := "error in rows.Next"
 	rowsCursorNextHook = func(dest []driver.Value) error {
-		return fmt.Errorf(want)
+		return errors.New(want)
 	}
 	defer func() { rowsCursorNextHook = nil }()
 
@@ -1765,7 +1765,7 @@ func TestIssue6651(t *testing.T) {
 
 	want = "error in rows.Close"
 	setRowsCloseHook(func(rows *Rows, err *error) {
-		*err = fmt.Errorf(want)
+		*err = errors.New(want)
 	})
 	defer setRowsCloseHook(nil)
 	err = db.QueryRow("SELECT|people|name|").Scan(&v)

@@ -44,12 +44,14 @@ var runtimePkgs = []string{
 	"runtime",
 
 	"internal/runtime/atomic",
+	"internal/runtime/exithook",
 	"runtime/internal/math",
 	"runtime/internal/sys",
 	"internal/runtime/syscall",
 
 	"internal/abi",
 	"internal/bytealg",
+	"internal/byteorder",
 	"internal/chacha8rand",
 	"internal/coverage/rtcov",
 	"internal/cpu",
@@ -57,6 +59,8 @@ var runtimePkgs = []string{
 	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goos",
+	"internal/profilerecord",
+	"internal/stringslite",
 }
 
 // extraNoInstrumentPkgs is the set of packages in addition to runtimePkgs that

@@ -19,7 +19,26 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"sync"
+
+	"github.com/google/pprof/internal/report"
 )
+
+var (
+	htmlTemplates    *template.Template // Lazily loaded templates
+	htmlTemplateInit sync.Once
+)
+
+// getHTMLTemplates returns the set of HTML templates used by pprof,
+// initializing them if necessary.
+func getHTMLTemplates() *template.Template {
+	htmlTemplateInit.Do(func() {
+		htmlTemplates = template.New("templategroup")
+		addTemplates(htmlTemplates)
+		report.AddSourceTemplates(htmlTemplates)
+	})
+	return htmlTemplates
+}
 
 //go:embed html
 var embeddedFiles embed.FS
@@ -54,6 +73,7 @@ func addTemplates(templates *template.Template) {
 	def("css", loadCSS("html/common.css"))
 	def("header", loadFile("html/header.html"))
 	def("graph", loadFile("html/graph.html"))
+	def("graph_css", loadCSS("html/graph.css"))
 	def("script", loadJS("html/common.js"))
 	def("top", loadFile("html/top.html"))
 	def("sourcelisting", loadFile("html/source.html"))

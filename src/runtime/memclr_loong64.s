@@ -7,10 +7,6 @@
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
-#ifndef GOEXPERIMENT_regabiargs
-	MOVV	ptr+0(FP), R4
-	MOVV	n+8(FP), R5
-#endif
 	ADDV	R4, R5, R6
 
 	// if less than 8 bytes, do one byte at a time

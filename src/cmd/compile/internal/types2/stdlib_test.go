@@ -396,7 +396,8 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 		Error: func(err error) {
 			errs = append(errs, err)
 		},
-		Importer: importer,
+		Importer:    importer,
+		EnableAlias: true,
 	}
 	info := Info{Uses: make(map[*syntax.Name]Object)}
 	pkg, _ := conf.Check(path, files, &info)

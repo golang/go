@@ -22,19 +22,26 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
 
 // checkFiles configures and runs the types2 checker on the given
 // parsed source files and then returns the result.
-func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+// The map result value indicates which closures are generated from the bodies of range function loops.
+func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*syntax.FuncLit]bool) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
 
 	// setup and syntax error reporting
 	files := make([]*syntax.File, len(noders))
-	// posBaseMap maps all file pos bases back to *syntax.File
+	// fileBaseMap maps all file pos bases back to *syntax.File
 	// for checking Go version mismatched.
-	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
+	fileBaseMap := make(map[*syntax.PosBase]*syntax.File)
 	for i, p := range noders {
 		files[i] = p.file
-		posBaseMap[p.file.Pos().Base()] = p.file
+		// The file.Pos() is the position of the package clause.
+		// If there's a //line directive before that, file.Pos().Base()
+		// refers to that directive, not the file itself.
+		// Make sure to consistently map back to file base, here and
+		// when we look for a file in the conf.Error handler below,
+		// otherwise the file may not be found (was go.dev/issue/67141).
+		fileBaseMap[p.file.Pos().FileBase()] = p.file
 	}
 
 	// typechecking
@@ -49,9 +56,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
 		Importer:           &importer,
 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
-		// Currently, the compiler panics when using Alias types.
-		// TODO(gri) set to true once this is fixed (issue #66873)
-		EnableAlias: false,
+		EnableAlias:        true,
 	}
 	if base.Flag.ErrorURL {
 		conf.ErrorURL = " [go.dev/e/%s]"
@@ -71,13 +76,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 		terr := err.(types2.Error)
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
-			posBase := terr.Pos.Base()
-			for !posBase.IsFileBase() { // line directive base
-				posBase = posBase.Pos().Base()
-			}
-			fileVersion := info.FileVersions[posBase]
-			file := posBaseMap[posBase]
-			if file.GoVersion == fileVersion {
+			fileBase := terr.Pos.FileBase()
+			fileVersion := info.FileVersions[fileBase]
+			file := fileBaseMap[fileBase]
+			if file == nil {
+				// This should never happen, but be careful and don't crash.
+			} else if file.GoVersion == fileVersion {
 				// If we have a version error caused by //go:build, report it.
 				msg = fmt.Sprintf("%s (file declares //go:build %s)", msg, fileVersion)
 			} else {
@@ -147,9 +151,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	// If we do the rewrite in the back end, like between typecheck and walk,
 	// then the new implicit closure will not have a unified IR inline body,
 	// and bodyReaderFor will fail.
-	rangefunc.Rewrite(pkg, info, files)
+	rangeInfo := rangefunc.Rewrite(pkg, info, files)
 
-	return pkg, info
+	return pkg, info, rangeInfo
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).

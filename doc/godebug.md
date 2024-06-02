@@ -88,14 +88,38 @@ Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
 programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
 not the older version.
 
-To override these defaults, a main package's source files
+To override these defaults, starting in Go 1.23, the work module's `go.mod`
+or the workspace's `go.work` can list one or more `godebug` lines:
+
+	godebug (
+		default=go1.21
+		panicnil=1
+		asynctimerchan=0
+	)
+
+The special key `default` indicates a Go version to take unspecified
+settings from. This allows setting the GODEBUG defaults separately
+from the Go language version in the module.
+In this example, the program is asking for Go 1.21 semantics and
+then asking for the old pre-Go 1.21 `panic(nil)` behavior and the
+new Go 1.23 `asynctimerchan=0` behavior.
+
+Only the work module's `go.mod` is consulted for `godebug` directives.
+Any directives in required dependency modules are ignored.
+It is an error to list a `godebug` with an unrecognized setting.
+(Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
+understand `godebug` at all.)
+
+The defaults from the `go` and `godebug` lines apply to all main
+packages that are built. For more fine-grained control,
+starting in Go 1.21, a main package's source files
 can include one or more `//go:debug` directives at the top of the file
 (preceding the `package` statement).
-Continuing the `panicnil` example, if the module or workspace is updated
-to say `go` `1.21`, the program can opt back into the old `panic(nil)`
-behavior by including this directive:
+The `godebug` lines in the previous example would be written:
 
+	//go:debug default=go1.21
 	//go:debug panicnil=1
+	//go:debug asynctimerchan=0
 
 Starting in Go 1.21, the Go toolchain treats a `//go:debug` directive
 with an unrecognized GODEBUG setting as an invalid program.
@@ -152,6 +176,35 @@ This behavior is controlled by the `winreadlinkvolume` setting.
 For Go 1.23, it defaults to `winreadlinkvolume=1`.
 Previous versions default to `winreadlinkvolume=0`.
 
+Go 1.23 enabled the experimental post-quantum key exchange mechanism
+X25519Kyber768Draft00 by default. The default can be reverted using the
+[`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+
+Go 1.23 changed the behavior of
+[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
+serial numbers that are negative. This change can be reverted with
+the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
+
+Go 1.23 changed the behavior of
+[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
+serial numbers that are longer than 20 octets. This change can be reverted with
+the [`x509seriallength` setting](/pkg/crypto/x509/#ParseCertificate).
+
+Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
+The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
+any effect.
+
+Go 1.23 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing 3DES cipher suites. The default can be reverted
+using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
+
+Go 1.23 changed the behavior of [`tls.X509KeyPair`](/pkg/crypto/tls#X509KeyPair)
+and [`tls.LoadX509KeyPair`](/pkg/crypto/tls#LoadX509KeyPair) to populate the
+Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
+This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
+defaults to `x509keypairleaf=1`. Previous versions default to
+`x509keypairleaf=0`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
@@ -175,7 +228,7 @@ Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
 For Go 1.23, `gotypesalias=1` will become the default.
-This setting will be removed in a future release, Go 1.24 at the earliest.
+This setting will be removed in a future release, Go 1.27 at the earliest.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
 and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the

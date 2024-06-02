@@ -1,0 +1,17 @@
+[!GOOS:darwin] skip
+[!cgo] skip
+
+! go build
+stderr 'invalid flag in #cgo LDFLAGS: -lto_library'
+
+-- go.mod --
+module ldflag
+
+-- main.go --
+package main
+
+// #cgo CFLAGS: -flto
+// #cgo LDFLAGS: -lto_library bad.dylib
+import "C"
+
+func main() {}

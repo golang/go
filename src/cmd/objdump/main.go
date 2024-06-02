@@ -41,6 +41,7 @@ import (
 	"strings"
 
 	"cmd/internal/objfile"
+	"cmd/internal/telemetry"
 )
 
 var printCode = flag.Bool("S", false, "print Go code alongside assembly")
@@ -57,9 +58,12 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("objdump: ")
+	telemetry.Start()
 
 	flag.Usage = usage
 	flag.Parse()
+	telemetry.Inc("objdump/invocations")
+	telemetry.CountFlags("objdump/flag:", *flag.CommandLine)
 	if flag.NArg() != 1 && flag.NArg() != 3 {
 		usage()
 	}

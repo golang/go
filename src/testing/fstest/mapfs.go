@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -100,8 +100,8 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 	for name := range need {
 		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir | 0555}})
 	}
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].name < list[j].name
+	slices.SortFunc(list, func(a, b mapFileInfo) int {
+		return strings.Compare(a.name, b.name)
 	})
 
 	if file == nil {

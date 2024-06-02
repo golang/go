@@ -43,6 +43,7 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryPerformanceFrequency QueryPerformanceFrequency%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
@@ -100,6 +101,7 @@ var (
 	_LoadLibraryW,
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
+	_QueryPerformanceFrequency,
 	_RaiseFailFastException,
 	_ResumeThread,
 	_RtlLookupFunctionEntry,
@@ -244,6 +246,20 @@ func windows_GetSystemDirectory() string {
 
 func windowsLoadSystemLib(name []uint16) uintptr {
 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+}
+
+//go:linkname windows_QueryPerformanceCounter internal/syscall/windows.QueryPerformanceCounter
+func windows_QueryPerformanceCounter() int64 {
+	var counter int64
+	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+	return counter
+}
+
+//go:linkname windows_QueryPerformanceFrequency internal/syscall/windows.QueryPerformanceFrequency
+func windows_QueryPerformanceFrequency() int64 {
+	var frequency int64
+	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
+	return frequency
 }
 
 func loadOptionalSyscalls() {

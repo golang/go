@@ -40,7 +40,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 
 	// If there is a _cgo_init, call it using the gcc ABI.
 	MOVD	_cgo_init(SB), R12
-	CMP	R0, R12
+	CMP	R12, $0
 	BEQ	nocgo
 
 #ifdef GO_PPC64X_HAS_FUNCDESC
@@ -98,9 +98,10 @@ nocgo:
 
 	// start this M
 	BL	runtime·mstart(SB)
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
 #ifdef GOARCH_ppc64le
+	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
 #endif
 	MOVD	R0, 0(R0)
@@ -465,7 +466,7 @@ callfn: \
 #ifdef GOOS_aix				\
 	/* AIX won't trigger a SIGSEGV if R11 = nil */	\
 	/* So it manually triggers it */	\
-	CMP	R0, R11				\
+	CMP	R11, $0				\
 	BNE	2(PC)				\
 	MOVD	R0, 0(R0)			\
 #endif						\
@@ -563,7 +564,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R31
-	CMP	R0, R31
+	CMP	R31, $0
 	BEQ	2(PC)
 	BL	runtime·abort(SB)
 	RET
@@ -615,9 +616,9 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
-TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOVD	fn+0(FP), R3
-	MOVD	arg+8(FP), R4
+TEXT ·asmcgocall<ABIInternal>(SB),NOSPLIT,$0-20
+	// R3 = fn
+	// R4 = arg
 
 	MOVD	R1, R7		// save original stack pointer
 	CMP	$0, g
@@ -651,8 +652,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 #endif
 	// Save room for two of our pointers, plus the callee
 	// save area that lives on the caller stack.
-	SUB	$(asmcgocallSaveOffset+16), R1
-	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
+	// Do arithmetics in R10 to hide from the assembler
+	// counting it as SP delta, which is irrelevant as we are
+	// on the system stack.
+	SUB	$(asmcgocallSaveOffset+16), R1, R10
+	RLDCR	$0, R10, $~15, R1	// 16-byte alignment for gcc ABI
 	MOVD	R5, (asmcgocallSaveOffset+8)(R1)	// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R7, R5
@@ -689,7 +693,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	R5, R1
 	BL	runtime·save_g(SB)
 
-	MOVW	R3, ret+16(FP)
+	// ret = R3
 	RET
 
 nosave:
@@ -703,8 +707,8 @@ nosave:
 	// Using this code for all "already on system stack" calls exercises it more,
 	// which should help keep it correct.
 
-	SUB	$(asmcgocallSaveOffset+8), R1
-	RLDCR	$0, R1, $~15, R1		// 16-byte alignment for gcc ABI
+	SUB	$(asmcgocallSaveOffset+8), R1, R10
+	RLDCR	$0, R10, $~15, R1		// 16-byte alignment for gcc ABI
 	MOVD	R7, asmcgocallSaveOffset(R1)	// Save original stack pointer.
 
 	MOVD	R3, R12		// fn
@@ -724,7 +728,7 @@ nosave:
 #ifndef GOOS_aix
 	MOVD	24(R1), R2
 #endif
-	MOVW	R3, ret+16(FP)
+	// ret = R3
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
@@ -1231,7 +1235,7 @@ TEXT runtime·debugCallV2<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	CALL	runtime·debugCallCheck(SB)
 	MOVD	40(R1), R22
 	XOR	R0, R0
-	CMP	R22, R0
+	CMP	R22, $0
 	BEQ	good
 	MOVD	48(R1), R22
 	MOVD	$8, R20

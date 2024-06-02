@@ -52,18 +52,36 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 	ctx := context.Background()
 	conn := Server(s, serverConfig)
 	ch, err := conn.readClientHello(ctx)
-	hs := serverHandshakeState{
-		c:           conn,
-		ctx:         ctx,
-		clientHello: ch,
-	}
-	if err == nil {
-		err = hs.processClientHello()
-	}
-	if err == nil {
-		err = hs.pickCipherSuite()
+	if conn.vers == VersionTLS13 {
+		hs := serverHandshakeStateTLS13{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
+		if err == nil {
+			err = hs.processClientHello()
+		}
+		if err == nil {
+			err = hs.checkForResumption()
+		}
+		if err == nil {
+			err = hs.pickCertificate()
+		}
+	} else {
+		hs := serverHandshakeState{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
+		if err == nil {
+			err = hs.processClientHello()
+		}
+		if err == nil {
+			err = hs.pickCipherSuite()
+		}
 	}
 	s.Close()
+	t.Helper()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {
 			t.Errorf("Got error: %s; expected to succeed", err)
@@ -903,8 +921,50 @@ func TestHandshakeServerHelloRetryRequest(t *testing.T) {
 		name:    "HelloRetryRequest",
 		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-curves", "X25519:P-256"},
 		config:  config,
+		validate: func(cs ConnectionState) error {
+			if !cs.testingOnlyDidHRR {
+				return errors.New("expected HelloRetryRequest")
+			}
+			return nil
+		},
 	}
 	runServerTestTLS13(t, test)
+}
+
+// TestHandshakeServerKeySharePreference checks that we prefer a key share even
+// if it's later in the CurvePreferences order.
+func TestHandshakeServerKeySharePreference(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{X25519, CurveP256}
+
+	test := &serverTest{
+		name:    "KeySharePreference",
+		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-curves", "P-256:X25519"},
+		config:  config,
+		validate: func(cs ConnectionState) error {
+			if cs.testingOnlyDidHRR {
+				return errors.New("unexpected HelloRetryRequest")
+			}
+			return nil
+		},
+	}
+	runServerTestTLS13(t, test)
+}
+
+// TestHandshakeServerUnsupportedKeyShare tests a client that sends a key share
+// that's not in the supported groups list.
+func TestHandshakeServerUnsupportedKeyShare(t *testing.T) {
+	pk, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	clientHello := &clientHelloMsg{
+		vers:               VersionTLS12,
+		random:             make([]byte, 32),
+		supportedVersions:  []uint16{VersionTLS13},
+		cipherSuites:       []uint16{TLS_CHACHA20_POLY1305_SHA256},
+		compressionMethods: []uint8{compressionNone},
+		keyShares:          []keyShare{{group: X25519, data: pk.PublicKey().Bytes()}},
+		supportedCurves:    []CurveID{CurveP256},
+	}
+	testClientHelloFailure(t, testConfig, clientHello, "client sent key share for group it does not support")
 }
 
 func TestHandshakeServerALPN(t *testing.T) {
@@ -1932,6 +1992,7 @@ func TestAESCipherReorderingTLS13(t *testing.T) {
 					supportedVersions:  []uint16{VersionTLS13},
 					compressionMethods: []uint8{compressionNone},
 					keyShares:          []keyShare{{group: X25519, data: pk.PublicKey().Bytes()}},
+					supportedCurves:    []CurveID{X25519},
 				},
 			}
 

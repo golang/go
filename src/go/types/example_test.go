@@ -25,7 +25,7 @@ import (
 	"go/types"
 	"log"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -211,14 +211,14 @@ func fib(x int) int {
 	}
 	var items []string
 	for obj, uses := range usesByObj {
-		sort.Strings(uses)
+		slices.Sort(uses)
 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
 			types.ObjectString(obj, types.RelativeTo(pkg)),
 			fset.Position(obj.Pos()),
 			strings.Join(uses, ", "))
 		items = append(items, item)
 	}
-	sort.Strings(items) // sort by line:col, in effect
+	slices.Sort(items) // sort by line:col, in effect
 	fmt.Println(strings.Join(items, "\n"))
 	fmt.Println()
 
@@ -237,7 +237,7 @@ func fib(x int) int {
 			mode(tv), tvstr)
 		items = append(items, buf.String())
 	}
-	sort.Strings(items)
+	slices.Sort(items)
 	fmt.Println(strings.Join(items, "\n"))
 
 	// Output:

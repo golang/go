@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -67,7 +67,7 @@ func testCGI() {
 	for k := range params {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		fmt.Printf("param-%s=%s\r\n", key, params.Get(key))
 	}
@@ -77,7 +77,7 @@ func testCGI() {
 	for k := range envs {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		fmt.Printf("env-%s=%s\r\n", key, envs[key])
 	}

@@ -78,6 +78,16 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // n is the length of the slice.
 // Buf is a fixed-size buffer for the result,
 // it is not nil if the result does not escape.
+//
+// slicebytetostring should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname slicebytetostring
 func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	if n == 0 {
 		// Turns out to be a relatively common case.
@@ -312,7 +322,7 @@ func gobytes(p *byte, n int) (b []byte) {
 	return
 }
 
-// This is exported via linkname to assembly in syscall (for Plan9).
+// This is exported via linkname to assembly in syscall (for Plan9) and cgo.
 //
 //go:linkname gostring
 func gostring(p *byte) string {
@@ -339,14 +349,6 @@ func gostringn(p *byte, l int) string {
 	s, b := rawstring(l)
 	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
 	return s
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
-func hasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
 const (

@@ -577,7 +577,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	// Special handling for any: because WriteType will format 'any' as 'any',
 	// resulting in the object string `type any = any` rather than `type any =
 	// interface{}`. To avoid this, swap in a different empty interface.
-	if obj == universeAny {
+	if obj.Name() == "any" && obj.Parent() == Universe {
 		assert(Identical(typ, &emptyInterface))
 		typ = &emptyInterface
 	}

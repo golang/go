@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"internal/goexperiment"
 	"internal/profile"
 	"internal/testenv"
@@ -948,8 +949,6 @@ func TestSchedPauseMetrics(t *testing.T) {
 }
 
 func TestRuntimeLockMetricsAndProfile(t *testing.T) {
-	testenv.SkipFlaky(t, 64253)
-
 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
 	defer runtime.SetMutexProfileFraction(old)
 	if old != 0 {
@@ -1049,6 +1048,13 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			if metricGrowth == 0 && strictTiming {
 				// If the critical section is very short, systems with low timer
 				// resolution may be unable to measure it via nanotime.
+				//
+				// This is sampled at 1 per gTrackingPeriod, but the explicit
+				// runtime.mutex tests create 200 contention events. Observing
+				// zero of those has a probability of (7/8)^200 = 2.5e-12 which
+				// is acceptably low (though the calculation has a tenuous
+				// dependency on cheaprandn being a good-enough source of
+				// entropy).
 				t.Errorf("no increase in /sync/mutex/wait/total:seconds metric")
 			}
 			// This comparison is possible because the time measurements in support of
@@ -1114,7 +1120,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	name := t.Name()
 
 	t.Run("runtime.lock", func(t *testing.T) {
-		mus := make([]runtime.Mutex, 100)
+		mus := make([]runtime.Mutex, 200)
 		var needContention atomic.Int64
 		delay := 100 * time.Microsecond // large relative to system noise, for comparison between clocks
 		delayMicros := delay.Microseconds()
@@ -1169,24 +1175,35 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			needContention.Store(int64(len(mus) - 1))
 			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
 
-			if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); have < want {
-				// The test imposes a delay with usleep, verified with calls to
-				// nanotime. Compare against the runtime/metrics package's view
-				// (based on nanotime) rather than runtime/pprof's view (based
-				// on cputicks).
-				t.Errorf("runtime/metrics reported less than the known minimum contention duration (%fs < %fs)", have, want)
-			}
+			t.Run("metric", func(t *testing.T) {
+				// The runtime/metrics view may be sampled at 1 per
+				// gTrackingPeriod, so we don't have a hard lower bound here.
+				testenv.SkipFlaky(t, 64253)
+
+				if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); have < want {
+					// The test imposes a delay with usleep, verified with calls to
+					// nanotime. Compare against the runtime/metrics package's view
+					// (based on nanotime) rather than runtime/pprof's view (based
+					// on cputicks).
+					t.Errorf("runtime/metrics reported less than the known minimum contention duration (%fs < %fs)", have, want)
+				}
+			})
 			if have, want := n, int64(len(mus)); have != want {
 				t.Errorf("mutex profile reported contention count different from the known true count (%d != %d)", have, want)
 			}
 
 			const slop = 1.5 // account for nanotime vs cputicks
-			if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
-				t.Errorf("views differ by more than %fx", slop)
-			}
+			t.Run("compare timers", func(t *testing.T) {
+				testenv.SkipFlaky(t, 64253)
+				if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
+					t.Errorf("views differ by more than %fx", slop)
+				}
+			})
 		})
 
 		t.Run("sample-2", func(t *testing.T) {
+			testenv.SkipFlaky(t, 64253)
+
 			old := runtime.SetMutexProfileFraction(2)
 			defer runtime.SetMutexProfileFraction(old)
 
@@ -1218,6 +1235,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 	})
 
 	t.Run("runtime.semrelease", func(t *testing.T) {
+		testenv.SkipFlaky(t, 64253)
+
 		old := runtime.SetMutexProfileFraction(1)
 		defer runtime.SetMutexProfileFraction(old)
 
@@ -1325,4 +1344,39 @@ func TestCPUStats(t *testing.T) {
 	if stats.IdleTime == 0 {
 		t.Error("idle time is zero")
 	}
+}
+
+func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
+	// This test makes sure /memory/classes/heap/unused:bytes
+	// doesn't overflow when allocating and deallocating large
+	// objects. It is a regression test for #67019.
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			for range 10 {
+				abi.Escape(make([]byte, 1<<20))
+			}
+			runtime.GC()
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+	s := []metrics.Sample{
+		{Name: "/memory/classes/heap/unused:bytes"},
+	}
+	for range 1000 {
+		metrics.Read(s)
+		if s[0].Value.Uint64() > 1<<40 {
+			t.Errorf("overflow")
+			break
+		}
+	}
+	done <- struct{}{}
+	wg.Wait()
 }

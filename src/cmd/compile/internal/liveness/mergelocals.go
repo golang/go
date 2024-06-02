@@ -448,7 +448,7 @@ func (cs *cstate) setupHashBisection(cands []*ir.Name) {
 //
 // It is possible to have situations where a given ir.Name is
 // non-address-taken at the source level, but whose address is
-// materialized in order to accomodate the needs of
+// materialized in order to accommodate the needs of
 // architecture-dependent operations or one sort or another (examples
 // include things like LoweredZero/DuffZero, etc). The issue here is
 // that the SymAddr op will show up as touching a variable of

@@ -1867,7 +1867,10 @@ func sameSlice(a, b []int) bool {
 // the correct result at various positions within the source.
 func TestScopeLookupParent(t *testing.T) {
 	imports := make(testImporter)
-	conf := Config{Importer: imports}
+	conf := Config{
+		Importer:    imports,
+		EnableAlias: true, // must match default Universe.Lookup behavior
+	}
 	var info Info
 	makePkg := func(path, src string) {
 		var err error
@@ -3003,5 +3006,44 @@ type B = T[A]
 	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
 	if got != want {
 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+	}
+}
+
+func TestAlias_Rhs(t *testing.T) {
+	const src = `package p
+
+type A = B
+type B = C
+type C = int
+`
+
+	pkg := mustTypecheck(src, &Config{EnableAlias: true}, nil)
+	A := pkg.Scope().Lookup("A")
+
+	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
+	if got != want {
+		t.Errorf("A.Rhs = %s, want %s", got, want)
+	}
+}
+
+// Test the hijacking described of "any" described in golang/go#66921, for
+// (concurrent) type checking.
+func TestAnyHijacking_Check(t *testing.T) {
+	for _, enableAlias := range []bool{false, true} {
+		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
+			var wg sync.WaitGroup
+			for i := 0; i < 10; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					pkg := mustTypecheck("package p; var x any", &Config{EnableAlias: enableAlias}, nil)
+					x := pkg.Scope().Lookup("x")
+					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
+						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
+					}
+				}()
+			}
+			wg.Wait()
+		})
 	}
 }

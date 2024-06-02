@@ -11,9 +11,9 @@ package sha1
 import (
 	"crypto"
 	"crypto/internal/boring"
-	"encoding/binary"
 	"errors"
 	"hash"
+	"internal/byteorder"
 )
 
 func init() {
@@ -51,14 +51,14 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = binary.BigEndian.AppendUint32(b, d.h[0])
-	b = binary.BigEndian.AppendUint32(b, d.h[1])
-	b = binary.BigEndian.AppendUint32(b, d.h[2])
-	b = binary.BigEndian.AppendUint32(b, d.h[3])
-	b = binary.BigEndian.AppendUint32(b, d.h[4])
+	b = byteorder.BeAppendUint32(b, d.h[0])
+	b = byteorder.BeAppendUint32(b, d.h[1])
+	b = byteorder.BeAppendUint32(b, d.h[2])
+	b = byteorder.BeAppendUint32(b, d.h[3])
+	b = byteorder.BeAppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = binary.BigEndian.AppendUint64(b, d.len)
+	b = byteorder.BeAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -82,16 +82,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	_ = b[7]
-	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
-	return b[8:], x
+	return b[8:], byteorder.BeUint64(b)
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	_ = b[3]
-	x := uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
-	return b[4:], x
+	return b[4:], byteorder.BeUint32(b)
 }
 
 func (d *digest) Reset() {
@@ -167,7 +162,7 @@ func (d *digest) checkSum() [Size]byte {
 	// Length in bits.
 	len <<= 3
 	padlen := tmp[:t+8]
-	binary.BigEndian.PutUint64(padlen[t:], len)
+	byteorder.BePutUint64(padlen[t:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -176,11 +171,11 @@ func (d *digest) checkSum() [Size]byte {
 
 	var digest [Size]byte
 
-	binary.BigEndian.PutUint32(digest[0:], d.h[0])
-	binary.BigEndian.PutUint32(digest[4:], d.h[1])
-	binary.BigEndian.PutUint32(digest[8:], d.h[2])
-	binary.BigEndian.PutUint32(digest[12:], d.h[3])
-	binary.BigEndian.PutUint32(digest[16:], d.h[4])
+	byteorder.BePutUint32(digest[0:], d.h[0])
+	byteorder.BePutUint32(digest[4:], d.h[1])
+	byteorder.BePutUint32(digest[8:], d.h[2])
+	byteorder.BePutUint32(digest[12:], d.h[3])
+	byteorder.BePutUint32(digest[16:], d.h[4])
 
 	return digest
 }

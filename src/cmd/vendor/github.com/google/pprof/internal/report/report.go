@@ -111,12 +111,11 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		return printAssembly(w, rpt, obj)
 	case List:
 		return printSource(w, rpt)
-	case WebList:
-		return printWebSource(w, rpt, obj)
 	case Callgrind:
 		return printCallgrind(w, rpt)
 	}
-	return fmt.Errorf("unexpected output format")
+	// Note: WebList handling is in driver package.
+	return fmt.Errorf("unexpected output format %v", o.OutputFormat)
 }
 
 // newTrimmedGraph creates a graph for this report, trimmed according
@@ -1326,6 +1325,9 @@ type Report struct {
 
 // Total returns the total number of samples in a report.
 func (rpt *Report) Total() int64 { return rpt.total }
+
+// OutputFormat returns the output format for the report.
+func (rpt *Report) OutputFormat() int { return rpt.options.OutputFormat }
 
 func abs64(i int64) int64 {
 	if i < 0 {

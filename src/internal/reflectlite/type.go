@@ -111,20 +111,6 @@ type funcType = abi.FuncType
 
 type interfaceType = abi.InterfaceType
 
-// mapType represents a map type.
-type mapType struct {
-	rtype
-	Key    *abi.Type // map key type
-	Elem   *abi.Type // map element (value) type
-	Bucket *abi.Type // internal bucket structure
-	// function for hashing keys (ptr to key, seed) -> hash
-	Hasher     func(unsafe.Pointer, uintptr) uintptr
-	KeySize    uint8  // size of key slot
-	ValueSize  uint8  // size of value slot
-	BucketSize uint16 // size of bucket
-	Flags      uint32
-}
-
 // ptrType represents a pointer type.
 type ptrType = abi.PtrType
 
@@ -654,9 +640,4 @@ func toType(t *abi.Type) Type {
 		return nil
 	}
 	return toRType(t)
-}
-
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return abi.Kind(t.Kind_)&abi.KindDirectIface == 0
 }

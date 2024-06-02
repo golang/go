@@ -281,14 +281,18 @@ type scavengerState struct {
 	// g is the goroutine the scavenger is bound to.
 	g *g
 
-	// parked is whether or not the scavenger is parked.
-	parked bool
-
 	// timer is the timer used for the scavenger to sleep.
 	timer *timer
 
 	// sysmonWake signals to sysmon that it should wake the scavenger.
 	sysmonWake atomic.Uint32
+
+	// parked is whether or not the scavenger is parked.
+	parked bool
+
+	// printControllerReset instructs printScavTrace to signal that
+	// the controller was reset.
+	printControllerReset bool
 
 	// targetCPUFraction is the target CPU overhead for the scavenger.
 	targetCPUFraction float64
@@ -311,10 +315,6 @@ type scavengerState struct {
 	// using the controller and we hold sleepRatio at a conservative
 	// value. Used if the controller's assumptions fail to hold.
 	controllerCooldown int64
-
-	// printControllerReset instructs printScavTrace to signal that
-	// the controller was reset.
-	printControllerReset bool
 
 	// sleepStub is a stub used for testing to avoid actually having
 	// the scavenger sleep.
@@ -773,8 +773,6 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
 			unlock(p.mheapLock)
 
 			if !p.test {
-				pageTraceScav(getg().m.p.ptr(), 0, addr, uintptr(npages))
-
 				// Only perform sys* operations if we're not in a test.
 				// It's dangerous to do so otherwise.
 				sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)

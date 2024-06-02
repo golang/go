@@ -22,6 +22,7 @@ func under(t Type) Type {
 // identical element types), the single underlying type is the restricted
 // channel type if the restrictions are always the same, or nil otherwise.
 func coreType(t Type) Type {
+	t = Unalias(t)
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t)
@@ -51,6 +52,7 @@ func coreType(t Type) Type {
 // and strings as identical. In this case, if successful and we saw
 // a string, the result is of type (possibly untyped) string.
 func coreString(t Type) Type {
+	t = Unalias(t)
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t) // string or untyped string

@@ -34,6 +34,18 @@ func (pos Pos) Base() *PosBase { return pos.base }
 func (pos Pos) Line() uint     { return uint(pos.line) }
 func (pos Pos) Col() uint      { return uint(pos.col) }
 
+// FileBase returns the PosBase of the file containing pos,
+// skipping over intermediate PosBases from //line directives.
+// The result is nil if pos doesn't have a file base.
+func (pos Pos) FileBase() *PosBase {
+	b := pos.base
+	for b != nil && b != b.pos.base {
+		b = b.pos.base
+	}
+	// b == nil || b == b.pos.base
+	return b
+}
+
 func (pos Pos) RelFilename() string { return pos.base.Filename() }
 
 func (pos Pos) RelLine() uint {

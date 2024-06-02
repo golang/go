@@ -12,8 +12,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"os"
 	"strconv"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/aliases"
 )
 
@@ -32,22 +34,22 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	// TODO(adonovan): think about generics, and also generic aliases.
 	under := aliases.Unalias(typ)
-	// Don't call Underlying unconditionally: although it removed
+	// Don't call Underlying unconditionally: although it removes
 	// Named and Alias, it also removes TypeParam.
-	if n, ok := typ.(*types.Named); ok {
+	if n, ok := under.(*types.Named); ok {
 		under = n.Underlying()
 	}
-	switch u := under.(type) {
+	switch under := under.(type) {
 	case *types.Basic:
 		switch {
-		case u.Info()&types.IsNumeric != 0:
+		case under.Info()&types.IsNumeric != 0:
 			return &ast.BasicLit{Kind: token.INT, Value: "0"}
-		case u.Info()&types.IsBoolean != 0:
+		case under.Info()&types.IsBoolean != 0:
 			return &ast.Ident{Name: "false"}
-		case u.Info()&types.IsString != 0:
+		case under.Info()&types.IsString != 0:
 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
 		default:
-			panic(fmt.Sprintf("unknown basic type %v", u))
+			panic(fmt.Sprintf("unknown basic type %v", under))
 		}
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
@@ -178,7 +180,7 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				List: returns,
 			},
 		}
-	case *types.Named:
+	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
 		if t.Obj().Pkg() == nil {
 			return ast.NewIdent(t.Obj().Name())
 		}
@@ -392,4 +394,39 @@ func equivalentTypes(want, got types.Type) bool {
 		}
 	}
 	return types.AssignableTo(want, got)
+}
+
+// MakeReadFile returns a simple implementation of the Pass.ReadFile function.
+func MakeReadFile(pass *analysis.Pass) func(filename string) ([]byte, error) {
+	return func(filename string) ([]byte, error) {
+		if err := checkReadable(pass, filename); err != nil {
+			return nil, err
+		}
+		return os.ReadFile(filename)
+	}
+}
+
+// checkReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
+func checkReadable(pass *analysis.Pass, filename string) error {
+	if slicesContains(pass.OtherFiles, filename) ||
+		slicesContains(pass.IgnoredFiles, filename) {
+		return nil
+	}
+	for _, f := range pass.Files {
+		// TODO(adonovan): use go1.20 f.FileStart
+		if pass.Fset.File(f.Pos()).Name() == filename {
+			return nil
+		}
+	}
+	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
+}
+
+// TODO(adonovan): use go1.21 slices.Contains.
+func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
+	for _, elem := range slice {
+		if elem == x {
+			return true
+		}
+	}
+	return false
 }

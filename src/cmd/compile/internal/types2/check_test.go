@@ -247,17 +247,17 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
 					panic("unreachable")
 				}
 			}
-			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
+			unquoted, err := strconv.Unquote(strings.TrimSpace(pattern))
 			if err != nil {
-				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+				t.Errorf("%s:%d:%d: invalid ERROR pattern (cannot unquote %s)", filename, line, want.Pos.Col(), pattern)
 				continue
 			}
 			if substr {
-				if !strings.Contains(gotMsg, pattern) {
+				if !strings.Contains(gotMsg, unquoted) {
 					continue
 				}
 			} else {
-				rx, err := regexp.Compile(pattern)
+				rx, err := regexp.Compile(unquoted)
 				if err != nil {
 					t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
 					continue

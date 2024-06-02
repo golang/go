@@ -241,6 +241,12 @@ type Type interface {
 	// It panics if t's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 	OverflowUint(x uint64) bool
 
+	// CanSeq reports whether a [Value] with this type can be iterated over using [Value.Seq].
+	CanSeq() bool
+
+	// CanSeq2 reports whether a [Value] with this type can be iterated over using [Value.Seq2].
+	CanSeq2() bool
+
 	common() *abi.Type
 	uncommon() *uncommonType
 }
@@ -517,6 +523,15 @@ func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 // It returns a new ID that can be used as a typeOff or textOff, and will
 // be resolved correctly. Implemented in the runtime package.
 //
+// addReflectOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goplus/reflectx
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname addReflectOff
 //go:noescape
 func addReflectOff(ptr unsafe.Pointer) int32
 
@@ -866,6 +881,62 @@ func (t *rtype) OverflowUint(x uint64) bool {
 	panic("reflect: OverflowUint of non-uint type " + t.String())
 }
 
+func (t *rtype) CanSeq() bool {
+	switch t.Kind() {
+	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Array, Slice, Chan, String, Map:
+		return true
+	case Func:
+		return canRangeFunc(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
+}
+
+func canRangeFunc(t *abi.Type) bool {
+	if t.Kind() != abi.Func {
+		return false
+	}
+	f := t.FuncType()
+	if f.InCount != 1 || f.OutCount != 0 {
+		return false
+	}
+	y := f.In(0)
+	if y.Kind() != abi.Func {
+		return false
+	}
+	yield := y.FuncType()
+	return yield.InCount == 1 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+}
+
+func (t *rtype) CanSeq2() bool {
+	switch t.Kind() {
+	case Array, Slice, String, Map:
+		return true
+	case Func:
+		return canRangeFunc2(&t.t)
+	case Pointer:
+		return t.Elem().Kind() == Array
+	}
+	return false
+}
+
+func canRangeFunc2(t *abi.Type) bool {
+	if t.Kind() != abi.Func {
+		return false
+	}
+	f := t.FuncType()
+	if f.InCount != 1 || f.OutCount != 0 {
+		return false
+	}
+	y := f.In(0)
+	if y.Kind() != abi.Func {
+		return false
+	}
+	yield := y.FuncType()
+	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+}
+
 // add returns p+x.
 //
 // The whySafe string is ignored, so that the function still inlines
@@ -873,6 +944,17 @@ func (t *rtype) OverflowUint(x uint64) bool {
 // record why the addition is safe, which is to say why the addition
 // does not cause x to advance to the very end of p's allocation
 // and therefore point incorrectly at the next block in memory.
+//
+// add should be an internal detail (and is trivially copyable),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/pinpoint-apm/pinpoint-go-agent
+//   - github.com/vmware/govmomi
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname add
 func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
@@ -1570,6 +1652,15 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 // pointers, channels, maps, slices, and arrays.
 func typelinks() (sections []unsafe.Pointer, offset [][]int32)
 
+// rtypeOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/goccy/go-json
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname rtypeOff
 func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 	return (*abi.Type)(add(section, uintptr(off), "sizeof(rtype) > 0"))
 }
@@ -1578,6 +1669,17 @@ func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 // the given string representation.
 // It may be empty (no known types with that string) or may have
 // multiple elements (multiple types with that string).
+//
+// typesByString should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/aristanetworks/goarista
+//   - fortio.org/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typesByString
 func typesByString(s string) []*abi.Type {
 	sections, offset := typelinks()
 	var ret []*abi.Type
@@ -2287,8 +2389,9 @@ func StructOf(fields []StructField) Type {
 		// Update string and hash
 		name := f.Name.Name()
 		hash = fnv1(hash, []byte(name)...)
-		repr = append(repr, (" " + name)...)
-		if f.Embedded() {
+		if !f.Embedded() {
+			repr = append(repr, (" " + name)...)
+		} else {
 			// Embedded field
 			if f.Typ.Kind() == abi.Pointer {
 				// Embedded ** and *interface{} are illegal
@@ -2605,7 +2708,7 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
+	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
 		// structs of 1 direct iface type can be direct
 		typ.Kind_ |= abi.KindDirectIface
 	default:
@@ -2800,7 +2903,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && !ifaceIndir(typ):
+	case length == 1 && !typ.IfaceIndir():
 		// array of 1 direct iface type can be direct
 		array.Kind_ |= abi.KindDirectIface
 	default:
@@ -2824,6 +2927,19 @@ func appendVarint(x []byte, v uintptr) []byte {
 // a nil *rtype must be replaced by a nil Type, but in gccgo this
 // function takes care of ensuring that multiple *rtype for the same
 // type are coalesced into a single Type.
+//
+// toType should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - fortio.org/log
+//   - github.com/goccy/go-json
+//   - github.com/goccy/go-reflect
+//   - github.com/sohaha/zlsgo
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname toType
 func toType(t *abi.Type) Type {
 	if t == nil {
 		return nil
@@ -2902,11 +3018,6 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
 	return lt.t, lt.framePool, lt.abid
 }
 
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&abi.KindDirectIface == 0
-}
-
 // Note: this type must agree with runtime.bitvector.
 type bitVector struct {
 	n    uint32 // number of bits
@@ -2935,14 +3046,14 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 	switch Kind(t.Kind_ & abi.KindMask) {
 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
-		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+		for bv.n < uint32(offset/goarch.PtrSize) {
 			bv.append(0)
 		}
 		bv.append(1)
 
 	case Interface:
 		// 2 pointers
-		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+		for bv.n < uint32(offset/goarch.PtrSize) {
 			bv.append(0)
 		}
 		bv.append(1)

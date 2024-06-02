@@ -14,9 +14,10 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
+	_ "unsafe" // for linkname
 )
 
 // Error reports an error and the operation and URL that caused it.
@@ -677,6 +678,16 @@ func parseHost(host string) (string, error) {
 // - setPath("/foo%2fbar") will set Path="/foo/bar" and RawPath="/foo%2fbar"
 // setPath will return an error only if the provided path contains an invalid
 // escaping.
+//
+// setPath should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname badSetPath net/url.(*URL).setPath
 func (u *URL) setPath(p string) error {
 	path, err := unescape(p, encodePath)
 	if err != nil {
@@ -691,6 +702,9 @@ func (u *URL) setPath(p string) error {
 	}
 	return nil
 }
+
+// for linkname because we cannot linkname methods directly
+func badSetPath(*URL, string) error
 
 // EscapedPath returns the escaped form of u.Path.
 // In general there are multiple possible escaped forms of any path.
@@ -814,6 +828,22 @@ func validOptionalPort(port string) bool {
 //   - if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
 	var buf strings.Builder
+
+	n := len(u.Scheme)
+	if u.Opaque != "" {
+		n += len(u.Opaque)
+	} else {
+		if !u.OmitHost && (u.Scheme != "" || u.Host != "" || u.User != nil) {
+			username := u.User.Username()
+			password, _ := u.User.Password()
+			n += len(username) + len(password) + len(u.Host)
+		}
+		n += len(u.Path)
+	}
+	n += len(u.RawQuery) + len(u.RawFragment)
+	n += len(":" + "//" + "//" + ":" + "@" + "/" + "./" + "?" + "#")
+	buf.Grow(n)
+
 	if u.Scheme != "" {
 		buf.WriteString(u.Scheme)
 		buf.WriteByte(':')
@@ -978,7 +1008,7 @@ func (v Values) Encode() string {
 	for k := range v {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
@@ -1107,6 +1137,13 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 			url.Fragment = u.Fragment
 			url.RawFragment = u.RawFragment
 		}
+	}
+	if ref.Path == "" && u.Opaque != "" {
+		url.Opaque = u.Opaque
+		url.User = nil
+		url.Host = ""
+		url.Path = ""
+		return &url
 	}
 	// The "abs_path" or "rel_path" cases.
 	url.Host = u.Host

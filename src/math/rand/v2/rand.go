@@ -56,6 +56,9 @@ func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
 // Int returns a non-negative pseudo-random int.
 func (r *Rand) Int() int { return int(uint(r.src.Uint64()) << 1 >> 1) }
 
+// Uint returns a pseudo-random uint.
+func (r *Rand) Uint() uint { return uint(r.src.Uint64()) }
+
 // Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 func (r *Rand) Int64N(n int64) int64 {
@@ -250,7 +253,7 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 
 // globalRand is the source of random numbers for the top-level
 // convenience functions.
-var globalRand = &Rand{src: &runtimeSource{}}
+var globalRand = &Rand{src: runtimeSource{}}
 
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
@@ -258,7 +261,7 @@ func runtime_rand() uint64
 // runtimeSource is a Source that uses the runtime fastrand functions.
 type runtimeSource struct{}
 
-func (*runtimeSource) Uint64() uint64 {
+func (runtimeSource) Uint64() uint64 {
 	return runtime_rand()
 }
 
@@ -290,6 +293,9 @@ func Int32() int32 { return globalRand.Int32() }
 
 // Int returns a non-negative pseudo-random int from the default Source.
 func Int() int { return globalRand.Int() }
+
+// Uint returns a pseudo-random uint from the default Source.
+func Uint() uint { return globalRand.Uint() }
 
 // Int64N returns, as an int64, a pseudo-random number in the half-open interval [0,n)
 // from the default Source.

@@ -19,10 +19,9 @@
 // over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
-// Operations in this package are implemented using constant-time algorithms,
-// except for [GenerateKey], [PrivateKey.Precompute], and [PrivateKey.Validate].
-// Every other operation only leaks the bit size of the involved values, which
-// all depend on the selected key size.
+// Operations involving private keys are implemented using constant-time
+// algorithms, except for [GenerateKey], [PrivateKey.Precompute], and
+// [PrivateKey.Validate].
 package rsa
 
 import (

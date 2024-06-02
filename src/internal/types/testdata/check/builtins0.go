@@ -100,10 +100,10 @@ func cap1() {
 
 	var s [][]byte
 	_ = cap(s)
-	_ = cap(s... /* ERROR "invalid use of ... with built-in `cap'" */ )
+	_ = cap(s... /* ERROR "invalid use of ... with built-in cap" */ )
 
 	var x int
-	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for `cap'" */ )
+	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for built-in cap" */ )
 }
 
 func cap2() {

@@ -6,9 +6,10 @@ package filepath
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -307,7 +308,7 @@ func cleanGlobPath(path string) string {
 
 // cleanGlobPathWindows is windows version of cleanGlobPath.
 func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
-	vollen := volumeNameLen(path)
+	vollen := filepathlite.VolumeNameLen(path)
 	switch {
 	case path == "":
 		return 0, "."
@@ -344,7 +345,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	defer d.Close()
 
 	names, _ := d.Readdirnames(-1)
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, n := range names {
 		matched, err := Match(pattern, n)

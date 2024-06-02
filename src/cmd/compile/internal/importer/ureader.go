@@ -9,15 +9,15 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
-	"internal/godebug"
 	"internal/pkgbits"
 )
 
 type pkgReader struct {
 	pkgbits.PkgDecoder
 
-	ctxt    *types2.Context
-	imports map[string]*types2.Package
+	ctxt        *types2.Context
+	imports     map[string]*types2.Package
+	enableAlias bool // whether to use aliases
 
 	posBases []*syntax.PosBase
 	pkgs     []*types2.Package
@@ -30,6 +30,9 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 
 		ctxt:    ctxt,
 		imports: imports,
+		// Currently, the compiler panics when using Alias types.
+		// TODO(gri) set to true once this is fixed (issue #66873)
+		enableAlias: false,
 
 		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
 		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
@@ -410,7 +413,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 		case pkgbits.ObjAlias:
 			pos := r.pos()
 			typ := r.typ()
-			return newAliasTypeName(pos, objPkg, objName, typ)
+			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -536,16 +539,13 @@ func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
 }
 
 // newAliasTypeName returns a new TypeName, with a materialized *types2.Alias if supported.
-func newAliasTypeName(pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type) *types2.TypeName {
+func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type) *types2.TypeName {
 	// Copied from x/tools/internal/aliases.NewAlias via
 	// GOROOT/src/go/internal/gcimporter/ureader.go.
-	if gotypesalias.Value() == "1" {
+	if aliases {
 		tname := types2.NewTypeName(pos, pkg, name, nil)
 		_ = types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
 		return tname
 	}
 	return types2.NewTypeName(pos, pkg, name, rhs)
 }
-
-// gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("#gotypesalias")

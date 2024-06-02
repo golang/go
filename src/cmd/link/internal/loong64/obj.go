@@ -30,7 +30,7 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		ELF: ld.ELFArch{
 			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
-			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
+			LinuxdynldMusl: "/lib/ld-musl-loongarch.so.1",
 			Freebsddynld:   "XXX",
 			Openbsddynld:   "XXX",
 			Netbsddynld:    "XXX",

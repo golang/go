@@ -734,8 +734,8 @@
 	=> x
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
-        (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
-        (Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
 (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
 (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
 
@@ -2794,3 +2794,16 @@
 (Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
 (Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
 (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+
+// Calling cmpstring a second time with the same arguments in the
+// same memory state can reuse the results of the first call.
+// See issue 61725.
+// Note that this could pretty easily generalize to any pure function.
+(SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
+  && isSameCall(f, "runtime.cmpstring")
+  && isSameCall(g, "runtime.cmpstring")
+=> @c.Block (SelectN [0] <typ.Int> c)
+
+// If we don't use the result of cmpstring, might as well not call it.
+// Note that this could pretty easily generalize to any pure function.
+(SelectN [1] c:(StaticLECall {f} _ _ mem)) && c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c) => mem

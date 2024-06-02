@@ -10,6 +10,7 @@ import (
 	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 // Equal reports whether a and b
@@ -568,6 +569,18 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 	return b
 }
 
+// Despite being an exported symbol,
+// Repeat is linknamed by widely used packages.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/num
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+// Note that this comment is not part of the doc comment.
+//
+//go:linkname Repeat
+
 // Repeat returns a new byte slice consisting of count copies of b.
 //
 // It panics if count is negative or if the result of (len(b) * count)
@@ -583,7 +596,7 @@ func Repeat(b []byte, count int) []byte {
 	if count < 0 {
 		panic("bytes: negative Repeat count")
 	}
-	if len(b) >= maxInt/count {
+	if len(b) > maxInt/count {
 		panic("bytes: Repeat output length overflow")
 	}
 	n := len(b) * count

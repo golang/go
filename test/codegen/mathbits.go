@@ -827,6 +827,7 @@ func Mul(x, y uint) (hi, lo uint) {
 	// ppc64x:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
+	// riscv64:"MULHU","MUL"
 	return bits.Mul(x, y)
 }
 

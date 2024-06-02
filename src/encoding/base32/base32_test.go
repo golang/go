@@ -92,6 +92,43 @@ func TestEncoderBuffering(t *testing.T) {
 	}
 }
 
+func TestDecoderBufferingWithPadding(t *testing.T) {
+	for bs := 0; bs <= 12; bs++ {
+		for _, s := range pairs {
+			decoder := NewDecoder(StdEncoding, strings.NewReader(s.encoded))
+			buf := make([]byte, len(s.decoded)+bs)
+
+			var n int
+			var err error
+			n, err = decoder.Read(buf)
+
+			if err != nil && err != io.EOF {
+				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", s.encoded, len(s.decoded), n, err)
+			}
+			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, s.encoded, string(buf[:n]), s.decoded)
+		}
+	}
+}
+
+func TestDecoderBufferingWithoutPadding(t *testing.T) {
+	for bs := 0; bs <= 12; bs++ {
+		for _, s := range pairs {
+			encoded := strings.TrimRight(s.encoded, "=")
+			decoder := NewDecoder(StdEncoding.WithPadding(NoPadding), strings.NewReader(encoded))
+			buf := make([]byte, len(s.decoded)+bs)
+
+			var n int
+			var err error
+			n, err = decoder.Read(buf)
+
+			if err != nil && err != io.EOF {
+				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", encoded, len(s.decoded), n, err)
+			}
+			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, encoded, string(buf[:n]), s.decoded)
+		}
+	}
+}
+
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))

@@ -31,7 +31,7 @@ func panicCustomComplex128() {
 }
 
 func panicCustomString() {
-	panic(MyString("Panic"))
+	panic(MyString("Panic\nline two"))
 }
 
 func panicCustomBool() {

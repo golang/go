@@ -18,6 +18,7 @@ import (
 	"hash"
 	"internal/cpu"
 	"runtime"
+	_ "unsafe" // for linkname
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -197,6 +198,16 @@ type cipherSuiteTLS13 struct {
 	hash   crypto.Hash
 }
 
+// cipherSuitesTLS13 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/quic-go/quic-go
+//   - github.com/sagernet/quic-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cipherSuitesTLS13
 var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 	{TLS_AES_128_GCM_SHA256, 16, aeadAESGCMTLS13, crypto.SHA256},
 	{TLS_CHACHA20_POLY1305_SHA256, 32, aeadChaCha20Poly1305, crypto.SHA256},
@@ -346,36 +357,11 @@ var rsaKexCiphers = map[uint16]bool{
 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
 }
 
-var defaultCipherSuites []uint16
-var defaultCipherSuitesWithRSAKex []uint16
-
-func init() {
-	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
-	defaultCipherSuitesWithRSAKex = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
-	for _, c := range cipherSuitesPreferenceOrder {
-		if disabledCipherSuites[c] {
-			continue
-		}
-		if !rsaKexCiphers[c] {
-			defaultCipherSuites = append(defaultCipherSuites, c)
-		}
-		defaultCipherSuitesWithRSAKex = append(defaultCipherSuitesWithRSAKex, c)
-	}
-}
-
-// defaultCipherSuitesTLS13 is also the preference order, since there are no
-// disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as
-// cipherSuitesPreferenceOrder applies.
-var defaultCipherSuitesTLS13 = []uint16{
-	TLS_AES_128_GCM_SHA256,
-	TLS_AES_256_GCM_SHA384,
-	TLS_CHACHA20_POLY1305_SHA256,
-}
-
-var defaultCipherSuitesTLS13NoAES = []uint16{
-	TLS_CHACHA20_POLY1305_SHA256,
-	TLS_AES_128_GCM_SHA256,
-	TLS_AES_256_GCM_SHA384,
+// tdesCiphers contains 3DES ciphers,
+// which we also disable by default unless a GODEBUG is set.
+var tdesCiphers = map[uint16]bool{
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true,
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       true,
 }
 
 var (
@@ -548,6 +534,16 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
 	return ret
 }
 
+// aeadAESGCMTLS13 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/xtls/xray-core
+//   - github.com/v2fly/v2ray-core
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname aeadAESGCMTLS13
 func aeadAESGCMTLS13(key, nonceMask []byte) aead {
 	if len(nonceMask) != aeadNonceLength {
 		panic("tls: internal error: wrong nonce length")

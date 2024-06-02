@@ -89,6 +89,15 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 	return to
 }
 
+// makeslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname makeslice
 func makeslice(et *_type, len, cap int) unsafe.Pointer {
 	mem, overflow := math.MulUintptr(et.Size_, uintptr(cap))
 	if overflow || mem > maxAlloc || len < 0 || len > cap {
@@ -152,6 +161,19 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 // new length so that the old length is not live (does not need to be
 // spilled/restored) and the new length is returned (also does not need
 // to be spilled/restored).
+//
+// growslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/chenzhuoyu/iasm
+//   - github.com/cloudwego/dynamicgo
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname growslice
 func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
 	oldLen := newLen - num
 	if raceenabled {
@@ -298,6 +320,14 @@ func nextslicecap(newLen, oldCap int) int {
 	return newcap
 }
 
+// reflect_growslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/dynamicgo
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_growslice reflect.growslice
 func reflect_growslice(et *_type, old slice, num int) slice {
 	// Semantically equivalent to slices.Grow, except that the caller

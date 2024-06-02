@@ -29,12 +29,22 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	_ "unsafe"
 )
 
-var (
-	driversMu sync.RWMutex
-	drivers   = make(map[string]driver.Driver)
-)
+var driversMu sync.RWMutex
+
+// drivers should be an internal detail,
+// but widely used packages access it using linkname.
+// (It is extra wrong that they linkname drivers but not driversMu.)
+// Notable members of the hall of shame include:
+//   - github.com/instana/go-sensor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname drivers
+var drivers = make(map[string]driver.Driver)
 
 // nowFunc returns the current time; it's overridden in tests.
 var nowFunc = time.Now
@@ -551,9 +561,9 @@ type driverConn struct {
 
 	// guarded by db.mu
 	inUse      bool
+	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
 	returnedAt time.Time // Time the connection was created or returned.
 	onPut      []func()  // code (with db.mu held) run when conn is next returned
-	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -2923,19 +2933,8 @@ type Rows struct {
 	//
 	// closemu guards lasterr and closed.
 	closemu sync.RWMutex
-	closed  bool
 	lasterr error // non-nil only if closed is true
-
-	// lastcols is only used in Scan, Next, and NextResultSet which are expected
-	// not to be called concurrently.
-	lastcols []driver.Value
-
-	// raw is a buffer for RawBytes that persists between Scan calls.
-	// This is used when the driver returns a mismatched type that requires
-	// a cloning allocation. For example, if the driver returns a *string and
-	// the user is scanning into a *RawBytes, we need to copy the string.
-	// The raw buffer here lets us reuse the memory for that copy across Scan calls.
-	raw []byte
+	closed  bool
 
 	// closemuScanHold is whether the previous call to Scan kept closemu RLock'ed
 	// without unlocking it. It does that when the user passes a *RawBytes scan
@@ -2951,6 +2950,17 @@ type Rows struct {
 	// returning. It's only used by Next and Err which are
 	// expected not to be called concurrently.
 	hitEOF bool
+
+	// lastcols is only used in Scan, Next, and NextResultSet which are expected
+	// not to be called concurrently.
+	lastcols []driver.Value
+
+	// raw is a buffer for RawBytes that persists between Scan calls.
+	// This is used when the driver returns a mismatched type that requires
+	// a cloning allocation. For example, if the driver returns a *string and
+	// the user is scanning into a *RawBytes, we need to copy the string.
+	// The raw buffer here lets us reuse the memory for that copy across Scan calls.
+	raw []byte
 }
 
 // lasterrOrErrLocked returns either lasterr or the provided err.

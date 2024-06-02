@@ -762,7 +762,8 @@ func parseRunningTests(out []byte) (runningTests []string, ok bool) {
 	inRunningTests := false
 	for _, line := range strings.Split(string(out), "\n") {
 		if inRunningTests {
-			if trimmed, ok := strings.CutPrefix(line, "\t"); ok {
+			// Package testing adds one tab, the panic printer adds another.
+			if trimmed, ok := strings.CutPrefix(line, "\t\t"); ok {
 				if name, _, ok := strings.Cut(trimmed, " "); ok {
 					runningTests = append(runningTests, name)
 					continue

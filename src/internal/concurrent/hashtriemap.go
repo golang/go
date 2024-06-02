@@ -78,6 +78,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 		// Find the key or a candidate location for insertion.
 		i = ht.root
 		hashShift = 8 * goarch.PtrSize
+		haveInsertPoint := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
@@ -85,6 +86,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 			n = slot.Load()
 			if n == nil {
 				// We found a nil slot which is a candidate for insertion.
+				haveInsertPoint = true
 				break
 			}
 			if n.isEntry {
@@ -94,11 +96,12 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 				if v, ok := n.entry().lookup(key, ht.keyEqual); ok {
 					return v, true
 				}
+				haveInsertPoint = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !haveInsertPoint {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
@@ -188,6 +191,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 		// Find the key or return when there's nothing to delete.
 		i = ht.root
 		hashShift = 8 * goarch.PtrSize
+		found := false
 		for hashShift != 0 {
 			hashShift -= nChildrenLog2
 
@@ -204,11 +208,12 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 					return
 				}
 				// We've got something to delete.
+				found = true
 				break
 			}
 			i = n.indirect()
 		}
-		if hashShift == 0 {
+		if !found {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 
@@ -248,7 +253,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 
 	// Check if the node is now empty (and isn't the root), and delete it if able.
 	for i.parent != nil && i.empty() {
-		if hashShift == 64 {
+		if hashShift == 8*goarch.PtrSize {
 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
 		}
 		hashShift += nChildrenLog2
@@ -265,13 +270,15 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	return true
 }
 
-// Enumerate produces all key-value pairs in the map. The enumeration does
-// not represent any consistent snapshot of the map, but is guaranteed
-// to visit each unique key-value pair only once. It is safe to operate
-// on the tree during iteration. No particular enumeration order is
-// guaranteed.
-func (ht *HashTrieMap[K, V]) Enumerate(yield func(key K, value V) bool) {
-	ht.iter(ht.root, yield)
+// All returns an iter.Seq2 that produces all key-value pairs in the map.
+// The enumeration does not represent any consistent snapshot of the map,
+// but is guaranteed to visit each unique key-value pair only once. It is
+// safe to operate on the tree during iteration. No particular enumeration
+// order is guaranteed.
+func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
+	return func(yield func(key K, value V) bool) {
+		ht.iter(ht.root, yield)
+	}
 }
 
 func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) bool) bool {
@@ -301,7 +308,7 @@ const (
 	// 16 children. This seems to be the sweet spot for
 	// load performance: any smaller and we lose out on
 	// 50% or more in CPU performance. Any larger and the
-	// returns are miniscule (~1% improvement for 32 children).
+	// returns are minuscule (~1% improvement for 32 children).
 	nChildrenLog2 = 4
 	nChildren     = 1 << nChildrenLog2
 	nChildrenMask = nChildren - 1

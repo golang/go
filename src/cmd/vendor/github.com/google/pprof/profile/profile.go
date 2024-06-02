@@ -847,7 +847,7 @@ func (p *Profile) HasFileLines() bool {
 // "[vdso]", [vsyscall]" and some others, see the code.
 func (m *Mapping) Unsymbolizable() bool {
 	name := filepath.Base(m.File)
-	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/")
+	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/") || m.File == "//anon"
 }
 
 // Copy makes a fully independent copy of a profile.

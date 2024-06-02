@@ -437,6 +437,7 @@ type g struct {
 	sched     gobuf
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
 	stktopsp  uintptr // expected sp at top of stack, to check in traceback
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
@@ -509,11 +510,11 @@ type g struct {
 	sleepWhen     int64          // when to sleep until
 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
 
-	coroarg *coro // argument during coroutine transfers
-
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile
 	goroutineProfiled goroutineProfileStateHolder
+
+	coroarg *coro // argument during coroutine transfers
 
 	// Per-G tracer state.
 	trace gTraceState
@@ -598,13 +599,14 @@ type m struct {
 	nextwaitm     muintptr    // next m waiting for lock
 
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
+	profStack    []uintptr    // used for memory/block/mutex stack traces
 
 	// wait* are used to carry arguments from gopark into park_m, because
 	// there's no stack to put them on. That is their sole purpose.
 	waitunlockf          func(*g, unsafe.Pointer) bool
 	waitlock             unsafe.Pointer
-	waitTraceBlockReason traceBlockReason
 	waitTraceSkip        int
+	waitTraceBlockReason traceBlockReason
 
 	syscalltick uint32
 	freelink    *m // on sched.freem
@@ -765,11 +767,6 @@ type p struct {
 
 	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
 	gcStopTime int64
-
-	// pageTraceBuf is a buffer for writing out page allocation/free/scavenge traces.
-	//
-	// Used only if GOEXPERIMENT=pagetrace.
-	pageTraceBuf pageTraceBuf
 
 	// Padding is no longer needed. False sharing is now not a worry because p is large enough
 	// that its size class is an integer multiple of the cache line size (for any of our architectures).
@@ -1235,6 +1232,10 @@ var (
 	timerpMask pMask
 )
 
+// goarmsoftfp is used by runtime/cgo assembly.
+//
+//go:linkname goarmsoftfp
+
 var (
 	// Pool of GC parked background workers. Entries are type
 	// *gcBgMarkWorkerNode.
@@ -1249,8 +1250,21 @@ var (
 	// Set on startup in asm_{386,amd64}.s
 	processorVersionInfo uint32
 	isIntel              bool
+)
 
-	// set by cmd/link on arm systems
+// set by cmd/link on arm systems
+// accessed using linkname by internal/runtime/atomic.
+//
+// goarm should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/creativeprojects/go-selfupdate
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goarm
+var (
 	goarm       uint8
 	goarmsoftfp uint8
 )
@@ -1263,3 +1277,17 @@ var (
 
 // Must agree with internal/buildcfg.FramePointerEnabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+
+// getcallerfp returns the frame pointer of the caller of the caller
+// of this function.
+//
+//go:nosplit
+//go:noinline
+func getcallerfp() uintptr {
+	fp := getfp() // This frame's FP.
+	if fp != 0 {
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's FP.
+		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's caller's FP.
+	}
+	return fp
+}

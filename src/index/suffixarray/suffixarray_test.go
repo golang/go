@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -141,7 +142,7 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
 	// we cannot simply check that the res and exp lists are equal
 
 	// check that each result is in fact a correct match and there are no duplicates
-	sort.Ints(res)
+	slices.Sort(res)
 	for i, r := range res {
 		if r < 0 || len(tc.source) <= r {
 			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(tc.source))

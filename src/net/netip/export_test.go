@@ -4,7 +4,7 @@
 
 package netip
 
-import "internal/intern"
+import "unique"
 
 var (
 	Z0    = z0
@@ -14,11 +14,13 @@ var (
 
 type Uint128 = uint128
 
+type AddrDetail = addrDetail
+
 func Mk128(hi, lo uint64) Uint128 {
 	return uint128{hi, lo}
 }
 
-func MkAddr(u Uint128, z *intern.Value) Addr {
+func MkAddr(u Uint128, z unique.Handle[AddrDetail]) Addr {
 	return Addr{u, z}
 }
 

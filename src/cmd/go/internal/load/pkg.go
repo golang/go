@@ -604,51 +604,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 // we return the same pointer each time.
 var packageCache = map[string]*Package{}
 
-// ClearPackageCache clears the in-memory package cache and the preload caches.
-// It is only for use by GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCache() {
-	clear(packageCache)
-	resolvedImportCache.Clear()
-	packageDataCache.Clear()
-}
-
-// ClearPackageCachePartial clears packages with the given import paths from the
-// in-memory package cache and the preload caches. It is only for use by
-// GOPATH-based "go get".
-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
-func ClearPackageCachePartial(args []string) {
-	shouldDelete := make(map[string]bool)
-	for _, arg := range args {
-		shouldDelete[arg] = true
-		if p := packageCache[arg]; p != nil {
-			delete(packageCache, arg)
-		}
-	}
-	resolvedImportCache.DeleteIf(func(key importSpec) bool {
-		return shouldDelete[key.path]
-	})
-	packageDataCache.DeleteIf(func(key string) bool {
-		return shouldDelete[key]
-	})
-}
-
-// ReloadPackageNoFlags is like LoadImport but makes sure
-// not to use the package cache.
-// It is only for use by GOPATH-based "go get".
-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
-func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
-	p := packageCache[arg]
-	if p != nil {
-		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key importSpec) bool {
-			return key.path == p.ImportPath
-		})
-		packageDataCache.Delete(p.ImportPath)
-	}
-	return LoadPackage(context.TODO(), PackageOpts{}, arg, base.Cwd(), stk, nil, 0)
-}
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
 // to the directory. If the package lives in c:\home\gopher\my\pkg then
@@ -700,20 +655,6 @@ const (
 	cmdlinePkgLiteral
 )
 
-// LoadImport scans the directory named by path, which must be an import path,
-// but possibly a local import path (an absolute file system path or one beginning
-// with ./ or ../). A local relative path is interpreted relative to srcDir.
-// It returns a *Package describing the package found in that directory.
-// LoadImport does not set tool flags and should only be used by
-// this package, as part of a bigger load operation, and by GOPATH-based "go get".
-// TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
-// The returned PackageError, if any, describes why parent is not allowed
-// to import the named package, with the error referring to importPos.
-// The PackageError can only be non-nil when parent is not nil.
-func LoadImport(ctx context.Context, opts PackageOpts, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
-	return loadImport(ctx, opts, nil, path, srcDir, parent, stk, importPos, mode)
-}
-
 // LoadPackage does Load import, but without a parent package load contezt
 func LoadPackage(ctx context.Context, opts PackageOpts, path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	p, err := loadImport(ctx, opts, nil, path, srcDir, nil, stk, importPos, mode)
@@ -723,6 +664,15 @@ func LoadPackage(ctx context.Context, opts PackageOpts, path, srcDir string, stk
 	return p
 }
 
+// loadImport scans the directory named by path, which must be an import path,
+// but possibly a local import path (an absolute file system path or one beginning
+// with ./ or ../). A local relative path is interpreted relative to srcDir.
+// It returns a *Package describing the package found in that directory.
+// loadImport does not set tool flags and should only be used by
+// this package, as part of a bigger load operation.
+// The returned PackageError, if any, describes why parent is not allowed
+// to import the named package, with the error referring to importPos.
+// The PackageError can only be non-nil when parent is not nil.
 func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
 	ctx, span := trace.StartSpan(ctx, "modload.loadImport "+path)
 	defer span.Done()
@@ -2016,7 +1966,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		if path == "C" {
 			continue
 		}
-		p1, err := LoadImport(ctx, opts, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		p1, err := loadImport(ctx, opts, nil, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
 		if err != nil && p.Error == nil {
 			p.Error = err
 			p.Incomplete = true
@@ -2399,6 +2349,9 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			appendSetting("-ldflags", ldflags)
 		}
 	}
+	if cfg.BuildCover {
+		appendSetting("-cover", "true")
+	}
 	if cfg.BuildMSan {
 		appendSetting("-msan", "true")
 	}
@@ -2437,7 +2390,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
 	}
 	appendSetting("GOOS", cfg.BuildContext.GOOS)
-	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
 		appendSetting(key, val)
 	}
 
@@ -2741,7 +2694,7 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 	}
 	walkTest := func(root *Package, path string) {
 		var stk ImportStack
-		p1, err := LoadImport(ctx, opts, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		p1, err := loadImport(ctx, opts, nil, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && root.Error == nil {
 			// Assign error importing the package to the importer.
 			root.Error = err
@@ -2769,7 +2722,7 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 // TODO(jayconrod): delete this function and set flags automatically
 // in LoadImport instead.
 func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
-	p, err := LoadImport(context.TODO(), PackageOpts{}, path, srcDir, parent, stk, importPos, mode)
+	p, err := loadImport(context.TODO(), PackageOpts{}, nil, path, srcDir, parent, stk, importPos, mode)
 	setToolFlags(p)
 	return p, err
 }
@@ -2990,8 +2943,10 @@ func setPGOProfilePath(pkgs []*Package) {
 					}
 					p1 := new(Package)
 					*p1 = *p
-					// Unalias the Internal.Imports slice, which is we're going to
-					// modify. We don't copy other slices as we don't change them.
+					// Unalias the Imports and Internal.Imports slices,
+					// which we're going to modify. We don't copy other slices as
+					// we don't change them.
+					p1.Imports = slices.Clone(p.Imports)
 					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
 					p1.Internal.ForMain = pmain.ImportPath
 					visited[p] = p1

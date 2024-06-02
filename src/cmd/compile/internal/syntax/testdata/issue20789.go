@@ -6,4 +6,4 @@
 // Line 9 must end in EOF for this test (no newline).
 
 package e
-func([<-chan<-[func /* ERROR unexpected `u' */ u){go
+func([<-chan<-[func /* ERROR unexpected name u */ u){go

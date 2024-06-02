@@ -320,14 +320,14 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64x:"RLDICL",-"SRAD"
+	// ppc64x:"ANDCC",-"RLDICL",-"SRAD",-"CMP"
 	a := n1%64 == 0 // signed divisible
 
 	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64x:"RLDICL",-"SRAD"
+	// ppc64x:"ANDCC",-"RLDICL",-"SRAD",-"CMP"
 	b := n2%64 != 0 // signed indivisible
 
 	return a, b

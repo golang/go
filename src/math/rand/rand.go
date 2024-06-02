@@ -474,6 +474,7 @@ func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
 // Read, unlike the [Rand.Read] method, is safe for concurrent use.
 //
 // Deprecated: For almost all use cases, [crypto/rand.Read] is more appropriate.
+// If a deterministic source is required, use [math/rand/v2.ChaCha8.Read].
 func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
 
 // NormFloat64 returns a normally distributed float64 in the range

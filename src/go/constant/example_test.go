@@ -9,7 +9,7 @@ import (
 	"go/constant"
 	"go/token"
 	"math"
-	"sort"
+	"slices"
 )
 
 func Example_complexNumbers() {
@@ -98,9 +98,14 @@ func ExampleCompare() {
 		constant.MakeFromLiteral(`"a"`, token.STRING, 0),
 	}
 
-	sort.Slice(vs, func(i, j int) bool {
-		// Equivalent to vs[i] <= vs[j].
-		return constant.Compare(vs[i], token.LEQ, vs[j])
+	slices.SortFunc(vs, func(a, b constant.Value) int {
+		if constant.Compare(a, token.LSS, b) {
+			return -1
+		}
+		if constant.Compare(a, token.GTR, b) {
+			return +1
+		}
+		return 0
 	})
 
 	for _, v := range vs {

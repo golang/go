@@ -21,6 +21,12 @@ stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/a
 
 cmp go.mod go.mod.orig
 
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! exists go.sum
+[exec:patch] ! go mod tidy -diff
+[exec:patch] ! stdout .
+[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
 
 # When we run 'go mod tidy -e', we should proceed past the first error and follow
 # it with a second error describing the version discrepancy.
@@ -37,6 +43,20 @@ stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/a
 
 cmp go.mod go.mod.tidy
 
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] cp go.mod go.mod.tidyResult
+[exec:patch] ! exists go.sum
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! go mod tidy -e -diff
+[exec:patch] stdout 'diff current/go.mod tidy/go.mod'
+[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\ngo: example\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
+[exec:patch] ! stderr '\n\tgo mod tidy'
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -e -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] ! exists go.sum
 
 -- go.mod --
 module example.com/m

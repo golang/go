@@ -291,7 +291,7 @@ func (s *state) emitOpenDeferInfo() {
 
 // buildssa builds an SSA function for fn.
 // worker indicates which of the backend workers is doing the processing.
-func buildssa(fn *ir.Func, worker int) *ssa.Func {
+func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	name := ir.FuncName(fn)
 
 	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
@@ -373,6 +373,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Allocate starting block
 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
 	s.f.Entry.Pos = fn.Pos()
+	s.f.IsPgoHot = isPgoHot
 
 	if printssa {
 		ssaDF := ssaDumpFile
@@ -514,6 +515,21 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	// Populate closure variables.
 	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+		if fn.RangeParent != nil {
+			// For a range body closure, keep its closure pointer live on the
+			// stack with a special name, so the debugger can look for it and
+			// find the parent frame.
+			sym := &types.Sym{Name: ".closureptr", Pkg: types.LocalPkg}
+			cloSlot := s.curfn.NewLocal(src.NoXPos, sym, s.f.Config.Types.BytePtr)
+			cloSlot.SetUsed(true)
+			cloSlot.SetEsc(ir.EscNever)
+			cloSlot.SetAddrtaken(true)
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, cloSlot, s.mem(), false)
+			addr := s.addr(cloSlot)
+			s.store(s.f.Config.Types.BytePtr, addr, clo)
+			// Keep it from being dead-store eliminated.
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, cloSlot, s.mem(), false)
+		}
 		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
 		for {
 			n, typ, offset := csiter.Next()
@@ -1460,7 +1476,11 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
 			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
+				n.Fun.Sym().Pkg == ir.Pkgs.Runtime &&
+					(fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" ||
+						fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" ||
+						fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr" ||
+						fn == "panicrangestate") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -4391,7 +4411,7 @@ func InitTables() {
 
 	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind)
 
-	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ, rtyp types.Kind, emit atomicOpEmitter) intrinsicBuilder {
+	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if buildcfg.GOARM64.LSE {
@@ -4423,24 +4443,24 @@ func InitTables() {
 				// Merge results.
 				s.startBlock(bEnd)
 			}
-			if rtyp == types.TNIL {
+			if typ == types.TNIL {
 				return nil
 			} else {
-				return s.variable(n, types.Types[rtyp])
+				return s.variable(n, types.Types[typ])
 			}
 		}
 	}
 
-	atomicXchgXaddEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
+	atomicEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
 		v := s.newValue3(op, types.NewTuple(types.Types[typ], types.TypeMem), args[0], args[1], s.mem())
 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
 	}
 	addF("internal/runtime/atomic", "Xchg",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Xchg64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, atomicEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Xadd",
@@ -4459,10 +4479,10 @@ func InitTables() {
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
 	addF("internal/runtime/atomic", "Xadd",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, types.TUINT32, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Xadd64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, types.TUINT64, atomicXchgXaddEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, types.TUINT64, atomicEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Cas",
@@ -4494,10 +4514,10 @@ func InitTables() {
 	}
 
 	addF("internal/runtime/atomic", "Cas",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TUINT32, types.TBOOL, atomicCasEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Cas64",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TUINT64, types.TBOOL, atomicCasEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "And8",
@@ -4525,21 +4545,29 @@ func InitTables() {
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
-	atomicAndOrEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
-		s.vars[memVar] = s.newValue3(op, types.TypeMem, args[0], args[1], s.mem())
-	}
-
 	addF("internal/runtime/atomic", "And8",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
-		sys.ARM64)
-	addF("internal/runtime/atomic", "And",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TUINT8, atomicEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Or8",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TUINT8, atomicEmitterARM64),
+		sys.ARM64)
+	addF("internal/runtime/atomic", "And64",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd64, ssa.OpAtomicAnd64Variant, types.TUINT64, atomicEmitterARM64),
+		sys.ARM64)
+	addF("internal/runtime/atomic", "And32",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TUINT32, atomicEmitterARM64),
+		sys.ARM64)
+	addF("internal/runtime/atomic", "And",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TUINT32, atomicEmitterARM64),
+		sys.ARM64)
+	addF("internal/runtime/atomic", "Or64",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr64, ssa.OpAtomicOr64Variant, types.TUINT64, atomicEmitterARM64),
+		sys.ARM64)
+	addF("internal/runtime/atomic", "Or32",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
 	addF("internal/runtime/atomic", "Or",
-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
 
 	// Aliases for atomic load operations
@@ -4588,6 +4616,10 @@ func InitTables() {
 	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas", p4...)
 	alias("internal/runtime/atomic", "Casp1", "internal/runtime/atomic", "Cas64", p8...)
 	alias("internal/runtime/atomic", "CasRel", "internal/runtime/atomic", "Cas", lwatomics...)
+
+	// Aliases for atomic And/Or operations
+	alias("internal/runtime/atomic", "Anduintptr", "internal/runtime/atomic", "And64", sys.ArchARM64)
+	alias("internal/runtime/atomic", "Oruintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64)
 
 	/******** math ********/
 	addF("math", "sqrt",
@@ -5064,6 +5096,17 @@ func InitTables() {
 	alias("sync/atomic", "AddUint64", "internal/runtime/atomic", "Xadd64", all...)
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
+
+	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64)
+	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64)
+	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64)
+	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64)
+	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64)
+	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64)
+	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64)
+	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64)
+	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64)
+	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64)
 
 	/******** math/big ********/
 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
@@ -7302,11 +7345,46 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	var argLiveIdx int = -1 // argument liveness info index
 
+	// These control cache line alignment; if the required portion of
+	// a cache line is not available, then pad to obtain cache line
+	// alignment.  Not implemented on all architectures, may not be
+	// useful on all architectures.
+	var hotAlign, hotRequire int64
+
+	if base.Debug.AlignHot > 0 {
+		switch base.Ctxt.Arch.Name {
+		// enable this on a case-by-case basis, with benchmarking.
+		// currently shown:
+		//   good for amd64
+		//   not helpful for Apple Silicon
+		//
+		case "amd64", "386":
+			// Align to 64 if 31 or fewer bytes remain in a cache line
+			// benchmarks a little better than always aligning, and also
+			// adds slightly less to the (PGO-compiled) binary size.
+			hotAlign = 64
+			hotRequire = 31
+		}
+	}
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
-		s.bstart[b.ID] = s.pp.Next
+
 		s.lineRunStart = nil
 		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
+
+		if hotAlign > 0 && b.Hotness&ssa.HotPgoInitial == ssa.HotPgoInitial {
+			// So far this has only been shown profitable for PGO-hot loop headers.
+			// The Hotness values allows distinctions betwen initial blocks that are "hot" or not, and "flow-in" or not.
+			// Currently only the initial blocks of loops are tagged in this way;
+			// there are no blocks tagged "pgo-hot" that are not also tagged "initial".
+			// TODO more heuristics, more architectures.
+			p := s.pp.Prog(obj.APCALIGNMAX)
+			p.From.SetConst(hotAlign)
+			p.To.SetConst(hotRequire)
+		}
+
+		s.bstart[b.ID] = s.pp.Next
 
 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
 			argLiveIdx = idx
@@ -7466,7 +7544,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// going to emit anyway, and use those instructions instead of the
 		// inline marks.
 		for p := s.pp.Text; p != nil; p = p.Link {
-			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || Arch.LinkArch.Family == sys.Wasm {
+			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT ||
+				p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX || Arch.LinkArch.Family == sys.Wasm {
 				// Don't use 0-sized instructions as inline marks, because we need
 				// to identify inline mark instructions by pc offset.
 				// (Some of these instructions are sometimes zero-sized, sometimes not.

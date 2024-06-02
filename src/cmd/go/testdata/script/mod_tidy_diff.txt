@@ -1,0 +1,99 @@
+# Test go mod tidy -diff
+# If set, -diff should not update go.mod or go.sum and instead return a non-zero exit code if updates are needed.
+
+# Missing go.mod and go.sum should fail and not display diff.
+! exists go.mod
+! exists go.sum
+! go mod tidy -diff
+! exists go.mod
+! exists go.sum
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
+stderr 'go.mod file not found'
+
+# Missing go.mod and existing go.sum should fail and not display diff.
+cp go.sum.orig go.sum
+! exists go.mod
+exists go.sum
+! go mod tidy -diff
+! exists go.mod
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
+stderr 'go.mod file not found'
+
+# Existing go.mod and missing go.sum should display diff.
+go mod init example.com
+go mod tidy
+rm go.sum
+exists go.mod
+! exists go.sum
+! go mod tidy -diff
+! exists go.sum
+! stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
+
+# Everything is tidy, should return zero exit code.
+go mod tidy
+go mod tidy -diff
+! stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
+
+# go.mod requires updates, should return non-zero exit code.
+cp go.mod.orig go.mod
+! go mod tidy -diff
+stdout 'diff current/go.mod tidy/go.mod'
+! stdout 'diff current/go.sum tidy/go.sum'
+cmp go.mod.orig go.mod
+
+# go.sum requires updates, should return non-zero exit code.
+go mod tidy
+cp go.sum.orig go.sum
+! go mod tidy -diff
+! stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
+cmp go.sum.orig go.sum
+
+# go.mod and go.sum require updates, should return non-zero exit code.
+cp go.mod.orig go.mod
+cp go.sum.orig go.sum
+! go mod tidy -diff
+stdout 'diff current/go.mod tidy/go.mod'
+stdout 'diff current/go.sum tidy/go.sum'
+cmp go.mod.orig go.mod
+cmp go.sum.orig go.sum
+
+# Save the result from running tidy.
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] cp go.sum.orig go.sum
+[exec:patch] go mod tidy
+[exec:patch] cp go.mod go.mod.tidyResult
+[exec:patch] cp go.sum go.sum.tidyResult
+
+# Compare output of -diff to running tidy.
+# Apply the patch from -diff
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] cp go.sum.orig go.sum
+[exec:patch] ! go mod tidy -diff
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] cmp go.sum go.sum.tidyResult
+
+
+-- main.go --
+package main
+
+import "rsc.io/quote"
+
+func main() {
+	println(quote.Hello())
+}
+
+-- go.mod.orig --
+module example.com
+
+go 1.22
+-- go.sum.orig --
+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=

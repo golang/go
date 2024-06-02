@@ -924,7 +924,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 			if rtype != name.FuncType.Result.Go {
 				needsUnsafe = true
 			}
-			sb.WriteString(gofmtLine(rtype))
+			sb.WriteString(gofmt(rtype))
 			result = true
 		}
 
@@ -960,7 +960,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 				needsUnsafe = true
 			}
 			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
-				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
+				gofmt(ptype), gofmtPos(arg, origArg.Pos()))
 			continue
 		}
 
@@ -1682,7 +1682,7 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
 // gofmtPos returns the gofmt-formatted string for an AST node,
 // with a comment setting the position before the node.
 func gofmtPos(n ast.Expr, pos token.Pos) string {
-	s := gofmtLine(n)
+	s := gofmt(n)
 	p := fset.Position(pos)
 	if p.Column == 0 {
 		return s

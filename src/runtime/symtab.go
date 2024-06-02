@@ -196,6 +196,14 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 
 // runtime_FrameStartLine returns the start line of the function in a Frame.
 //
+// runtime_FrameStartLine should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
 func runtime_FrameStartLine(f *Frame) int {
 	return f.startLine
@@ -204,6 +212,14 @@ func runtime_FrameStartLine(f *Frame) int {
 // runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
 // For generic functions this differs from f.Function in that this doesn't replace
 // the shape name to "...".
+//
+// runtime_FrameSymbolName should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
 func runtime_FrameSymbolName(f *Frame) string {
@@ -217,6 +233,15 @@ func runtime_FrameSymbolName(f *Frame) string {
 
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
 // "callers" if pc is inline.
+//
+// runtime_expandFinalInlineFrame should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//   - github.com/pyroscope-io/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
@@ -401,12 +426,11 @@ type moduledata struct {
 	modulehashes []modulehash
 
 	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+	bad     bool  // module failed to load and should be ignored
 
 	gcdatamask, gcbssmask bitvector
 
 	typemap map[typeOff]*_type // offset to *_rtype in previous module
-
-	bad bool // module failed to load and should be ignored
 
 	next *moduledata
 }
@@ -438,8 +462,19 @@ type modulehash struct {
 // To make sure the map isn't collected, we keep a second reference here.
 var pinnedTypemaps []map[typeOff]*_type
 
-var firstmoduledata moduledata  // linker symbol
+var firstmoduledata moduledata // linker symbol
+
+// lastmoduledatap should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname lastmoduledatap
 var lastmoduledatap *moduledata // linker symbol
+
 var modulesSlice *[]*moduledata // see activeModules
 
 // activeModules returns a slice of active modules.
@@ -548,6 +583,15 @@ func moduledataverify() {
 
 const debugPcln = false
 
+// moduledataverify1 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname moduledataverify1
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
@@ -675,6 +719,16 @@ func (md *moduledata) funcName(nameOff int32) string {
 // If pc represents multiple functions because of inlining, it returns
 // the *Func describing the innermost function, but with an entry of
 // the outermost function.
+//
+// For completely unclear reasons, even though they can import runtime,
+// some widely used packages access this using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname FuncForPC
 func FuncForPC(pc uintptr) *Func {
 	f := findfunc(pc)
 	if !f.valid() {
@@ -785,16 +839,37 @@ func (f *_func) isInlined() bool {
 }
 
 // entry returns the entry PC for f.
+//
+// entry should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (f funcInfo) entry() uintptr {
 	return f.datap.textAddr(f.entryOff)
 }
+
+//go:linkname badFuncInfoEntry runtime.funcInfo.entry
+func badFuncInfoEntry(funcInfo) uintptr
 
 // findfunc looks up function metadata for a PC.
 //
 // It is nosplit because it's part of the isgoexception
 // implementation.
 //
+// findfunc should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:nosplit
+//go:linkname findfunc
 func findfunc(pc uintptr) funcInfo {
 	datap := findmoduledatap(pc)
 	if datap == nil {
@@ -840,12 +915,22 @@ func (f funcInfo) srcFunc() srcFunc {
 	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
 }
 
+// name should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (s srcFunc) name() string {
 	if s.datap == nil {
 		return ""
 	}
 	return s.datap.funcName(s.nameOff)
 }
+
+//go:linkname badSrcFuncName runtime.srcFunc.name
+func badSrcFuncName(srcFunc) string
 
 type pcvalueCache struct {
 	entries [2][8]pcvalueCacheEnt
@@ -1036,6 +1121,15 @@ func funcfile(f funcInfo, fileno int32) string {
 	return "?"
 }
 
+// funcline1 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname funcline1
 func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int32) {
 	datap := f.datap
 	if !f.valid() {
@@ -1102,6 +1196,16 @@ func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, strict bool) int32
 }
 
 // Like pcdatavalue, but also return the start PC of this PCData value.
+//
+// pcdatavalue2 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname pcdatavalue2
 func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
 	if table >= f.npcdata {
 		return -1, 0
@@ -1130,6 +1234,16 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 }
 
 // step advances to the next pc, value pair in the encoded table.
+//
+// step should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname step
 func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
 	// For both uvdelta and pcdelta, the common case (~70%)
 	// is that they are a single byte. If so, avoid calling readvarint.
@@ -1175,6 +1289,15 @@ type stackmap struct {
 	bytedata [1]byte // bitmaps, each starting on a byte boundary
 }
 
+// stackmapdata should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname stackmapdata
 //go:nowritebarrier
 func stackmapdata(stkmap *stackmap, n int32) bitvector {
 	// Check this invariant only when stackDebug is on at all.

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -412,7 +412,7 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 			cs = append(cs, cookie.Name+"="+v)
 		}
 	}
-	sort.Strings(cs)
+	slices.Sort(cs)
 	got := strings.Join(cs, " ")
 
 	// Make sure jar content matches our expectations.

@@ -713,13 +713,15 @@ func (t *tester) registerTests() {
 
 	// GOEXPERIMENT=rangefunc tests
 	if !t.compileOnly {
-		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
-			&goTest{
-				variant: "iter",
-				short:   t.short,
-				env:     []string{"GOEXPERIMENT=rangefunc"},
-				pkg:     "iter",
-			})
+		for _, pkg := range []string{"iter", "slices", "maps"} {
+			t.registerTest("GOEXPERIMENT=rangefunc",
+				&goTest{
+					variant: pkg,
+					short:   t.short,
+					env:     []string{"GOEXPERIMENT=rangefunc"},
+					pkg:     pkg,
+				})
+		}
 	}
 
 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
@@ -1585,7 +1587,7 @@ func raceDetectorSupported(goos, goarch string) bool {
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
-	case "freebsd", "netbsd", "openbsd", "windows":
+	case "freebsd", "netbsd", "windows":
 		return goarch == "amd64"
 	default:
 		return false

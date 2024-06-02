@@ -59,7 +59,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// If T's type set is empty, or if it doesn't
 		// have specific types, constant x cannot be
 		// converted.
-		ok = T.(*TypeParam).underIs(func(u Type) bool {
+		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
 			// u is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)
@@ -142,13 +142,16 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
-	// "V and T have identical underlying types if tags are ignored
-	// and V and T are not type parameters"
-	V := x.typ
+	origT := T
+	V := Unalias(x.typ)
+	T = Unalias(T)
 	Vu := under(V)
 	Tu := under(T)
 	Vp, _ := V.(*TypeParam)
 	Tp, _ := T.(*TypeParam)
+
+	// "V and T have identical underlying types if tags are ignored
+	// and V and T are not type parameters"
 	if IdenticalIgnoreTags(Vu, Tu) && Vp == nil && Tp == nil {
 		return true
 	}
@@ -270,7 +273,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 			}
 			x.typ = V.typ
 			if !x.convertibleTo(check, T, cause) {
-				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, T)
+				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, origT)
 				return false
 			}
 			return true

@@ -268,7 +268,7 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 	var tok string
 	switch p.tok {
 	case _Name:
-		tok = "`" + p.lit + "'"
+		tok = "name " + p.lit
 	case _Semi:
 		tok = p.lit
 	case _Literal:

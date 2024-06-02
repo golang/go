@@ -16,7 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -699,9 +699,13 @@ func findSignatureInBlock(b []byte) int {
 		if b[i] == 'P' && b[i+1] == 'K' && b[i+2] == 0x05 && b[i+3] == 0x06 {
 			// n is length of comment
 			n := int(b[i+directoryEndLen-2]) | int(b[i+directoryEndLen-1])<<8
-			if n+directoryEndLen+i <= len(b) {
-				return i
+			if n+directoryEndLen+i > len(b) {
+				// Truncated comment.
+				// Some parsers (such as Info-ZIP) ignore the truncated comment
+				// rather than treating it as a hard error.
+				return -1
 			}
+			return i
 		}
 	}
 	return -1
@@ -858,14 +862,19 @@ func (r *Reader) initFileList() {
 			}
 		}
 
-		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
+		slices.SortFunc(r.fileList, func(a, b fileListEntry) int {
+			return fileEntryCompare(a.name, b.name)
+		})
 	})
 }
 
-func fileEntryLess(x, y string) bool {
+func fileEntryCompare(x, y string) int {
 	xdir, xelem, _ := split(x)
 	ydir, yelem, _ := split(y)
-	return xdir < ydir || xdir == ydir && xelem < yelem
+	if xdir != ydir {
+		return strings.Compare(xdir, ydir)
+	}
+	return strings.Compare(xelem, yelem)
 }
 
 // Open opens the named file in the ZIP archive,
@@ -916,9 +925,12 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 
 	dir, elem, _ := split(name)
 	files := r.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, ielem, _ := split(files[i].name)
-		return idir > dir || idir == dir && ielem >= elem
+	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) (ret int) {
+		idir, ielem, _ := split(a.name)
+		if dir != idir {
+			return strings.Compare(idir, dir)
+		}
+		return strings.Compare(ielem, elem)
 	})
 	if i < len(files) {
 		fname := files[i].name
@@ -931,13 +943,21 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 
 func (r *Reader) openReadDir(dir string) []fileListEntry {
 	files := r.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, _, _ := split(files[i].name)
-		return idir >= dir
+	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+		idir, _, _ := split(a.name)
+		if dir != idir {
+			return strings.Compare(idir, dir)
+		}
+		// find the first entry with dir
+		return +1
 	})
-	j := sort.Search(len(files), func(j int) bool {
-		jdir, _, _ := split(files[j].name)
-		return jdir > dir
+	j, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+		jdir, _, _ := split(a.name)
+		if dir != jdir {
+			return strings.Compare(jdir, dir)
+		}
+		// find the last entry with dir
+		return -1
 	})
 	return files[i:j]
 }

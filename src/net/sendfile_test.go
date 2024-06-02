@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/poll"
 	"io"
 	"os"
 	"runtime"
@@ -25,6 +26,48 @@ const (
 	newtonLen    = 567198
 	newtonSHA256 = "d4a9ac22462b35e7821a4f2706c211093da678620a8f9997989ee7cf8d507bbd"
 )
+
+// expectSendfile runs f, and verifies that internal/poll.SendFile successfully handles
+// a write to wantConn during f's execution.
+//
+// On platforms where supportsSendfile is false, expectSendfile runs f but does not
+// expect a call to SendFile.
+func expectSendfile(t *testing.T, wantConn Conn, f func()) {
+	t.Helper()
+	if !supportsSendfile {
+		f()
+		return
+	}
+	orig := poll.TestHookDidSendFile
+	defer func() {
+		poll.TestHookDidSendFile = orig
+	}()
+	var (
+		called     bool
+		gotHandled bool
+		gotFD      *poll.FD
+	)
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+		if called {
+			t.Error("internal/poll.SendFile called multiple times, want one call")
+		}
+		called = true
+		gotHandled = handled
+		gotFD = dstFD
+	}
+	f()
+	if !called {
+		t.Error("internal/poll.SendFile was not called, want it to be")
+		return
+	}
+	if !gotHandled {
+		t.Error("internal/poll.SendFile did not handle the write, want it to")
+		return
+	}
+	if &wantConn.(*TCPConn).fd.pfd != gotFD {
+		t.Error("internal.poll.SendFile called with unexpected FD")
+	}
+}
 
 func TestSendfile(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
@@ -53,7 +96,17 @@ func TestSendfile(t *testing.T) {
 
 			// Return file data using io.Copy, which should use
 			// sendFile if available.
-			sbytes, err := io.Copy(conn, f)
+			var sbytes int64
+			switch runtime.GOOS {
+			case "windows":
+				// Windows is not using sendfile for some reason:
+				// https://go.dev/issue/67042
+				sbytes, err = io.Copy(conn, f)
+			default:
+				expectSendfile(t, conn, func() {
+					sbytes, err = io.Copy(conn, f)
+				})
+			}
 			if err != nil {
 				errc <- err
 				return
@@ -121,7 +174,9 @@ func TestSendfileParts(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				// Return file data using io.CopyN, which should use
 				// sendFile if available.
-				_, err = io.CopyN(conn, f, 3)
+				expectSendfile(t, conn, func() {
+					_, err = io.CopyN(conn, f, 3)
+				})
 				if err != nil {
 					errc <- err
 					return
@@ -180,7 +235,9 @@ func TestSendfileSeeked(t *testing.T) {
 				return
 			}
 
-			_, err = io.CopyN(conn, f, sendSize)
+			expectSendfile(t, conn, func() {
+				_, err = io.CopyN(conn, f, sendSize)
+			})
 			if err != nil {
 				errc <- err
 				return
@@ -240,6 +297,10 @@ func TestSendfilePipe(t *testing.T) {
 			return
 		}
 		defer conn.Close()
+		// The comment above states that this should call into sendfile,
+		// but empirically it doesn't seem to do so at this time.
+		// If it does, or does on some platforms, this CopyN should be wrapped
+		// in expectSendfile.
 		_, err = io.CopyN(conn, r, 1)
 		if err != nil {
 			t.Error(err)
@@ -333,6 +394,10 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
 		}
 		defer f.Close()
 
+		// We expect this to use sendfile, but as of the time this comment was written
+		// poll.SendFile on an FD past its timeout can return an error indicating that
+		// it didn't handle the operation, resulting in a non-sendfile retry.
+		// So don't use expectSendfile here.
 		_, err = io.Copy(conn, f)
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return nil

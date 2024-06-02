@@ -319,9 +319,6 @@ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
 TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_utimensat(SB)
 	RET
-TEXT ·libc_syscall_trampoline(SB),NOSPLIT,$0-0
-	CALL	libc_syscall(SB)
-	RET
 TEXT ·libc_lseek_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_lseek(SB)
 	RET

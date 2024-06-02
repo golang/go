@@ -3,12 +3,14 @@
 Go 1.23 makes two significant changes to the implementation of
 [time.Timer] and [time.Ticker].
 
+<!-- go.dev/issue/61542 -->
 First, `Timer`s and `Ticker`s that are no longer referred to by the program
 become eligible for garbage collection immediately, even if their
 `Stop` methods have not been called.
 Earlier versions of Go did not collect unstopped `Timer`s until after
 they had fired and never collected unstopped `Ticker`s.
 
+<!-- go.dev/issue/37196 -->
 Second, the timer channel associated with a `Timer` or `Ticker` is
 now unbuffered, with capacity 0.
 The main effect of this change is that Go now guarantees

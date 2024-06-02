@@ -1261,6 +1261,15 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 // It is nosplit so it is safe for p to be a pointer to the current goroutine's stack.
 // Since p is a uintptr, it would not be adjusted if the stack were to move.
 //
+// findObject should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname findObject
 //go:nosplit
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
 	s = spanOf(p)

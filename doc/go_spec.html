@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.22 (Feb 6, 2024)",
+	"Subtitle": "Language version go1.22 (April 25, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -6643,9 +6643,9 @@ the range clause is equivalent to the same clause without that identifier.
 </p>
 
 <p>
-The range expression <code>x</code> is evaluated once before beginning the loop,
-with one exception: if at most one iteration variable is present and
-<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
+The range expression <code>x</code> is evaluated before beginning the loop,
+with one exception: if at most one iteration variable is present and <code>x</code> or
+<a href="#Length_and_capacity"><code>len(x)</code></a> is <a href="#Constants">constant</a>,
 the range expression is not evaluated.
 </p>
 
@@ -6656,13 +6656,13 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                          1st value          2nd value
+Range expression                                   1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
-string          s  string type            index    i  int    see below  rune
-map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E, &lt;-chan E       element  e  E
-integer         n  integer type           value    i  see below
+array or slice  a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string          s  string type                     index    i  int          see below  rune
+map             m  map[K]V                         key      k  K            m[k]       V
+channel         c  chan E, &lt;-chan E                element  e  E
+integer value   n  integer type, or untyped int    value    i  see below
 </pre>
 
 <ol>
@@ -6703,8 +6703,17 @@ is <code>nil</code>, the range expression blocks forever.
 </li>
 
 <li>
-For an integer value <code>n</code>, the iteration values 0 through <code>n-1</code>
+For an integer value <code>n</code>, where <code>n</code> is of <a href="#Numeric_types">integer type</a>
+or an untyped <a href="#Constants">integer constant</a>, the iteration values 0 through <code>n-1</code>
 are produced in increasing order.
+If <code>n</code> is of integer type, the iteration values have that same type.
+Otherwise, the type of <code>n</code> is determined as if it were assigned to the
+iteration variable.
+Specifically:
+if the iteration variable is preexisting, the type of the iteration values is the type of the iteration
+variable, which must be of integer type.
+Otherwise, if the iteration variable is declared by the "range" clause or is absent,
+the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
 If <code>n</code> &lt= 0, the loop does not run any iterations.
 </li>
 </ol>
@@ -6716,11 +6725,7 @@ The iteration variables may be declared by the "range" clause using a form of
 In this case their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement
 and each iteration has its own new variables [<a href="#Go_1.22">Go 1.22</a>]
 (see also <a href="#For_clause">"for" statements with a ForClause</a>).
-If the range expression is a (possibly untyped) integer expression <code>n</code>,
-the variable has the same type as if it was
-<a href="#Variable_declarations">declared</a> with initialization
-expression <code>n</code>.
-Otherwise, the variables have the types of their respective iteration values.
+The variables have the types of their respective iteration values.
 </p>
 
 <p>
@@ -6728,9 +6733,6 @@ If the iteration variables are not explicitly declared by the "range" clause,
 they must be preexisting.
 In this case, the iteration values are assigned to the respective variables
 as in an <a href="#Assignment_statements">assignment statement</a>.
-If the range expression is a (possibly untyped) integer expression <code>n</code>,
-<code>n</code> too must be <a href="#Assignability">assignable</a> to the iteration variable;
-if there is no iteration variable, <code>n</code> must be assignable to <code>int</code>.
 </p>
 
 <pre>
@@ -6777,6 +6779,10 @@ for i := range 10 {
 // invalid: 256 cannot be assigned to uint8
 var u uint8
 for u = range 256 {
+}
+
+// invalid: 1e3 is a floating-point constant
+for range 1e3 {
 }
 </pre>
 

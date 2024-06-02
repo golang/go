@@ -121,6 +121,15 @@ var ncgocall uint64 // number of cgo calls in total for dead m
 // platforms. Syscalls may have untyped arguments on the stack, so
 // it's not safe to grow or scan the stack.
 //
+// cgocall should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cgocall
 //go:nosplit
 func cgocall(fn, arg unsafe.Pointer) int32 {
 	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
@@ -221,15 +230,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 	g0 := mp.g0
-	if sp > g0.stack.lo && sp <= g0.stack.hi {
-		// Stack already in bounds, nothing to do.
-		return
-	}
 
-	if mp.ncgo > 0 {
+	inBound := sp > g0.stack.lo && sp <= g0.stack.hi
+	if mp.ncgo > 0 && !inBound {
 		// ncgo > 0 indicates that this M was in Go further up the stack
-		// (it called C and is now receiving a callback). It is not
-		// safe for the C call to change the stack out from under us.
+		// (it called C and is now receiving a callback).
+		//
+		// !inBound indicates that we were called with SP outside the
+		// expected system stack bounds (C changed the stack out from
+		// under us between the cgocall and cgocallback?).
+		//
+		// It is not safe for the C call to change the stack out from
+		// under us, so throw.
 
 		// Note that this case isn't possible for signal == true, as
 		// that is always passing a new M from needm.
@@ -247,12 +259,26 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		exit(2)
 	}
 
+	if !mp.isextra {
+		// We allocated the stack for standard Ms. Don't replace the
+		// stack bounds with estimated ones when we already initialized
+		// with the exact ones.
+		return
+	}
+
 	// This M does not have Go further up the stack. However, it may have
 	// previously called into Go, initializing the stack bounds. Between
 	// that call returning and now the stack may have changed (perhaps the
 	// C thread is running a coroutine library). We need to update the
 	// stack bounds for this case.
 	//
+	// N.B. we need to update the stack bounds even if SP appears to
+	// already be in bounds. Our "bounds" may actually be estimated dummy
+	// bounds (below). The actual stack bounds could have shifted but still
+	// have partial overlap with our dummy bounds. If we failed to update
+	// in that case, we could find ourselves seemingly called near the
+	// bottom of the stack bounds, where we quickly run out of space.
+
 	// Set the stack bounds to match the current stack. If we don't
 	// actually know how big the stack is, like we don't know how big any
 	// scheduling stack is, but we assume there's at least 32 kB. If we
@@ -314,6 +340,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// save syscall* and let reentersyscall restore them.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
+	savedbp := gp.syscallbp
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
 	if gp.m.isextra {
@@ -345,7 +372,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	osPreemptExtEnter(gp.m)
 
 	// going back to cgo call
-	reentersyscall(savedpc, uintptr(savedsp))
+	reentersyscall(savedpc, uintptr(savedsp), savedbp)
 
 	gp.m.winsyscall = winsyscall
 }

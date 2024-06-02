@@ -251,21 +251,10 @@ func foreachField(x string, fn func(field string) error) error {
 	return nil
 }
 
-// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
-// suffix.
-func stringsHasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
 // stringsHasSuffixFold reports whether s ends in suffix,
 // ASCII-case-insensitively.
 func stringsHasSuffixFold(s, suffix string) bool {
 	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
-}
-
-// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
-func stringsHasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 // stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t

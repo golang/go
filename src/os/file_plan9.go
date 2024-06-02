@@ -7,6 +7,7 @@ package os
 import (
 	"internal/bytealg"
 	"internal/poll"
+	"internal/stringslite"
 	"io"
 	"runtime"
 	"sync"
@@ -387,14 +388,9 @@ func Remove(name string) error {
 	return nil
 }
 
-// hasPrefix from the strings package.
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
-}
-
 func rename(oldname, newname string) error {
 	dirname := oldname[:bytealg.LastIndexByteString(oldname, '/')+1]
-	if hasPrefix(newname, dirname) {
+	if stringslite.HasPrefix(newname, dirname) {
 		newname = newname[len(dirname):]
 	} else {
 		return &LinkError{"rename", oldname, newname, ErrInvalid}

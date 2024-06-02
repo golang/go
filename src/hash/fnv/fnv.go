@@ -15,6 +15,7 @@ package fnv
 import (
 	"errors"
 	"hash"
+	"internal/byteorder"
 	"math/bits"
 )
 
@@ -178,36 +179,32 @@ func (s *sum128a) BlockSize() int { return 1 }
 
 func (s *sum32) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint32(in, v)
 }
 
 func (s *sum32a) Sum(in []byte) []byte {
 	v := uint32(*s)
-	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint32(in, v)
 }
 
 func (s *sum64) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint64(in, v)
 }
 
 func (s *sum64a) Sum(in []byte) []byte {
 	v := uint64(*s)
-	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	return byteorder.BeAppendUint64(in, v)
 }
 
 func (s *sum128) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	ret := byteorder.BeAppendUint64(in, s[0])
+	return byteorder.BeAppendUint64(ret, s[1])
 }
 
 func (s *sum128a) Sum(in []byte) []byte {
-	return append(in,
-		byte(s[0]>>56), byte(s[0]>>48), byte(s[0]>>40), byte(s[0]>>32), byte(s[0]>>24), byte(s[0]>>16), byte(s[0]>>8), byte(s[0]),
-		byte(s[1]>>56), byte(s[1]>>48), byte(s[1]>>40), byte(s[1]>>32), byte(s[1]>>24), byte(s[1]>>16), byte(s[1]>>8), byte(s[1]),
-	)
+	ret := byteorder.BeAppendUint64(in, s[0])
+	return byteorder.BeAppendUint64(ret, s[1])
 }
 
 const (
@@ -225,44 +222,44 @@ const (
 func (s *sum32) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize32)
 	b = append(b, magic32...)
-	b = appendUint32(b, uint32(*s))
+	b = byteorder.BeAppendUint32(b, uint32(*s))
 	return b, nil
 }
 
 func (s *sum32a) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize32)
 	b = append(b, magic32a...)
-	b = appendUint32(b, uint32(*s))
+	b = byteorder.BeAppendUint32(b, uint32(*s))
 	return b, nil
 }
 
 func (s *sum64) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize64)
 	b = append(b, magic64...)
-	b = appendUint64(b, uint64(*s))
+	b = byteorder.BeAppendUint64(b, uint64(*s))
 	return b, nil
 }
 
 func (s *sum64a) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize64)
 	b = append(b, magic64a...)
-	b = appendUint64(b, uint64(*s))
+	b = byteorder.BeAppendUint64(b, uint64(*s))
 	return b, nil
 }
 
 func (s *sum128) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize128)
 	b = append(b, magic128...)
-	b = appendUint64(b, s[0])
-	b = appendUint64(b, s[1])
+	b = byteorder.BeAppendUint64(b, s[0])
+	b = byteorder.BeAppendUint64(b, s[1])
 	return b, nil
 }
 
 func (s *sum128a) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize128)
 	b = append(b, magic128a...)
-	b = appendUint64(b, s[0])
-	b = appendUint64(b, s[1])
+	b = byteorder.BeAppendUint64(b, s[0])
+	b = byteorder.BeAppendUint64(b, s[1])
 	return b, nil
 }
 
@@ -273,7 +270,7 @@ func (s *sum32) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize32 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	*s = sum32(readUint32(b[4:]))
+	*s = sum32(byteorder.BeUint32(b[4:]))
 	return nil
 }
 
@@ -284,7 +281,7 @@ func (s *sum32a) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize32 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	*s = sum32a(readUint32(b[4:]))
+	*s = sum32a(byteorder.BeUint32(b[4:]))
 	return nil
 }
 
@@ -295,7 +292,7 @@ func (s *sum64) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize64 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	*s = sum64(readUint64(b[4:]))
+	*s = sum64(byteorder.BeUint64(b[4:]))
 	return nil
 }
 
@@ -306,7 +303,7 @@ func (s *sum64a) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize64 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	*s = sum64a(readUint64(b[4:]))
+	*s = sum64a(byteorder.BeUint64(b[4:]))
 	return nil
 }
 
@@ -317,8 +314,8 @@ func (s *sum128) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize128 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	s[0] = readUint64(b[4:])
-	s[1] = readUint64(b[12:])
+	s[0] = byteorder.BeUint64(b[4:])
+	s[1] = byteorder.BeUint64(b[12:])
 	return nil
 }
 
@@ -329,48 +326,7 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize128 {
 		return errors.New("hash/fnv: invalid hash state size")
 	}
-	s[0] = readUint64(b[4:])
-	s[1] = readUint64(b[12:])
+	s[0] = byteorder.BeUint64(b[4:])
+	s[1] = byteorder.BeUint64(b[12:])
 	return nil
-}
-
-// readUint32 is semantically the same as [binary.BigEndian.Uint32]
-// We copied this function because we can not import "encoding/binary" here.
-func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
-}
-
-// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
-// We copied this function because we can not import "encoding/binary" here.
-func appendUint32(b []byte, x uint32) []byte {
-	return append(b,
-		byte(x>>24),
-		byte(x>>16),
-		byte(x>>8),
-		byte(x),
-	)
-}
-
-// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
-// We copied this function because we can not import "encoding/binary" here.
-func appendUint64(b []byte, x uint64) []byte {
-	return append(b,
-		byte(x>>56),
-		byte(x>>48),
-		byte(x>>40),
-		byte(x>>32),
-		byte(x>>24),
-		byte(x>>16),
-		byte(x>>8),
-		byte(x),
-	)
-}
-
-// readUint64 is semantically the same as [binary.BigEndian.Uint64]
-// We copied this function because we can not import "encoding/binary" here.
-func readUint64(b []byte) uint64 {
-	_ = b[7]
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }

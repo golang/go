@@ -687,7 +687,7 @@ func (fd *FD) Dup() (int, string, error) {
 
 // On Unix variants only, expose the IO event for the net code.
 
-// WaitWrite waits until data can be read from fd.
+// WaitWrite waits until data can be written to fd.
 func (fd *FD) WaitWrite() error {
 	return fd.pd.waitWrite(fd.isFile)
 }

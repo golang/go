@@ -6,13 +6,14 @@
 package cookiejar
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/internal/ascii"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -210,15 +211,14 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 
 	// sort according to RFC 6265 section 5.4 point 2: by longest
 	// path and then by earliest creation time.
-	sort.Slice(selected, func(i, j int) bool {
-		s := selected
-		if len(s[i].Path) != len(s[j].Path) {
-			return len(s[i].Path) > len(s[j].Path)
+	slices.SortFunc(selected, func(a, b entry) int {
+		if r := cmp.Compare(b.Path, a.Path); r != 0 {
+			return r
 		}
-		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
-			return ret < 0
+		if r := a.Creation.Compare(b.Creation); r != 0 {
+			return r
 		}
-		return s[i].seqNum < s[j].seqNum
+		return cmp.Compare(a.seqNum, b.seqNum)
 	})
 	for _, e := range selected {
 		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value, Quoted: e.Quoted})
@@ -367,7 +367,7 @@ func isIP(host string) bool {
 		// Probable IPv6 address.
 		// Hostnames can't contain : or %, so this is definitely not a valid host.
 		// Treating it as an IP is the more conservative option, and avoids the risk
-		// of interpeting ::1%.www.example.com as a subtomain of www.example.com.
+		// of interpreting ::1%.www.example.com as a subdomain of www.example.com.
 		return true
 	}
 	return net.ParseIP(host) != nil

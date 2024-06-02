@@ -113,6 +113,15 @@ func libc_getfsstat_trampoline()
 
 //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
+// utimensat should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
+//go:linkname utimensat
+
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 /*

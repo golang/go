@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/goarch"
+	"internal/testenv"
 	"math"
+	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -386,8 +388,8 @@ func TestBigItems(t *testing.T) {
 		values[i] = v[37]
 		i++
 	}
-	sort.Strings(keys[:])
-	sort.Strings(values[:])
+	slices.Sort(keys[:])
+	slices.Sort(values[:])
 	for i := 0; i < 100; i++ {
 		if keys[i] != fmt.Sprintf("string%02d", i) {
 			t.Errorf("#%d: missing key: %v", i, keys[i])
@@ -1463,4 +1465,82 @@ func TestMapValues(t *testing.T) {
 			t.Errorf("len(v.s) == %d, want 1", len(v.s))
 		}
 	}
+}
+
+func computeHash() uintptr {
+	var v struct{}
+	return runtime.MemHash(unsafe.Pointer(&v), 0, unsafe.Sizeof(v))
+}
+
+func subprocessHash(t *testing.T, env string) uintptr {
+	t.Helper()
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestMemHashGlobalSeed$"))
+	cmd.Env = append(cmd.Env, "GO_TEST_SUBPROCESS_HASH=1")
+	if env != "" {
+		cmd.Env = append(cmd.Env, env)
+	}
+
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cmd.Output got err %v want nil", err)
+	}
+
+	s := strings.TrimSpace(string(out))
+	h, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		t.Fatalf("Parse output %q got err %v want nil", s, err)
+	}
+	return uintptr(h)
+}
+
+// memhash has unique per-process seeds, so hashes should differ across
+// processes.
+//
+// Regression test for https://go.dev/issue/66885.
+func TestMemHashGlobalSeed(t *testing.T) {
+	if os.Getenv("GO_TEST_SUBPROCESS_HASH") != "" {
+		fmt.Println(computeHash())
+		os.Exit(0)
+		return
+	}
+
+	testenv.MustHaveExec(t)
+
+	// aeshash and memhashFallback use separate per-process seeds, so test
+	// both.
+	t.Run("aes", func(t *testing.T) {
+		if !*runtime.UseAeshash {
+			t.Skip("No AES")
+		}
+
+		h1 := subprocessHash(t, "")
+		t.Logf("%d", h1)
+		h2 := subprocessHash(t, "")
+		t.Logf("%d", h2)
+		h3 := subprocessHash(t, "")
+		t.Logf("%d", h3)
+
+		if h1 == h2 && h2 == h3 {
+			t.Errorf("got duplicate hash %d want unique", h1)
+		}
+	})
+
+	t.Run("noaes", func(t *testing.T) {
+		env := ""
+		if *runtime.UseAeshash {
+			env = "GODEBUG=cpu.aes=off"
+		}
+
+		h1 := subprocessHash(t, env)
+		t.Logf("%d", h1)
+		h2 := subprocessHash(t, env)
+		t.Logf("%d", h2)
+		h3 := subprocessHash(t, env)
+		t.Logf("%d", h3)
+
+		if h1 == h2 && h2 == h3 {
+			t.Errorf("got duplicate hash %d want unique", h1)
+		}
+	})
 }

@@ -40,13 +40,19 @@ func Less[T Ordered](x, y T) bool {
 func Compare[T Ordered](x, y T) int {
 	xNaN := isNaN(x)
 	yNaN := isNaN(y)
-	if xNaN && yNaN {
-		return 0
-	}
-	if xNaN || x < y {
+	if xNaN {
+		if yNaN {
+			return 0
+		}
 		return -1
 	}
-	if yNaN || x > y {
+	if yNaN {
+		return +1
+	}
+	if x < y {
+		return -1
+	}
+	if x > y {
 		return +1
 	}
 	return 0

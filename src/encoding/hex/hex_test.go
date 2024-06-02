@@ -275,6 +275,18 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
+func BenchmarkDecodeString(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := strings.Repeat("2b744faa", size/8)
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for i := 0; i < b.N; i++ {
+				sink, _ = DecodeString(src)
+			}
+		})
+	}
+}
+
 func BenchmarkDump(b *testing.B) {
 	for _, size := range []int{256, 1024, 4096, 16384} {
 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)

@@ -27,7 +27,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -693,7 +693,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
 		for k := range r.Trailer {
 			decl = append(decl, k)
 		}
-		sort.Strings(decl)
+		slices.Sort(decl)
 
 		slurp, err := io.ReadAll(r.Body)
 		if err != nil {

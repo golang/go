@@ -5,7 +5,6 @@
 package types2
 
 import (
-	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/version"
 	"internal/goversion"
@@ -56,7 +55,7 @@ var (
 func (check *Checker) allowVersion(at poser, v goVersion) bool {
 	fileVersion := check.conf.GoVersion
 	if pos := at.Pos(); pos.IsKnown() {
-		fileVersion = check.versions[base(pos)]
+		fileVersion = check.versions[pos.FileBase()]
 	}
 
 	// We need asGoVersion (which calls version.Lang) below
@@ -75,20 +74,4 @@ func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args 
 		return false
 	}
 	return true
-}
-
-// base finds the underlying PosBase of the source file containing pos,
-// skipping over intermediate PosBase layers created by //line directives.
-// The positions must be known.
-func base(pos syntax.Pos) *syntax.PosBase {
-	assert(pos.IsKnown())
-	b := pos.Base()
-	for {
-		bb := b.Pos().Base()
-		if bb == nil || bb == b {
-			break
-		}
-		b = bb
-	}
-	return b
 }

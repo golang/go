@@ -472,12 +472,12 @@ var optabBase = []Optab{
 
 	{as: ACMP, a1: C_REG, a6: C_REG, type_: 70, size: 4},
 	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
-	{as: ACMP, a1: C_REG, a6: C_S16CON, type_: 71, size: 4},
-	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_S16CON, type_: 71, size: 4},
+	{as: ACMP, a1: C_REG, a6: C_S16CON, type_: 70, size: 4},
+	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_S16CON, type_: 70, size: 4},
 	{as: ACMPU, a1: C_REG, a6: C_REG, type_: 70, size: 4},
 	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
-	{as: ACMPU, a1: C_REG, a6: C_U16CON, type_: 71, size: 4},
-	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 71, size: 4},
+	{as: ACMPU, a1: C_REG, a6: C_U16CON, type_: 70, size: 4},
+	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
@@ -3449,23 +3449,13 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 
 		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | uint32(v)<<12
 
-	case 70: /* [f]cmp r,r,cr*/
-		var r int
-		if p.Reg == 0 {
-			r = 0
+	case 70: /* cmp* r,r,cr or cmp*i r,i,cr or fcmp f,f,cr or cmpeqb r,r */
+		r := uint32(p.Reg&7) << 2
+		if p.To.Type == obj.TYPE_CONST {
+			o1 = AOP_IRR(c.opirr(p.As), r, uint32(p.From.Reg), uint32(uint16(p.To.Offset)))
 		} else {
-			r = (int(p.Reg) & 7) << 2
+			o1 = AOP_RRR(c.oprrr(p.As), r, uint32(p.From.Reg), uint32(p.To.Reg))
 		}
-		o1 = AOP_RRR(c.oprrr(p.As), uint32(r), uint32(p.From.Reg), uint32(p.To.Reg))
-
-	case 71: /* cmp[l] r,i,cr*/
-		var r int
-		if p.Reg == 0 {
-			r = 0
-		} else {
-			r = (int(p.Reg) & 7) << 2
-		}
-		o1 = AOP_RRR(c.opirr(p.As), uint32(r), uint32(p.From.Reg), 0) | uint32(c.regoff(&p.To))&0xffff
 
 	case 72: /* slbmte (Rb+Rs -> slb[Rb]) -> Rs, Rb */
 		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.From.Reg), 0, uint32(p.To.Reg))

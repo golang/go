@@ -8,6 +8,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/godebug"
+	"internal/stringslite"
 	"io/fs"
 	"os"
 	"runtime"
@@ -335,9 +336,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	}
 
 	// Canonicalize the hostname by removing any trailing dot.
-	if stringsHasSuffix(hostname, ".") {
-		hostname = hostname[:len(hostname)-1]
-	}
+	hostname = stringslite.TrimSuffix(hostname, ".")
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
@@ -396,7 +395,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 					return hostLookupCgo, dnsConf
 				}
 				continue
-			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
+			case hostname != "" && stringslite.HasPrefix(src.source, "mdns"):
 				if stringsHasSuffixFold(hostname, ".local") {
 					// Per RFC 6762, the ".local" TLD is special. And
 					// because Go's native resolver doesn't do mDNS or

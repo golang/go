@@ -10,4 +10,5 @@ const (
 	getrandomTrap       uintptr = 359
 	copyFileRangeTrap   uintptr = 379
 	pidfdSendSignalTrap uintptr = 424
+	pidfdOpenTrap       uintptr = 434
 )

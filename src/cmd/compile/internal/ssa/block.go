@@ -31,6 +31,9 @@ type Block struct {
 	// After flagalloc, records whether flags are live at the end of the block.
 	FlagsLiveAtEnd bool
 
+	// A block that would be good to align (according to the optimizer's guesses)
+	Hotness Hotness
+
 	// Subsequent blocks, if any. The number and order depend on the block kind.
 	Succs []Edge
 
@@ -112,7 +115,7 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-type BlockKind int16
+type BlockKind uint8
 
 // short form print
 func (b *Block) String() string {
@@ -425,4 +428,18 @@ const (
 	BranchUnlikely = BranchPrediction(-1)
 	BranchUnknown  = BranchPrediction(0)
 	BranchLikely   = BranchPrediction(+1)
+)
+
+type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
+const (
+	// These values are arranged in what seems to be order of increasing alignment importance.
+	// Currently only a few are relevant.  Implicitly, they are all in a loop.
+	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
+	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
+	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
+
+	HotNot                 = 0
+	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
+	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
+	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
 )

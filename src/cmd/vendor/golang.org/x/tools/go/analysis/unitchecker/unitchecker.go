@@ -49,6 +49,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/versions"
 )
@@ -377,6 +378,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				ExportPackageFact: facts.ExportPackageFact,
 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
 			}
+			pass.ReadFile = analysisinternal.MakeReadFile(pass)
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)

@@ -2,9 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build arm || mips || mipsle || mips64 || mips64le || wasm
+//go:build arm || wasm
+
+// Export some functions via linkname to assembly in sync/atomic.
+//
+//go:linkname And32
+//go:linkname Or32
+//go:linkname And64
+//go:linkname Or64
+//go:linkname Anduintptr
+//go:linkname Oruintptr
 
 package atomic
+
+import _ "unsafe" // For linkname
 
 //go:nosplit
 func And32(ptr *uint32, val uint32) uint32 {

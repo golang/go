@@ -529,6 +529,9 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
+	-ldflags flags
+		Flags to pass to the C linker. The cmd/go tool uses
+		this to pass in the flags in the CGO_LDFLAGS variable.
 	-objdir directory
 		Put all generated files in directory.
 	-srcdir directory

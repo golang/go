@@ -36,6 +36,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
+	"cmd/internal/telemetry"
 	"cmd/link/internal/benchmark"
 	"flag"
 	"internal/buildcfg"
@@ -95,6 +96,7 @@ var (
 	FlagS             = flag.Bool("s", false, "disable symbol table")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
@@ -155,6 +157,8 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean 
 func Main(arch *sys.Arch, theArch Arch) {
 	log.SetPrefix("link: ")
 	log.SetFlags(0)
+	telemetry.Start()
+	telemetry.Inc("link/invocations")
 
 	thearch = theArch
 	ctxt := linknew(arch)
@@ -200,6 +204,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
+	telemetry.CountFlags("link/flag:", *flag.CommandLine)
 
 	if ctxt.Debugvlog > 0 {
 		// dump symbol info on crash

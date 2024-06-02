@@ -148,6 +148,11 @@ func (s *SymABIs) GenABIWrappers() {
 			// offsets to dispatch arguments, which currently using ABI0
 			// frame layout. Pin it to ABI0.
 			fn.ABI = obj.ABI0
+			// Propagate linkname attribute, which was set on the ABIInternal
+			// symbol.
+			if sym.Linksym().IsLinkname() {
+				sym.LinksymABI(fn.ABI).Set(obj.AttrLinkname, true)
+			}
 		}
 
 		// If cgo-exported, add the definition ABI to the cgo

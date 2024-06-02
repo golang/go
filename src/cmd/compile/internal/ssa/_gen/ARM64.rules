@@ -579,11 +579,11 @@
 (AtomicExchange(32|64)Variant       ...) => (LoweredAtomicExchange(32|64)Variant ...)
 (AtomicCompareAndSwap(32|64)Variant ...) => (LoweredAtomicCas(32|64)Variant      ...)
 
-// Currently the updated value is not used, but we need a register to temporarily hold it.
-(AtomicAnd(8|32)         ptr val mem) => (Select1 (LoweredAtomicAnd(8|32)         ptr val mem))
-(AtomicOr(8|32)          ptr val mem) => (Select1 (LoweredAtomicOr(8|32)          ptr val mem))
-(AtomicAnd(8|32)Variant  ptr val mem) => (Select1 (LoweredAtomicAnd(8|32)Variant  ptr val mem))
-(AtomicOr(8|32)Variant   ptr val mem) => (Select1 (LoweredAtomicOr(8|32)Variant   ptr val mem))
+// Return old contents.
+(AtomicAnd(64|32|8)            ...) => (LoweredAtomicAnd(64|32|8)            ...)
+(AtomicOr(64|32|8)             ...) => (LoweredAtomicOr(64|32|8)             ...)
+(AtomicAnd(64|32|8)Variant     ...) => (LoweredAtomicAnd(64|32|8)Variant     ...)
+(AtomicOr(64|32|8)Variant      ...) => (LoweredAtomicOr(64|32|8)Variant      ...)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)

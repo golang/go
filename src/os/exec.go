@@ -20,9 +20,9 @@ var ErrProcessDone = errors.New("os: process already finished")
 // Process stores the information about a process created by [StartProcess].
 type Process struct {
 	Pid    int
-	handle atomic.Uintptr
-	isdone atomic.Bool  // process has been successfully waited on
-	sigMu  sync.RWMutex // avoid race between wait and signal
+	handle atomic.Uintptr // Process handle for Windows, pidfd for Linux.
+	isdone atomic.Bool    // process has been successfully waited on
+	sigMu  sync.RWMutex   // avoid race between wait and signal
 }
 
 func newProcess(pid int, handle uintptr) *Process {

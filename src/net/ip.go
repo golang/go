@@ -15,6 +15,7 @@ package net
 import (
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/stringslite"
 	"net/netip"
 )
 
@@ -515,11 +516,10 @@ func parseIP(s string) ([16]byte, bool) {
 // For example, ParseCIDR("192.0.2.1/24") returns the IP address
 // 192.0.2.1 and the network 192.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
-	i := bytealg.IndexByteString(s, '/')
-	if i < 0 {
+	addr, mask, found := stringslite.Cut(s, "/")
+	if !found {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
-	addr, mask := s[:i], s[i+1:]
 
 	ipAddr, err := netip.ParseAddr(addr)
 	if err != nil || ipAddr.Zone() != "" {

@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/pgo"
+	"cmd/internal/telemetry"
 	"flag"
 	"fmt"
 	"log"
@@ -31,8 +32,8 @@ func usage() {
 }
 
 var (
-	output  = flag.String("o", "", "output file path")
-	input   = flag.String("i", "", "input pprof file path")
+	output = flag.String("o", "", "output file path")
+	input  = flag.String("i", "", "input pprof file path")
 )
 
 func preprocess(profileFile string, outputFile string) error {
@@ -72,9 +73,12 @@ func main() {
 
 	log.SetFlags(0)
 	log.SetPrefix("preprofile: ")
+	telemetry.Start()
 
 	flag.Usage = usage
 	flag.Parse()
+	telemetry.Inc("preprofile/invocations")
+	telemetry.CountFlags("preprofile/flag:", *flag.CommandLine)
 	if *input == "" {
 		log.Print("Input pprof path required (-i)")
 		usage()

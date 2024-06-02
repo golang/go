@@ -9,7 +9,8 @@ import (
 	"go/types"
 	"internal/godebug"
 	"internal/pkgbits"
-	"sort"
+	"slices"
+	"strings"
 )
 
 // A pkgReader holds the shared state for reading a unified IR package
@@ -92,7 +93,9 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 			imps = append(imps, imp)
 		}
 	}
-	sort.Sort(byPath(imps))
+	slices.SortFunc(imps, func(a, b *types.Package) int {
+		return strings.Compare(a.Path(), b.Path())
+	})
 	pkg.SetImports(imps)
 
 	pkg.MarkComplete()

@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -97,7 +97,7 @@ func sortedIPStrings(ips []IP) []string {
 	for i, ip := range ips {
 		ret[i] = ip.String()
 	}
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 

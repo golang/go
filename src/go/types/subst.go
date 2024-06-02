@@ -99,15 +99,26 @@ func (subst *subster) typ(typ Type) Type {
 		// nothing to do
 
 	case *Alias:
-		rhs := subst.typ(t.fromRHS)
-		if rhs != t.fromRHS {
-			// This branch cannot be reached because the RHS of an alias
-			// may only contain type parameters of an enclosing function.
-			// Such function bodies are never "instantiated" and thus
-			// substitution is not called on locally declared alias types.
-			// TODO(gri) adjust once parameterized aliases are supported
-			panic("unreachable for unparameterized aliases")
-			// return subst.check.newAlias(t.obj, rhs)
+		// This code follows the code for *Named types closely.
+		// TODO(gri) try to factor better
+		orig := t.Origin()
+		n := orig.TypeParams().Len()
+		if n == 0 {
+			return t // type is not parameterized
+		}
+
+		// TODO(gri) do we need this for Alias types?
+		if t.TypeArgs().Len() != n {
+			return Typ[Invalid] // error reported elsewhere
+		}
+
+		// already instantiated
+		// For each (existing) type argument determine if it needs
+		// to be substituted; i.e., if it is or contains a type parameter
+		// that has a type argument for it.
+		targs, updated := subst.typeList(t.TypeArgs().list())
+		if updated {
+			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.ctxt)
 		}
 
 	case *Array:
@@ -224,18 +235,6 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Named:
-		// dump is for debugging
-		dump := func(string, ...interface{}) {}
-		if subst.check != nil && subst.check.conf._Trace {
-			subst.check.indent++
-			defer func() {
-				subst.check.indent--
-			}()
-			dump = func(format string, args ...interface{}) {
-				subst.check.trace(subst.pos, format, args...)
-			}
-		}
-
 		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing
 		// so would result in deadlock.
@@ -244,43 +243,25 @@ func (subst *subster) typ(typ Type) Type {
 		orig := t.Origin()
 		n := orig.TypeParams().Len()
 		if n == 0 {
-			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
-		var newTArgs []Type
 		if t.TypeArgs().Len() != n {
 			return Typ[Invalid] // error reported elsewhere
 		}
 
 		// already instantiated
-		dump(">>> %s already instantiated", t)
-		// For each (existing) type argument targ, determine if it needs
+		// For each (existing) type argument determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		for i, targ := range t.TypeArgs().list() {
-			dump(">>> %d targ = %s", i, targ)
-			new_targ := subst.typ(targ)
-			if new_targ != targ {
-				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
-				if newTArgs == nil {
-					newTArgs = make([]Type, n)
-					copy(newTArgs, t.TypeArgs().list())
-				}
-				newTArgs[i] = new_targ
-			}
+		targs, updated := subst.typeList(t.TypeArgs().list())
+		if updated {
+			// Create a new instance and populate the context to avoid endless
+			// recursion. The position used here is irrelevant because validation only
+			// occurs on t (we don't call validType on named), but we use subst.pos to
+			// help with debugging.
+			return subst.check.instance(subst.pos, orig, targs, subst.expanding, subst.ctxt)
 		}
-
-		if newTArgs == nil {
-			dump(">>> nothing to substitute in %s", t)
-			return t // nothing to substitute
-		}
-
-		// Create a new instance and populate the context to avoid endless
-		// recursion. The position used here is irrelevant because validation only
-		// occurs on t (we don't call validType on named), but we use subst.pos to
-		// help with debugging.
-		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
 
 	case *TypeParam:
 		return subst.smap.lookup(t)

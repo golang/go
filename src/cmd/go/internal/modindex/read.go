@@ -147,7 +147,8 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 // using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetModule(modroot string) (*Module, error) {
-	if !enabled || cache.DefaultDir() == "off" {
+	dir, _ := cache.DefaultDir()
+	if !enabled || dir == "off" {
 		return nil, errDisabled
 	}
 	if modroot == "" {

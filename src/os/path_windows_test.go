@@ -30,7 +30,7 @@ func TestAddExtendedPrefix(t *testing.T) {
 	// (256) and thus requires fixLongPath to be correctly interpreted in I/O syscalls.
 	veryLong := "l" + strings.Repeat("o", 500) + "ng"
 	for _, test := range []struct{ in, want string }{
-		// Testcases use word subsitutions:
+		// Test cases use word substitutions:
 		//   * "long" is replaced with a very long pathname
 		//   * "c:" or "C:" are replaced with the drive of the current directory (preserving case)
 		//   * "cwd" is replaced with the current directory

@@ -1,0 +1,1 @@
+pkg go/ast, func Preorder(Node) iter.Seq[Node] #66339

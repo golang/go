@@ -12,18 +12,19 @@ package json
 
 import (
 	"bytes"
+	"cmp"
 	"encoding"
 	"encoding/base64"
 	"fmt"
 	"math"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 // Marshal returns the JSON encoding of v.
@@ -591,6 +592,16 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 // isValidNumber reports whether s is a valid JSON number literal.
+//
+// isValidNumber should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname isValidNumber
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
@@ -1045,6 +1056,16 @@ type field struct {
 // typeFields returns a list of fields that JSON should recognize for the given type.
 // The algorithm is breadth-first search over the set of structs to include - the top struct
 // and then any reachable anonymous structs.
+//
+// typeFields should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typeFields
 func typeFields(t reflect.Type) structFields {
 	// Anonymous fields to explore at the current level and the next.
 	current := []field{}
@@ -1162,21 +1183,23 @@ func typeFields(t reflect.Type) structFields {
 		}
 	}
 
-	sort.Slice(fields, func(i, j int) bool {
-		x := fields
+	slices.SortFunc(fields, func(a, b field) int {
 		// sort field by name, breaking ties with depth, then
 		// breaking ties with "name came from json tag", then
 		// breaking ties with index sequence.
-		if x[i].name != x[j].name {
-			return x[i].name < x[j].name
+		if c := strings.Compare(a.name, b.name); c != 0 {
+			return c
 		}
-		if len(x[i].index) != len(x[j].index) {
-			return len(x[i].index) < len(x[j].index)
+		if c := cmp.Compare(len(a.index), len(b.index)); c != 0 {
+			return c
 		}
-		if x[i].tag != x[j].tag {
-			return x[i].tag
+		if a.tag != b.tag {
+			if a.tag {
+				return -1
+			}
+			return +1
 		}
-		return slices.Compare(x[i].index, x[j].index) == -1
+		return slices.Compare(a.index, b.index)
 	})
 
 	// Delete all fields that are hidden by the Go rules for embedded fields,

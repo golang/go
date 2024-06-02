@@ -665,8 +665,23 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.conf._EnableAlias {
+	if false && check.conf._EnableAlias {
 		// With Alias nodes we can process declarations in any order.
+		//
+		// TODO(adonovan): unfortunately, Alias nodes
+		// (GODEBUG=gotypesalias=1) don't entirely resolve
+		// problems with cycles. For example, in
+		// GOROOT/test/typeparam/issue50259.go,
+		//
+		// 	type T[_ any] struct{}
+		// 	type A T[B]
+		// 	type B = T[A]
+		//
+		// TypeName A has Type Named during checking, but by
+		// the time the unified export data is written out,
+		// its Type is Invalid.
+		//
+		// Investigate and reenable this branch.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)
 		}

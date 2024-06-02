@@ -12,7 +12,7 @@ import (
 	"net/netip"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -428,7 +428,7 @@ func TestLookupLongTXT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(txts)
+	slices.Sort(txts)
 	want := []string{
 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
 		"gophers rule",
@@ -1634,6 +1634,10 @@ func TestLookupNoSuchHost(t *testing.T) {
 }
 
 func TestDNSErrorUnwrap(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// The Plan 9 implementation of the resolver doesn't use the Dial function yet. See https://go.dev/cl/409234
+		t.Skip("skipping on plan9")
+	}
 	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
 		return nil, context.DeadlineExceeded
 	}}

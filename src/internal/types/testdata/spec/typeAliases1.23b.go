@@ -1,4 +1,4 @@
-// -lang=go1.23 -gotypesalias=1
+// -lang=go1.23 -gotypesalias=1 -goexperiment=aliastypeparams
 
 // Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -28,14 +28,20 @@ type _[P any, Q int] = RHS[P, Q]
 type _[P int | float64] = RHS[P, int]
 type _[P, Q any] = RHS[P, Q /* ERROR "Q does not satisfy ~int" */]
 
-// ----------------------------------------------------------------------------
-// NOTE: The code below does now work yet.
-// TODO: Implement this.
-
 // A generic type alias may be used like any other generic type.
 type A[P any] = RHS[P, int]
 
-func _(a A /* ERROR "not a generic type" */ [string]) {
+func _(a A[string]) {
 	a.p = "foo"
 	a.q = 42
+}
+
+// A generic alias may refer to another generic alias.
+type B[P any] = A[P]
+
+func _(a B[string]) {
+	a.p = "foo"
+	a.q = 42
+	// error messages print the instantiated alias type
+	a.r /* ERROR "a.r undefined (type B[string] has no field or method r)" */ = 0
 }

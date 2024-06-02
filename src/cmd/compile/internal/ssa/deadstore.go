@@ -21,12 +21,18 @@ func dse(f *Func) {
 	defer f.retSparseSet(storeUse)
 	shadowed := f.newSparseMap(f.NumValues())
 	defer f.retSparseMap(shadowed)
+	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
+	localAddrs := map[any]*Value{}
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
 		loadUse.clear()
 		storeUse.clear()
+		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
+		for k := range localAddrs {
+			delete(localAddrs, k)
+		}
 		stores = stores[:0]
 		for _, v := range b.Values {
 			if v.Op == OpPhi {
@@ -46,6 +52,13 @@ func dse(f *Func) {
 					}
 				}
 			} else {
+				if v.Op == OpLocalAddr {
+					if _, ok := localAddrs[v.Aux]; !ok {
+						localAddrs[v.Aux] = v
+					} else {
+						continue
+					}
+				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						loadUse.add(a.ID)
@@ -100,6 +113,11 @@ func dse(f *Func) {
 			} else { // OpZero
 				sz = v.AuxInt
 			}
+			if ptr.Op == OpLocalAddr {
+				if la, ok := localAddrs[ptr.Aux]; ok {
+					ptr = la
+				}
+			}
 			sr := shadowRange(shadowed.get(ptr.ID))
 			if sr.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
@@ -146,6 +164,7 @@ type shadowRange int32
 func (sr shadowRange) lo() int64 {
 	return int64(sr & 0xffff)
 }
+
 func (sr shadowRange) hi() int64 {
 	return int64((sr >> 16) & 0xffff)
 }

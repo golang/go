@@ -436,4 +436,9 @@ const (
 	SYS_FUTEX_WAKE                   = 4454
 	SYS_FUTEX_WAIT                   = 4455
 	SYS_FUTEX_REQUEUE                = 4456
+	SYS_STATMOUNT                    = 4457
+	SYS_LISTMOUNT                    = 4458
+	SYS_LSM_GET_SELF_ATTR            = 4459
+	SYS_LSM_SET_SELF_ATTR            = 4460
+	SYS_LSM_LIST_MODULES             = 4461
 )

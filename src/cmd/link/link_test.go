@@ -1397,21 +1397,65 @@ func TestRandLayout(t *testing.T) {
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-randlayout="+seed, "-o", exe, src)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("build failed: %v\n%s", err, out)
+			t.Fatalf("seed=%v: build failed: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, exe)
 		err = cmd.Run()
 		if err != nil {
-			t.Fatalf("executable failed to run: %v\n%s", err, out)
+			t.Fatalf("seed=%v: executable failed to run: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("fail to run \"go tool nm\": %v\n%s", err, out)
+			t.Fatalf("seed=%v: fail to run \"go tool nm\": %v\n%s", seed, err, out)
 		}
 		syms[i] = string(out)
 	}
 	if syms[0] == syms[1] {
 		t.Errorf("randlayout with different seeds produced same layout:\n%s\n===\n\n%s", syms[0], syms[1])
+	}
+}
+
+func TestCheckLinkname(t *testing.T) {
+	// Test that code containing blocked linknames does not build.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	tests := []struct {
+		src string
+		ok  bool
+	}{
+		// use (instantiation) of public API is ok
+		{"ok.go", true},
+		// push linkname is ok
+		{"push.go", true},
+		// pull linkname of blocked symbol is not ok
+		{"coro.go", false},
+		{"coro_var.go", false},
+		// assembly reference is not ok
+		{"coro_asm", false},
+		// pull-only linkname is not ok
+		{"coro2.go", false},
+		// legacy bad linkname is ok, for now
+		{"fastrand.go", true},
+		{"badlinkname.go", true},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.src, func(t *testing.T) {
+			t.Parallel()
+			src := filepath.Join("testdata", "linkname", test.src)
+			exe := filepath.Join(tmpdir, test.src+".exe")
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
+			out, err := cmd.CombinedOutput()
+			if test.ok && err != nil {
+				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)
+			}
+			if !test.ok && err == nil {
+				t.Errorf("build succeeded unexpectedly: %v:\n%s", err, out)
+			}
+		})
 	}
 }

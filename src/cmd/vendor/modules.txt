@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+# github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
 ## explicit; go 1.19
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -13,7 +13,7 @@ github.com/google/pprof/internal/symbolz
 github.com/google/pprof/internal/transport
 github.com/google/pprof/profile
 github.com/google/pprof/third_party/svgpan
-# github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+# github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
 # golang.org/x/arch v0.7.0
@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
 # golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
 ## explicit; go 1.21
 golang.org/x/build/relnote
-# golang.org/x/mod v0.16.0
+# golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
 ## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -36,16 +36,16 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sync v0.6.0
+# golang.org/x/sync v0.7.0
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.19.0
+# golang.org/x/sys v0.20.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1
+# golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9
 ## explicit; go 1.20
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -57,7 +57,6 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-golang.org/x/telemetry/upload
 # golang.org/x/term v0.18.0
 ## explicit; go 1.18
 golang.org/x/term
@@ -71,7 +70,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14
+# golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
 ## explicit; go 1.19
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -103,6 +102,7 @@ golang.org/x/tools/go/analysis/passes/shift
 golang.org/x/tools/go/analysis/passes/sigchanyzer
 golang.org/x/tools/go/analysis/passes/slog
 golang.org/x/tools/go/analysis/passes/stdmethods
+golang.org/x/tools/go/analysis/passes/stdversion
 golang.org/x/tools/go/analysis/passes/stringintconv
 golang.org/x/tools/go/analysis/passes/structtag
 golang.org/x/tools/go/analysis/passes/testinggoroutine
