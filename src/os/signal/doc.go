@@ -146,8 +146,8 @@ Go behavior described above will not occur. This can be an issue with
 the SIGPROF signal in particular.
 
 The non-Go code should not change the signal mask on any threads
-created by the Go runtime. If the non-Go code starts new threads of
-its own, it may set the signal mask as it pleases.
+created by the Go runtime. If the non-Go code starts new threads
+itself, those threads may set the signal mask as they please.
 
 If the non-Go code starts a new thread, changes the signal mask, and
 then invokes a Go function in that thread, the Go runtime will
