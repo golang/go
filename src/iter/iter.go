@@ -61,6 +61,10 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
+		if done {
+			race.Release(unsafe.Pointer(&racer))
+			return
+		}
 		yield := func(v1 V) bool {
 			if done {
 				return false
@@ -170,6 +174,10 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
+		if done {
+			race.Release(unsafe.Pointer(&racer))
+			return
+		}
 		yield := func(k1 K, v1 V) bool {
 			if done {
 				return false

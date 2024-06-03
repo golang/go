@@ -256,9 +256,13 @@ func TestPullPanic(t *testing.T) {
 		stop()
 	})
 	t.Run("stop", func(t *testing.T) {
-		next, stop := Pull(panicSeq())
+		next, stop := Pull(panicCleanupSeq())
+		x, ok := next()
+		if !ok || x != 55 {
+			t.Fatalf("expected (55, true) from next, got (%d, %t)", x, ok)
+		}
 		if !panicsWith("boom", func() { stop() }) {
-			t.Fatal("failed to propagate panic on first stop")
+			t.Fatal("failed to propagate panic on stop")
 		}
 		// Make sure we don't panic again if we try to call next or stop.
 		if _, ok := next(); ok {
@@ -272,6 +276,16 @@ func TestPullPanic(t *testing.T) {
 func panicSeq() Seq[int] {
 	return func(yield func(int) bool) {
 		panic("boom")
+	}
+}
+
+func panicCleanupSeq() Seq[int] {
+	return func(yield func(int) bool) {
+		for {
+			if !yield(55) {
+				panic("boom")
+			}
+		}
 	}
 }
 
@@ -289,9 +303,13 @@ func TestPull2Panic(t *testing.T) {
 		stop()
 	})
 	t.Run("stop", func(t *testing.T) {
-		next, stop := Pull2(panicSeq2())
+		next, stop := Pull2(panicCleanupSeq2())
+		x, y, ok := next()
+		if !ok || x != 55 || y != 100 {
+			t.Fatalf("expected (55, 100, true) from next, got (%d, %d, %t)", x, y, ok)
+		}
 		if !panicsWith("boom", func() { stop() }) {
-			t.Fatal("failed to propagate panic on first stop")
+			t.Fatal("failed to propagate panic on stop")
 		}
 		// Make sure we don't panic again if we try to call next or stop.
 		if _, _, ok := next(); ok {
@@ -305,6 +323,16 @@ func TestPull2Panic(t *testing.T) {
 func panicSeq2() Seq2[int, int] {
 	return func(yield func(int, int) bool) {
 		panic("boom")
+	}
+}
+
+func panicCleanupSeq2() Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		for {
+			if !yield(55, 100) {
+				panic("boom")
+			}
+		}
 	}
 }
 
@@ -332,22 +360,26 @@ func TestPullGoexit(t *testing.T) {
 			t.Fatal("failed to Goexit from next")
 		}
 		if x, ok := next(); x != 0 || ok {
-			t.Fatal("iterator returned valid value after Goexit")
+			t.Fatal("iterator returned valid value after iterator Goexited")
 		}
 		stop()
 	})
 	t.Run("stop", func(t *testing.T) {
-		var next func() (int, bool)
-		var stop func()
+		next, stop := Pull(goexitCleanupSeq())
+		x, ok := next()
+		if !ok || x != 55 {
+			t.Fatalf("expected (55, true) from next, got (%d, %t)", x, ok)
+		}
 		if !goexits(t, func() {
-			next, stop = Pull(goexitSeq())
 			stop()
 		}) {
 			t.Fatal("failed to Goexit from stop")
 		}
+		// Make sure we don't panic again if we try to call next or stop.
 		if x, ok := next(); x != 0 || ok {
-			t.Fatal("iterator returned valid value after Goexit")
+			t.Fatal("next returned true or non-zero value after iterator Goexited")
 		}
+		// Calling stop again should be a no-op.
 		stop()
 	})
 }
@@ -355,6 +387,16 @@ func TestPullGoexit(t *testing.T) {
 func goexitSeq() Seq[int] {
 	return func(yield func(int) bool) {
 		runtime.Goexit()
+	}
+}
+
+func goexitCleanupSeq() Seq[int] {
+	return func(yield func(int) bool) {
+		for {
+			if !yield(55) {
+				runtime.Goexit()
+			}
+		}
 	}
 }
 
@@ -369,22 +411,26 @@ func TestPull2Goexit(t *testing.T) {
 			t.Fatal("failed to Goexit from next")
 		}
 		if x, y, ok := next(); x != 0 || y != 0 || ok {
-			t.Fatal("iterator returned valid value after Goexit")
+			t.Fatal("iterator returned valid value after iterator Goexited")
 		}
 		stop()
 	})
 	t.Run("stop", func(t *testing.T) {
-		var next func() (int, int, bool)
-		var stop func()
+		next, stop := Pull2(goexitCleanupSeq2())
+		x, y, ok := next()
+		if !ok || x != 55 || y != 100 {
+			t.Fatalf("expected (55, 100, true) from next, got (%d, %d, %t)", x, y, ok)
+		}
 		if !goexits(t, func() {
-			next, stop = Pull2(goexitSeq2())
 			stop()
 		}) {
 			t.Fatal("failed to Goexit from stop")
 		}
+		// Make sure we don't panic again if we try to call next or stop.
 		if x, y, ok := next(); x != 0 || y != 0 || ok {
-			t.Fatal("iterator returned valid value after Goexit")
+			t.Fatal("next returned true or non-zero after iterator Goexited")
 		}
+		// Calling stop again should be a no-op.
 		stop()
 	})
 }
@@ -392,6 +438,16 @@ func TestPull2Goexit(t *testing.T) {
 func goexitSeq2() Seq2[int, int] {
 	return func(yield func(int, int) bool) {
 		runtime.Goexit()
+	}
+}
+
+func goexitCleanupSeq2() Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		for {
+			if !yield(55, 100) {
+				runtime.Goexit()
+			}
+		}
 	}
 }
 
@@ -408,4 +464,22 @@ func goexits(t *testing.T, f func()) bool {
 		cleanExit = true
 	}()
 	return <-exit
+}
+
+func TestPullImmediateStop(t *testing.T) {
+	next, stop := Pull(panicSeq())
+	stop()
+	// Make sure we don't panic if we try to call next or stop.
+	if _, ok := next(); ok {
+		t.Fatal("next returned true after iterator was stopped")
+	}
+}
+
+func TestPull2ImmediateStop(t *testing.T) {
+	next, stop := Pull2(panicSeq2())
+	stop()
+	// Make sure we don't panic if we try to call next or stop.
+	if _, _, ok := next(); ok {
+		t.Fatal("next returned true after iterator was stopped")
+	}
 }
