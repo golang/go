@@ -710,6 +710,7 @@ func fRunner(f *F, fn func(*F)) {
 
 		// Report after all subtests have finished.
 		f.report()
+		f.doneRaceCanary = true
 		f.done = true
 		f.setRan()
 	}()
