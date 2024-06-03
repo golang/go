@@ -1,0 +1,41 @@
+# Test that overlays are respected when opening go.work files.
+
+# go.work in overlay, but not on disk.
+go list -overlay=overlay.json -m
+stdout example.com/a
+stdout example.com/b
+! stdout example.com/c
+
+# control case for go.work on disk and in overlay:
+# go.work is on disk but not in overlay.
+cp go.work.non-overlay go.work
+go list -m
+stdout example.com/a
+stdout example.com/b
+stdout example.com/c
+
+# go.work on disk and in overlay.
+go list -overlay=overlay.json -m
+stdout example.com/a
+stdout example.com/b
+! stdout example.com/c
+
+-- overlay.json --
+{"Replace": {"go.work": "overlaywork"}}
+-- overlaywork --
+use (
+    ./a
+    ./b
+)
+-- go.work.non-overlay --
+use (
+    ./a
+    ./b
+    ./c
+)
+-- a/go.mod --
+module example.com/a
+-- b/go.mod --
+module example.com/b
+-- c/go.mod --
+module example.com/c

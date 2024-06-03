@@ -343,6 +343,10 @@ func BinDir() string {
 // operate in workspace mode. It should not be called by other commands,
 // for example 'go mod tidy', that don't operate in workspace mode.
 func InitWorkfile() {
+	// Initialize fsys early because we need overlay to read go.work file.
+	if err := fsys.Init(base.Cwd()); err != nil {
+		base.Fatal(err)
+	}
 	workFilePath = FindGoWork(base.Cwd())
 }
 
@@ -708,7 +712,8 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
 
 // ReadWorkFile reads and parses the go.work file at the given path.
 func ReadWorkFile(path string) (*modfile.WorkFile, error) {
-	workData, err := os.ReadFile(path)
+	path = base.ShortPath(path) // use short path in any errors
+	workData, err := fsys.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

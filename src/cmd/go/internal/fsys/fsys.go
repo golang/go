@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/godebug"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -403,12 +404,6 @@ func Open(path string) (*os.File, error) {
 	return openFile(path, os.O_RDONLY, 0)
 }
 
-// OpenFile opens the file at or overlaid on the given path with the flag and perm.
-func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-	Trace("OpenFile", path)
-	return openFile(path, flag, perm)
-}
-
 func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 	cpath := canonicalize(path)
 	if node, ok := overlay[cpath]; ok {
@@ -433,6 +428,17 @@ func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
 		}
 	}
 	return os.OpenFile(cpath, flag, perm)
+}
+
+// ReadFile reads the file at or overlaid on the given path.
+func ReadFile(path string) ([]byte, error) {
+	f, err := Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return io.ReadAll(f)
 }
 
 // IsDirWithGoFiles reports whether dir is a directory containing Go files
