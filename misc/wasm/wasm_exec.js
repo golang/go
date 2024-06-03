@@ -89,7 +89,7 @@
 		throw new Error("globalThis.TextDecoder is not available, polyfill required");
 	}
 
-	const encoder = new TextEncoder("utf-8");
+	const encoder = new TextEncoder();
 	const decoder = new TextDecoder("utf-8");
 
 	globalThis.Go = class {
