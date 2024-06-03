@@ -118,6 +118,7 @@ const (
 	IXOFF                            = 0x1000
 	IXON                             = 0x400
 	MAP_32BIT                        = 0x40
+	MAP_ABOVE4G                      = 0x80
 	MAP_ANON                         = 0x20
 	MAP_ANONYMOUS                    = 0x20
 	MAP_DENYWRITE                    = 0x800

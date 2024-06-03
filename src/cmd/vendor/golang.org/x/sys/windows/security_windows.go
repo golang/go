@@ -68,6 +68,7 @@ type UserInfo10 struct {
 //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
 //sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
 //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
+//sys   NetUserEnum(serverName *uint16, level uint32, filter uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32, resumeHandle *uint32) (neterr error) = netapi32.NetUserEnum
 
 const (
 	// do not reorder

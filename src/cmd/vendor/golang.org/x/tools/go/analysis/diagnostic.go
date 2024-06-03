@@ -12,7 +12,8 @@ import "go/token"
 // which should be a constant, may be used to classify them.
 // It is primarily intended to make it easy to look up documentation.
 //
-// If End is provided, the diagnostic is specified to apply to the range between
+// All Pos values are interpreted relative to Pass.Fset. If End is
+// provided, the diagnostic is specified to apply to the range between
 // Pos and End.
 type Diagnostic struct {
 	Pos      token.Pos

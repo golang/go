@@ -188,10 +188,10 @@ func fileValidity(now time.Time) (int, error) {
 	if _, err := os.ReadFile(weekends); err != nil {
 		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
 			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
-			return 7, err
+			return 0, err
 		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
-			return 7, err
+			return 0, err
 		}
 	}
 
@@ -200,11 +200,11 @@ func fileValidity(now time.Time) (int, error) {
 	// There is no reasonable way of recovering from errors
 	// so we just fail
 	if err != nil {
-		return 7, err
+		return 0, err
 	}
 	buf = bytes.TrimSpace(buf)
 	if len(buf) == 0 {
-		return 7, err
+		return 0, fmt.Errorf("empty weekends file")
 	}
 	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
 	// paranoia to make sure the value is legal
@@ -247,6 +247,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 	defer f.mu.Unlock()
 
 	var previous *mappedFile
+	// TODO(rfindley): refactor. All callers immediately invoke cleanup;
+	// therefore the cleanup here should be deferred.
 	cleanup = func() {
 		// convert counters to new mapping (or nil)
 		// from old mapping (or nil)
@@ -256,7 +258,7 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
 			return
 		}
 		// now it is safe to clean up the old mapping
-		// Quim Montel pointed out the previous coeanup was incomplete
+		// Quim Montel pointed out the previous cleanup was incomplete
 		previous.close()
 	}
 

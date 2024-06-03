@@ -399,15 +399,15 @@ func equivalentTypes(want, got types.Type) bool {
 // MakeReadFile returns a simple implementation of the Pass.ReadFile function.
 func MakeReadFile(pass *analysis.Pass) func(filename string) ([]byte, error) {
 	return func(filename string) ([]byte, error) {
-		if err := checkReadable(pass, filename); err != nil {
+		if err := CheckReadable(pass, filename); err != nil {
 			return nil, err
 		}
 		return os.ReadFile(filename)
 	}
 }
 
-// checkReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
-func checkReadable(pass *analysis.Pass, filename string) error {
+// CheckReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
+func CheckReadable(pass *analysis.Pass, filename string) error {
 	if slicesContains(pass.OtherFiles, filename) ||
 		slicesContains(pass.IgnoredFiles, filename) {
 		return nil

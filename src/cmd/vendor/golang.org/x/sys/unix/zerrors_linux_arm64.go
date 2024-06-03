@@ -87,6 +87,7 @@ const (
 	FICLONE                          = 0x40049409
 	FICLONERANGE                     = 0x4020940d
 	FLUSHO                           = 0x1000
+	FPMR_MAGIC                       = 0x46504d52
 	FPSIMD_MAGIC                     = 0x46508001
 	FS_IOC_ENABLE_VERITY             = 0x40806685
 	FS_IOC_GETFLAGS                  = 0x80086601

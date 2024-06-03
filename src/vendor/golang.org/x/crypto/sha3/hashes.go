@@ -16,39 +16,43 @@ import (
 // Its generic security strength is 224 bits against preimage attacks,
 // and 112 bits against collision attacks.
 func New224() hash.Hash {
-	if h := new224Asm(); h != nil {
-		return h
-	}
-	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
+	return new224()
 }
 
 // New256 creates a new SHA3-256 hash.
 // Its generic security strength is 256 bits against preimage attacks,
 // and 128 bits against collision attacks.
 func New256() hash.Hash {
-	if h := new256Asm(); h != nil {
-		return h
-	}
-	return &state{rate: 136, outputLen: 32, dsbyte: 0x06}
+	return new256()
 }
 
 // New384 creates a new SHA3-384 hash.
 // Its generic security strength is 384 bits against preimage attacks,
 // and 192 bits against collision attacks.
 func New384() hash.Hash {
-	if h := new384Asm(); h != nil {
-		return h
-	}
-	return &state{rate: 104, outputLen: 48, dsbyte: 0x06}
+	return new384()
 }
 
 // New512 creates a new SHA3-512 hash.
 // Its generic security strength is 512 bits against preimage attacks,
 // and 256 bits against collision attacks.
 func New512() hash.Hash {
-	if h := new512Asm(); h != nil {
-		return h
-	}
+	return new512()
+}
+
+func new224Generic() *state {
+	return &state{rate: 144, outputLen: 28, dsbyte: 0x06}
+}
+
+func new256Generic() *state {
+	return &state{rate: 136, outputLen: 32, dsbyte: 0x06}
+}
+
+func new384Generic() *state {
+	return &state{rate: 104, outputLen: 48, dsbyte: 0x06}
+}
+
+func new512Generic() *state {
 	return &state{rate: 72, outputLen: 64, dsbyte: 0x06}
 }
 

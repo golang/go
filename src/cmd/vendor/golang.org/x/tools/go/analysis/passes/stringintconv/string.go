@@ -59,14 +59,13 @@ func describe(typ, inType types.Type, inName string) string {
 	return name
 }
 
-func typeName(typ types.Type) string {
-	typ = aliases.Unalias(typ)
-	// TODO(adonovan): don't discard alias type, return its name.
-	if v, _ := typ.(*types.Basic); v != nil {
-		return v.Name()
-	}
-	if v, _ := typ.(interface{ Obj() *types.TypeName }); v != nil { // Named, TypeParam
-		return v.Obj().Name()
+func typeName(t types.Type) string {
+	type hasTypeName interface{ Obj() *types.TypeName } // Alias, Named, TypeParam
+	switch t := t.(type) {
+	case *types.Basic:
+		return t.Name()
+	case hasTypeName:
+		return t.Obj().Name()
 	}
 	return ""
 }

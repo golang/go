@@ -502,6 +502,7 @@ const (
 	BPF_IMM                                     = 0x0
 	BPF_IND                                     = 0x40
 	BPF_JA                                      = 0x0
+	BPF_JCOND                                   = 0xe0
 	BPF_JEQ                                     = 0x10
 	BPF_JGE                                     = 0x30
 	BPF_JGT                                     = 0x20
@@ -657,6 +658,9 @@ const (
 	CAN_NPROTO                                  = 0x8
 	CAN_RAW                                     = 0x1
 	CAN_RAW_FILTER_MAX                          = 0x200
+	CAN_RAW_XL_VCID_RX_FILTER                   = 0x4
+	CAN_RAW_XL_VCID_TX_PASS                     = 0x2
+	CAN_RAW_XL_VCID_TX_SET                      = 0x1
 	CAN_RTR_FLAG                                = 0x40000000
 	CAN_SFF_ID_BITS                             = 0xb
 	CAN_SFF_MASK                                = 0x7ff
@@ -1339,6 +1343,7 @@ const (
 	F_OFD_SETLK                                 = 0x25
 	F_OFD_SETLKW                                = 0x26
 	F_OK                                        = 0x0
+	F_SEAL_EXEC                                 = 0x20
 	F_SEAL_FUTURE_WRITE                         = 0x10
 	F_SEAL_GROW                                 = 0x4
 	F_SEAL_SEAL                                 = 0x1
@@ -1627,6 +1632,7 @@ const (
 	IP_FREEBIND                                 = 0xf
 	IP_HDRINCL                                  = 0x3
 	IP_IPSEC_POLICY                             = 0x10
+	IP_LOCAL_PORT_RANGE                         = 0x33
 	IP_MAXPACKET                                = 0xffff
 	IP_MAX_MEMBERSHIPS                          = 0x14
 	IP_MF                                       = 0x2000
@@ -1653,6 +1659,7 @@ const (
 	IP_PMTUDISC_OMIT                            = 0x5
 	IP_PMTUDISC_PROBE                           = 0x3
 	IP_PMTUDISC_WANT                            = 0x1
+	IP_PROTOCOL                                 = 0x34
 	IP_RECVERR                                  = 0xb
 	IP_RECVERR_RFC4884                          = 0x1a
 	IP_RECVFRAGSIZE                             = 0x19
@@ -2169,7 +2176,7 @@ const (
 	NFT_SECMARK_CTX_MAXLEN                      = 0x100
 	NFT_SET_MAXNAMELEN                          = 0x100
 	NFT_SOCKET_MAX                              = 0x3
-	NFT_TABLE_F_MASK                            = 0x3
+	NFT_TABLE_F_MASK                            = 0x7
 	NFT_TABLE_MAXNAMELEN                        = 0x100
 	NFT_TRACETYPE_MAX                           = 0x3
 	NFT_TUNNEL_F_MASK                           = 0x7
@@ -2403,6 +2410,7 @@ const (
 	PERF_RECORD_MISC_USER                       = 0x2
 	PERF_SAMPLE_BRANCH_PLM_ALL                  = 0x7
 	PERF_SAMPLE_WEIGHT_TYPE                     = 0x1004000
+	PID_FS_MAGIC                                = 0x50494446
 	PIPEFS_MAGIC                                = 0x50495045
 	PPPIOCGNPMODE                               = 0xc008744c
 	PPPIOCNEWUNIT                               = 0xc004743e
@@ -2896,8 +2904,9 @@ const (
 	RWF_APPEND                                  = 0x10
 	RWF_DSYNC                                   = 0x2
 	RWF_HIPRI                                   = 0x1
+	RWF_NOAPPEND                                = 0x20
 	RWF_NOWAIT                                  = 0x8
-	RWF_SUPPORTED                               = 0x1f
+	RWF_SUPPORTED                               = 0x3f
 	RWF_SYNC                                    = 0x4
 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
 	SCHED_BATCH                                 = 0x3
@@ -2918,7 +2927,9 @@ const (
 	SCHED_RESET_ON_FORK                         = 0x40000000
 	SCHED_RR                                    = 0x2
 	SCM_CREDENTIALS                             = 0x2
+	SCM_PIDFD                                   = 0x4
 	SCM_RIGHTS                                  = 0x1
+	SCM_SECURITY                                = 0x3
 	SCM_TIMESTAMP                               = 0x1d
 	SC_LOG_FLUSH                                = 0x100000
 	SECCOMP_ADDFD_FLAG_SEND                     = 0x2
@@ -3051,6 +3062,8 @@ const (
 	SIOCSMIIREG                                 = 0x8949
 	SIOCSRARP                                   = 0x8962
 	SIOCWANDEV                                  = 0x894a
+	SK_DIAG_BPF_STORAGE_MAX                     = 0x3
+	SK_DIAG_BPF_STORAGE_REQ_MAX                 = 0x1
 	SMACK_MAGIC                                 = 0x43415d53
 	SMART_AUTOSAVE                              = 0xd2
 	SMART_AUTO_OFFLINE                          = 0xdb
@@ -3071,6 +3084,8 @@ const (
 	SOCKFS_MAGIC                                = 0x534f434b
 	SOCK_BUF_LOCK_MASK                          = 0x3
 	SOCK_DCCP                                   = 0x6
+	SOCK_DESTROY                                = 0x15
+	SOCK_DIAG_BY_FAMILY                         = 0x14
 	SOCK_IOC_TYPE                               = 0x89
 	SOCK_PACKET                                 = 0xa
 	SOCK_RAW                                    = 0x3
@@ -3260,6 +3275,7 @@ const (
 	TCP_MAX_WINSHIFT                            = 0xe
 	TCP_MD5SIG                                  = 0xe
 	TCP_MD5SIG_EXT                              = 0x20
+	TCP_MD5SIG_FLAG_IFINDEX                     = 0x2
 	TCP_MD5SIG_FLAG_PREFIX                      = 0x1
 	TCP_MD5SIG_MAXKEYLEN                        = 0x50
 	TCP_MSS                                     = 0x200

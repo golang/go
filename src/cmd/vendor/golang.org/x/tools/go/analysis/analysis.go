@@ -91,7 +91,7 @@ type Pass struct {
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset         *token.FileSet // file position information
+	Fset         *token.FileSet // file position information; Run may add new files
 	Files        []*ast.File    // the abstract syntax tree of each file
 	OtherFiles   []string       // names of non-Go files of this package
 	IgnoredFiles []string       // names of ignored source files in this package

@@ -12,7 +12,7 @@ import (
 	"go/types"
 )
 
-// FileVersions returns a file's Go version.
+// FileVersion returns a file's Go version.
 // The reported version is an unknown Future version if a
 // version cannot be determined.
 func FileVersion(info *types.Info, file *ast.File) string {
