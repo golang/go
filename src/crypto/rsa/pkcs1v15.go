@@ -322,7 +322,7 @@ func pkcs1v15ConstructEM(pub *PublicKey, hash crypto.Hash, hashed []byte) ([]byt
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 	k := pub.Size()
 	if k == 0 {
-		return nil, errPrivateKeySizeZero
+		return nil, errPublicKeySizeZero
 	}
 	if k < len(prefix)+len(hashed)+2+8+1 {
 		return nil, ErrMessageTooLong
