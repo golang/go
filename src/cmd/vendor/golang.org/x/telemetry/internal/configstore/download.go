@@ -25,6 +25,10 @@ const (
 	configFileName = "config.json"
 )
 
+// needNoConsole is used on windows to set the windows.CREATE_NO_WINDOW
+// creation flag.
+var needNoConsole = func(cmd *exec.Cmd) {}
+
 // Download fetches the requested telemetry UploadConfig using "go mod
 // download". If envOverlay is provided, it is appended to the environment used
 // for invoking the go command.
@@ -37,6 +41,7 @@ func Download(version string, envOverlay []string) (*telemetry.UploadConfig, str
 	modVer := ModulePath + "@" + version
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
+	needNoConsole(cmd)
 	cmd.Env = append(os.Environ(), envOverlay...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

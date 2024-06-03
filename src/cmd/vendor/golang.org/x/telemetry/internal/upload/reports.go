@@ -248,10 +248,10 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
 	// write the uploadable file
 	var errUpload, errLocal error
 	if uploadOK {
-		errUpload = os.WriteFile(uploadFileName, uploadContents, 0644)
+		_, errUpload = exclusiveWrite(uploadFileName, uploadContents)
 	}
 	// write the local file
-	errLocal = os.WriteFile(localFileName, localContents, 0644)
+	_, errLocal = exclusiveWrite(localFileName, localContents)
 	/*  Wrote the files */
 
 	// even though these errors won't occur, what should happen
@@ -268,6 +268,31 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
 		return uploadFileName, nil
 	}
 	return "", nil
+}
+
+// exclusiveWrite attempts to create filename exclusively, and if successful,
+// writes content to the resulting file handle.
+//
+// It returns a boolean indicating whether the exclusive handle was acquired,
+// and an error indicating whether the operation succeeded.
+// If the file already exists, exclusiveWrite returns (false, nil).
+func exclusiveWrite(filename string, content []byte) (_ bool, rerr error) {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		if os.IsExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer func() {
+		if err := f.Close(); err != nil && rerr == nil {
+			rerr = err
+		}
+	}()
+	if _, err := f.Write(content); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // return an existing ProgremReport, or create anew

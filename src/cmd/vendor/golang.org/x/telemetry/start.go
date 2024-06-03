@@ -94,8 +94,8 @@ func Start(config Config) *StartResult {
 	mode, _ := telemetry.Default.Mode()
 	if mode == "off" {
 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
-		// at least set to "local", and the uploader isn't started in uploaderChild if
-		// mode is "off"
+		// at least set to "local". The upload process runs in both "on" and "local" modes.
+		// In local mode the upload process builds local reports but does not do the upload.
 		return result
 	}
 
@@ -109,35 +109,35 @@ func Start(config Config) *StartResult {
 		return result
 	}
 
-	// Crash monitoring and uploading both require a sidecar process.
-	var (
-		reportCrashes = config.ReportCrashes && crashmonitor.Supported()
-		upload        = config.Upload && mode != "off"
-	)
-	if reportCrashes || upload {
-		switch v := os.Getenv(telemetryChildVar); v {
-		case "":
-			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
-			parent(reportCrashes, result)
-		case "1":
-			// golang/go#67211: be sure to set telemetryChildVar before running the
-			// child, because the child itself invokes the go command to download the
-			// upload config. If the telemetryChildVar variable is still set to "1",
-			// that delegated go command may think that it is itself a telemetry
-			// child.
-			//
-			// On the other hand, if telemetryChildVar were simply unset, then the
-			// delegated go commands would fork themselves recursively. Short-circuit
-			// this recursion.
-			os.Setenv(telemetryChildVar, "2")
-			child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
-			os.Exit(0)
-		case "2":
-			// Do nothing: see note above.
-		default:
-			log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
+	var reportCrashes = config.ReportCrashes && crashmonitor.Supported()
+
+	switch v := os.Getenv(telemetryChildVar); v {
+	case "":
+		// The subprocess started by parent has GO_TELEMETRY_CHILD=1.
+		childShouldUpload := config.Upload && acquireUploadToken()
+		if reportCrashes || childShouldUpload {
+			parent(reportCrashes, childShouldUpload, result)
 		}
+	case "1":
+		// golang/go#67211: be sure to set telemetryChildVar before running the
+		// child, because the child itself invokes the go command to download the
+		// upload config. If the telemetryChildVar variable is still set to "1",
+		// that delegated go command may think that it is itself a telemetry
+		// child.
+		//
+		// On the other hand, if telemetryChildVar were simply unset, then the
+		// delegated go commands would fork themselves recursively. Short-circuit
+		// this recursion.
+		os.Setenv(telemetryChildVar, "2")
+		upload := os.Getenv(telemetryUploadVar) == "1"
+		child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
+		os.Exit(0)
+	case "2":
+		// Do nothing: see note above.
+	default:
+		log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
 	}
+
 	return result
 }
 
@@ -163,9 +163,13 @@ var daemonize = func(cmd *exec.Cmd) {}
 //
 // If telemetryChildVar is set to "2", this is a child of the child, and no
 // further forking should occur.
-const telemetryChildVar = "X_TELEMETRY_CHILD"
+const telemetryChildVar = "GO_TELEMETRY_CHILD"
 
-func parent(reportCrashes bool, result *StartResult) {
+// If telemetryUploadVar is set to "1" in the environment, the upload token has been
+// acquired by the parent, and the child should attempt an upload.
+const telemetryUploadVar = "GO_TELEMETRY_CHILD_UPLOAD"
+
+func parent(reportCrashes, upload bool, result *StartResult) {
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -179,6 +183,9 @@ func parent(reportCrashes bool, result *StartResult) {
 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
 	daemonize(cmd)
 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
+	if upload {
+		cmd.Env = append(cmd.Env, telemetryUploadVar+"=1")
+	}
 	cmd.Dir = telemetry.Default.LocalDir()
 
 	// The child process must write to a log file, not
@@ -251,26 +258,6 @@ func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL stri
 }
 
 func uploaderChild(asof time.Time, uploadURL string) {
-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
-		// There's no work to be done if telemetry is turned off.
-		return
-	}
-	if telemetry.Default.LocalDir() == "" {
-		// The telemetry dir wasn't initialized properly, probably because
-		// os.UserConfigDir did not complete successfully. In that case
-		// there are no counters to upload, so we should just do nothing.
-		return
-	}
-	tokenfilepath := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
-	ok, err := acquireUploadToken(tokenfilepath)
-	if err != nil {
-		log.Printf("error acquiring upload token: %v", err)
-		return
-	} else if !ok {
-		// It hasn't been a day since the last upload.Run attempt or there's
-		// a concurrently running uploader.
-		return
-	}
 	if err := upload.Run(upload.RunConfig{
 		UploadURL: uploadURL,
 		LogWriter: os.Stderr,
@@ -284,7 +271,14 @@ func uploaderChild(asof time.Time, uploadURL string) {
 // To limit the frequency of uploads, only one token is issue per
 // machine per time period.
 // The boolean indicates whether the token was acquired.
-func acquireUploadToken(tokenfile string) (bool, error) {
+func acquireUploadToken() bool {
+	if telemetry.Default.LocalDir() == "" {
+		// The telemetry dir wasn't initialized properly, probably because
+		// os.UserConfigDir did not complete successfully. In that case
+		// there are no counters to upload, so we should just do nothing.
+		return false
+	}
+	tokenfile := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
 	const period = 24 * time.Hour
 
 	// A process acquires a token by successfully creating a
@@ -296,7 +290,7 @@ func acquireUploadToken(tokenfile string) (bool, error) {
 	fi, err := os.Stat(tokenfile)
 	if err == nil {
 		if time.Since(fi.ModTime()) < period {
-			return false, nil
+			return false
 		}
 		// There's a possible race here where two processes check the
 		// token file and see that it's older than the period, then the
@@ -307,16 +301,18 @@ func acquireUploadToken(tokenfile string) (bool, error) {
 		// the token to do rate limiting, not for correctness.
 		_ = os.Remove(tokenfile)
 	} else if !os.IsNotExist(err) {
-		return false, fmt.Errorf("statting token file: %v", err)
+		log.Printf("error acquiring upload taken: statting token file: %v", err)
+		return false
 	}
 
 	f, err := os.OpenFile(tokenfile, os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		if os.IsExist(err) {
-			return false, nil
+			return false
 		}
-		return false, fmt.Errorf("creating token file: %v", err)
+		log.Printf("error acquiring upload token: creating token file: %v", err)
+		return false
 	}
 	_ = f.Close()
-	return true, nil
+	return true
 }

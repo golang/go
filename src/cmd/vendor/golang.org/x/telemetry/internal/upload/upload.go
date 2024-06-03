@@ -61,11 +61,31 @@ func (u *uploader) uploadReport(fname string) {
 
 // try to upload the report, 'true' if successful
 func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
-	b := bytes.NewReader(buf)
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
 	fdate = fdate[len(fdate)-len("2006-01-02"):]
-	endpoint := u.uploadServerURL + "/" + fdate
 
+	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+	if _, err := os.Stat(newname); err == nil {
+		// Another process uploaded but failed to clean up (or hasn't yet cleaned
+		// up). Ensure that cleanup occurs.
+		_ = os.Remove(fname)
+		return false
+	}
+
+	// Lock the upload, to prevent duplicate uploads.
+	{
+		lockname := newname + ".lock"
+		lockfile, err := os.OpenFile(lockname, os.O_CREATE|os.O_EXCL, 0666)
+		if err != nil {
+			u.logger.Printf("Failed to acquire lock %s: %v", lockname, err)
+			return false
+		}
+		_ = lockfile.Close()
+		defer os.Remove(lockname)
+	}
+
+	endpoint := u.uploadServerURL + "/" + fdate
+	b := bytes.NewReader(buf)
 	resp, err := http.Post(endpoint, "application/json", b)
 	if err != nil {
 		u.logger.Printf("Error upload %s to %s: %v", filepath.Base(fname), endpoint, err)
@@ -85,7 +105,6 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 		return false
 	}
 	// Store a copy of the uploaded report in the uploaded directory.
-	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}
