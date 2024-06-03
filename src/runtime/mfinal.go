@@ -389,7 +389,10 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
-// call KeepAlive(p) after the call to syscall.Write.
+// call KeepAlive(p) after the call to syscall.Write. Note, there is no
+// difference between a free variable and method receiver in terms of
+// usage tracking and KeepAlive(p) may be needed for a method receiver
+// for the duration of the method.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
