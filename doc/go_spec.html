@@ -6804,15 +6804,43 @@ for u = range 256 {
 // invalid: 1e3 is a floating-point constant
 for range 1e3 {
 }
-<!-- TODO(gri) need better examples for range-over-func -->
-// print hello world
-f := func(yield func(string) bool) {
-	if yield("hello") {
-		yield("world")
+
+// fibo generates the Fibonacci sequence
+fibo := func(yield func(x int) bool) {
+	f0, f1 := 0, 1
+	for yield(f0) {
+		f0, f1 = f1, f0+f1
 	}
 }
-for word := range f {
-	println(word)
+
+// print the Fibonacci numbers below 1000:
+for x := range fibo {
+	if x >= 1000 {
+		break
+	}
+	fmt.Printf("%d ", x)
+}
+// output: 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+
+// iteration support for a recursive tree data structure
+type Tree[K cmp.Ordered, V any] struct {
+	left, right *Tree[K, V]
+	key         K
+	value       V
+}
+
+func (t *Tree[K, V]) walk(yield func(key K, val V) bool) bool {
+	return t == nil || t.left.walk(yield) && yield(t.key, t.value) && t.right.walk(yield)
+}
+
+func (t *Tree[K, V]) Walk(yield func(key K, val V) bool) {
+	t.walk(yield)
+}
+
+// walk tree t in-order
+var t Tree[string, int]
+for k, v := range t.Walk {
+	// process k, v
 }
 </pre>
 
