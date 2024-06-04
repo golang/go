@@ -268,7 +268,7 @@ func (oid OID) EqualASN1OID(other asn1.ObjectIdentifier) bool {
 			// the OID, but better safe than sorry.
 			return false
 		}
-		if v != other[i] {
+		if i >= len(other) || v != other[i] {
 			return false
 		}
 	}
