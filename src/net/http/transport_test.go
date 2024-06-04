@@ -6328,6 +6328,7 @@ func TestTransportClone(t *testing.T) {
 		GetProxyConnectHeader:  func(context.Context, *url.URL, string) (Header, error) { return nil, nil },
 		MaxResponseHeaderBytes: 1,
 		ForceAttemptHTTP2:      true,
+		HTTP2:                  &HTTP2Config{MaxConcurrentStreams: 1},
 		TLSNextProto: map[string]func(authority string, c *tls.Conn) RoundTripper{
 			"foo": func(authority string, c *tls.Conn) RoundTripper { panic("") },
 		},
