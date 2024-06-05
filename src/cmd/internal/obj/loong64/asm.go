@@ -1028,6 +1028,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ATRUNCFW, r0)
 			opset(ASQRTF, r0)
 			opset(ASQRTD, r0)
+			opset(AFCLASSF, r0)
+			opset(AFCLASSD, r0)
 
 		case AMOVVF:
 			opset(AMOVVD, r0)
@@ -1056,6 +1058,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMIND, r0)
 			opset(AFMAXF, r0)
 			opset(AFMAXD, r0)
+			opset(AFCOPYSGF, r0)
+			opset(AFCOPYSGD, r0)
 
 		case AAND:
 			opset(AOR, r0)
@@ -1884,6 +1888,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x211 << 15 // fmax.s
 	case AFMAXD:
 		return 0x212 << 15 // fmax.d
+	case AFCOPYSGF:
+		return 0x225 << 15 // fcopysign.s
+	case AFCOPYSGD:
+		return 0x226 << 15 // fcopysign.d
 	}
 
 	if a < 0 {
@@ -1952,6 +1960,10 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
+	case AFCLASSF:
+		return 0x450d << 10 // fclass.s
+	case AFCLASSD:
+		return 0x450e << 10 // fclass.d
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)

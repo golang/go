@@ -446,6 +446,14 @@ const (
 	AFMAXF
 	AFMAXD
 
+	// 3.2.1.7
+	AFCOPYSGF
+	AFCOPYSGD
+
+	// 3.2.1.8
+	AFCLASSF
+	AFCLASSD
+
 	ALAST
 
 	// aliases

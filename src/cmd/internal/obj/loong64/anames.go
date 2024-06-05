@@ -183,5 +183,9 @@ var Anames = []string{
 	"FMIND",
 	"FMAXF",
 	"FMAXD",
+	"FCOPYSGF",
+	"FCOPYSGD",
+	"FCLASSF",
+	"FCLASSD",
 	"LAST",
 }
