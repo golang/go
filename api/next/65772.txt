@@ -1,1 +1,0 @@
-pkg go/types, method (*Func) Signature() *Signature #65772

@@ -1,4 +1,0 @@
-pkg go/types, method (*Alias) Origin() *Alias #67143
-pkg go/types, method (*Alias) SetTypeParams([]*TypeParam) #67143
-pkg go/types, method (*Alias) TypeArgs() *TypeList #67143
-pkg go/types, method (*Alias) TypeParams() *TypeParamList #67143

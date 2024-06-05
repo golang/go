@@ -1,3 +1,0 @@
-pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
-pkg unique, method (Handle[$0]) Value() $0 #62483
-pkg unique, type Handle[$0 comparable] struct #62483

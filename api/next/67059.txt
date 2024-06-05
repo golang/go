@@ -1,1 +1,0 @@
-pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
