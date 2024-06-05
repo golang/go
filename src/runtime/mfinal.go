@@ -378,8 +378,9 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // the object is reachable until it is no longer required.
 // Objects stored in global variables, or that can be found by tracing
 // pointers from a global variable, are reachable. For other objects,
-// pass the object to a call of the [KeepAlive] function to mark the
-// last point in the function where the object must be reachable.
+// including receivers, pass the object to a call of the [KeepAlive]
+// function to mark the last point in the function where the object must
+// be reachable.
 //
 // For example, if p points to a struct, such as os.File, that contains
 // a file descriptor d, and p has a finalizer that closes that file
@@ -389,10 +390,7 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // closing p.d, causing syscall.Write to fail because it is writing to
 // a closed file descriptor (or, worse, to an entirely different
 // file descriptor opened by a different goroutine). To avoid this problem,
-// call KeepAlive(p) after the call to syscall.Write. Note, there is no
-// difference between a free variable and method receiver in terms of
-// usage tracking and KeepAlive(p) may be needed for a method receiver
-// for the duration of the method.
+// call KeepAlive(p) after the call to syscall.Write.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
