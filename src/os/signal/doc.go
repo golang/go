@@ -68,7 +68,7 @@ signals SIGTSTP, SIGTTIN, and SIGTTOU, in which case the system
 default behavior does not occur. It also applies to some signals that
 otherwise cause no action: SIGUSR1, SIGUSR2, SIGPIPE, SIGALRM,
 SIGCHLD, SIGCONT, SIGURG, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGWINCH,
-SIGIO, SIGPWR, SIGSYS, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
+SIGIO, SIGPWR, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
 SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
 used on the system. Note that not all of these signals are available
 on all systems.
