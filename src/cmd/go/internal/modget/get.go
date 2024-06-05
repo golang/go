@@ -113,6 +113,8 @@ The -x flag prints commands as they are executed. This is useful for
 debugging version control commands when a module is downloaded directly
 from a repository.
 
+For more about build flags, see 'go help build'.
+
 For more about modules, see https://golang.org/ref/mod.
 
 For more about using 'go get' to update the minimum Go version and
