@@ -16,6 +16,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"io"
+	"math/big"
 	"testing"
 	"testing/quick"
 )
@@ -217,7 +218,12 @@ func TestSignPKCS1v15WithPrivateKeySizeZero(t *testing.T) {
 	h := sha1.New()
 	h.Write([]byte("key"))
 	digest := h.Sum(nil)
-	_, err := SignPKCS1v15(nil, &PrivateKey{PublicKey: PublicKey{}}, crypto.SHA1, digest)
+	_, err := SignPKCS1v15(nil,
+		&PrivateKey{
+			PublicKey: PublicKey{
+				N: big.NewInt(0),
+			},
+		}, crypto.SHA1, digest)
 	if err == nil {
 		t.Error("expected error but got nil")
 	}
