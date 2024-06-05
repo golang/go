@@ -646,7 +646,7 @@
 (MOVBZreg (SRWconst x [s])) && mergePPC64AndSrwi(0xFF,s) != 0 => (RLWINM [mergePPC64AndSrwi(0xFF,s)] x)
 (MOVBZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFF,r)] y)
 (MOVHZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFF,r)] y)
-(MOVWZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
+(MOVWZreg (RLWINM [r] y)) && mergePPC64MovwzregRlwinm(r) != 0 => (RLWINM [mergePPC64MovwzregRlwinm(r)] y)
 (ANDconst [m] (RLWINM [r] y)) && mergePPC64AndRlwinm(uint32(m),r) != 0 => (RLWINM [mergePPC64AndRlwinm(uint32(m),r)] y)
 (SLDconst [s] (RLWINM [r] y)) && mergePPC64SldiRlwinm(s,r) != 0 => (RLWINM [mergePPC64SldiRlwinm(s,r)] y)
 (RLWINM [r] (MOVHZreg u)) && mergePPC64RlwinmAnd(r,0xFFFF) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,0xFFFF)] u)

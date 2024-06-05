@@ -10102,19 +10102,19 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWZreg (RLWINM [r] y))
-	// cond: mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0
-	// result: (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
+	// cond: mergePPC64MovwzregRlwinm(r) != 0
+	// result: (RLWINM [mergePPC64MovwzregRlwinm(r)] y)
 	for {
 		if v_0.Op != OpPPC64RLWINM {
 			break
 		}
 		r := auxIntToInt64(v_0.AuxInt)
 		y := v_0.Args[0]
-		if !(mergePPC64AndRlwinm(0xFFFFFFFF, r) != 0) {
+		if !(mergePPC64MovwzregRlwinm(r) != 0) {
 			break
 		}
 		v.reset(OpPPC64RLWINM)
-		v.AuxInt = int64ToAuxInt(mergePPC64AndRlwinm(0xFFFFFFFF, r))
+		v.AuxInt = int64ToAuxInt(mergePPC64MovwzregRlwinm(r))
 		v.AddArg(y)
 		return true
 	}
