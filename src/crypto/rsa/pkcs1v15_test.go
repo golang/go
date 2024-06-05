@@ -217,7 +217,7 @@ func TestSignPKCS1v15WithPrivateKeySizeZero(t *testing.T) {
 	h := sha1.New()
 	h.Write([]byte("key"))
 	digest := h.Sum(nil)
-	_, err := SignPKCS1v15(nil, &PrivateKey{}, crypto.SHA1, digest)
+	_, err := SignPKCS1v15(nil, &PrivateKey{PublicKey: PublicKey{}}, crypto.SHA1, digest)
 	if err == nil {
 		t.Error("expected error but got nil")
 	}
