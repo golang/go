@@ -3598,10 +3598,7 @@ func (srv *Server) onceSetNextProtoDefaults() {
 	// Enable HTTP/2 by default if the user hasn't otherwise
 	// configured their TLSNextProto map.
 	if srv.TLSNextProto == nil {
-		conf := &http2Server{
-			NewWriteScheduler: func() http2WriteScheduler { return http2NewPriorityWriteScheduler(nil) },
-		}
-		srv.nextProtoErr = http2ConfigureServer(srv, conf)
+		srv.nextProtoErr = http2ConfigureServer(srv, nil)
 	}
 }
 
